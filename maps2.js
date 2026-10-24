@@ -65,7 +65,7 @@ D.push({name:'Snowy Outpost',wallH:14,desc:'Cabins, radar tower, frozen lake',ic
     B.crate(x-1.5,z-1.5,1);B.box(x+2,0,z+1.6,1.6,.9,.8,0x5d4037,'planks');B.hedge(x-s*6,z+4,3,1.4,1.5,0x2f5d3a)}
    // watchtower with ladder at spawn side
    const wx=s*40;for(const a of[-1.2,1.2])for(const b of[-1.2,1.2])B.box(wx+a,0,b,.3,6,.3,log,'planks',{solid:false});B.box(wx,0,0,1,6,1,log,'planks');slab(B,wx,6,0,3.6,3.6,0x8d6e63,'planks');
-   for(const[a,b,w,d]of[[0,1.7,3.6,.2],[0,-1.7,3.6,.2],[-s*1.7,0,.2,3.6]])B.box(wx+a,6,b,w,1,d,log,'planks',{gy:6});B.ladder(wx-s*.5,0,0,6,s<0?'x+':'x-');B.spot(wx,6,0);
+   for(const[a,b,w,d]of[[0,1.7,3.6,.2],[0,-1.7,3.6,.2],[-s*1.7,0,.2,3.6]])B.box(wx+a,6,b,w,1,d,log,'planks',{gy:6});B.box(wx+s*1.7,0,0,.2,6,1.2,log,'planks',{shadow:false});B.ladder(wx+s*1.85,0,0,6,s<0?'x-':'x+');B.spot(wx,6,0);
    sandbags(B,s*24,-4,1,4);sandbags(B,s*24,4,1,4);for(const z of[-26,26])B.barrel(s*22,z,0x2d6a4f);B.box(s*18,0,s*-20,6,2.4,2.4,0x4a6572,'metal',{us:.6})}
   // radar tower (centre north): 2 platforms, ladders
   const rx=0,rz=26;for(const a of[-2,2])for(const b of[-2,2])B.box(rx+a,0,rz+b,.35,10,.35,0x95a5a6,'metal',{solid:false});B.box(rx,0,rz,1.4,10,1.4,0x7f8c8d,'metal');
@@ -155,7 +155,7 @@ D.push({name:'Oil Refinery',wallH:14,desc:'Tanks, catwalks, pipes',icon:'🛢️
    for(const x of[-10,10]){B.cyl(x,.7,z-2.2,.15,.5,0xc0392b,'metal',{solid:false,shadow:false})}}
   // flare stack + distillation column with ladder (tall perch)
   B.cyl(-30,0,24,.9,16,0x95a5a6,'metal',{seg:12});B.glow(-30,16,24,.5,.8,.5,0xff8c2a);
-  B.cyl(30,0,-24,1.8,10,0xbdc3c7,'metal',{seg:14});B.ladder(31.55,-24,0,8,'x+');slab(B,30,8,-24,4.4,4.4,0x7f8c8d,'metal');for(const[a,b,w,d]of[[0,2.1,4.4,.15],[0,-2.1,4.4,.15],[-2.1,0,.15,4.4]])B.box(30+a,8,-24+b,w,1,d,0xf1c40f,'metal',{gy:8,shadow:false});B.spot(30,8,-24);
+  B.cyl(30,0,-24,1.8,10,0xbdc3c7,'metal',{seg:14});B.box(32.1,0,-24,.2,8,1.2,0x7f8c8d,'metal',{shadow:false});B.ladder(32.25,-24,0,8,'x+');slab(B,30,8,-24,4.4,4.4,0x7f8c8d,'metal');for(const[a,b,w,d]of[[0,2.1,4.4,.15],[0,-2.1,4.4,.15],[-2.1,0,.15,4.4]])B.box(30+a,8,-24+b,w,1,d,0xf1c40f,'metal',{gy:8,shadow:false});B.spot(30,8,-24);
   // spawns: offices + containers + trucks; control room on stilts with stairs
   for(const s of[-1,1]){room(B,s*38,0,6,10,3.2,0xecf0f1,'plaster',s<0?'e':'w');B.ladder(s*34.85,-3,0,3.5,s<0?'x+':'x-');B.spot(s*38,3.5,0);
    B.container(s*28,-14,1,s<0?0x2e86de:0xc0392b);B.container(s*28,14,1,s<0?0x27ae60:0xf39c12);B.container(s*28,14,1,0x8e44ad,2.6);B.ladder(s*28-s*1.3,17.2,0,5.2,'z+',0x34495e);B.spot(s*28,5.2,14);
