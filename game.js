@@ -1050,7 +1050,7 @@ const FS={api:!!(document.documentElement.requestFullscreen||document.documentEl
  standalone:matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,
  iphone:/iPhone|iPod/.test(navigator.userAgent),off:LS('fsOff')==='1'};
 const isFS=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
-function goFS(force){if(FS.standalone||isFS()||!FS.api||(FS.off&&!force))return;if(!force&&!isTouch&&!inGame)return;const d=document.documentElement;
+function goFS(force){if(FS.iphone||FS.standalone||isFS()||!FS.api||(FS.off&&!force))return;if(!force&&!isTouch&&!inGame)return;const d=document.documentElement;
  try{const r=(d.requestFullscreen?d.requestFullscreen({navigationUI:'hide'}):d.webkitRequestFullscreen());Promise.resolve(r).then(()=>{try{screen.orientation?.lock?.('landscape')?.catch?.(()=>{})}catch(e){}}).catch(()=>{})}catch(e){}}
 window.__hsz.FS=FS;window.__hsz.goFS=goFS;
 addEventListener('pointerup',e=>{if(isTouch)goFS()},{capture:true});
@@ -1062,4 +1062,4 @@ if(FS.iphone&&!FS.standalone&&LS('a2hs')!=='1'){const o=document.createElement('
 <p>iPhone Safari keeps its bars on screen. Add HeadShotz to your Home Screen to play with no bars:</p>
 <ol><li><span class="a2i">⬆️</span><span>Tap the <b>Share</b> button (square with an arrow) in Safari's toolbar</span></li><li><span class="a2i">➕</span><span>Scroll and tap <b>Add to Home Screen</b></span></li><li><span class="a2i">🎯</span><span>Open <b>HeadShotz</b> from your Home Screen</span></li></ol>
 <div class="row"><button class="pill yellow" id="a2ok">GOT IT</button><button class="pill" id="a2skip">PLAY IN SAFARI</button></div><label><input type="checkbox" id="a2never" checked> Don't show again</label></div>`;
- document.body.appendChild(o);const close=()=>{if($('a2never').checked)LSS('a2hs','1');o.remove()};$('a2ok').onclick=close;$('a2skip').onclick=close}
+ document.body.appendChild(o);const close=e=>{e&&e.preventDefault();e&&e.stopPropagation();if($('a2never').checked)LSS('a2hs','1');o.style.opacity='0';o.style.transition='opacity .25s';setTimeout(()=>o.remove(),450)};$('a2ok').onclick=close;$('a2skip').onclick=close}
