@@ -29,8 +29,7 @@ export function makeCharacter(teamCol,name,id,tagCol,outfit){const h=hash(id);co
  const aim=new THREE.Group();aim.position.set(0,1.36,0);P=[];
  limb(P,[.22,0,0],[.21,-.2,-.16],.06,.055,teamCol);limb(P,[.21,-.2,-.16],[.07,-.12,-.36],.05,.045,teamCol);bx(P,.07,.08,.08,.06,-.12,-.39,glove);
  limb(P,[-.22,0,0],[-.2,-.18,-.25],.06,.055,teamCol);limb(P,[-.2,-.18,-.25],[-.02,-.08,-.56],.05,.045,teamCol);bx(P,.07,.07,.09,-.01,-.08,-.58,glove);
- bx(P,.06,.08,.5,.03,-.06,-.5,0x2b2d30);bx(P,.03,.03,.25,.03,-.05,-.86,0x1a1a1a);bx(P,.04,.12,.05,.03,-.15,-.42,0x1f2023,-.2);bx(P,.04,.07,.18,.03,-.07,-.18,0x2b2d30);bx(P,.03,.04,.1,.03,.0,-.5,0x111111);
- aim.add(mesh(P));rig.add(aim);
+ aim.add(mesh(P));const gunMount=new THREE.Group();gunMount.position.set(.055,-.085,-.4);aim.add(gunMount);rig.add(aim);
  // legs
  const legs=[];for(const s of[-1,1]){const th=new THREE.Group();th.position.set(s*.1,.9,0);P=[];bx(P,.15,.44,.17,0,-.2,0,pants);bx(P,.1,.12,.04,s*.05,-.18,-.09,dark);th.add(mesh(P));
   const sh=new THREE.Group();sh.position.set(0,-.42,0);P=[];bx(P,.13,.36,.14,0,-.18,0,pants);bx(P,.14,.1,.05,0,-.02,-.075,0x3a3f45);bx(P,.14,.13,.26,0,-.36,-.04,boot);bx(P,.145,.03,.27,0,-.415,-.04,0x111111);
@@ -39,7 +38,7 @@ export function makeCharacter(teamCol,name,id,tagCol,outfit){const h=hash(id);co
  const cv=document.createElement('canvas');cv.width=256;cv.height=64;const x=cv.getContext('2d');x.font='bold 38px system-ui,sans-serif';x.textAlign='center';
  x.lineWidth=8;x.strokeStyle='rgba(0,0,0,.85)';x.strokeText(name,128,46);x.fillStyle='#'+new THREE.Color(tagCol??teamCol).getHexString();x.fillText(name,128,46);
  const tg=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthWrite:false,transparent:true}));tg.scale.set(1.5,.375,1);tg.position.y=2.25;root.add(tg);
- root.userData={rig,head,aim,legs,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1)};return root}
+ root.userData={rig,head,aim,gunMount,legs,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1)};return root}
 // state: {speed, air, slide, pitch, dt}
 export function animate(m,st,dt){const u=m.userData;const sp=Math.min(st.speed,10);u.ph+=dt*(2.2+sp*1.25);
  const run=Math.min(1,sp/8),walk=Math.min(1,sp/2.5);const amp=(.35+.45*run)*walk;const s=Math.sin(u.ph);

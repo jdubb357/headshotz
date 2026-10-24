@@ -6,9 +6,9 @@ function Builder(){const T={},cols=[],shadows=[],glows=[];
  const B={T,cols,shadows,glows,
   // axis aligned box, y = bottom
   box(x,y,z,w,h,d,c,tex='concrete',o={}){add(tex,{g:G('box',w,h,d),p:[x,y+h/2,z],c,uv:o.local?'local':undefined,us:o.us,gy:o.gy??0,ao:o.ao});
-   if(o.solid!==false)cols.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2});if(o.shadow!==false&&y<.06&&w*d>.2)shadows.push([x,z,w+.55,d+.55]);return B},
+   if(o.solid!==false)cols.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2,s:tex});if(o.shadow!==false&&y<.06&&w*d>.2)shadows.push([x,z,w+.55,d+.55]);return B},
   part(tex,pt,solid){add(tex,pt);if(solid)cols.push(solid);return B},
-  cyl(x,y,z,r,h,c,tex='metal',o={}){add(tex,{g:G('cyl',r,o.r2??r,h,o.seg||10),p:[x,y+h/2,z],c,us:o.us,gy:o.gy??0,ao:o.ao});if(o.solid!==false){const k=r*.85;cols.push({x0:x-k,x1:x+k,y0:y,y1:y+h,z0:z-k,z1:z+k})}if(o.shadow!==false&&y<.06)shadows.push([x,z,r*2+.5,r*2+.5]);return B},
+  cyl(x,y,z,r,h,c,tex='metal',o={}){add(tex,{g:G('cyl',r,o.r2??r,h,o.seg||10),p:[x,y+h/2,z],c,us:o.us,gy:o.gy??0,ao:o.ao});if(o.solid!==false){const k=r*.85;cols.push({x0:x-k,x1:x+k,y0:y,y1:y+h,z0:z-k,z1:z+k,s:tex})}if(o.shadow!==false&&y<.06)shadows.push([x,z,r*2+.5,r*2+.5]);return B},
   glow(x,y,z,w,h,d,c){glows.push({g:G('box',w,h,d),p:[x,y+h/2,z],c});return B},
   stairs(x,y,z,dir,n,sh,run,width,c,tex='concrete'){for(let i=0;i<n;i++){const h=sh*(i+1),off=run*i+run/2;const o={gy:y};
    if(dir==='x+')B.box(x+off,y,z,run,h,width,c,tex,o);if(dir==='x-')B.box(x-off,y,z,run,h,width,c,tex,o);if(dir==='z+')B.box(x,y,z+off,width,h,run,c,tex,o);if(dir==='z-')B.box(x,y,z-off,width,h,run,c,tex,o)}return B},
@@ -228,7 +228,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0]);
  if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
- return cache[i]={def:d,group,sky,water,grassDefs:d.grass||[],cols:B.cols,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ return cache[i]={def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}
