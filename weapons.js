@@ -555,7 +555,7 @@ function FLASHC(){metal();cyl(.026,.1,0,0,0,C.blk,{ax:'y',seg:18});if(det())for(
 function MEDKIT(){matte();rbox(.12,.08,.045,0,0,0,0xf2f2f2,.01);rbox(.122,.06,.016,0,0,0,C.red,.003);rbox(.122,.016,.047,0,0,0,C.red,.003);rbox(.05,.012,.01,0,.046,0,C.blk,.004);return{util:1}}
 const BUILD={
  ar:()=>AR({hg:'mlok',hgL:.25,bl:.37,optic:'t2',stock:'sopmod'}),
- m4:()=>AR({hg:'quad',hgL:.18,bl:.36,fsb:true,optic:'holo',stock:'m4'}),
+ m4:()=>AR({hg:'quad',hgL:.18,bl:.36,fsb:false,optic:'holo',stock:'m4'}),
  dmr:()=>AR({big:1,hg:'sr25',hgL:.32,bl:.5,optic:'acog',stock:'prs',mag:'sr25',muz:'brake',bipod:1}),
  bullpup:AUG,battle:G3,ak47:()=>AK(),scar:SCAR,
  smg:UZI,vector:EVO,pdw:BIZON,mp5:MP5,mp7:MP7,kriss:VECTOR,p90:P90,

@@ -414,7 +414,7 @@ function checkRound(){if(H.phase!=='play')return;let win=null;
 function endRound(win){H.phase='roundEnd';if(win!=='draw')H.score[win]=(H.score[win]||0)+1;const champ=win!=='draw'&&H.score[win]>=WIN_ROUNDS;
  const nm=H.mode==='ffa'?(H.players[win]?.name||'?'):(win==='A'?'BLUE TEAM':win==='B'?'RED TEAM':'');
  bcast({t:'roundEnd',win,name:nm,score:H.score,match:champ});sendSB();
- setTimeout(()=>{if(champ){H.phase='lobby';for(const p of plist())p.vote=-1;sendLobby()}else startRound()},champ?7000:3500)}
+ setTimeout(()=>{if(champ){if(H.phase!=='roundEnd')return;H.phase='lobby';for(const p of plist())p.vote=-1;sendLobby()}else startRound()},champ?(H.offline?13500:13500):3500)}
 function hostTick(dt){H.t+=dt;
  if(H.auto&&H.phase==='lobby'&&H.autoAt){const humans=plist().filter(p=>!p.bot).length;if(humans>=H.auto.expect||H.t>H.autoAt){H.autoAt=0;startMatch()}}
  if(H.phase==='count'&&H.t>=H.next){H.phase='play';bcast({t:'go'})}
@@ -458,15 +458,15 @@ function clientHandle(m){switch(m.t){
  case 'start':startGame(m);break;
  case 'join':addRemote(m.id,{name:m.name,team:m.team,color:m.color,o:m.o,sk:m.sk});renderSB();feed(`${m.name} joined`);break;
  case 'bye':{const q=C.players[m.id];if(q){if(q.model)scene.remove(q.model);feed(q.name+' left');delete C.players[m.id];delete C.sb[m.id];renderSB()}break}
- case 'round':{C.round=m.round;C.score=m.score;C.phase=m.count?'count':'play';for(const n of nades)scene.remove(n.m);nades=[];smokes.length=0;fires.length=0;
+ case 'round':{C.round=m.round;for(const k in C.players)C.players[k].hp=100;hideEnd();C.score=m.score;C.phase=m.count?'count':'play';for(const n of nades)scene.remove(n.m);nades=[];smokes.length=0;fires.length=0;
   for(const id in C.players){const q=C.players[id];const s=m.spawns[id];if(s){q.alive=true;q.hp=100;q.rp.set(s[0],0,s[1]);q.tp.copy(q.rp);q.yaw=q.tyaw=s[2];if(q.model){q.model.userData.dead=0;q.model.visible=true}}}
   if(m.spawns[me.id])spawnMe(m.spawns[me.id]);else if(!m.count){me.alive=false;center('Joined mid-round\nYou spawn next round')}
   if(m.count){me.frozen=true;let n=m.count;const tick=()=>{if(C.phase!=='count')return;center('ROUND '+C.round+'\n'+n);SFX.beep(600);n--;if(n>0)setTimeout(tick,1000)};tick()}renderSB();break}
- case 'go':C.phase='play';me.frozen=false;center('FIGHT!',800);SFX.beep(1200);break;
+ case 'go':C.phase='play';me.frozen=false;center('FIGHT!',800);SFX.beep(1200);showRL(false);break;
  case 'spawn':{const q=C.players[m.id];if(q){q.alive=true;q.hp=100;q.rp.set(m.s[0],0,m.s[1]);q.tp.copy(q.rp);if(q.model){q.model.userData.dead=0;q.model.visible=true}}if(m.id===me.id){spawnMe(m.s);me.frozen=false}break}
  case 'snap':C.roundT=m.rt;for(const a of m.p){const q=C.byOrd[a[0]];if(!q||q.id===me.id)continue;q.tp.set(a[1]/100,a[2]/100,a[3]/100);q.tyaw=a[4]/1000;q.tpitch=a[5]/100;q.flags=a[7]|0;q.wid=a[6]|0;
   const al=!!a[8];if(al&&!q.alive&&q.model){q.model.userData.dead=0;q.model.visible=true}if(!al&&q.alive&&q.model&&!q.model.userData.dead)q.model.userData.dead=.001;q.alive=al}break;
- case 'hp':{const q=C.players[m.id];if(q){if(m.hp<q.hp&&q.model)q.model.userData.flinch=1;q.hp=m.hp}if(m.id===me.id){if(m.hp<me.hp){SFX.hurt();flashV();shake=Math.min(1,shake+.5)}me.hp=m.hp;updHP()}break}
+ case 'hp':{const q=C.players[m.id];if(q){if(m.hp<q.hp&&q.model)q.model.userData.flinch=1;q.hp=m.hp;sbDirty=1}if(m.id===me.id){if(m.hp<me.hp){SFX.hurt();flashV();shake=Math.min(1,shake+.5)}me.hp=m.hp;updHP()}break}
  case 'kill':{const k=C.players[m.k],v=C.players[m.v];if(m.k===me.id&&m.v!==me.id&&!C.practice)addDia(m.head?15:10,m.head?'headshot':'kill');if(v){v.alive=false;if(v.model&&!v.model.userData.dead)v.model.userData.dead=.001}
   const wn=m.w==='fall'?'fell':m.w==='molotov'?'🔥':W[m.w]?W[m.w].name:'';
   if(m.w==='fall'||m.k===m.v)feed(`${v?.name||'?'} ${m.w==='fall'?'fell off':'eliminated themselves'}`);else feed(`<b style="color:${hex(k?.color||0xffffff)}">${esc(k?.name||'?')}</b> <span class="k">[${esc(wn)}${m.head?' 🎯':''}]</span> <b style="color:${hex(v?.color||0xffffff)}">${esc(v?.name||'?')}</b>`,true);
@@ -474,7 +474,7 @@ function clientHandle(m){switch(m.t){
   if(m.k===me.id&&m.v!==me.id){SFX.kill();center(m.head?'🎯 HEADSHOT!':'ELIMINATED '+(v?.name||''),1000)}break}
  case 'roundEnd':{C.phase='roundEnd';C.score=m.score;me.frozen=true;const mine=C.mode==='ffa'?m.win===me.id:m.win===C.players[me.id]?.team;
   if(!C.practice){if(mine)addDia(25,'round win');if(m.match)addDia(mine?50:15,mine?'match win':'match played')}
-  center(m.win==='draw'?'DRAW':(m.match?`${m.name}\nWINS THE MATCH!\n💎 +${C.matchDia||0} diamonds this match`:`${m.name} WINS THE ROUND`)+(mine?' 🏆':''),m.match?6000:3300);if(m.match)setTimeout(()=>afterMatch(),6500);if(mine)SFX.kill();renderSB();break}
+  center(m.win==='draw'?'DRAW':(m.match?`${m.name}\nWINS THE MATCH!\n💎 +${C.matchDia||0} diamonds this match`:`${m.name} WINS THE ROUND`)+(mine?' 🏆':''),m.match?6000:3300);if(m.match)setTimeout(()=>showEnd(m,mine),2600);else showRL(true);if(mine)SFX.kill();renderSB();break}
  case 'fx':{const a=new THREE.Vector3(...m.a),b=new THREE.Vector3(...m.b);addTracer(a,b);fx.sprite({p:a,tex:TX.flash,add:true,s0:.4,s1:.6,life:.05,op:1,color:0xffd080});
   const d=camera.position.distanceTo(a);if(d<120)SFX.gun(m.w,Math.max(.06,1-d/120)*.75,panOf(a),d);const dir=b.clone().sub(a).normalize();const t=rayWorld(a,dir,a.distanceTo(b)+.5);if(t<a.distanceTo(b)+.4)impact(a.clone().addScaledVector(dir,t),hitN.clone());break}
  case 'nade':spawnNade(m.id,m.k||'grenade',new THREE.Vector3(...m.p),new THREE.Vector3(...m.v));break;
@@ -495,7 +495,7 @@ function faceYaw(x,z){const o=new THREE.Vector3(x,1.6,z),d=new THREE.Vector3();c
  return Math.hypot(x,z)<1?best:best}
 function spawnMe(s){me.pos.set(s[0],0,s[1]);me.vel.set(0,0,0);me.yaw=faceYaw(s[0],s[1]);me.pitch=0;me.hp=100;me.alive=true;me.slideT=0;me.reloadT=0;me.killer=null;recoilP=recoilY=0;
  me.ammo=me.load.slice(0,3).map(w=>magOf(w));me.utilN=W[me.load[3]].count;me.cur=0;me.zoomT=0;me.zoomOn=false;updZoomBtn();setViewModel(me.load[0]);me.switchT=.35;updHP();buildSlots()}
-function leaveToLobby(){inGame=false;paused=false;$('hud').classList.remove('paused');$('hud').classList.add('hidden');$('pause').classList.add('hidden');for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};
+function leaveToLobby(){hideEnd();inGame=false;paused=false;$('hud').classList.remove('paused');$('hud').classList.add('hidden');$('pause').classList.add('hidden');for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};
  for(const n of nades)scene.remove(n.m);nades=[];if(document.pointerLockElement)document.exitPointerLock();resize()}
 // ---------------- HUD ----------------
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -504,7 +504,8 @@ function feed(t,html){const d=document.createElement('div');if(html)d.innerHTML=
 function updHP(){const h=Math.max(0,me.hp);$('hpFill').style.width=h+'%';$('hpFill').style.background=h>60?'#2ee59d':h>30?'#ffd23f':'#ff5a6b';$('hpTxt').textContent=Math.ceil(h)}
 function flashV(){const v=$('vign');v.style.transition='none';v.style.opacity=.75;requestAnimationFrame(()=>{v.style.transition='opacity .6s';v.style.opacity=0})}
 function chip(q){const s=C.sb[q.id]||{k:0,pts:0,alive:q.alive};const rw=C.mode==='ffa'&&C.score[q.id]?`<i>★${C.score[q.id]}</i>`:'';
- return `<div class="chip${q.id===me.id?' me':''}${s.alive?'':' dead'}" style="--c:${hex(q.color)}"><b>${esc(q.name)}</b>${rw}<span>${s.pts}</span></div>`}
+ const hp=s.alive?Math.max(0,Math.min(100,q.id===me.id?me.hp:(q.hp??100))):0;
+ return `<div class="chip${q.id===me.id?' me':''}${s.alive?'':' dead'}" style="--c:${hex(q.color)}"><b>${esc(q.name)}</b>${rw}<span>${s.pts}</span><u style="width:${hp}%"></u></div>`}
 function renderSB(){if(!inGame)return;const ps=Object.values(C.players);let h='';
  if(C.mode==='ffa'){ps.sort((a,b)=>(C.sb[b.id]?.pts||0)-(C.sb[a.id]?.pts||0));h=`<div class="rounds"><small>R${C.round||1}</small></div>`+ps.map(chip).join('')}
  else{const A=ps.filter(p=>p.team==='A'),B=ps.filter(p=>p.team==='B');h=A.map(chip).join('')+`<div class="rounds"><span class="a">${C.score.A||0}</span><small>R${C.round||1}<br>FT${WIN_ROUNDS}</small><span class="b">${C.score.B||0}</span></div>`+B.map(chip).join('')}
@@ -932,7 +933,7 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
   const map=bm[Math.random()*bm.length|0];const alive=s.ids.filter(id=>this.cl[id]);if(!alive.length)return;const code=genCode();const teams={};for(const id of s.teams.A)teams[id]='A';for(const id of s.teams.B)teams[id]='B';
   this.toSel(s,{t:'go',code,map,mode:s.mode,host:alive[0],teams,expect:alive.length})}}
 // ---------- hub client ----------
-let hubVis=null,padLabels={},myPads=null,hubSel=null,hubPosT=0,brCb=null;
+let lastPad=null;let hubVis=null,padLabels={},myPads=null,hubSel=null,hubPosT=0,brCb=null;
 function enterHub(){if(qLevel()==='low'&&false)return;audioInit();C.hub=true;menuMsg('Connecting to the hub…');hubKind='player';hubLink('player')}
 function hubRecv(m){switch(m.t){
  case 'hw':hubOrd=m.you;if(hubKind==='player'&&C.hub)enterHubWorld(m);if(brCb)hubSend({t:'list'});if(regIv&&H.pub)hubSend({t:'reg',room:roomInfo()});break;
@@ -949,6 +950,7 @@ function enterHubWorld(m){for(const id in C.players)if(C.players[id].model)scene
  loadMap(HUB_I);buildPadVis();for(const s of['menu','lobby','arsenal','settings','browser'])$(s).classList.add('hidden');
  $('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);$('hubUI').classList.remove('hidden');document.body.classList.add('hub');
  inGame=true;resize();const a=Math.random()*6.28;me.pos.set(Math.cos(a)*2.5,0,4+Math.sin(a)*2);me.vel.set(0,0,0);me.yaw=Math.PI;me.pitch=-.05;me.hp=100;me.alive=true;me.frozen=false;me.id='hub-me';
+ if(sessionStorage.getItem('hsz_requeue')){sessionStorage.removeItem('hsz_requeue');try{const lp=JSON.parse(sessionStorage.getItem('hsz_pad')||'null');const P=lp&&HUB_PADS.find(p=>p.k===lp[0]);const c=P&&padCircles(P).find(c=>c.side===lp[1]);if(c){me.pos.set(c.x,0,c.z);center('⚔️ Re-queued — waiting for players',2500)}}catch(e){}}
  setViewModel(me.load[0]);buildSlots();updHP();for(const r of m.players||[]){hubRecv({t:'hj',p:[r[0],r[1],r[2]]});const q=C.players['h'+r[0]];if(q){q.tp.set(r[3],r[4],r[5]);q.rp.copy(q.tp);q.seen=1}}
  center('🏠 HEADSHOTZ HUB\nWalk onto a glowing circle to queue',3500);updHubInfo()}
 function updHubInfo(){const n=Object.keys(C.players).length+1;$('hubInfo').innerHTML=`<b>HUB #${hubN}</b> · ${n} online · 💎 <b class="diaBal">${PROG.dia}</b>${hubSrv?' · <small>you host the hub</small>':''}`}
@@ -965,7 +967,7 @@ function buildPadVis(){if(hubVis){scene.remove(hubVis.g)}const g=new THREE.Group
  scene.add(g);updPadLabels()}
 function updPadLabels(){if(!hubVis)return;for(const k in hubVis.labels){const L=hubVis.labels[k];const n=myPads&&myPads[L.p.k]?(myPads[L.p.k][L.c.side]||[]).length:0;const side=L.c.side==='A'?'BLUE':L.c.side==='B'?'RED':'FFA';
   const key=n+'';if(L.k===key)continue;L.k=key;L.spr.material.map.dispose();L.spr.material.map=labelTex([MODES[L.p.k][0].split(' ')[0]+' '+side,`${n}/${L.p.n}`],L.col);L.spr.material.needsUpdate=true}
- let mine=null;if(myPads)for(const k in myPads)for(const s in myPads[k])if(myPads[k][s].includes(hubOrd))mine=[k,s];
+ let mine=null;if(myPads)for(const k in myPads)for(const s in myPads[k])if(myPads[k][s].includes(hubOrd))mine=[k,s];if(mine)lastPad=mine;
  $('padInfo').textContent=mine?`Queued: ${MODES[mine[0]][0]} · ${mine[1]==='A'?'BLUE':mine[1]==='B'?'RED':'FFA'} side — waiting for players… step off to leave`:''}
 function updHub(dt,now){if(C.phase!=='hub')return;hubPosT+=dt;if(hubPosT>=.125){hubPosT=0;hubSend({t:'pos',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(2)]})}
  if(hubVis)for(const r of hubVis.rings){const inside=Math.hypot(me.pos.x-r.c.x,me.pos.z-r.c.z)<r.c.r;const s=1+Math.sin(now/300+r.c.x)*.015;r.ring.scale.setScalar(s);r.fill.material.opacity=inside?.34+Math.sin(now/150)*.08:.14}
@@ -982,10 +984,26 @@ function renderMapSel(){if(!hubSel)return;$('mapSelSub').textContent=`${MODES[hu
 $('mapSelList').addEventListener('click',e=>{const b=e.target.closest('[data-ms]');if(!b||!hubSel)return;hubSel.mine=+b.dataset.ms;hubSend({t:'vote',sid:hubSel.sid,map:hubSel.mine});SFX.swap();renderMapSel()});
 function startHubMatch(m){clearInterval(mapSelIv);$('mapSelT').textContent='GO';center(`${MAPS[m.map].icon} ${MAPS[m.map].name}\nStarting ${MODES[m.mode][0]}…`,3000);
  const auto={mode:m.mode,map:m.map,teams:m.teams,expect:m.expect,fromHub:1};
- setTimeout(()=>{$('mapSel').classList.add('hidden');hubUnlink();leaveHubWorld();C.fromHub=true;sessionStorage.setItem('hsz_fromHub','1');
+ setTimeout(()=>{$('mapSel').classList.add('hidden');hubUnlink();leaveHubWorld();C.fromHub=true;sessionStorage.setItem('hsz_fromHub','1');sessionStorage.setItem('hsz_pad',JSON.stringify(lastPad));
   if(m.host===hubSelfId)createRoom(m.code,auto);else setTimeout(()=>joinRoom(m.code,auto),900+Math.random()*400)},900)}
 function leaveHubWorld(){C.hub=false;document.body.classList.remove('hub');$('hubUI').classList.add('hidden');if(hubVis){scene.remove(hubVis.g);hubVis=null}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};inGame=false;C.phase='lobby';$('hud').classList.add('hidden')}
 function setupAuto(){const a=H.auto;H.mode=a.mode;H.fill=true;H.pub=false;H.diff='normal';H.autoAt=H.t+12;sendLobby()}
+let sbDirty=0;setInterval(()=>{if(sbDirty&&inGame){sbDirty=0;renderSB()}},250);
+// between-round loadout pick (like duel games: swap weapons while the next round loads)
+function showRL(on){$('rlBtn').classList.toggle('hidden',!on||C.hub||!inGame)}
+$('rlBtn').onclick=()=>{if(typeof openArsenal==='function')openArsenal()};
+// end-of-match results screen: VICTORY/DEFEAT, score, your stats, diamonds, rematch / lobby
+let endIv=null;function hideEnd(){$('endScr').classList.add('hidden');document.body.classList.remove('endOn');if(endIv){clearInterval(endIv);endIv=null}}
+function showEnd(m,mine){showRL(false);const s=C.sb[me.id]||{k:0,d:0,hs:0,pts:0};const sc=C.score||{};
+ const ffa=C.mode==='ffa';$('endT').textContent=mine?'VICTORY':'DEFEAT';$('endScr').classList.toggle('win',!!mine);
+ $('endScore').innerHTML=ffa?`<b>${esc(m.name)}</b> wins`:`<span class="a">${sc.A||0}</span> – <span class="b">${sc.B||0}</span>`;
+ const ps=Object.values(C.players).map(q=>[q,C.sb[q.id]||{k:0,d:0,pts:0}]).sort((a,b)=>b[1].pts-a[1].pts);const mvp=ps[0];
+ $('endStats').innerHTML=`<div><b>${s.k}</b><small>KILLS</small></div><div><b>${s.d}</b><small>DEATHS</small></div><div><b>${s.hs||0}</b><small>HEADSHOTS</small></div><div><b>💎 ${C.matchDia||0}</b><small>EARNED</small></div>`+(mvp?`<p>⭐ MVP: <b style="color:${hex(mvp[0].color)}">${esc(mvp[0].name)}</b></p>`:'');
+ let t=12;const lb=$('endLobby');lb.textContent=`LOBBY (${t})`;$('endScr').classList.remove('hidden');document.body.classList.add('endOn');if(document.pointerLockElement)document.exitPointerLock();
+ endIv=setInterval(()=>{t--;lb.textContent=`LOBBY (${t})`;if(t<=0){hideEnd();endGo(false)}},1000)}
+function endGo(again){hideEnd();if(C.fromHub||sessionStorage.getItem('hsz_fromHub')){sessionStorage.removeItem('hsz_fromHub');if(again)sessionStorage.setItem('hsz_requeue','1');location.href=hubUrl();return}
+ if(isHost&&H.phase==='roundEnd'){H.phase='lobby';for(const p of plist())p.vote=-1;sendLobby()}}
+$('endAgain').onclick=()=>endGo(true);$('endLobby').onclick=()=>endGo(false);
 function afterMatch(){if(C.fromHub||sessionStorage.getItem('hsz_fromHub')){sessionStorage.removeItem('hsz_fromHub');location.href=hubUrl()}}
 // ---------- public rooms: registry, browser, quick join ----------
 let regIv=null;
@@ -1011,4 +1029,4 @@ renderLoadoutMini();resize();requestAnimationFrame(loop);
 addEventListener('keydown',e=>{if(e.code==='KeyF'&&inGame&&!paused&&me.alive&&me.reloadT<=0&&VA.inspect<=0&&me.zoomT<.1)VA.inspect=2.6});
 addEventListener('keydown',e=>{if(e.code==='KeyE'&&C.phase==='hub'&&!$('stationBtn').classList.contains('hidden'))useStation($('stationBtn').dataset.k)});
 {const q=new URLSearchParams(location.search);if(q.get('hub'))setTimeout(enterHub,50);else if(q.get('offline'))setTimeout(()=>$('offlineBtn').click(),50)}
-window.__hsz={VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+window.__hsz={endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
