@@ -5,7 +5,10 @@ import {Post} from './post.js';
 import {TURN} from './ice.js';
 import {MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles} from './maps.js';
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts} from './weapons.js';
-import {makeCharacter,animate} from './chars.js';
+import {makeCharacter,animate,LOOKS} from './chars.js';
+// player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
+export const PCL={soldier:{n:'Soldier',p:0,ic:'🪖',perk:'No perk — the classic all-rounder.'},scout:{n:'Scout',p:700,ic:'🎯',perk:'Higher jump · slide recharges 2× faster.',jump:9.6,slideCd:.5},engineer:{n:'Engineer',p:800,ic:'🔧',perk:'+1 grenade / utility each life.',util:1},ninja:{n:'Ninja',p:900,ic:'🥷',perk:'+12% move speed · quiet footsteps · 85 HP.',spd:1.12,hp:85,quiet:1},medic:{n:'Medic',p:1100,ic:'⛑️',perk:'Revives teammates in 3 s (not 5) · regen 3 HP/s after 4 s unhurt.',rev:3,regen:3},juggernaut:{n:'Juggernaut',p:1500,ic:'🛡️',perk:'140 HP · 12% slower.',spd:.88,hp:140}};
+const PCL_IDS=Object.keys(PCL);const clOf=k=>PCL[k]?k:'soldier';
 const $=id=>document.getElementById(id);
 const GAME='HeadShotz';
 const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
@@ -325,9 +328,9 @@ const CAMOS={factory:['Factory',0,null],desert:['Desert',150,0xc8a96a],forest:['
 const SKINS={default:['Default',0,null],ninja:['Ninja',100,[0x1b1d21,0x111214]],desert:['Desert Ops',100,[0xb59a6a,0x7d6a4a]],arctic:['Arctic',120,[0xe6edf2,0x9aa6b0]],royal:['Royal',160,[0x5b2a86,0xd4a83a]],neon:['Neon',200,[0x18e07a,0x101010]]};
 const UPG={mag:{name:'Extended Mag',per:.15,cost:[200,450]},reload:{name:'Fast Hands',per:.08,cost:[200,450]}};
 // one wallet + inventory per device, shared by offline, hub and online play. Versioned key; migrates the old 'prog' save.
-const WALLET_V=3;const PROG=(()=>{const base={v:WALLET_V,dia:0,owned:[],upg:{},camo:{},camos:{},skin:'default',skins:['default'],wskin:{},wskins:{},fr:null};let w=null;try{w=JSON.parse(LS('wallet')||'null')}catch(e){}
+const WALLET_V=3;const PROG=(()=>{const base={v:WALLET_V,dia:0,owned:[],upg:{},camo:{},camos:{},skin:'default',skins:['default'],wskin:{},wskins:{},fr:null,pc:'soldier',pcs:['soldier']};let w=null;try{w=JSON.parse(LS('wallet')||'null')}catch(e){}
  if(!w||!w.v){let old={};try{old=JSON.parse(LS('prog')||'{}')||{}}catch(e){}w=Object.assign({},old,w||{});}
- const P=Object.assign(base,w);P.v=WALLET_V;P.dia=Math.max(0,P.dia|0);for(const k of['owned','skins'])if(!Array.isArray(P[k]))P[k]=[];for(const k of['upg','camo','camos','wskin','wskins'])if(!P[k]||typeof P[k]!=='object'||Array.isArray(P[k]))P[k]={};
+ const P=Object.assign(base,w);P.v=WALLET_V;P.dia=Math.max(0,P.dia|0);for(const k of['owned','skins','pcs'])if(!Array.isArray(P[k]))P[k]=[];if(!P.pcs.includes('soldier'))P.pcs.push('soldier');if(!PCL[P.pc]||!P.pcs.includes(P.pc))P.pc='soldier';for(const k of['upg','camo','camos','wskin','wskins'])if(!P[k]||typeof P[k]!=='object'||Array.isArray(P[k]))P[k]={};
 if(!P.skins.includes('default'))P.skins.push('default');LSS('wallet',JSON.stringify(P));return P})();
 
 function saveProg(){PROG.v=WALLET_V;LSS('wallet',JSON.stringify(PROG));updDiaUI()}
@@ -366,14 +369,14 @@ function joinRoom(code,auto){audioInit();code=(code||'').toUpperCase().trim();if
  const name=myName();roomCode=code;menuMsg('Joining '+code+'…');peer=new Peer({config:ICE,debug:0});
  peer.on('open',id=>{me.id=id;conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});
   const to=setTimeout(()=>{if(!conn.open)menuMsg('Could not reach room '+code+'. Check the code or try again.')},12000);
-  conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name,skin:PROG.skin,hid:hubSelfId,ws:PROG.wskin})});conn.on('data',clientHandle);conn.on('close',hostGone)});
+  conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name,skin:PROG.skin,hid:hubSelfId,ws:PROG.wskin,cl:PROG.pc})});conn.on('data',clientHandle);conn.on('close',hostGone)});
  peer.on('error',e=>{if(e.type==='peer-unavailable'){menuMsg(auto?'Setting up the match…':'Room '+code+' not found — creating it so friends can join you!');peer.destroy();setTimeout(()=>createRoom(code,auto),auto?Math.random()*500:600)}else menuMsg('Network error: '+e.type)})}
 function hostGone(){if(isHost)return;if(C.fromHub){location.href=hubUrl();return}alert('The host left the game. Tap OK to go back to the room link.');location.href=location.pathname+'?room='+roomCode}
 // ================= HOST =================
 const H={players:{},mode:'team',phase:'lobby',map:0,score:{},round:0,t:0,next:0,roundEnd:0,botN:0,order:0,fires:[],smokes:[],fireT:0,sideFlip:false};
 const BOTNAMES=['Bolt','Ziggy','Rex','Nova','Pip','Tank','Moxie','Echo','Juno','Blaze','Kit','Ace'];const BOTGUNS=['ar','smg','battle','bullpup','pdw','vector','paintball','laser','freeze','bat','chainsaw'];
-function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].ws=cleanWS(PROG.wskin);H.players[me.id].hid=hubSelfId;sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
-function newP(id,name,bot){return{id,name,team:'A',color:0xffffff,hp:100,alive:false,kills:0,deaths:0,pts:0,hs:0,rk:0,vote:-1,bot:!!bot,p:[0,-50,0,0,0,0,0],respawn:0,ord:H.order++,gun:bot?BOTGUNS[(Math.random()*BOTGUNS.length)|0]:null,ws:bot&&Math.random()<.35?{'*':WSKIN_IDS[1+(Math.random()*(WSKIN_IDS.length-1))|0]}:{}}}
+function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].ws=cleanWS(PROG.wskin);H.players[me.id].cl=clOf(PROG.pc);H.players[me.id].hid=hubSelfId;sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
+function newP(id,name,bot){return{id,name,team:'A',color:0xffffff,hp:100,alive:false,kills:0,deaths:0,pts:0,hs:0,rk:0,vote:-1,bot:!!bot,p:[0,-50,0,0,0,0,0],respawn:0,ord:H.order++,gun:bot?BOTGUNS[(Math.random()*BOTGUNS.length)|0]:null,cl:bot?PCL_IDS[Math.random()*PCL_IDS.length|0]:'soldier',ws:bot&&Math.random()<.35?{'*':WSKIN_IDS[1+(Math.random()*(WSKIN_IDS.length-1))|0]}:{}}}
 function plist(){return Object.values(H.players).sort((a,b)=>a.ord-b.ord)}
 function assignTeams(){let i=0;const AT=H.auto&&H.auto.teams;for(const p of plist()){if(AT&&p.hid&&AT[p.hid]&&H.mode!=='ffa'){p.team=AT[p.hid];p.color=TEAMCOL[p.team];i++;continue}if(H.mode==='ffa'){p.team=p.id;p.color=FFACOL[i%10]}else{p.team=i%2?'B':'A';p.color=TEAMCOL[p.team]}i++}}
 function lobbyData(){return{t:'lobby',mode:H.mode,phase:H.phase,hostId:me.id,diff:H.diff||'normal',fill:!!H.fill,pub:!!H.pub,offline:!!H.offline,players:plist().map(p=>({id:p.id,name:p.name,team:p.team,color:p.color,bot:p.bot,vote:p.vote}))}}
@@ -384,10 +387,10 @@ function hostLeave(id){if(!H.players[id])return;delete H.players[id];delete conn
 function hostHandle(from,m){const p=H.players[from];
  switch(m.t){
  case 'hello':{if(Object.keys(H.players).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
-  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.hid=m.hid||null;
+  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.hid=m.hid||null;
   if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=teamSmaller();np.color=TEAMCOL[np.team]}
    {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
-   bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws},from);
+   bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
    sendTo(from,{t:'round',round:H.round,score:H.score,spawns:{},count:0});sendSB();if(H.mode==='ffa')np.respawn=H.t+1}break}
  case 'mode':if(from===me.id&&H.phase==='lobby'&&MODES[m.mode]){H.mode=m.mode;sendLobby();regRoom()}break;
  case 'opt':if(from===me.id){if(DIFF[m.diff])H.diff=m.diff;if('fill' in m)H.fill=!!m.fill;if('pub' in m&&!H.offline){H.pub=!!m.pub;regRoom()}sendLobby()}break;
@@ -396,6 +399,7 @@ function hostHandle(from,m){const p=H.players[from];
   else if(!m.add){const b=plist().filter(x=>x.bot).pop();if(b)delete H.players[b.id]}sendLobby()}break;
  case 'start':if(from===me.id&&H.phase==='lobby')startMatch();break;
  case 'ws':if(p){p.ws=cleanWS(m.ws);bcast({t:'ws',id:from,ws:p.ws})}break;
+ case 'cl':if(p){p.cl=clOf(m.cl);bcast({t:'cl',id:from,cl:p.cl})}break;
  case 'ping':conns[from]?.send({t:'pong',ts:m.ts,n:plist().length});break;
  case 'st':if(p&&Array.isArray(m.p))p.p=m.p;break;
  case 'fx':if(p)p.shotT=H.t;bcast({t:'fx',id:from,a:m.a,b:m.b,w:m.w},from);break;
@@ -411,7 +415,7 @@ function hostHandle(from,m){const p=H.players[from];
  }}
 function rayClearHost(a,b){const d=b.clone().sub(a);const l=d.length();d.divideScalar(l);if(rayWorld(a,d,l)<l-.3)return false;for(const s of H.smokes){if(s.t<1.2)continue;const lx=s.p.x-a.x,ly=s.p.y-a.y,lz=s.p.z-a.z;const tc=lx*d.x+ly*d.y+lz*d.z;const d2=lx*lx+ly*ly+lz*lz-tc*tc;const r=s.r*.8;if(d2<r*r&&tc>-r&&tc<l+r)return false}return true}
 function teamSmaller(){let a=0,b=0;for(const p of plist()){if(p.team==='A')a++;else if(p.team==='B')b++}return a<=b?'A':'B'}
-function damage(v,dmg,by,head,w){if(!v.alive)return;{const ww=W[w];if(ww&&(ww.slow||ww.push)&&by!==v.id)hitFX(v,ww,by)}
+function damage(v,dmg,by,head,w){if(!v.alive)return;{const pc=PCL[v.cl];if(pc&&pc.hp&&w!=='fall'&&w!=='bleed')dmg=Math.max(1,Math.round(dmg*100/pc.hp));v.hurtT=H.t}{const ww=W[w];if(ww&&(ww.slow||ww.push)&&by!==v.id)hitFX(v,ww,by)}
  if(v.down){if(by===v.id&&w!=='fall'&&w!=='bleed')return;v.dhp-=dmg;bcast({t:'hp',id:v.id,hp:0,by,dmg,head,d:1});if(v.dhp>0&&w!=='fall'&&w!=='bleed')return;
   v.down=false;v.rev=null;v.alive=false;const k=H.players[by];const fin=k&&by!==v.id;if(fin)k.pts+=25;bcast({t:'kill',k:by,v:v.id,head,w,fin:fin?1:0,bleed:w==='bleed'?1:0});sendSB();checkRound();return}
  v.hp-=dmg;bcast({t:'hp',id:v.id,hp:Math.max(0,v.hp),by,dmg,head});
@@ -423,7 +427,7 @@ function damage(v,dmg,by,head,w){if(!v.alive)return;{const ww=W[w];if(ww&&(ww.sl
 function toPlayer(id,msg){if(conns[id]&&conns[id].open)conns[id].send(msg);else if(id===me.id)clientHandle(msg)}
 function hitFX(v,w,by){const k=H.players[by];if(w.slow){if(v.bot){v.slowT=H.t+w.slow[1];v.slowF=w.slow[0]}else toPlayer(v.id,{t:'slow',f:w.slow[0],d:w.slow[1]})}
  if(w.push&&k){const dx=v.p[0]-k.p[0],dz=v.p[2]-k.p[2],l=Math.hypot(dx,dz)||1;const px=dx/l*w.push,pz=dz/l*w.push;if(v.bot&&v.e){v.e.vel.x+=px;v.e.vel.z+=pz;v.e.vel.y=Math.max(v.e.vel.y,1.2)}else toPlayer(v.id,{t:'push',v:[px,pz]})}}
-function startData(){return{t:'start',map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ws:p.ws||{}}]))}}
+function startData(){return{t:'start',map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ws:p.ws||{},cl:p.cl||'soldier'}]))}}
 function startMatch(){{const mx=MODEMAX[H.mode]||10;const bots=plist().filter(p=>p.bot);while(plist().length>mx&&bots.length){const b=bots.pop();delete H.players[b.id];bcast({t:'bye',id:b.id})}}if(H.fill){const want=MODEMAX[H.mode]||4;while(Object.keys(H.players).length<want){const id='bot'+(++H.botN);H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true)}}assignTeams();const votes=MAPS.map(()=>0);for(const p of plist())if(p.vote>=0)votes[p.vote]++;
  const mx=Math.max(...votes);const best=votes.map((v,i)=>v===mx?i:-1).filter(i=>i>=0);H.map=best[Math.random()*best.length|0];if(H.auto&&H.auto.map!=null)H.map=H.auto.map;
  H.score={};H.round=0;H.fires=[];H.smokes=[];for(const p of plist()){p.kills=p.deaths=p.pts=p.hs=0}const m=buildMap(H.map);cols=m.cols;groundHalf=m.groundHalf;ladders=m.ladders||[];hides=m.hides||[];
@@ -455,15 +459,15 @@ function endRound(win){H.phase='roundEnd';if(win!=='draw')H.score[win]=(H.score[
  const nm=H.mode==='ffa'?(H.players[win]?.name||'?'):(win==='A'?'BLUE TEAM':win==='B'?'RED TEAM':'');
  bcast({t:'roundEnd',win,name:nm,score:H.score,match:champ});sendSB();
  setTimeout(()=>{if(champ){if(H.phase!=='roundEnd')return;H.phase='lobby';for(const p of plist())p.vote=-1;sendLobby()}else startRound()},champ?(H.offline?13500:13500):3500)}
-function hostTick(dt){H.t+=dt;
+function hostTick(dt){H.t+=dt;if(H.phase==='play')for(const p of plist()){const pc=PCL[p.cl];if(pc&&pc.regen&&p.alive&&!p.down&&p.hp<100&&H.t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+pc.regen*dt);if(Math.floor(p.hp)!==o&&Math.floor(p.hp)%3===0||p.hp>=100)bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
  if(H.auto&&H.phase==='lobby'&&H.autoAt){const humans=plist().filter(p=>!p.bot).length;if(humans>=H.auto.expect||H.t>H.autoAt){H.autoAt=0;startMatch()}}
  if(H.phase==='count'&&H.t>=H.next){H.phase='play';bcast({t:'go'})}
  if(H.phase==='play'){
   for(const v of plist()){if(!v.down)continue;if(H.t>=v.downT){damage(v,999,v.id,false,'bleed');continue}
    const rv=plist().filter(q=>q.team===v.team&&q.id!==v.id&&q.alive&&!q.down&&Math.hypot(q.p[0]-v.p[0],q.p[1]-v.p[1],q.p[2]-v.p[2])<=DOWN.r);
-   if(rv.length){if(!v.rev||!rv.some(q=>q.id===v.rev.by))v.rev={by:rv[0].id,t0:H.t};if(H.t-v.rev.t0>=DOWN.revive){(window.__rv=window.__rv||[]).push(+(H.t-v.rev.t0).toFixed(3));v.down=false;v.hp=DOWN.revHp;const by=v.rev.by;v.rev=null;bcast({t:'revive',id:v.id,by,hp:v.hp});bcast({t:'hp',id:v.id,hp:v.hp});sendSB();continue}}
+   if(rv.length){if(!v.rev||!rv.some(q=>q.id===v.rev.by))v.rev={by:rv[0].id,t0:H.t};if(H.t-v.rev.t0>=((PCL[(H.players[v.rev.by]||{}).cl]||{}).rev||DOWN.revive)){(window.__rv=window.__rv||[]).push(+(H.t-v.rev.t0).toFixed(3));v.down=false;v.hp=DOWN.revHp;const by=v.rev.by;v.rev=null;bcast({t:'revive',id:v.id,by,hp:v.hp});bcast({t:'hp',id:v.id,hp:v.hp});sendSB();continue}}
    else v.rev=null;
-   if((v.dsT=(v.dsT||0)+dt)>.15){v.dsT=0;bcast({t:'dst',id:v.id,left:Math.max(0,v.downT-H.t),rv:v.rev?Math.min(1,(H.t-v.rev.t0)/DOWN.revive):0,by:v.rev?v.rev.by:null})}}
+   if((v.dsT=(v.dsT||0)+dt)>.15){v.dsT=0;bcast({t:'dst',id:v.id,left:Math.max(0,v.downT-H.t),rv:v.rev?Math.min(1,(H.t-v.rev.t0)/((PCL[(H.players[v.rev.by]||{}).cl]||{}).rev||DOWN.revive)):0,by:v.rev?v.rev.by:null})}}
   if(H.t>=H.roundEnd){let win='draw';if(H.mode==='ffa'){let b=-1;for(const p of plist())if(p.rk>b){b=p.rk;win=p.id}}else{const a=teamAlive();win=(a.A||0)>(a.B||0)?'A':(a.B||0)>(a.A||0)?'B':'draw'}endRound(win)}
   if(H.mode==='ffa')for(const p of plist()){if(!p.alive&&p.respawn&&H.t>=p.respawn){p.respawn=0;p.alive=true;p.hp=100;const s=respawnPoint(p);p.p=[s[0],0,s[1],s[2],0,0,0];if(p.bot)botReset(p,s);bcast({t:'spawn',id:p.id,s});sendSB()}}
   for(const p of plist())if(p.bot&&p.alive)botTick(p,dt);
@@ -505,7 +509,7 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;
   const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z;b.climbY=nt[1];const l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*4)}
  if(b.detour>0){b.detour-=dt;wx=b.dd[0];wz=b.dd[1]}
  if(b.revT&&!tgt){const q=H.players[b.revT];if(q&&Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z)<.9){wx=wz=0;b.detour=0}}
- const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}const sp=(b.blind>0?2:5.2)*(b.slowT>H.t?b.slowF:1);e.vel.x+=(wx*sp-e.vel.x)*Math.min(1,dt*10);e.vel.z+=(wz*sp-e.vel.z)*Math.min(1,dt*10);
+ const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}const sp=(b.blind>0?2:5.2)*(b.slowT>H.t?b.slowF:1);{const cs=(PCL[b.cl]||{}).spd||1;e.vel.x+=(wx*sp*cs-e.vel.x)*Math.min(1,dt*10);e.vel.z+=(wz*sp*cs-e.vel.z)*Math.min(1,dt*10)}
  {const L=inVol(ladders,e.pos);e.ladTop=L&&(b.climbY??0)>e.pos.y+.3?L.y1:null;if(L){const ty=b.climbY??e.pos.y;if(ty>e.pos.y+.3){e.vel.y=4.4;e.vel.x-=L.n[0]*1.5;e.vel.z-=L.n[1]*1.5}else if(ty<e.pos.y-.3)e.vel.y=Math.min(e.vel.y,-2.5);else e.vel.y=Math.max(e.vel.y,0)}}
  if(e.ground&&!(b.via&&b.via.down)){const px=e.pos.x+e.vel.x*.45,pz=e.pos.z+e.vel.z*.45;if(!supportAt(px,e.pos.y,pz)){e.vel.x*=-.3;e.vel.z*=-.3;if(!b.via)b.goal=null}}
  if(e.ground&&supportAt(e.pos.x,e.pos.y,e.pos.z))b.lastG=[e.pos.x,e.pos.z];else if(!e.ground&&b.lastG&&!inVol(ladders,e.pos,.4)&&!(b.via&&b.via.down)&&!supportAt(e.pos.x,e.pos.y,e.pos.z)){const gx=b.lastG[0]-e.pos.x,gz=b.lastG[1]-e.pos.z,gl=Math.hypot(gx,gz)||1;e.vel.x=gx/gl*5;e.vel.z=gz/gl*5;if(!b.via)b.goal=null}
@@ -517,8 +521,9 @@ function clientHandle(m){switch(m.t){
  case 'lobby':lastLobby=m;C.hostId=m.hostId;C.mode=m.mode;if(m.phase==='lobby'){if(inGame)leaveToLobby();showLobby()}renderLobby();break;
  case 'full':menuMsg('Room is full (10 players max).');break;
  case 'start':startGame(m);break;
+ case 'cl':{const q=C.players[m.id];if(q&&q.model&&m.id!==me.id){const vis=q.model.visible;scene.remove(q.model);q.cl=clOf(m.cl);q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}else if(q)q.cl=clOf(m.cl);break}
  case 'ws':{const q=C.players[m.id];if(q){q.ws=m.ws||{};q.gunSk=null;if(q.gunId){const g=q.gunId;q.gunId=null;setRemoteGun(q,WIDX[g])}}break}
- case 'join':addRemote(m.id,{name:m.name,team:m.team,color:m.color,o:m.o,sk:m.sk,ws:m.ws});renderSB();feed(`${m.name} joined`);break;
+ case 'join':addRemote(m.id,{name:m.name,team:m.team,color:m.color,o:m.o,sk:m.sk,ws:m.ws,cl:m.cl});renderSB();feed(`${m.name} joined`);break;
  case 'bye':{const q=C.players[m.id];if(q){if(q.model)scene.remove(q.model);feed(q.name+' left');delete C.players[m.id];delete C.sb[m.id];renderSB()}break}
  case 'round':{C.round=m.round;for(const k in C.players){C.players[k].hp=100;C.players[k].down=false;C.players[k].dst=null}me.down=false;me.dst=null;updDown();hideEnd();C.score=m.score;C.phase=m.count?'count':'play';for(const n of nades)scene.remove(n.m);nades=[];smokes.length=0;fires.length=0;
   for(const id in C.players){const q=C.players[id];const s=m.spawns[id];if(s){q.alive=true;q.hp=100;q.rp.set(s[0],0,s[1]);q.tp.copy(q.rp);q.yaw=q.tyaw=s[2];if(q.model){q.model.userData.dead=0;q.model.visible=true}}}
@@ -557,8 +562,8 @@ function clientHandle(m){switch(m.t){
  case 'sb':C.sb={};for(const r of m.p)C.sb[r[0]]={k:r[1],d:r[2],pts:r[3],alive:!!r[4],hs:r[5]};C.score=m.r||{};renderSB();if(!$('pause').classList.contains('hidden'))renderBoard();break;
  }}
 function addRemote(id,info){if(C.players[id]?.model)scene.remove(C.players[id].model);
- const q={id,ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
- if(id!==me.id){q.model=makeCharacter(q.color,info.name,id,undefined,(SKINS[info.sk]||[])[2]||undefined);q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
+ const q={id,cl:clOf(info.cl),ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
+ if(id!==me.id){q.model=makeCharacter(q.color,info.name,id,undefined,(SKINS[info.sk]||[])[2]||undefined,info.cl);q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
 function startGame(m){for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
  loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);
  for(const s of['menu','lobby','arsenal','settings'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
@@ -569,7 +574,7 @@ function faceYaw(x,z){const o=new THREE.Vector3(x,1.6,z),d=new THREE.Vector3();c
  for(let i=0;i<16;i++){const y=i/16*Math.PI*2;d.set(-Math.sin(y),0,-Math.cos(y));const free=Math.min(rayWorld(o,d,60),60);let dy=Math.abs(((y-cy+Math.PI*3)%(Math.PI*2))-Math.PI);const sc=free*(1.25-dy/Math.PI*.6);if(sc>bs){bs=sc;best=y}}
  return Math.hypot(x,z)<1?best:best}
 function spawnMe(s){me.pos.set(s[0],0,s[1]);me.lad=null;me.mountT=0;me.vel.set(0,0,0);me.yaw=faceYaw(s[0],s[1]);me.pitch=0;me.hp=100;me.alive=true;me.slideT=0;me.reloadT=0;me.killer=null;recoilP=recoilY=0;
- me.ammo=me.load.slice(0,3).map(w=>magOf(w));me.utilN=W[me.load[3]].count;me.cur=0;me.zoomT=0;me.zoomOn=false;updZoomBtn();setViewModel(me.load[0]);me.switchT=.35;updHP();buildSlots()}
+ me.ammo=me.load.slice(0,3).map(w=>magOf(w));me.utilN=W[me.load[3]].count+((PCL[PROG.pc]||{}).util||0);me.cur=0;me.zoomT=0;me.zoomOn=false;updZoomBtn();setViewModel(me.load[0]);me.switchT=.35;updHP();buildSlots()}
 function leaveToLobby(){hideEnd();inGame=false;paused=false;$('hud').classList.remove('paused');$('hud').classList.add('hidden');$('pause').classList.add('hidden');for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};
  for(const n of nades)scene.remove(n.m);nades=[];if(document.pointerLockElement)document.exitPointerLock();resize()}
 // ---------------- HUD ----------------
@@ -834,17 +839,17 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];
  const sprint=(keys.ShiftLeft||keys.ShiftRight||inp.sprint)&&mz<-.3&&me.zoomT<.3&&!paused;
  if(!me.alive||me.frozen){mx=mz=0}
  const sy=Math.sin(me.yaw),cy=Math.cos(me.yaw);const wx=mx*cy+mz*sy,wz=-mx*sy+mz*cy;
- const speed=me.down?1.3:(sprint?8.6:5.8)*(me.zoomT>.5?.7:1)*(w.slowSelf||1)*(me.slowT>performance.now()?me.slowF:1);const hs=Math.hypot(me.vel.x,me.vel.z);me.slideCd-=dt;
- if(inp.slide&&me.alive&&!me.frozen&&me.ground&&me.slideT<=0&&me.slideCd<=0&&hs>3.5){const ns=Math.min(14,Math.max(hs,7)*1.5);me.vel.x=me.vel.x/hs*ns;me.vel.z=me.vel.z/hs*ns;me.slideT=.75;me.slideCd=1;SFX.slide()}
+ const myC=PCL[PROG.pc]||{};const speed=me.down?1.3:(sprint?8.6:5.8)*(myC.spd||1)*(me.zoomT>.5?.7:1)*(w.slowSelf||1)*(me.slowT>performance.now()?me.slowF:1);const hs=Math.hypot(me.vel.x,me.vel.z);me.slideCd-=dt;
+ if(inp.slide&&me.alive&&!me.frozen&&me.ground&&me.slideT<=0&&me.slideCd<=0&&hs>3.5){const ns=Math.min(14,Math.max(hs,7)*1.5);me.vel.x=me.vel.x/hs*ns;me.vel.z=me.vel.z/hs*ns;me.slideT=.75;me.slideCd=(myC.slideCd||1);SFX.slide()}
  inp.slide=false;
  if(me.slideT>0){me.slideT-=dt;const k=Math.max(0,1-1.4*dt);me.vel.x*=k;me.vel.z*=k;me.vel.x+=wx*dt*6;me.vel.z+=wz*dt*6;if(Math.hypot(me.vel.x,me.vel.z)<4)me.slideT=0}
  else if(me.ground){const a=Math.min(1,dt*13);me.vel.x+=(wx*speed-me.vel.x)*a;me.vel.z+=(wz*speed-me.vel.z)*a}
  else{me.vel.x+=wx*speed*dt*2.5;me.vel.z+=wz*speed*dt*2.5;const n=Math.hypot(me.vel.x,me.vel.z);const cap=Math.max(hs,speed);if(n>cap){me.vel.x*=cap/n;me.vel.z*=cap/n}}
- if(me.down){inp.jump=false;inp.slide=false}if(inp.jump&&me.ground&&me.alive&&!me.frozen){me.vel.y=8.3;if(me.slideT>0){me.vel.x*=1.08;me.vel.z*=1.08;me.slideT=0}SFX.jump()}inp.jump=false;
+ if(me.down){inp.jump=false;inp.slide=false}if(inp.jump&&me.ground&&me.alive&&!me.frozen){me.vel.y=(myC.jump||8.3);if(me.slideT>0){me.vel.x*=1.08;me.vel.z*=1.08;me.slideT=0}SFX.jump()}inp.jump=false;
  ladderMe(dt,mx,mz);if(me.mountT>0){me.mountT-=dt;const k=1-Math.max(0,me.mountT)/me.mountD;const a=me.mountA,b=me.mountB;me.pos.set(a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*Math.min(1,k*2),a[2]+(b[2]-a[2])*k);me.vel.set(0,0,0);if(me.mountT<=0){me.pos.set(b[0],b[1],b[2]);me.ground=true;me.lastG=[b[0],b[1],b[2]]}}
  if(me.alive&&!(me.mountT>0)){physStep(me,dt);if(me.landed){SFX.land();landDip=.08}}
  if(me.alive&&me.pos.y<-3){me.alive=false;send({t:'fall'})}
- if(me.ground&&hs>2&&me.slideT<=0){me.stepT-=dt*hs;if(me.stepT<=0){me.stepT=sprint?3.3:2.9;SFX.step()}}
+ if(me.ground&&hs>2&&me.slideT<=0){me.stepT-=dt*hs;if(me.stepT<=0){me.stepT=sprint?3.3:2.9;if(!myC.quiet||(me.qStep=!me.qStep))SFX.step()}}
  bob+=dt*hs*(me.ground&&me.slideT<=0?1.55:0);landDip=Math.max(0,landDip-dt*.4);
  me.camH+=((me.slideT>0?.95:1.62)-me.camH)*Math.min(1,dt*12);
  // recoil recovery
@@ -966,7 +971,7 @@ function updRemotes(dt){const a=Math.min(1,dt*14);for(const id in C.players){con
  if(!q.alive&&!u.dead){q.model.visible=false;continue}if(u.dead>3){q.model.visible=false;continue}q.model.visible=true;
  if(q.alive){if(q.rp.distanceTo(q.tp)>6)q.rp.copy(q.tp);else q.rp.lerp(q.tp,a);let dy=q.tyaw-q.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));q.yaw+=dy*a;q.pitch+=(q.tpitch-q.pitch)*a}
  const sp=Math.hypot(q.rp.x-q.lp.x,q.rp.z-q.lp.z)/Math.max(dt,.001);q.lp.copy(q.rp);q.spd=(q.spd||0)+(sp-(q.spd||0))*Math.min(1,dt*8);
- if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);q.model.rotation.y=q.yaw;animate(q.model,{speed:q.spd,air:!!(q.flags&2),slide:!!(q.flags&5),pitch:q.pitch},dt);if(q.flags&4){q.model.position.y-=.35;q.model.rotation.x=-.35}else q.model.rotation.x=0}}
+ if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);q.model.rotation.y=q.yaw;{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);animate(q.model,{speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,pitch:q.pitch,climb:cl,down:dn,dist:camera.position.distanceTo(q.rp)},dt);q.model.rotation.x=0}}}
 // ================= LOOP =================
 renderer.autoClear=false;renderer.info.autoReset=false;
 let last=performance.now(),acc=0,frames=0,fpsShown=0;const fpsLog=[];
@@ -1008,8 +1013,8 @@ function claimHub(n){if(hubSrv||hubClaiming)return;hubClaiming=true;const sp=new
  sp.on('error',e=>{if(e.type==='unavailable-id'){hubClaiming=false;try{sp.destroy()}catch(x){}setTimeout(tryHub,300+Math.random()*700)}})}
 function attachLocal(){hubConn={local:true,open:true,send:m=>hubSrv&&hubSrv.recv(hubSelfId,m,null),close(){}};hubSendHi()}
 function hubSend(m){if(hubConn&&hubConn.open)hubConn.send(m)}
-function hubSendHi(){hubSend({t:'hi',kind:hubKind,name:myName(),skin:PROG.skin})}
-function hubEquip(){if(C.hub)hubSend({t:'eq',name:myName(),skin:PROG.skin})}
+function hubSendHi(){hubSend({t:'hi',kind:hubKind,name:myName(),skin:PROG.skin,cl:PROG.pc})}
+function hubEquip(){if(C.hub)hubSend({t:'eq',name:myName(),skin:PROG.skin,cl:PROG.pc})}
 class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=0;this.rooms={};this.sel={};this.ffaT=Date.now();this.ffaN=0;this.lastPads='';
   peer.on('connection',c=>{c.on('data',d=>this.recv(c.peer,d,c));c.on('close',()=>this.drop(c.peer));c.on('error',()=>this.drop(c.peer))});this.iv=setInterval(()=>this.tick(),125)}
  shutdown(){clearInterval(this.iv);try{this.peer.destroy()}catch(e){}}
@@ -1020,13 +1025,13 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
   if(m.t==='hi'){if(c&&c.kind!==m.kind&&m.kind==='player'){c.kind='player'}
    else if(!c){if(m.kind==='player'&&this.players().length>=HUB_MAX){conn&&conn.send({t:'hubfull'});return}
     c=this.cl[id]={id,conn,local:!conn,kind:m.kind,ord:++this.ord,pos:[0,0,5,0],busy:false}}
-   c.name=String(m.name||'Player').slice(0,12);c.skin=SKINS[m.skin]?m.skin:'default';
-   if(c.kind==='player'){this.send(c,{t:'hw',you:c.ord,n:this.n,players:this.players().filter(p=>p!==c).map(p=>[p.ord,p.name,p.skin,...p.pos])});this.bc({t:'hj',p:[c.ord,c.name,c.skin]},id);this.lastPads=''}
+   c.name=String(m.name||'Player').slice(0,12);c.skin=SKINS[m.skin]?m.skin:'default';c.cl=clOf(m.cl);
+   if(c.kind==='player'){this.send(c,{t:'hw',you:c.ord,n:this.n,players:this.players().filter(p=>p!==c).map(p=>[p.ord,p.name,p.skin,...[0,1,2,3].map(i=>(p.pos&&p.pos[i])||0),p.cl])});this.bc({t:'hj',p:[c.ord,c.name,c.skin,c.cl]},id);this.lastPads=''}
    else this.send(c,{t:'hw',you:c.ord,n:this.n});return}
   if(!c)return;
   switch(m.t){
    case 'pos':if(Array.isArray(m.p))c.pos=m.p.slice(0,4).map(v=>+v||0);break;
-   case 'eq':c.skin=SKINS[m.skin]?m.skin:c.skin;c.name=String(m.name||c.name).slice(0,12);this.bc({t:'hj',p:[c.ord,c.name,c.skin]},id);break;
+   case 'eq':c.skin=SKINS[m.skin]?m.skin:c.skin;c.cl=clOf(m.cl||c.cl);c.name=String(m.name||c.name).slice(0,12);this.bc({t:'hj',p:[c.ord,c.name,c.skin,c.cl]},id);break;
    case 'vote':{const s=this.sel[m.sid];if(s&&s.ids.includes(id)&&s.maps.includes(m.map)){s.votes[id]=m.map;this.toSel(s,{t:'votes',sid:s.id,votes:Object.values(s.votes)})}break}
    case 'reg':if(m.room&&m.room.code)this.rooms[m.room.code]={...m.room,at:Date.now(),by:id};break;
    case 'unreg':delete this.rooms[m.code];break;
@@ -1057,7 +1062,7 @@ function enterHub(){if(qLevel()==='low'&&false)return;audioInit();C.hub=true;men
 function hubRecv(m){switch(m.t){
  case 'hw':hubOrd=m.you;if(hubKind==='player'&&C.hub)enterHubWorld(m);if(brCb)hubSend({t:'list'});if(regIv&&H.pub)hubSend({t:'reg',room:roomInfo()});break;
  case 'hubfull':if(hubN<HUB_LIMIT){hubN++;if(hubConn&&!hubConn.local)hubConn.close();hubConn=null;tryHub()}else menuMsg('All hubs are full — try Quick Join');break;
- case 'hj':if(C.hub&&C.phase==='hub'&&m.p[0]!==hubOrd){const[o,n,sk]=m.p;const id='h'+o;const old=C.players[id];addRemote(id,{name:n,team:'A',color:FFACOL[o%10],sk,o:'h'+o});const q=C.players[id];q.alive=true;if(old){q.tp.copy(old.tp);q.rp.copy(old.rp)}if(q.model)q.model.visible=true}break;
+ case 'hj':if(C.hub&&C.phase==='hub'&&m.p[0]!==hubOrd){const[o,n,sk,cl]=m.p;const id='h'+o;const old=C.players[id];addRemote(id,{name:n,team:'A',color:FFACOL[o%10],sk,cl,o:'h'+o});const q=C.players[id];q.alive=true;if(old){q.tp.copy(old.tp);q.rp.copy(old.rp)}if(q.model)q.model.visible=true}break;
  case 'hl':{const q=C.players['h'+m.o];if(q){if(q.model)scene.remove(q.model);delete C.players['h'+m.o]}break}
  case 'hpos':if(C.phase==='hub')for(const r of m.p){const q=C.players['h'+r[0]];if(!q)continue;q.tp.set(r[1]/100,r[2]/100,r[3]/100);q.tyaw=r[4]/100;if(!q.seen){q.seen=1;q.rp.copy(q.tp)}}break;
  case 'pads':myPads=m.q;updPadLabels();break;
@@ -1070,7 +1075,7 @@ function enterHubWorld(m){setTimeout(()=>{if(C.hub&&Object.keys(THUMB).length<MA
  $('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);$('hubUI').classList.remove('hidden');document.body.classList.add('hub');
  inGame=true;resize();const a=Math.random()*6.28;me.pos.set(Math.cos(a)*2.5,0,4+Math.sin(a)*2);me.vel.set(0,0,0);me.yaw=Math.PI;me.pitch=-.05;me.hp=100;me.alive=true;me.frozen=false;me.id='hub-me';
  if(sessionStorage.getItem('hsz_requeue')){sessionStorage.removeItem('hsz_requeue');try{const lp=JSON.parse(sessionStorage.getItem('hsz_pad')||'null');const P=lp&&HUB_PADS.find(p=>p.k===lp[0]);const c=P&&padCircles(P).find(c=>c.side===lp[1]);if(c){me.pos.set(c.x,0,c.z);me.yaw=c.side==='A'?-Math.PI/2:c.side==='B'?Math.PI/2:Math.PI;center('⚔️ Re-queued — waiting for players',2500)}}catch(e){}}
- setViewModel(me.load[0]);buildSlots();updHP();for(const r of m.players||[]){hubRecv({t:'hj',p:[r[0],r[1],r[2]]});const q=C.players['h'+r[0]];if(q){q.tp.set(r[3],r[4],r[5]);q.rp.copy(q.tp);q.seen=1}}
+ setViewModel(me.load[0]);buildSlots();updHP();for(const r of m.players||[]){hubRecv({t:'hj',p:[r[0],r[1],r[2],r[7]]});const q=C.players['h'+r[0]];if(q){q.tp.set(r[3],r[4],r[5]);q.rp.copy(q.tp);q.seen=1}}
  center('🏠 HEADSHOTZ HUB\nWalk onto a glowing circle to queue',3500);updHubInfo()}
 function updHubInfo(){const n=Object.keys(C.players).length+1;$('hubInfo').innerHTML=`<b>HUB #${hubN}</b> · ${n} online · 💎 <b class="diaBal">${PROG.dia}</b>${hubSrv?' · <small>you host the hub</small>':''}`}
 function labelTex(lines,col){const c=document.createElement('canvas');c.width=512;c.height=192;const x=c.getContext('2d');x.textAlign='center';x.fillStyle='rgba(10,14,35,.6)';x.beginPath();x.roundRect?x.roundRect(16,16,480,160,36):x.rect(16,16,480,160);x.fill();
@@ -1092,7 +1097,7 @@ function updHub(dt,now){if(C.phase!=='hub')return;hubPosT+=dt;if(hubPosT>=.125){
  if(hubVis)for(const r of hubVis.rings){const inside=Math.hypot(me.pos.x-r.c.x,me.pos.z-r.c.z)<r.c.r;const s=1+Math.sin(now/300+r.c.x)*.015;r.ring.scale.setScalar(s);r.fill.material.opacity=inside?.34+Math.sin(now/150)*.08:.14}
  let st=null,bd=3.2;for(const s of HUB_ST){const d=Math.hypot(me.pos.x-s.x,me.pos.z-s.z);if(d<bd){bd=d;st=s}}const b=$('stationBtn');if(st){b.textContent='TAP: '+st.name;b.dataset.k=st.k;b.classList.remove('hidden')}else b.classList.add('hidden');
  if(Math.random()<dt)updHubInfo()}
-function useStation(k){if(k==='shop')openArsenal(null,'shop');else if(k==='upgrade')openArsenal(null,'upgrade');else if(k==='arsenal')openArsenal();else if(k==='practice'){location.href=location.pathname+'?offline=1'+(/[?&]net=local/.test(location.search)?'&net=local':'')}}
+function useStation(k){if(k==='shop')openArsenal(null,'shop');else if(k==='upgrade')openArsenal(null,'upgrade');else if(k==='arsenal')openArsenal();else if(k==='classes')openClasses();else if(k==='practice'){location.href=location.pathname+'?offline=1'+(/[?&]net=local/.test(location.search)?'&net=local':'')}}
 $('stationBtn').onclick=()=>useStation($('stationBtn').dataset.k);
 // ---------- map selection (5 s, majority wins, random tie-break on the hub host) ----------
 let mapSelIv=null;
@@ -1148,6 +1153,20 @@ renderLoadoutMini();resize();requestAnimationFrame(loop);
 addEventListener('keydown',e=>{if(e.code==='KeyF'&&inGame&&!paused&&me.alive&&me.reloadT<=0&&VA.inspect<=0&&me.zoomT<.1)VA.inspect=2.6});
 addEventListener('keydown',e=>{if(e.code==='KeyE'&&C.phase==='hub'&&!$('stationBtn').classList.contains('hidden'))useStation($('stationBtn').dataset.k)});
 {const q=new URLSearchParams(location.search);if(q.get('join')){const jc=q.get('join');setTimeout(()=>joinRoom(jc),300)}else if(q.get('hub'))setTimeout(enterHub,50);else if(q.get('offline'))setTimeout(()=>$('offlineBtn').click(),50)}
+
+// ---- Class Booth: buy a class with 💎 and pick one before a match ----
+const CLTH={};function classThumb(k){if(CLTH[k])return CLTH[k];const R=r2();R.setSize(220,300);prevCam.aspect=220/300;prevCam.updateProjectionMatrix();const m=makeCharacter(0x3a7bd5,'',k,undefined,undefined,k);m.userData.tag.visible=false;m.rotation.y=Math.PI+.5;
+ animate(m,{speed:0,pitch:0,dist:1},.016);prevScene.add(m);prevCam.position.set(0,1.15,3.4);prevCam.lookAt(0,1.0,0);R.setClearColor(0,0);R.render(prevScene,prevCam);CLTH[k]=R.domElement.toDataURL();prevScene.remove(m);return CLTH[k]}
+function openClasses(){audioInit&&audioInit();$('classes').classList.remove('hidden');renderClasses()}
+function renderClasses(){$('clDia').textContent=PROG.dia;$('clGrid').innerHTML=PCL_IDS.map(k=>{const c=PCL[k],own=PROG.pcs.includes(k),on=PROG.pc===k;
+  return`<div class="clCard${on?' on':''}" data-cl="${k}"><img src="${classThumb(k)}"><b>${c.ic} ${c.n}</b><small>${c.perk}</small>${on?'<button class="pill green" disabled>✓ SELECTED</button>':own?'<button class="pill yellow" data-ca="pick">SELECT</button>':`<button class="pill ${PROG.dia>=c.p?'yellow':'poor'}" data-ca="buy">💎 ${c.p}</button>`}</div>`}).join('');updClassBtn()}
+function setClass(k){PROG.pc=k;saveProg();updClassBtn();if(C.hub)hubEquip();if((inGame||!$('lobby').classList.contains('hidden'))&&!C.hub&&roomCode)send({t:'cl',cl:k});if(inGame&&!C.hub)feed(`${PCL[k].n} selected — perk active on next spawn`)}
+function updClassBtn(){document.querySelectorAll('.clBtnLbl').forEach(e=>e.textContent=PCL[PROG.pc].ic+' '+PCL[PROG.pc].n)}
+$('clClose').onclick=()=>$('classes').classList.add('hidden');
+$('clGrid').addEventListener('click',e=>{const b=e.target.closest('[data-ca]');if(!b)return;const k=b.closest('[data-cl]').dataset.cl,c=PCL[k];
+ if(b.dataset.ca==='buy'){if(PROG.dia<c.p){b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake');SFX.beep&&SFX.beep();return}PROG.dia-=c.p;PROG.pcs.push(k);saveProg();setClass(k);SFX.kill&&SFX.kill();center&&center(`${c.ic} ${c.n} unlocked!`,1400)}
+ else setClass(k);renderClasses()});
+for(const id of['openClasses','lobClass','pClass'])if($(id))$(id).onclick=openClasses;setTimeout(updClassBtn,0);
 // ===================== FRIENDS =====================
 // Every save has a friend code (PROG.fr.code). While the game is open, the page registers a presence peer whose id is derived
 // from that code (PREFIX+'fr-'+code). Friends connect to it briefly to send requests/accepts/removals and to ask for status
@@ -1237,7 +1256,7 @@ $('friends').addEventListener('click',e=>{const b=e.target.closest('[data-fr]');
 for(const id of['openFriends','lobFriends','pFriends','hubFriends'])if($(id))$(id).onclick=openFriends;
 addEventListener('storage',e=>{if(e.key===LSP+FRK)frReload()});
 setTimeout(()=>{frServe();frSchedule();updFrBadge();if(FR.list.length||FR.out.length)setTimeout(frPoll,1500)},800);
-window.__hsz={vmSkin:()=>{let k=null;if(vmCur)vmCur.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.skin)k=o.material.userData.skin});return k},vmId:()=>me.load[me.cur],FRIENDS:()=>({frPeerOpen:!!(frPeer&&frPeer.open),FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+window.__hsz={PCL,openClasses,vmSkin:()=>{let k=null;if(vmCur)vmCur.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.skin)k=o.material.userData.skin});return k},vmId:()=>me.load[me.cur],FRIENDS:()=>({frPeerOpen:!!(frPeer&&frPeer.open),FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
 
 // ---- fullscreen: Fullscreen API where it exists (Android Chrome, iPad Safari, desktop); iPhone Safari gets an Add-to-Home-Screen guide
 const FS={api:!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen),

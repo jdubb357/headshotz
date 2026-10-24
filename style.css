@@ -240,3 +240,8 @@ html,body{height:100%;height:100dvh}
 .toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:#1b2230ee;color:#fff;padding:10px 16px;border-radius:12px;border:2px solid #ffd54a;z-index:200;font-weight:800;transition:opacity .5s}.toast.out{opacity:0}
 .frNote{display:block;opacity:.6;font-size:11px;margin-top:4px}
 .wskins.feat{grid-template-columns:repeat(3,1fr)}.wskins.feat .wsk .sw{width:100%;height:42px}.wskins.feat .wsk small{font-size:12px;font-weight:800}
+/* classes */
+#classes{z-index:60}#clGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}@media(max-width:700px){#clGrid{grid-template-columns:repeat(2,1fr)}}
+.clCard{background:rgba(255,255,255,.07);border:2px solid #2d3748;border-radius:14px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.clCard img{width:110px;height:150px;object-fit:contain}.clCard small{font-size:11px;opacity:.85;min-height:28px}.clCard.on{border-color:#5dff8a;box-shadow:0 0 0 2px #5dff8a44}
+@media(max-height:450px){.clCard img{width:70px;height:96px}}

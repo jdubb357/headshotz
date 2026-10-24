@@ -213,7 +213,7 @@ export const HUB_PADS=[
  {k:'duel',n:1,x:-20,z:-15},{k:'team',n:2,x:-6,z:-15},{k:'t3',n:3,x:10.5,z:-15},
  {k:'t4',n:4,x:-12,z:12},{k:'t5',n:5,x:8,z:12},{k:'ffa',n:8,x:25,z:13,single:1}];
 export function padCircles(p){const r=p.single?3.2:PAD_R(p.n);if(p.single)return[{side:'F',x:p.x,z:p.z,r}];const off=r+.7;return[{side:'A',x:p.x-off,z:p.z,r},{side:'B',x:p.x+off,z:p.z,r}]}
-export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'arsenal',name:'🔫 ARSENAL',x:-27,z:-11}];
+export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'classes',name:'🎭 CLASS BOOTH',x:-27,z:-11}];
 DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,48],ground:['tiles',0x9aa3b5,.22],grade:[1,1,1.04,1.15,1.06],horizon:'city',
  sky:[0x24306e,0xff8fa3,0xffc59a],fog:[0xd99aa8,60,160],hemi:[0xe8e4ff,0x6a5a7a,1.35],sun:[0xffd6b0,1.7,[-.4,.55,-.6]],
  build(B){// perimeter: glassy towers + low walls

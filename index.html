@@ -37,6 +37,7 @@
     <button class="card nav" id="openShop"><span class="ico">🛒</span><span><b>WEAPON SHOP</b><small>Unlock weapons with 💎 earned by playing</small></span></button>
     <button class="card nav" id="openUpg"><span class="ico">⭐</span><span><b>UPGRADES</b><small>Camos · outfits · mag &amp; reload tiers</small></span></button>
     <button class="card nav" id="openArsenal"><span class="ico">🔫</span><span><b>ARSENAL</b><small>Equip your loadout</small></span></button>
+    <button class="card nav" id="openClasses"><span class="ico">🎭</span><span><b>CLASSES</b><small class="clBtnLbl">Soldier</small></span></button>
     <button class="card nav" id="openFriends"><span class="ico">👥<i class="frBadge hidden"></i></span><span><b>FRIENDS</b><small class="frOnline">Add friends by code</small></span></button>
     <button class="card nav" id="openSettings"><span class="ico">⚙️</span><span><b>SETTINGS</b><small>Sensitivity · zoom · graphics</small></span></button>
    </div>
@@ -53,7 +54,7 @@
    <div class="roomChip">ROOM <b id="roomCode"></b></div>
    <button id="shareBtn" class="pill yellow">📨 INVITE</button>
    <button id="lobArsenal" class="pill">🔫 ARSENAL</button><button id="lobShop" class="pill">🛒 SHOP</button>
-   <button id="lobFriends" class="pill">👥<i class="frBadge hidden"></i></button><button id="lobSettings" class="pill">⚙️</button>
+   <button id="lobClass" class="pill clBtnLbl">🪖 Soldier</button><button id="lobFriends" class="pill">👥<i class="frBadge hidden"></i></button><button id="lobSettings" class="pill">⚙️</button>
    <button id="leaveLobby" class="pill red">✕</button>
   </div>
   <div class="lobbyGrid">
@@ -83,6 +84,12 @@
   </div>
  </div>
 </div>
+
+<!-- CLASSES -->
+<div id="classes" class="screen bgfx2 hidden"><div class="wrap">
+ <div class="lobbyBar"><div class="roomChip">🎭 CLASS BOOTH</div><span class="dia">💎 <b id="clDia">0</b></span><button id="clClose" class="pill red">✕ CLOSE</button></div>
+ <p class="msg">Pick a class before the match. Looks are cosmetic; perks are small and balanced.</p><div id="clGrid"></div>
+</div></div>
 
 <!-- FRIENDS -->
 <div id="friends" class="screen bgfx2 hidden"><div class="wrap">
@@ -147,7 +154,7 @@
   </div>
   <button id="menuBtn" aria-label="Pause menu"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/><rect x="14.5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/></svg></button>
   <div id="pause" class="hidden"><div class="card pauseCard"><div id="board"></div>
-    <div class="row"><button id="pResume" class="pill yellow">RESUME</button><button id="pArsenal" class="pill">🔫 ARSENAL</button><button id="pShop" class="pill">🛒 SHOP</button><button id="pFriends" class="pill">👥 FRIENDS<i class="frBadge hidden"></i></button><button id="pSettings" class="pill">⚙️ SETTINGS</button><button id="pLeave" class="pill red">LEAVE</button></div></div></div>
+    <div class="row"><button id="pResume" class="pill yellow">RESUME</button><button id="pArsenal" class="pill">🔫 ARSENAL</button><button id="pShop" class="pill">🛒 SHOP</button><button id="pClass" class="pill">🎭 CLASS</button><button id="pFriends" class="pill">👥 FRIENDS<i class="frBadge hidden"></i></button><button id="pSettings" class="pill">⚙️ SETTINGS</button><button id="pLeave" class="pill red">LEAVE</button></div></div></div>
 </div>
 <div id="rotate">📱↻<br>Rotate your phone sideways to play</div>
 
