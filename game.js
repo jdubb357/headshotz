@@ -143,13 +143,17 @@ const PR=.35,PH=1.8;
 function overlaps(p,c,h){return p.x+PR>c.x0&&p.x-PR<c.x1&&p.z+PR>c.z0&&p.z-PR<c.z1&&p.y+h>c.y0&&p.y<c.y1}
 function supportAt(x,y,z){if(Math.abs(x)<groundHalf[0]&&Math.abs(z)<groundHalf[1]&&y<1.5)return true;for(const c of cols)if(x>c.x0-.2&&x<c.x1+.2&&z>c.z0-.2&&z<c.z1+.2&&c.y1<=y+.6&&c.y1>y-2.5)return true;return false}
 function onFloor(p){return Math.abs(p.x)<groundHalf[0]&&Math.abs(p.z)<groundHalf[1]}
-function physStep(e,dt){const p=e.pos,v=e.vel;v.y-=24*dt;if(v.y<-40)v.y=-40;const wasG=e.ground;
+function physStep(e,dt){dt=Math.min(dt,.25);const n=Math.ceil(dt/(1/60)-1e-6);if(n>1){let b=0,l=0;for(let i=0;i<n;i++){physStep1(e,dt/n);b=b||e.bump;l=l||e.landed}e.bump=b;e.landed=l;return}physStep1(e,dt)}
+function physStep1(e,dt){const p=e.pos,v=e.vel;const py0=p.y;if(!(isFinite(p.x)&&isFinite(p.y)&&isFinite(p.z))){const L=e.lastG||[0,0,0];p.x=L[0];p.y=L[1];p.z=L[2];v.x=v.y=v.z=0}if(!isFinite(v.x+v.y+v.z))v.x=v.y=v.z=0;v.y-=24*dt;if(v.y<-40)v.y=-40;const wasG=e.ground;
  for(const ax of['x','z']){p[ax]+=v[ax]*dt;for(const c of cols){if(!overlaps(p,c,PH))continue;
    if(c.y1-p.y<=.55&&(e.ground||v.y<=0)){let ok=true;const oy=p.y;p.y=c.y1+.001;for(const c2 of cols)if(c2!==c&&overlaps(p,c2,PH)){ok=false;break}if(ok)continue;p.y=oy}
    const mid=ax==='x'?(c.x0+c.x1)/2:(c.z0+c.z1)/2;if(p[ax]<mid)p[ax]=(ax==='x'?c.x0:c.z0)-PR-.001;else p[ax]=(ax==='x'?c.x1:c.z1)+PR+.001;v[ax]=0;e.bump=1}}
  p.y+=v.y*dt;e.ground=false;
- for(const c of cols){if(!overlaps(p,c,PH))continue;if(v.y<=0&&p.y>c.y1-.6){p.y=c.y1;e.ground=true}else if(v.y>0){p.y=c.y0-PH-.001}v.y=Math.min(0,v.y)}
+ for(const c of cols){if(!overlaps(p,c,PH))continue;if(v.y<=0&&p.y>c.y1-.6){p.y=c.y1;e.ground=true}else if(v.y>0){const ny=c.y0-PH-.001;if(ny>=py0-.05)p.y=ny;else p.y=Math.max(py0,c.y1)}v.y=Math.min(0,v.y)}
  if(p.y<0&&onFloor(p)&&p.y>-1){p.y=0;v.y=0;e.ground=true}
+ // safety net: below the floor but over solid ground (not water/off-pier) -> snap back to last grounded spot
+ if(p.y<-.5&&onFloor(p)){const L=e.lastG;if(L){p.x=L[0];p.y=L[1];p.z=L[2]}else p.y=0;v.x=v.y=v.z=0;e.ground=true;(window.__snaps=(window.__snaps||0)+1)}
+ if(e.ground)e.lastG=[p.x,p.y,p.z];
  e.landed=!wasG&&e.ground}
 let hitN=new THREE.Vector3();
 function rayBox(o,d,x0,y0,z0,x1,y1,z1,n){let tmin=0,tmax=1e9,ax=-1,sg=0;
@@ -1044,7 +1048,7 @@ renderLoadoutMini();resize();requestAnimationFrame(loop);
 addEventListener('keydown',e=>{if(e.code==='KeyF'&&inGame&&!paused&&me.alive&&me.reloadT<=0&&VA.inspect<=0&&me.zoomT<.1)VA.inspect=2.6});
 addEventListener('keydown',e=>{if(e.code==='KeyE'&&C.phase==='hub'&&!$('stationBtn').classList.contains('hidden'))useStation($('stationBtn').dataset.k)});
 {const q=new URLSearchParams(location.search);if(q.get('hub'))setTimeout(enterHub,50);else if(q.get('offline'))setTimeout(()=>$('offlineBtn').click(),50)}
-window.__hsz={PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';const p=q.pos||q;const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+window.__hsz={PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
 
 // ---- fullscreen: Fullscreen API where it exists (Android Chrome, iPad Safari, desktop); iPhone Safari gets an Add-to-Home-Screen guide
 const FS={api:!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen),
