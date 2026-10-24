@@ -156,7 +156,10 @@ function physStep1(e,dt){const p=e.pos,v=e.vel;const py0=p.y;if(!(isFinite(p.x)&
    if(c.y1-p.y<=.55&&(e.ground||v.y<=0)){let ok=true;const oy=p.y;p.y=c.y1+.001;for(const c2 of cols)if(c2!==c&&overlaps(p,c2,PH)){ok=false;break}if(ok)continue;p.y=oy}
    const mid=ax==='x'?(c.x0+c.x1)/2:(c.z0+c.z1)/2;if(p[ax]<mid)p[ax]=(ax==='x'?c.x0:c.z0)-PR-.001;else p[ax]=(ax==='x'?c.x1:c.z1)+PR+.001;v[ax]=0;e.bump=1}}
  p.y+=v.y*dt;e.ground=false;
+ // swept landing: feet crossed a top surface this step (prevents sinking/tunnelling at high fall speed or low FPS)
+ if(v.y<=0){let top=-1e9;for(const c of cols){if(p.x+PR>c.x0&&p.x-PR<c.x1&&p.z+PR>c.z0&&p.z-PR<c.z1&&py0>=c.y1-.06&&p.y<c.y1&&c.y1>top)top=c.y1}if(top>-1e9){p.y=top;v.y=0;e.ground=true}}
  for(const c of cols){if(!overlaps(p,c,PH))continue;if(v.y<=0&&p.y>c.y1-.6){p.y=c.y1;e.ground=true}else if(v.y>0&&e.ladTop!=null&&c.y1<=e.ladTop+.7){p.y=c.y1;e.ground=true}else if(v.y>0){const ny=c.y0-PH-.001;if(ny>=py0-.05)p.y=ny;else p.y=Math.max(py0,c.y1)}v.y=Math.min(0,v.y)}
+ if(e.ground&&v.y<0)v.y=0;
  if(p.y<0&&onFloor(p)&&p.y>-1){p.y=0;v.y=0;e.ground=true}
  // safety net: below the floor but over solid ground (not water/off-pier) -> snap back to last grounded spot
  if(p.y<-.5&&onFloor(p)){const L=e.lastG;if(L){p.x=L[0];p.y=L[1];p.z=L[2]}else p.y=0;v.x=v.y=v.z=0;e.ground=true;(window.__snaps=(window.__snaps||0)+1)}
