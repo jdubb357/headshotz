@@ -1,15 +1,14 @@
 // Low-poly humanoid soldier with simple procedural animation (walk/run/jump/slide/flinch/death).
-import {THREE,G,mergeParts} from './gfx.js';
-export const charMat=new THREE.MeshLambertMaterial({vertexColors:true});
+import {THREE,G,mergeParts,texMat} from './gfx.js';
 const SKINS=[0xf1c27d,0xe0ac69,0xc68642,0x8d5524,0xffdbac,0xd4a373];
 const HAIR=[0x2b1d14,0x5a3825,0xb5813f,0x111111,0x8b4513];
 function hash(s){let h=7;for(const c of String(s))h=h*31+c.charCodeAt(0)|0;return Math.abs(h)}
 const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_up=new THREE.Vector3(0,1,0),_q=new THREE.Quaternion(),_m=new THREE.Matrix4();
 function limb(P,a,b,r1,r2,c,seg=7){_a.set(...a);_b.set(...b);const d=_b.clone().sub(_a),l=d.length();_q.setFromUnitVectors(_up,d.normalize());_m.compose(_a.clone().add(_b).multiplyScalar(.5),_q,new THREE.Vector3(1,1,1));P.push({g:G('cyl',r2,r1,l,seg),m:_m.clone(),c})}
 const bx=(P,w,h,d,x,y,z,c,rx=0,ry=0,rz=0)=>P.push({g:G('box',w,h,d),p:[x,y,z],r:[rx,ry,rz],c});
-function mesh(P){return new THREE.Mesh(mergeParts(P),charMat)}
-export function makeCharacter(teamCol,name,id,tagCol){const h=hash(id);const skin=SKINS[h%SKINS.length],hair=HAIR[(h>>3)%HAIR.length];
- const col=new THREE.Color(teamCol),dark=col.clone().multiplyScalar(.55).getHex(),vest=0x4b5344,pants=0x33373d,boot=0x1d1f22,glove=0x2a2a2a,strap=0x26292b;
+function mesh(P){const m=new THREE.Mesh(mergeParts(P),texMat('char'));m.userData.tm='char';m.castShadow=true;return m}
+export function makeCharacter(teamCol,name,id,tagCol,outfit){const h=hash(id);const skin=SKINS[h%SKINS.length],hair=HAIR[(h>>3)%HAIR.length];
+ const col=new THREE.Color(teamCol),dark=col.clone().multiplyScalar(.55).getHex(),vest=outfit?outfit[0]:0x4b5344,pants=outfit?outfit[1]:0x33373d,boot=0x1d1f22,glove=0x2a2a2a,strap=0x26292b;
  const root=new THREE.Group(),rig=new THREE.Group();root.add(rig);
  // body
  let P=[];bx(P,.34,.17,.21,0,.93,0,pants);bx(P,.36,.05,.23,0,1.02,0,strap);bx(P,.06,.04,.02,0,1.02,-.12,0xb8a26a);

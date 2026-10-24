@@ -1,8 +1,8 @@
-// HeadShotz arsenal: stats + procedural low-poly weapon models. Everything free/unlocked.
+// HeadShotz arsenal: stats + procedural low-poly weapon models. Starter weapons free; new ones unlock with 💎 earned by playing (no real money).
 import {THREE,G} from './gfx.js';
 export const CLASSES=[
  {id:'ar',name:'Assault Rifles',slot:0},{id:'smg',name:'SMGs',slot:0},{id:'sniper',name:'Snipers',slot:0},{id:'marksman',name:'Marksman Rifles',slot:0},
- {id:'shotgun',name:'Shotguns',slot:0},{id:'pistol',name:'Pistols',slot:1},{id:'melee',name:'Melee & Knives',slot:2},{id:'util',name:'Utilities',slot:3}];
+ {id:'shotgun',name:'Shotguns',slot:0},{id:'heavy',name:'Heavy & Launchers',slot:0},{id:'pistol',name:'Pistols',slot:1},{id:'melee',name:'Melee & Knives',slot:2},{id:'util',name:'Utilities',slot:3}];
 // body/head = per bullet (per pellet for shotguns) close range. fall=[start,end] metres, min=body dmg at end. rc=[vertical kick rad, horizontal sway]
 export const W={
  ar:{name:'Assault Rifle',cls:'ar',auto:1,rate:.1,mag:30,reload:1.8,body:12,head:15,fall:[20,60],min:4,spread:.012,rc:[.012,.006],snd:{f:1900,d:.11,b:150,v:.55},desc:'Reliable full-auto starter rifle.'},
@@ -27,6 +27,21 @@ export const W={
  knife:{name:'Knife',cls:'melee',melee:3,rate:.45,body:35,head:50,desc:'Quick and deadly.'},
  katana:{name:'Katana',cls:'melee',melee:3.6,rate:.7,body:45,head:60,desc:'Long reach, clean cuts.'},
  axe:{name:'Fire Axe',cls:'melee',melee:3,rate:.9,body:55,head:80,desc:'Slow swing, huge hit.'},
+ // ---- shop weapons (price in diamonds, earned only by playing) ----
+ m4:{name:'M4 Carbine',cls:'ar',price:150,auto:1,rate:.085,mag:30,reload:1.9,body:11,head:15,fall:[25,70],min:4,spread:.009,rc:[.01,.005],snd:{f:2100,d:.1,b:150,v:.55},desc:'Smooth, accurate, easy to control.'},
+ ak47:{name:'AK-47',cls:'ar',price:200,auto:1,rate:.1,mag:30,reload:2.1,body:14,head:19,fall:[22,65],min:5,spread:.014,rc:[.017,.01],snd:{f:1500,d:.13,b:120,v:.62},desc:'Hard-hitting classic. Big kick.'},
+ scar:{name:'SCAR-H',cls:'ar',price:300,auto:1,rate:.12,mag:20,reload:2.2,body:16,head:23,fall:[30,80],min:6,spread:.01,rc:[.018,.007],snd:{f:1350,d:.14,b:110,v:.64},desc:'Battle-grade 7.62 punch with an ACOG.'},
+ mp5:{name:'MP5',cls:'smg',price:150,auto:1,rate:.07,mag:30,reload:1.8,body:10,head:13,fall:[14,40],min:3,spread:.02,rc:[.006,.006],snd:{f:2500,d:.07,b:190,v:.45},desc:'Legendary control and accuracy.'},
+ mp7:{name:'MP7',cls:'smg',price:200,auto:1,rate:.06,mag:40,reload:1.9,body:9,head:12,fall:[15,40],min:3,spread:.019,rc:[.006,.007],snd:{f:2800,d:.06,b:200,v:.44},desc:'Tiny, fast, 40-round mag.'},
+ kriss:{name:'KRISS Vector .45',cls:'smg',price:250,auto:1,rate:.045,mag:25,reload:1.8,body:9,head:12,fall:[10,30],min:2,spread:.023,rc:[.004,.006],snd:{f:2300,d:.06,b:170,v:.46},desc:'Crazy fire rate, almost no recoil.'},
+ p90:{name:'P90',cls:'smg',price:250,auto:1,rate:.055,mag:50,reload:2.3,body:9,head:12,fall:[14,38],min:3,spread:.021,rc:[.005,.006],snd:{f:2700,d:.06,b:190,v:.44},desc:'50-round top mag. Never stop shooting.'},
+ aa12:{name:'AA-12',cls:'shotgun',price:350,auto:1,rate:.2,mag:20,reload:2.8,body:6,head:9,pellets:8,fall:[6,20],min:1.5,spread:.09,rc:[.04,.016],snd:{f:1050,d:.18,b:85,v:.8},desc:'Full-auto drum shotgun. Total chaos.'},
+ glock18:{name:'Glock 18',cls:'pistol',price:150,auto:1,rate:.05,mag:20,reload:1.4,body:8,head:11,fall:[12,35],min:2,spread:.028,rc:[.01,.012],snd:{f:2500,d:.06,b:190,v:.44},desc:'Full-auto machine pistol.'},
+ deagle:{name:'Desert Eagle',cls:'pistol',price:200,rate:.45,mag:7,reload:1.9,body:36,head:60,fall:[25,60],min:14,spread:.007,rc:[.07,.015],snd:{f:900,d:.26,b:70,v:.88},desc:'.50 cal hand cannon.'},
+ crossbow:{name:'Crossbow',cls:'marksman',price:300,rate:1,mag:1,reload:1.3,body:65,head:130,spread:.003,scope:45,rc:[.02,.004],snd:{f:700,d:.12,b:220,v:.5},noShell:1,desc:'Silent bolts. One-shot headshots.'},
+ lmg:{name:'LMG',cls:'heavy',price:350,auto:1,rate:.09,mag:100,reload:4,body:13,head:17,fall:[30,80],min:5,spread:.022,rc:[.011,.01],snd:{f:1600,d:.13,b:120,v:.62},desc:'100-round belt. Suppress everything.'},
+ gl:{name:'Grenade Launcher',cls:'heavy',price:450,proj:'gl',rate:.9,mag:6,reload:3,body:0,head:0,splash:85,radius:5,spread:0,rc:[.06,.01],snd:{f:500,d:.2,b:60,v:.7},noShell:1,desc:'Lobs explosive rounds that pop on impact.'},
+ rpg:{name:'Rocket Launcher',cls:'heavy',price:600,proj:'rpg',rate:1.4,mag:1,reload:2.6,body:0,head:0,splash:120,radius:5.5,spread:0,rc:[.09,.015],snd:{f:380,d:.45,b:50,v:.85},noShell:1,desc:'Rocket with big splash. Self-damage reduced.'},
  grenade:{name:'Frag Grenade',cls:'util',count:2,desc:'Explodes after 1.8s. Up to ~100 damage.'},
  molotov:{name:'Molotov',cls:'util',count:1,desc:'Bursts into flames on impact. Burns over time.'},
  smoke:{name:'Smoke',cls:'util',count:2,desc:'Thick cloud that blocks vision for 12s.'},
@@ -34,10 +49,12 @@ export const W={
  medkit:{name:'Med Kit',cls:'util',count:1,heal:50,desc:'Instantly heal 50 HP.'},
 };
 for(const k in W){const w=W[k];w.id=k;w.slot=CLASSES.find(c=>c.id===w.cls).slot}
+export const STARTER=Object.keys(W).filter(k=>!W[k].price);
 export const LIMB=.85;
 export function falloff(w,d){if(!w.fall)return 1;const[a,b]=w.fall;if(d<=a)return 1;if(d>=b)return w.min/w.body;return 1-(d-a)/(b-a)*(1-w.min/w.body)}
 // stats normalised 0..1 for arsenal bars
-export function stats(w){if(w.cls==='util')return null;const p=w.pellets||1;const dps=w.melee?w.body/w.rate:w.body*p/w.rate*(w.burst?1.8:1);
+export function stats(w){if(w.cls==='util')return null;
+ if(w.proj)return[['Splash dmg',Math.min(1,w.splash/120),w.splash+''],['Radius',w.radius/6,w.radius+'m'],['Fire rate',Math.min(1,.06/w.rate+.05),Math.round(60/w.rate)+' rpm'],['Magazine',Math.min(1,w.mag/40),w.mag+''],['Reload',Math.min(1,1.3/w.reload),w.reload+'s']];const p=w.pellets||1;const dps=w.melee?w.body/w.rate:w.body*p/w.rate*(w.burst?1.8:1);
  return[['Damage',Math.min(1,w.body*p/90),Math.round(w.body*p)+(p>1?' total':'')],['Headshot',Math.min(1,w.head*p/160),Math.round(w.head*p)+''],['Fire rate',Math.min(1,.06/w.rate*1.0+.05),Math.round(60/w.rate)+' rpm'],
   ['Range',w.melee?w.melee/4:Math.min(1,(w.fall?w.fall[1]:150)/110),w.melee?w.melee+'m':(w.fall?w.fall[1]+'m':'∞')],['Magazine',w.melee?1:Math.min(1,w.mag/40),w.melee?'∞':w.mag+''],['Reload',w.melee?1:Math.min(1,1.3/w.reload),w.melee?'-':w.reload+'s'],['DPS',Math.min(1,dps/220),Math.round(dps)+'']]}
 // ---------------- models ----------------
@@ -114,6 +131,33 @@ const BUILD={
   box(.01,.02,.01,0,.07,.06,C.steel,-.5);matte();box(.03,.1,.045,0,-.04,.08,C.wood,.35);tguard();return{muzzle:[0,.045,-.25],eject:[0,.04,-.03],sightY:.08,lh:[0,-.07,.09],len:.3,pistol:1,noShell:1}},
  cannon:()=>{metal();box(.04,.045,.25,0,.05,-.08,C.chrome);box(.036,.03,.22,0,.015,-.08,C.steel);box(.042,.02,.03,0,.05,-.205,C.chrome);ironSights(-.19,.03,.074,C.blk);grip(C.blk,.22);tguard();
   return{muzzle:[0,.05,-.22],eject:[.025,.06,-.06],sightY:.098,lh:[0,-.075,.06],len:.27,pistol:1}},
+ m4:()=>rifle({rl:.24,bl:.22,hgL:.22,mag:'straight',magL:.13,stock:'tube',sight:'red',col:C.blk,acc:C.blk}),
+ ak47:()=>{const r=rifle({rl:.26,bl:.24,hgL:.2,mag:'curved',hg:'wood',stock:'wood',sight:'iron',rail:false,col:C.gun,magCol:0x5a3a22,stockCol:C.wood,gripCol:C.wood2});metal();box(.012,.03,.006,0,.085,-.38,C.blk);cylZ(.007,.2,0,.06,-.3,C.blk,6);return r},
+ scar:()=>rifle({rl:.26,bl:.26,hgL:.24,mag:'straight',magL:.1,stock:'solid',sight:'acog',col:C.tan,acc:C.tan,stockCol:C.tan,brake:1,br:.013}),
+ mp5:()=>{metal();box(.05,.065,.26,0,.03,-.04,C.blk);cylZ(.011,.1,0,.03,-.22,C.blk);ironSights(-.15,.07,.064);matte();box(.05,.05,.12,0,.0,-.14,C.poly);grip(C.poly,.2);tguard();
+  matte();for(let i=0;i<3;i++)box(.028,.055,.05,0,-.05-i*.05,-.05-i*.012,C.blk,-.2-i*.05);box(.01,.01,.16,0,.04,.15,C.steel);box(.04,.06,.025,0,.02,.24,C.blk);return{muzzle:[0,.03,-.28],eject:[.03,.05,-.02],sightY:.084,lh:[0,-.02,-.14],len:.45}},
+ mp7:()=>{metal();box(.045,.08,.22,0,.03,-.03,C.blk);rail(.06,-.13,.075);redDot(-.02,.075);cylZ(.01,.06,0,.035,-.17,C.blk);matte();box(.03,.05,.03,0,-.035,-.12,C.blk,-.4);grip(C.blk,.12);straightMag(.05,C.blk,.14);tguard();
+  box(.01,.01,.14,.018,.04,.12,C.blk);box(.01,.01,.14,-.018,.04,.12,C.blk);box(.045,.05,.02,0,.03,.19,C.blk);return{muzzle:[0,.035,-.21],eject:[.03,.05,-.02],sightY:.115,lh:[0,-.05,-.12],len:.38}},
+ kriss:()=>{metal();box(.05,.11,.24,0,.0,-.04,C.blk);box(.046,.03,.16,0,.07,-.06,C.blk);rail(.04,-.15,.088);matte();box(.055,.07,.09,0,-.075,-.1,C.poly,-.35);redDot(-.04,.088);
+  metal();cylZ(.017,.09,0,.025,-.21,C.blk);grip(C.poly,.15);tguard();straightMag(-.1,C.poly,.17);matte();box(.012,.03,.2,0,.04,.17,C.blk);box(.045,.075,.03,0,.03,.28,C.poly);return{muzzle:[0,.025,-.26],eject:[.03,.05,-.02],sightY:.128,lh:[0,-.1,-.12],len:.42}},
+ p90:()=>{matte();box(.06,.1,.4,0,.01,0,0x2b2e33);metal();box(.044,.025,.28,0,.075,-.02,0x8a8f96);for(let i=0;i<6;i++)box(.046,.004,.02,0,.088,-.14+i*.05,0x5a5f66);
+  box(.05,.03,.06,0,.098,-.02,C.blk);box(.03,.012,.004,0,.105,-.05,C.glass);matte();box(.05,.07,.06,0,-.05,-.08,0x2b2e33,.3);box(.016,.04,.06,0,-.04,-.02,0x111111);cylZ(.011,.06,0,.025,-.23,C.blk);tguard();
+  return{muzzle:[0,.025,-.26],eject:[0,-.05,.12],sightY:.12,lh:[0,-.05,-.11],len:.45}},
+ aa12:()=>{const r=rifle({rl:.28,bl:.28,hgL:.2,mag:'none',stock:'solid',sight:'red',br:.017,col:C.olive,acc:C.olive,stockCol:C.olive,brake:1});metal();cylX(.065,.06,0,-.07,-.07,C.blk,14);cylX(.03,.065,0,-.07,-.07,C.steel,10);box(.064,.02,.1,0,.11,-.02,C.olive);return r},
+ glock18:()=>{metal();box(.03,.034,.18,0,.045,-.055,0x2b2d31);for(let i=0;i<5;i++)box(.032,.02,.004,0,.048,.0+i*.006,0x111111);box(.028,.022,.16,0,.016,-.055,C.poly);cylZ(.008,.012,0,.045,-.148,0x111111);box(.008,.008,.012,.016,.04,.0,C.red);
+  ironSights(-.135,.025,.062);grip(C.poly,.2);straightMag(.07,C.blk,.09);tguard();return{muzzle:[0,.045,-.16],eject:[.02,.055,-.05],sightY:.084,lh:[0,-.075,.06],len:.2,pistol:1}},
+ deagle:()=>{metal();box(.042,.05,.26,0,.05,-.09,0xb8bec7);box(.036,.03,.24,0,.015,-.09,C.steel);for(let i=0;i<4;i++)box(.044,.024,.004,0,.054,.0+i*.008,0x55595f);box(.012,.012,.25,0,.08,-.09,0xb8bec7);
+  ironSights(-.2,.025,.087,C.blk);grip(C.blk,.2);tguard();return{muzzle:[0,.05,-.23],eject:[.025,.06,-.06],sightY:.11,lh:[0,-.075,.06],len:.28,pistol:1}},
+ crossbow:()=>{matte();box(.045,.05,.5,0,.02,-.05,C.wood);box(.04,.08,.18,0,-.01,.26,C.wood2,.12);grip(C.wood2,.25);metal();box(.5,.02,.03,0,.03,-.27,C.blk);
+  parts.push({g:G('tor',.24,.008,4,14,Math.PI*.9),p:[0,.03,-.2],r:[Math.PI/2,0,Math.PI*1.05],c:C.blk,mat:'metal'});box(.004,.004,.5,0,.055,-.08,0xdddddd);cylZ(.005,.45,0,.06,-.12,C.steel,5);
+  box(.012,.02,.03,0,.065,-.35,C.red);longScope(.03,.06,.2,.016);tguard();return{muzzle:[0,.06,-.34],sightY:.112,lh:[0,-.01,-.2],len:.6,noShell:1}},
+ lmg:()=>{const r=rifle({rl:.3,bl:.34,hgL:.24,mag:'none',stock:'solid',sight:'red',br:.015,col:C.gun,acc:C.olive,stockCol:C.olive,bipod:1});matte();box(.09,.09,.11,.05,-.06,-.07,C.olive);box(.03,.02,.04,.01,.01,-.05,C.brass);metal();cylZ(.018,.3,0,.05,-.55,C.blk,8);box(.012,.04,.03,0,.1,.0,C.blk);return r},
+ gl:()=>{metal();cylZ(.042,.3,0,.03,-.14,C.blk,12);cylZ(.048,.02,0,.03,-.29,C.steel,12);cylZ(.075,.1,0,-.01,.02,C.olive,6);parts[parts.length-1].r=[Math.PI/2,0,0];for(let i=0;i<6;i++){const a=i/6*Math.PI*2;cylZ(.016,.102,Math.cos(a)*.048,-.01+Math.sin(a)*.048,.02,C.blk,6)}
+  matte();grip(C.olive,.25);box(.04,.06,.2,0,.0,.2,C.olive);box(.044,.09,.03,0,-.01,.3,C.blk);box(.04,.04,.12,0,-.03,-.16,C.olive);ironSights(-.26,-.02,.074);tguard();return{muzzle:[0,.03,-.3],sightY:.096,lh:[0,-.03,-.17],len:.55,noShell:1}},
+ rpg:()=>{metal();cylZ(.045,.9,0,.04,-.12,C.olive,12);cylZ(.06,.12,0,.04,.36,C.olive,12,.045);cylZ(.05,.06,0,.04,-.6,0x3b3f2a,12);matte();cylZ(.035,.2,0,.04,-.66,0x6b6f4a,8,.012);
+  grip(C.blk,.2);box(.04,.11,.05,0,-.05,-.2,C.blk,.2);metal();box(.02,.06,.08,-.06,.07,-.05,C.blk);box(.014,.03,.004,-.06,.1,-.03,C.glass);tguard();return{muzzle:[0,.04,-.6],sightY:.1,lh:[0,-.04,-.22],len:.9,noShell:1}},
+ proj_gl:()=>{metal();cylZ(.03,.06,0,0,0,C.brass,10);sph(.03,0,0,-.03,C.olive);return{util:1}},
+ proj_rpg:()=>{metal();cylZ(.04,.22,0,0,-.05,0x3b3f2a,10);parts.push({g:G('cone',.045,.14,10),p:[0,0,-.22],r:[-Math.PI/2,0,0],c:0x6b6f4a,mat:'metal'});for(let i=0;i<4;i++)box(.004,.06,.06,0,0,.06,C.blk,0,0,i*Math.PI/4);return{util:1}},
  knife:()=>{matte();box(.026,.03,.1,0,0,.03,C.blk);box(.04,.035,.01,0,0,-.025,C.steel);metal();box(.006,.03,.16,0,.003,-.11,C.chrome);box(.006,.016,.04,0,.0,-.205,C.chrome,0,0,0);
   return{muzzle:[0,0,-.2],sightY:0,lh:null,melee:1}},
  katana:()=>{matte();box(.028,.032,.22,0,0,.08,C.wrap);for(let i=0;i<6;i++)box(.03,.034,.008,0,0,.0+i*.035,C.red);metal();cylY(.045,.008,0,0,-.035,C.brass,10);parts[parts.length-1].r=[Math.PI/2,0,0];

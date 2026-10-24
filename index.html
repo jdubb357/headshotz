@@ -22,21 +22,26 @@
   <div class="logo"><span class="l1">HEAD</span><span class="l2">SHOTZ</span></div>
   <div class="homeGrid">
    <div class="card play">
-    <div class="cardHead">⚡ PLAY</div>
+    <div class="cardHead">⚡ PLAY <span class="dia sm">💎 <b class="diaBal">0</b></span></div>
     <label class="lbl">YOUR NAME</label>
     <input id="nameIn" maxlength="12" placeholder="Player" autocomplete="off">
-    <button id="createBtn" class="btnBig yellow">CREATE ROOM</button>
-    <div class="joinRow"><input id="codeIn" maxlength="5" placeholder="CODE" autocomplete="off"><button id="joinBtn" class="btnBig blue">JOIN</button></div>
+    <button id="hubBtn" class="btnBig yellow">🌐 PLAY ONLINE · HUB</button>
+    <div class="row2"><button id="quickBtn" class="btnBig blue">⚡ QUICK JOIN</button><button id="browseBtn" class="btnBig blue">📋 BROWSE</button></div>
+    <button id="offlineBtn" class="btnBig green">🤖 OFFLINE VS BOTS</button>
+    <details class="priv"><summary>🔒 Private room / invite code</summary>
+     <button id="createBtn" class="btnBig">CREATE PRIVATE ROOM</button>
+     <div class="joinRow"><input id="codeIn" maxlength="5" placeholder="CODE" autocomplete="off"><button id="joinBtn" class="btnBig blue">JOIN</button></div></details>
     <p id="menuMsg" class="msg"></p>
    </div>
    <div class="side">
-    <button class="card nav" id="openArsenal"><span class="ico">🔫</span><span><b>ARSENAL</b><small>22 weapons + 5 utilities · all free</small></span></button>
-    <button class="card nav" id="openSettings"><span class="ico">⚙️</span><span><b>SETTINGS</b><small>Sensitivity · aim assist</small></span></button>
-    <div class="card nav static"><span class="ico">🏆</span><span><b>MODES</b><small>1v1 · 2v2 · Free-For-All · first to 5</small></span></div>
+    <button class="card nav" id="openShop"><span class="ico">🛒</span><span><b>WEAPON SHOP</b><small>Unlock weapons with 💎 earned by playing</small></span></button>
+    <button class="card nav" id="openUpg"><span class="ico">⭐</span><span><b>UPGRADES</b><small>Camos · outfits · mag &amp; reload tiers</small></span></button>
+    <button class="card nav" id="openArsenal"><span class="ico">🔫</span><span><b>ARSENAL</b><small>Equip your loadout</small></span></button>
+    <button class="card nav" id="openSettings"><span class="ico">⚙️</span><span><b>SETTINGS</b><small>Sensitivity · zoom · graphics</small></span></button>
    </div>
   </div>
   <p id="iosTip" class="tip hidden">📲 Play full screen: tap <b>Share</b> then <b>Add to Home Screen</b></p>
-  <p class="foot">100% free · no ads · no purchases · everything unlocked</p>
+  <p class="foot">100% free · no ads · no real-money purchases · 💎 diamonds are earned only by playing</p>
  </div>
 </div>
 
@@ -46,13 +51,14 @@
   <div class="lobbyBar">
    <div class="roomChip">ROOM <b id="roomCode"></b></div>
    <button id="shareBtn" class="pill yellow">📨 INVITE</button>
-   <button id="lobArsenal" class="pill">🔫 ARSENAL</button>
+   <button id="lobArsenal" class="pill">🔫 ARSENAL</button><button id="lobShop" class="pill">🛒 SHOP</button>
    <button id="lobSettings" class="pill">⚙️</button>
    <button id="leaveLobby" class="pill red">✕</button>
   </div>
   <div class="lobbyGrid">
    <div class="card"><div class="cardHead sm">PLAYERS <span id="pCount"></span></div><div id="pList"></div>
-     <div id="hostCtl"><button id="botAdd" class="pill">+ BOT</button><button id="botDel" class="pill">− BOT</button></div></div>
+     <div id="hostCtl"><button id="botAdd" class="pill">+ BOT</button><button id="botDel" class="pill">− BOT</button><button id="fillBtn" class="pill">FILL WITH BOTS: OFF</button><button id="pubBtn" class="pill">PUBLIC: OFF</button>
+     <div class="diffRow">BOTS: <button data-diff="easy" class="pill sm">EASY</button><button data-diff="normal" class="pill sm">NORMAL</button><button data-diff="hard" class="pill sm">HARD</button></div></div></div>
    <div class="card wide"><div class="cardHead sm">MODE</div><div id="modeBtns"></div>
      <div class="cardHead sm">VOTE MAP</div><div id="mapBtns"></div></div>
    <div class="card"><div class="cardHead sm">LOADOUT</div><div id="loadoutMini"></div></div>
@@ -64,26 +70,33 @@
 
 <!-- ARSENAL -->
 <div id="arsenal" class="screen bgfx2 hidden">
- <div class="arsBar"><div class="arsTitle">ARSENAL</div><span class="free">ALL FREE</span><button id="arsClose" class="pill red">✕ CLOSE</button></div>
+ <div class="arsBar"><div class="arsTitle" id="arsTitle">ARSENAL</div><span class="dia">💎 <b class="diaBal">0</b></span><button id="arsClose" class="pill red">✕ CLOSE</button></div>
  <div id="arsTabs"></div>
  <div class="arsBody">
   <div id="arsGrid"></div>
   <div id="arsDetail" class="card">
    <div id="arsPrev"></div>
    <div class="arsName" id="arsName"></div><div class="arsDesc" id="arsDesc"></div>
-   <div id="arsStats"></div>
+   <div id="arsStats"></div><div id="arsUpg"></div>
    <button id="arsEquip" class="btnBig yellow">EQUIP</button>
   </div>
  </div>
 </div>
+
+<!-- BROWSER -->
+<div id="browser" class="screen bgfx hidden"><div class="wrap">
+ <div class="lobbyBar"><div class="roomChip">OPEN GAMES</div><button id="brRefresh" class="pill yellow">⟳ REFRESH</button><button id="brQuick" class="pill">⚡ QUICK JOIN</button><button id="brClose" class="pill red">✕</button></div>
+ <div class="card wide"><div id="brList"><p class="msg">Searching…</p></div></div>
+</div></div>
 
 <!-- SETTINGS -->
 <div id="settings" class="screen dim hidden">
  <div class="card setCard">
   <div class="cardHead">⚙️ SETTINGS</div>
   <label class="lbl">LOOK SENSITIVITY <b id="sensVal"></b></label><input id="sens" type="range" min="0.3" max="2.5" step="0.05">
+  <label class="lbl">ZOOM SENSITIVITY <b id="zsensVal"></b></label><input id="zsens" type="range" min="0.5" max="1.6" step="0.05">
   <label class="chk"><input id="aimAssist" type="checkbox"> Aim assist (slows aim on enemies, touch)</label>
-  <label class="lbl">GRAPHICS</label><div class="row" id="qualBtns"><button data-q="auto" class="pill">AUTO</button><button data-q="low" class="pill">LOW</button><button data-q="high" class="pill">HIGH</button></div>
+  <label class="lbl">GRAPHICS</label><div class="row" id="qualBtns"><button data-q="auto" class="pill">AUTO</button><button data-q="low" class="pill">LOW</button><button data-q="medium" class="pill">MEDIUM</button><button data-q="high" class="pill">HIGH</button></div><div class="hint" id="qualNow" style="opacity:.75;font-size:12px;margin-top:4px"></div>
   <button id="setClose" class="btnBig yellow">DONE</button>
  </div>
 </div>
@@ -97,19 +110,30 @@
   <div id="feed"></div>
   <div id="bottom"><div id="hpWrap"><div id="hpBar"><div id="hpFill"></div></div><span id="hpTxt">100</span></div><div id="slots"></div></div>
   <div id="dmgLayer"></div>
-  <div id="vign"></div>
+  <div id="hubUI" class="hidden"><div id="hubInfo"></div><button id="stationBtn" class="hidden"></button><div id="padInfo"></div></div>
+  <div id="mapSel" class="hidden"><div class="card"><div class="cardHead">CHOOSE A MAP <b id="mapSelT">5</b></div><div id="mapSelSub"></div><div id="mapSelList"></div></div></div>
+  <div id="diaToast"></div>
+  <div id="vign"></div><div id="lensV"></div>
   <div id="smokeOv"></div>
-  <div id="scope" class="hidden"><div class="ret"></div></div>
+  <div id="scope" class="hidden"><svg class="ret" viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
+   <defs><radialGradient id="lensG" r=".5"><stop offset=".78" stop-color="#000" stop-opacity="0"/><stop offset=".97" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity=".95"/></radialGradient></defs>
+   <circle r="99" fill="url(#lensG)"/>
+   <g stroke="#000" stroke-width=".55" shape-rendering="crispEdges"><path d="M-99 0H-6M6 0H99M0 -99V-6M0 6V99"/></g>
+   <g stroke="#000" stroke-width="2.6"><path d="M-99 0H-38M38 0H99M0 38V99"/></g>
+   <g fill="#000"><circle cx="-12" r=".9"/><circle cx="-24" r=".9"/><circle cx="12" r=".9"/><circle cx="24" r=".9"/><circle cy="12" r=".9"/><circle cy="24" r=".9"/><circle cy="-12" r=".9"/><circle cy="-24" r=".9"/></g>
+   <path d="M-3 9 L0 2 L3 9" fill="none" stroke="#000" stroke-width=".6"/><circle r="1.1" fill="#ff2a2a"/>
+   <circle r="99" fill="none" stroke="#0b0b0b" stroke-width="2"/></svg></div>
   <div id="flashOv"></div>
   <div id="touch" class="hidden">
     <div id="joyBase"><div id="joyKnob"></div></div>
     <button class="tb" id="bSwap" aria-label="Switch weapon"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14l-4-4M20 16H6l4 4"/></svg></button>
     <button class="tb" id="bJump" aria-label="Jump"><svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
     <button class="tb" id="bNade" aria-label="Utility"></button>
+    <button class="tb" id="bZoom" aria-label="Zoom / aim"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7.5"/><path d="M12 1.5v5M12 17.5v5M1.5 12h5M17.5 12h5"/><circle cx="12" cy="12" r="1.2" fill="#fff"/></svg></button>
   </div>
-  <button id="menuBtn">☰</button>
+  <button id="menuBtn" aria-label="Pause menu"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/><rect x="14.5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/></svg></button>
   <div id="pause" class="hidden"><div class="card pauseCard"><div id="board"></div>
-    <div class="row"><button id="pResume" class="pill yellow">RESUME</button><button id="pArsenal" class="pill">🔫 ARSENAL</button><button id="pSettings" class="pill">⚙️ SETTINGS</button><button id="pLeave" class="pill red">LEAVE</button></div></div></div>
+    <div class="row"><button id="pResume" class="pill yellow">RESUME</button><button id="pArsenal" class="pill">🔫 ARSENAL</button><button id="pShop" class="pill">🛒 SHOP</button><button id="pSettings" class="pill">⚙️ SETTINGS</button><button id="pLeave" class="pill red">LEAVE</button></div></div></div>
 </div>
 <div id="rotate">📱↻<br>Rotate your phone sideways to play</div>
 

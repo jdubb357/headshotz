@@ -1,5 +1,5 @@
 // HeadShotz original maps. Built from merged, textured, vertex-AO geometry (few draw calls per map).
-import {THREE,G,mergeParts,texMat,glowMat,TX,makeSky,getTex,rng} from './gfx.js';
+import {THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng} from './gfx.js';
 const _c=new THREE.Color();
 function Builder(){const T={},cols=[],shadows=[],glows=[];
  const add=(tex,pt)=>{(T[tex]=T[tex]||[]).push(pt)};
@@ -70,7 +70,7 @@ function facade(B,x,z,w,h,d,c,face){B.box(x,0,z,w,h,d,c,'plaster',{us:.3});B.box
   else{const fz=z+(z>0?-d/2-.03:d/2+.03);B.box(x+t,y,fz,1.1,1.4,.06,0xffffff,'window',{solid:false,shadow:false,local:true});B.box(x+t,y-.12,fz+(z>0?-.1:.1),1.3,.1,.2,0xeeeeee,'concrete',{solid:false,shadow:false})}}}
 // ===================== MAP DEFINITIONS =====================
 const DEFS=[
-{name:'Sunset Plaza',desc:'Balanced arena',icon:'🌇',size:[48,48],ground:['tiles',0xe8d2ae,.25],
+{name:'Sunset Plaza',horizon:'city',grade:[1.05,1,.93,1.12,1.06],grass:[{on:['grass'],count:1400,color:0x6fae3f,height:.9}],desc:'Balanced arena',icon:'🌇',size:[48,48],ground:['tiles',0xe8d2ae,.25],
  sky:[0x3a5aa8,0xffa66b,0xffd9ae],fog:[0xffb887,45,120],hemi:[0xffe2c4,0x8a6a55,1.35],sun:[0xffd3a0,1.9,[-.6,.45,.55]],
  build(B){const cols=[0xf3d9b1,0xe9b98f,0xf7e7ce,0xd9a679,0xefc7a3,0xf2dcc0];let k=0;
   for(const s of[-1,1]){for(let i=-24;i<24;i+=6){const h=7+((i+30)*7%4);facade(B,s*26,i+3,4,h,6,cols[k++%6],'x');facade(B,i+3,s*26,6,h+((i*3)%3),4,cols[k++%6],'z')}}
@@ -93,7 +93,7 @@ const DEFS=[
    B.palm(s*-20,s*-20);B.palm(s*-14,s*20)}
  },
  spawnsA:[[-21,-5],[-21,0],[-21,5],[-20,-9],[-20,10],[-17,2]],spawnsB:[[21,5],[21,0],[21,-5],[20,9],[20,-10],[17,-2]],spawnsM:[[0,-17],[0,17],[-8,21],[8,-21],[-10,-21],[10,21],[-17,-6],[17,6]]},
-{name:'Steel Frame',desc:'Vertical worksite',icon:'🏗️',size:[44,40],ground:['sand',0xb7a184,.2],
+{name:'Steel Frame',horizon:'city',grade:[.98,1,1.03,1.08,1.08],grass:[{on:['sand'],count:700,color:0x8f9a52,height:.75}],desc:'Vertical worksite',icon:'🏗️',size:[44,40],ground:['sand',0xb7a184,.2],
  sky:[0x3d7cc9,0xa9d4f5,0xdfeaf2],fog:[0xbcd6ea,45,120],hemi:[0xdfefff,0x7a6a55,1.3],sun:[0xfff1d6,1.8,[.5,.8,.3]],
  build(B){const st=0x8e9aa6,yb=0xf1c40f,or=0xe67e22;
   B.box(0,-.01,0,40,.02,8,0x6b6b6b,'asphalt',{solid:false,shadow:false});
@@ -117,7 +117,7 @@ const DEFS=[
   B.barrel(9,-1,0x34495e);B.barrel(-9,1,0x34495e);B.barrel(9.6,-.2,0xe67e22);
  },
  spawnsA:[[-20,-3],[-20,3],[-20,-8],[-20,8],[-17,-13],[-17,16]],spawnsB:[[20,3],[20,-3],[20,8],[20,-8],[17,13],[17,-16]],spawnsM:[[0,7],[0,-7],[8,2],[-8,-2],[-6,17],[6,-17],[0,13],[0,-13]]},
-{name:'Harbor Line',desc:'Long sightlines',icon:'⚓',size:[85,25.5],pier:true,ground:['planks',0xa87d52,.35],water:0x1f7fc9,
+{name:'Harbor Line',horizon:'coast',grade:[.97,1.01,1.04,1.15,1.05],desc:'Long sightlines',icon:'⚓',size:[85,25.5],pier:true,ground:['planks',0xa87d52,.35],water:0x1f7fc9,
  sky:[0x2f6fc0,0x9fd0f0,0xcfe6f5],fog:[0xa8cde6,60,150],hemi:[0xdff2ff,0x5a6f80,1.3],sun:[0xfff0d0,1.8,[.3,.7,-.6]],
  build(B){const cols=[0xd35400,0x2471a3,0x229954,0xd4ac0d,0x7d3c98,0xc0392b];
   B.box(0,-.01,-12.2,85,.03,1.1,0x9a9a9a,'concrete',{solid:false,shadow:false});B.box(0,-.01,12.2,85,.03,1.1,0x9a9a9a,'concrete',{solid:false,shadow:false});
@@ -136,7 +136,7 @@ const DEFS=[
   for(let i=0;i<6;i++)B.box(-35+i*14,-1.2,22+i%2*3,6,1.2,2.5,0xffffff,'plaster',{solid:false,shadow:false});
  },
  spawnsA:[[-41,-10],[-41,-3],[-41,3],[-41,9],[-33,10.4],[-38,0]],spawnsB:[[41,10],[41,3],[41,-3],[41,-9],[33,-10.4],[38,0]],spawnsM:[[0,8.5],[0,-8.5],[-14,2],[14,-2],[-22,-1],[22,1],[-8,-9.5],[8,9.5]]},
-{name:'Office Rush',desc:'Tight hallways',icon:'🏢',size:[32,24],indoor:true,ground:['carpet',0x6c8fb5,.4],
+{name:'Office Rush',grade:[1,1,1.03,1.05,1.07],desc:'Tight hallways',icon:'🏢',size:[32,24],indoor:true,ground:['carpet',0x6c8fb5,.4],
  sky:[0x1d2b3a,0x3b5068,0x1d2b3a],fog:[0x2a3442,18,45],hemi:[0xfff8ee,0x56606e,1.5],sun:[0xffffff,.6,[.3,1,.2]],
  build(B){const w=0xeceae4,h=3.2;
   for(const s of[-1,1]){B.box(0,0,s*12.5,34,h,1,0xd6d3cc,'plaster');B.box(s*16.5,0,0,1,h,24,0xd6d3cc,'plaster')}
@@ -153,7 +153,7 @@ const DEFS=[
   for(let x=-14;x<=14;x+=4)for(let z=-10;z<=10;z+=4)B.glow(x,h-.04,z,1.6,.04,.5,0xfffbe6);
  },
  spawnsA:[[-14,-10],[-14,10],[-14,0],[-10.5,-10],[-10.5,10],[-14,-6]],spawnsB:[[14,10],[14,-10],[14,0],[10.5,10],[10.5,-10],[14,6]],spawnsM:[[-5,-10],[5,10],[-3,-6],[3,6],[-5,1.5],[5,-1.5],[-2,10.5],[2,-10.5]]},
-{name:'Canyon Fort',desc:'Big map, 8 players',icon:'🏜️',size:[100,90],ground:['sand',0xe0b07c,.12],
+{name:'Canyon Fort',horizon:'mountains',grade:[1.06,1,.9,1.1,1.07],grass:[{on:['sand'],count:2200,color:0xc4a659,height:.8}],desc:'Big map, 8 players',icon:'🏜️',size:[100,90],ground:['sand',0xe0b07c,.12],
  sky:[0x4a86c8,0xffd59a,0xf6d7a7],fog:[0xf2cf9c,60,170],hemi:[0xfff0d8,0x9a6a45,1.35],sun:[0xffe0b0,2,[.6,.6,.4]],
  build(B){const r=0xc0703a,r2=0xa0522d,wd=0x8b5a2b;
   for(const s of[-1,1]){const x=s*40;
@@ -177,6 +177,33 @@ const DEFS=[
  spawnsA:[[-41,0],[-43,-2.5],[-43,2.5],[-38.5,-4],[-38.5,4.5],[-46,0]],spawnsB:[[41,0],[43,2.5],[43,-2.5],[38.5,4],[38.5,-4.5],[46,0]],spawnsM:[[0,-20],[0,20],[-20,0],[20,0],[-25,-30],[25,30],[-30,-10],[30,10],[0,-42],[0,42]]},
 ];
 export const MAPS=DEFS.map(d=>({name:d.name,desc:d.desc,icon:d.icon,def:d}));
+// ---------- 3D MAIN HUB (not in the map vote) ----------
+// queue pads: pairs of circles (blue A / red B); radius scales with team size so n players fit side by side
+export const PAD_R=n=>1.15+.5*n;
+export const HUB_PADS=[
+ {k:'duel',n:1,x:-20,z:-15},{k:'team',n:2,x:-6,z:-15},{k:'t3',n:3,x:10.5,z:-15},
+ {k:'t4',n:4,x:-12,z:12},{k:'t5',n:5,x:8,z:12},{k:'ffa',n:8,x:25,z:13,single:1}];
+export function padCircles(p){const r=p.single?3.2:PAD_R(p.n);if(p.single)return[{side:'F',x:p.x,z:p.z,r}];const off=r+.7;return[{side:'A',x:p.x-off,z:p.z,r},{side:'B',x:p.x+off,z:p.z,r}]}
+export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'arsenal',name:'🔫 ARSENAL',x:-27,z:-11}];
+DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,48],ground:['tiles',0x9aa3b5,.22],grade:[1,1,1.04,1.15,1.06],horizon:'city',
+ sky:[0x24306e,0xff8fa3,0xffc59a],fog:[0xd99aa8,60,160],hemi:[0xe8e4ff,0x6a5a7a,1.35],sun:[0xffd6b0,1.7,[-.4,.55,-.6]],
+ build(B){// perimeter: glassy towers + low walls
+  for(const s of[-1,1]){for(let i=-30;i<30;i+=7.5){facade(B,i+3.75,s*25.5,7.5,8+((i*7+40)%5),3,s<0?0x6c7a99:0x7d6b99,'z')}for(let i=-24;i<24;i+=8){facade(B,s*33.5,i+4,3,9+((i*5+50)%4),8,0x5f6d8c,'x')}}
+  // centre: logo plinth with glowing ring + fountain
+  B.cyl(0,0,-1,3.2,.5,0xd9dde6,'concrete',{seg:24});B.glow(0,.5,-1,5.6,.05,5.6,0xffd23f);B.cyl(0,.5,-1,1.1,2.2,0x2b2f3a,'metal',{seg:16});
+  B.part('metal',{g:G('ico',1.1,1),p:[0,3.4,-1],c:0xffd23f});B.glow(0,2.7,-1,.3,.05,.3,0xffffff);
+  // pad platforms (low daises) and lane markings
+  for(const p of HUB_PADS){for(const c of padCircles(p))B.cyl(c.x,0,c.z,c.r+.35,.08,0x2a3045,'concrete',{seg:32,solid:false,shadow:false})}
+  // stations: kiosks with glowing screens
+  const kiosk=(x,z,col)=>{B.box(x,0,z,2.4,2.6,1.4,0x2b2f3a,'metal');B.box(x+.75,0,z,.12,2.4,1.2,col,'metal',{solid:false,shadow:false});B.glow(x+.72,1.2,z,.06,1.1,1.05,col);B.box(x,2.6,z,2.8,.25,1.8,col,'metal',{solid:false,shadow:false});B.glow(x,2.85,z,2.6,.08,1.6,col)};
+  kiosk(-27,-3,0xffb020);kiosk(-27,5,0xb06bff);kiosk(-27,-11,0x3fa9ff);
+  // practice portal arch
+  B.box(28,0,-6,.8,4.2,.8,0x2b2f3a,'metal');B.box(28,0,-2,.8,4.2,.8,0x2b2f3a,'metal');B.box(28,4.2,-4,.8,.7,4.8,0x2b2f3a,'metal');B.glow(28,.05,-4,.1,4.1,3.2,0x2ee59d);
+  // benches, planters, lamps for life
+  for(const s of[-1,1]){B.planter(s*6,4,2.4,2.4,1);B.planter(s*16,-4,2.2,2.2,1);B.bench(s*3,-7.5,0);B.lamp(s*13,0,4.4,s>0?2:0);B.lamp(s*20,20,4.4,s>0?2:0);B.lamp(s*20,-21,4.4,s>0?2:0)}
+  B.palm(-30,21);B.palm(30,21);B.palm(-30,-21);B.palm(30,-21)},
+ spawnsA:[[0,4],[2,5],[-2,5],[3,3],[-3,3]],spawnsB:[[0,6]],spawnsM:[[0,6]]});
+export const HUB_I=DEFS.length-1;
 // --------- collision-free spawn fix ----------
 function clear(cols,x,z,r=.6){for(const c of cols)if(x+r>c.x0&&x-r<c.x1&&z+r>c.z0&&z-r<c.z1&&c.y0<1.8&&c.y1>.05)return false;return true}
 function fixSpawn(cols,s,lim){if(clear(cols,s[0],s[1]))return s;for(let rad=.5;rad<6;rad+=.5)for(let a=0;a<16;a++){const x=s[0]+Math.cos(a/16*6.283)*rad,z=s[1]+Math.sin(a/16*6.283)*rad;if(Math.abs(x)<lim[0]-1&&Math.abs(z)<lim[1]-1&&clear(cols,x,z))return[+x.toFixed(2),+z.toFixed(2)]}return s}
@@ -187,7 +214,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  d.build(B);
  if(!d.pier&&!d.indoor){for(const s of[-1,1]){B.box(0,0,s*(sz/2+.5),sx+2,4,1,0x000000,'plain',{shadow:false});B.box(s*(sx/2+.5),0,0,1,4,sz,0x000000,'plain',{shadow:false})}for(let k=0;k<4;k++)B.T.plain.pop()}
  const group=new THREE.Group();
- for(const t in B.T){if(!B.T[t].length)continue;const m=new THREE.Mesh(mergeParts(B.T[t],{uv:true,ao:true}),texMat(t));m.matrixAutoUpdate=false;group.add(m)}
+ for(const t in B.T){if(!B.T[t].length)continue;const m=new THREE.Mesh(mergeParts(B.T[t],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}
  if(B.glows.length)group.add(new THREE.Mesh(mergeParts(B.glows),glowMat));
  // contact shadows
  if(B.shadows.length){const planes=B.shadows.map(([x,z,w,dd])=>{const p=new THREE.PlaneGeometry(w,dd).toNonIndexed();p.rotateX(-Math.PI/2);p.translate(x,.014,z);return p});
@@ -195,11 +222,13 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(P,3));geo.setAttribute('uv',new THREE.BufferAttribute(U,2));
   const sm=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:TX.shadow,transparent:true,opacity:d.indoor?.35:.5,depthWrite:false,color:0x000000}));sm.renderOrder=1;group.add(sm)}
  let water=null;if(d.water){const wm=new THREE.MeshLambertMaterial({color:d.water,map:makeWaterTex(),transparent:true,opacity:.92});
-  water=new THREE.Mesh(new THREE.PlaneGeometry(500,500),wm);water.rotation.x=-Math.PI/2;water.position.y=-.9;group.add(water)}
+  water=new THREE.Mesh(new THREE.PlaneGeometry(500,500),wm);water.rotation.x=-Math.PI/2;water.position.y=-.9;water.receiveShadow=true;group.add(water)}
  const sunDir=new THREE.Vector3(...d.sun[2]).normalize();
- const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir);
+ if(water){water.userData.lo=water.material;water.userData.hi=makeWater(d.water,d.sky[0],d.sky[2],sunDir,d.sun[0])}
+ const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0]);
+ if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
- return cache[i]={def:d,group,sky,water,cols:B.cols,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ return cache[i]={def:d,group,sky,water,grassDefs:d.grass||[],cols:B.cols,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}
