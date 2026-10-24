@@ -28,20 +28,30 @@ export const W={
  katana:{name:'Katana',cls:'melee',melee:3.6,rate:.7,body:45,head:60,desc:'Long reach, clean cuts.'},
  axe:{name:'Fire Axe',cls:'melee',melee:3,rate:.9,body:55,head:80,desc:'Slow swing, huge hit.'},
  // ---- shop weapons (price in diamonds, earned only by playing) ----
- m4:{name:'M4 Carbine',cls:'ar',price:150,auto:1,rate:.085,mag:30,reload:1.9,body:11,head:15,fall:[25,70],min:4,spread:.009,rc:[.01,.005],snd:{f:2100,d:.1,b:150,v:.55},desc:'Smooth, accurate, easy to control.'},
- ak47:{name:'AK-47',cls:'ar',price:200,auto:1,rate:.1,mag:30,reload:2.1,body:14,head:19,fall:[22,65],min:5,spread:.014,rc:[.017,.01],snd:{f:1500,d:.13,b:120,v:.62},desc:'Hard-hitting classic. Big kick.'},
- scar:{name:'SCAR-H',cls:'ar',price:300,auto:1,rate:.12,mag:20,reload:2.2,body:16,head:23,fall:[30,80],min:6,spread:.01,rc:[.018,.007],snd:{f:1350,d:.14,b:110,v:.64},desc:'Battle-grade 7.62 punch with an ACOG.'},
- mp5:{name:'MP5',cls:'smg',price:150,auto:1,rate:.07,mag:30,reload:1.8,body:10,head:13,fall:[14,40],min:3,spread:.02,rc:[.006,.006],snd:{f:2500,d:.07,b:190,v:.45},desc:'Legendary control and accuracy.'},
- mp7:{name:'MP7',cls:'smg',price:200,auto:1,rate:.06,mag:40,reload:1.9,body:9,head:12,fall:[15,40],min:3,spread:.019,rc:[.006,.007],snd:{f:2800,d:.06,b:200,v:.44},desc:'Tiny, fast, 40-round mag.'},
- kriss:{name:'KRISS Vector .45',cls:'smg',price:250,auto:1,rate:.045,mag:25,reload:1.8,body:9,head:12,fall:[10,30],min:2,spread:.023,rc:[.004,.006],snd:{f:2300,d:.06,b:170,v:.46},desc:'Crazy fire rate, almost no recoil.'},
- p90:{name:'P90',cls:'smg',price:250,auto:1,rate:.055,mag:50,reload:2.3,body:9,head:12,fall:[14,38],min:3,spread:.021,rc:[.005,.006],snd:{f:2700,d:.06,b:190,v:.44},desc:'50-round top mag. Never stop shooting.'},
- aa12:{name:'AA-12',cls:'shotgun',price:350,auto:1,rate:.2,mag:20,reload:2.8,body:6,head:9,pellets:8,fall:[6,20],min:1.5,spread:.09,rc:[.04,.016],snd:{f:1050,d:.18,b:85,v:.8},desc:'Full-auto drum shotgun. Total chaos.'},
- glock18:{name:'Glock 18',cls:'pistol',price:150,auto:1,rate:.05,mag:20,reload:1.4,body:8,head:11,fall:[12,35],min:2,spread:.028,rc:[.01,.012],snd:{f:2500,d:.06,b:190,v:.44},desc:'Full-auto machine pistol.'},
- deagle:{name:'Desert Eagle',cls:'pistol',price:200,rate:.45,mag:7,reload:1.9,body:36,head:60,fall:[25,60],min:14,spread:.007,rc:[.07,.015],snd:{f:900,d:.26,b:70,v:.88},desc:'.50 cal hand cannon.'},
- crossbow:{name:'Crossbow',cls:'marksman',price:300,rate:1,mag:1,reload:1.3,body:65,head:130,spread:.003,scope:45,rc:[.02,.004],snd:{f:700,d:.12,b:220,v:.5},noShell:1,desc:'Silent bolts. One-shot headshots.'},
- lmg:{name:'LMG',cls:'heavy',price:350,auto:1,rate:.09,mag:100,reload:4,body:13,head:17,fall:[30,80],min:5,spread:.022,rc:[.011,.01],snd:{f:1600,d:.13,b:120,v:.62},desc:'100-round belt. Suppress everything.'},
- gl:{name:'Grenade Launcher',cls:'heavy',price:450,proj:'gl',rate:.9,mag:6,reload:3,body:0,head:0,splash:85,radius:5,spread:0,rc:[.06,.01],snd:{f:500,d:.2,b:60,v:.7},noShell:1,desc:'Lobs explosive rounds that pop on impact.'},
- rpg:{name:'Rocket Launcher',cls:'heavy',price:600,proj:'rpg',rate:1.4,mag:1,reload:2.6,body:0,head:0,splash:120,radius:5.5,spread:0,rc:[.09,.015],snd:{f:380,d:.45,b:50,v:.85},noShell:1,desc:'Rocket with big splash. Self-damage reduced.'},
+ m4:{name:'M4 Carbine',cls:'ar',price:500,auto:1,rate:.085,mag:30,reload:1.9,body:11,head:15,fall:[25,70],min:4,spread:.009,rc:[.01,.005],snd:{f:2100,d:.1,b:150,v:.55},desc:'Smooth, accurate, easy to control.'},
+ ak47:{name:'AK-47',cls:'ar',price:650,auto:1,rate:.1,mag:30,reload:2.1,body:14,head:19,fall:[22,65],min:5,spread:.014,rc:[.017,.01],snd:{f:1500,d:.13,b:120,v:.62},desc:'Hard-hitting classic. Big kick.'},
+ scar:{name:'SCAR-H',cls:'ar',price:900,auto:1,rate:.12,mag:20,reload:2.2,body:16,head:23,fall:[30,80],min:6,spread:.01,rc:[.018,.007],snd:{f:1350,d:.14,b:110,v:.64},desc:'Battle-grade 7.62 punch with an ACOG.'},
+ mp5:{name:'MP5',cls:'smg',price:500,auto:1,rate:.07,mag:30,reload:1.8,body:10,head:13,fall:[14,40],min:3,spread:.02,rc:[.006,.006],snd:{f:2500,d:.07,b:190,v:.45},desc:'Legendary control and accuracy.'},
+ mp7:{name:'MP7',cls:'smg',price:600,auto:1,rate:.06,mag:40,reload:1.9,body:9,head:12,fall:[15,40],min:3,spread:.019,rc:[.006,.007],snd:{f:2800,d:.06,b:200,v:.44},desc:'Tiny, fast, 40-round mag.'},
+ kriss:{name:'KRISS Vector .45',cls:'smg',price:800,auto:1,rate:.045,mag:25,reload:1.8,body:9,head:12,fall:[10,30],min:2,spread:.023,rc:[.004,.006],snd:{f:2300,d:.06,b:170,v:.46},desc:'Crazy fire rate, almost no recoil.'},
+ p90:{name:'P90',cls:'smg',price:800,auto:1,rate:.055,mag:50,reload:2.3,body:9,head:12,fall:[14,38],min:3,spread:.021,rc:[.005,.006],snd:{f:2700,d:.06,b:190,v:.44},desc:'50-round top mag. Never stop shooting.'},
+ aa12:{name:'AA-12',cls:'shotgun',price:1100,auto:1,rate:.2,mag:20,reload:2.8,body:6,head:9,pellets:8,fall:[6,20],min:1.5,spread:.09,rc:[.04,.016],snd:{f:1050,d:.18,b:85,v:.8},desc:'Full-auto drum shotgun. Total chaos.'},
+ glock18:{name:'Glock 18',cls:'pistol',price:450,auto:1,rate:.05,mag:20,reload:1.4,body:8,head:11,fall:[12,35],min:2,spread:.028,rc:[.01,.012],snd:{f:2500,d:.06,b:190,v:.44},desc:'Full-auto machine pistol.'},
+ deagle:{name:'Desert Eagle',cls:'pistol',price:650,rate:.45,mag:7,reload:1.9,body:36,head:60,fall:[25,60],min:14,spread:.007,rc:[.07,.015],snd:{f:900,d:.26,b:70,v:.88},desc:'.50 cal hand cannon.'},
+ crossbow:{name:'Crossbow',cls:'marksman',price:900,rate:1,mag:1,reload:1.3,body:65,head:130,spread:.003,scope:45,rc:[.02,.004],snd:{f:700,d:.12,b:220,v:.5},noShell:1,desc:'Silent bolts. One-shot headshots.'},
+ lmg:{name:'LMG',cls:'heavy',price:1200,auto:1,rate:.09,mag:100,reload:4,body:13,head:17,fall:[30,80],min:5,spread:.022,rc:[.011,.01],snd:{f:1600,d:.13,b:120,v:.62},desc:'100-round belt. Suppress everything.'},
+ gl:{name:'Grenade Launcher',cls:'heavy',price:1500,proj:'gl',rate:.9,mag:6,reload:3,body:0,head:0,splash:85,radius:5,spread:0,rc:[.06,.01],snd:{f:500,d:.2,b:60,v:.7},noShell:1,desc:'Lobs explosive rounds that pop on impact.'},
+ rpg:{name:'Rocket Launcher',cls:'heavy',price:1900,proj:'rpg',rate:1.4,mag:1,reload:2.6,body:0,head:0,splash:120,radius:5.5,spread:0,rc:[.09,.015],snd:{f:380,d:.45,b:50,v:.85},noShell:1,desc:'Rocket with big splash. Self-damage reduced.'},
+ m16:{name:'M16A4',cls:'ar',price:550,burst:3,rate:.34,mag:30,reload:2.1,body:14,head:20,fall:[30,85],min:5,spread:.006,rc:[.012,.004],snd:{f:2000,d:.11,b:140,v:.58},desc:'3-round burst, long barrel, laser accurate.'},
+ mk18:{name:'MK18 CQB',cls:'ar',price:600,auto:1,rate:.075,mag:30,reload:1.8,body:10,head:14,fall:[18,50],min:3,spread:.011,rc:[.009,.006],snd:{f:1500,d:.07,b:120,v:.32},desc:'Short suppressed carbine. Quiet and quick.'},
+ mini14:{name:'Ranch Rifle',cls:'marksman',price:500,rate:.22,mag:20,reload:2,body:24,head:40,fall:[40,90],min:14,spread:.005,rc:[.025,.006],snd:{f:1700,d:.14,b:110,v:.62},desc:'Wood-stocked semi-auto. Classic.'},
+ ump45:{name:'UMP-45',cls:'smg',price:500,auto:1,rate:.09,mag:25,reload:1.9,body:13,head:17,fall:[12,35],min:4,spread:.02,rc:[.008,.007],snd:{f:1900,d:.08,b:130,v:.5},desc:'Hard-hitting .45 SMG with a holo sight.'},
+ tommy:{name:'Tommy Gun',cls:'smg',price:700,auto:1,rate:.07,mag:50,reload:2.6,body:10,head:13,fall:[12,32],min:3,spread:.028,rc:[.009,.012],snd:{f:1700,d:.09,b:120,v:.55},desc:'50-round drum, wood and steel.'},
+ saiga:{name:'Saiga-12',cls:'shotgun',price:900,rate:.3,mag:8,reload:2.3,body:9,head:12,pellets:8,fall:[7,22],min:1.5,spread:.08,rc:[.06,.014],snd:{f:1000,d:.22,b:80,v:.82},desc:'Semi-auto mag-fed shotgun.'},
+ ksg:{name:'KSG',cls:'shotgun',price:1000,rate:.75,mag:14,reload:3.2,body:11,head:15,pellets:8,fall:[8,26],min:2,spread:.07,rc:[.07,.01],snd:{f:950,d:.26,b:75,v:.86},desc:'Bullpup pump with twin tubes: 14 shells.'},
+ barrett:{name:'Barrett .50',cls:'sniper',price:1600,rate:.9,mag:5,reload:3.2,body:65,head:150,spread:.05,scope:16,rc:[.11,.02],snd:{f:600,d:.5,b:50,v:.95,crack:1},desc:'Semi-auto anti-materiel. Massive kick.'},
+ awp:{name:'Arctic Magnum',cls:'sniper',price:1900,rate:1.6,mag:5,reload:3.4,body:100,head:200,spread:.06,scope:18,rc:[.1,.015],snd:{f:650,d:.5,b:52,v:.95,crack:1},desc:'One shot, one elimination. Slow bolt.'},
+ minigun:{name:'Minigun',cls:'heavy',price:2000,auto:1,rate:.045,mag:150,reload:5,body:8,head:11,fall:[25,60],min:4,spread:.032,rc:[.006,.012],snd:{f:1800,d:.06,b:130,v:.5},desc:'6 spinning barrels. 150-round box.'},
  grenade:{name:'Frag Grenade',cls:'util',count:2,desc:'Explodes after 1.8s. Up to ~100 damage.'},
  molotov:{name:'Molotov',cls:'util',count:1,desc:'Bursts into flames on impact. Burns over time.'},
  smoke:{name:'Smoke',cls:'util',count:2,desc:'Thick cloud that blocks vision for 12s.'},
@@ -553,6 +563,52 @@ function MOLO(){mat('trans');lathe([[.0,-.0],[.032,.0],[.034,.01],[.034,.1],[.03
 function SMOKEC(){metal();cyl(.031,.11,0,0,0,C.grey,{ax:'y',seg:18});cyl(.032,.024,0,.025,0,0xdddddd,{ax:'y',seg:18});cyl(.012,.02,0,.065,0,C.steel,{ax:'y',seg:12});prof([[-.01,.07],[.01,.072],[.035,-.03],[.031,-.033],[.006,.06]],.014,0,C.steel,{b:.001,r:[0,Math.PI/2,0]});return{util:1}}
 function FLASHC(){metal();cyl(.026,.1,0,0,0,C.blk,{ax:'y',seg:18});if(det())for(let i=0;i<4;i++)for(let k=0;k<6;k++){const a=k/6*Math.PI*2;cyl(.0045,.004,Math.cos(a)*.026,-.03+i*.02,Math.sin(a)*.026,C.dark,{ax:Math.abs(Math.cos(a))>.7?'x':'z',seg:8})}cyl(.012,.02,0,.06,0,C.steel,{ax:'y',seg:12});return{util:1}}
 function MEDKIT(){matte();rbox(.12,.08,.045,0,0,0,0xf2f2f2,.01);rbox(.122,.06,.016,0,0,0,C.red,.003);rbox(.122,.016,.047,0,0,0,C.red,.003);rbox(.05,.012,.01,0,.046,0,C.blk,.004);return{util:1}}
+
+// ---------- HK UMP-45 ----------
+function UMP(){const F=C.poly,yb=.042;matte();
+ prof([[.07,.0],[.07,.062,.006],[-.2,.062,.006],[-.21,.03,.006],[-.2,.0]],.036,0,F,{b:.003});rail(.05,-.17,.062,C.blk);
+ if(det())for(let i=0;i<5;i++)rbox(.037,.004,.008,0,.03,-.12-i*.014,C.dark,.001);
+ prof([[.07,.0],[.07,-.01],[.04,-.012],[-.05,-.012],[-.06,.0]],.032,0,F,{b:.002});trig(-.045,.02,-.008,F);const g=gripAR(-.005,.05,F,.32,.1,.032);
+ metal();lathe([[.009,-.05],[.0095,0]],0,yb,-.21,C.park,{seg:14});grp('bolt');rbox(.01,.012,.02,-.022,.05,-.16,C.blk,.003);grp(null);
+ matte();prof([[.07,.05],[.27,.045,.004],[.28,-.04,.006],[.26,-.045],[.24,.025],[.09,.03],[.07,0]],.02,0,F,{b:.002});buttPad(.282,-.045,.045,.03);
+ grp('mag');boxMag(-.085,.0,.036,.16,.022,F,.02);grp(null);const eye=holo(-.02,.064);
+ return{muzzle:[0,yb,-.26],eject:[.018,.045,-.04],sight:eye,grip:g,lh:[0,.02,-.17],lhT:'under',lhR:.026,len:.6,rl:'mag',hold:'rifle',piv:{mag:[0,-.01,-.07]},boltBack:.05,shellT:'pistol'}}
+// ---------- Thompson M1928 ----------
+function TOMMY(){const R=C.park,Wd=C.wood,yb=.04;metal();
+ prof([[.05,.012],[.05,.058,.006],[-.16,.058,.006],[-.17,.03],[-.16,.012]],.032,0,R,{b:.002});rbox(.012,.008,.03,0,.063,.03,R,.002);
+ grp('bolt');sph(.007,0,.065,-.07,R);grp(null);
+ barrel(-.17,-.38,.0095,yb,R);if(det())for(let i=0;i<10;i++)lathe([[.014,-.004],[.014,0]],0,yb,-.18-i*.012,R,{seg:16});
+ rbox(.024,.022,.04,0,yb,-.395,R,.006);rbox(.004,.012,.004,0,.062,-.39,R,.001);
+ mat('wood');gripAR(.012,-.25,Wd,.08,.085,.03);const g=gripAR(.012,.05,Wd,.35,.1,.032);metal();trig(-.03,.03,.012,R);
+ mat('wood');prof([[.05,.055],[.3,.03,.01],[.31,-.06,.01],[.28,-.065],[.06,.0]],.034,0,Wd,{b:.004});metal();buttPad(.312,-.06,.03,.034,R);
+ grp('mag');cyl(.06,.036,0,-.045,-.06,R,{ax:'x',seg:28});cyl(.022,.042,0,-.045,-.06,C.steel,{ax:'x',seg:14});grp(null);
+ return{muzzle:[0,yb,-.42],eject:[.018,.05,-.04],sight:[0,.072,.15],grip:g,lh:[0,-.04,-.25],lhT:'vert',len:.85,rl:'mag',hold:'rifle',piv:{mag:[0,-.045,-.06]},magFwd:1,boltBack:.05,shellT:'pistol'}}
+// ---------- Kel-Tec KSG (bullpup pump, twin tubes) ----------
+function KSG(){const F=C.poly,yb=.05;matte();
+ prof([[.26,.08],[.27,-.055,.008],[.23,-.06],[.2,-.005],[-.02,-.005],[-.03,.03],[-.12,.03],[-.12,.08]],.05,0,F,{b:.004});rail(.2,-.11,.08,C.blk);
+ metal();for(const s of[-1,1])cyl(.013,.25,s*.014,.012,-.2,C.blk,{seg:14});barrel(-.12,-.5,.011,yb,C.blk);
+ grp('pump');matte();rbox(.05,.04,.14,0,.012,-.22,F,.008);gripAR(-.008,-.2,F,.05,.08,.03);grp(null);
+ trig(-.04,.02,-.005,F);const g=gripAR(-.005,.03,F,.3,.1,.032);buttPad(.272,-.055,.08,.05);const eye=t2(-.02,.084);
+ return{muzzle:[0,yb,-.5],eject:[0,-.03,.15],ejDown:1,sight:eye,grip:g,lh:[0,-.05,-.2],lhT:'vert',lhPump:true,len:.68,rl:'shells',cyc:'pump',hold:'rifle',piv:{},shellT:'shot',loadPort:[0,-.01,.15]}}
+// ---------- Barrett M82 ----------
+function BARRETT(){const R=0x3a3c38,yb=.06;metal();
+ prof([[.2,.03],[.2,.09,.006],[-.36,.09,.01],[-.38,.06,.008],[-.36,.03]],.05,0,R,{b:.003});prof([[.17,.03],[.17,-.0,.006],[.02,-.005],[-.1,.0],[-.12,.03]],.046,0,R,{b:.003});
+ rail(.1,-.25,.09,R,.024);if(det())for(let i=0;i<6;i++)rbox(.051,.008,.03,0,.06,-.12-i*.04,C.dark,.002);
+ barrel(-.38,-.86,.014,yb,R);brake(-.86,yb,.024,R,.09);for(const s of[-1,1])rbox(.008,.2,.012,s*.022,-.03,-.33,R,.002,0,0,s*.25);
+ trig(-.03,.03,-.005,R);matte();const g=gripAR(-.005,.05,C.poly,.35,.11,.034);
+ metal();prof([[.2,.09],[.36,.08,.01],[.37,-.04,.01],[.34,-.05],[.2,.0]],.044,0,R,{b:.004});buttPad(.372,-.045,.08,.05);matte();rbox(.03,.02,.1,0,.1,.28,C.rub,.006);
+ metal();grp('bolt');rbox(.014,.02,.03,.03,.065,-.05,R,.004);grp(null);grp('mag');boxMag(-.06,.0,.06,.12,.04,R,0);grp(null);
+ const eye=scope(.0,.094,.36,.015,.03);
+ return{muzzle:[0,yb,-.92],eject:[.03,.07,-.08],sight:eye,grip:g,lh:[0,-.03,.2],lhT:'under',lhR:.03,len:1.3,rl:'mag',hold:'rifle',piv:{mag:[0,-.03,-.06]},boltBack:.06,shellT:'rifle'}}
+// ---------- M134-style hand-held minigun ----------
+function MINIGUN(){const R=0x2b2d31,yb=.03;metal();
+ prof([[.12,-.04],[.12,.08,.02],[-.14,.08,.02],[-.14,-.04,.02]],.12,0,R,{b:.006});cyl(.035,.14,.07,.03,.0,C.steel,{seg:18});
+ grp('cyl');for(let i=0;i<6;i++){const a=i/6*Math.PI*2;lathe([[.0095,0],[.0095,-.56]],Math.cos(a)*.03,yb+Math.sin(a)*.03,-.14,R,{seg:LOD?6:10})}
+ lathe([[.046,0],[.046,-.025]],0,yb,-.3,R,{seg:20});lathe([[.046,0],[.046,-.03]],0,yb,-.66,R,{seg:20});cyl(.012,.6,0,yb,-.42,C.steel,{seg:10});grp(null);
+ matte();rbox(.02,.02,.2,0,.15,-.0,C.blk,.006);for(const z of[-.08,.08])rbox(.02,.07,.02,0,.11,z,C.blk,.004);
+ const g=gripAR(-.04,.1,C.poly,.25,.11,.034);trig(.04,.09,-.04,R);gripAR(-.04,-.12,C.poly,.0,.1,.032);
+ grp('mag');rbox(.1,.12,.14,-.11,-.06,.02,C.od,.008);grp(null);metal();rbox(.03,.02,.12,-.065,.04,.02,R,.004);
+ return{muzzle:[0,yb,-.72],eject:[.06,-.03,.05],ejDown:1,sight:[0,.19,.25],grip:g,lh:[0,-.04,-.12],lhT:'vert',len:.85,rl:'belt',hold:'rifle',piv:{cyl:[0,yb,-.4],mag:[-.11,-.06,.02]},spin:1,boltBack:0,shellT:'rifle'}}
 const BUILD={
  ar:()=>AR({hg:'mlok',hgL:.25,bl:.37,optic:'t2',stock:'sopmod'}),
  m4:()=>AR({hg:'quad',hgL:.18,bl:.36,fsb:false,optic:'holo',stock:'m4'}),
@@ -563,6 +619,10 @@ const BUILD={
  heavy:()=>BOLTGUN({kind:'awm',sc:C.od,br:.014,zm:-.66,brake:1,fluted:1,bipod:1,ob:.03,sl:.36}),
  light:()=>BOLTGUN({kind:'scout',sc:C.grey,br:.011,zm:-.5,brake:1,ob:.022,sl:.28}),
  lever:LEVER,
+ m16:()=>AR({hgL:.3,bl:.5,fsb:true,stock:'a2'}),mk18:()=>AR({hg:'quad',hgL:.18,bl:.26,optic:'holo',stock:'m4',muz:'supp'}),
+ mini14:()=>AR({wood:1,stock:'a2',fsb:true,hgL:.22,bl:.45,fc:C.wood}),saiga:()=>{const i=AK({wood:C.poly});i.shellT='shot';return i},
+ awp:()=>BOLTGUN({kind:'awm',sc:0x55613f,br:.015,zm:-.72,brake:1,fluted:1,ob:.032,sl:.38}),
+ ump45:UMP,tommy:TOMMY,ksg:KSG,barrett:BARRETT,minigun:MINIGUN,
  shotgun:()=>SHOTGUN({pump:1,wood:1,fc:C.wood,zm:-.62,rib:1,rc:C.blk}),
  autoshot:()=>SHOTGUN({fc:C.poly,zm:-.56,optic:1}),
  double:DOUBLE,

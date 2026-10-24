@@ -300,11 +300,17 @@ function panOf(p){const r=_v2.set(1,0,0).applyQuaternion(camera.quaternion);cons
 // ---------------- state ----------------
 const DEFAULT_LOAD=['ar','handgun','fists','grenade'];
 // ---------------- progression: diamonds (earned only by playing, stored on this device; no real money anywhere) ----------------
-const CAMOS={factory:['Factory',0,null],desert:['Desert',40,0xc8a96a],forest:['Forest',40,0x4f6b3a],arctic:['Arctic',60,0xdfe8ee],crimson:['Crimson',80,0xb3202a],cobalt:['Cobalt',80,0x2a62c9],gold:['Gold',200,0xe8b923],neon:['Neon',150,0x39ff88]};
+// economy: online match (first to 5) pays roughly 60-90 💎; mid-tier guns ~500-900 (5-8 matches), top tier ~1500-2000 (15-25). Offline / practice vs bots: everything x0.5 (kill 3→2 rounded)
+const ECON={kill:3,head:2,round:8,win:20,play:5,mul:()=>(H&&H.offline)||C.practice?.5:1};
+const CAMOS={factory:['Factory',0,null],desert:['Desert',150,0xc8a96a],forest:['Forest',150,0x4f6b3a],arctic:['Arctic',220,0xdfe8ee],crimson:['Crimson',300,0xb3202a],cobalt:['Cobalt',300,0x2a62c9],gold:['Gold',900,0xe8b923],neon:['Neon',650,0x39ff88]};
 const SKINS={default:['Default',0,null],ninja:['Ninja',100,[0x1b1d21,0x111214]],desert:['Desert Ops',100,[0xb59a6a,0x7d6a4a]],arctic:['Arctic',120,[0xe6edf2,0x9aa6b0]],royal:['Royal',160,[0x5b2a86,0xd4a83a]],neon:['Neon',200,[0x18e07a,0x101010]]};
-const UPG={mag:{name:'Extended Mag',per:.15,cost:[60,120]},reload:{name:'Fast Hands',per:.08,cost:[60,120]}};
-const PROG=Object.assign({dia:0,owned:[],upg:{},camo:{},camos:{},skin:'default',skins:['default']},JSON.parse(LS('prog')||'{}'));
-function saveProg(){LSS('prog',JSON.stringify(PROG));updDiaUI()}
+const UPG={mag:{name:'Extended Mag',per:.15,cost:[200,450]},reload:{name:'Fast Hands',per:.08,cost:[200,450]}};
+// one wallet + inventory per device, shared by offline, hub and online play. Versioned key; migrates the old 'prog' save.
+const WALLET_V=2;const PROG=(()=>{const base={v:WALLET_V,dia:0,owned:[],upg:{},camo:{},camos:{},skin:'default',skins:['default']};let w=null;try{w=JSON.parse(LS('wallet')||'null')}catch(e){}
+ if(!w||!w.v){let old={};try{old=JSON.parse(LS('prog')||'{}')||{}}catch(e){}w=Object.assign({},old,w||{});}
+ const P=Object.assign(base,w);P.v=WALLET_V;P.dia=Math.max(0,P.dia|0);for(const k of['owned','skins'])if(!Array.isArray(P[k]))P[k]=[];if(!P.skins.includes('default'))P.skins.push('default');LSS('wallet',JSON.stringify(P));return P})();
+function saveProg(){PROG.v=WALLET_V;LSS('wallet',JSON.stringify(PROG));updDiaUI()}
+addEventListener('storage',e=>{if(e.key==='hsz_wallet'&&e.newValue){try{Object.assign(PROG,JSON.parse(e.newValue));updDiaUI()}catch(x){}}});
 const owns=id=>!W[id].price||PROG.owned.includes(id);
 function tier(id,k){return(PROG.upg[id]||{})[k]||0}
 function magOf(id){const w=W[id];return w.mag?Math.max(w.mag,Math.round(w.mag*(1+UPG.mag.per*tier(id,'mag')))):0}
@@ -471,13 +477,13 @@ function clientHandle(m){switch(m.t){
  case 'snap':C.roundT=m.rt;for(const a of m.p){const q=C.byOrd[a[0]];if(!q||q.id===me.id)continue;q.tp.set(a[1]/100,a[2]/100,a[3]/100);q.tyaw=a[4]/1000;q.tpitch=a[5]/100;q.flags=a[7]|0;q.wid=a[6]|0;
   const al=!!a[8];if(al&&!q.alive&&q.model){q.model.userData.dead=0;q.model.visible=true}if(!al&&q.alive&&q.model&&!q.model.userData.dead)q.model.userData.dead=.001;q.alive=al}break;
  case 'hp':{const q=C.players[m.id];if(q){if(m.hp<q.hp&&q.model)q.model.userData.flinch=1;q.hp=m.hp;sbDirty=1}if(m.id===me.id){if(m.hp<me.hp){SFX.hurt();flashV();shake=Math.min(1,shake+.5)}me.hp=m.hp;updHP()}break}
- case 'kill':{const k=C.players[m.k],v=C.players[m.v];if(m.k===me.id&&m.v!==me.id&&!C.practice)addDia(m.head?15:10,m.head?'headshot':'kill');if(v){v.alive=false;if(v.model&&!v.model.userData.dead)v.model.userData.dead=.001}
+ case 'kill':{const k=C.players[m.k],v=C.players[m.v];if(m.k===me.id&&m.v!==me.id)addDia(Math.round((m.head?ECON.kill+ECON.head:ECON.kill)*ECON.mul()),m.head?'headshot':'kill');if(v){v.alive=false;if(v.model&&!v.model.userData.dead)v.model.userData.dead=.001}
   const wn=m.w==='fall'?'fell':m.w==='molotov'?'🔥':W[m.w]?W[m.w].name:'';
   if(m.w==='fall'||m.k===m.v)feed(`${v?.name||'?'} ${m.w==='fall'?'fell off':'eliminated themselves'}`);else feed(`<b style="color:${hex(k?.color||0xffffff)}">${esc(k?.name||'?')}</b> <span class="k">[${esc(wn)}${m.head?' 🎯':''}]</span> <b style="color:${hex(v?.color||0xffffff)}">${esc(v?.name||'?')}</b>`,true);
   if(m.v===me.id){me.alive=false;me.hp=0;updHP();me.killer=m.k;center('ELIMINATED'+(k&&m.k!==m.v?'\nby '+k.name:'')+(C.mode==='ffa'?'\nRespawning…':''),2200)}
   if(m.k===me.id&&m.v!==me.id){SFX.kill();center(m.head?'🎯 HEADSHOT!':'ELIMINATED '+(v?.name||''),1000)}break}
  case 'roundEnd':{C.phase='roundEnd';C.score=m.score;me.frozen=true;const mine=C.mode==='ffa'?m.win===me.id:m.win===C.players[me.id]?.team;
-  if(!C.practice){if(mine)addDia(25,'round win');if(m.match)addDia(mine?50:15,mine?'match win':'match played')}
+  {if(mine)addDia(Math.round(ECON.round*ECON.mul()),'round win');if(m.match)addDia(Math.round((mine?ECON.win+ECON.play:ECON.play)*ECON.mul()),mine?'match win':'match played')}
   center(m.win==='draw'?'DRAW':(m.match?`${m.name}\nWINS THE MATCH!\n💎 +${C.matchDia||0} diamonds this match`:`${m.name} WINS THE ROUND`)+(mine?' 🏆':''),m.match?6000:3300);if(m.match)setTimeout(()=>showEnd(m,mine),2600);else showRL(true);if(mine)SFX.kill();renderSB();break}
  case 'fx':{const a=new THREE.Vector3(...m.a),b=new THREE.Vector3(...m.b);addTracer(a,b);fx.sprite({p:a,tex:TX.flash,add:true,s0:.4,s1:.6,life:.05,op:1,color:0xffd080});
   const d=camera.position.distanceTo(a);if(d<120)SFX.gun(m.w,Math.max(.06,1-d/120)*.75,panOf(a),d);const dir=b.clone().sub(a).normalize();const t=rayWorld(a,dir,a.distanceTo(b)+.5);if(t<a.distanceTo(b)+.4)impact(a.clone().addScaledVector(dir,t),hitN.clone());break}
@@ -492,7 +498,7 @@ function startGame(m){for(const id in C.players)if(C.players[id].model)scene.rem
  loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);
  for(const s of['menu','lobby','arsenal','settings'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
  inGame=true;resize();me.alive=false;me.frozen=true;feed(`${MAPS[m.map].icon} ${MAPS[m.map].name} · ${MODES[m.mode][0]}`);center(MAPS[m.map].name.toUpperCase(),1500);renderSB();buildSlots();
- if(isTouch){const d=document.documentElement;try{(d.requestFullscreen||d.webkitRequestFullscreen)?.call(d)?.catch?.(()=>{})}catch(e){}}}
+ goFS()}
 // face the most open direction, biased toward the map centre (never stare at a wall)
 function faceYaw(x,z){const o=new THREE.Vector3(x,1.6,z),d=new THREE.Vector3();const cy=Math.atan2(x,z);let best=cy,bs=-1;
  for(let i=0;i<16;i++){const y=i/16*Math.PI*2;d.set(-Math.sin(y),0,-Math.cos(y));const free=Math.min(rayWorld(o,d,60),60);let dy=Math.abs(((y-cy+Math.PI*3)%(Math.PI*2))-Math.PI);const sc=free*(1.25-dy/Math.PI*.6);if(sc>bs){bs=sc;best=y}}
@@ -762,7 +768,7 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];
   if(c==='bolt'){if(p0<.02&&p1>=.02)SFX.boltUp();if(p0<.2&&p1>=.2)SFX.boltBack();if(p0<.6&&p1>=.6)SFX.boltFwd()}
   else if(c==='pump'){if(p0<.05&&p1>=.05)SFX.pump()}else if(c==='lever'){if(p0<.05&&p1>=.05)SFX.lever()}
   if(!VA.ejected&&p1>=(c==='bolt'?.38:.35)&&c!=='gl'){VA.ejected=true;if(!vmInfo.noShell)ejectShell()}}
- VA.slide=Math.max(0,VA.slide-dt*14);if(VA.inspect>0)VA.inspect-=dt;
+ VA.slide=Math.max(0,VA.slide-dt*14);if(vmInfo.spin&&vmCur){const Gc=vmCur.userData.G.cyl;VA.spin=Math.max(0,(VA.spin||0)-dt*1.2);if(performance.now()-me.lastShot<150)VA.spin=1;VA.spinA=((VA.spinA||0)+dt*VA.spin*40)%(Math.PI*2)}if(VA.inspect>0)VA.inspect-=dt;
  // auto-fire when crosshair is on an enemy (primary mobile control)
  const range=w.melee?w.melee:(w.pellets?32:250);const tgt=(me.alive&&!me.frozen)?aimTarget(range):null;$('cross').classList.toggle('on',!!tgt);
  let trigger=(tgt||inp.fire)&&!paused&&me.alive&&!me.frozen&&C.phase==='play';
@@ -832,6 +838,7 @@ function updViewModel(dt,w,hs,sprint){if(!vmCur)return;const I=vmInfo,Gp=vmCur.u
   else if(c==='lever'&&Gp.lever){Gp.lever.rotation.x=.9*bump(p,0,.38,.5,.9);rx+=.06*bump(p,0,.38,.5,.9)}
   else if(c==='gl'&&Gp.cyl){Gp.cyl.rotation.z=VA.glFrom+Math.PI/3*ease(p);VA.glRot=Gp.cyl.rotation.z}}
  else if(I.cyc==='gl'&&Gp.cyl&&rk<0)Gp.cyl.rotation.z=VA.glRot;
+ if(I.spin&&Gp.cyl)Gp.cyl.rotation.z=VA.spinA||0;
  // semi-auto slide / rifle bolt reciprocation, pistol slide lock when empty
  const lock=I.pistol&&me.ammo[me.cur]<=0&&!(rk>=.8);if(Gp.slide&&I.slide&&rk<0)Gp.slide.position.z+=I.slide*(lock?1:Math.min(1,VA.slide*1.8));
  if(Gp.bolt&&!I.cyc&&rk<0)Gp.bolt.position.z+=(I.boltBack||.05)*Math.min(1,VA.slide*1.8);
@@ -1036,4 +1043,23 @@ renderLoadoutMini();resize();requestAnimationFrame(loop);
 addEventListener('keydown',e=>{if(e.code==='KeyF'&&inGame&&!paused&&me.alive&&me.reloadT<=0&&VA.inspect<=0&&me.zoomT<.1)VA.inspect=2.6});
 addEventListener('keydown',e=>{if(e.code==='KeyE'&&C.phase==='hub'&&!$('stationBtn').classList.contains('hidden'))useStation($('stationBtn').dataset.k)});
 {const q=new URLSearchParams(location.search);if(q.get('hub'))setTimeout(enterHub,50);else if(q.get('offline'))setTimeout(()=>$('offlineBtn').click(),50)}
-window.__hsz={gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+window.__hsz={PROG,gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+
+// ---- fullscreen: Fullscreen API where it exists (Android Chrome, iPad Safari, desktop); iPhone Safari gets an Add-to-Home-Screen guide
+const FS={api:!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen),
+ standalone:matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,
+ iphone:/iPhone|iPod/.test(navigator.userAgent),off:LS('fsOff')==='1'};
+const isFS=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+function goFS(force){if(FS.standalone||isFS()||!FS.api||(FS.off&&!force))return;if(!force&&!isTouch&&!inGame)return;const d=document.documentElement;
+ try{const r=(d.requestFullscreen?d.requestFullscreen({navigationUI:'hide'}):d.webkitRequestFullscreen());Promise.resolve(r).then(()=>{try{screen.orientation?.lock?.('landscape')?.catch?.(()=>{})}catch(e){}}).catch(()=>{})}catch(e){}}
+window.__hsz.FS=FS;window.__hsz.goFS=goFS;
+addEventListener('pointerup',e=>{if(isTouch)goFS()},{capture:true});
+for(const id of['playBtn','offlineBtn','hubBtn','startBtn'])$(id)?.addEventListener('click',()=>goFS(true));
+{const row=$('pResume')?.parentElement;if(row&&FS.api&&!FS.standalone){const b=document.createElement('button');b.id='pFull';b.className='pill';const lab=()=>b.textContent=isFS()?'🗗 EXIT FULL':'⛶ FULLSCREEN';lab();
+ b.onclick=()=>{if(isFS()){(document.exitFullscreen||document.webkitExitFullscreen).call(document);FS.off=true;LSS('fsOff','1')}else{FS.off=false;LSS('fsOff','0');goFS(true)}};
+ for(const ev of['fullscreenchange','webkitfullscreenchange'])document.addEventListener(ev,()=>{lab();setTimeout(resize,100)});row.insertBefore(b,$('pLeave'))}}
+if(FS.iphone&&!FS.standalone&&LS('a2hs')!=='1'){const o=document.createElement('div');o.id='a2hs';o.innerHTML=`<div class="a2card"><h2>📲 Play full screen!</h2>
+<p>iPhone Safari keeps its bars on screen. Add HeadShotz to your Home Screen to play with no bars:</p>
+<ol><li><span class="a2i">⬆️</span><span>Tap the <b>Share</b> button (square with an arrow) in Safari's toolbar</span></li><li><span class="a2i">➕</span><span>Scroll and tap <b>Add to Home Screen</b></span></li><li><span class="a2i">🎯</span><span>Open <b>HeadShotz</b> from your Home Screen</span></li></ol>
+<div class="row"><button class="pill yellow" id="a2ok">GOT IT</button><button class="pill" id="a2skip">PLAY IN SAFARI</button></div><label><input type="checkbox" id="a2never" checked> Don't show again</label></div>`;
+ document.body.appendChild(o);const close=()=>{if($('a2never').checked)LSS('a2hs','1');o.remove()};$('a2ok').onclick=close;$('a2skip').onclick=close}
