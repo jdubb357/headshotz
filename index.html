@@ -3,9 +3,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HeadShotz">
+<meta name="theme-color" content="#1b2340">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="mobile-web-app-capable" content="yes">
 <title>HeadShotz – Free Multiplayer FPS</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="style.css">
 </head><body>
 <canvas id="c"></canvas>
@@ -18,6 +24,7 @@
   <button id="createBtn" class="big">Create Room</button>
   <div class="row"><input id="codeIn" maxlength="5" placeholder="CODE" style="text-transform:uppercase;width:120px"><button id="joinBtn" class="big">Join</button></div>
   <p id="menuMsg" class="msg"></p>
+  <p id="iosTip" class="tip hidden">📲 Play full screen: tap <b>Share</b> <span style="font-size:18px">⎋</span> then <b>Add to Home Screen</b></p>
 </div>
 
 <!-- LOBBY -->
@@ -63,7 +70,7 @@
   <button id="menuBtn">☰</button>
   <div id="board" class="hidden"></div>
 </div>
-<div id="rotate">Rotate your phone sideways 📱↻</div>
+<div id="rotate">📱↻<br>Rotate your phone sideways to play</div>
 
 <script src="lib/peerjs.min.js"></script>
 <script src="lib/localpeer.js"></script>

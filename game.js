@@ -31,9 +31,19 @@ const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(75,1,.05,300);camera.rotation.order='YXZ';scene.add(camera);
 scene.add(new THREE.HemisphereLight(0xffffff,0x667788,1.6));
 const sun=new THREE.DirectionalLight(0xffffff,1.5);sun.position.set(30,60,20);scene.add(sun);
-function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+function resize(){document.body.classList.toggle('playing',inGame);const vw=window.visualViewport;const w=Math.round(vw?vw.width:innerWidth)||innerWidth,h=Math.round(vw?vw.height:innerHeight)||innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(false)camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
  $('rotate').classList.toggle('need',isTouch&&inGame)}
-addEventListener('resize',resize);
+addEventListener('resize',resize);addEventListener('orientationchange',()=>{resize();setTimeout(resize,300);setTimeout(resize,800)});
+if(window.visualViewport)visualViewport.addEventListener('resize',resize);
+// iOS gesture guards: no pinch/double-tap zoom anywhere; no page scroll/bounce during matches (menus still scroll)
+for(const ev of['gesturestart','gesturechange','gestureend'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
+document.addEventListener('touchmove',e=>{if(e.touches.length>1){e.preventDefault();return}if(inGame&&!e.target.closest('#board'))e.preventDefault()},{passive:false});
+let lastTouchEnd=0;document.addEventListener('touchend',e=>{const n=Date.now();if(inGame&&n-lastTouchEnd<300&&!e.target.closest('button,input'))e.preventDefault();lastTouchEnd=n},{passive:false});
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;
+if(isIOS&&!standalone)document.getElementById('iosTip').classList.remove('hidden');
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 // merged box geometry with vertex colors -> 1 draw call
 const _c=new THREE.Color();
 function boxGeo(list){const n=list.length*36,P=new Float32Array(n*3),N=new Float32Array(n*3),C=new Float32Array(n*3);let k=0;
