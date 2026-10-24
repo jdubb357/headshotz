@@ -1,9 +1,10 @@
 // HeadShotz original maps. Built from merged, textured, vertex-AO geometry (few draw calls per map).
+import {newDefs} from './maps2.js';
 import {THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng} from './gfx.js';
 const _c=new THREE.Color();
-function Builder(){const T={},cols=[],shadows=[],glows=[];
+function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],links=[],nav=[];
  const add=(tex,pt)=>{(T[tex]=T[tex]||[]).push(pt)};
- const B={T,cols,shadows,glows,
+ const B={T,cols,shadows,glows,ladders,hides,links,nav,
   // axis aligned box, y = bottom
   box(x,y,z,w,h,d,c,tex='concrete',o={}){add(tex,{g:G('box',w,h,d),p:[x,y+h/2,z],c,uv:o.local?'local':undefined,us:o.us,gy:o.gy??0,ao:o.ao});
    if(o.solid!==false)cols.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2,s:tex});if(o.shadow!==false&&y<.06&&w*d>.2)shadows.push([x,z,w+.55,d+.55]);return B},
@@ -11,7 +12,18 @@ function Builder(){const T={},cols=[],shadows=[],glows=[];
   cyl(x,y,z,r,h,c,tex='metal',o={}){add(tex,{g:G('cyl',r,o.r2??r,h,o.seg||10),p:[x,y+h/2,z],c,us:o.us,gy:o.gy??0,ao:o.ao});if(o.solid!==false){const k=r*.85;cols.push({x0:x-k,x1:x+k,y0:y,y1:y+h,z0:z-k,z1:z+k,s:tex})}if(o.shadow!==false&&y<.06)shadows.push([x,z,r*2+.5,r*2+.5]);return B},
   glow(x,y,z,w,h,d,c){glows.push({g:G('box',w,h,d),p:[x,y+h/2,z],c});return B},
   stairs(x,y,z,dir,n,sh,run,width,c,tex='concrete'){for(let i=0;i<n;i++){const h=sh*(i+1),off=run*i+run/2;const o={gy:y};
-   if(dir==='x+')B.box(x+off,y,z,run,h,width,c,tex,o);if(dir==='x-')B.box(x-off,y,z,run,h,width,c,tex,o);if(dir==='z+')B.box(x,y,z+off,width,h,run,c,tex,o);if(dir==='z-')B.box(x,y,z-off,width,h,run,c,tex,o)}return B},
+   if(dir==='x+')B.box(x+off,y,z,run,h,width,c,tex,o);if(dir==='x-')B.box(x-off,y,z,run,h,width,c,tex,o);if(dir==='z+')B.box(x,y,z+off,width,h,run,c,tex,o);if(dir==='z-')B.box(x,y,z-off,width,h,run,c,tex,o)}
+   const L=run*n,top=y+sh*n,dv={'x+':[1,0],'x-':[-1,0],'z+':[0,1],'z-':[0,-1]}[dir];links.push({a:[x-dv[0]*.9,y,z-dv[1]*.9],b:[x+dv[0]*(L+.7),top,z+dv[1]*(L+.7)]});return B},
+  // climbable ladder on a wall face. n = outward normal of the wall ('x+','x-','z+','z-'); climb by holding forward
+  ladder(x,z,y0,y1,n,c=0x8a8f98){const dv={'x+':[1,0],'x-':[-1,0],'z+':[0,1],'z-':[0,-1]}[n];const sx=dv[0]!==0;const px=x+dv[0]*.12,pz=z+dv[1]*.12;
+   for(const s of[-.38,.38])add('metal',{g:G('box',sx?.06:.06,y1-y0+1,sx?.06:.06),p:[px+(sx?0:s),y0+(y1-y0+1)/2,pz+(sx?s:0)],c});
+   for(let y=y0+.3;y<y1+.9;y+=.32)add('metal',{g:G('box',sx?.05:.76,.05,sx?.76:.05),p:[px,y,pz],c});
+   const cx=x+dv[0]*.4,cz=z+dv[1]*.4;ladders.push({x0:cx-(sx?.42:.55),x1:cx+(sx?.42:.55),z0:cz-(sx?.55:.42),z1:cz+(sx?.55:.42),y0:y0-.1,y1:y1+.25,n:dv});
+   links.push({a:[x+dv[0]*1.1,y0,z+dv[1]*1.1],b:[x-dv[0]*.9,y1,z-dv[1]*.9],ladder:1});return B},
+  // foliage you can hide in (not solid; bots can't spot you inside unless close)
+  hedge(x,z,w,d,h=1.9,c=0x3f8f3a,y=0){const r=rng(x*31+z*17);const n=Math.max(2,Math.round(w*d/1.4));for(let i=0;i<n;i++)add('leaves',{g:G('ico',.75+r()*.35,1),p:[x+(r()-.5)*w*.85,y+.6+r()*(h-1),z+(r()-.5)*d*.85],s:[1,1.15,1],c:_c.set(c).multiplyScalar(.8+r()*.35).getHex(),ao:false});
+   hides.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,y0:y-.2,y1:y+h});shadows.push([x,z,w+.6,d+.6]);return B},
+  spot(x,y,z){nav.push([x,z,y]);return B},
   // local frame helper for props rotated by quarter turns
   at(x,z,q=0){const rot=(lx,lz)=>[[lx,lz],[lz,-lx],[-lx,-lz],[-lz,lx]][q&3];const sw=q&1;const L={
    box(lx,y,lz,w,h,d,c,tex,o){const[a,b]=rot(lx,lz);B.box(x+a,y,z+b,sw?d:w,h,sw?w:d,c,tex,o);return L},
@@ -176,6 +188,7 @@ const DEFS=[
  },
  spawnsA:[[-41,0],[-43,-2.5],[-43,2.5],[-38.5,-4],[-38.5,4.5],[-46,0]],spawnsB:[[41,0],[43,2.5],[43,-2.5],[38.5,4],[38.5,-4.5],[46,0]],spawnsM:[[0,-20],[0,20],[-20,0],[20,0],[-25,-30],[25,30],[-30,-10],[30,10],[0,-42],[0,42]]},
 ];
+DEFS.push(...newDefs({G,rng,_c,facade}));
 export const MAPS=DEFS.map(d=>({name:d.name,desc:d.desc,icon:d.icon,def:d}));
 // ---------- 3D MAIN HUB (not in the map vote) ----------
 // queue pads: pairs of circles (blue A / red B); radius scales with team size so n players fit side by side
@@ -212,7 +225,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const[gt,gc,gu]=d.ground;const[sx,sz]=d.size;const gsize=d.pier?[sx,sz]:[sx+40,sz+40];
  B.part(gt,{g:G('box',gsize[0],1,gsize[1]),p:[0,-.5,0],c:gc,us:gu,ao:false});
  d.build(B);
- if(!d.pier&&!d.indoor){for(const s of[-1,1]){B.box(0,0,s*(sz/2+.5),sx+2,4,1,0x000000,'plain',{shadow:false});B.box(s*(sx/2+.5),0,0,1,4,sz,0x000000,'plain',{shadow:false})}for(let k=0;k<4;k++)B.T.plain.pop()}
+ if(!d.pier&&!d.indoor){for(const s of[-1,1]){const wh=d.wallH||4;B.box(0,0,s*(sz/2+.5),sx+2,wh,1,0x000000,'plain',{shadow:false});B.box(s*(sx/2+.5),0,0,1,wh,sz,0x000000,'plain',{shadow:false})}for(let k=0;k<4;k++)B.T.plain.pop()}
  const group=new THREE.Group();
  for(const t in B.T){if(!B.T[t].length)continue;const m=new THREE.Mesh(mergeParts(B.T[t],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}
  if(B.glows.length)group.add(new THREE.Mesh(mergeParts(B.glows),glowMat));
@@ -228,7 +241,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0]);
  if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
- return cache[i]={def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ return cache[i]={def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}
