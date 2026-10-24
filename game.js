@@ -176,7 +176,8 @@ let R2=null;const prevScene=new THREE.Scene();const prevCam=new THREE.Perspectiv
 function r2(){if(!R2){R2=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});R2.setPixelRatio(1)}return R2}
 // gun assembly: one merged mesh per (animation group, material) so mags/bolts/slides can move; pivots from info.piv
 const TMAP={metal:'gunMetalP',alu:'gunAlu',poly:'gunPoly',wood:'gunWood',rubber:'gunRubber',brass:'gunBrass',chrome:'gunChrome',trans:'gunTrans',glove:'gunGlove',sleeve:'gunSleeve'};
-const SHINY={metal:1,alu:1,brass:1,chrome:1};const _bm=new THREE.Matrix4(),_be=new THREE.Euler(),_bq=new THREE.Quaternion(),_bs=new THREE.Vector3(),_bp=new THREE.Vector3();
+const SHINY={metal:1,alu:1,brass:1,chrome:1};const ICM=[new THREE.MeshStandardMaterial({vertexColors:true,roughness:.62,metalness:0}),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35,metalness:.35})];ICM[0].color.setScalar(1.5);ICM[1].color.setScalar(2.1);
+prevScene.add(new THREE.HemisphereLight(0xffffff,0x6a6a80,1.6));{const l=new THREE.DirectionalLight(0xffffff,2.2);l.position.set(2,3,2);prevScene.add(l);const l2=new THREE.DirectionalLight(0x9fc4ff,1.2);l2.position.set(-2,1,-1);prevScene.add(l2)}const _bm=new THREE.Matrix4(),_be=new THREE.Euler(),_bq=new THREE.Quaternion(),_bs=new THREE.Vector3(),_bp=new THREE.Vector3();
 function bakePart(pt){const g=pt.g.clone();_be.set(...(pt.r||[0,0,0]));_bq.setFromEuler(_be);_bs.set(...(pt.s||[1,1,1]));_bp.set(...(pt.p||[0,0,0]));_bm.compose(_bp,_bq,_bs);if(pt.m)_bm.premultiply(pt.m);g.applyMatrix4(_bm);return g}
 function gunGroup(id,o={}){if(o===true)o={hands:true};const{hands=false,sleeve,lod=0,lit=false}=o;const{parts,info}=gunParts(id,lod);const g=new THREE.Group();const Gp={};
  const all=hands?parts.concat(handParts(info,sleeve)):parts;const B={};for(const pt of all){const k=(pt.grp||'')+'|'+pt.mat;(B[k]||(B[k]=[])).push(pt)}
@@ -185,20 +186,20 @@ function gunGroup(id,o={}){if(o===true)o={hands:true};const{hands=false,sleeve,l
   const off=holder===g?null:holder.position;
   if(mat==='ret'||mat==='glass'){for(const pt of B[k]){const geo=bakePart(pt);if(off)geo.translate(-off.x,-off.y,-off.z);const m=new THREE.Mesh(geo,mat==='ret'?RET[pt.ret||'dot']:GLASS);m.renderOrder=mat==='ret'?3:2;m.userData.fx=1;holder.add(m)}continue}
   const geo=mergeParts(B[k],{uv:true});if(off)geo.translate(-off.x,-off.y,-off.z);const tm=TMAP[mat]||'gunPoly';
-  const mesh=new THREE.Mesh(geo,lit?texMat(tm):(SHINY[mat]?MC.metal:MC.matte));mesh.userData.tm=lit?tm:null;mesh.userData.mk=mat;if(mat==='glove'||mat==='sleeve')mesh.userData.hand=1;holder.add(mesh)}
+  const mesh=new THREE.Mesh(geo,lit?texMat(tm):o.icon?ICM[SHINY[mat]?1:0]:(SHINY[mat]?MC.metal:MC.matte));mesh.userData.tm=lit?tm:null;mesh.userData.mk=mat;if(mat==='glove'||mat==='sleeve')mesh.userData.hand=1;holder.add(mesh)}
  if(Gp.mag){const bb=new THREE.Box3();Gp.mag.updateMatrixWorld(true);for(const c of Gp.mag.children)if(c.geometry){c.geometry.computeBoundingBox();bb.union(c.geometry.boundingBox)}Gp.mag.userData.c=bb.isEmpty()?new THREE.Vector3():bb.getCenter(new THREE.Vector3()).add(Gp.mag.position)}
  g.userData.info=info;g.userData.G=Gp;g.userData.optic=parts.some(p=>p.mat==='ret');return g}
 const ICON={};
 function fitCam(obj,cam,side=true,pad=1.15){const bb=new THREE.Box3().setFromObject(obj);const c=bb.getCenter(new THREE.Vector3()),s=bb.getSize(new THREE.Vector3());
  const r=Math.max(s.z/cam.aspect,s.y,s.x*.6)*pad;const dist=r/(2*Math.tan(cam.fov*Math.PI/360));if(side){cam.position.set(c.x+dist,c.y+dist*.12,c.z+dist*.06)}else cam.position.set(c.x+dist*.85,c.y+dist*.35,c.z+dist*.5);cam.lookAt(c)}
 function renderIcons(){const R=r2();R.setSize(192,96);prevCam.aspect=2;prevCam.updateProjectionMatrix();
- for(const id in W){const g=gunGroup(id);if(id==='fists'){const{info}=gunParts('fists');const hp=handParts(info);g.add(new THREE.Mesh(mergeParts(hp),MC.matte));g.rotation.y=-Math.PI/2}
+ for(const id in W){const g=gunGroup(id,{icon:true});if(id==='fists'){const{info}=gunParts('fists');const hp=handParts(info);g.add(new THREE.Mesh(mergeParts(hp),ICM[0]));g.rotation.y=-Math.PI/2}
   if(W[id].cls==='util')g.scale.setScalar(2.2);prevScene.add(g);fitCam(g,prevCam,true,W[id].cls==='util'?1.6:1.08);R.setClearColor(0,0);R.render(prevScene,prevCam);ICON[id]=R.domElement.toDataURL();prevScene.remove(g);
   g.traverse(o=>o.geometry&&o.geometry.dispose())}}
 let prevObj=null,prevOn=false,prevT=0;
 function startPreview(id){const R=r2();const box=$('arsPrev');if(R.domElement.parentNode!==box){box.innerHTML='';box.appendChild(R.domElement)}
  const w=box.clientWidth||320,h=box.clientHeight||150;R.setSize(w,h);prevCam.aspect=w/h;prevCam.updateProjectionMatrix();
- if(prevObj){prevScene.remove(prevObj);prevObj.traverse(o=>o.geometry&&o.geometry.dispose())}prevObj=gunGroup(id);if(id==='fists'){const hp=handParts(gunParts('fists').info);prevObj.add(new THREE.Mesh(mergeParts(hp),MC.matte))}
+ if(prevObj){prevScene.remove(prevObj);prevObj.traverse(o=>o.geometry&&o.geometry.dispose())}prevObj=gunGroup(id,{icon:true});if(id==='fists'){const hp=handParts(gunParts('fists').info);prevObj.add(new THREE.Mesh(mergeParts(hp),ICM[0]))}
  if(W[id].cls==='util')prevObj.scale.setScalar(2.4);const piv=new THREE.Group();piv.add(prevObj);const bb=new THREE.Box3().setFromObject(prevObj);prevObj.position.sub(bb.getCenter(new THREE.Vector3()));prevObj=piv;prevScene.add(piv);
  fitCam(piv,prevCam,false,1.25);prevCam.position.set(0,.05,1);const s=new THREE.Box3().setFromObject(piv).getSize(new THREE.Vector3());const r=Math.max(s.x,s.y,s.z);const hf=2*Math.atan(Math.tan(prevCam.fov*Math.PI/360)*prevCam.aspect),vf=prevCam.fov*Math.PI/180;const dist=Math.max((r/2)/Math.tan(hf/2),(Math.max(s.y,r*.3)/2)/Math.tan(vf/2))*1.25;prevCam.position.set(dist,dist*.12,0);prevCam.lookAt(0,0,0);prevT=0;
  if(!prevOn){prevOn=true;const loop=()=>{if(!prevOn)return;requestAnimationFrame(loop);if(prevObj){prevT+=.016;prevObj.rotation.y=Math.sin(prevT*.9)*.5}R.setClearColor(0,0);R.render(prevScene,prevCam)};loop()}}
@@ -1034,4 +1035,4 @@ renderLoadoutMini();resize();requestAnimationFrame(loop);
 addEventListener('keydown',e=>{if(e.code==='KeyF'&&inGame&&!paused&&me.alive&&me.reloadT<=0&&VA.inspect<=0&&me.zoomT<.1)VA.inspect=2.6});
 addEventListener('keydown',e=>{if(e.code==='KeyE'&&C.phase==='hub'&&!$('stationBtn').classList.contains('hidden'))useStation($('stationBtn').dataset.k)});
 {const q=new URLSearchParams(location.search);if(q.get('hub'))setTimeout(enterHub,50);else if(q.get('offline'))setTimeout(()=>$('offlineBtn').click(),50)}
-window.__hsz={endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+window.__hsz={gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
