@@ -4,16 +4,16 @@ import {THREE,GQ,camoTex} from './gfx.js';
 // key: [name, price, kind, swatch css, premium]
 export const WSKINS={
  default:['Factory',0,'none','linear-gradient(135deg,#555,#999)'],
- carbon:['Carbon Fiber',450,'shader','repeating-linear-gradient(45deg,#111 0 4px,#2b2b2b 4px 8px)'],
- tiger:['Tiger Camo',500,'camo','linear-gradient(120deg,#d07a1e 30%,#222 30% 40%,#d07a1e 40% 70%,#222 70% 80%,#d07a1e 80%)'],
- ice:['Glacier Ice',800,'std','linear-gradient(135deg,#e8f8ff,#7fd3ff 60%,#3a8fc0)'],
- toxic:['Toxic',900,'shader','radial-gradient(circle at 30% 30%,#c6ff3a,#3c9a12 60%,#14300a)'],
- neon:['Neon Pulse',1000,'shader','linear-gradient(135deg,#0b0b1a,#ff2bd6 45%,#28f0ff 55%,#0b0b1a)'],
- gold:['Solid Gold',1200,'std','linear-gradient(135deg,#fff1a8,#e8b923 45%,#9a6b0c)'],
- lightning:['Lightning',2000,'shader','linear-gradient(135deg,#0a1030,#3a7bff 50%,#e8f4ff 52%,#0a1030)',1],
- fire:['Inferno',2500,'shader','linear-gradient(0deg,#3a0500,#ff3c00 45%,#ffb000 75%,#fff3a0)',1],
- galaxy:['Galaxy',3000,'shader','radial-gradient(circle at 60% 40%,#ff7ad9,#6a2bd1 35%,#120a3a 70%,#05030f)',1]};
-export const WSKIN_IDS=Object.keys(WSKINS);
+ carbon:['Carbon Fiber',250,'shader','repeating-linear-gradient(45deg,#111 0 4px,#2b2b2b 4px 8px)'],
+ tiger:['Tiger Camo',300,'camo','linear-gradient(120deg,#d07a1e 30%,#222 30% 40%,#d07a1e 40% 70%,#222 70% 80%,#d07a1e 80%)'],
+ ice:['Glacier Ice',400,'std','linear-gradient(135deg,#e8f8ff,#7fd3ff 60%,#3a8fc0)'],
+ toxic:['Toxic',450,'shader','radial-gradient(circle at 30% 30%,#c6ff3a,#3c9a12 60%,#14300a)'],
+ neon:['Neon Pulse',500,'shader','linear-gradient(135deg,#0b0b1a,#ff2bd6 45%,#28f0ff 55%,#0b0b1a)'],
+ gold:['Solid Gold',600,'std','linear-gradient(135deg,#fff1a8,#e8b923 45%,#9a6b0c)'],
+ lightning:['Lightning',900,'shader','linear-gradient(135deg,#0a1030,#3a7bff 50%,#e8f4ff 52%,#0a1030)',1],
+ fire:['Inferno',1100,'shader','linear-gradient(0deg,#3a0500,#ff3c00 45%,#ffb000 75%,#fff3a0)',1],
+ galaxy:['Galaxy',1300,'shader','radial-gradient(circle at 60% 40%,#ff7ad9,#6a2bd1 35%,#120a3a 70%,#05030f)',1]};
+export const WSKIN_IDS=Object.keys(WSKINS);export const WSKIN_FEAT=WSKIN_IDS.filter(k=>WSKINS[k][4]);
 export const skinU={uT:{value:0}};
 export function tickSkins(t){skinU.uT.value=t%600}
 const VS=`varying vec3 vP;varying vec3 vN;varying vec3 vV;
@@ -37,7 +37,7 @@ export function skinMat(key){const lo=GQ.level==='low';const ck=key+(lo?'_lo':''
  if(key==='gold')m=new THREE.MeshStandardMaterial({color:0xffc93c,metalness:.6,roughness:.26,emissive:0x5a3a00,emissiveIntensity:.7});
  else if(key==='ice')m=new THREE.MeshStandardMaterial({color:0xdaf5ff,metalness:.25,roughness:.1,emissive:0x2f7aa6,emissiveIntensity:.75});
  else if(key==='tiger')m=new THREE.MeshStandardMaterial({map:camoTex(0xd07a1e),metalness:.15,roughness:.6});
- else{const fs=`uniform float uT;varying vec3 vP;varying vec3 vN;varying vec3 vV;#define OCT ${lo?1:(key==='fire'?3:2)}\n#define STARS ${lo?'0.6':'1.0'}\n`.replace('#define','\n#define')+NOISE+FS[key].replace(/gl_FragColor=vec4\(c,1\.\);\}$/,'gl_FragColor=vec4(c,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}');
+ else{const fs=`uniform float uT;varying vec3 vP;varying vec3 vN;varying vec3 vV;#define OCT ${lo?2:(key==='fire'?3:2)}\n#define STARS ${lo?'0.6':'1.0'}\n`.replace('#define','\n#define')+NOISE+FS[key].replace(/gl_FragColor=vec4\(c,1\.\);\}$/,'gl_FragColor=vec4(c,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}');
   m=new THREE.ShaderMaterial({uniforms:skinU,vertexShader:VS,fragmentShader:fs});m.userData.anim=1}
  m.userData.skin=key;return cache[ck]=m}
 export function clearSkinCache(){for(const k in cache)delete cache[k]}

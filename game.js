@@ -1,6 +1,6 @@
 // HeadShotz – free browser multiplayer FPS. Three.js + PeerJS (host-authoritative star).
 import {THREE,FX,TX,MC,G,mergeParts,GQ,texMat,swapMats,WT,GRASS_T,scatterGrass,makeSky,RET,GLASS,camoTex} from './gfx.js';
-import {WSKINS,WSKIN_IDS,applySkin,tickSkins,clearSkinCache} from './wskins.js';
+import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './wskins.js';
 import {Post} from './post.js';
 import {TURN} from './ice.js';
 import {MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles} from './maps.js';
@@ -68,7 +68,7 @@ let lastTouchEnd=0;document.addEventListener('touchend',e=>{const n=Date.now();i
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;
 if(isIOS&&!standalone)$('iosTip').classList.remove('hidden');
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update().catch(()=>{});setInterval(()=>r.update().catch(()=>{}),15*60000)}).catch(()=>{});let swR=false;const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||swR)return;swR=true;const go=()=>{if(!inGame)location.reload();else setTimeout(go,5000)};go()})}
 // ---------------- audio ----------------
 let AC=null,noiseBuf=null,master=null,verb=null;
 function audioInit(){if(AC){if(AC.state==='suspended')AC.resume();return}try{AC=new(window.AudioContext||window.webkitAudioContext)();
@@ -328,7 +328,8 @@ const UPG={mag:{name:'Extended Mag',per:.15,cost:[200,450]},reload:{name:'Fast H
 const WALLET_V=3;const PROG=(()=>{const base={v:WALLET_V,dia:0,owned:[],upg:{},camo:{},camos:{},skin:'default',skins:['default'],wskin:{},wskins:{},fr:null};let w=null;try{w=JSON.parse(LS('wallet')||'null')}catch(e){}
  if(!w||!w.v){let old={};try{old=JSON.parse(LS('prog')||'{}')||{}}catch(e){}w=Object.assign({},old,w||{});}
  const P=Object.assign(base,w);P.v=WALLET_V;P.dia=Math.max(0,P.dia|0);for(const k of['owned','skins'])if(!Array.isArray(P[k]))P[k]=[];for(const k of['upg','camo','camos','wskin','wskins'])if(!P[k]||typeof P[k]!=='object'||Array.isArray(P[k]))P[k]={};
- if(!P.fr||!P.fr.code){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<8;i++)c+=A[Math.random()*A.length|0];P.fr={code:c.slice(0,4)+'-'+c.slice(4),list:[],inc:[],out:[]}}for(const k of['list','inc','out'])if(!Array.isArray(P.fr[k]))P.fr[k]=[];if(!P.skins.includes('default'))P.skins.push('default');LSS('wallet',JSON.stringify(P));return P})();
+if(!P.skins.includes('default'))P.skins.push('default');LSS('wallet',JSON.stringify(P));return P})();
+
 function saveProg(){PROG.v=WALLET_V;LSS('wallet',JSON.stringify(PROG));updDiaUI()}
 addEventListener('storage',e=>{if(e.key===LSP+'wallet'&&e.newValue){try{Object.assign(PROG,JSON.parse(e.newValue));updDiaUI()}catch(x){}}});
 const owns=id=>!W[id].price||PROG.owned.includes(id);
@@ -669,15 +670,15 @@ function renderArsenal(){const cls=CLASSES.filter(c=>arsMode!=='upgrade'||c.id!=
 // ---- weapon skins (per weapon): buy with diamonds, equip; shown on view model, preview and third-person guns ----
 let wskSel=null;const ownsSkin=(id,k)=>k==='default'||(PROG.wskins[id]||[]).includes(k);
 function sendWS(){if(inGame&&!C.hub)send({t:'ws',ws:cleanWS(PROG.wskin)})}
-function renderSkins(){const list=Object.values(W).filter(w=>w.cls!=='util'&&owns(w.id));$('arsDetail').classList.remove('hidden');
+function renderSkins(){const list=Object.values(W).filter(w=>w.cls!=='util'&&w.id!=='fists'&&owns(w.id));$('arsDetail').classList.remove('hidden');
  if(!arsSel||!list.some(w=>w.id===arsSel))arsSel=(list.find(w=>w.id===me.load[me.cur])||list.find(w=>me.load.includes(w.id))||list[0]).id;
- const cur=id=>PROG.wskin[id]||'default';if(!wskSel||!WSKINS[wskSel])wskSel=cur(arsSel);
+ const cur=id=>PROG.wskin[id]||'default';if(!wskSel||!WSKINS[wskSel]){wskSel=cur(arsSel);if(wskSel==='default')wskSel=WSKIN_FEAT[0]}
  $('arsGrid').innerHTML=list.map(w=>{const k=cur(w.id);return`<button class="wc${w.id===arsSel?' sel':''}" data-w="${w.id}"><img src="${ICON[w.id]||''}">${w.name}<span class="eq skinEq" style="background:${WSKINS[k][3]}">${WSKINS[k][0]}</span></button>`}).join('');
  const w=W[arsSel];$('arsName').textContent=w.name+' · '+WSKINS[wskSel][0];$('arsDesc').textContent=(WSKINS[wskSel][4]?'✨ Animated premium skin. ':'')+'Cosmetic only — everyone sees it on your gun.';$('arsStats').innerHTML='';
- $('arsUpg').innerHTML='<div class="wskins">'+WSKIN_IDS.map(k=>{const[n,p,,css,prem]=WSKINS[k];const o=ownsSkin(w.id,k);return`<button class="wsk${k===wskSel?' sel':''}${cur(w.id)===k?' on':''}${prem?' prem':''}" data-act="wsk" data-k="${k}"><span class="sw${prem?' anim':''}" style="background:${css}"></span><small>${n}</small><em>${cur(w.id)===k?'✓ ON':o?'OWNED':'💎'+p}</em></button>`}).join('')+'</div>';
+ const btn=k=>{const[n,p,,css,prem]=WSKINS[k];const o=ownsSkin(w.id,k);return`<button class="wsk${k===wskSel?' sel':''}${cur(w.id)===k?' on':''}${prem?' prem':''}" data-act="wsk" data-k="${k}"><span class="sw${prem?' anim':''}" style="background:${css}"></span><small>${n}</small><em>${cur(w.id)===k?'✓ ON':o?'OWNED':'💎'+p}</em></button>`};$('arsUpg').innerHTML='<div class="cardHead sm">✨ FEATURED · ANIMATED</div><div class="wskins feat">'+WSKIN_FEAT.map(btn).join('')+'</div><div class="cardHead sm">ALL SKINS</div><div class="wskins">'+WSKIN_IDS.filter(k=>!WSKINS[k][4]).map(btn).join('')+'</div>';
  const b=$('arsEquip');const o=ownsSkin(w.id,wskSel),p=WSKINS[wskSel][1];b.classList.remove('poor');
  if(!o){b.dataset.act='buywsk';b.textContent=PROG.dia>=p?`BUY 💎 ${p}`:`NEED 💎 ${p-PROG.dia} MORE`;b.classList.toggle('poor',PROG.dia<p);b.classList.add('yellow')}
- else{const on=cur(w.id)===wskSel;b.dataset.act='eqwsk';b.textContent=on?'✓ EQUIPPED':'EQUIP SKIN';b.classList.toggle('yellow',!on)}
+ else{const on=cur(w.id)===wskSel;b.dataset.act='eqwsk';b.textContent=on?(wskSel==='default'?'✓ FACTORY FINISH':'✓ EQUIPPED ON '+w.name.toUpperCase()):'EQUIP SKIN';b.classList.toggle('yellow',!on)}
  startPreview(arsSel,wskSel==='default'?null:wskSel)}
 function setWSkin(id,k){if(k==='default')delete PROG.wskin[id];else PROG.wskin[id]=k;saveProg();if(me.load[me.cur]===id&&inGame)setViewModel(id);sendWS()}
 function equip(w){me.load[w.slot]=w.id;LSS('load2',JSON.stringify(me.load));renderLoadoutMini();if(inGame&&!C.hub)feed(`${w.name} equipped — active on next spawn`);if(C.hub)hubEquip()}
@@ -1151,8 +1152,28 @@ addEventListener('keydown',e=>{if(e.code==='KeyE'&&C.phase==='hub'&&!$('stationB
 // Every save has a friend code (PROG.fr.code). While the game is open, the page registers a presence peer whose id is derived
 // from that code (PREFIX+'fr-'+code). Friends connect to it briefly to send requests/accepts/removals and to ask for status
 // (menu / hub / lobby / match with mode+map, room code, player count). No backend: unreachable presence = Offline.
-const FR=PROG.fr;const frPid=c=>PREFIX+'fr-'+String(c).replace(/[^A-Z0-9]/g,'');const normCode=c=>{c=String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');return c.length===8?c.slice(0,4)+'-'+c.slice(4):null};
-let frPeer=null,frStat={},frPollT=null,frOpen=false;
+const frPid=c=>PREFIX+'fr-'+String(c).replace(/[^A-Z0-9]/g,'');const normCode=c=>{c=String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');return c.length===8?c.slice(0,4)+'-'+c.slice(4):null};
+// Friends live under their OWN storage key (+ a backup key), never inside the wallet, so no other save can overwrite them.
+// Every write first re-reads storage and merges (newest entry per friend code wins; removals are kept as tombstones), so a stale
+// tab / back-forward-cached page / second window can't wipe newer data.
+const FRK='friends',FRB='friends_bak';const CATS=['list','inc','out'];
+function frRead(){for(const k of[FRK,FRB]){try{const o=JSON.parse(LS(k)||'null');if(o&&normCode(o.code))return o}catch(e){}}return null}
+function frMergeInto(d,s){if(!s)return d;if(normCode(s.code))d.code=s.code;d.rm=d.rm||{};for(const k in(s.rm||{}))d.rm[k]=Math.max(d.rm[k]||0,s.rm[k]);
+ const best={};for(const src of[d,s])for(const c of CATS)for(const e of(src[c]||[])){const code=normCode(e.code);if(!code)continue;const t=e.t||0;if(!best[code]||t>best[code].e.t||((t===best[code].e.t)&&CATS.indexOf(c)<CATS.indexOf(best[code].c)))best[code]={c,e:{...e,code,t}}}
+ for(const c of CATS)d[c]=[];for(const code in best){const{c,e}=best[code];if((d.rm[code]||0)>=e.t)continue;d[c].push(e)}return d}
+const FR=(()=>{let f=frRead();const w=PROG.fr;if(!f){f=w&&normCode(w.code)?{code:w.code,list:(w.list||[]).map(e=>({...e,t:1})),inc:(w.inc||[]).map(e=>({...e,t:1})),out:(w.out||[]).map(e=>({...e,t:1})),rm:{}}:null}
+ if(!f){const code=normCode(PROG.frCode)||(()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<8;i++)c+=A[Math.random()*A.length|0];return c.slice(0,4)+'-'+c.slice(4)})();f={code,list:[],inc:[],out:[],rm:{}}}
+ frMergeInto(f,{});return f})();
+delete PROG.fr;PROG.frCode=FR.code;
+let frPeer=null,frStat={},frPollT=null,frOpen=false,frBack=2000;
+setTimeout(()=>{frWrite();saveProg()},0);
+function frWrite(){const cur=frRead();if(cur&&cur.code!==FR.code&&normCode(cur.code))FR.code=cur.code;frMergeInto(FR,cur);const j=JSON.stringify({v:1,code:FR.code,list:FR.list,inc:FR.inc,out:FR.out,rm:FR.rm,at:Date.now()});LSS(FRK,j);LSS(FRB,j);if(PROG.frCode!==FR.code){PROG.frCode=FR.code;saveProg()}}
+function frReload(){frMergeInto(FR,frRead());if(frOpen)renderFriends();updFrBadge()}
+const frFind=(arr,c)=>arr.findIndex(f=>f.code===c);const frCat=c=>CATS.find(k=>frFind(FR[k],c)>=0)||null;
+// set a friend's state (list / inc / out) or remove (null); saved immediately
+function frSet(code,cat,name,extra){frWrite();const old=CATS.map(k=>FR[k][frFind(FR[k],code)]).find(Boolean);for(const k of CATS){const i=frFind(FR[k],code);if(i>=0)FR[k].splice(i,1)}
+ const now=Math.max(Date.now(),(old&&old.t||0)+1);if(cat)FR[cat].push({code,name:String(name||old&&old.name||code).slice(0,12),t:now,...(extra||{})});else{FR.rm[code]=now}frWrite();if(frOpen)renderFriends();updFrBadge()}
+function frSave(){frWrite();if(frOpen)renderFriends();updFrBadge()}
 function frName(){return(LS('name')||$('nameIn').value||'Player').slice(0,12)}
 function myStatus(){const lob=!$('lobby').classList.contains('hidden');
  if(C.hub)return{w:'hub',t:'In Hub',join:{hub:1}};
@@ -1160,34 +1181,41 @@ function myStatus(){const lob=!$('lobby').classList.contains('hidden');
  if(inGame)return{w:'practice',t:'Practice vs Bots',mode:C.mode,map:cur&&cur.def?cur.def.name:'',join:null};
  if(lob&&roomCode&&roomCode!=='OFFLINE'){const n=Object.values((isHost?H.players:C.players)||{}).filter(q=>!q.bot).length;return{w:'lobby',t:'In Lobby',n,mx:MAXP,join:n<MAXP?{room:roomCode}:null}}
  return{w:'menu',t:'In Menu',join:null}}
-const frFind=(arr,c)=>arr.findIndex(f=>f.code===c);
-function frSave(){saveProg();if(frOpen)renderFriends();updFrBadge()}
-function frServe(){if(frPeer||typeof Peer==='undefined')return;const p=new Peer(frPid(FR.code),{config:ICE,debug:0});frPeer=p;
- p.on('error',e=>{if(e.type==='unavailable-id'){/* another tab of this profile is already the presence */try{p.destroy()}catch(x){}frPeer=null;setTimeout(frServe,15000)}});
- p.on('disconnected',()=>{try{p.reconnect()}catch(e){}});
- p.on('connection',c=>{c.on('data',m=>{if(!m||typeof m!=='object')return;const code=normCode(m.code);if(!code||code===FR.code)return;const name=String(m.name||'Player').slice(0,12);let r={t:'ok'};
-  if(m.t==='req'){if(frFind(FR.list,code)>=0){r={t:'acc',code:FR.code,name:frName()}}else if(frFind(FR.out,code)>=0){FR.out.splice(frFind(FR.out,code),1);FR.list.push({code,name});r={t:'acc',code:FR.code,name:frName()};frSave();toast(`👥 ${name} is now your friend`)}else{if(frFind(FR.inc,code)<0){FR.inc.push({code,name});frSave();toast(`👥 Friend request from ${name}`)}r={t:'pend'}}}
-  else if(m.t==='acc'){const i=frFind(FR.out,code);if(i>=0){FR.out.splice(i,1);if(frFind(FR.list,code)<0)FR.list.push({code,name});frSave();toast(`👥 ${name} accepted your request`)}}
-  else if(m.t==='dec'){const i=frFind(FR.out,code);if(i>=0){FR.out.splice(i,1);frSave()}}
-  else if(m.t==='rm'){const i=frFind(FR.list,code);if(i>=0){FR.list.splice(i,1);delete frStat[code];frSave()}}
-  else if(m.t==='st'){r=frFind(FR.list,code)>=0?{t:'st',name:frName(),s:myStatus()}:{t:'st',s:null}}
+function frServe(){if(frPeer||typeof Peer==='undefined')return;const p=new Peer(frPid(FR.code),{config:ICE,debug:0});frPeer=p;let ok=false;
+ const retry=()=>{if(frPeer!==p)return;try{p.destroy()}catch(x){}frPeer=null;const d=frBack;frBack=Math.min(30000,frBack*2);setTimeout(frServe,d)};
+ p.on('open',()=>{ok=true;frBack=2000;window.__frOnline=true});
+ // id taken (old session not yet expired on the signalling server / another tab) or any other failure -> retry with backoff
+ p.on('error',e=>{if(e.type==='unavailable-id'||!ok||['network','server-error','socket-error','socket-closed'].includes(e.type))retry()});
+ p.on('disconnected',()=>{setTimeout(()=>{if(frPeer===p&&p.disconnected&&!p.destroyed){try{p.reconnect()}catch(e){retry()}}},1000)});p.on('close',retry);
+ p.on('connection',c=>{c.on('data',m=>{if(!m||typeof m!=='object')return;const code=normCode(m.code);if(!code||code===FR.code)return;frReload();const name=String(m.name||'Player').slice(0,12);let r={t:'ok'};const cat=frCat(code);
+  if(m.t==='req'){if(cat==='list'||cat==='out'){if(cat==='out')toast(`👥 ${name} is now your friend`);frSet(code,'list',name);r={t:'acc',code:FR.code,name:frName()}}else{if(cat!=='inc'){frSet(code,'inc',name);toast(`👥 Friend request from ${name}`)}r={t:'pend'}}}
+  else if(m.t==='acc'){if(cat==='out'||cat==='inc'||cat==='list'){if(cat!=='list')toast(`👥 ${name} accepted — you're friends!`);frSet(code,'list',name)}else if(!(FR.rm[code])){frSet(code,'list',name)}r={t:'ok'}}
+  else if(m.t==='dec'){if(cat==='out')frSet(code,null)}
+  else if(m.t==='rm'){if(cat){frSet(code,null);delete frStat[code]}}
+  else if(m.t==='st'){r=cat==='list'?{t:'st',name:frName(),s:myStatus()}:{t:'st',s:null,rel:cat==='out'?'req':cat==='inc'?'pend':null}}
   try{c.send(r)}catch(e){}setTimeout(()=>{try{c.close()}catch(e){}},400)})})}
+function frRevive(){frReload();if(!frPeer||frPeer.destroyed||frPeer.disconnected){if(frPeer&&frPeer.disconnected&&!frPeer.destroyed){try{frPeer.reconnect()}catch(e){}}else{frPeer=null;frBack=2000;frServe()}}frPoll()}
+addEventListener('visibilitychange',()=>{if(!document.hidden)frRevive()});addEventListener('pageshow',e=>{if(e.persisted)frRevive()});addEventListener('focus',()=>frReload());
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 // one short request to a friend's presence; resolves with reply or null (offline)
-const frNet=()=>{if(!window.__frc){window.__frc=new Peer({config:ICE,debug:0});window.__frc.on('error',()=>{});window.__frc.on('disconnected',()=>{try{window.__frc.reconnect()}catch(e){}})}return window.__frc};
-function frAsk(code,msg){return new Promise(res=>{let done=false;const fin=v=>{if(done)return;done=true;clearTimeout(to);try{c&&c.close()}catch(e){}res(v)};let c=null;const to=setTimeout(()=>fin(null),4500);
+const frNet=()=>{if(!window.__frc||window.__frc.destroyed){window.__frc=new Peer({config:ICE,debug:0});window.__frc.on('error',()=>{});window.__frc.on('disconnected',()=>{try{window.__frc.reconnect()}catch(e){}})}return window.__frc};
+function frAsk(code,msg){return new Promise(res=>{let done=false;const fin=v=>{if(done)return;done=true;clearTimeout(to);try{c&&c.close()}catch(e){}res(v)};let c=null;const to=setTimeout(()=>fin(null),msg.t==='st'?9000:15000);
  const go=()=>{c=frNet().connect(frPid(code),{reliable:true,serialization:'json'});c.on('open',()=>c.send({...msg,code:FR.code,name:frName()}));c.on('data',d=>fin(d));c.on('close',()=>fin(null));c.on('error',()=>fin(null))};
- const n=frNet();if(n.open)go();else n.on("open",go)})}
-async function frPoll(){for(const f of FR.out.filter(f=>!f.sent||Date.now()-f.sent>60000)){const r=await frAsk(f.code,{t:'req'});if(r){f.sent=Date.now();if(r.t==='acc'){const i=frFind(FR.out,f.code);if(i>=0)FR.out.splice(i,1);if(frFind(FR.list,f.code)<0)FR.list.push({code:f.code,name:r.name||f.name});toast(`👥 ${r.name||f.name} accepted your request`)}frSave()}}
- for(const f of FR.list.filter(f=>f.pendAcc)){const r=await frAsk(f.code,{t:'acc'});if(r){delete f.pendAcc;frSave()}}
- for(const f of FR.list.filter(f=>f.pendRm)){}
- await Promise.all(FR.list.map(async f=>{const r=await frAsk(f.code,{t:'st'});frStat[f.code]=r&&r.s?{...r.s,at:Date.now()}:null;if(r&&r.name&&r.name!==f.name){f.name=r.name;saveProg()}}));if(frOpen)renderFriends();updFrBadge()}
-function frSchedule(){clearTimeout(frPollT);frPollT=setTimeout(async()=>{try{await frPoll()}catch(e){}frSchedule()},frOpen?5000:25000)}
-function frAdd(raw){const code=normCode(raw);if(!code)return frMsg('Friend codes look like ABCD-1234');if(code===FR.code)return frMsg("That's your own code 🙂");if(frFind(FR.list,code)>=0)return frMsg('Already friends');
- const ii=frFind(FR.inc,code);if(ii>=0)return frAccept(code);if(frFind(FR.out,code)<0)FR.out.push({code,name:code});frSave();frMsg('Request sent — it arrives when they are online');
- frAsk(code,{t:'req'}).then(r=>{const f=FR.out.find(f=>f.code===code);if(!r||!f)return;f.sent=Date.now();if(r.t==='acc'){FR.out.splice(FR.out.indexOf(f),1);if(frFind(FR.list,code)<0)FR.list.push({code,name:r.name||code});toast('👥 You are now friends')}frSave();frPoll()})}
-function frAccept(code){const i=frFind(FR.inc,code);if(i<0)return;const f=FR.inc.splice(i,1)[0];FR.list.push({code,name:f.name,pendAcc:1});frSave();frAsk(code,{t:'acc'}).then(r=>{if(r){const g=FR.list.find(x=>x.code===code);if(g)delete g.pendAcc;frSave()}frPoll()})}
-function frDecline(code){const i=frFind(FR.inc,code);if(i<0)return;FR.inc.splice(i,1);frSave();frAsk(code,{t:'dec'})}
-function frRemove(code){const i=frFind(FR.list,code);if(i>=0){FR.list.splice(i,1);delete frStat[code];frSave();frAsk(code,{t:'rm'})}const j=frFind(FR.out,code);if(j>=0){FR.out.splice(j,1);frSave()}}
+ const n=frNet();if(n.open)go();else n.on('open',go)})}
+let frBusy=false;
+async function frPoll(){if(frBusy)return;frBusy=true;try{frReload();
+ // keep re-sending pending requests and accepts until the other side has them
+ for(const f of FR.out.slice()){const r=await frAsk(f.code,{t:'req'});if(r&&r.t==='acc'){frSet(f.code,'list',r.name||f.name);toast(`👥 ${r.name||f.name} accepted — you're friends!`)}else if(r){const g=FR.out.find(x=>x.code===f.code);if(g&&!g.del){g.del=1;frSave()}}}
+ for(const f of FR.list.filter(f=>f.pendAcc)){const r=await frAsk(f.code,{t:'acc'});if(r){const g=FR.list.find(x=>x.code===f.code);if(g){delete g.pendAcc;frSave()}}}
+ await Promise.all(FR.list.map(async f=>{const r=await frAsk(f.code,{t:'st'});frStat[f.code]=r&&r.s?{...r.s,at:Date.now()}:null;if(r&&r.name&&r.name!==f.name){const g=FR.list.find(x=>x.code===f.code);if(g){g.name=r.name;frSave()}}}));
+ if(frOpen)renderFriends();updFrBadge()}finally{frBusy=false}}
+function frSchedule(){clearTimeout(frPollT);frPollT=setTimeout(async()=>{try{await frPoll()}catch(e){}frSchedule()},frOpen?5000:20000)}
+function frAdd(raw){const code=normCode(raw);if(!code)return frMsg('Friend codes look like ABCD-1234');if(code===FR.code)return frMsg("That's your own code 🙂");const cat=frCat(code);if(cat==='list')return frMsg('Already friends ✓');
+ if(cat==='inc')return frAccept(code);frSet(code,'out',code);frMsg('📨 Request sent! Saved — it shows as Pending until they accept.');toast('📨 Friend request sent');
+ frAsk(code,{t:'req'}).then(r=>{if(r&&r.t==='acc'){frSet(code,'list',r.name||code);frMsg('✅ Added! You are now friends.');toast('✅ Friend added!')}else if(r){const g=FR.out.find(x=>x.code===code);if(g){g.del=1;frSave()}}frPoll()})}
+function frAccept(code){const f=FR.inc.find(x=>x.code===code);if(!f)return;frSet(code,'list',f.name,{pendAcc:1});frMsg(`✅ Added ${f.name}!`);toast(`✅ ${f.name} added as a friend`);frAsk(code,{t:'acc'}).then(r=>{if(r){const g=FR.list.find(x=>x.code===code);if(g){delete g.pendAcc;frSave()}}frPoll()})}
+function frDecline(code){if(frCat(code)!=='inc')return;frSet(code,null);frAsk(code,{t:'dec'})}
+function frRemove(code){if(!frCat(code))return;frSet(code,null);delete frStat[code];frAsk(code,{t:'rm'})}
 function frJoin(code){const s=frStat[code];if(!s||!s.join)return;const nl=/[?&]net=local/.test(location.search)?'&net=local':'';
  if(s.join.hub){if(C.hub)return frMsg('You are already in the hub');location.href=hubUrl();return}if(s.join.room){if(inGame||!$('lobby').classList.contains('hidden')){location.href=location.pathname+'?join='+s.join.room+nl}else{closeFriends();joinRoom(s.join.room)}}}
 function frMsg(t){const m=$('frMsg');if(m)m.textContent=t}
@@ -1197,7 +1225,7 @@ function renderFriends(){$('frCode').textContent=FR.code;$('frMe').textContent=f
  const L=FR.list.slice().sort((a,b)=>(frStat[b.code]?1:0)-(frStat[a.code]?1:0));
  $('frList').innerHTML=(L.length?L.map(f=>{const s=frStat[f.code];return`<div class="frRow" data-code="${f.code}"><div class="frWho"><b>${esc(f.name)}</b><small>${f.code}</small></div><div class="frSt">${f.code in frStat?stText(s):'<span class="off">● checking…</span>'}</div>
   <button class="pill ${s&&s.join?'yellow':'poor'}" data-fr="join" ${s&&s.join?'':'disabled'}>${s&&s.join&&s.join.hub?'GO TO HUB':'JOIN'}</button><button class="pill red sm" data-fr="rm" title="Remove">✕</button></div>`}).join(''):'<p class="msg">No friends yet — share your code or add theirs.</p>');
- $('frInc').innerHTML=FR.inc.map(f=>`<div class="frRow" data-code="${f.code}"><div class="frWho"><b>${esc(f.name)}</b><small>${f.code}</small></div><span class="frSt">wants to be friends</span><button class="pill green" data-fr="acc">ACCEPT</button><button class="pill red sm" data-fr="dec">DECLINE</button></div>`).join('')+FR.out.map(f=>`<div class="frRow out" data-code="${f.code}"><div class="frWho"><b>${esc(f.name)}</b><small>${f.code}</small></div><span class="frSt">request sent…</span><button class="pill red sm" data-fr="rm">CANCEL</button></div>`).join('');
+ $('frInc').innerHTML=FR.inc.map(f=>`<div class="frRow" data-code="${f.code}"><div class="frWho"><b>${esc(f.name)}</b><small>${f.code}</small></div><span class="frSt">wants to be friends</span><button class="pill green" data-fr="acc">ACCEPT</button><button class="pill red sm" data-fr="dec">DECLINE</button></div>`).join('')+FR.out.map(f=>`<div class="frRow out" data-code="${f.code}"><div class="frWho"><b>${esc(f.name)}</b><small>${f.code}</small></div><span class="frSt">⏳ Pending${f.del?' · delivered':' · sends when they are online'}</span><button class="pill red sm" data-fr="rm">CANCEL</button></div>`).join('');
  $('frReqHead').classList.toggle('hidden',!FR.inc.length&&!FR.out.length)}
 function updFrBadge(){const n=FR.inc.length;document.querySelectorAll('.frBadge').forEach(b=>{b.textContent=n||'';b.classList.toggle('hidden',!n)});const on=FR.list.filter(f=>frStat[f.code]).length;document.querySelectorAll('.frOnline').forEach(b=>b.textContent=FR.list.length?`${on}/${FR.list.length} online`:'Add friends by code')}
 function openFriends(){audioInit&&audioInit();frOpen=true;$('friends').classList.remove('hidden');renderFriends();frMsg('');frPoll();frSchedule()}
@@ -1207,9 +1235,9 @@ $('frClose').onclick=closeFriends;$('frAddBtn').onclick=()=>{frAdd($('frIn').val
 $('frCopy').onclick=async()=>{try{await navigator.clipboard.writeText(FR.code);frMsg('Code copied!')}catch(e){frMsg('Your code: '+FR.code)}};
 $('friends').addEventListener('click',e=>{const b=e.target.closest('[data-fr]');if(!b)return;const code=b.closest('[data-code]').dataset.code;const a=b.dataset.fr;if(a==='join')frJoin(code);else if(a==='rm')frRemove(code);else if(a==='acc')frAccept(code);else if(a==='dec')frDecline(code)});
 for(const id of['openFriends','lobFriends','pFriends','hubFriends'])if($(id))$(id).onclick=openFriends;
-addEventListener('storage',e=>{if(e.key===LSP+'wallet'&&e.newValue){try{const w=JSON.parse(e.newValue);if(w.fr){Object.assign(FR,w.fr);PROG.fr=FR;if(frOpen)renderFriends();updFrBadge()}}catch(x){}}});
+addEventListener('storage',e=>{if(e.key===LSP+FRK)frReload()});
 setTimeout(()=>{frServe();frSchedule();updFrBadge();if(FR.list.length||FR.out.length)setTimeout(frPoll,1500)},800);
-window.__hsz={FRIENDS:()=>({FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+window.__hsz={vmSkin:()=>{let k=null;if(vmCur)vmCur.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.skin)k=o.material.userData.skin});return k},vmId:()=>me.load[me.cur],FRIENDS:()=>({frPeerOpen:!!(frPeer&&frPeer.open),FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
 
 // ---- fullscreen: Fullscreen API where it exists (Android Chrome, iPad Safari, desktop); iPhone Safari gets an Add-to-Home-Screen guide
 const FS={api:!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen),
