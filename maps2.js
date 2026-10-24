@@ -73,7 +73,7 @@ D.push({name:'Snowy Outpost',wallH:14,desc:'Cabins, radar tower, frozen lake',ic
   B.ladder(rx-.7,rz,0,5,'x-');B.box(rx-1.5,5,rz+1.5,.8,5,.8,0x7f8c8d,'metal',{gy:5});B.ladder(rx-1.9,rz+1.5,5,10,'x-');
   B.part('metal',{g:G('cyl',2.4,2.4,.25,20),p:[rx,12,rz],r:[.5,0,0],c:0xdfe6e9});B.cyl(rx,10,rz,.15,2,0x636e72,'metal',{solid:false,shadow:false});B.glow(rx,12.6,rz,.3,.3,.3,0xff4040);
   // radar south: generator shed + fuel
-  room(B,0,-26,10,6,3.4,0x546e7a,'metal','ns');B.ladder(5.15,-24,0,3.7,'x+');B.spot(0,3.7,-26);for(const x of[-3,3])B.barrel(x,-21,0xc0392b);
+  room(B,0,-26,10,6,3.4,0x546e7a,'metal','ns');B.ladder(-1,-29.15,0,3.7,'z-');B.spot(0,3.7,-26);for(const x of[-3,3])B.barrel(x,-21,0xc0392b);
   // pine forest + snow rocks (cover), hedges = snowy bushes (hide)
   const r=rng(77);for(let i=0;i<60;i++){const a=r()*6.28,d=22+r()*20;const x=Math.cos(a)*d*1.0,z=Math.sin(a)*d*.85;if(Math.abs(x)>28&&Math.abs(x)<42&&Math.abs(z)<18)continue;if(Math.abs(x)<5&&Math.abs(z)>20)continue;pine(B,x,z,.8+r()*.6)}
   for(const[x,z,w,h,d]of[[-16,-10,4,1.6,3],[16,10,4,1.6,3],[-14,14,3,2,5],[14,-14,3,2,5],[0,-14,6,1.2,2],[0,14,6,1.2,2],[-24,0,2,1.4,6],[24,0,2,1.4,6]])B.rock(x,z,w,h,d,0xcfd8dc);
