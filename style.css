@@ -198,3 +198,5 @@ body.hub #sbar,body.hub #slots,body.hub #bZoom,body.hub #bNade,body.hub #bFire,b
 #hostCtl .diffRow .pill{padding:4px 8px;font-size:11px}
 #rlBtn{top:auto;bottom:26%}
 body.endOn #center,body.endOn #rlBtn{display:none}
+body.hub #slots{display:none}
+#mapSelList .vc{padding:0 8px;font-size:13px}
