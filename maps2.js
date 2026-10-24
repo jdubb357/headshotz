@@ -7,8 +7,15 @@ function room(B,x,z,w,d,h,c,tex,doors='',roof=true,y=0,rc){const t=.3,dg=1.8;
  const wallX=(zz,side)=>{if(doors.includes(side)){const s=(w-dg)/2;B.box(x-w/2+s/2,y,zz,s,h,t,c,tex,{gy:y});B.box(x+w/2-s/2,y,zz,s,h,t,c,tex,{gy:y});B.box(x,y+2.3,zz,dg,h-2.3,t,c,tex,{gy:y})}else B.box(x,y,zz,w,h,t,c,tex,{gy:y})};
  const wallZ=(xx,side)=>{if(doors.includes(side)){const s=(d-dg)/2;B.box(xx,y,z-d/2+s/2,t,h,s,c,tex,{gy:y});B.box(xx,y,z+d/2-s/2,t,h,s,c,tex,{gy:y});B.box(xx,y+2.3,z,t,h-2.3,dg,c,tex,{gy:y})}else B.box(xx,y,z,t,h,d,c,tex,{gy:y})};
  wallX(z+d/2-t/2,'n');wallX(z-d/2+t/2,'s');wallZ(x+w/2-t/2,'e');wallZ(x-w/2+t/2,'w');
- // window strips (decor)
- for(const s of[-1,1])B.box(x,y+1.3,z+s*(d/2+.02),w*.5,.7,.04,0xffffff,'window',{solid:false,shadow:false,local:true});
+ // framed window strips + door frames + base trim (decor, non-solid, <=.1 m proud)
+ const ns={solid:false,shadow:false},fr=_c.set(c).lerp(_c.clone().set(0xffffff),.45).getHex(),dk=_c.set(c).multiplyScalar(.6).getHex();
+ for(const s of[-1,1]){const zz=z+s*(d/2+.02);B.box(x,y+1.3,zz,w*.5,.7,.04,0xffffff,'window',{...ns,local:true});B.box(x,y+2.0,z+s*(d/2+.05),w*.5+.2,.1,.08,fr,'concrete',ns);B.box(x,y+1.2,z+s*(d/2+.07),w*.5+.24,.1,.14,fr,'concrete',ns);
+  for(const k of[-1,1])B.box(x+k*(w*.25+.05),y+1.3,z+s*(d/2+.05),.1,.7,.08,fr,'concrete',ns);for(let k=1;k<3;k++)B.box(x-w*.25+w*.5*k/3,y+1.3,zz+s*.01,.05,.7,.04,fr,'concrete',ns);
+  B.box(x,y,z+s*(d/2+.03),w+.06,.35,.06,dk,'concrete',ns)}
+ for(const s of[-1,1])B.box(x+s*(w/2+.03),y,z,.06,.35,d+.06,dk,'concrete',ns);
+ const jamb=(side)=>{const o=.06;if(side==='n'||side==='s'){const zz=z+(side==='n'?1:-1)*(d/2);for(const k of[-1,1])B.box(x+k*(dg/2+.06),y,zz,.12,2.3,.3+2*o,fr,'concrete',ns);B.box(x,y+2.3,zz,dg+.24,.14,.3+2*o,fr,'concrete',ns)}
+  else{const xx=x+(side==='e'?1:-1)*(w/2);for(const k of[-1,1])B.box(xx,y,z+k*(dg/2+.06),.3+2*o,2.3,.12,fr,'concrete',ns);B.box(xx,y+2.3,z,.3+2*o,.14,dg+.24,fr,'concrete',ns)}};
+ for(const sd of doors)if('nsew'.includes(sd))jamb(sd);
  if(roof)slab(B,x,y+h+.3,z,w+.4,d+.4,rc??_c.set(c).multiplyScalar(.7).getHex(),'concrete');return B}
 const parapet=(B,x,y,z,w,d,c=0x9aa0a6,tex='metal')=>B.box(x,y,z,w,1,d,c,tex,{gy:y,shadow:false});
 const pine=(B,x,z,s=1)=>{B.cyl(x,0,z,.2*s,1.2*s,0x5d4037,'rock',{seg:6});for(let i=0;i<3;i++)B.part('leaves',{g:G('cone',(1.7-i*.45)*s,1.7*s,8),p:[x,(1.6+i*1.05)*s,z],c:i===2?0xeef4f8:0x2f5d3a});B.cols.push({x0:x-.5*s,x1:x+.5*s,y0:0,y1:4*s,z0:z-.5*s,z1:z+.5*s});B.shadows.push([x,z,3*s,3*s])};
@@ -114,11 +121,10 @@ D.push({name:'Rooftops',wallH:14,desc:'Jumpable roofs, fire escapes',icon:'🏙�
  build(B){const cols2=[0xb5651d,0x9c8f80,0x7f8c8d,0xa0522d,0x8e7d6b,0x6d7b8d];
   // building grid: [x,z,w,d,h]; gaps <=2.2m between similar roofs so they're jumpable, planks bridge the bigger gaps
   const bl=[[-22,-16,10,10,4.5],[-10,-16,10,10,6],[2,-16,10,10,4.5],[14,-16,10,8,7.5],[-22,16,10,10,6],[-10,16,10,10,4.5],[2,16,10,10,7.5],[14,16,10,8,4.5],[-4,0,8,8,3.2]];
-  bl.forEach(([x,z,w,d,h],i)=>{const c=cols2[i%6];facade(B,x,z,w,h,d,c,'z');
+  bl.forEach(([x,z,w,d,h],i)=>{const c=cols2[i%6];facade(B,x,z,w,h,d,c,'z',{all:true});
    // roof props: AC unit, vent, water tank, chimney (cover)
    const rr=rng(i*11+3);B.box(x-w/4,h,z+(rr()-.5)*d*.4,1.6,1,1.2,0xbdc3c7,'metal',{gy:h});B.box(x+w/4,h,z-d/4,.8,1.6,.8,0x7f8c8d,'brick',{gy:h});
    if(i%3===0){for(const a of[-.6,.6])for(const b of[-.6,.6])B.box(x+w/4+a,h,z+d/4+b,.12,1.4,.12,0x5d4037,'planks',{gy:h,solid:false});B.cyl(x+w/4,h+1.4,z+d/4,1,1.6,0x8d6e63,'planks',{seg:12,gy:h+1.4})}
-   for(const s of[-1,1])B.box(x,h,z+s*(d/2-.1),w,.5,.2,_c.set(c).multiplyScalar(.75).getHex(),'concrete',{gy:h,shadow:false});
    B.spot(x,h,z)});
   // fire escapes: balcony + ladders on street-facing walls (z faces toward the street at z=0)
   for(const[x,z,h,n]of[[-22,-11,4.5,'z+'],[-10,-11,6,'z+'],[2,-11,4.5,'z+'],[14,-12,7.5,'z+'],[-22,11,6,'z-'],[-10,11,4.5,'z-'],[2,11,7.5,'z-'],[14,12,4.5,'z-']]){
@@ -155,10 +161,10 @@ D.push({name:'Oil Refinery',wallH:14,desc:'Tanks, catwalks, pipes',icon:'🛢️
    for(const x of[-10,10]){B.cyl(x,.7,z-2.2,.15,.5,0xc0392b,'metal',{solid:false,shadow:false})}}
   // flare stack + distillation column with ladder (tall perch)
   B.cyl(-30,0,24,.9,16,0x95a5a6,'metal',{seg:12});B.glow(-30,16,24,.5,.8,.5,0xff8c2a);
-  B.cyl(30,0,-24,1.8,10,0xbdc3c7,'metal',{seg:14});B.box(32.1,0,-24,.2,8,1.2,0x7f8c8d,'metal',{shadow:false});B.ladder(32.25,-24,0,8,'x+');slab(B,30,8,-24,4.4,4.4,0x7f8c8d,'metal');for(const[a,b,w,d]of[[0,2.1,4.4,.15],[0,-2.1,4.4,.15],[-2.1,0,.15,4.4]])B.box(30+a,8,-24+b,w,1,d,0xf1c40f,'metal',{gy:8,shadow:false});B.spot(30,8,-24);
+  B.cyl(30,0,-24,1.8,10,0xbdc3c7,'metal',{seg:14});B.box(33.1,0,-24,.2,7.7,1.2,0x7f8c8d,'metal',{shadow:false});B.ladder(33.25,-24,0,8,'x+');slab(B,30,8,-24,6.4,6.4,0x7f8c8d,'metal');for(const[a,b,w,d]of[[0,3.1,6.4,.15],[0,-3.1,6.4,.15],[-3.1,0,.15,6.4]])B.box(30+a,8,-24+b,w,1,d,0xf1c40f,'metal',{gy:8,shadow:false});B.spot(32.2,8,-24);
   // spawns: offices + containers + trucks; control room on stilts with stairs
   for(const s of[-1,1]){room(B,s*38,0,6,10,3.2,0xecf0f1,'plaster',s<0?'e':'w');B.ladder(s*34.85,-3,0,3.5,s<0?'x+':'x-');B.spot(s*38,3.5,0);
-   B.container(s*28,-14,1,s<0?0x2e86de:0xc0392b);B.container(s*28,14,1,s<0?0x27ae60:0xf39c12);B.container(s*28,14,1,0x8e44ad,2.6);B.ladder(s*28-s*1.3,17.2,0,5.2,'z+',0x34495e);B.spot(s*28,5.2,14);
+   B.container(s*28,-14,1,s<0?0x2e86de:0xc0392b);B.container(s*28,14,1,s<0?0x27ae60:0xf39c12);B.container(s*28,14,1,0x8e44ad,2.6);B.ladder(s*28-s*.4,17.2,0,5.2,'z+',0x34495e);B.spot(s*28,5.2,14);
    B.wreck(s*20,s*-26,0,0x7f8c8d);B.forklift(s*20,s*2,0);for(const z of[-6,6])B.barrel(s*24,z,0x34495e);sandbags(B,s*22,-8,1,3);sandbags(B,s*22,8,1,3)}
   for(const[x,z]of[[-20,-30],[20,30],[-36,-28],[36,28],[0,-31],[0,31]])B.hedge(x,z,3,2,1.7,0x7a8a4a);
   for(let i=0;i<10;i++){const x=-27+i*6;B.crate(x,(i%2?1:-1)*30,1.2)}},

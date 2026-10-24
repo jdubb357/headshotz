@@ -37,6 +37,7 @@
     <button class="card nav" id="openShop"><span class="ico">🛒</span><span><b>WEAPON SHOP</b><small>Unlock weapons with 💎 earned by playing</small></span></button>
     <button class="card nav" id="openUpg"><span class="ico">⭐</span><span><b>UPGRADES</b><small>Camos · outfits · mag &amp; reload tiers</small></span></button>
     <button class="card nav" id="openArsenal"><span class="ico">🔫</span><span><b>ARSENAL</b><small>Equip your loadout</small></span></button>
+    <button class="card nav" id="openFriends"><span class="ico">👥<i class="frBadge hidden"></i></span><span><b>FRIENDS</b><small class="frOnline">Add friends by code</small></span></button>
     <button class="card nav" id="openSettings"><span class="ico">⚙️</span><span><b>SETTINGS</b><small>Sensitivity · zoom · graphics</small></span></button>
    </div>
   </div>
@@ -52,7 +53,7 @@
    <div class="roomChip">ROOM <b id="roomCode"></b></div>
    <button id="shareBtn" class="pill yellow">📨 INVITE</button>
    <button id="lobArsenal" class="pill">🔫 ARSENAL</button><button id="lobShop" class="pill">🛒 SHOP</button>
-   <button id="lobSettings" class="pill">⚙️</button>
+   <button id="lobFriends" class="pill">👥<i class="frBadge hidden"></i></button><button id="lobSettings" class="pill">⚙️</button>
    <button id="leaveLobby" class="pill red">✕</button>
   </div>
   <div class="lobbyGrid">
@@ -83,6 +84,17 @@
  </div>
 </div>
 
+<!-- FRIENDS -->
+<div id="friends" class="screen bgfx2 hidden"><div class="wrap">
+ <div class="lobbyBar"><div class="roomChip">👥 FRIENDS</div><button id="frClose" class="pill red">✕ CLOSE</button></div>
+ <div class="frGrid">
+  <div class="card"><div class="cardHead sm">YOUR FRIEND CODE</div><div class="frCodeBox"><b id="frCode"></b><button id="frCopy" class="pill">📋 COPY</button></div><small>Playing as <b id="frMe"></b>. Share this code so friends can add you.</small>
+   <div class="cardHead sm">ADD A FRIEND</div><div class="joinRow"><input id="frIn" maxlength="9" placeholder="ABCD-1234" autocomplete="off"><button id="frAddBtn" class="btnBig blue">ADD</button></div><p id="frMsg" class="msg"></p>
+   <div id="frReqHead" class="cardHead sm hidden">REQUESTS</div><div id="frInc"></div></div>
+  <div class="card wide"><div class="cardHead sm">FRIENDS</div><div id="frList"></div></div>
+ </div>
+</div></div>
+
 <!-- BROWSER -->
 <div id="browser" class="screen bgfx hidden"><div class="wrap">
  <div class="lobbyBar"><div class="roomChip">OPEN GAMES</div><button id="brRefresh" class="pill yellow">⟳ REFRESH</button><button id="brQuick" class="pill">⚡ QUICK JOIN</button><button id="brClose" class="pill red">✕</button></div>
@@ -112,7 +124,7 @@
   <div id="feed"></div>
   <div id="bottom"><div id="hpWrap"><div id="hpBar"><div id="hpFill"></div></div><span id="hpTxt">100</span></div><div id="slots"></div></div>
   <div id="dmgLayer"></div>
-  <div id="hubUI" class="hidden"><div id="hubInfo"></div><button id="stationBtn" class="hidden"></button><div id="padInfo"></div></div>
+  <div id="hubUI" class="hidden"><button id="hubFriends" class="pill">👥<i class="frBadge hidden"></i></button><div id="hubInfo"></div><button id="stationBtn" class="hidden"></button><div id="padInfo"></div></div>
   <div id="mapSel" class="hidden"><div class="card"><div class="cardHead">CHOOSE A MAP <b id="mapSelT">5</b></div><div id="mapSelSub"></div><div id="mapSelList"></div></div></div>
   <div id="diaToast"></div>
   <div id="vign"></div><div id="lensV"></div>
@@ -135,7 +147,7 @@
   </div>
   <button id="menuBtn" aria-label="Pause menu"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/><rect x="14.5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/></svg></button>
   <div id="pause" class="hidden"><div class="card pauseCard"><div id="board"></div>
-    <div class="row"><button id="pResume" class="pill yellow">RESUME</button><button id="pArsenal" class="pill">🔫 ARSENAL</button><button id="pShop" class="pill">🛒 SHOP</button><button id="pSettings" class="pill">⚙️ SETTINGS</button><button id="pLeave" class="pill red">LEAVE</button></div></div></div>
+    <div class="row"><button id="pResume" class="pill yellow">RESUME</button><button id="pArsenal" class="pill">🔫 ARSENAL</button><button id="pShop" class="pill">🛒 SHOP</button><button id="pFriends" class="pill">👥 FRIENDS<i class="frBadge hidden"></i></button><button id="pSettings" class="pill">⚙️ SETTINGS</button><button id="pLeave" class="pill red">LEAVE</button></div></div></div>
 </div>
 <div id="rotate">📱↻<br>Rotate your phone sideways to play</div>
 

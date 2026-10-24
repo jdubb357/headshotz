@@ -75,11 +75,27 @@ function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],li
   build(){return B}};
  return B}
 // window rows on a facade face (decor)
-function facade(B,x,z,w,h,d,c,face){B.box(x,0,z,w,h,d,c,'plaster',{us:.3});B.box(x,h,z,w+.2,.3,d+.2,_c.set(c).multiplyScalar(.75).getHex(),'concrete',{solid:false,shadow:false});
- const rows=Math.floor((h-1.5)/2.6);const along=face==='x'?d:w;const n=Math.max(1,Math.floor(along/3));
- for(let r=0;r<rows;r++)for(let i=0;i<n;i++){const t=-along/2+along/n*(i+.5);const y=1.6+r*2.6;
-  if(face==='x'){const fx=x+(x>0?-w/2-.03:w/2+.03);B.box(fx,y,z+t,.06,1.4,1.1,0xffffff,'window',{solid:false,shadow:false,local:true});B.box(fx+(x>0?-.1:.1),y-.12,z+t,.2,.1,1.3,0xeeeeee,'concrete',{solid:false,shadow:false})}
-  else{const fz=z+(z>0?-d/2-.03:d/2+.03);B.box(x+t,y,fz,1.1,1.4,.06,0xffffff,'window',{solid:false,shadow:false,local:true});B.box(x+t,y-.12,fz+(z>0?-.1:.1),1.3,.1,.2,0xeeeeee,'concrete',{solid:false,shadow:false})}}}
+// realistic facade: solid body; cornice flush with the roof; solid parapet; plinth + floor trim bands; framed windows with sills and grime streaks; framed door.
+// Decorative trim is non-solid and protrudes <=.12 m so collision matches what you see. o.all = windows on all four faces (free-standing buildings).
+function facade(B,x,z,w,h,d,c,face,o={}){const C=_c.set(c),dark=C.clone().multiplyScalar(.62).getHex(),mid=C.clone().multiplyScalar(.8).getHex(),lite=C.clone().lerp(_c.set(0xffffff),.55).getHex(),grime=C.clone().multiplyScalar(.5).getHex();const ns={solid:false,shadow:false};
+ B.box(x,0,z,w,h,d,c,'plaster',{us:.3});
+ B.box(x,h-.3,z,w+.24,.3,d+.24,dark,'concrete',ns);// cornice (top flush with roof)
+ if(o.parapet!==false){const t=.22,ph=.5;B.box(x,h,z-d/2+t/2,w,ph,t,mid,'concrete',{gy:h,shadow:false});B.box(x,h,z+d/2-t/2,w,ph,t,mid,'concrete',{gy:h,shadow:false});B.box(x-w/2+t/2,h,z,t,ph,d-2*t,mid,'concrete',{gy:h,shadow:false});B.box(x+w/2-t/2,h,z,t,ph,d-2*t,mid,'concrete',{gy:h,shadow:false});
+  B.box(x,h+ph,z-d/2+t/2,w+.06,.06,t+.06,lite,'concrete',ns);B.box(x,h+ph,z+d/2-t/2,w+.06,.06,t+.06,lite,'concrete',ns);B.box(x-w/2+t/2,h+ph,z,t+.06,.06,d,lite,'concrete',ns);B.box(x+w/2-t/2,h+ph,z,t+.06,.06,d,lite,'concrete',ns)}
+ B.box(x,0,z,w+.1,.55,d+.1,dark,'concrete',ns);// plinth
+ for(let y=2.6;y<h-.6;y+=2.6)B.box(x,y-.06,z,w+.08,.12,d+.08,mid,'concrete',ns);// floor bands
+ const faces=o.all?['x+','x-','z+','z-']:face==='x'?[x>0?'x-':'x+']:[z>0?'z-':'z+'];const rows=Math.floor((h-1.5)/2.6);
+ for(const f of faces){const ax=f[0]==='x',sg=f[1]==='+'?1:-1,along=ax?d:w,n=Math.max(1,Math.floor(along/3)),off=(ax?w:d)/2;
+  // place a box on face f: t = along-face offset, y, size (along, height, out), proud = how far it sticks out
+  const P=(t,y,sa,sh,so,pr,col,tex,lo)=>{const o2={...ns,local:lo};if(ax)B.box(x+sg*(off+pr-so/2),y,z+t,so,sh,sa,col,tex,o2);else B.box(x+t,y,z+sg*(off+pr-so/2),sa,sh,so,col,tex,o2)};
+  const door=!o.all||f===(face==='x'?(x>0?'x-':'x+'):(z>0?'z-':'z+'));const di=door?Math.floor(n/2):-1;
+  for(let r=0;r<rows;r++)for(let i=0;i<n;i++){const t=-along/2+along/n*(i+.5);const y=1.6+r*2.6;if(r===0&&i===di)continue;
+   P(t,y,1.1,1.4,.06,.03,0xffffff,'window',true);// glass
+   P(t,y+1.4,1.34,.14,.1,.07,lite,'concrete');P(t,y-.12,1.36,.12,.18,.14,lite,'concrete');// lintel, sill
+   P(t-.61,y,.1,1.4,.08,.06,lite,'concrete');P(t+.61,y,.1,1.4,.08,.06,lite,'concrete');// jambs
+   P(t+(i%2?.3:-.25),y-.62,.12,.5,.02,.02,grime,'plaster')}// grime streak under the sill
+  if(door){const t=n>1?-along/2+along/n*(di+.5):0;P(t,0,1.2,2.15,.05,.03,0x4a3426,'planks');P(t,2.15,1.5,.16,.12,.08,lite,'concrete');P(t-.68,0,.14,2.15,.1,.07,lite,'concrete');P(t+.68,0,.14,2.15,.1,.07,lite,'concrete');P(t+.4,1.0,.06,.06,.06,.08,0xc9a227,'metal');
+   if(ax)B.box(x+sg*(off+.25),0,z+t,.5,.14,1.7,dark,'concrete',{gy:0,shadow:false});else B.box(x+t,0,z+sg*(off+.25),1.7,.14,.5,dark,'concrete',{gy:0,shadow:false})}}}
 // ===================== MAP DEFINITIONS =====================
 const DEFS=[
 {name:'Sunset Plaza',horizon:'city',grade:[1.05,1,.93,1.12,1.06],grass:[{on:['grass'],count:1400,color:0x6fae3f,height:.9}],desc:'Balanced arena',icon:'🌇',size:[48,48],ground:['tiles',0xe8d2ae,.25],
