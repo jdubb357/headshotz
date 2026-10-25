@@ -497,7 +497,7 @@ function sendSB(){bcast(sbData())}
 function hostLeave(id){if(!H.players[id])return;delete H.players[id];delete conns[id];bcast({t:'bye',id});if(H.phase==='lobby')sendLobby();else{sendSB();checkRound()}}
 function hostHandle(from,m){const p=H.players[from];
  switch(m.t){
- case 'hello':{if(Object.keys(H.players).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
+ case 'hello':{if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
   const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.hid=m.hid||null;
   if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=teamSmaller();np.color=TEAMCOL[np.team]}
    {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
@@ -1154,15 +1154,18 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
    case 'unreg':delete this.rooms[m.code];break;
    case 'list':this.send(c,{t:'rooms',list:this.roomList(),hub:this.players().length});break;
    case 'ping':this.send(c,{t:'pong',ts:m.ts});break}}
- roomList(){const now=Date.now();for(const k in this.rooms)if(now-this.rooms[k].at>16000)delete this.rooms[k];return Object.values(this.rooms).map(r=>({code:r.code,host:r.host,mode:r.mode,map:r.map,n:r.n,max:r.max,phase:r.phase}))}
+ roomList(){const now=Date.now();for(const k in this.rooms)if(now-this.rooms[k].at>16000)delete this.rooms[k];return Object.values(this.rooms).map(r=>({code:r.code,host:r.host,mode:r.mode,map:r.map,n:r.n,max:r.max,phase:r.phase,hubffa:!!r.hubffa}))}
  drop(id){const c=this.cl[id];if(!c)return;delete this.cl[id];for(const k in this.rooms)if(this.rooms[k].by===id)delete this.rooms[k];if(c.kind==='player'){this.bc({t:'hl',o:c.ord});this.lastPads=''}}
  tick(){const now=Date.now();for(const id in this.cl){const c=this.cl[id];if(!c.local&&now-(c.seen||now)>6000)this.drop(id)}const ps=this.players();const free=ps.filter(p=>!p.busy);
   // queue = who is physically standing inside each circle (server-side check, so leaving a circle unqueues instantly)
   const st={};for(const p of HUB_PADS){st[p.k]={};for(const c of padCircles(p))st[p.k][c.side]=free.filter(q=>inPad(c,q.pos[0],q.pos[2])).sort((a,b)=>a.ord-b.ord).slice(0,p.n).map(q=>q.id)}
   // FFA countdown: 10 s once 2+ stand on the pad; a newcomer keeps at least 5 s left (never resets); full pad starts now; <2 cancels
-  const fp=HUB_PADS.find(p=>p.single);if(fp){const n=st[fp.k].F.length;if(n<2)this.ffaEnd=0;else{if(!this.ffaEnd)this.ffaEnd=now+10000;else if(n>this.ffaN)this.ffaEnd=now+Math.max(this.ffaEnd-now,5000);if(n>=fp.n)this.ffaEnd=now}this.ffaN=n}
+  const fp=HUB_PADS.find(p=>p.single);if(fp){const F=st[fp.k].F;this.soloSeen=this.soloSeen||{};for(const id in this.soloSeen)if(!F.includes(id))delete this.soloSeen[id];
+   // anyone stepping on the FFA pad while a hub solo/online FFA room is open joins it in progress
+   const hr=this.roomList().find(r=>r.hubffa&&r.n<r.max&&r.phase!=='roundEnd');if(hr&&F.length){for(const id of F){const c=this.cl[id];if(c){c.busy=true;this.send(c,{t:'go',code:hr.code,map:-1,mode:'ffa',host:'',teams:{},expect:1,join:1});setTimeout(()=>{if(this.cl[id])this.cl[id].busy=false},8000)}}this.ffaEnd=0;this.lastPads=''}
+   const n=F.length;if(n===1&&this.soloSeen[F[0]]){this.ffaEnd=0}else if(n<1)this.ffaEnd=0;else if(n===1){if(!this.ffaEnd)this.ffaEnd=now+10000}else{if(!this.ffaEnd||this.ffaN<2)this.ffaEnd=now+10000;else if(n>this.ffaN)this.ffaEnd=now+Math.max(this.ffaEnd-now,5000);if(n>=fp.n)this.ffaEnd=now}this.ffaN=n}
   const key=JSON.stringify(st)+'|'+this.ffaEnd;if(key!==this.lastPads){this.lastPads=key;const o={};for(const k in st){o[k]={};for(const s in st[k])o[k][s]=st[k][s].map(id=>this.cl[id].ord)}this.bc({t:'pads',q:o,ffa:this.ffaEnd?Math.max(0,this.ffaEnd-now):0})}
-  for(const p of HUB_PADS){const s=st[p.k];if(p.single){if(this.ffaEnd&&now>=this.ffaEnd&&s.F.length>=2){this.ffaEnd=0;this.ffaN=0;this.startSel(p,s)}}else if(s.A.length>=p.n&&s.B.length>=p.n)this.startSel(p,s)}
+  for(const p of HUB_PADS){const s=st[p.k];if(p.single){if(this.ffaEnd&&now>=this.ffaEnd&&s.F.length>=2){this.ffaEnd=0;this.ffaN=0;this.startSel(p,s)}else if(this.ffaEnd&&now>=this.ffaEnd&&s.F.length===1){this.ffaEnd=0;const id=s.F[0];this.soloSeen[id]=1;const c=this.cl[id];if(c)this.send(c,{t:'solo'});this.lastPads=''}}else if(s.A.length>=p.n&&s.B.length>=p.n)this.startSel(p,s)}
   for(const k in this.sel)if(now>=this.sel[k].until)this.finish(this.sel[k]);
   // hub positions at 8 Hz, compact ints
   if(ps.length>1){const rows=ps.map(p=>[p.ord,Math.round(p.pos[0]*100),Math.round(p.pos[1]*100),Math.round(p.pos[2]*100),Math.round(p.pos[3]*100)]);for(const p of ps)this.send(p,{t:'hpos',p:rows.filter(r=>r[0]!==p.ord)})}}
@@ -1188,6 +1191,7 @@ function hubRecv(m){switch(m.t){
  case 'sel':openMapSel(m);break;
  case 'votes':if(hubSel&&hubSel.sid===m.sid){hubSel.votes=m.votes;renderMapSel()}break;
  case 'go':startHubMatch(m);break;
+ case 'solo':openSolo();break;
  case 'rooms':if(brCb)brCb(m.list,m.hub);break}}
 function enterHubWorld(m){setTimeout(()=>{if(C.hub&&Object.keys(THUMB).length<MAPS.length)renderThumbs()},2500);for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode='hub';C.phase='hub';C.map=HUB_I;C.sb={};C.score={};
  loadMap(HUB_I);buildPadVis();for(const s of['menu','lobby','arsenal','settings','browser'])$(s).classList.add('hidden');
@@ -1240,12 +1244,12 @@ function openMapSel(m){hubSel={sid:m.sid,maps:m.maps,votes:[],mine:-1,end:perfor
 function renderMapSel(){if(!hubSel)return;$('mapSelSub').textContent=`${MODES[hubSel.mode][0]} · ${hubSel.names.join(', ')}`;
  const tv=hubSel.votes.length;$('mapSelList').innerHTML=hubSel.maps.map(i=>{const v=hubSel.votes.filter(x=>x===i).length;const pct=tv?Math.round(v/tv*100):Math.round(100/hubSel.maps.length);return`<button class="map${hubSel.mine===i?' sel':''}" data-ms="${i}" style="${THUMB[i]?`background-image:url(${THUMB[i]})`:''}"><span class="vc">${pct}%${v?` · ${v}🗳️`:''}</span><span class="mn">${MAPS[i].icon} ${MAPS[i].name}<small>${MAPS[i].desc}</small></span></button>`}).join('')}
 $('mapSelList').addEventListener('click',e=>{const b=e.target.closest('[data-ms]');if(!b||!hubSel)return;hubSel.mine=+b.dataset.ms;hubSend({t:'vote',sid:hubSel.sid,map:hubSel.mine});SFX.swap();renderMapSel()});
-function startHubMatch(m){clearInterval(mapSelIv);$('mapSelT').textContent='GO';center(`${MAPS[m.map].icon} ${MAPS[m.map].name}\nStarting ${MODES[m.mode][0]}…`,3000);
- const auto={mode:m.mode,map:m.map,teams:m.teams,expect:m.expect,fromHub:1};
+function startHubMatch(m){clearInterval(mapSelIv);$('mapSelT').textContent='GO';$('soloSel').classList.add('hidden');center(m.join?'Joining FFA in progress…':`${MAPS[m.map].icon} ${MAPS[m.map].name}\nStarting ${MODES[m.mode][0]}…`,3000);
+ const auto=m.join?null:{mode:m.mode,map:m.map,teams:m.teams,expect:m.expect,fromHub:1,solo:m.solo?1:0};
  setTimeout(()=>{$('mapSel').classList.add('hidden');hubUnlink();leaveHubWorld();C.fromHub=true;sessionStorage.setItem('hsz_fromHub','1');sessionStorage.setItem('hsz_pad',JSON.stringify(lastPad));
   if(m.host===hubSelfId)createRoom(m.code,auto);else setTimeout(()=>joinRoom(m.code,auto),900+Math.random()*400)},900)}
 function leaveHubWorld(){C.hub=false;document.body.classList.remove('hub');$('hubUI').classList.add('hidden');if(hubVis){scene.remove(hubVis.g);hubVis=null}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};inGame=false;C.phase='lobby';$('hud').classList.add('hidden')}
-function setupAuto(){const a=H.auto;H.mode=a.mode;H.fill=true;H.pub=false;H.diff='normal';H.autoAt=H.t+12;sendLobby()}
+function setupAuto(){const a=H.auto;H.mode=a.mode;H.fill=true;H.pub=!!a.solo;H.diff='normal';H.autoAt=a.solo?H.t+.5:H.t+12;sendLobby();if(a.solo){hubKind=null;regRoom()}}
 let sbDirty=0;setInterval(()=>{if(sbDirty&&inGame){sbDirty=0;renderSB()}},250);
 // between-round loadout pick (like duel games: swap weapons while the next round loads)
 function showRL(on){$('rlBtn').classList.toggle('hidden',!on||C.hub||!inGame)}
@@ -1265,7 +1269,7 @@ $('endAgain').onclick=()=>endGo(true);$('endLobby').onclick=()=>endGo(false);
 function afterMatch(){if(C.fromHub||sessionStorage.getItem('hsz_fromHub')){sessionStorage.removeItem('hsz_fromHub');location.href=hubUrl()}}
 // ---------- public rooms: registry, browser, quick join ----------
 let regIv=null;
-function roomInfo(){return{code:roomCode,host:H.players[me.id]?.name||'Host',mode:H.mode,map:H.phase==='lobby'?'Voting':MAPS[H.map].name,n:plist().filter(p=>!p.bot).length,max:MODEMAX[H.mode]||10,phase:H.phase}}
+function roomInfo(){return{code:roomCode,host:H.players[me.id]?.name||'Host',mode:H.mode,map:H.phase==='lobby'?'Voting':MAPS[H.map].name,n:plist().filter(p=>!p.bot).length,max:MODEMAX[H.mode]||10,phase:H.phase,hubffa:!!(H.auto&&H.auto.solo)}}
 function regRoom(){if(!isHost||H.offline)return;if(!H.pub){if(regIv){clearInterval(regIv);regIv=null;hubSend({t:'unreg',code:roomCode})}return}
  hubLink(hubKind||'reg');hubSend({t:'reg',room:roomInfo()});if(!regIv)regIv=setInterval(()=>{if(H.pub)hubSend({t:'reg',room:roomInfo()})},5000)}
 function fetchRooms(cb){brCb=cb;hubLink(hubKind||'browse');if(hubConn&&hubConn.open)hubSend({t:'list'})}
@@ -1437,3 +1441,10 @@ setInterval(()=>{if(hubConn&&hubConn.open&&!hubConn.local)hubSend({t:'ka'})},200
 setTimeout(()=>{if(qLevel()==='low'||/noassets/.test(location.search))return;const bar=$('assetBar');if(bar)bar.classList.remove('hidden');const t0=performance.now();
  loadAssets((f)=>{if(bar)bar.querySelector('i').style.width=Math.round(f*100)+'%'}).then(ok=>{window.__assets={ok,ms:Math.round(performance.now()-t0),ready:HQP.ready};if(bar)bar.classList.add('hidden');for(const k in envCache)delete envCache[k];if(HQP.ready){const ids=rebuildForProps();window.__propSwap=ids;if(cur&&!C.hub&&ids.includes(C.map)){const nm=buildMap(C.map);scene.remove(cur.group);scene.add(nm.group);cur.group=nm.group;cur.hqProps=true;window.__propSwapLive=1}}if(cur)applyQuality()})},+(new URLSearchParams(location.search).get('assetdelay')||400));
 $('openCredits').onclick=()=>$('credits').classList.remove('hidden');$('credClose').onclick=()=>$('credits').classList.add('hidden');
+
+// ---- solo on the hub FFA pad: choose online (public, bots, friends/pad can join) or offline bots ----
+function openSolo(){if(!C.hub)return;SFX.beep(880);$('soloSel').classList.remove('hidden');if(document.pointerLockElement)document.exitPointerLock()}
+$('soloOn').onclick=()=>{$('soloSel').classList.add('hidden');startHubMatch({code:genCode(),map:Math.random()*5|0,mode:'ffa',teams:{},expect:1,solo:1,host:hubSelfId})};
+$('soloOff').onclick=()=>{$('soloSel').classList.add('hidden');hubUnlink();leaveHubWorld();C.fromHub=true;sessionStorage.setItem('hsz_fromHub','1');startOffline();H.mode='ffa';H.auto={mode:'ffa',map:Math.random()*5|0,expect:1,fromHub:1};H.autoAt=H.t+.5;sendLobby()};
+$('soloX').onclick=()=>$('soloSel').classList.add('hidden');
+Object.defineProperty(window.__hsz,'room',{get:()=>({code:roomCode,inGame,offline:!!(H&&H.offline),pub:!!(H&&H.pub),host:isHost})});
