@@ -944,6 +944,7 @@ function updViewModel(dt,w,hs,sprint){if(!vmCur)return;const I=vmInfo,Gp=vmCur.u
  const sg=I.sight||[0,.06,.15];const adsP=[-sg[0]*.5,-sg[1]*.5,-(I.pistol?.09:vmCur.userData.optic?.07:.06)-sg[2]*.5];
  // reload pose (whole-gun motion) + parts
  let rx=0,ry=0,rz=0,ly=0;for(const k in Gp){const g=Gp[k];g.position.copy(g.userData.base);g.rotation.set(0,0,0)}
+ if(Gp.chain&&I.chainSp){const run=inp.fire||performance.now()-me.lastShot<200;VA.chainA=((VA.chainA||0)+dt*(run?3:.35))%I.chainSp;Gp.chain.position.z-=VA.chainA}
  const lhG=Gp.lh,lhB=I.lh?_lh.set(...I.lh):_lh.set(0,-.04,.04);let lhT=null;
  const magMove=(k,a0,a1,b0,b1,dist)=>{// mag out a0..a1, new mag in b0..b1 (+seat)
   if(!Gp.mag)return 0;const dirY=I.magTop?1:-1,dz=I.magTop?.02:I.magInGrip?.03:.08;let d;if(k<(a1+b0)/2)d=win(k,a0,a1);else d=1-win(k,b0,b1);

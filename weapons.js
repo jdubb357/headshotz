@@ -623,12 +623,19 @@ function MINIGUN(){const R=0x2b2d31,yb=.03;metal();
  return{muzzle:[0,yb,-.72],eject:[.06,-.03,.05],ejDown:1,sight:[0,.19,.25],grip:g,lh:[0,-.04,-.12],lhT:'vert',len:.85,rl:'belt',hold:'rifle',piv:{cyl:[0,yb,-.4],mag:[-.11,-.06,.02]},spin:1,boltBack:0,shellT:'rifle'}}
 
 // ======================= FUN & SCI-FI (v7) =======================
-function PAINTBALL(){const B=0x1f6fd1,yb=.04;matte();
- prof([[.08,.0],[.08,.06,.008],[-.12,.06,.008],[-.13,.02,.006],[-.12,.0]],.04,0,B,{b:.004});rbox(.012,.01,.16,0,.064,-.02,C.blk,.003);
- metal();barrel(-.12,-.42,.012,yb,0x2b2d31);if(det())for(let i=0;i<8;i++)rbox(.026,.003,.004,0,yb,-.2-i*.025,C.dark,.001);
- mat('trans');sph(.06,0,.13,.0,0xffd23f,[1,.85,1.25],16);matte();cyl(.016,.04,0,.08,.0,C.blk,{ax:'y',seg:12});
+function PAINTBALL(){const B=0x1f6fd1,Bd=0x164f99,yb=.04;matte();// speedball marker: milled body, eye pipe screws, clamp feedneck, loader with balls, HPA tank + regulator, ported barrel
+ prof([[.08,.0],[.08,.06,.008],[-.12,.06,.008],[-.13,.02,.006],[-.12,.0]],.04,0,B,{b:.004});
+ if(det()){for(const s of[-1,1]){for(let i=0;i<3;i++)rbox(.004,.022,.03,s*.019,.03,-.07+i*.05,Bd,.006);for(const z of[-.1,.06])cyl(.004,.004,s*.021,.045,z,0xd0d4da,{ax:'x',seg:8})}
+  rbox(.042,.006,.02,0,.003,.07,Bd,.002);cyl(.006,.012,.022,.05,-.105,0xff3b30,{ax:'x',seg:10})}// milling, screws, eye cover LED
+ rbox(.014,.008,.17,0,.066,-.03,C.blk,.002);if(det())for(let i=0;i<9;i++)rbox(.016,.004,.006,0,.072,-.1+i*.018,C.dark,.001);// dovetail rail + slots
+ metal();lathe([[.016,0],[.016,-.02],[.0135,-.025],[.0135,-.06],[.012,-.062]],0,yb,-.12,0x2b2d31,{seg:18});lathe([[.0125,0],[.0125,-.24],[.014,-.245],[.014,-.26]],0,yb,-.18,0x23272c,{seg:18});
+ if(det())for(let i=0;i<10;i++)for(const s of[-1,1])rbox(.004,.003,.008,s*.012,yb,-.3-i*.012,C.dark,.001);// ported tip
+ matte();cyl(.017,.045,0,.083,-.0,C.blk,{ax:'y',seg:14});if(det()){rbox(.006,.012,.03,.02,.085,.0,0xc0c4ca,.002);cyl(.004,.006,.026,.085,.013,0xc0c4ca,{ax:'x',seg:8})}// feedneck + clamp lever
+ matte();sph(.05,0,.12,.01,0x1a1d22,[1.1,.35,1.5],18);mat('trans');sph(.06,0,.155,.01,0x8fd3ff,[1.02,.82,1.37],18);matte();rbox(.11,.012,.03,0,.18,.07,C.blk,.005);// loader shell + lid
+ if(det())for(let i=0;i<12;i++){const a=i*2.4;sph(.0085,Math.cos(a)*.03,.13+(i%3)*.016,.0+Math.sin(a)*.05,i%2?0xffd23f:0xff7a1a,[1,1,1],8)}// paintballs inside
  trig(-.03,.03,.0,C.blk);const g=gripAR(.0,.05,C.blk,.3,.1,.032);gripAR(.0,-.1,C.blk,.0,.08,.03);
- metal();mat('chrome');cyl(.028,.22,0,.0,.2,0xc8ccd2,{seg:18});lathe([[.028,0],[.016,.03]],0,0,.31,0xc8ccd2,{seg:14});
+ metal();rbox(.03,.02,.035,0,-.012,.09,0x3a3d42,.004);mat('chrome');cyl(.028,.22,0,-.005,.21,0xc8ccd2,{seg:20});lathe([[.028,0],[.016,.03]],0,-.005,.32,0xc8ccd2,{seg:16});// ASA + tank
+ if(det()){metal();cyl(.012,.006,.0,.02,.11,0x111111,{ax:'y',seg:14});mat('glass');cyl(.01,.002,0,.024,.11,0xeaf6ff,{ax:'y',seg:14});metal();for(let i=0;i<4;i++)rbox(.058,.004,.004,0,-.005,.13+i*.04,0x9aa0a8,.001)}// gauge + tank bands
  return{muzzle:[0,yb,-.43],sight:[0,.1,.15],grip:g,lh:[0,-.05,-.1],lhT:'vert',len:.6,rl:'mag',hold:'rifle',piv:{},boltBack:0,noShell:1}}
 function LASERR(){const W1=0xe9edf2,G1=0x34e7ff,yb=.045;matte();
  prof([[.22,.0],[.24,.07,.02],[-.05,.08,.02],[-.2,.06,.02],[-.32,.05,.01],[-.33,.02],[-.1,.0]],.05,0,W1,{b:.006});
@@ -673,13 +680,18 @@ function SCYTHE(){mat('wood');lathe([[.016,.25],[.015,.0],[.016,-.6],[.018,-1.1]
 function TRIDENT(){metal();mat('brass');lathe([[.014,.3],[.013,0],[.014,-.9],[.02,-.95]],0,0,0,0xc9a24a,{seg:12});
  rbox(.03,.2,.03,0,0,-.97,0xc9a24a,.008);for(const y of[-.085,0,.085]){cyl(.011,.24,0,y,-1.1,0xd8b860,{seg:10});prof([[-1.21,y-.016],[-1.32,y],[-1.21,y+.016],[-1.235,y]],.014,0,0xe6c870,{b:.002})}
  return{muzzle:[0,0,-1.2],sight:[0,0,0],grip:{c:[0,0,.1],a:0,w:.03},hold:'katana',melee:1}}
-function CHAINSAW(){const O=0xff7a00,yb=0;matte();
- prof([[.12,-.06],[.12,.06,.02],[-.06,.07,.02],[-.08,-.06,.01]],.1,0,O,{b:.008});if(det())for(let i=0;i<5;i++)rbox(.102,.004,.012,0,-.03+i*.018,.1,C.blk,.001);
+function CHAINSAW(){const O=0xff7a00,Od=0xc85a00,yb=0;matte();
+ prof([[.12,-.06],[.12,.06,.02],[-.06,.07,.02],[-.08,-.06,.01]],.1,0,O,{b:.008});
+ if(det()){for(let i=0;i<5;i++)rbox(.102,.004,.012,0,-.03+i*.018,.1,C.blk,.001);// air filter vents
+  rbox(.104,.03,.05,0,.04,.02,Od,.008);for(const s of[-1,1])for(const z of[-.04,.06])cyl(.004,.004,s*.052,-.03,z,0x9aa0a8,{ax:'x',seg:8});// top cover + screws
+  metal();rbox(.03,.04,.05,-.058,-.01,.0,0x3a3d42,.006);for(let i=0;i<4;i++)rbox(.004,.03,.006,-.074,-.01,-.018+i*.012,0x111111,.001);// muffler + grille
+  matte();cyl(.01,.03,.065,.02,.06,C.blk,{ax:'x',seg:10});rbox(.008,.012,.045,.082,.02,.06,C.blk,.004);rbox(.03,.004,.03,0,-.02,-.068,0xff3b30,.002)}// pull cord T-handle, chain brake tab
  metal();cyl(.035,.06,.055,.0,.02,0x2b2d31,{ax:'x',seg:16});tor(.06,.01,0,.11,.04,C.blk,Math.PI,0,Math.PI/2,0,[6,16]);
- metal();rbox(.012,.06,.44,0,-.01,-.3,0xb8bcc2,.012);mat('poly');rbox(.016,.07,.46,0,-.01,-.3,0x2b2d31,.012,0,0,0,.001);
- if(det())for(let i=0;i<16;i++){rbox(.018,.008,.012,0,.026,-.1-i*.026,C.dark,.001);rbox(.018,.008,.012,0,-.046,-.1-i*.026,C.dark,.001)}
+ mat('rubber');tor(.075,.011,0,.0,-.07,C.blk,Math.PI*1.2,0,0,-.3,[6,18]);// front wrap handle
+ metal();rbox(.012,.06,.44,0,-.01,-.3,0xb8bcc2,.012);cyl(.03,.013,0,-.01,-.52,0xb8bcc2,{ax:'x',seg:18});if(det()){rbox(.0125,.02,.2,0,-.01,-.3,0x2b2d31,.004);cyl(.012,.014,0,-.01,-.52,0x6f747a,{ax:'x',seg:12})}// bar, nose, logo stripe, sprocket
+ grp('chain');metal();const N=det()?17:8,sp=.44/N;for(let i=0;i<N;i++){const z=-.09-i*sp;rbox(.016,.008,.012,0,.024,z,0x3a3d42,.001);rbox(.016,.008,.012,0,-.044,z,0x3a3d42,.001);if(det()){rbox(.018,.006,.006,.004,.03,z-.003,0xd0d4da,.001);rbox(.018,.006,.006,-.004,-.05,z-.003,0xd0d4da,.001)}}grp(null);// chain links + cutter teeth
  const g=gripAR(-.02,.12,C.blk,.0,.1,.032);
- return{muzzle:[0,0,-.5],sight:[0,0,0],grip:g,lh:[0,.11,.04],lhT:'vert',hold:'axe',melee:1,saw:1}}
+ return{muzzle:[0,0,-.5],sight:[0,0,0],grip:g,lh:[0,.11,.04],lhT:'vert',hold:'axe',melee:1,saw:1,chainSp:sp}}
 const BUILD={
  ar:()=>AR({hg:'mlok',hgL:.25,bl:.37,optic:'t2',stock:'sopmod'}),
  m4:()=>AR({hg:'quad',hgL:.18,bl:.36,fsb:false,optic:'holo',stock:'m4'}),
