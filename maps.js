@@ -1,10 +1,11 @@
 // HeadShotz original maps. Built from merged, textured, vertex-AO geometry (few draw calls per map).
 import {newDefs} from './maps2.js';
-import {THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng} from './gfx.js';
+import {dress} from './mapdress.js';
+import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng} from './gfx.js';
 const _c=new THREE.Color();
 function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],links=[],nav=[];
  const add=(tex,pt)=>{(T[tex]=T[tex]||[]).push(pt)};
- const B={T,cols,shadows,glows,ladders,hides,links,nav,
+ const B={T,cols,shadows,glows,ladders,hides,links,nav,fxs:[],
   // axis aligned box, y = bottom
   box(x,y,z,w,h,d,c,tex='concrete',o={}){add(tex,{g:G('box',w,h,d),p:[x,y+h/2,z],c,uv:o.local?'local':undefined,us:o.us,gy:o.gy??0,ao:o.ao});
    if(o.solid!==false)cols.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2,s:tex});if(o.shadow!==false&&y<.06&&w*d>.2)shadows.push([x,z,w+.55,d+.55]);return B},
@@ -241,6 +242,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const[gt,gc,gu]=d.ground;const[sx,sz]=d.size;const gsize=d.pier?[sx,sz]:[sx+40,sz+40];
  B.part(gt,{g:G('box',gsize[0],1,gsize[1]),p:[0,-.5,0],c:gc,us:gu,ao:false});
  d.build(B);
+ if(!d.hub&&!d.noDress)try{dress(B,d,GQ.level==='low'?0:GQ.level==='high'?2:1)}catch(e){console.warn('dress',e)}
  if(!d.pier&&!d.indoor){for(const s of[-1,1]){const wh=d.wallH||4;B.box(0,0,s*(sz/2+.5),sx+2,wh,1,0x000000,'plain',{shadow:false});B.box(s*(sx/2+.5),0,0,1,wh,sz,0x000000,'plain',{shadow:false})}for(let k=0;k<4;k++)B.T.plain.pop()}
  const group=new THREE.Group();
  for(const t in B.T){if(!B.T[t].length)continue;const m=new THREE.Mesh(mergeParts(B.T[t],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}
@@ -257,7 +259,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0]);
  if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
- return cache[i]={def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ return cache[i]={def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}

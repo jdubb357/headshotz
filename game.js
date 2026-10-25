@@ -129,7 +129,7 @@ const SFX={
 // ---------------- map / collision ----------------
 let cur=null,cols=[],groundHalf=[1e9,1e9],ladders=[],hides=[];
 const inVol=(L,p,pad=0)=>{for(const v of L)if(p.x>v.x0-pad&&p.x<v.x1+pad&&p.z>v.z0-pad&&p.z<v.z1+pad&&p.y>v.y0&&p.y<v.y1)return v;return null};
-function loadMap(i){qGrace=performance.now()+5000;if(cur){scene.remove(cur.group);if(cur.sky)scene.remove(cur.sky)}cur=buildMap(i);cols=cur.cols;groundHalf=cur.groundHalf;ladders=cur.ladders||[];hides=cur.hides||[];
+function loadMap(i){qGrace=performance.now()+5000;if(cur){scene.remove(cur.group);if(cur.sky)scene.remove(cur.sky)}cur=buildMap(i);cols=cur.cols;groundHalf=cur.groundHalf;ladders=cur.ladders||[];hides=cur.hides||[];ambSetup();
  scene.add(cur.group);if(cur.sky)scene.add(cur.sky);const d=cur.def;
  scene.background=new THREE.Color(d.indoor?d.fog[0]:d.sky[1]);scene.fog=new THREE.Fog(d.fog[0],d.fog[1],d.fog[2]);
  hemi.color.set(d.hemi[0]);hemi.groundColor.set(d.hemi[1]);hemi.intensity=d.hemi[2];sun.color.set(d.sun[0]);sun.intensity=d.sun[1];sun.position.copy(cur.sunDir).multiplyScalar(50);
@@ -145,11 +145,29 @@ function applyQuality(){const lvl=qLevel();GQ.level=lvl;const hi=lvl!=='low';qGr
    if(want)for(const gd of cur.grassDefs){const gm=scatterGrass(cur.group,cur.cols,{...gd,count:Math.round(gd.count*want)});if(gm){gm.castShadow=false;cur.group.add(gm);cur.grassMesh.push(gm)}}}
   for(const o of cur.group.children)if(o.material&&o.material.map===TX.shadow)o.material.opacity=(d.indoor?.35:.5)*(lvl==='high'?.55:1);
   if(lvl==='high'){if(!post)post=new Post(renderer);post.grade(d.grade,1.0)}}
- dust.visible=lvl==='high'&&!!cur;pixelRatio=basePR();renderer.setPixelRatio(pixelRatio);resize()}
+ dust.visible=lvl==='high'&&!!cur;try{ambSetup()}catch(e){}pixelRatio=basePR();renderer.setPixelRatio(pixelRatio);resize()}
 // ambient dust motes (high)
 const DN=260,dustPos=new Float32Array(DN*3);for(let i=0;i<DN*3;i++)dustPos[i]=(Math.random()-.5)*24;
 const dustGeo=new THREE.BufferGeometry();dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPos,3));
 const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({size:.045,map:TX.soft,color:0xfff1d6,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending}));dust.frustumCulled=false;dust.visible=false;scene.add(dust);
+// ambient emitters (steam/smoke/mist/fire/dust/snow) per map, scaled by quality
+const AMB={};{const mk=(n,size,map,add,op)=>{const g=new THREE.BufferGeometry();const p=new Float32Array(n*3),c=new Float32Array(n*3);g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('color',new THREE.BufferAttribute(c,3));
+ const m=new THREE.PointsMaterial({size,map,vertexColors:true,transparent:true,opacity:op,depthWrite:false,blending:add?THREE.AdditiveBlending:THREE.NormalBlending});const o=new THREE.Points(g,m);o.frustumCulled=false;o.visible=false;scene.add(o);return{o,p,c,n,parts:[]}};
+ AMB.puff=mk(260,1.6,TX.smoke||TX.soft,false,.32);AMB.fire=mk(120,.55,TX.soft,true,.9);AMB.fine=mk(420,.09,TX.soft,false,.85)}
+let ambList=[];
+function ambSetup(){for(const k in AMB){AMB[k].o.visible=false;AMB[k].parts=[]}ambList=[];if(!cur||!cur.fx||!cur.fx.length)return;const lvl=GQ.level;if(lvl==='low')return;const f=lvl==='high'?1:.55;
+ const per={steam:14,smoke:18,mist:16,fire:10,dust:40,snow:300};
+ for(const e of cur.fx){const sys=e.k==='fire'?AMB.fire:(e.k==='dust'||e.k==='snow')?AMB.fine:AMB.puff;let n=Math.round(per[e.k]*f*(e.big?2:1));n=Math.min(n,sys.n-sys.parts.length);for(let i=0;i<n;i++)sys.parts.push({e,a:Math.random(),s:Math.random()});sys.o.visible=sys.parts.length>0}}
+function updAmb(dt,t){const c=camera.position;for(const k in AMB){const S=AMB[k];if(!S.o.visible)continue;const P=S.p,C=S.c;let i=0;
+ for(const q of S.parts){const e=q.e;let life=e.k==='snow'?8:e.k==='dust'?10:e.k==='fire'?.9:e.k==='steam'?2.2:e.k==='mist'?4:4.5;q.a+=dt/life;if(q.a>1){q.a-=1;q.s=Math.random()}
+  const a=q.a,s=q.s,j=i*3;let x,y,z,r=1,g=1,b=1,fade=Math.sin(a*Math.PI);
+  if(e.k==='snow'){x=c.x+((s*97.3)%1-.5)*30;z=c.z+((s*53.1)%1-.5)*30;y=c.y+8-a*12;x+=Math.sin(t+s*20)*.4;fade=1}
+  else if(e.k==='dust'){x=e.x+((s*97.3)%1-.5)*24;z=e.z+((s*53.1)%1-.5)*24;y=e.y+((s*31.7)%1-.5)*4+a*.6;r=1;g=.95;b=.85;fade*=.7}
+  else if(e.k==='fire'){const sp=e.big?1.4:.35;x=e.x+Math.sin(s*40)*sp*(1-a)*.6;z=e.z+Math.cos(s*40)*sp*(1-a)*.6;y=e.y+a*(e.big?3.2:1.1);r=1;g=.75-a*.5;b=.2-a*.2;fade=(1-a)}
+  else{const sp=e.k==='mist'?1.6:e.k==='steam'?.25:.4;x=e.x+Math.sin(s*30)*sp*(.3+a)+(e.k==='smoke'?a*1.2:0);z=e.z+Math.cos(s*30)*sp*(.3+a);y=e.y+a*(e.k==='steam'?2.4:e.k==='mist'?.6:5);
+   const gr=e.k==='smoke'?.35:.92;r=g=b=gr;fade*=e.k==='mist'?.5:.8}
+  P[j]=x;P[j+1]=y;P[j+2]=z;C[j]=r*fade;C[j+1]=g*fade;C[j+2]=b*fade;i++}
+ for(;i<S.n;i++){P[i*3+1]=-999}S.o.geometry.attributes.position.needsUpdate=true;S.o.geometry.attributes.color.needsUpdate=true}}
 function updDust(dt,t){if(!dust.visible)return;const c=camera.position;for(let i=0;i<DN;i++){let x=dustPos[i*3],y=dustPos[i*3+1],z=dustPos[i*3+2];x+=Math.sin(t*.3+i)*.06*dt;y+=(.05+Math.sin(i*1.7+t*.5)*.05)*dt;z+=Math.cos(t*.25+i*.7)*.06*dt;
   if(x-c.x>12)x-=24;if(x-c.x<-12)x+=24;if(y-c.y>6)y-=12;if(y-c.y<-6)y+=12;if(z-c.z>12)z-=24;if(z-c.z<-12)z+=24;dustPos[i*3]=x;dustPos[i*3+1]=y;dustPos[i*3+2]=z}dustGeo.attributes.position.needsUpdate=true}
 const PR=.35,PH=1.8;
@@ -981,7 +999,7 @@ let lastHostTick=performance.now();function hostStep(){const n=performance.now()
 setInterval(()=>{if(performance.now()-lastHostTick>120)hostStep()},50);
 let slowWin=0;function loop(now){requestAnimationFrame(loop);const el=now-last;if(el<15.2)return;last=now;const dt=Math.min(.05,el/1000);tickSkins(now/1000);
  hostStep();
- if(inGame){updateMe(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updHub(dt,now);fx.update(dt,floorAt);updDmg(dt);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
+ if(inGame){updateMe(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updHub(dt,now);fx.update(dt,floorAt);updAmb(dt,now/1000);updDmg(dt);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
   if(sun.castShadow){const c=camera.position,sd=cur.sunDir;const s=68/2048;const tx=Math.round(c.x/s)*s,tz=Math.round(c.z/s)*s;sun.target.position.set(tx,0,tz);sun.position.set(tx+sd.x*90,sd.y*90,tz+sd.z*90);sun.target.updateMatrixWorld()}
   if(cur&&cur.sky)cur.sky.position.copy(camera.position);
   if(vmCam.aspect!==camera.aspect){vmCam.aspect=camera.aspect;vmCam.updateProjectionMatrix()}
