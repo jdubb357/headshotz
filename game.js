@@ -1131,16 +1131,16 @@ function attachLocal(){hubConn={local:true,open:true,send:m=>hubSrv&&hubSrv.recv
 function hubSend(m){if(hubConn&&hubConn.open)hubConn.send(m)}
 function hubSendHi(){hubSend({t:'hi',kind:hubKind,name:myName(),skin:PROG.skin,cl:PROG.pc})}
 function hubEquip(){if(C.hub)hubSend({t:'eq',name:myName(),skin:PROG.skin,cl:PROG.pc})}
-class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=0;this.rooms={};this.sel={};this.ffaT=Date.now();this.ffaN=0;this.lastPads='';
+class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=0;this.rooms={};this.sel={};this.ffaT=Date.now();this.ffaN=0;this.ffaEnd=0;this.lastPads='';
   peer.on('connection',c=>{c.on('data',d=>this.recv(c.peer,d,c));c.on('close',()=>this.drop(c.peer));c.on('error',()=>this.drop(c.peer))});this.iv=setInterval(()=>this.tick(),125)}
  shutdown(){clearInterval(this.iv);try{this.peer.destroy()}catch(e){}}
  send(c,m){if(c.local)queueMicrotask(()=>hubRecv(m));else if(c.conn&&c.conn.open)c.conn.send(m)}
  players(){return Object.values(this.cl).filter(c=>c.kind==='player')}
  bc(m,except){for(const id in this.cl){const c=this.cl[id];if(c.kind==='player'&&id!==except)this.send(c,m)}}
- recv(id,m,conn){let c=this.cl[id];
-  if(m.t==='hi'){if(c&&c.kind!==m.kind&&m.kind==='player'){c.kind='player'}
+ recv(id,m,conn){let c=this.cl[id];if(c)c.seen=Date.now();
+  if(m.t==='hi'){if(c){c.busy=false;if(conn)c.conn=conn}if(c&&c.kind!==m.kind&&m.kind==='player'){c.kind='player'}
    else if(!c){if(m.kind==='player'&&this.players().length>=HUB_MAX){conn&&conn.send({t:'hubfull'});return}
-    c=this.cl[id]={id,conn,local:!conn,kind:m.kind,ord:++this.ord,pos:[0,0,5,0],busy:false}}
+    c=this.cl[id]={id,conn,local:!conn,kind:m.kind,ord:++this.ord,pos:[0,0,5,0],busy:false,seen:Date.now()}}
    c.name=String(m.name||'Player').slice(0,12);c.skin=SKINS[m.skin]?m.skin:'default';c.cl=clOf(m.cl);
    if(c.kind==='player'){this.send(c,{t:'hw',you:c.ord,n:this.n,players:this.players().filter(p=>p!==c).map(p=>[p.ord,p.name,p.skin,...[0,1,2,3].map(i=>(p.pos&&p.pos[i])||0),p.cl])});this.bc({t:'hj',p:[c.ord,c.name,c.skin,c.cl]},id);this.lastPads=''}
    else this.send(c,{t:'hw',you:c.ord,n:this.n});return}
@@ -1155,12 +1155,13 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
    case 'ping':this.send(c,{t:'pong',ts:m.ts});break}}
  roomList(){const now=Date.now();for(const k in this.rooms)if(now-this.rooms[k].at>16000)delete this.rooms[k];return Object.values(this.rooms).map(r=>({code:r.code,host:r.host,mode:r.mode,map:r.map,n:r.n,max:r.max,phase:r.phase}))}
  drop(id){const c=this.cl[id];if(!c)return;delete this.cl[id];for(const k in this.rooms)if(this.rooms[k].by===id)delete this.rooms[k];if(c.kind==='player'){this.bc({t:'hl',o:c.ord});this.lastPads=''}}
- tick(){const now=Date.now();const ps=this.players();const free=ps.filter(p=>!p.busy);
+ tick(){const now=Date.now();for(const id in this.cl){const c=this.cl[id];if(!c.local&&now-(c.seen||now)>6000)this.drop(id)}const ps=this.players();const free=ps.filter(p=>!p.busy);
   // queue = who is physically standing inside each circle (server-side check, so leaving a circle unqueues instantly)
   const st={};for(const p of HUB_PADS){st[p.k]={};for(const c of padCircles(p))st[p.k][c.side]=free.filter(q=>inPad(c,q.pos[0],q.pos[2])).sort((a,b)=>a.ord-b.ord).slice(0,p.n).map(q=>q.id)}
-  const key=JSON.stringify(st);if(key!==this.lastPads){this.lastPads=key;const o={};for(const k in st){o[k]={};for(const s in st[k])o[k][s]=st[k][s].map(id=>this.cl[id].ord)}this.bc({t:'pads',q:o});
-   if(st.ffa.F.length!==this.ffaN){this.ffaN=st.ffa.F.length;this.ffaT=now}}
-  for(const p of HUB_PADS){const s=st[p.k];if(p.single){const n=s.F.length;if(n>=p.n||(n>=2&&now-this.ffaT>15000)){this.startSel(p,s);this.ffaT=now}}else if(s.A.length>=p.n&&s.B.length>=p.n)this.startSel(p,s)}
+  // FFA countdown: 10 s once 2+ stand on the pad; a newcomer keeps at least 5 s left (never resets); full pad starts now; <2 cancels
+  const fp=HUB_PADS.find(p=>p.single);if(fp){const n=st[fp.k].F.length;if(n<2)this.ffaEnd=0;else{if(!this.ffaEnd)this.ffaEnd=now+10000;else if(n>this.ffaN)this.ffaEnd=now+Math.max(this.ffaEnd-now,5000);if(n>=fp.n)this.ffaEnd=now}this.ffaN=n}
+  const key=JSON.stringify(st)+'|'+this.ffaEnd;if(key!==this.lastPads){this.lastPads=key;const o={};for(const k in st){o[k]={};for(const s in st[k])o[k][s]=st[k][s].map(id=>this.cl[id].ord)}this.bc({t:'pads',q:o,ffa:this.ffaEnd?Math.max(0,this.ffaEnd-now):0})}
+  for(const p of HUB_PADS){const s=st[p.k];if(p.single){if(this.ffaEnd&&now>=this.ffaEnd&&s.F.length>=2){this.ffaEnd=0;this.ffaN=0;this.startSel(p,s)}}else if(s.A.length>=p.n&&s.B.length>=p.n)this.startSel(p,s)}
   for(const k in this.sel)if(now>=this.sel[k].until)this.finish(this.sel[k]);
   // hub positions at 8 Hz, compact ints
   if(ps.length>1){const rows=ps.map(p=>[p.ord,Math.round(p.pos[0]*100),Math.round(p.pos[1]*100),Math.round(p.pos[2]*100),Math.round(p.pos[3]*100)]);for(const p of ps)this.send(p,{t:'hpos',p:rows.filter(r=>r[0]!==p.ord)})}}
@@ -1171,17 +1172,17 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
  toSel(s,m){for(const id of s.ids){const c=this.cl[id];if(c)this.send(c,m)}}
  finish(s){delete this.sel[s.id];const cnt={};for(const v of Object.values(s.votes))cnt[v]=(cnt[v]||0)+1;let best=-1,bm=[];for(const mp of s.maps){const n=cnt[mp]||0;if(n>best){best=n;bm=[mp]}else if(n===best)bm.push(mp)}
   const map=bm[Math.random()*bm.length|0];const alive=s.ids.filter(id=>this.cl[id]);if(!alive.length)return;const code=genCode();const teams={};for(const id of s.teams.A)teams[id]='A';for(const id of s.teams.B)teams[id]='B';
-  this.toSel(s,{t:'go',code,map,mode:s.mode,host:alive[0],teams,expect:alive.length})}}
+  this.toSel(s,{t:'go',code,map,mode:s.mode,host:alive[0],teams,expect:alive.length});for(const id of s.ids)if(this.cl[id])this.cl[id].busy=false}}
 // ---------- hub client ----------
 let lastPad=null;let hubVis=null,padLabels={},myPads=null,hubSel=null,hubPosT=0,brCb=null;
 function enterHub(){if(qLevel()==='low'&&false)return;audioInit();C.hub=true;menuMsg('Connecting to the hub…');hubKind='player';hubLink('player')}
 function hubRecv(m){switch(m.t){
- case 'hw':hubOrd=m.you;if(hubKind==='player'&&C.hub)enterHubWorld(m);if(brCb)hubSend({t:'list'});if(regIv&&H.pub)hubSend({t:'reg',room:roomInfo()});break;
+ case 'hw':hubOrd=m.you;if(C.phase==='hub')hubSend({t:'pos',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(2)]});if(hubKind==='player'&&C.hub)enterHubWorld(m);if(brCb)hubSend({t:'list'});if(regIv&&H.pub)hubSend({t:'reg',room:roomInfo()});break;
  case 'hubfull':if(hubN<HUB_LIMIT){hubN++;if(hubConn&&!hubConn.local)hubConn.close();hubConn=null;tryHub()}else menuMsg('All hubs are full — try Quick Join');break;
  case 'hj':if(C.hub&&C.phase==='hub'&&m.p[0]!==hubOrd){const[o,n,sk,cl]=m.p;const id='h'+o;const old=C.players[id];addRemote(id,{name:n,team:'A',color:FFACOL[o%10],sk,cl,o:'h'+o});const q=C.players[id];q.alive=true;if(old){q.tp.copy(old.tp);q.rp.copy(old.rp)}if(q.model)q.model.visible=true}break;
  case 'hl':{const q=C.players['h'+m.o];if(q){if(q.model)scene.remove(q.model);delete C.players['h'+m.o]}break}
  case 'hpos':if(C.phase==='hub')for(const r of m.p){const q=C.players['h'+r[0]];if(!q)continue;q.tp.set(r[1]/100,r[2]/100,r[3]/100);q.tyaw=r[4]/100;if(!q.seen){q.seen=1;q.rp.copy(q.tp)}}break;
- case 'pads':myPads=m.q;updPadLabels();break;
+ case 'pads':myPads=m.q;window.__pads3=!!(m.q.ffa&&m.q.ffa.F&&m.q.ffa.F.length>=3);ffaEndAt=m.ffa?Date.now()+m.ffa:0;updPadLabels(true);break;
  case 'sel':openMapSel(m);break;
  case 'votes':if(hubSel&&hubSel.sid===m.sid){hubSel.votes=m.votes;renderMapSel()}break;
  case 'go':startHubMatch(m);break;
@@ -1217,11 +1218,12 @@ function updNPCs(dt,now){if(!hubVis)return;const t=now/1000;for(const n of hubVi
   const near=!!best;if(near&&!n.near)n.wave=1.6;n.near=near;
   if(best){const dx=best.x-n.m.position.x,dz=best.z-n.m.position.z;let a=Math.atan2(-dx,-dz)-n.m.rotation.y;a=Math.atan2(Math.sin(a),Math.cos(a));a=Math.max(-1,Math.min(1,a));u.head.rotation.y+=(a-u.head.rotation.y)*Math.min(1,dt*5);if(u.torso)u.torso.rotation.y=a*.3}else u.head.rotation.y*=.95;
   if(n.wave>0){n.wave-=dt;u.aim.rotation.x=-1.9+Math.sin(t*12)*.25;u.aim.rotation.z=Math.sin(t*12)*.15}else{u.aim.rotation.x+=(.55-u.aim.rotation.x)*Math.min(1,dt*4);u.aim.rotation.z*=.9}}}
-function updPadLabels(){if(!hubVis)return;for(const k in hubVis.labels){const L=hubVis.labels[k];const n=myPads&&myPads[L.p.k]?(myPads[L.p.k][L.c.side]||[]).length:0;const side=L.c.side==='A'?'BLUE':L.c.side==='B'?'RED':'FFA';
-  const key=n+'';if(L.k===key)continue;L.k=key;L.spr.material.map.dispose();L.spr.material.map=labelTex([MODES[L.p.k][0].split(' ')[0]+' '+side,`${n}/${L.p.n}`],L.col);L.spr.material.needsUpdate=true}
+let ffaEndAt=0,ffaSecs=-1;function ffaLeft(){return ffaEndAt?Math.max(0,Math.ceil((ffaEndAt-Date.now())/1000)):0}
+function updPadLabels(){if(!hubVis)return;const fs=ffaLeft();for(const k in hubVis.labels){const L=hubVis.labels[k];const n=myPads&&myPads[L.p.k]?(myPads[L.p.k][L.c.side]||[]).length:0;const side=L.c.side==='A'?'BLUE':L.c.side==='B'?'RED':'FFA';const cd=L.p.single&&fs>0;
+  const key=n+'|'+(cd?fs:'');if(L.k===key)continue;L.k=key;L.spr.material.map.dispose();L.spr.material.map=labelTex([MODES[L.p.k][0].split(' ')[0]+' '+side,cd?`${n}/${L.p.n}  ⏱ ${fs}`:`${n}/${L.p.n}`],L.col);L.spr.material.needsUpdate=true}
  let mine=null;if(myPads)for(const k in myPads)for(const s in myPads[k])if(myPads[k][s].includes(hubOrd))mine=[k,s];if(mine)lastPad=mine;
- $('padInfo').textContent=mine?`Queued: ${MODES[mine[0]][0]} · ${mine[1]==='A'?'BLUE':mine[1]==='B'?'RED':'FFA'} side — waiting for players… step off to leave`:''}
-function updHub(dt,now){if(C.phase!=='hub')return;hubPosT+=dt;if(hubPosT>=.125){hubPosT=0;hubSend({t:'pos',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(2)]})}
+ const ffaCd=fs>0&&HUB_PADS.find(p=>p.single&&p.k===(mine&&mine[0]));$('padInfo').textContent=mine?(ffaCd?`FFA STARTS IN ${fs}… (${(myPads[mine[0]][mine[1]]||[]).length} players) — step off to leave`:`Queued: ${MODES[mine[0]][0]} · ${mine[1]==='A'?'BLUE':mine[1]==='B'?'RED':'FFA'} side — waiting for players… step off to leave`):'';$('padInfo').classList.toggle('cd',!!ffaCd)}
+function updHub(dt,now){if(C.phase!=='hub')return;{const fs=ffaLeft();if(fs!==ffaSecs){if(fs>0&&ffaSecs!==-1&&myPads)SFX.beep(fs<=3?990:660);ffaSecs=fs;updPadLabels()}}hubPosT+=dt;if(hubPosT>=.125){hubPosT=0;hubSend({t:'pos',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(2)]})}
  if(hubVis){updNPCs(dt,now);for(const r of hubVis.rings){const inside=inPad(r.c,me.pos.x,me.pos.z);const n=myPads&&myPads[r.p.k]?(myPads[r.p.k][r.c.side]||[]).length:0;const fr=n/r.p.n;const rate=150+450*(1-fr);const pl=.5+.5*Math.sin(now/rate+r.c.x);
   r.em.opacity=.55+.45*pl;r.edge.scale.set(1+pl*.012*(1+fr),1+fr*1.5,1+pl*.012*(1+fr));r.fill.material.opacity=(inside?.3:.1)+fr*.25+pl*.06;
   if(r.pts){const pa=r.pts.geometry.attributes.position,sd=r.pts.userData.seed;for(let i=0;i<pa.count;i++){let y=((now/1000)*(.6+fr*1.2+sd[i]*.4)+sd[i]*3)%2.2;pa.array[i*3+1]=.1+y}pa.needsUpdate=true;r.pts.material.opacity=.5+fr*.5}}}
@@ -1387,7 +1389,7 @@ for(const id of['openFriends','lobFriends','pFriends','hubFriends'])if($(id))$(i
 addEventListener('storage',e=>{if(e.key===LSP+FRK)frReload()});
 setTimeout(()=>{frServe();frSchedule();updFrBadge();if(FR.list.length||FR.out.length)setTimeout(frPoll,1500)},800);
 window.__hsz={PCL,openClasses,vmSkin:()=>{let k=null;if(vmCur)vmCur.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.skin)k=o.material.userData.skin});return k},vmId:()=>me.load[me.cur],FRIENDS:()=>({frPeerOpen:!!(frPeer&&frPeer.open),FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
-window.__hsz.useUtil=useUtil;window.__hsz.FXT={SFX,VOX:()=>VOX,AC:()=>AC&&AC.state,explosionFX,utilFX,impact,funFX,nearMiss,fire:()=>fire(),muzzle,fires:()=>fires.length,smokes:()=>smokes.length,flash:()=>flashAmt,setVerb,outdoor:()=>outdoor,vol:()=>mVol&&mVol.gain.value,FL:()=>FL.length,spawnNade};window.__hsz.throwSt=()=>({th:!!TH,t:TH&&TH.t,nades:nades.length,spoons:spoons.length,pin:!!(TH&&TH.G.pin),throws:window.__throws||0});
+window.__hsz.useUtil=useUtil;window.__hsz.ffaLeft=()=>ffaLeft();window.__hsz.FXT={SFX,VOX:()=>VOX,AC:()=>AC&&AC.state,explosionFX,utilFX,impact,funFX,nearMiss,fire:()=>fire(),muzzle,fires:()=>fires.length,smokes:()=>smokes.length,flash:()=>flashAmt,setVerb,outdoor:()=>outdoor,vol:()=>mVol&&mVol.gain.value,FL:()=>FL.length,spawnNade};window.__hsz.throwSt=()=>({th:!!TH,t:TH&&TH.t,nades:nades.length,spoons:spoons.length,pin:!!(TH&&TH.G.pin),throws:window.__throws||0});
 
 // ---- fullscreen: Fullscreen API where it exists (Android Chrome, iPad Safari, desktop); iPhone Safari gets an Add-to-Home-Screen guide
 const FS={api:!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen),
@@ -1427,3 +1429,4 @@ const PAINT=[0xff4fd8,0x2ee59d,0xffd23f,0x3fa9ff,0xff6a3d,0xa66bff];
 function paintSplat(p,n,owner){const q=C.players[owner];const col=Math.random()<.5&&q?q.color:PAINT[Math.random()*PAINT.length|0];const pp=p.clone();if(n)pp.addScaledVector(n,.03);
  fx.sprite({p:pp,s0:.32,s1:.42,life:9,op:.95,color:col});for(let i=0;i<3;i++)fx.sprite({p:pp.clone().add(_v2.set((Math.random()-.5)*.35,(Math.random()-.5)*.35,(Math.random()-.5)*.35)),s0:.12,s1:.16,life:9,op:.9,color:col});if(camera.position.distanceTo(p)<25)SFX.click(900+Math.random()*400,.05)}
 function frost(d){let o=$('frost');if(!o){o=document.createElement('div');o.id='frost';document.body.appendChild(o)}o.classList.add('on');clearTimeout(o._t);o._t=setTimeout(()=>o.classList.remove('on'),d*1000)}
+setInterval(()=>{if(hubConn&&hubConn.open&&!hubConn.local)hubSend({t:'ka'})},2000);
