@@ -71,6 +71,9 @@ export const RET={};{const mk=(f)=>{const c=document.createElement('canvas');c.w
  RET.dot=mk(x=>glow(x,7));RET.holo=mk(x=>{glow(x,5);x.strokeStyle='rgba(255,70,60,.95)';x.lineWidth=2.2;x.shadowColor='#f33';x.shadowBlur=4;x.beginPath();x.arc(32,32,24,0,7);x.stroke();for(const a of[0,1,2,3]){const c=Math.cos(a*Math.PI/2),s=Math.sin(a*Math.PI/2);x.beginPath();x.moveTo(32+c*24,32+s*24);x.lineTo(32+c*29,32+s*29);x.stroke()}});
  RET.chev=mk(x=>{x.strokeStyle='rgba(255,70,50,1)';x.lineWidth=3;x.shadowColor='#f33';x.shadowBlur=5;x.beginPath();x.moveTo(22,40);x.lineTo(32,30);x.lineTo(42,40);x.stroke();x.lineWidth=1.2;x.strokeStyle='rgba(30,30,30,.9)';x.shadowBlur=0;x.beginPath();x.moveTo(32,31);x.lineTo(32,62);x.stroke()})}
 export const GLASS=new THREE.MeshStandardMaterial({color:0x2a4a66,metalness:.9,roughness:.05,transparent:true,opacity:.2,envMapIntensity:2.2,depthWrite:false});
+GLASS.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <opaque_fragment>',`{vec3 Vd=normalize(vViewPosition);float fr=pow(1.-abs(dot(normalize(normal),Vd)),2.5);
+ outgoingLight+=mix(vec3(.55,.25,.75),vec3(.3,.85,.6),clamp(normal.y*.5+.5,0.,1.))*(.12+fr*.5);diffuseColor.a=clamp(diffuseColor.a+fr*.55+.06,0.,.9);}
+ #include <opaque_fragment>`)};GLASS.customProgramCacheKey=()=>'lensv2';
 // camo pattern texture (3-4 tone blobs) derived from a base colour; used as a map with vertex colours off so it reads cleanly
 const camoCache={};export function camoTex(hex){if(camoCache[hex])return camoCache[hex];const[c,x]=cvs(256);const r=rng(hex%9973+7);const b=new THREE.Color(hex);
  const tones=[b.clone(),b.clone().multiplyScalar(.62),b.clone().lerp(new THREE.Color(0xffffff),.28),b.clone().multiplyScalar(.4)];const css=t=>'#'+t.getHexString();
@@ -88,7 +91,7 @@ export function texMat(name){if(MATHOOK[name]){const r=MATHOOK[name](GQ.level);i
  const tn=GTEX[name]||name;if(!noMap){o.map=getTex(tn);if(ns>0){o.normalMap=normalTex(tn,ns);o.normalScale=new THREE.Vector2(1,1)}if(GTEX[name])o.roughnessMap=o.map}
  if(name==='gunTrans'){o.transparent=true;o.opacity=.82}
  const mat=new THREE.MeshStandardMaterial(o);if(GSCALE[name])mat.color.setScalar(GSCALE[name]);if(name.startsWith('gun')&&name!=='gunTP')mat.envMapIntensity=1.4;
- if(lvl==='hi'&&GQ.level==='high'&&(name==='gunMetalP'||name==='gunAlu'||name==='gunChrome'))edgeWear(mat,true);else if(lvl==='hi'&&GQ.level==='high'&&(name==='gunPoly'||name==='gunWood'))edgeWear(mat,false);if(name==='gunMetal')mat.color.setScalar(2.4);if(name==='gunMatte')mat.color.setScalar(2.2);if(name==='char')mat.envMapIntensity=.45;return C[name]=mat}
+ if(lvl==='hi'&&(name==='gunMetalP'||name==='gunAlu'||name==='gunChrome'))edgeWear(mat,true);else if(lvl==='hi'&&(name==='gunPoly'||name==='gunWood'))edgeWear(mat,false);if(name==='gunRubber'&&mat.normalScale)mat.normalScale.set(1.6,1.6);if(name==='gunMetal')mat.color.setScalar(2.4);if(name==='gunMatte')mat.color.setScalar(2.2);if(name==='char')mat.envMapIntensity=.45;return C[name]=mat}
 // swap every tagged mesh under root to the material for the current level
 export function swapMats(root){root.traverse(o=>{if(o.isMesh&&o.userData.tm){o.material=texMat(o.userData.tm);o.material.needsUpdate=true}else if(o.material&&o.material.needsUpdate!==undefined&&!o.isSprite){o.material.needsUpdate=true}})}
 export const glowMat=new THREE.MeshBasicMaterial({vertexColors:true});glowMat.color.setScalar(2.4);

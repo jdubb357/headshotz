@@ -217,6 +217,18 @@ const TMAP={metal:'gunMetalP',alu:'gunAlu',poly:'gunPoly',wood:'gunWood',rubber:
 const SHINY={metal:1,alu:1,brass:1,chrome:1};const ICM=[new THREE.MeshStandardMaterial({vertexColors:true,roughness:.62,metalness:0}),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35,metalness:.35})];ICM[0].color.setScalar(1.5);ICM[1].color.setScalar(2.1);
 prevScene.add(new THREE.HemisphereLight(0xffffff,0x6a6a80,1.6));{const l=new THREE.DirectionalLight(0xffffff,2.2);l.position.set(2,3,2);prevScene.add(l);const l2=new THREE.DirectionalLight(0x9fc4ff,1.2);l2.position.set(-2,1,-1);prevScene.add(l2)}const _bm=new THREE.Matrix4(),_be=new THREE.Euler(),_bq=new THREE.Quaternion(),_bs=new THREE.Vector3(),_bp=new THREE.Vector3();
 function bakePart(pt){const g=pt.g.clone();_be.set(...(pt.r||[0,0,0]));_bq.setFromEuler(_be);_bs.set(...(pt.s||[1,1,1]));_bp.set(...(pt.p||[0,0,0]));_bm.compose(_bp,_bq,_bs);if(pt.m)_bm.premultiply(pt.m);g.applyMatrix4(_bm);return g}
+const MKT={};function markTex(id){if(MKT[id])return MKT[id];const c=document.createElement('canvas');c.width=512;c.height=128;const x=c.getContext('2d');const w=W[id]||{};let h=7;for(const ch of id)h=h*31+ch.charCodeAt(0)|0;h=Math.abs(h);
+ x.fillStyle='rgba(0,0,0,0)';x.fillRect(0,0,512,128);x.strokeStyle='rgba(225,228,232,.75)';x.lineWidth=3;x.strokeRect(6,6,500,116);x.fillStyle='rgba(230,232,236,.92)';x.font='bold 40px monospace';x.textBaseline='middle';
+ x.fillText('HSZ ARMS  '+String(w.name||id).toUpperCase().slice(0,16),22,40);x.font='30px monospace';x.fillText('CAL '+({ar:'5.56',smg:'9MM',sniper:'.308',marksman:'7.62',shotgun:'12GA',pistol:'.45',heavy:'7.62'}[w.cls]||'—')+'   SN HSZ-'+String(h%900000+100000),22,92);
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return MKT[id]=t}
+const _mkv=new THREE.Vector3();
+function addMarkings(g,id,info){if(!info.trigP||info.melee||info.util||GQ.level==='low')return;const[,Y0,Z0]=info.trigP;const Y=Y0+.026,Z=Z0-.02;let mx=0;
+ g.updateMatrixWorld(true);g.traverse(o=>{if(!o.isMesh||o.userData.hand||o.userData.fx||!o.geometry)return;const pa=o.geometry.attributes.position;for(let i=0;i<pa.count;i++){_mkv.fromBufferAttribute(pa,i).applyMatrix4(o.matrixWorld);if(Math.abs(_mkv.y-Y)<.012&&Math.abs(_mkv.z-Z)<.02&&_mkv.x>mx)mx=_mkv.x}});
+ if(mx<.006||mx>.06)return;const pm=new THREE.MeshStandardMaterial({map:markTex(id),transparent:true,roughness:.35,metalness:.7,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
+ for(const sd of[1,-1]){const pl=new THREE.Mesh(new THREE.PlaneGeometry(.064,.016),pm);pl.position.set(sd*(mx+.0007),Y,Z);pl.rotation.y=sd*Math.PI/2;pl.renderOrder=2;pl.userData.fx=1;g.add(pl)}
+ const met=texMat('gunMetalP'),dk=texMat('gunPoly');const pin=new THREE.CylinderGeometry(.0026,.0026,.0024,12);pin.rotateZ(Math.PI/2);const scr=new THREE.BoxGeometry(.0006,.0045,.0009);
+ for(const sd of[1,-1])for(const dz of[-.05,.032]){const m=new THREE.Mesh(pin,met);m.position.set(sd*(mx+.0005),Y-.012,Z+dz);m.userData.fx=1;g.add(m);const sl=new THREE.Mesh(scr,dk);sl.position.set(sd*(mx+.0018),Y-.012,Z+dz);sl.rotation.x=.6;sl.userData.fx=1;g.add(sl)}
+ const sel=new THREE.Mesh(new THREE.CylinderGeometry(.0055,.0055,.002,16).rotateZ(Math.PI/2),met);sel.position.set(-(mx+.0008),Y-.004,Z+.045);sel.userData.fx=1;g.add(sel);const lv=new THREE.Mesh(new THREE.BoxGeometry(.0022,.003,.013),met);lv.position.set(-(mx+.0018),Y-.004,Z+.04);lv.rotation.x=-.5;lv.userData.fx=1;g.add(lv)}
 function gunGroup(id,o={}){if(o===true)o={hands:true};const{hands=false,sleeve,lod=0,lit=false}=o;const{parts,info}=gunParts(id,lod);const g=new THREE.Group();const Gp={};
  const all=hands?parts.concat(handParts(info,sleeve)):parts;const B={};for(const pt of all){const k=(pt.grp||'')+'|'+pt.mat;(B[k]||(B[k]=[])).push(pt)}
  for(const k in B){const[grp,mat]=k.split('|');let holder=g;
@@ -226,7 +238,7 @@ function gunGroup(id,o={}){if(o===true)o={hands:true};const{hands=false,sleeve,l
   const geo=mergeParts(B[k],{uv:true});if(off)geo.translate(-off.x,-off.y,-off.z);const tm=TMAP[mat]||'gunPoly';
   const mesh=new THREE.Mesh(geo,lit?texMat(tm):o.icon?ICM[SHINY[mat]?1:0]:(SHINY[mat]?MC.metal:MC.matte));mesh.userData.tm=lit?tm:null;mesh.userData.mk=mat;if(mat==='glove'||mat==='sleeve')mesh.userData.hand=1;holder.add(mesh)}
  if(Gp.mag){const bb=new THREE.Box3();Gp.mag.updateMatrixWorld(true);for(const c of Gp.mag.children)if(c.geometry){c.geometry.computeBoundingBox();bb.union(c.geometry.boundingBox)}Gp.mag.userData.c=bb.isEmpty()?new THREE.Vector3():bb.getCenter(new THREE.Vector3()).add(Gp.mag.position)}
- g.userData.info=info;g.userData.G=Gp;g.userData.optic=parts.some(p=>p.mat==='ret');return g}
+ if(lit&&!lod&&hands)addMarkings(g,id,info);g.userData.info=info;g.userData.G=Gp;g.userData.optic=parts.some(p=>p.mat==='ret');return g}
 const ICON={};
 function fitCam(obj,cam,side=true,pad=1.15){const bb=new THREE.Box3().setFromObject(obj);const c=bb.getCenter(new THREE.Vector3()),s=bb.getSize(new THREE.Vector3());
  const r=Math.max(s.z/cam.aspect,s.y,s.x*.6)*pad;const dist=r/(2*Math.tan(cam.fov*Math.PI/360));if(side){cam.position.set(c.x+dist,c.y+dist*.12,c.z+dist*.06)}else cam.position.set(c.x+dist*.85,c.y+dist*.35,c.z+dist*.5);cam.lookAt(c)}
@@ -250,7 +262,7 @@ function renderThumbs(cb){let i=0;const next=()=>{if(i>=MAPS.length){cb&&cb();re
    R.setClearColor(0,1);R.render(sc,cam);R.clippingPlanes=[];THUMB[k]=R.domElement.toDataURL('image/jpeg',.8);sc.clear();if(cur===m){scene.add(m.group);if(m.sky)scene.add(m.sky)}}catch(e){console.warn(e)}
   renderLobby();setTimeout(next,30)};next()}
 // ---------------- viewmodel (separate pass so it never clips into walls) ----------------
-const vmScene=new THREE.Scene(),vmCam=new THREE.PerspectiveCamera(62,1,.01,10);const vmRoot=new THREE.Group();vmRoot.scale.setScalar(.5);vmScene.add(vmRoot);
+const vmScene=new THREE.Scene(),vmCam=new THREE.PerspectiveCamera(54,1,.01,10);const vmRoot=new THREE.Group();vmRoot.scale.setScalar(.5);vmScene.add(vmRoot);
 const vmHemi=new THREE.HemisphereLight(0xffffff,0x666666,1.2),vmSun=new THREE.DirectionalLight(0xffffff,1.5);vmSun.position.set(.4,1,.3);const vmFill=new THREE.DirectionalLight(0xdfe8ff,.9);vmFill.position.set(-.6,.3,1);vmScene.add(vmHemi,vmSun,vmFill);
 const VM={};let vmCur=null,vmInfo={};
 const flashMat=new THREE.MeshBasicMaterial({map:TX.flash,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
@@ -942,7 +954,7 @@ function updViewModel(dt,w,hs,sprint){if(!vmCur)return;const I=vmInfo,Gp=vmCur.u
  const bx=Math.sin(bob*.5)*.011*(1-ads*.85),by=Math.abs(Math.cos(bob*.5))*.011*(1-ads*.85);
  const sw=me.switchT>0?me.switchT/.32:0,dr=ease(sw);const spr=sprint&&me.ground&&rk<0?1:0;VA.spr=(VA.spr||0)+(spr-(VA.spr||0))*Math.min(1,dt*10);const sp=VA.spr;
  const right=_v.set(Math.cos(me.yaw),0,-Math.sin(me.yaw));const strafe=me.vel.dot(right);VA.roll=(VA.roll||0)+(-strafe*.012-(VA.roll||0))*Math.min(1,dt*8);
- const hold=I.hold||'rifle';const hip=I.pistol?[.11,-.11,-.34]:hold==='launcher'?[.13,-.1,-.26]:I.melee||I.util?[.15,-.16,-.36]:[.12,-.13,-.3];
+ const hold=I.hold||'rifle';const hip=I.pistol?[.1,-.095,-.31]:hold==='launcher'?[.12,-.09,-.25]:I.melee||I.util?[.14,-.14,-.34]:[.1,-.1,-.27];
  const sg=I.sight||[0,.06,.15];const adsP=[-sg[0]*.5,-sg[1]*.5,-(I.pistol?.09:vmCur.userData.optic?.07:.06)-sg[2]*.5];
  // reload pose (whole-gun motion) + parts
  let rx=0,ry=0,rz=0,ly=0;for(const k in Gp){const g=Gp[k];g.position.copy(g.userData.base);g.rotation.set(0,0,0)}
@@ -991,7 +1003,7 @@ function updViewModel(dt,w,hs,sprint){if(!vmCur)return;const I=vmInfo,Gp=vmCur.u
   tz=hip[2]*A+adsP[2]*ads+RS.p*.032*(w.pellets?1.4:1)*(1-ads*.4);
  vmRoot.position.set(tx,ty,tz);
  vmRoot.rotation.set(RS.r*.032*(1-ads*.45)+rx-sp*(I.pistol?.5:.28)+meleeT*-.9+throwT*-1.5-dr*1.1+ix,swayX*1.5+A*.05+sp*(I.pistol?.2:.62)+meleeT*.6+RS.y*.01-dr*.3+iy,rz+(me.slideT>0?.25:0)+meleeT*.4+VA.roll*A+sp*.15+iz);
- vmRoot.visible=me.alive&&!me.down&&!(w.cls==='sniper'&&me.zoomT>.8);vmCam.fov=62;}
+ vmRoot.visible=me.alive&&!me.down&&!(w.cls==='sniper'&&me.zoomT>.8);vmCam.fov=54;}
 function deathCam(dt){const q=me.killer&&C.players[me.killer];// spectate teammate in team modes, else look at killer
  const mates=Object.values(C.players).filter(p=>p.alive&&p.id!==me.id&&!isEnemy(p));
  if(C.mode!=='ffa'&&mates.length&&C.phase==='play'){const t=mates[0];const back=_v.set(Math.sin(t.yaw),0,Math.cos(t.yaw)).multiplyScalar(3.2);camera.position.lerp(_v2.copy(t.rp).add(back).setY(t.rp.y+2.2),Math.min(1,dt*6));camera.lookAt(t.rp.x,t.rp.y+1.4,t.rp.z);return}
