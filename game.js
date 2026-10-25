@@ -232,13 +232,13 @@ function addMarkings(g,id,info){if(!info.trigP||info.melee||info.util||GQ.level=
 function gunGroup(id,o={}){if(o===true)o={hands:true};const{hands=false,sleeve,lod=0,lit=false}=o;const{parts,info}=gunParts(id,lod);const g=new THREE.Group();const Gp={};
  const all=hands?parts.concat(handParts(info,sleeve)):parts;const B={};for(const pt of all){const k=(pt.grp||'')+'|'+pt.mat;(B[k]||(B[k]=[])).push(pt)}
  for(const k in B){const[grp,mat]=k.split('|');let holder=g;
-  if(grp){if(!Gp[grp]){const pv=new THREE.Group();pv.position.set(...((info.piv&&info.piv[grp])||[0,0,0]));pv.userData.base=pv.position.clone();g.add(pv);Gp[grp]=pv}holder=Gp[grp]}
+  if(grp){if(!Gp[grp]){const pv=new THREE.Group();pv.position.set(...((info.piv&&info.piv[grp])||[0,0,0]));pv.name='G_'+grp;pv.userData.base=pv.position.clone();g.add(pv);Gp[grp]=pv}holder=Gp[grp]}
   const off=holder===g?null:holder.position;
   if(mat==='ret'||mat==='glass'){for(const pt of B[k]){const geo=bakePart(pt);if(off)geo.translate(-off.x,-off.y,-off.z);const m=new THREE.Mesh(geo,mat==='ret'?RET[pt.ret||'dot']:GLASS);m.renderOrder=mat==='ret'?3:2;m.userData.fx=1;holder.add(m)}continue}
   const geo=mergeParts(B[k],{uv:true});if(off)geo.translate(-off.x,-off.y,-off.z);const tm=TMAP[mat]||'gunPoly';
   const mesh=new THREE.Mesh(geo,lit?texMat(tm):o.icon?ICM[SHINY[mat]?1:0]:(SHINY[mat]?MC.metal:MC.matte));mesh.userData.tm=lit?tm:null;mesh.userData.mk=mat;if(mat==='glove'||mat==='sleeve')mesh.userData.hand=1;holder.add(mesh)}
  if(Gp.mag){const bb=new THREE.Box3();Gp.mag.updateMatrixWorld(true);for(const c of Gp.mag.children)if(c.geometry){c.geometry.computeBoundingBox();bb.union(c.geometry.boundingBox)}Gp.mag.userData.c=bb.isEmpty()?new THREE.Vector3():bb.getCenter(new THREE.Vector3()).add(Gp.mag.position)}
- if(lit&&!lod&&hands)addMarkings(g,id,info);g.userData.info=info;g.userData.G=Gp;g.userData.optic=parts.some(p=>p.mat==='ret');return g}
+ if(lit&&!lod)addMarkings(g,id,info);g.userData.info=info;g.userData.G=Gp;g.userData.optic=parts.some(p=>p.mat==='ret');return g}
 const ICON={};
 function fitCam(obj,cam,side=true,pad=1.15){const bb=new THREE.Box3().setFromObject(obj);const c=bb.getCenter(new THREE.Vector3()),s=bb.getSize(new THREE.Vector3());
  const r=Math.max(s.z/cam.aspect,s.y,s.x*.6)*pad;const dist=r/(2*Math.tan(cam.fov*Math.PI/360));if(side){cam.position.set(c.x+dist,c.y+dist*.12,c.z+dist*.06)}else cam.position.set(c.x+dist*.85,c.y+dist*.35,c.z+dist*.5);cam.lookAt(c)}
@@ -313,9 +313,21 @@ function impact(p,n,player,surf){if(player){fx.spark(p,8,0xff6a4d,3,.25);fx.spri
  else if(k==='soft'){fx.sprite({p:off,s0:.08,s1:.3,life:.3,op:.35,color:0xbbbbbb,rise:.2})}
  else{fx.spark(p,5,0xffd27a,3.5,.3);fx.spark(p,4,0x999088,2.5,.45);fx.sprite({p:off,s0:.15,s1:.7,life:.55,op:.6,color:0xc4b8a6,rise:.4})}}
 // ---------------- throwables & utilities ----------------
-const thrownTpl={};function thrownMesh(kind){if(!thrownTpl[kind]){const PJ=W[kind]&&W[kind].proj;const g=gunGroup(PJ?'proj_'+PJ:kind);g.scale.setScalar(PJ?1.6:1.5);thrownTpl[kind]=g}return thrownTpl[kind].clone()}
+const thrownTpl={};function thrownMesh(kind){if(!thrownTpl[kind]){const PJ=W[kind]&&W[kind].proj;const g=gunGroup(PJ?'proj_'+PJ:kind,{lod:1});g.scale.setScalar(PJ?1.6:1.5);const G=g.userData.G||{};if(G.pin)G.pin.visible=false;if(G.spoon)G.spoon.visible=false;thrownTpl[kind]=g}return thrownTpl[kind].clone()}
+// spoon (lever) flying off a thrown grenade
+const spoons=[],spoonTpl={};function spawnSpoon(kind,p,v){if(!spoonTpl[kind]){const g=gunGroup(kind,{lod:1});const sp=g.userData.G&&g.userData.G.spoon;spoonTpl[kind]=sp?(()=>{const o=new THREE.Group();const c=sp.clone();c.position.set(0,0,0);c.visible=true;o.add(c);o.scale.setScalar(1.5);return o})():null}
+ if(!spoonTpl[kind]||spoons.length>12)return;const m=spoonTpl[kind].clone();m.position.copy(p);scene.add(m);spoons.push({m,v:v.clone().multiplyScalar(.35).add(new THREE.Vector3((Math.random()-.5)*3,3.5,(Math.random()-.5)*3)),t:1.6,w:new THREE.Vector3(14+Math.random()*10,Math.random()*8,9)})}
+function updSpoons(dt){for(let i=spoons.length-1;i>=0;i--){const s=spoons[i];s.t-=dt;s.v.y-=14*dt;s.m.position.addScaledVector(s.v,dt);s.m.rotation.x+=s.w.x*dt;s.m.rotation.y+=s.w.y*dt;const gy=(typeof gndAt==='function'?gndAt(s.m.position):0)+.02;if(s.m.position.y<gy){s.m.position.y=gy;s.v.multiplyScalar(.3);s.v.y=Math.abs(s.v.y)*.4;s.w.multiplyScalar(.5)}
+ if(s.t<=0){scene.remove(s.m);spoons.splice(i,1)}}}
+// first-person throw: held grenade, pin pulled, then thrown (spoon flies once it leaves the hand)
+const heldTpl={};let TH=null;function startThrow(k,go){if(TH){vmScene.remove(TH.g);TH.go&&TH.go()}if(!heldTpl[k])heldTpl[k]=gunGroup(k,{lit:true});const g=heldTpl[k].clone();g.scale.setScalar(.75);vmScene.add(g);TH={g,k,t:0,go,G:{}};
+const G=heldTpl[k].userData.G||{};for(const n in G){g.traverse(o=>{if(o.name===('G_'+n))TH.G[n]=o})}TH.go=go}
+function updThrow(dt){if(!TH)return;TH.t+=dt;if(window.__thrFreeze!=null)TH.t=Math.min(TH.t,window.__thrFreeze);const t=TH.t,g=TH.g;const pull=Math.min(1,t/.18),sw=Math.max(0,Math.min(1,(t-.2)/.14));
+ g.position.set(.07-sw*.05,-.09+pull*.02+sw*.1,-.26-sw*.25);g.rotation.set(-.3+sw*1.4,.5-sw*.4,-.15+pull*.2);
+ if(TH.G.pin){TH.G.pin.position.x=TH.G.pin.userData.base.x-pull*.06;TH.G.pin.position.y=TH.G.pin.userData.base.y+pull*.01;TH.G.pin.visible=pull<1||t<.24}
+ if(t>=.26&&TH.go){TH.go();TH.go=null}if(TH.G.spoon)TH.G.spoon.visible=t<.26;g.visible=t<.36;if(t>.4){vmScene.remove(g);TH=null}}
 let nades=[];const FUSE={grenade:1.8,smoke:1.4,flash:1.3,molotov:9,gl:4,rpg:4};
-function spawnNade(owner,kind,p,v){const m=thrownMesh(kind);m.position.copy(p);scene.add(m);nades.push({owner,kind,m,v:v.clone(),t:FUSE[kind]||1.8,spin:new THREE.Vector3(Math.random()*8,Math.random()*8,0)})}
+function spawnNade(owner,kind,p,v){const m=thrownMesh(kind);m.position.copy(p);scene.add(m);if(kind!=='molotov')spawnSpoon(kind,p,v);nades.push({owner,kind,m,v:v.clone(),t:FUSE[kind]||1.8,spin:new THREE.Vector3(Math.random()*8,Math.random()*8,0)})}
 function updNades(dt){for(const n of nades){n.t-=dt;const PJ=W[n.kind]&&W[n.kind].proj;n.v.y-=(PJ==='rpg'?0:PJ==='gl'?9:20)*dt;const p=n.m.position;let bounced=false;
   if(PJ){if(n.v.lengthSq()>1)n.m.lookAt(_v.copy(p).add(n.v));if(PJ==='rpg'&&Math.random()<.7)fx.sprite({p:p.clone(),s0:.25,s1:1.2,life:.7,op:.5,color:0xcfcfcf,rise:.3});
    for(const id in C.players){const q=C.players[id];if(!q.alive||id===n.owner)continue;const c=_v2.copy(q.rp);c.y+=1;if(c.distanceTo(p)<.9){n.t=0;break}}}
@@ -815,8 +827,8 @@ function reloadCues(rl,n,empty){const c=[];const add=(k,f,x)=>c.push([k,f,x]);
  return c}
 function useUtil(){if(C.hub||!me.alive||me.frozen||me.utilN<=0)return;const k=me.load[3];me.utilN--;buildSlots();
  if(k==='medkit'){send({t:'heal'});SFX.heal();center('+50 HP',700);return}
- const f=fwd();const p=camera.position.clone().addScaledVector(f,.6);const v=f.clone().multiplyScalar(k==='molotov'?15:17);v.y+=4;v.add(_v.copy(me.vel).multiplyScalar(.5));
- spawnNade(me.id,k,p,v);send({t:'nade',k,p:p.toArray().map(x=>+x.toFixed(2)),v:v.toArray().map(x=>+x.toFixed(2))});SFX.throw();throwT=.35}
+ throwT=.55;SFX.pin&&SFX.pin();startThrow(k,()=>{if(!me.alive)return;const f=fwd();const p=camera.position.clone().addScaledVector(f,.6);const v=f.clone().multiplyScalar(k==='molotov'?15:17);v.y+=4;v.add(_v.copy(me.vel).multiplyScalar(.5));
+ spawnNade(me.id,k,p,v);send({t:'nade',k,p:p.toArray().map(x=>+x.toFixed(2)),v:v.toArray().map(x=>+x.toFixed(2))});SFX.throw();window.__throws=(window.__throws||0)+1})}
 let throwT=0;
 function fwd(){return new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion)}
 function nearAim(cosr){const o=camera.position,d=fwd();for(const id in C.players){const q=C.players[id];if(!q.alive||!isEnemy(q))continue;const c=_v2.copy(q.rp);c.y+=1.25;const to=c.sub(o);const l=to.length();if(l>140)continue;to.divideScalar(l);
@@ -908,7 +920,7 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];
  if(me.zoomT>.6&&(isSn||w.cls==='marksman')){swayT+=dt;const mv=Math.min(1,Math.hypot(me.vel.x,me.vel.z)/5);const a=(isSn?.0042:.002)*(1+mv*2.5)*Math.min(1,me.zoomT);
   camera.rotation.y+=Math.sin(swayT*1.05)*a;camera.rotation.x+=Math.sin(swayT*2.1)*a*.55;camera.updateMatrixWorld()}
  // weapon timers / reload stages
- me.cool-=dt;if(me.switchT>0)me.switchT-=dt;throwT=Math.max(0,throwT-dt);meleeT=Math.max(0,meleeT-dt*3);muzzleT-=dt;if(muzzleT<=0)muzzle.visible=false;
+ me.cool-=dt;if(me.switchT>0)me.switchT-=dt;throwT=Math.max(0,throwT-dt);updThrow(dt);updSpoons(dt);meleeT=Math.max(0,meleeT-dt*3);muzzleT-=dt;if(muzzleT<=0)muzzle.visible=false;
  if(me.reloadT>0){const k=1-me.reloadT/reloadOf(id);const cs=VA.cues||[];while(VA.cue<cs.length&&k>=cs[VA.cue][0]){const[,snd,x]=cs[VA.cue++];SFX[snd]&&SFX[snd]();
    if(x==='ammo')me.ammo[me.cur]=Math.min(magOf(id),me.ammo[me.cur]+1);else if(x==='cylEject')for(let i=0;i<6;i++)setTimeout(()=>{if(vmCur)fx.shell(vmToWorld([0,.02,-.02],new THREE.Vector3()),_v.set((Math.random()-.5)*.6,-1.5,(Math.random()-.5)*.6).add(me.vel),'pistol')},i*25);
    else if(x==='hulls')for(let i=0;i<2;i++)fx.shell(vmToWorld([i?.012:-.012,.03,.02],new THREE.Vector3()),_v.set((Math.random()-.5),2.5,1.2).applyQuaternion(camera.quaternion).add(me.vel),'shot')}
@@ -1003,7 +1015,7 @@ function updViewModel(dt,w,hs,sprint){if(!vmCur)return;const I=vmInfo,Gp=vmCur.u
   tz=hip[2]*A+adsP[2]*ads+RS.p*.032*(w.pellets?1.4:1)*(1-ads*.4);
  vmRoot.position.set(tx,ty,tz);
  vmRoot.rotation.set(RS.r*.032*(1-ads*.45)+rx-sp*(I.pistol?.5:.28)+meleeT*-.9+throwT*-1.5-dr*1.1+ix,swayX*1.5+A*.05+sp*(I.pistol?.2:.62)+meleeT*.6+RS.y*.01-dr*.3+iy,rz+(me.slideT>0?.25:0)+meleeT*.4+VA.roll*A+sp*.15+iz);
- vmRoot.visible=me.alive&&!me.down&&!(w.cls==='sniper'&&me.zoomT>.8);vmCam.fov=54;}
+ vmRoot.visible=me.alive&&!me.down&&!TH&&!(w.cls==='sniper'&&me.zoomT>.8);vmCam.fov=54;}
 function deathCam(dt){const q=me.killer&&C.players[me.killer];// spectate teammate in team modes, else look at killer
  const mates=Object.values(C.players).filter(p=>p.alive&&p.id!==me.id&&!isEnemy(p));
  if(C.mode!=='ffa'&&mates.length&&C.phase==='play'){const t=mates[0];const back=_v.set(Math.sin(t.yaw),0,Math.cos(t.yaw)).multiplyScalar(3.2);camera.position.lerp(_v2.copy(t.rp).add(back).setY(t.rp.y+2.2),Math.min(1,dt*6));camera.lookAt(t.rp.x,t.rp.y+1.4,t.rp.z);return}
@@ -1312,6 +1324,7 @@ for(const id of['openFriends','lobFriends','pFriends','hubFriends'])if($(id))$(i
 addEventListener('storage',e=>{if(e.key===LSP+FRK)frReload()});
 setTimeout(()=>{frServe();frSchedule();updFrBadge();if(FR.list.length||FR.out.length)setTimeout(frPoll,1500)},800);
 window.__hsz={PCL,openClasses,vmSkin:()=>{let k=null;if(vmCur)vmCur.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.skin)k=o.material.userData.skin});return k},vmId:()=>me.load[me.cur],FRIENDS:()=>({frPeerOpen:!!(frPeer&&frPeer.open),FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+window.__hsz.useUtil=useUtil;window.__hsz.throwSt=()=>({th:!!TH,t:TH&&TH.t,nades:nades.length,spoons:spoons.length,pin:!!(TH&&TH.G.pin),throws:window.__throws||0});
 
 // ---- fullscreen: Fullscreen API where it exists (Android Chrome, iPad Safari, desktop); iPhone Safari gets an Add-to-Home-Screen guide
 const FS={api:!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen),

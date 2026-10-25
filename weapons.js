@@ -557,25 +557,76 @@ function RPG(){metal();const yb=0;
  grp('rocket');metal();lathe([[.02,0],[.035,-.02],[.0425,-.06],[.0425,-.12],[.034,-.18],[.012,-.27],[.006,-.33],[.004,-.34]],0,yb,-.38,C.od,{seg:22});cyl(.005,.03,0,yb,-.72,C.steel,{seg:8});grp(null);
  return{muzzle:[0,yb,-.72],sight:[0,.054,.15],grip:g,lh:[0,yb,.1],lhT:'under',lhR:.034,len:1,rl:'rocket',hold:'launcher',piv:{},noShell:1}}
 // ---------- melee ----------
-function KNIFE(){mat('rubber');lathe([[.011,-.0],[.013,.02],[.0125,.06],[.014,.09],[.012,.105]],0,0,.0,C.woodD,{seg:14});if(det())for(let i=0;i<8;i++)lathe([[.0135,-.002],[.0135,.002]],0,0,.012+i*.011,0x3a2a1a,{seg:14});
- metal();rbox(.04,.012,.008,0,.0,-.003,C.steel,.002);mat('chrome');prof([[-.006,.012],[-.16,.012],[-.2,.0],[-.185,-.006,.004],[-.15,-.012],[-.006,-.012]],.005,0,C.chrome,{b:.0015});
- metal();cyl(.012,.012,0,0,.11,C.steel,{seg:12});
+function KNIFE(){const D=det();mat('rubber');lathe([[.011,-.0],[.013,.02],[.0125,.06],[.014,.09],[.012,.105]],0,0,.0,0x2a2522,{seg:14});
+ if(D){for(let i=0;i<9;i++){tor(.0128,.0016,0,0,.008+i*.0105,0x3c342c,Math.PI*2,0,0,0,[4,14])}
+  metal();for(const z of[.03,.075]){cyl(.0035,.03,0,0,z,C.brass,{ax:'x',seg:8})}
+  mat('chrome');rbox(.003,.0035,.075,0,.0005,-.06,0xffffff,.001);// fuller highlight
+  metal();prof([[-.03,.004],[-.13,.004],[-.13,.0],[-.03,.0]],.0062,0,0x6f757c,{b:.0005});// fuller groove
+  mat('chrome');prof([[-.02,-.0115],[-.15,-.0115],[-.187,-.0045],[-.183,-.0065],[-.15,-.0135],[-.02,-.0135]],.0058,0,0xf4f7fa,{b:.0005});// edge bevel shine
+  metal();for(let i=0;i<5;i++)rbox(.0062,.004,.0025,0,.0125,-.02-i*.006,0x6a6f75,.0005);// spine jimping
+  for(let i=0;i<6;i++)rbox(.0061,.0004,.012,0,-.004+i*.0025,-.09-i*.012,0xb7bcc2,0,(i%2?.2:-.15));// scratches
+ }
+ metal();rbox(.044,.013,.009,0,.0,-.003,C.steel,.003);if(D){sph(.0055,.023,0,-.003,C.steel,[1,1,1],10);sph(.0055,-.023,0,-.003,C.steel,[1,1,1],10)}
+ mat('chrome');prof([[-.006,.012],[-.16,.012],[-.2,.0],[-.185,-.006,.004],[-.15,-.012],[-.006,-.012]],.005,0,C.chrome,{b:.0015});
+ metal();lathe([[.013,0],[.014,.006],[.012,.016],[.006,.02]],0,0,.105,C.steel,{seg:14});if(D)tor(.004,.0012,0,0,.127,C.steel,Math.PI*2,0,Math.PI/2,0,[4,10]);
  return{muzzle:[0,0,-.2],sight:[0,0,0],grip:{c:[0,0,.05],a:0,w:.028},hold:'knife',melee:1}}
-function KATANA(){mat('rubber');rbox(.026,.03,.25,0,0,.09,C.wrap,.012);if(det())for(let i=0;i<8;i++){mat('poly');rbox(.028,.032,.006,0,0,-.015+i*.03,0x7a1515,.003,0,0,.7);rbox(.028,.032,.006,0,0,-.015+i*.03,0x7a1515,.003,0,0,-.7)}
- metal();mat('brass');cyl(.042,.008,0,0,-.04,C.brass,{seg:20});cyl(.016,.03,0,0,-.06,C.brass,{seg:12});
+function KATANA(){const D=det();mat('rubber');rbox(.026,.03,.25,0,0,.09,0xe9e2d0,.012);// same-gawa ray skin
+ if(D)for(let i=0;i<8;i++){mat('poly');rbox(.028,.032,.006,0,0,-.015+i*.03,0x1a1a22,.003,0,0,.7);rbox(.028,.032,.006,0,0,-.015+i*.03,0x1a1a22,.003,0,0,-.7)}else{mat('poly');rbox(.027,.031,.24,0,0,.09,0x1a1a22,.012)}
+ if(D){metal();mat('brass');rbox(.03,.012,.03,.0,-.0,.1,C.brass,.004);cyl(.0035,.034,0,0,.045,C.brass,{ax:'x',seg:8})}// menuki & mekugi
+ metal();mat('brass');lathe([[.016,0],[.017,.01],[.012,.02]],0,0,.215,C.brass,{seg:14});// kashira
+ // tsuba: ornate guard
+ metal();cyl(.042,.008,0,0,-.04,0x2a2a2e,{seg:24});if(D){tor(.041,.0028,0,0,-.04,C.brass,Math.PI*2,0,0,0,[5,28]);for(let k=0;k<4;k++){const a=k*Math.PI/2+.785;cyl(.008,.0085,Math.cos(a)*.026,Math.sin(a)*.026,-.04,0x111114,{seg:10})}}
+ mat('brass');cyl(.016,.03,0,0,-.06,C.brass,{seg:12});lathe([[.016,0],[.013,.014]],0,0,-.075,C.brass,{seg:12});// habaki
  mat('chrome');prof([[-.075,.014],[-.4,.022],[-.7,.012],[-.76,-.004],[-.72,-.008],[-.4,-.006],[-.075,-.014]],.006,0,C.chrome,{b:.002,cs:10});
+ if(D){metal();prof([[-.09,.011],[-.55,.016],[-.55,.012],[-.09,.007]],.0068,0,0x7d838a,{b:.0005});// bo-hi groove
+  mat('chrome');const hp=[];for(let i=0;i<=14;i++){const t=i/14,z=-.08-t*.64;hp.push([z,-.002+Math.sin(i*1.9)*.0025+t*.006])}const ret=[];for(let i=14;i>=0;i--){const t=i/14;ret.push([-.08-t*.64,-.0125+t*.009])}prof(hp.concat(ret),.0066,0,0xf6f8fb,{b:.0004});}// hamon
  return{muzzle:[0,0,-.6],sight:[0,0,0],grip:{c:[0,0,.07],a:0,w:.03},hold:'katana',melee:1}}
-function AXE(){mat('wood');lathe([[.015,-.0],[.017,.2],[.018,.42],[.02,.45]],0,0,-.36,C.woodL,{seg:12});
+function AXE(){const D=det();mat('wood');lathe([[.015,-.0],[.017,.2],[.018,.42],[.02,.45]],0,0,-.36,C.woodL,{seg:12});
+ if(D){mat('rubber');for(let i=0;i<10;i++)tor(.0175,.0026,0,0,-.0+.0-.0+.05-i*.012+.0,0x1a1a1a,Math.PI*2,0,0,0,[4,14]);lathe([[.019,0],[.021,.01],[.012,.02]],0,0,.09,0x1a1a1a,{seg:14});
+  mat('wood');for(let i=0;i<5;i++)rbox(.0006,.001,.05,.0172*(i%2?1:-1),.006*(i-2),-.2+i*.04,0x6b4426);}
  metal();mat('poly');prof([[-.33,.02],[-.42,.02],[-.44,.11,.01],[-.42,.12,.006],[-.38,.03],[-.33,.03]],.016,0,C.red,{b:.003,p:[0,-.025,0]});prof([[-.33,.0],[-.39,-.005],[-.44,-.08],[-.4,-.06],[-.33,-.02]],.014,0,C.red,{b:.003});
  mat('chrome');prof([[-.43,.11],[-.452,.112],[-.452,.0],[-.438,.0]],.012,0,C.chrome,{b:.002,p:[0,-.025,0]});
+ if(D){mat('chrome');prof([[-.447,.085],[-.4535,.087],[-.4535,-.02],[-.447,-.02]],.0128,0,0xffffff,{b:.0005});
+  metal();for(const z of[-.345,-.37])for(const s of[1,-1])cyl(.0042,.004,s*.009,.012,z,C.steel,{ax:'x',seg:10});
+  rbox(.018,.02,.03,0,.0,-.345,0x2b2d31,.004);// eye wedge
+  for(let i=0;i<5;i++)rbox(.0165,.0005,.02,0,.04+i*.012,-.39-i*.004,0x7a1d1d,0,0,0,.4);}
  return{muzzle:[0,0,-.4],sight:[0,0,0],grip:{c:[0,0,.03],a:0,w:.032},hold:'axe',melee:1}}
 // ---------- utilities ----------
-function NADE(){metal();sph(.034,0,0,0,C.od,[1,1.12,1],16);lathe([[.012,-.012],[.012,.012]],0,.04,0,C.steel,{r:[Math.PI/2,0,0]});prof([[-.008,.04],[.01,.044],[.03,-.02],[.026,-.024],[.004,.036]],.016,0,C.steel,{b:.001,r:[0,Math.PI/2,0]});tor(.012,.0018,-.02,.05,0,C.steel,Math.PI*2,0,Math.PI/2,0,[5,14]);return{util:1}}
-function MOLO(){mat('trans');lathe([[.0,-.0],[.032,.0],[.034,.01],[.034,.1],[.03,.12],[.013,.14],[.012,.18],[.014,.185]],0,0,0,0x2e7a3a,{r:[-Math.PI/2,0,0]});matte();rbox(.03,.06,.03,0,.2,0,0xe8dcc0,.008,.25);return{util:1}}
-function SMOKEC(){metal();cyl(.031,.11,0,0,0,C.grey,{ax:'y',seg:18});cyl(.032,.024,0,.025,0,0xdddddd,{ax:'y',seg:18});cyl(.012,.02,0,.065,0,C.steel,{ax:'y',seg:12});prof([[-.01,.07],[.01,.072],[.035,-.03],[.031,-.033],[.006,.06]],.014,0,C.steel,{b:.001,r:[0,Math.PI/2,0]});return{util:1}}
-function FLASHC(){metal();cyl(.026,.1,0,0,0,C.blk,{ax:'y',seg:18});if(det())for(let i=0;i<4;i++)for(let k=0;k<6;k++){const a=k/6*Math.PI*2;cyl(.0045,.004,Math.cos(a)*.026,-.03+i*.02,Math.sin(a)*.026,C.dark,{ax:Math.abs(Math.cos(a))>.7?'x':'z',seg:8})}cyl(.012,.02,0,.06,0,C.steel,{ax:'y',seg:12});return{util:1}}
-function MEDKIT(){matte();rbox(.12,.08,.045,0,0,0,0xf2f2f2,.01);rbox(.122,.06,.016,0,0,0,C.red,.003);rbox(.122,.016,.047,0,0,0,C.red,.003);rbox(.05,.012,.01,0,.046,0,C.blk,.004);return{util:1}}
-
+// Shared fuze assembly: threaded fuze, striker housing, spoon (lever) & pin+ring in their own pivot groups so the throw can pull the pin and flick the spoon.
+function FUZE(y,col=C.steel,lever=.06){const D=det();metal();cyl(.0105,.012,0,y+.004,0,0x60656b,{ax:'y',seg:14});if(D)for(let i=0;i<3;i++)tor(.0108,.0011,0,y+.0005+i*.0035,0,0x50555a,Math.PI*2,Math.PI/2,0,0,[3,14]);
+ cyl(.0085,.014,0,y+.016,0,col,{ax:'y',seg:12});rbox(.012,.012,.02,0,y+.02,0,col,.003);
+ grp('spoon');prof([[-.009,y+.03],[.012,y+.032],[.016,y+.024],[.032,y-lever*.4],[.034,y-lever],[.03,y-lever-.004],[.026,y-lever*.4],[.008,y+.024]],.015,0,col,{b:.001,r:[0,Math.PI/2,0]});
+ if(D){rbox(.0006,.004,.01,.0,y+.025,-.0,0x2d3034)}
+ grp('pin');metal();cyl(.0016,.03,-.0,y+.016,0,C.chrome,{ax:'x',seg:6});mat('chrome');tor(.0115,.0016,-.026,y+.016,0,C.chrome,Math.PI*2,0,Math.PI/2,0,[5,16]);
+ if(D){tor(.0026,.0009,.016,y+.016,0,C.chrome,Math.PI*2,0,Math.PI/2,0,[3,8])}
+ grp(null);return{spoon:[.02,y+.03,0],pin:[0,y+.016,0]}}
+function NADE(){const D=det();metal();
+ lathe([[0,-.042],[.016,-.04],[.028,-.03],[.034,-.012],[.034,.008],[.029,.024],[.018,.034],[.011,.036]],0,0,0,C.od,{seg:D?24:12,r:[-Math.PI/2,0,0]});
+ if(D){for(const y of[-.026,-.012,.004,.019])tor(.0352*Math.sqrt(Math.max(.05,1-((y+.003)/.04)**2)),.0016,0,y,0,0x3f4530,Math.PI*2,Math.PI/2,0,0,[3,24]);
+  for(let k=0;k<10;k++){const a=k/10*Math.PI*2;rbox(.003,.036,.0035,Math.cos(a)*.0335,-.008,Math.sin(a)*.0335,0x3a4029,.001,0,-a,0)}
+  cyl(.0345,.006,0,-.002,0,0xd8b830,{ax:'y',seg:24});// yellow HE band
+  matte();rbox(.001,.012,.024,-.0345,-.018,0,0xd8d2b0,.0005);}
+ const pv=FUZE(.034);return{util:1,piv:pv,nade:1}}
+function MOLO(){const D=det();mat('trans');lathe([[.0,-.0],[.032,.0],[.034,.01],[.034,.1],[.03,.12],[.013,.14],[.012,.18],[.014,.185]],0,0,0,0x2e7a3a,{r:[-Math.PI/2,0,0]});
+ if(D){matte();lathe([[.0,.0],[.031,.004],[.032,.07],[.0,.07]],0,0,0,0x8a4a12,{seg:16,r:[-Math.PI/2,0,0]});// fuel inside
+  cyl(.0345,.045,0,.055,0,0xe6d7a8,{ax:'y',seg:20});rbox(.002,.03,.03,-.035,.055,0,0xb21d1d,.002);// label
+  mat('rubber');tor(.0135,.002,0,.168,0,0x3a2b1c,Math.PI*2,Math.PI/2,0,0,[3,12]);}
+ matte();rbox(.03,.06,.03,0,.2,0,0xe8dcc0,.008,.25);if(D){rbox(.02,.045,.02,.008,.235,.004,0xd6c49e,.006,-.3,0,.4);rbox(.018,.035,.016,-.008,.225,-.006,0xa3835e,.006,.5,0,-.3);RET('gorange',0,.255,0,.05)}
+ return{util:1}}
+function SMOKEC(){const D=det();metal();cyl(.031,.11,0,0,0,C.grey,{ax:'y',seg:18});cyl(.032,.024,0,.025,0,0xdddddd,{ax:'y',seg:18});
+ if(D){lathe([[.031,0],[.033,.004],[.033,.008],[.031,.01]],0,-.058,0,0x50555a,{seg:18,r:[-Math.PI/2,0,0]});
+  for(let k=0;k<6;k++){const a=k/6*Math.PI*2;cyl(.0045,.004,Math.cos(a)*.031,.048,Math.sin(a)*.031,C.dark,{ax:Math.abs(Math.cos(a))>.7?'x':'z',seg:8})}
+  for(let k=0;k<4;k++){const a=k/4*Math.PI*2+.4;cyl(.0045,.004,Math.cos(a)*.0005,-.058,Math.sin(a)*.016,C.dark,{ax:'y',seg:8})}
+  matte();rbox(.001,.03,.028,-.0315,-.012,0,0x101010,.0005);cyl(.0325,.004,0,-.035,0,0x2a6ad8,{ax:'y',seg:18});}
+ const pv=FUZE(.055);return{util:1,piv:pv,nade:1}}
+function FLASHC(){const D=det();metal();cyl(.026,.1,0,0,0,C.blk,{ax:'y',seg:18});if(D){for(let i=0;i<4;i++)for(let k=0;k<6;k++){const a=k/6*Math.PI*2;cyl(.0045,.004,Math.cos(a)*.026,-.03+i*.02,Math.sin(a)*.026,C.dark,{ax:Math.abs(Math.cos(a))>.7?'x':'z',seg:8})}
+  for(const y of[-.048,.042])cyl(.0275,.006,0,y,0,0x55595e,{ax:'y',seg:18});cyl(.0268,.004,0,-.04,0,0xc8c8c8,{ax:'y',seg:18});}
+ const pv=FUZE(.05);return{util:1,piv:pv,nade:1}}
+function MEDKIT(){const D=det();matte();rbox(.12,.08,.045,0,0,0,0xf2f2f2,.01);rbox(.122,.06,.016,0,0,0,C.red,.003);rbox(.122,.016,.047,0,0,0,C.red,.003);rbox(.05,.012,.01,0,.046,0,C.blk,.004);
+ if(D){for(const s of[1,-1]){rbox(.124,.004,.004,0,.038,s*.0215,0x777777,.001);}metal();rbox(.008,.012,.006,.045,.038,.023,C.steel,.002);
+  matte();for(const x of[-.045,.045])rbox(.012,.084,.049,x,0,0,0x3a3d42,.003);metal();for(const x of[-.045,.045])rbox(.014,.012,.05,x,-.02,0,C.blk,.002);
+  matte();rbox(.03,.03,.002,-.03,.012,.0236,0x2a2a2a,.003);}
+ return{util:1}}
 // ---------- HK UMP-45 ----------
 function UMP(){const F=C.poly,yb=.042;matte();
  prof([[.07,.0],[.07,.062,.006],[-.2,.062,.006],[-.21,.03,.006],[-.2,.0]],.036,0,F,{b:.003});rail(.05,-.17,.062,C.blk);
@@ -667,18 +718,29 @@ function FLAREG(){const O=0xff6a00,yb=.045;matte();
  lathe([[.018,0],[.018,-.17]],0,yb,-.02,0x3a2a1a,{seg:16,open:1});metal();rbox(.01,.016,.02,0,.08,.035,C.blk,.003);
  matte();prof([[.04,.02],[.075,-.08,.01],[.035,-.09,.008],[.015,-.02],[-.02,.02]],.034,0,O,{b:.004});trig(-.04,.006,.008,C.blk,.006);
  return{muzzle:[0,yb,-.19],sight:[0,.08,.12],grip:pgrip,lh:null,lhT:'pistol',len:.2,pistol:1,rl:'mag',hold:'pistol',piv:{},noShell:1}}
-function BAT(){mat('wood');lathe([[.0,.12],[.018,.118],[.014,.1],[.013,.0],[.016,-.2],[.025,-.38],[.033,-.55],[.034,-.66],[.03,-.69],[.0,-.695]],0,0,0,0xd9b27c,{seg:18});
- mat('rubber');if(det())for(let i=0;i<6;i++)lathe([[.0145,0],[.0145,-.014]],0,0,.1-i*.016,0x222222,{seg:14});
+function BAT(){const D=det();mat('wood');lathe([[.0,.12],[.018,.118],[.014,.1],[.013,.0],[.016,-.2],[.025,-.38],[.033,-.55],[.034,-.66],[.03,-.69],[.0,-.695]],0,0,0,0xd9b27c,{seg:18});
+ mat('rubber');if(D){for(let i=0;i<6;i++)lathe([[.0145,0],[.0145,-.014]],0,0,.1-i*.016,0x222222,{seg:14});lathe([[.019,0],[.02,.004],[.016,.01]],0,0,.106,0x8b1a1a,{seg:16});
+  matte();rbox(.002,.012,.07,.0285,0,-.47,0x111111,.001,0,0,0);rbox(.0021,.006,.05,.0287,0,-.47,0xd8b040,.001);
+  mat('wood');for(let i=0;i<4;i++)rbox(.0005,.0012,.06,.033*(i%2?-1:1),.01-i*.006,-.6+i*.02,0x9a6e3c);}
  return{muzzle:[0,0,-.6],sight:[0,0,0],grip:{c:[0,0,.06],a:0,w:.03},hold:'katana',melee:1}}
-function PAN(){mat('rubber');rbox(.026,.016,.16,0,0,.06,0x2b1b12,.006);metal();rbox(.02,.012,.06,0,.0,-.04,0x55595e,.004);
+function PAN(){const D=det();mat('rubber');rbox(.026,.016,.16,0,0,.06,0x2b1b12,.006);if(D){metal();tor(.006,.0018,0,0,.13,C.steel,Math.PI*2,Math.PI/2,0,0,[4,12])}metal();rbox(.02,.012,.06,0,.0,-.04,0x55595e,.004);
+ if(D)for(const z of[-.06,-.075])for(const y of[-.003,.003])sph(.0035,.0105,y,z+.0,C.steel,[1,1,1],8);
  metal();cyl(.115,.012,0,.0,-.2,0x2b2d31,{ax:'x',seg:28});tor(.115,.009,0,0,-.2,0x1f2124,Math.PI*2,0,Math.PI/2,0,[6,28]);cyl(.1,.004,.008,.0,-.2,0x3a3d42,{ax:'x',seg:28});
+ if(D){for(let i=1;i<4;i++)tor(.025*i,.0007,.0105,0,-.2,0x4a4d52,Math.PI*2,0,Math.PI/2,0,[3,28]);cyl(.098,.003,-.0075,0,-.2,0x3a2a22,{ax:'x',seg:28})}
  return{muzzle:[0,0,-.3],sight:[0,0,0],grip:{c:[0,0,.08],a:0,w:.028},hold:'axe',melee:1,panHead:1}}
-function SCYTHE(){mat('wood');lathe([[.016,.25],[.015,.0],[.016,-.6],[.018,-1.1],[.02,-1.12]],0,0,0,0x6b4a2b,{seg:12});
- metal();rbox(.03,.05,.05,0,0,-1.12,0x3a3c40,.008);mat('chrome');prof([[-1.1,.0],[-1.13,.04],[-1.0,.35],[-.82,.52],[-.84,.46],[-.98,.2],[-1.08,.02]],.006,0,0xd5d9de,{b:.002,cs:10});
- mat('wood');cyl(.012,.12,.06,0,-.35,0x6b4a2b,{ax:'x',seg:10});
+function SCYTHE(){const D=det();mat('wood');lathe([[.016,.25],[.015,.0],[.016,-.6],[.018,-1.1],[.02,-1.12]],0,0,0,0x6b4a2b,{seg:12});
+ if(D){mat('rubber');for(let i=0;i<8;i++)tor(.0165,.0022,0,0,.2-i*.01,0x2a1c12,Math.PI*2,0,0,0,[3,12]);metal();lathe([[.0175,0],[.0185,.03],[.0175,.06]],0,0,-1.13,0x5a5d62,{seg:12});}
+ metal();rbox(.03,.05,.05,0,0,-1.12,0x3a3c40,.008);if(D)for(const y of[-.015,.015])cyl(.005,.036,0,y,-1.12,C.steel,{ax:'x',seg:6});
+ mat('chrome');prof([[-1.1,.0],[-1.13,.04],[-1.0,.35],[-.82,.52],[-.84,.46],[-.98,.2],[-1.08,.02]],.006,0,0xd5d9de,{b:.002,cs:10});
+ if(D){mat('chrome');prof([[-.84,.46],[-.985,.205],[-1.085,.025],[-1.08,.04],[-.98,.22],[-.85,.47]],.0066,0,0xffffff,{b:.0004});metal();prof([[-1.12,.04],[-1.04,.25],[-1.03,.24],[-1.1,.04]],.0068,0,0x4a4d52,{b:.0004})}
+ mat('wood');cyl(.012,.12,.06,0,-.35,0x6b4a2b,{ax:'x',seg:10});if(D){metal();rbox(.02,.03,.03,.0,0,-.35,0x3a3c40,.005);mat('rubber');cyl(.0135,.06,.08,0,-.35,0x2a1c12,{ax:'x',seg:10})}
  return{muzzle:[0,.3,-1],sight:[0,0,0],grip:{c:[0,0,.12],a:0,w:.032},hold:'axe',melee:1}}
-function TRIDENT(){metal();mat('brass');lathe([[.014,.3],[.013,0],[.014,-.9],[.02,-.95]],0,0,0,0xc9a24a,{seg:12});
- rbox(.03,.2,.03,0,0,-.97,0xc9a24a,.008);for(const y of[-.085,0,.085]){cyl(.011,.24,0,y,-1.1,0xd8b860,{seg:10});prof([[-1.21,y-.016],[-1.32,y],[-1.21,y+.016],[-1.235,y]],.014,0,0xe6c870,{b:.002})}
+function TRIDENT(){const D=det();metal();mat('brass');lathe([[.014,.3],[.013,0],[.014,-.9],[.02,-.95]],0,0,0,0xc9a24a,{seg:12});
+ if(D){mat('rubber');for(let i=0;i<10;i++)tor(.0145,.0024,0,0,.14-i*.01,0x5a1a1a,Math.PI*2,0,0,0,[3,12]);for(let i=0;i<6;i++)tor(.0148,.0022,0,0,-.7-i*.009,0x5a1a1a,Math.PI*2,0,0,0,[3,12]);
+  metal();mat('brass');for(const z of[-.6,-.88,.28])tor(.0155,.003,0,0,z,0xe6c870,Math.PI*2,0,0,0,[4,14]);lathe([[.016,0],[.012,.03],[.0,.045]],0,0,.3,0xe6c870,{seg:12});}
+ metal();mat('brass');rbox(.03,.2,.03,0,0,-.97,0xc9a24a,.008);for(const y of[-.085,0,.085]){cyl(.011,.24,0,y,-1.1,0xd8b860,{seg:10});prof([[-1.21,y-.016],[-1.32,y],[-1.21,y+.016],[-1.235,y]],.014,0,0xe6c870,{b:.002});
+  if(D&&y){const s=Math.sign(y);prof([[-1.19,y+s*.006],[-1.23,y+s*.024],[-1.2,y+s*.008]],.008,0,0xe6c870,{b:.001})}}
+ if(D){for(const s of[-1,1])sph(.012,0,s*.1,-.97,0xe6c870,[1,1,1],10);sph(.01,.016,0,-.97,0x1a8a9a,[1,1,1],10)}
  return{muzzle:[0,0,-1.2],sight:[0,0,0],grip:{c:[0,0,.1],a:0,w:.03},hold:'katana',melee:1}}
 function CHAINSAW(){const O=0xff7a00,Od=0xc85a00,yb=0;matte();
  prof([[.12,-.06],[.12,.06,.02],[-.06,.07,.02],[-.08,-.06,.01]],.1,0,O,{b:.008});
@@ -783,7 +845,53 @@ export function handParts(info,sleeve=0x3d4a5c,glove=C.glove,pad=C.pad){parts.le
  return parts.splice(0)}
 // ======================= exports =======================
 const PC={};
-export function gunParts(id,lod=0){const k=id+'|'+lod;if(!PC[k]){parts.length=0;LOD=lod;XF=null;MAT='metal';GRP=null;TRG=null;const info=(BUILD[id]||BUILD.ar)();info.trigP=info.trigP||TRG;LOD=0;
+// ======================= PER-MODEL DETAIL EXTRAS (first-person / close-up builds only; third-person LOD skips them) =======================
+const GLW=(kind,w,h,x,y,z,rx=0,ry=0)=>{const pt=push(new THREE.PlaneGeometry(w,h),[x,y,z],[rx,ry,0],0xffffff);pt.mat='ret';pt.ret=kind;pt.keepUV=true;return pt};
+function GAUGE(x,y,z,r,side=1){const M=MAT;metal();cyl(r,.008,x,y,z,C.steel,{ax:'x',seg:16});matte();cyl(r*.82,.002,x+side*.0042,y,z,0xf2efe6,{ax:'x',seg:16});
+ rbox(.0012,r*.7,.0016,x+side*.0055,y+r*.22,z-r*.12,0xd0201a,.0004,-.5,0,0);for(let i=0;i<5;i++){const a=-2.2+i*1.1;rbox(.001,.0012,r*.22,x+side*.0053,y+Math.cos(a)*r*.6,z+Math.sin(a)*r*.6,0x111111,0,a)}MAT=M}
+function SWIVEL(x,y,z,R=.008){metal();tor(R,.0016,x,y,z,C.steel,Math.PI*2,0,Math.PI/2,0,[4,12]);rbox(.006,.006,.01,x,y+R,z,C.steel,.002)}
+function SHELLS(x,y,z,n=4,dz=.016){matte();rbox(.004,.032,n*dz+.006,x+.002,y,z,C.poly,.002);for(let i=0;i<n;i++){const zz=z-(n-1)*dz/2+i*dz;mat('poly');cyl(.0058,.022,x-.004,y+.004,zz,0xb3261e,{ax:'y',seg:10});metal();mat('brass');cyl(.006,.008,x-.004,y-.011,zz,C.brass,{ax:'y',seg:10})}metal()}
+function PSIGHTS(info,zr){const[,yb,zm]=info.muzzle,sy=info.sight[1];metal();rbox(.004,.008,.006,0,sy-.006,zm+.022,C.blk,.0015);GLW('ggreen',.004,.004,0,sy-.004,zm+.0255);
+ rbox(.024,.009,.007,0,sy-.006,zr,C.blk,.002);for(const s of[-1,1])GLW('ggreen',.0035,.0035,s*.0065,sy-.0055,zr+.0036)}
+function LANYARD(info){const c=info.grip.c,a=info.grip.a||.25;const y=c[1]-.052,z=c[2]+.052*Math.sin(a)+.01;metal();rbox(.024,.006,.03,0,y,z-.004,C.blk,.002);tor(.006,.0014,0,y-.007,z+.008,C.steel,Math.PI*2,0,Math.PI/2,0,[4,10])}
+const EXTRA={
+ handgun:i=>{PSIGHTS(i,.045);LANYARD(i)},burst:i=>{PSIGHTS(i,.045);LANYARD(i);matte();rbox(.03,.012,.03,0,i.muzzle[1]-.03,-.12,C.blk,.003)},
+ glock18:i=>{PSIGHTS(i,.04);LANYARD(i);metal();rbox(.004,.005,.012,.0135,i.muzzle[1]+.008,-.01,0x8d939b,.001)},
+ deagle:i=>{PSIGHTS(i,.06);LANYARD(i);metal();for(let k=0;k<5;k++)rbox(.0365,.003,.004,0,i.muzzle[1]+.004,.03+k*.006,0x55595e,.001)},
+ cannon:i=>{PSIGHTS(i,.05);LANYARD(i)},revolver:i=>{PSIGHTS(i,.06);LANYARD(i)},
+ shotgun:i=>{metal();mat('brass');sph(.0032,0,i.muzzle[1]+.016,i.muzzle[2]+.01,C.brass,[1,1,1],10);SHELLS(-.024,.035,.0,4);SWIVEL(0,i.muzzle[1]-.03,i.muzzle[2]+.12)},
+ autoshot:i=>{metal();mat('brass');sph(.0032,0,i.muzzle[1]+.016,i.muzzle[2]+.01,C.brass,[1,1,1],10);SHELLS(-.024,.035,.0,4);SWIVEL(0,i.muzzle[1]-.03,i.muzzle[2]+.12)},
+ saiga:i=>{SHELLS(-.024,.03,.15,3);SWIVEL(-.02,.0,.25)},
+ aa12:i=>{metal();mat('brass');sph(.0032,0,i.muzzle[1]+.018,i.muzzle[2]+.01,C.brass,[1,1,1],10);SHELLS(-.03,.03,.02,3)},
+ double:i=>{metal();mat('brass');sph(.003,0,i.muzzle[1]+.016,i.muzzle[2]+.01,C.brass,[1,1,1],10);mat('rubber');rbox(.04,.03,.07,-.0,i.grip.c[1]+.02,.3,0x3a2a1a,.006);SHELLS(-.024,i.grip.c[1]+.02,.3,3,.018)},
+ ksg:i=>{metal();for(let k=0;k<6;k++)rbox(.05,.004,.004,0,-.05-.0,-.17-k*.012,C.blk,.001)},
+ sniper:i=>SNX(i),heavy:i=>SNX(i),light:i=>SNX(i),awp:i=>SNX(i),barrett:i=>SNX(i),lever:i=>{SWIVEL(0,i.muzzle[1]-.025,i.muzzle[2]+.15);mat('brass');metal();sph(.003,0,i.muzzle[1]+.014,i.muzzle[2]+.012,C.brass,[1,1,1],8)},
+ smg:i=>SMX(i),vector:i=>SMX(i),pdw:i=>SMX(i),mp5:i=>SMX(i),mp7:i=>SMX(i),kriss:i=>SMX(i),p90:i=>SMX(i),ump45:i=>SMX(i),tommy:i=>{SWIVEL(-.0,i.muzzle[1]-.03,i.muzzle[2]+.18);metal();for(let k=0;k<8;k++)rbox(.03,.003,.006,0,i.muzzle[1]+.012,i.muzzle[2]+.03+k*.01,C.steel,.001)},
+ lmg:i=>{const[,yb,zm]=i.muzzle;metal();for(let k=0;k<6;k++)rbox(.028,.004,.012,0,yb+.02,zm*.62+k*.03,0x3a3c40,.001);rbox(.014,.04,.012,0,yb+.04,zm*.55,C.blk,.003);rbox(.012,.012,.1,0,yb+.062,zm*.55,C.poly,.005);
+  for(const s of[-1,1])rbox(.006,.08,.006,s*.012,yb-.05,zm*.8,C.blk,.002,s*.0,0,s*.25)},
+ gl:i=>{SWIVEL(-.044,.0,.12);metal();rbox(.004,.03,.004,0,.11,-.15,C.blk,.001);GLW('gorange',.006,.006,0,.124,-.147)},
+ rpg:i=>{metal();for(let k=0;k<4;k++)rbox(.016,.003,.003,0,.056-k*.005,-.149,0xd8d0b0,.0005);GLW('gorange',.005,.005,0,.056,-.326);
+  for(let k=0;k<6;k++)tor(.0236,.0014,0,0,-.28+k*.03,0x434934,Math.PI*2,0,0,0,[3,20]);matte();rbox(.03,.012,.06,0,-.03,.0,C.blk,.003);SWIVEL(0,-.032,-.3);SWIVEL(0,-.032,.3)},
+ crossbow:i=>{metal();for(const s of[-1,1]){cyl(.012,.008,s*.255,.05,-.318,C.steel,{ax:'y',seg:14});rbox(.02,.006,.02,s*.12,.05,-.388,C.blk,.002)}tor(.04,.004,0,.035,-.47,C.blk,Math.PI,0,0,Math.PI);rbox(.008,.012,.02,.02,.05,.04,C.red,.002);
+  mat('rubber');for(const s of[-1,1])rbox(.004,.012,.03,s*.016,.03,-.25,C.rub,.003)},
+ minigun:i=>{const yb=.03;metal();for(let k=0;k<5;k++)rbox(.122,.004,.012,0,.06-k*.02,-.12,0x1c1d20,.001);GAUGE(.062,.0,.06,.016,1);
+  for(let k=0;k<6;k++)rbox(.03,.02,.018,-.075+k*.005,-.02+k*.012,.02,0x3a3c40,.003,0,0,-.5);GLW('gred',.006,.006,.03,.07,.121);GLW('ggreen',.006,.006,.045,.07,.121)},
+ water:i=>{GAUGE(.026,.04,.06,.014,1);matte();cyl(.008,.05,0,.1,.13,0xff8c1a,{seg:10});metal();for(let k=0;k<3;k++)tor(.0105,.002,0,.04,-.25-k*.03,0x1b5fa8,Math.PI*2,0,0,0,[3,14]);
+  matte();for(const s of[-1,1])rbox(.003,.012,.2,s*.026,.03,-.05,0xfff1c4,.002)},
+ taser:i=>{matte();for(let k=0;k<3;k++)rbox(.038,.032,.004,0,.04,-.11-k*.008,k%2?C.blk:0xffd23f,.002);GLW('gcyan',.006,.006,-.01,.04,-.1372);GLW('gcyan',.006,.006,.01,.04,-.1372);
+  for(let k=0;k<3;k++)GLW(k<2?'ggreen':'gred',.005,.005,-.008+k*.008,.064,.046);metal();rbox(.008,.006,.012,-.018,.055,.0,C.red,.002)},
+ flare:i=>{metal();cyl(.004,.046,0,.025,.0,C.steel,{ax:'x',seg:8});rbox(.014,.018,.016,0,.075,.05,C.blk,.003,.4);mat('brass');cyl(.0195,.004,0,.045,-.016,C.brass,{seg:20});GLW('gorange',.03,.03,0,.045,-.205)},
+ freeze:i=>{const yb=.04;GAUGE(.026,.06,.07,.014,1);GAUGE(-.026,.06,.07,.014,-1);mat('rubber');for(let k=0;k<6;k++)cyl(.006,.035,.03,.1-k*.012,-.12-k*.016,0x1a1a1a,{seg:8});
+  for(let k=0;k<5;k++)GLW('gcyan',.05,.05,0,yb,-.22-k*.035);GLW('gcyan',.05,.04,.036,.11,-.02,0,Math.PI/2);GLW('gcyan',.05,.04,-.036,.11,-.02,0,-Math.PI/2);
+  metal();for(let k=0;k<4;k++)rbox(.052,.003,.012,0,.072,-.1+k*.03,0x95a5a6,.001)},
+ laser:i=>{const yb=.045;for(const s of[-1,1])GLW('gcyan',.3,.014,s*.0285,.05,-.05,0,s*Math.PI/2);GLW('gcyan',.04,.04,0,yb,-.468);GLW('gcyan',.05,.012,0,.08,-.28,-Math.PI/2);
+  metal();for(let k=0;k<6;k++)rbox(.058,.004,.008,0,.03,-.2-k*.018,0x8a9098,.001);matte();rbox(.03,.03,.06,-.034,.03,.1,0x2b2d31,.004);GLW('gcyan',.04,.016,-.0495,.03,.1,0,-Math.PI/2)},
+ paintball:()=>{},chainsaw:()=>{},
+};
+function SNX(i){const[,yb,zm]=i.muzzle;const sy=i.sight[1],sz=i.sight[2];metal();rbox(.012,.008,.02,.024,sy-.022,sz-.17,C.blk,.002);GLW('ggreen',.006,.004,.024,sy-.017,sz-.159);
+ SWIVEL(0,yb-.028,zm*.55);SWIVEL(0,yb-.05,.3);mat('rubber');rbox(.03,.01,.06,0,yb-.02,.42,C.rub,.003)}
+function SMX(i){const[,yb,zm]=i.muzzle;SWIVEL(-.022,yb,i.grip.c[2]+.06,.007);metal();rbox(.004,.012,.03,.022,yb+.01,i.grip.c[2]-.06,C.steel,.001)}
+export function gunParts(id,lod=0){const k=id+'|'+lod;if(!PC[k]){parts.length=0;LOD=lod;XF=null;MAT='metal';GRP=null;TRG=null;const info=(BUILD[id]||BUILD.ar)();if(!info.sight)info.sight=[0,info.sightY||.06,.15];if(!lod&&EXTRA[id]){const M=MAT,G=GRP;GRP=null;XF=null;MAT='metal';EXTRA[id](info);MAT=M;GRP=G}info.trigP=info.trigP||TRG;LOD=0;
   if(!info.sight)info.sight=[0,info.sightY||.06,.15];info.sightY=info.sight[1];PC[k]={parts:parts.splice(0),info}}
  return{parts:PC[k].parts,info:PC[k].info}}
 export const GUN_MATS=['metal','alu','poly','wood','rubber','brass','chrome','trans','glass','glove','sleeve'];
