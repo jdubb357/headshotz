@@ -79,7 +79,8 @@ const camoCache={};export function camoTex(hex){if(camoCache[hex])return camoCac
  noise(x,256,r,120,255,2500,1.4);return camoCache[hex]=tex(c)}
 const matCache={lo:{},hi:{}};
 let _gunLo=null;export function setGunLo(m){_gunLo=m}
-export function texMat(name){const lvl=GQ.level==='low'?'lo':'hi';const C=matCache[GQ.level==='high'?'hh':lvl]||(matCache[GQ.level==='high'?'hh':lvl]={});if(C[name])return C[name];
+export const MATHOOK={};
+export function texMat(name){if(MATHOOK[name]){const r=MATHOOK[name](GQ.level);if(r)return r}const lvl=GQ.level==='low'?'lo':'hi';const C=matCache[GQ.level==='high'?'hh':lvl]||(matCache[GQ.level==='high'?'hh':lvl]={});if(C[name])return C[name];
  const noMap=name==='char'||name==='gunMetal'||name==='gunMatte'||name==='gunTP'||name==='gunTrans';
  if(name==='gunGlass')return C[name]=GLASS;
  if(lvl==='lo'){if(name==='gunMetal'||name==='gunMetalP'||name==='gunAlu'||name==='gunBrass'||name==='gunChrome')return C[name]=MC.metal;if(name.startsWith('gun'))return C[name]=MC.matte;return C[name]=new THREE.MeshLambertMaterial({map:noMap?null:getTex(name),vertexColors:true})}
