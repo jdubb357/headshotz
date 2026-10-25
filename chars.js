@@ -12,6 +12,13 @@ const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_up=new THREE.Vector3(0,1,0)
 // material ids: 0 cloth+camo 1 skin 2 hard gear 3 eye 4 plain cloth/leather 5 stubble skin 6 hair
 let MID=0;const M=k=>{MID=k};
 function limb(P,a,b,r1,r2,c,seg=10){_a.set(...a);_b.set(...b);const d=_b.clone().sub(_a),l=d.length();_q.setFromUnitVectors(_up,d.normalize());_m.compose(_a.clone().add(_b).multiplyScalar(.5),_q,new THREE.Vector3(1,1,1));P.push({g:G('cyl',r2,r1,l,seg),m:_m.clone(),c,k:MID})}
+const LG={};function limbGeo(l,r1,r2,bu,seg){const k=[l,r1,r2,bu,seg].map(v=>+(+v).toFixed(4)).join(',');if(LG[k])return LG[k];const pts=[];const n=10;
+ for(let i=0;i<=4;i++){const a=-Math.PI/2+i/4*Math.PI/2;pts.push(new THREE.Vector2(Math.cos(a)*r1,-l/2+Math.sin(a)*r1*.9))}
+ for(let i=1;i<n;i++){const t=i/n;pts.push(new THREE.Vector2(r1+(r2-r1)*t+bu*Math.sin(Math.PI*t)*Math.sin(Math.PI*t),-l/2+l*t))}
+ for(let i=0;i<=4;i++){const a=i/4*Math.PI/2;pts.push(new THREE.Vector2(Math.max(1e-4,Math.cos(a)*r2),l/2+Math.sin(a)*r2*.9))}
+ const g=new THREE.LatheGeometry(pts,seg);return LG[k]=g}
+function limbO(P,a,b,r1,r2,c,bu=0,seg=14){_a.set(...a);_b.set(...b);const d=_b.clone().sub(_a),l=d.length();_q.setFromUnitVectors(_up,d.normalize());_m.compose(_a.clone().add(_b).multiplyScalar(.5),_q,new THREE.Vector3(1,1,1));P.push({g:limbGeo(l,r1,r2,bu,seg),m:_m.clone(),c,k:MID})}
+function torsoGeo(pr,seg,sz){const k='T'+pr.join()+seg+sz;if(LG[k])return LG[k];const g=new THREE.LatheGeometry(pr.map(([r,y])=>new THREE.Vector2(Math.max(1e-4,r),y)),seg);g.scale(1,1,sz);return LG[k]=g}
 const bx=(P,w,h,d,x,y,z,c,rx=0,ry=0,rz=0)=>P.push({g:G('box',w,h,d),p:[x,y,z],r:[rx,ry,rz],c,k:MID});
 const sp=(P,r,x,y,z,c,sx=1,sy=1,sz=1,seg=12)=>P.push({g:G('sph',r,seg,Math.max(6,seg*.66|0)),p:[x,y,z],s:[sx,sy,sz],c,k:MID});
 const cy=(P,r1,r2,h,x,y,z,c,seg=12,rx=0,rz=0)=>P.push({g:G('cyl',r1,r2,h,seg),p:[x,y,z],r:[rx,0,rz],c,k:MID});
@@ -71,8 +78,9 @@ export function makeCharacter(teamCol,name,id,tagCol,outfit,cls){const h=hash(id
  const root=new THREE.Group(),rig=new THREE.Group();root.add(rig);
  // ---- torso (hips .92 .. shoulders 1.42) ----
  const torso=sect(rig,'T'+K,P=>{
-  M(0);cy(P,.16*bw,.15*bw,.2,0,.98,0,pants,16);// hips
-  M(L.slim?4:0);cy(P,.17*bw,.15*bw,.42,0,1.2,0,shirt,16);sp(P,.16*bw,0,1.3,-.02,shirt,1.05,.7,.75,14);// shirt torso + chest volume
+  M(0);P.push({g:torsoGeo([[.02,.86],[.13,.865],[.165,.9],[.17,.97],[.16,1.04],[.15,1.07]].map(([r,y])=>[r*bw,y]),20,.74),p:[0,0,0],c:pants,k:MID});// pelvis / pants seat
+  M(L.slim?4:0);P.push({g:torsoGeo([[.15,1.0],[.152,1.05],[.146,1.1],[.16,1.2],[.178,1.29],[.18,1.35],[.165,1.41],[.11,1.455],[.05,1.47]].map(([r,y])=>[r*bw,y]),22,.7),p:[0,0,0],c:shirt,k:MID});// organic torso: waist -> ribcage -> chest -> shoulders
+  bx(P,.31*bw,.025,.23*bw,0,1.035,0,new THREE.Color(shirt).multiplyScalar(.9).getHex());// shirt hem overlapping belt
   if(L.slim){sp(P,.075,-.07,1.3,-.1,shirt,1.1,.8,.6,10);sp(P,.075,.07,1.3,-.1,shirt,1.1,.8,.6,10)}// pecs
   sp(P,.1*bw,-.2*bw,1.37,0,shirt,1.05,.85,1);sp(P,.1*bw,.2*bw,1.37,0,shirt,1.05,.85,1);// shoulders / deltoids
   limb(P,[-.05,1.47,.01],[-.19*bw,1.39,.01],.045,.06,shirt,8);limb(P,[.05,1.47,.01],[.19*bw,1.39,.01],.045,.06,shirt,8);// trapezius
@@ -97,7 +105,7 @@ export function makeCharacter(teamCol,name,id,tagCol,outfit,cls){const h=hash(id
   if(L.slim){M(4);bx(P,.36,.04,.02,0,1.25,-.15,0x2b2c33,0,0,.6);M(2);bx(P,.04,.3,.04,.0,1.25,.16,0x55575e,0,0,.6);bx(P,.08,.02,.06,-.07,1.15,.15,0x8a7a4a,0,0,.6)}// ninja wrap + sword handle + guard
  });
  // ---- head (pivot at neck 1.5) ----
- const head=new THREE.Group();head.position.set(0,1.5,0);rig.add(head);const hd=L.head,capped=hd!=='ninja'&&hd!=='helmet'&&hd!=='jugg';
+ const head=new THREE.Group();head.position.set(0,1.5,0);head.scale.setScalar(.93);rig.add(head);const hd=L.head,capped=hd!=='ninja'&&hd!=='helmet'&&hd!=='jugg';
  sect(head,'H'+K,P=>{
   M(1);sp(P,.113,0,.145,-.002,skin,.9,1.06,1,16);// cranium
   M(fh===1?5:1);sp(P,.088,0,.06,-.025,skin,1.0,.6,1.0,14);sp(P,.032,0,.03,-.088,skin,1.1,.8,.8,10);// jaw + chin
@@ -129,10 +137,10 @@ export function makeCharacter(teamCol,name,id,tagCol,outfit,cls){const h=hash(id
  // ---- aim group: arms + hands holding the gun ----
  const aim=new THREE.Group();aim.position.set(0,1.36,0);rig.add(aim);const fore=L.rolled?skin:shirt;
  sect(aim,'A'+K,P=>{const ar=L.bulk?.07:.055;
-  M(L.slim?4:0);limb(P,[.2*bw,0,0],[.2,-.2,-.14],ar,ar*.9,shirt,12);sp(P,ar*1.05,.2,-.1,-.07,shirt,1,1.25,1,10);// upper arm + bicep
-  M(L.rolled?1:L.slim?4:0);limb(P,[.2,-.2,-.14],[.07,-.12,-.36],ar*.95,ar*.7,fore,12);sp(P,ar*.9,.2,-.2,-.14,shirt);// forearm + elbow
-  M(L.slim?4:0);limb(P,[-.2*bw,0,0],[-.19,-.17,-.24],ar,ar*.9,shirt,12);sp(P,ar*1.05,-.195,-.085,-.12,shirt,1,1.25,1,10);
-  M(L.rolled?1:L.slim?4:0);limb(P,[-.19,-.17,-.24],[-.02,-.08,-.56],ar*.95,ar*.7,fore,12);sp(P,ar*.9,-.19,-.17,-.24,shirt);
+  M(L.slim?4:0);limbO(P,[.2*bw,0,0],[.2,-.2,-.14],ar*1.05,ar*.82,shirt,ar*.18);// upper arm with bicep (seamless shoulder/elbow caps)
+  M(L.rolled?1:L.slim?4:0);limbO(P,[.2,-.2,-.14],[.07,-.12,-.36],ar*.85,ar*.62,fore,ar*.14);
+  M(L.slim?4:0);limbO(P,[-.2*bw,0,0],[-.19,-.17,-.24],ar*1.05,ar*.82,shirt,ar*.18);
+  M(L.rolled?1:L.slim?4:0);limbO(P,[-.19,-.17,-.24],[-.02,-.08,-.56],ar*.85,ar*.62,fore,ar*.14);
   M(4);sp(P,.042,.06,-.12,-.39,glove,1,1.05,1.25,10);sp(P,.042,-.01,-.08,-.58,glove,1,.9,1.25,10);// gloved palms
   if(L.rolled){M(0);for(const s of[1,-1]){const e=s>0?[.2,-.2,-.14]:[-.19,-.17,-.24];cy(P,ar*1.08,ar*1.08,.04,e[0]*.96+(s>0?-.005:.01),e[1]+.005,e[2]-.01,shirt,10,.9)}}// rolled cuffs
  },P=>{M(4);
@@ -146,11 +154,11 @@ export function makeCharacter(teamCol,name,id,tagCol,outfit,cls){const h=hash(id
  const gunMount=new THREE.Group();gunMount.position.set(.055,-.085,-.4);aim.add(gunMount);
  // ---- legs ----
  const legs=[];for(const s of[-1,1]){const th=new THREE.Group();th.position.set(s*.095*bw,.92,0);rig.add(th);
-  sect(th,'Lt'+s+K,P=>{M(0);limb(P,[0,0,0],[0,-.43,-.01],.088*bw,.068*bw,pants,14);sp(P,.07*bw,0,-.43,-.01,pants);sp(P,.07*bw,0,-.17,-.035,pants,1,1.7,.8,10)},// thigh + quad
+  sect(th,'Lt'+s+K,P=>{M(0);limbO(P,[0,.02,0],[0,-.43,-.01],.095*bw,.066*bw,pants,.012*bw,16);sp(P,.06*bw,0,-.17,-.04,pants,1,2,.7,10)},// thigh (seamless hip/knee) + quad
    P=>{M(0);bx(P,.07,.11,.05,s*.07,-.2,-.03,pouch);M(4);bx(P,.072,.012,.052,s*.07,-.15,-.03,new THREE.Color(pouch).multiplyScalar(.75).getHex());bx(P,.006,.42,.006,s*.088*bw,-.21,0,seam);// cargo pocket + flap + outer seam
     if(s>0&&!L.slim){M(2);bx(P,.06,.17,.09,.08,-.13,-.02,0x1d1f20);M(4);bx(P,.065,.025,.1,.08,-.03,-.02,strap);bx(P,.065,.025,.1,.08,-.19,-.02,strap)}});// thigh holster + straps
   const sh=new THREE.Group();sh.position.set(0,-.44,-.01);th.add(sh);
-  sect(sh,'Ls'+s+K,P=>{M(0);limb(P,[0,0,0],[0,-.38,.01],.07*bw,.052,pants,14);sp(P,.055*bw,0,-.14,.03,pants,1,1.6,1,10);// shin + calf
+  sect(sh,'Ls'+s+K,P=>{M(0);limbO(P,[0,.01,0],[0,-.36,.01],.068*bw,.056,pants,.008,16);sp(P,.05*bw,0,-.13,.03,pants,1,1.7,.9,10);P.push({g:torsoGeo([[.058,-.27],[.066,-.32],[.075,-.35],[.078,-.37]],14,1.05),p:[0,0,.005],c:pants,k:0});// shin + calf + pant hem draping over boot
    M(4);bx(P,.12,.1,.24,0,-.43,-.045,boot);sp(P,.06,0,-.44,-.14,boot,1,.7,1.1,10);bx(P,.125,.025,.255,0,-.47,-.045,sole);cy(P,.065,.072,.13,0,-.355,.005,boot,12)},// boot, toe cap, sole, ankle
    P=>{M(2);bx(P,.11,.12,.05,0,-.02,-.065,L.slim?0x202127:0x3a3f45);M(4);bx(P,.125,.02,.02,0,-.02,0,strap);// knee pad + strap
     for(let i=0;i<4;i++)bx(P,.07,.006,.01,0,-.4+i*.022,-.125,0x8a7f6a);bx(P,.135,.02,.05,0,-.335,-.02,strap);M(2);bx(P,.025,.022,.012,s*.06,-.335,-.05,metal);// laces, ankle strap + buckle
@@ -176,11 +184,13 @@ export function animate(m,st,dt){const u=m.userData;const sp=Math.min(st.speed,1
  if(st.air&&!st.climb){legA=[.55,-.15];shA=[-1.0,-.35];rigY=0}
  if(u.climb>.01){const k=u.climb,cs=Math.sin(u.ph);legA=legA.map((a,i)=>lerp(a,.6+(i?-cs:cs)*.5,k));shA=shA.map((a,i)=>lerp(a,-1.1+(i?cs:-cs)*.35,k));rigX=lerp(rigX,-.08,k);aimY=k}
  if(st.slide){rigY=-.48;rigX=.45;legA=[1.25,1.05];shA=[-.15,-.55]}
- if(u.down>.01){const k=u.down,cw=Math.sin(u.ph*.6)*walk;rigY=lerp(rigY,-.3,k);rigX=lerp(rigX,.6,k);legA=legA.map((a,i)=>lerp(a,.18+(i?-cw:cw)*.12,k));shA=shA.map((a,i)=>lerp(a,-2.55+(i?cw:-cw)*.1,k));headX=-.55*k;aimY=Math.max(aimY,.5*k)}// kneeling/crawling on the surface (head ~1.0-1.2 = downed hitbox)
+ if(u.down>.01){const k=u.down,cw=Math.sin(u.ph*.6)*walk;rigY=lerp(rigY,-.26,k);rigX=lerp(rigX,.6,k);legA=legA.map((a,i)=>lerp(a,.18+(i?-cw:cw)*.12,k));shA=shA.map((a,i)=>lerp(a,-2.68+(i?cw:-cw)*.1,k));headX=-.55*k;aimY=Math.max(aimY,.5*k)}// kneeling/crawling on the surface (head ~1.0-1.2 = downed hitbox)
+ {const idle=(1-walk)*(1-u.crouch)*(1-u.down)*(st.air||st.slide||st.climb?0:1);if(idle>.01){u.it=(u.it||0)+dt;const w=Math.sin(u.it*.7);rigZ+=w*.03*idle;legA=legA.map((a,i)=>a+(i?(w>0?.08:0):(w<0?.08:0))*idle);shA=shA.map((a,i)=>a-(i?(w>0?.14:0):(w<0?.14:0))*idle);rigY+=-.012*Math.abs(w)*idle}
+  if(u.torso){const br=1+Math.sin((u.it||0)*1.7)*.008*(1-run);u.torso.scale.set(1,br,1+ (br-1)*1.5)}}
  u.flinch=Math.max(0,u.flinch-dt*4);
  if(u.dead>0){u.dead+=dt;const k=Math.min(1,u.dead/.55);const e=k*k*(3-2*k);rigX=1.45*e;rigY=-.05*e;rigZ=u.roll*.25*e;legA=[.3*e,.1*e];shA=[-.2,-.3];u.tag.visible=false}
  else u.tag.visible=true;
- const r=u.rig;r.position.y+=(rigY-r.position.y)*k14;r.rotation.x+=((rigX+u.flinch*.35)-r.rotation.x)*Math.min(1,dt*(u.dead?8:12));r.rotation.z+=(rigZ-r.rotation.z)*k14;
+ if(st.slope!=null&&u.down>.01)rigX+=st.slope*u.down;const r=u.rig;r.position.y+=(rigY-r.position.y)*k14;r.rotation.x+=((rigX+u.flinch*.35)-r.rotation.x)*Math.min(1,dt*(u.dead?8:12));r.rotation.z+=(rigZ-r.rotation.z)*k14;
  // aim: arms follow pitch; head stabilises against body tilt so the gun stays on target
  const pitch=u.dead?0:st.pitch;u.aim.rotation.x+=(lerp(pitch-r.rotation.x*.85,-.9,aimY*.6)-u.aim.rotation.x)*Math.min(1,dt*15);u.aim.position.y=1.36+(u.climb>.01?.05*u.climb:0);
  u.head.rotation.x+=((pitch*.6-r.rotation.x*.7+headX)-u.head.rotation.x)*k14;u.head.rotation.z=-r.rotation.z*.8;
