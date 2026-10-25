@@ -133,6 +133,8 @@ input{font-family:inherit;touch-action:auto;user-select:text;-webkit-user-select
 .tb.down{background:rgba(255,255,255,.35)}
 #bJump{right:22px;bottom:112px;width:88px;height:88px}
 #bSwap{right:126px;bottom:42px;width:64px;height:64px}
+#bSlide{right:34px;bottom:210px;width:62px;height:62px}
+body.hub #bSlide{display:none!important}
 #bNade{right:14px;bottom:14px;width:64px;height:64px}
 #bZoom{right:132px;bottom:128px;width:60px;height:60px}#bZoom.on{background:rgba(255,210,63,.55);border-color:#ffd23f;box-shadow:0 0 12px rgba(255,210,63,.6)}
 #bNade img{width:44px;height:30px;object-fit:contain;filter:brightness(1.9) drop-shadow(0 0 1px #fff)}#bNade span{position:absolute;right:6px;bottom:3px;font-size:12px}
