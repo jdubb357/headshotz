@@ -4,15 +4,15 @@ import {THREE,GQ,camoTex} from './gfx.js';
 // key: [name, price, kind, swatch css, premium]
 export const WSKINS={
  default:['Factory',0,'none','linear-gradient(135deg,#555,#999)'],
- carbon:['Carbon Fiber',250,'shader','repeating-linear-gradient(45deg,#111 0 4px,#2b2b2b 4px 8px)'],
- tiger:['Tiger Camo',300,'camo','linear-gradient(120deg,#d07a1e 30%,#222 30% 40%,#d07a1e 40% 70%,#222 70% 80%,#d07a1e 80%)'],
- ice:['Glacier Ice',400,'std','linear-gradient(135deg,#e8f8ff,#7fd3ff 60%,#3a8fc0)'],
- toxic:['Toxic',450,'shader','radial-gradient(circle at 30% 30%,#c6ff3a,#3c9a12 60%,#14300a)'],
- neon:['Neon Pulse',500,'shader','linear-gradient(135deg,#0b0b1a,#ff2bd6 45%,#28f0ff 55%,#0b0b1a)'],
- gold:['Solid Gold',600,'std','linear-gradient(135deg,#fff1a8,#e8b923 45%,#9a6b0c)'],
- lightning:['Lightning',900,'shader','linear-gradient(135deg,#0a1030,#3a7bff 50%,#e8f4ff 52%,#0a1030)',1],
- fire:['Inferno',1100,'shader','linear-gradient(0deg,#3a0500,#ff3c00 45%,#ffb000 75%,#fff3a0)',1],
- galaxy:['Galaxy',1300,'shader','radial-gradient(circle at 60% 40%,#ff7ad9,#6a2bd1 35%,#120a3a 70%,#05030f)',1]};
+ carbon:['Carbon Fiber',125,'shader','repeating-linear-gradient(45deg,#111 0 4px,#2b2b2b 4px 8px)'],
+ tiger:['Tiger Camo',150,'camo','linear-gradient(120deg,#d07a1e 30%,#222 30% 40%,#d07a1e 40% 70%,#222 70% 80%,#d07a1e 80%)'],
+ ice:['Glacier Ice',200,'std','linear-gradient(135deg,#e8f8ff,#7fd3ff 60%,#3a8fc0)'],
+ toxic:['Toxic',225,'shader','radial-gradient(circle at 30% 30%,#c6ff3a,#3c9a12 60%,#14300a)'],
+ neon:['Neon Pulse',250,'shader','linear-gradient(135deg,#0b0b1a,#ff2bd6 45%,#28f0ff 55%,#0b0b1a)'],
+ gold:['Solid Gold',300,'std','linear-gradient(135deg,#fff1a8,#e8b923 45%,#9a6b0c)'],
+ lightning:['Lightning',450,'shader','linear-gradient(135deg,#0a1030,#3a7bff 50%,#e8f4ff 52%,#0a1030)',1],
+ fire:['Inferno',550,'shader','linear-gradient(0deg,#3a0500,#ff3c00 45%,#ffb000 75%,#fff3a0)',1],
+ galaxy:['Galaxy',650,'shader','radial-gradient(circle at 60% 40%,#ff7ad9,#6a2bd1 35%,#120a3a 70%,#05030f)',1]};
 export const WSKIN_IDS=Object.keys(WSKINS);export const WSKIN_FEAT=WSKIN_IDS.filter(k=>WSKINS[k][4]);
 export const skinU={uT:{value:0}};
 export function tickSkins(t){skinU.uT.value=t%600}
