@@ -2,12 +2,13 @@
 import {THREE,FX,TX,MC,G,mergeParts,GQ,texMat,swapMats,WT,GRASS_T,scatterGrass,makeSky,RET,GLASS,camoTex} from './gfx.js';
 import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './wskins.js';
 import {Post} from './post.js';
+import {loadAssets,HQP} from './assets.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
-import {MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL} from './maps.js';
+import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL} from './maps.js';
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts} from './weapons.js';
 import {makeCharacter,animate,LOOKS} from './chars.js';
 // player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
-export const PCL={soldier:{n:'Soldier',p:0,ic:'🪖',perk:'No perk — the classic all-rounder.'},scout:{n:'Scout',p:700,ic:'🎯',perk:'Higher jump · slide recharges 2× faster.',jump:9.6,slideCd:.5},engineer:{n:'Engineer',p:800,ic:'🔧',perk:'+1 grenade / utility each life.',util:1},ninja:{n:'Ninja',p:900,ic:'🥷',perk:'+12% move speed · quiet footsteps · 85 HP.',spd:1.12,hp:85,quiet:1},medic:{n:'Medic',p:1100,ic:'⛑️',perk:'Revives teammates in 3 s (not 5) · regen 3 HP/s after 4 s unhurt.',rev:3,regen:3},juggernaut:{n:'Juggernaut',p:1500,ic:'🛡️',perk:'140 HP · 12% slower.',spd:.88,hp:140}};
+export const PCL={soldier:{n:'Soldier',p:0,ic:'🪖',perk:'No perk — the classic all-rounder.'},scout:{n:'Scout',p:700,ic:'🎯',perk:'Higher jump · slide recharges 2× faster.',jump:9.6,slideCd:.5},engineer:{n:'Engineer',p:800,ic:'🔧',perk:'+1 grenade / utility each life.',util:1},ninja:{n:'Ninja',p:900,ic:'🥷',perk:'+12% move speed · quiet footsteps · full 100 HP.',spd:1.12,quiet:1},medic:{n:'Medic',p:1100,ic:'⛑️',perk:'Revives teammates in 3 s (not 5) · regen 3 HP/s after 4 s unhurt.',rev:3,regen:3},juggernaut:{n:'Juggernaut',p:1500,ic:'🛡️',perk:'140 HP · 12% slower.',spd:.88,hp:140}};
 const PCL_IDS=Object.keys(PCL);const clOf=k=>PCL[k]?k:'soldier';
 const $=id=>document.getElementById(id);
 const GAME='HeadShotz';
@@ -44,7 +45,7 @@ const sun=new THREE.DirectionalLight(0xffffff,1.6);scene.add(sun);scene.add(sun.
 sun.shadow.mapSize.set(isTouch?1024:2048,isTouch?1024:2048);{const c=sun.shadow.camera;c.left=c.bottom=-34;c.right=c.top=34;c.near=1;c.far=220}sun.shadow.bias=-.0004;sun.shadow.normalBias=.035;
 let post=null;const envCache={};let pmrem=null;
 function envFor(i){if(envCache[i])return envCache[i];if(!pmrem)pmrem=new THREE.PMREMGenerator(renderer);const d=cur.def;const sc=new THREE.Scene();
- const sk=d.indoor?makeSky(0x6b7a8c,0x3b4656,0x262b33,null,0xffffff,{clouds:false}):makeSky(d.sky[0],d.sky[1],d.sky[2],cur.sunDir,d.sun[0],{clouds:false});sc.add(sk);
+ const sk=d.indoor?makeSky(0x6b7a8c,0x3b4656,0x262b33,null,0xffffff,{clouds:false}):makeSky(d.sky[0],d.sky[1],d.sky[2],cur.sunDir,d.sun[0],{clouds:false});sc.add(sk);if(ASSETS.skyTex&&!d.indoor){const hm=new THREE.Mesh(new THREE.SphereGeometry(350,32,16),new THREE.MeshBasicMaterial({map:ASSETS.skyTex,side:THREE.BackSide,transparent:true,opacity:.55,depthWrite:false,fog:false}));sc.add(hm)}
  const gnd=new THREE.Mesh(new THREE.CircleGeometry(300,24),new THREE.MeshBasicMaterial({color:new THREE.Color(d.hemi[1]).multiplyScalar(.6)}));gnd.rotation.x=-Math.PI/2;gnd.position.y=-6;sc.add(gnd);
  if(d.indoor)for(let k=0;k<6;k++){const p=new THREE.Mesh(new THREE.PlaneGeometry(6,1.2),new THREE.MeshBasicMaterial({color:new THREE.Color(3,3,3)}));p.rotation.x=Math.PI/2;p.position.set((k%3-1)*8,6,k<3?-4:4);sc.add(p)}
  return envCache[i]=pmrem.fromScene(sc,.02).texture}
@@ -1144,7 +1145,7 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
    c.name=String(m.name||'Player').slice(0,12);c.skin=SKINS[m.skin]?m.skin:'default';c.cl=clOf(m.cl);
    if(c.kind==='player'){this.send(c,{t:'hw',you:c.ord,n:this.n,players:this.players().filter(p=>p!==c).map(p=>[p.ord,p.name,p.skin,...[0,1,2,3].map(i=>(p.pos&&p.pos[i])||0),p.cl])});this.bc({t:'hj',p:[c.ord,c.name,c.skin,c.cl]},id);this.lastPads=''}
    else this.send(c,{t:'hw',you:c.ord,n:this.n});return}
-  if(!c)return;
+  if(!c){if(conn&&conn.open)conn.send({t:'rehi'});else if(!conn)queueMicrotask(()=>hubRecv({t:'rehi'}));return}
   switch(m.t){
    case 'pos':if(Array.isArray(m.p))c.pos=m.p.slice(0,4).map(v=>+v||0);break;
    case 'eq':c.skin=SKINS[m.skin]?m.skin:c.skin;c.cl=clOf(m.cl||c.cl);c.name=String(m.name||c.name).slice(0,12);this.bc({t:'hj',p:[c.ord,c.name,c.skin,c.cl]},id);break;
@@ -1182,6 +1183,7 @@ function hubRecv(m){switch(m.t){
  case 'hj':if(C.hub&&C.phase==='hub'&&m.p[0]!==hubOrd){const[o,n,sk,cl]=m.p;const id='h'+o;const old=C.players[id];addRemote(id,{name:n,team:'A',color:FFACOL[o%10],sk,cl,o:'h'+o});const q=C.players[id];q.alive=true;if(old){q.tp.copy(old.tp);q.rp.copy(old.rp)}if(q.model)q.model.visible=true}break;
  case 'hl':{const q=C.players['h'+m.o];if(q){if(q.model)scene.remove(q.model);delete C.players['h'+m.o]}break}
  case 'hpos':if(C.phase==='hub')for(const r of m.p){const q=C.players['h'+r[0]];if(!q)continue;q.tp.set(r[1]/100,r[2]/100,r[3]/100);q.tyaw=r[4]/100;if(!q.seen){q.seen=1;q.rp.copy(q.tp)}}break;
+ case 'rehi':hubSendHi();break;
  case 'pads':myPads=m.q;window.__pads3=!!(m.q.ffa&&m.q.ffa.F&&m.q.ffa.F.length>=3);ffaEndAt=m.ffa?Date.now()+m.ffa:0;updPadLabels(true);break;
  case 'sel':openMapSel(m);break;
  case 'votes':if(hubSel&&hubSel.sid===m.sid){hubSel.votes=m.votes;renderMapSel()}break;
@@ -1389,7 +1391,7 @@ for(const id of['openFriends','lobFriends','pFriends','hubFriends'])if($(id))$(i
 addEventListener('storage',e=>{if(e.key===LSP+FRK)frReload()});
 setTimeout(()=>{frServe();frSchedule();updFrBadge();if(FR.list.length||FR.out.length)setTimeout(frPoll,1500)},800);
 window.__hsz={PCL,openClasses,vmSkin:()=>{let k=null;if(vmCur)vmCur.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.skin)k=o.material.userData.skin});return k},vmId:()=>me.load[me.cur],FRIENDS:()=>({frPeerOpen:!!(frPeer&&frPeer.open),FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+1.3)-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
-window.__hsz.useUtil=useUtil;window.__hsz.ffaLeft=()=>ffaLeft();window.__hsz.FXT={SFX,VOX:()=>VOX,AC:()=>AC&&AC.state,explosionFX,utilFX,impact,funFX,nearMiss,fire:()=>fire(),muzzle,fires:()=>fires.length,smokes:()=>smokes.length,flash:()=>flashAmt,setVerb,outdoor:()=>outdoor,vol:()=>mVol&&mVol.gain.value,FL:()=>FL.length,spawnNade};window.__hsz.throwSt=()=>({th:!!TH,t:TH&&TH.t,nades:nades.length,spoons:spoons.length,pin:!!(TH&&TH.G.pin),throws:window.__throws||0});
+window.__hsz.useUtil=useUtil;window.__hsz.damage=(v,d,by,h,w)=>damage(v,d,by,h,w);window.__hsz.scene=scene;window.__hsz.ffaLeft=()=>ffaLeft();window.__hsz.FXT={SFX,VOX:()=>VOX,AC:()=>AC&&AC.state,explosionFX,utilFX,impact,funFX,nearMiss,fire:()=>fire(),muzzle,fires:()=>fires.length,smokes:()=>smokes.length,flash:()=>flashAmt,setVerb,outdoor:()=>outdoor,vol:()=>mVol&&mVol.gain.value,FL:()=>FL.length,spawnNade};window.__hsz.throwSt=()=>({th:!!TH,t:TH&&TH.t,nades:nades.length,spoons:spoons.length,pin:!!(TH&&TH.G.pin),throws:window.__throws||0});
 
 // ---- fullscreen: Fullscreen API where it exists (Android Chrome, iPad Safari, desktop); iPhone Safari gets an Add-to-Home-Screen guide
 const FS={api:!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen),
@@ -1430,3 +1432,8 @@ function paintSplat(p,n,owner){const q=C.players[owner];const col=Math.random()<
  fx.sprite({p:pp,s0:.32,s1:.42,life:9,op:.95,color:col});for(let i=0;i<3;i++)fx.sprite({p:pp.clone().add(_v2.set((Math.random()-.5)*.35,(Math.random()-.5)*.35,(Math.random()-.5)*.35)),s0:.12,s1:.16,life:9,op:.9,color:col});if(camera.position.distanceTo(p)<25)SFX.click(900+Math.random()*400,.05)}
 function frost(d){let o=$('frost');if(!o){o=document.createElement('div');o.id='frost';document.body.appendChild(o)}o.classList.add('on');clearTimeout(o._t);o._t=setTimeout(()=>o.classList.remove('on'),d*1000)}
 setInterval(()=>{if(hubConn&&hubConn.open&&!hubConn.local)hubSend({t:'ka'})},2000);
+
+// ---- lazy HD asset load (CC0, see ASSETS.md / Credits) ----
+setTimeout(()=>{if(qLevel()==='low'||/noassets/.test(location.search))return;const bar=$('assetBar');if(bar)bar.classList.remove('hidden');const t0=performance.now();
+ loadAssets((f)=>{if(bar)bar.querySelector('i').style.width=Math.round(f*100)+'%'}).then(ok=>{window.__assets={ok,ms:Math.round(performance.now()-t0),ready:HQP.ready};if(bar)bar.classList.add('hidden');for(const k in envCache)delete envCache[k];if(HQP.ready){const ids=rebuildForProps();window.__propSwap=ids;if(cur&&!C.hub&&ids.includes(C.map)){const nm=buildMap(C.map);scene.remove(cur.group);scene.add(nm.group);cur.group=nm.group;cur.hqProps=true;window.__propSwapLive=1}}if(cur)applyQuality()})},+(new URLSearchParams(location.search).get('assetdelay')||400));
+$('openCredits').onclick=()=>$('credits').classList.remove('hidden');$('credClose').onclick=()=>$('credits').classList.add('hidden');

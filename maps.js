@@ -1,16 +1,18 @@
 // HeadShotz original maps. Built from merged, textured, vertex-AO geometry (few draw calls per map).
 import {newDefs} from './maps2.js';
 import {dress} from './mapdress.js';
+import {HQP} from './assets.js';
+const useHQ=k=>HQP.ready&&HQP.models[k]&&GQ.level!=='low';
 import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng} from './gfx.js';
 const _c=new THREE.Color();
 function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],links=[],nav=[];
  const add=(tex,pt)=>{(T[tex]=T[tex]||[]).push(pt)};
- const B={T,cols,shadows,glows,ladders,hides,links,nav,fxs:[],
+ const B={T,cols,shadows,glows,ladders,hides,links,nav,fxs:[],props:[],
   // axis aligned box, y = bottom
-  box(x,y,z,w,h,d,c,tex='concrete',o={}){add(tex,{g:G('box',w,h,d),p:[x,y+h/2,z],c,uv:o.local?'local':undefined,us:o.us,gy:o.gy??0,ao:o.ao});
+  box(x,y,z,w,h,d,c,tex='concrete',o={}){if(!o.novis)add(tex,{g:G('box',w,h,d),p:[x,y+h/2,z],c,uv:o.local?'local':undefined,us:o.us,gy:o.gy??0,ao:o.ao});
    if(o.solid!==false)cols.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2,s:tex});if(o.shadow!==false&&y<.06&&w*d>.2)shadows.push([x,z,w+.55,d+.55]);return B},
   part(tex,pt,solid){add(tex,pt);if(solid)cols.push(solid);return B},
-  cyl(x,y,z,r,h,c,tex='metal',o={}){add(tex,{g:G('cyl',r,o.r2??r,h,o.seg||10),p:[x,y+h/2,z],c,us:o.us,gy:o.gy??0,ao:o.ao});if(o.solid!==false){const k=r*.85;cols.push({x0:x-k,x1:x+k,y0:y,y1:y+h,z0:z-k,z1:z+k,s:tex})}if(o.shadow!==false&&y<.06)shadows.push([x,z,r*2+.5,r*2+.5]);return B},
+  cyl(x,y,z,r,h,c,tex='metal',o={}){if(!o.novis)add(tex,{g:G('cyl',r,o.r2??r,h,o.seg||10),p:[x,y+h/2,z],c,us:o.us,gy:o.gy??0,ao:o.ao});if(o.solid!==false){const k=r*.85;cols.push({x0:x-k,x1:x+k,y0:y,y1:y+h,z0:z-k,z1:z+k,s:tex})}if(o.shadow!==false&&y<.06)shadows.push([x,z,r*2+.5,r*2+.5]);return B},
   glow(x,y,z,w,h,d,c){glows.push({g:G('box',w,h,d),p:[x,y+h/2,z],c});return B},
   stairs(x,y,z,dir,n,sh,run,width,c,tex='concrete'){for(let i=0;i<n;i++){const h=sh*(i+1),off=run*i+run/2;const o={gy:y};
    if(dir==='x+')B.box(x+off,y,z,run,h,width,c,tex,o);if(dir==='x-')B.box(x-off,y,z,run,h,width,c,tex,o);if(dir==='z+')B.box(x,y,z+off,width,h,run,c,tex,o);if(dir==='z-')B.box(x,y,z-off,width,h,run,c,tex,o)}
@@ -32,8 +34,8 @@ function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],li
    wheel(lx,y,lz,r,w,c){const[a,b]=rot(lx,lz);add('asphalt',{g:G('cyl',r,r,w,10),p:[x+a,y,z+b],r:sw?[Math.PI/2,0,0]:[0,0,Math.PI/2],c});return L},
    glow(lx,y,lz,w,h,d,c){const[a,b]=rot(lx,lz);B.glow(x+a,y,z+b,sw?d:w,h,sw?w:d,c);return L}};return L},
   // ---------- props ----------
-  crate(x,z,s=1.2,y=0,c=0xd2a56a){return B.box(x,y,z,s,s,s,c,'crate',{local:true,gy:y})},
-  barrel(x,z,c=0x2e86de,y=0){B.cyl(x,y,z,.42,1.15,c,'metal',{seg:12,gy:y});for(const h of[.3,.82])add('metal',{g:G('cyl',.44,.44,.06,12),p:[x,y+h,z],c:_c.set(c).multiplyScalar(.7).getHex()});
+  crate(x,z,s=1.2,y=0,c=0xd2a56a){if(useHQ('crate')){B.props.push({k:'crate',x,y,z,s,c,ry:((x*7+z*13)|0)%4*Math.PI/2});return B.box(x,y,z,s,s,s,c,'crate',{novis:true})}return B.box(x,y,z,s,s,s,c,'crate',{local:true,gy:y})},
+  barrel(x,z,c=0x2e86de,y=0){if(useHQ('barrel')){B.props.push({k:'barrel',x,y,z,s:1.15,c,ry:(x*3+z)%6.28});B.cyl(x,y,z,.42,1.15,c,'metal',{seg:12,gy:y,novis:true});return B}B.cyl(x,y,z,.42,1.15,c,'metal',{seg:12,gy:y});for(const h of[.3,.82])add('metal',{g:G('cyl',.44,.44,.06,12),p:[x,y+h,z],c:_c.set(c).multiplyScalar(.7).getHex()});
    add('metal',{g:G('cyl',.38,.38,.02,12),p:[x,y+1.16,z],c:_c.set(c).multiplyScalar(.6).getHex()});return B},
   container(x,z,q,c,y=0){const L=B.at(x,z,q);L.box(0,y,0,6,2.6,2.45,c,'metal',{us:.6,gy:y});const dk=_c.set(c).multiplyScalar(.55).getHex();
    for(const sx of[-2.95,2.95])for(const sz of[-1.18,1.18])L.box(sx,y,sz,.14,2.62,.14,dk,'metal',{solid:false,shadow:false,gy:y});
@@ -253,6 +255,8 @@ export const HUB_I=DEFS.length-1;
 function clear(cols,x,z,r=.6){for(const c of cols)if(x+r>c.x0&&x-r<c.x1&&z+r>c.z0&&z-r<c.z1&&c.y0<1.8&&c.y1>.05)return false;return true}
 function fixSpawn(cols,s,lim){if(clear(cols,s[0],s[1]))return s;for(let rad=.5;rad<6;rad+=.5)for(let a=0;a<16;a++){const x=s[0]+Math.cos(a/16*6.283)*rad,z=s[1]+Math.sin(a/16*6.283)*rad;if(Math.abs(x)<lim[0]-1&&Math.abs(z)<lim[1]-1&&clear(cols,x,z))return[+x.toFixed(2),+z.toFixed(2)]}return s}
 const cache={};
+// drop cached map builds whose crate/barrel props were built before the HD models arrived
+export function rebuildForProps(){const out=[];for(const k in cache){const m=cache[k];if(m.def&&!m.def.hub&&!m.hqProps){delete cache[k];out.push(+k)}}return out}
 export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=Builder();
  const[gt,gc,gu]=d.ground;const[sx,sz]=d.size;const gsize=d.pier?[sx,sz]:[sx+40,sz+40];
  B.part(gt,{g:G('box',gsize[0],1,gsize[1]),p:[0,-.5,0],c:gc,us:gu,ao:false});
@@ -274,7 +278,9 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0]);
  if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
- return cache[i]={def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ if(B.props.length){const by={};for(const q of B.props)(by[q.k]=by[q.k]||[]).push(q);const o=new THREE.Object3D(),col=new THREE.Color();for(const k in by){const M=HQP.models[k],L=by[k];const im=new THREE.InstancedMesh(M.geo,M.mat,L.length);
+  L.forEach((q,j)=>{o.position.set(q.x,q.y,q.z);o.rotation.set(0,q.ry,0);if(k==='crate')o.scale.set(q.s/M.size.x,q.s/M.size.y,q.s/M.size.z);else o.scale.setScalar(q.s/M.size.y);o.updateMatrix();im.setMatrixAt(j,o.matrix);im.setColorAt(j,col.set(0xffffff).lerp(col.clone().set(q.c),k==='barrel'?.55:.15))});im.castShadow=im.receiveShadow=true;im.userData.hqProp=1;group.add(im)}}
+ return cache[i]={hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}

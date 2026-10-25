@@ -46,6 +46,9 @@ const texCache={};
 export function getTex(name){if(texCache[name])return texCache[name];const[c,x]=cvs(name==='plain'?8:128);(TEXGEN[name]||TEXGEN.plain)(x,c.width,rng(name.length*977+name.charCodeAt(0)*31));return texCache[name]=tex(c)}
 // ---------- graphics quality + PBR ----------
 export const GQ={level:'medium'};
+// swap a procedural surface texture for a loaded photo-PBR one (in place, so existing materials update)
+export function hqSwap(name,img,nimg,rep=2){const t=getTex(name);t.image=img;t.repeat.set(rep,rep);t.anisotropy=4;t.needsUpdate=true;
+ if(nimg){let n=nrmCache[name];if(!n){n=new THREE.Texture();n.wrapS=n.wrapT=THREE.RepeatWrapping;n.colorSpace=THREE.NoColorSpace;nrmCache[name]=n}n.image=nimg;n.repeat.set(rep,rep);n.anisotropy=4;n.needsUpdate=true}}
 // normal map from texture luminance (Sobel), tangent-space, linear
 const nrmCache={};
 function normalTex(name,str){if(nrmCache[name])return nrmCache[name];const src=getTex(name).image,n=src.width;const sx=src.getContext('2d').getImageData(0,0,n,n).data;
