@@ -23,21 +23,50 @@ float n3(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(h
 float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<OCT;i++){s+=a*n3(p);p=p*2.03+1.7;a*=.5;}return s;}`;
 const SHADE=`vec3 N=normalize(vN);float dif=.45+.55*max(0.,dot(N,normalize(vec3(.35,.8,.45))));float rim=pow(1.-max(0.,dot(N,normalize(vV))),2.5);`;
 const FS={
-carbon:`void main(){${SHADE}vec2 q=vP.xz*120.+vP.y*60.;float w=step(.5,fract(q.x*.5+step(.5,fract(q.y*.5))*.5));vec3 c=mix(vec3(.05),vec3(.16),w)*dif+vec3(.35)*pow(max(0.,dot(N,normalize(vec3(.2,.9,.4)))),24.)+rim*.15;gl_FragColor=vec4(c,1.);}`,
+carbon:`void main(){${SHADE}vec2 q=vP.xz*120.+vP.y*60.;vec2 cq=floor(q);vec2 fq=fract(q);float w=step(.5,fract(q.x*.5+step(.5,fract(q.y*.5))*.5));float sh=w>.5?fq.y:fq.x;float tow=.55+.45*sin(sh*3.1416);
+ vec3 c=mix(vec3(.035),vec3(.17,.17,.18),w)*tow*dif;vec3 H=normalize(normalize(vec3(.2,.9,.4))+normalize(vV));float sp=pow(max(0.,dot(N,H)),60.);c+=vec3(.55)*sp+vec3(.18)*pow(max(0.,dot(N,H)),8.)*tow;
+#ifdef HQ
+ c+=vec3(.25,.27,.3)*pow(rim,1.5)*.5;
+#endif
+ c+=rim*.12;gl_FragColor=vec4(c,1.);}`,
 toxic:`void main(){${SHADE}float t=uT;vec3 p=vP*22.;float b=fbm(p+vec3(0.,-t*.6,t*.2));float bub=smoothstep(.62,.7,n3(p*2.2+vec3(0.,-t*1.4,0.)));vec3 c=mix(vec3(.05,.18,.02),vec3(.45,1.,.12),b)*dif;c+=vec3(.7,1.,.3)*bub*.8;c+=vec3(.4,1.,.2)*rim*(.6+.4*sin(t*3.));gl_FragColor=vec4(c,1.);}`,
-neon:`void main(){${SHADE}float t=uT;vec3 p=vP*40.;vec3 g=abs(fract(p)-.5);float l=1.-smoothstep(.0,.08,min(min(g.x,g.y),g.z));float pul=.5+.5*sin(t*4.-vP.z*30.);vec3 hue=.5+.5*cos(6.2832*(vec3(0.,.33,.67)+t*.15+vP.z*3.));vec3 c=vec3(.03,.03,.07)*dif+hue*l*(.4+1.2*pul)+hue*rim*.8;gl_FragColor=vec4(c,1.);}`,
-lightning:`void main(){${SHADE}float t=uT;vec3 p=vP*16.;float tt=floor(t*10.);float f=fbm(p+vec3(tt*.37,tt*.71,t*.6));float d1=abs(f-.5);float arc=pow(clamp(.0045/max(d1,.0005),0.,1.8),1.4);float f2=fbm(p*1.9+vec3(-t*1.1,tt*.53,0.));float arc2=pow(clamp(.003/max(abs(f2-.5),.0005),0.,1.5),1.4);
- float fl=step(.3,fract(sin(tt*12.9898)*43758.5453));vec3 base=vec3(.015,.03,.10)*dif+vec3(.03,.07,.25)*fbm(p*.4+t*.25);vec3 c=base+vec3(.45,.7,1.)*arc*(.55+fl*.9)+vec3(.85,.92,1.)*arc2*fl+vec3(.2,.4,1.)*rim*(.3+.4*fl);gl_FragColor=vec4(c,1.);}`,
+neon:`void main(){${SHADE}float t=uT;vec3 p=vP*40.;vec3 g=abs(fract(p)-.5);float m=min(min(g.x,g.y),g.z);float l=1.-smoothstep(.0,.07,m);float glow=1.-smoothstep(.0,.22,m);float pul=.5+.5*sin(t*4.-vP.z*30.);vec3 hue=.5+.5*cos(6.2832*(vec3(0.,.33,.67)+t*.15+vP.z*3.));
+ float scan=.85+.15*sin(vP.y*900.+t*20.);vec3 c=vec3(.02,.02,.05)*dif+hue*(l*(.5+1.3*pul)+glow*.35*pul)*scan+hue*rim*.9;gl_FragColor=vec4(c,1.);}`,
+lightning:`void main(){${SHADE}float t=uT;vec3 p=vP*16.;float tt=floor(t*10.);float fl=step(.3,fract(sin(tt*12.9898)*43758.5453));float fl2=.6+.4*sin(t*37.)*sin(t*23.);
+ float f=fbm(p+vec3(tt*.37,tt*.71,t*.6));float d1=abs(f-.5);float arc=pow(clamp(.0045/max(d1,.0005),0.,1.8),1.4);float halo=exp(-d1*28.)*.35;
+ float f2=fbm(p*1.9+vec3(-t*1.1,tt*.53,0.));float d2=abs(f2-.5);float arc2=pow(clamp(.003/max(d2,.0005),0.,1.5),1.4);
+ float br=0.;
+#ifdef HQ
+ float f3=fbm(p*4.3+vec3(tt*.9,-t*.8,tt*.2));br=pow(clamp(.0022/max(abs(f3-.5),.0004),0.,1.3),1.3)*smoothstep(.09,.0,d1);
+#endif
+ vec3 base=vec3(.015,.03,.10)*dif+vec3(.03,.07,.25)*fbm(p*.4+t*.25);vec3 c=base+vec3(.45,.7,1.)*arc*(.55+fl*.9)*fl2+vec3(.3,.5,1.)*halo*(.5+fl)+vec3(.85,.92,1.)*arc2*fl+vec3(.7,.85,1.)*br*(.4+fl*.8)+vec3(.2,.4,1.)*rim*(.3+.4*fl);gl_FragColor=vec4(c,1.);}`,
 fire:`void main(){${SHADE}float t=uT;vec3 p=vP*14.;vec3 q=p+vec3(0.,-t*2.6,0.);float f=fbm(q+fbm(q*1.3+vec3(0.,-t*1.5,0.))*1.4);float h=clamp(f*1.35-.15+(vP.y*3.),0.,1.);
- vec3 c=mix(vec3(.08,.01,0.),vec3(.9,.12,0.),smoothstep(.2,.5,h));c=mix(c,vec3(1.,.55,0.),smoothstep(.5,.75,h));c=mix(c,vec3(1.,.95,.6),smoothstep(.78,.95,h));c*= .65+.35*dif;c+=vec3(1.,.4,.05)*rim*.6;gl_FragColor=vec4(c,1.);}`,
-galaxy:`void main(){${SHADE}float t=uT;vec3 p=vP*8.;float n=clamp((fbm(p*1.6+vec3(t*.06,0.,t*.04))-.5)*2.6+.5,0.,1.);float n2=clamp((fbm(p*2.6-vec3(0.,t*.05,0.)+n*1.5)-.5)*2.6+.5,0.,1.);vec3 c=vec3(.05,.02,.14);c=mix(c,vec3(.5,.1,.85),smoothstep(.42,.62,n));c=mix(c,vec3(1.,.35,.75),smoothstep(.55,.7,n2)*.85);c=mix(c,vec3(.02,.01,.06),smoothstep(.45,.3,n2)*.7);c=mix(c,vec3(.25,.6,1.),smoothstep(.5,.8,n*n2*2.)*.6);c*=.7+.4*dif;
- vec3 sp=vP*28.;vec3 cell=floor(sp);float r=h3(cell);vec3 fp=fract(sp)-.5;float st=step(.84,r)*(1.-smoothstep(.0,.36,length(fp)));float tw=.4+.6*sin(t*(2.+r*5.)+r*40.);c+=vec3(1.,.97,.9)*st*max(tw,0.)*1.6*STARS;vec3 sp2=vP*70.;float r2=h3(floor(sp2)+7.);float st2=step(.82,r2)*(1.-smoothstep(0.,.25,length(fract(sp2)-.5)));c+=vec3(.85,.9,1.)*st2*(.5+.5*sin(t*3.+r2*30.))*STARS;c=mix(c,c*vec3(.7,.8,1.3),smoothstep(.5,.2,n));c+=vec3(.6,.4,1.)*rim*.6;gl_FragColor=vec4(c,1.);}`};
+#ifdef HQ
+ float f2=fbm(p*2.2+vec3(t*.3,-t*4.,0.));h=clamp(max(h,f2*1.25-.25+vP.y*2.)*.7+h*.4,0.,1.);
+#endif
+ vec3 c=mix(vec3(.08,.01,0.),vec3(.9,.12,0.),smoothstep(.2,.5,h));c=mix(c,vec3(1.,.55,0.),smoothstep(.5,.75,h));c=mix(c,vec3(1.,.95,.6),smoothstep(.78,.95,h));c*= .65+.35*dif;
+ float glow=.5+.5*sin(t*2.3+vP.z*9.);c+=vec3(.35,.06,0.)*glow*(1.-h);
+ vec3 ep=vP*45.+vec3(0.,-t*2.2,0.);vec3 ec=floor(ep);float er=h3(ec);float em=step(.93,er)*(1.-smoothstep(0.,.3,length(fract(ep)-.5)))*(.5+.5*sin(t*9.+er*50.));c+=vec3(1.,.75,.3)*em*1.6;
+ c+=vec3(1.,.4,.05)*rim*.7;gl_FragColor=vec4(c,1.);}`,
+galaxy:`void main(){${SHADE}float t=uT;vec3 V=normalize(vV);vec3 p=vP*8.;float n=clamp((fbm(p*1.6+vec3(t*.06,0.,t*.04))-.5)*2.6+.5,0.,1.);float n2=clamp((fbm(p*2.6-vec3(0.,t*.05,0.)+n*1.5)-.5)*2.6+.5,0.,1.);
+ vec3 c=vec3(.05,.02,.14);c=mix(c,vec3(.5,.1,.85),smoothstep(.42,.62,n));c=mix(c,vec3(1.,.35,.75),smoothstep(.55,.7,n2)*.85);c=mix(c,vec3(.02,.01,.06),smoothstep(.45,.3,n2)*.7);c=mix(c,vec3(.25,.6,1.),smoothstep(.5,.8,n*n2*2.)*.6);
+#ifdef HQ
+ float n3v=clamp((fbm(p*4.+V*1.2+vec3(0.,0.,t*.08))-.5)*3.+.5,0.,1.);c=mix(c,vec3(.15,.85,.95),smoothstep(.6,.85,n3v)*.35);c+=vec3(1.,.5,.9)*pow(n*n2,3.)*.6;
+#endif
+ c*=.7+.4*dif;
+ vec3 sp=vP*28.+V*.35;vec3 cell=floor(sp);float r=h3(cell);vec3 fp=fract(sp)-.5;float st=step(.84,r)*(1.-smoothstep(.0,.36,length(fp)));float tw=.4+.6*sin(t*(2.+r*5.)+r*40.);c+=vec3(1.,.97,.9)*st*max(tw,0.)*1.6*STARS;
+ vec3 sp2=vP*70.+V*.9;float r2=h3(floor(sp2)+7.);float st2=step(.82,r2)*(1.-smoothstep(0.,.25,length(fract(sp2)-.5)));c+=vec3(.85,.9,1.)*st2*(.5+.5*sin(t*3.+r2*30.))*STARS;
+#ifdef HQ
+ float ph=floor(t/1.8);float pt=fract(t/1.8);vec3 dir=normalize(vec3(h3(vec3(ph,1.,2.))-.5,h3(vec3(ph,3.,1.))-.5,h3(vec3(2.,ph,5.))-.5));vec3 up=normalize(cross(dir,vec3(.3,1.,.2)));
+ float u=dot(vP,dir)*10.,v=dot(vP,up)*10.-(h3(vec3(ph,9.,9.))-.5)*2.;float head=(pt*3.-1.5);float tail=clamp((head-u)/.6,0.,1.);float ss=step(0.,head-u)*(1.-tail)*exp(-abs(v)*90.)*smoothstep(1.,.6,pt);c+=vec3(1.,.95,.85)*ss*2.5;
+#endif
+ c=mix(c,c*vec3(.7,.8,1.3),smoothstep(.5,.2,n));c+=vec3(.6,.4,1.)*rim*.6;gl_FragColor=vec4(c,1.);}`};
 const cache={};
 export function skinMat(key){const lo=GQ.level==='low';const ck=key+(lo?'_lo':'');if(cache[ck])return cache[ck];const S=WSKINS[key];if(!S||S[2]==='none')return null;let m;
- if(key==='gold')m=new THREE.MeshStandardMaterial({color:0xffc93c,metalness:.6,roughness:.26,emissive:0x5a3a00,emissiveIntensity:.7});
- else if(key==='ice')m=new THREE.MeshStandardMaterial({color:0xdaf5ff,metalness:.25,roughness:.1,emissive:0x2f7aa6,emissiveIntensity:.75});
+ if(key==='gold')m=lo?new THREE.MeshStandardMaterial({color:0xffc93c,metalness:.6,roughness:.26,emissive:0x5a3a00,emissiveIntensity:.7}):new THREE.MeshPhysicalMaterial({color:0xffcf4a,metalness:.85,roughness:.2,clearcoat:1,clearcoatRoughness:.08,emissive:0x4a2e00,emissiveIntensity:.55,sheen:.3,sheenColor:new THREE.Color(0xfff0b0)});
+ else if(key==='ice')m=lo?new THREE.MeshStandardMaterial({color:0xdaf5ff,metalness:.25,roughness:.1,emissive:0x2f7aa6,emissiveIntensity:.75}):new THREE.MeshPhysicalMaterial({color:0xd6f3ff,metalness:.1,roughness:.18,clearcoat:1,clearcoatRoughness:.02,iridescence:.6,iridescenceIOR:1.3,emissive:0x2f7aa6,emissiveIntensity:.6,sheen:.6,sheenColor:new THREE.Color(0xbfefff)});
  else if(key==='tiger')m=new THREE.MeshStandardMaterial({map:camoTex(0xd07a1e),metalness:.15,roughness:.6});
- else{const fs=`uniform float uT;varying vec3 vP;varying vec3 vN;varying vec3 vV;#define OCT ${lo?2:(key==='fire'?3:2)}\n#define STARS ${lo?'0.6':'1.0'}\n`.replace('#define','\n#define')+NOISE+FS[key].replace(/gl_FragColor=vec4\(c,1\.\);\}$/,'gl_FragColor=vec4(c,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}');
+ else{const fs=`uniform float uT;varying vec3 vP;varying vec3 vN;varying vec3 vV;#define OCT ${lo?2:(key==='fire'?3:2)}\n#define STARS ${lo?'0.6':'1.0'}\n${lo?'':'#define HQ\n'}`.replace('#define','\n#define')+NOISE+FS[key].replace(/gl_FragColor=vec4\(c,1\.\);\}$/,'gl_FragColor=vec4(c,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}');
   m=new THREE.ShaderMaterial({uniforms:skinU,vertexShader:VS,fragmentShader:fs});m.userData.anim=1}
  m.userData.skin=key;return cache[ck]=m}
 export function clearSkinCache(){for(const k in cache)delete cache[k]}
