@@ -3,7 +3,7 @@ import {THREE,FX,TX,MC,G,mergeParts,GQ,texMat,swapMats,WT,GRASS_T,scatterGrass,m
 import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './wskins.js';
 import {Post} from './post.js';
 import {TURN} from './ice.js';
-import {MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles} from './maps.js';
+import {MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL} from './maps.js';
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts} from './weapons.js';
 import {makeCharacter,animate,LOOKS} from './chars.js';
 // player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
@@ -1082,7 +1082,7 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
  drop(id){const c=this.cl[id];if(!c)return;delete this.cl[id];for(const k in this.rooms)if(this.rooms[k].by===id)delete this.rooms[k];if(c.kind==='player'){this.bc({t:'hl',o:c.ord});this.lastPads=''}}
  tick(){const now=Date.now();const ps=this.players();const free=ps.filter(p=>!p.busy);
   // queue = who is physically standing inside each circle (server-side check, so leaving a circle unqueues instantly)
-  const st={};for(const p of HUB_PADS){st[p.k]={};for(const c of padCircles(p))st[p.k][c.side]=free.filter(q=>Math.hypot(q.pos[0]-c.x,q.pos[2]-c.z)<c.r).sort((a,b)=>a.ord-b.ord).slice(0,p.n).map(q=>q.id)}
+  const st={};for(const p of HUB_PADS){st[p.k]={};for(const c of padCircles(p))st[p.k][c.side]=free.filter(q=>inPad(c,q.pos[0],q.pos[2])).sort((a,b)=>a.ord-b.ord).slice(0,p.n).map(q=>q.id)}
   const key=JSON.stringify(st);if(key!==this.lastPads){this.lastPads=key;const o={};for(const k in st){o[k]={};for(const s in st[k])o[k][s]=st[k][s].map(id=>this.cl[id].ord)}this.bc({t:'pads',q:o});
    if(st.ffa.F.length!==this.ffaN){this.ffaN=st.ffa.F.length;this.ffaT=now}}
   for(const p of HUB_PADS){const s=st[p.k];if(p.single){const n=s.F.length;if(n>=p.n||(n>=2&&now-this.ffaT>15000)){this.startSel(p,s);this.ffaT=now}}else if(s.A.length>=p.n&&s.B.length>=p.n)this.startSel(p,s)}
@@ -1117,28 +1117,42 @@ function enterHubWorld(m){setTimeout(()=>{if(C.hub&&Object.keys(THUMB).length<MA
  inGame=true;resize();const a=Math.random()*6.28;me.pos.set(Math.cos(a)*2.5,0,4+Math.sin(a)*2);me.vel.set(0,0,0);me.yaw=Math.PI;me.pitch=-.05;me.hp=100;me.alive=true;me.frozen=false;me.id='hub-me';
  if(sessionStorage.getItem('hsz_requeue')){sessionStorage.removeItem('hsz_requeue');try{const lp=JSON.parse(sessionStorage.getItem('hsz_pad')||'null');const P=lp&&HUB_PADS.find(p=>p.k===lp[0]);const c=P&&padCircles(P).find(c=>c.side===lp[1]);if(c){me.pos.set(c.x,0,c.z);me.yaw=c.side==='A'?-Math.PI/2:c.side==='B'?Math.PI/2:Math.PI;center('⚔️ Re-queued — waiting for players',2500)}}catch(e){}}
  setViewModel(me.load[0]);buildSlots();updHP();for(const r of m.players||[]){hubRecv({t:'hj',p:[r[0],r[1],r[2],r[7]]});const q=C.players['h'+r[0]];if(q){q.tp.set(r[3],r[4],r[5]);q.rp.copy(q.tp);q.seen=1}}
- center('🏠 HEADSHOTZ HUB\nWalk onto a glowing circle to queue',3500);updHubInfo()}
+ center('🏠 HEADSHOTZ HUB\nStep onto a glowing square to queue',3500);updHubInfo()}
 function updHubInfo(){const n=Object.keys(C.players).length+1;$('hubInfo').innerHTML=`<b>HUB #${hubN}</b> · ${n} online · 💎 <b class="diaBal">${PROG.dia}</b>${hubSrv?' · <small>you host the hub</small>':''}`}
 function labelTex(lines,col){const c=document.createElement('canvas');c.width=512;c.height=192;const x=c.getContext('2d');x.textAlign='center';x.fillStyle='rgba(10,14,35,.6)';x.beginPath();x.roundRect?x.roundRect(16,16,480,160,36):x.rect(16,16,480,160);x.fill();
  x.fillStyle=col;x.font='900 70px system-ui,Arial Black,sans-serif';x.fillText(lines[0],256,88);x.fillStyle='#fff';x.font='800 50px system-ui,sans-serif';x.fillText(lines[1]||'',256,150);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t}
-function buildPadVis(){if(hubVis){scene.remove(hubVis.g)}const g=new THREE.Group();hubVis={g,rings:[],labels:{}};
- const COL={A:0x3fa9ff,B:0xff5a6b,F:0xffd23f};
- for(const p of HUB_PADS)for(const c of padCircles(p)){const col=new THREE.Color(COL[c.side]);
-  const ring=new THREE.Mesh(new THREE.RingGeometry(c.r-.16,c.r,56),new THREE.MeshBasicMaterial({color:col.clone().multiplyScalar(2.6),side:THREE.DoubleSide,toneMapped:true}));ring.rotation.x=-Math.PI/2;ring.position.set(c.x,.1,c.z);
-  const fill=new THREE.Mesh(new THREE.CircleGeometry(c.r-.16,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.16,depthWrite:false,blending:THREE.AdditiveBlending}));fill.rotation.x=-Math.PI/2;fill.position.set(c.x,.09,c.z);
+function buildPadVis(){if(hubVis){scene.remove(hubVis.g)}const g=new THREE.Group();hubVis={g,rings:[],labels:{},npcs:[]};
+ const SIDE={A:0x3fa9ff,B:0xff5a6b,F:0xffd23f};const lo=GQ.level==='low';
+ for(const p of HUB_PADS)for(const c of padCircles(p)){const col=new THREE.Color(PAD_COL[p.k]||0xffffff),h=c.h;
+  const edge=new THREE.Group();const em=new THREE.MeshBasicMaterial({color:col.clone().multiplyScalar(2.4),transparent:true,opacity:.95,depthWrite:false,blending:THREE.AdditiveBlending});
+  for(const[w,d,x,z]of[[2*h,.14,0,-h],[2*h,.14,0,h],[.14,2*h,-h,0],[.14,2*h,h,0]]){const m=new THREE.Mesh(new THREE.BoxGeometry(w,.05,d),em);m.position.set(x,0,z);edge.add(m)}
+  for(const[x,z]of[[-h,-h],[h,-h],[-h,h],[h,h]]){const post=new THREE.Mesh(new THREE.BoxGeometry(.16,.9,.16),em);post.position.set(x,.45,z);edge.add(post)}
+  edge.position.set(c.x,.11,c.z);
+  const fill=new THREE.Mesh(new THREE.PlaneGeometry(2*h-.2,2*h-.2),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending}));fill.rotation.x=-Math.PI/2;fill.position.set(c.x,.1,c.z);
+  const sideBar=new THREE.Mesh(new THREE.PlaneGeometry(2*h-.6,.35),new THREE.MeshBasicMaterial({color:new THREE.Color(SIDE[c.side]).multiplyScalar(1.8),transparent:true,opacity:.8,depthWrite:false}));sideBar.rotation.x=-Math.PI/2;sideBar.position.set(c.x,.105,c.z+h-.45);
+  let pts=null;if(!lo){const N=28,pos=new Float32Array(N*3),seed=new Float32Array(N);for(let i=0;i<N;i++){seed[i]=Math.random();const e=i%4,t=Math.random()*2-1;pos[i*3]=c.x+(e<2?t*h:(e===2?-h:h));pos[i*3+2]=c.z+(e<2?(e===0?-h:h):t*h)}
+   const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.BufferAttribute(pos,3));pts=new THREE.Points(gg,new THREE.PointsMaterial({size:.16,map:TX.soft,color:col,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));pts.userData.seed=seed;pts.frustumCulled=false;g.add(pts)}
   const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex([MODES[p.k][0].split(' ')[0],'0/'+p.n],'#'+col.getHexString()),depthWrite:false,transparent:true}));spr.scale.set(3.2,1.2,1);spr.position.set(c.x,2.9,c.z);
-  g.add(ring,fill,spr);hubVis.rings.push({ring,fill,c,p});hubVis.labels[p.k+c.side]={spr,col:'#'+col.getHexString(),p,c}}
- for(const s of HUB_ST){const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex([s.name.split(' ')[0],s.name.split(' ').slice(1).join(' ')],'#ffd23f'),depthWrite:false,transparent:true}));spr.scale.set(3.6,1.35,1);spr.position.set(s.x+(s.k==='practice'?0:1.2),4.3,s.z);g.add(spr)}
+  g.add(edge,fill,sideBar,spr);hubVis.rings.push({edge,em,fill,pts,c,p});hubVis.labels[p.k+c.side]={spr,col:'#'+col.getHexString(),p,c}}
+ for(const s of HUB_ST){const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex([s.name.split(' ')[0],s.name.split(' ').slice(1).join(' ')],'#'+new THREE.Color(s.col||0xffd23f).getHexString()),depthWrite:false,transparent:true}));spr.scale.set(3.6,1.35,1);spr.position.set(s.x+(s.k==='practice'?0:1.2),5.3,s.z);g.add(spr);
+  if(s.npc){const m=makeCharacter(s.col,s.npc,'npc'+s.k,0xffffff,null,s.cls);m.position.set(s.x+.35,0,s.z);m.rotation.y=-Math.PI/2;g.add(m);hubVis.npcs.push({m,s,wave:0,near:false})}}
  scene.add(g);updPadLabels()}
+function updNPCs(dt,now){if(!hubVis)return;const t=now/1000;for(const n of hubVis.npcs){const u=n.m.userData;const ps=[me.pos,...Object.values(C.players).filter(q=>q.rp).map(q=>q.rp)];let best=null,bd=7;for(const p of ps){const d=Math.hypot(p.x-n.m.position.x,p.z-n.m.position.z);if(d<bd){bd=d;best=p}}
+  animate(n.m,{speed:0,pitch:0,dist:camera.position.distanceTo(n.m.position)},dt);
+  const near=!!best;if(near&&!n.near)n.wave=1.6;n.near=near;
+  if(best){const dx=best.x-n.m.position.x,dz=best.z-n.m.position.z;let a=Math.atan2(-dx,-dz)-n.m.rotation.y;a=Math.atan2(Math.sin(a),Math.cos(a));a=Math.max(-1,Math.min(1,a));u.head.rotation.y+=(a-u.head.rotation.y)*Math.min(1,dt*5);if(u.torso)u.torso.rotation.y=a*.3}else u.head.rotation.y*=.95;
+  if(n.wave>0){n.wave-=dt;u.aim.rotation.x=-1.9+Math.sin(t*12)*.25;u.aim.rotation.z=Math.sin(t*12)*.15}else{u.aim.rotation.x+=(.55-u.aim.rotation.x)*Math.min(1,dt*4);u.aim.rotation.z*=.9}}}
 function updPadLabels(){if(!hubVis)return;for(const k in hubVis.labels){const L=hubVis.labels[k];const n=myPads&&myPads[L.p.k]?(myPads[L.p.k][L.c.side]||[]).length:0;const side=L.c.side==='A'?'BLUE':L.c.side==='B'?'RED':'FFA';
   const key=n+'';if(L.k===key)continue;L.k=key;L.spr.material.map.dispose();L.spr.material.map=labelTex([MODES[L.p.k][0].split(' ')[0]+' '+side,`${n}/${L.p.n}`],L.col);L.spr.material.needsUpdate=true}
  let mine=null;if(myPads)for(const k in myPads)for(const s in myPads[k])if(myPads[k][s].includes(hubOrd))mine=[k,s];if(mine)lastPad=mine;
  $('padInfo').textContent=mine?`Queued: ${MODES[mine[0]][0]} · ${mine[1]==='A'?'BLUE':mine[1]==='B'?'RED':'FFA'} side — waiting for players… step off to leave`:''}
 function updHub(dt,now){if(C.phase!=='hub')return;hubPosT+=dt;if(hubPosT>=.125){hubPosT=0;hubSend({t:'pos',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(2)]})}
- if(hubVis)for(const r of hubVis.rings){const inside=Math.hypot(me.pos.x-r.c.x,me.pos.z-r.c.z)<r.c.r;const s=1+Math.sin(now/300+r.c.x)*.015;r.ring.scale.setScalar(s);r.fill.material.opacity=inside?.34+Math.sin(now/150)*.08:.14}
+ if(hubVis){updNPCs(dt,now);for(const r of hubVis.rings){const inside=inPad(r.c,me.pos.x,me.pos.z);const n=myPads&&myPads[r.p.k]?(myPads[r.p.k][r.c.side]||[]).length:0;const fr=n/r.p.n;const rate=150+450*(1-fr);const pl=.5+.5*Math.sin(now/rate+r.c.x);
+  r.em.opacity=.55+.45*pl;r.edge.scale.set(1+pl*.012*(1+fr),1+fr*1.5,1+pl*.012*(1+fr));r.fill.material.opacity=(inside?.3:.1)+fr*.25+pl*.06;
+  if(r.pts){const pa=r.pts.geometry.attributes.position,sd=r.pts.userData.seed;for(let i=0;i<pa.count;i++){let y=((now/1000)*(.6+fr*1.2+sd[i]*.4)+sd[i]*3)%2.2;pa.array[i*3+1]=.1+y}pa.needsUpdate=true;r.pts.material.opacity=.5+fr*.5}}}
  let st=null,bd=3.2;for(const s of HUB_ST){const d=Math.hypot(me.pos.x-s.x,me.pos.z-s.z);if(d<bd){bd=d;st=s}}const b=$('stationBtn');if(st){b.textContent='TAP: '+st.name;b.dataset.k=st.k;b.classList.remove('hidden')}else b.classList.add('hidden');
  if(Math.random()<dt)updHubInfo()}
-function useStation(k){if(k==='shop')openArsenal(null,'shop');else if(k==='upgrade')openArsenal(null,'upgrade');else if(k==='arsenal')openArsenal();else if(k==='classes')openClasses();else if(k==='practice'){location.href=location.pathname+'?offline=1'+(/[?&]net=local/.test(location.search)?'&net=local':'')}}
+function useStation(k){if(k==='shop')openArsenal(null,'shop');else if(k==='upgrade')openArsenal(null,'upgrade');else if(k==='arsenal')openArsenal();else if(k==='classes')openClasses();else if(k==='skins')openArsenal('skins');else if(k==='practice'){location.href=location.pathname+'?offline=1'+(/[?&]net=local/.test(location.search)?'&net=local':'')}}
 $('stationBtn').onclick=()=>useStation($('stationBtn').dataset.k);
 // ---------- map selection (5 s, majority wins, random tie-break on the hub host) ----------
 let mapSelIv=null;

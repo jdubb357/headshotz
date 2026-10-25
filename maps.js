@@ -210,11 +210,13 @@ export const MAPS=DEFS.map(d=>({name:d.name,desc:d.desc,icon:d.icon,def:d}));
 // ---------- 3D MAIN HUB (not in the map vote) ----------
 // queue pads: pairs of circles (blue A / red B); radius scales with team size so n players fit side by side
 export const PAD_R=n=>1.15+.5*n;
+export const PAD_COL={duel:0xff8a3d,team:0x2fd5ff,t3:0x4cff7a,t4:0xb37bff,t5:0xff4fa3,ffa:0xffd23f};
+export function inPad(c,x,z){return Math.abs(x-c.x)<c.h&&Math.abs(z-c.z)<c.h}
 export const HUB_PADS=[
- {k:'duel',n:1,x:-20,z:-15},{k:'team',n:2,x:-6,z:-15},{k:'t3',n:3,x:10.5,z:-15},
- {k:'t4',n:4,x:-12,z:12},{k:'t5',n:5,x:8,z:12},{k:'ffa',n:8,x:25,z:13,single:1}];
-export function padCircles(p){const r=p.single?3.2:PAD_R(p.n);if(p.single)return[{side:'F',x:p.x,z:p.z,r}];const off=r+.7;return[{side:'A',x:p.x-off,z:p.z,r},{side:'B',x:p.x+off,z:p.z,r}]}
-export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'classes',name:'🎭 CLASS BOOTH',x:-27,z:-11}];
+ {k:'duel',n:1,x:-15,z:-15},{k:'team',n:2,x:0,z:-15},{k:'t3',n:3,x:15,z:-15},
+ {k:'t4',n:4,x:-13,z:13},{k:'t5',n:5,x:3,z:13},{k:'ffa',n:8,x:18.5,z:13,single:1}];
+export function padCircles(p){const h=p.single?3.2:Math.min(3.1,.95+.45*p.n);const r=h;if(p.single)return[{side:'F',x:p.x,z:p.z,r,h}];const off=h+.45;return[{side:'A',x:p.x-off,z:p.z,r,h},{side:'B',x:p.x+off,z:p.z,r,h}]}// square pads: h = half side
+export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3,col:0xffb020,npc:'Gus',cls:'soldier'},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5,col:0xb06bff,npc:'Ivy',cls:'engineer'},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'classes',name:'🎭 CLASS BOOTH',x:-27,z:-11,col:0x3fa9ff,npc:'Kai',cls:'ninja'},{k:'skins',name:'🎨 SKIN STUDIO',x:-27,z:13,col:0xff4fa3,npc:'Remy',cls:'scout'}];
 DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,48],ground:['tiles',0x9aa3b5,.22],grade:[1,1,1.04,1.15,1.06],horizon:'city',
  sky:[0x24306e,0xff8fa3,0xffc59a],fog:[0xd99aa8,60,160],hemi:[0xe8e4ff,0x6a5a7a,1.35],sun:[0xffd6b0,1.7,[-.4,.55,-.6]],
  build(B){// perimeter: glassy towers + low walls
@@ -223,10 +225,23 @@ DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,
   B.cyl(0,0,-1,3.2,.5,0xd9dde6,'concrete',{seg:24});B.glow(0,.5,-1,5.6,.05,5.6,0xffd23f);B.cyl(0,.5,-1,1.1,2.2,0x2b2f3a,'metal',{seg:16});
   B.part('metal',{g:G('ico',1.1,1),p:[0,3.4,-1],c:0xffd23f});B.glow(0,2.7,-1,.3,.05,.3,0xffffff);
   // pad platforms (low daises) and lane markings
-  for(const p of HUB_PADS){for(const c of padCircles(p))B.cyl(c.x,0,c.z,c.r+.35,.08,0x2a3045,'concrete',{seg:32,solid:false,shadow:false})}
+  for(const p of HUB_PADS){for(const c of padCircles(p)){B.box(c.x,0,c.z,c.h*2+.5,.08,c.h*2+.5,0x232838,'metal',{solid:false,shadow:false});B.box(c.x,.08,c.z,c.h*2-.1,.012,c.h*2-.1,0x1a1e2b,'tiles',{solid:false,shadow:false})}}
   // stations: kiosks with glowing screens
-  const kiosk=(x,z,col)=>{B.box(x,0,z,2.4,2.6,1.4,0x2b2f3a,'metal');B.box(x+.75,0,z,.12,2.4,1.2,col,'metal',{solid:false,shadow:false});B.glow(x+.72,1.2,z,.06,1.1,1.05,col);B.box(x,2.6,z,2.8,.25,1.8,col,'metal',{solid:false,shadow:false});B.glow(x,2.85,z,2.6,.08,1.6,col)};
-  kiosk(-27,-3,0xffb020);kiosk(-27,5,0xb06bff);kiosk(-27,-11,0x3fa9ff);
+  // storefronts: back wall, side walls, counter, striped awning, lit sign, shelves with displayed goods, ceiling light
+  const store=(st)=>{const{x,z,col,k}=st;const W=6.2,bx=x-2.2,fx=x+1.1;const dk=0x2b2f3a,wd=0x6b4a33;
+   B.box(bx,0,z,.3,4,W,0x3a3f4f,'brick');for(const s of[-1,1])B.box(x-.6,0,z+s*(W/2-.15),3.4,4,.3,0x3a3f4f,'brick');B.box(x-.6,4,z,3.6,.25,W+.2,dk,'metal',{solid:false});
+   B.box(fx,0,z,.7,1.1,W-1.6,wd,'planks');B.box(fx+.05,1.1,z,.85,.07,W-1.4,0xd9d2c0,'tiles',{solid:false});B.glow(fx+.38,.15,z,.02,.08,W-1.7,col);// counter + top + kick light
+   for(let i=0;i<7;i++)B.box(x+1.2,3.25-i*.012,z-W/2+.45+i*(W-.9)/7+(W-.9)/14,1.6,.06,(W-.9)/7,i%2?0xffffff:col,'plain',{solid:false,shadow:false});// awning stripes (slanted via step)
+   B.box(x+1.95,2.9,z,.06,.35,W-.6,col,'plain',{solid:false,shadow:false});
+   B.box(x+.5,4.25,z,.18,.9,W-1.2,dk,'metal',{solid:false,shadow:false});B.glow(x+.6,4.35,z,.02,.7,W-1.5,col);// sign board
+   for(const y of[1.2,2.0,2.8]){B.box(bx+.4,y,z,.5,.05,W-.9,wd,'planks',{solid:false,shadow:false});B.glow(bx+.62,y-.04,z,.02,.02,W-1,0xfff1d6)}// shelves + strip lights
+   B.glow(x-.6,3.95,z,1.6,.03,1.2,0xfff1d6);
+   for(let si=0;si<3;si++){const y=1.25+si*.8;for(let i=0;i<5;i++){const zz=z-W/2+1+i*(W-2)/4;if(k==='shop'){B.box(bx+.45,y,zz,.08,.12,.7,0x8a9099,'metal',{solid:false,shadow:false});B.box(bx+.45,y+.12,zz+.15,.08,.18,.08,0x8a9099,'metal',{solid:false,shadow:false});B.glow(bx+.5,y-.01,zz,.02,.02,.7,0xffb020)}
+    else if(k==='skins'){const cs=[0xff4fa3,0x2fd5ff,0xffd23f,0x9b59ff,0x4cff7a];B.box(bx+.45,y,zz,.06,.1,.6,cs[(i+si)%5],'metal',{solid:false,shadow:false});if((i+si)%2)B.glow(bx+.49,y+.02,zz,.01,.06,.5,cs[(i+si+2)%5])}
+    else if(k==='classes'){B.part('metal',{g:G('sph',.13,10,8),p:[bx+.45,y+.13,zz],s:[1,.8,1.1],c:[0x4b5344,0x15161a,0x2f3338,0xe9ecef,0x6b5b3e][i]})}
+    else{B.glow(bx+.45,y+.02,zz,.04,.22,.22,[0xffd23f,0xb06bff,0x2fd5ff][(i+si)%3])}}}
+   if(!B.lo)B.box(x+1.8,0,z+W/2-.3,.5,.9,.5,0x9c7a4b,'crate',{local:true})};
+  for(const st of HUB_ST)if(st.col)store(st);
   // practice portal arch
   B.box(28,0,-6,.8,4.2,.8,0x2b2f3a,'metal');B.box(28,0,-2,.8,4.2,.8,0x2b2f3a,'metal');B.box(28,4.2,-4,.8,.7,4.8,0x2b2f3a,'metal');B.glow(28,.05,-4,.1,4.1,3.2,0x2ee59d);
   // benches, planters, lamps for life
