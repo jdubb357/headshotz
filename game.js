@@ -365,6 +365,10 @@ const me={id:null,pos:new THREE.Vector3(),vel:new THREE.Vector3(),ground:false,y
 try{const l=JSON.parse(LS('load2')||'null');if(l&&l.length===4&&l.every((k,i)=>W[k]&&W[k].slot===i&&owns(k)))me.load=l}catch(e){}
 const C={byOrd:{},players:{},phase:'lobby',map:0,mode:'team',score:{},round:0,hostId:null,roundT:0,sb:{}};
 let isHost=false,peer=null,conn=null,roomCode='';
+let DMTEX=null;function downMark(q,dn){if(!dn){if(q.dnM)q.dnM.visible=false;return}
+ if(!q.dnM){if(!DMTEX){const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d');x.beginPath();x.arc(64,64,54,0,7);x.fillStyle='rgba(200,20,30,.92)';x.fill();x.lineWidth=8;x.strokeStyle='#fff';x.stroke();x.fillStyle='#fff';x.fillRect(52,28,24,72);x.fillRect(28,52,72,24);DMTEX=new THREE.CanvasTexture(cv)}
+  q.dnM=new THREE.Sprite(new THREE.SpriteMaterial({map:DMTEX,transparent:true,depthWrite:false}));q.dnM.position.y=1.55;q.model.add(q.dnM)}
+ const mate=!isEnemy(q);const m=q.dnM;m.visible=true;m.material.depthTest=!mate;m.renderOrder=mate?10:0;const pu=1+Math.sin(performance.now()/180)*.12;const sc=(mate?.55:.38)*pu;m.scale.set(sc,sc,1);m.material.opacity=mate?1:.75}
 function isEnemy(q){if(q.id===me.id)return false;if(C.mode==='ffa')return true;const mt=C.players[me.id]?.team;return q.team!==mt}
 // ---------------- network ----------------
 const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},...TURN]};
@@ -993,7 +997,7 @@ function updRemotes(dt){const a=Math.min(1,dt*14);for(const id in C.players){con
  if(!q.alive&&!u.dead){q.model.visible=false;continue}if(u.dead>3){q.model.visible=false;continue}q.model.visible=true;
  if(q.alive){if(q.rp.distanceTo(q.tp)>6)q.rp.copy(q.tp);else q.rp.lerp(q.tp,a);let dy=q.tyaw-q.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));q.yaw+=dy*a;q.pitch+=(q.tpitch-q.pitch)*a}
  const sp=Math.hypot(q.rp.x-q.lp.x,q.rp.z-q.lp.z)/Math.max(dt,.001);q.lp.copy(q.rp);q.spd=(q.spd||0)+(sp-(q.spd||0))*Math.min(1,dt*8);
- if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);q.model.rotation.y=q.yaw;{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);animate(q.model,{speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,pitch:q.pitch,climb:cl,down:dn,dist:camera.position.distanceTo(q.rp)},dt);q.model.rotation.x=0}}}
+ if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);q.model.rotation.y=q.yaw;{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);animate(q.model,{speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,pitch:q.pitch,climb:cl,down:dn,dist:camera.position.distanceTo(q.rp)},dt);q.model.rotation.x=0;downMark(q,dn)}}}
 // ================= LOOP =================
 renderer.autoClear=false;renderer.info.autoReset=false;
 let last=performance.now(),acc=0,frames=0,fpsShown=0;const fpsLog=[];

@@ -176,7 +176,7 @@ export function animate(m,st,dt){const u=m.userData;const sp=Math.min(st.speed,1
  if(st.air&&!st.climb){legA=[.55,-.15];shA=[-1.0,-.35];rigY=0}
  if(u.climb>.01){const k=u.climb,cs=Math.sin(u.ph);legA=legA.map((a,i)=>lerp(a,.6+(i?-cs:cs)*.5,k));shA=shA.map((a,i)=>lerp(a,-1.1+(i?cs:-cs)*.35,k));rigX=lerp(rigX,-.08,k);aimY=k}
  if(st.slide){rigY=-.48;rigX=.45;legA=[1.25,1.05];shA=[-.15,-.55]}
- if(u.down>.01){const k=u.down;rigY=lerp(rigY,-.62,k);rigX=lerp(rigX,1.2,k);legA=legA.map((a,i)=>lerp(a,.25+i*.15+Math.sin(u.ph*.5+i)*.08*walk,k));shA=shA.map(a=>lerp(a,-.35,k));headX=-.9*k}
+ if(u.down>.01){const k=u.down,cw=Math.sin(u.ph*.6)*walk;rigY=lerp(rigY,-.3,k);rigX=lerp(rigX,.6,k);legA=legA.map((a,i)=>lerp(a,.18+(i?-cw:cw)*.12,k));shA=shA.map((a,i)=>lerp(a,-2.55+(i?cw:-cw)*.1,k));headX=-.55*k;aimY=Math.max(aimY,.5*k)}// kneeling/crawling on the surface (head ~1.0-1.2 = downed hitbox)
  u.flinch=Math.max(0,u.flinch-dt*4);
  if(u.dead>0){u.dead+=dt;const k=Math.min(1,u.dead/.55);const e=k*k*(3-2*k);rigX=1.45*e;rigY=-.05*e;rigZ=u.roll*.25*e;legA=[.3*e,.1*e];shA=[-.2,-.3];u.tag.visible=false}
  else u.tag.visible=true;
