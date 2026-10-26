@@ -17,7 +17,8 @@ const MODES={duel:['1v1 Duel','⚔️'],team:['2v2 Teams','👥'],t3:['3v3 Teams
 const MODEMAX={duel:2,team:4,t3:6,t4:8,t5:10,ffa:10},MAXP=10;const isTeamMode=m=>m!=='ffa'&&m!=='duel';
 // down-and-revive (team modes): bleed-out 20 s, downed HP pool 50, revive = stand within 1.5 m for 5 s (progress resets if the reviver leaves), revived with 30 HP
 const DOWN={bleed:20,hp:50,r:1.5,revive:5,revHp:30};
-const DIFF={easy:{hit:.22,react:.9,turn:3.5,head:.06},normal:{hit:.4,react:.6,turn:6,head:.14},hard:{hit:.58,react:.35,turn:9,head:.24}};
+const DIFF={easy:{hit:.22,react:.9,turn:3.5,head:.06},normal:{hit:.33,react:.72,turn:5,head:.11},hard:{hit:.58,react:.35,turn:9,head:.24}};
+window.__DIFF=DIFF;
 const WIN_ROUNDS=5,FFA_ROUND_KILLS=3;
 const TEAMCOL={A:0x3fa9ff,B:0xff5a6b};
 const FFACOL=[0x3fa9ff,0xff5a6b,0x2ee59d,0xffd23f,0xb06bff,0xff9f43,0x1dd1a1,0xff79c6,0xf8f8f8,0x8d6e63];
@@ -847,16 +848,16 @@ $('sens').oninput=e=>{S.sens=+e.target.value;$('sensVal').textContent=S.sens.toF
 $('qualBtns').onclick=e=>{const b=e.target.closest('[data-q]');if(!b)return;const wasLow=qLevel()==='low';S.quality=b.dataset.q;saveS();applyQuality();openSettings()};
 $('setClose').onclick=()=>$('settings').classList.add('hidden');$('openSettings').onclick=openSettings;$('lobSettings').onclick=openSettings;
 // ================= INPUT =================
-const keys={};const inp={mx:0,mz:0,fire:false,jump:false,slide:false,sprint:false,zoom:false};
+const SLIDE={boost:1.5,cap:14.5,tap:.7,max:1.6};window.__SLIDE=SLIDE;const keys={};const inp={mx:0,mz:0,fire:false,jump:false,slide:false,sprint:false,zoom:false};
 let lookPX=0,lookPY=0;
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(!(inGame&&paused&&!['Escape','Tab','KeyP'].includes(e.code)))keys[e.code]=true;if(!inGame)return;if(paused&&!['Escape','Tab','KeyP'].includes(e.code))return;
- if(e.code==='Space'){inp.jump=true;e.preventDefault()}if(e.code==='KeyC'||e.code==='ControlLeft'){inp.slide=true;e.preventDefault()}
+ if(e.code==='Space'){inp.jump=true;e.preventDefault()}if(e.code==='KeyC'||e.code==='ControlLeft'){if(!e.repeat)inp.slide=true;inp.slideHold=true;e.preventDefault()}
  if(e.code==='KeyR')reload();if(e.code==='KeyQ')switchTo((me.cur+1)%3);if(e.code.startsWith('Digit')){const n=+e.code.slice(5);if(n>=1&&n<=3)switchTo(n-1);if(n===4)useUtil()}
  if(e.code==='KeyG'||e.code==='KeyF')useUtil();if(e.code==='Tab'||e.code==='Escape'||e.code==='KeyP'){e.preventDefault();if(e.repeat)return;
   if(!$('arsenal').classList.contains('hidden')){$('arsClose').click();return}if(!$('settings').classList.contains('hidden')){$('setClose').click();return}
   if(e.code==='Tab')openPause(true);else openPause(!paused)}
  if(e.code==='KeyZ'&&!e.repeat)toggleZoom()});
-addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='Tab')openPause(false)});
+addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='KeyC'||e.code==='ControlLeft')inp.slideHold=false;if(e.code==='Tab')openPause(false)});
 canvas.addEventListener('mousedown',e=>{audioInit();if(!inGame||isTouch)return;if(document.pointerLockElement!==canvas){canvas.requestPointerLock?.();return}if(e.button===0)inp.fire=true;if(e.button===2)zoomPress()});
 addEventListener('mouseup',e=>{if(e.button===0)inp.fire=false;if(e.button===2)zoomRelease()});
 addEventListener('contextmenu',e=>{if(inGame)e.preventDefault()});
@@ -878,8 +879,8 @@ const touchEl=$('touch');let joyId=null,lookId=null,joyC=[0,0],lookL=[0,0];
 $('bZoom').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();$('bZoom').classList.add('down');zoomPress()});
 for(const ev of['pointerup','pointercancel'])$('bZoom').addEventListener(ev,e=>{$('bZoom').classList.remove('down');if(ev==='pointerup')zoomRelease()});
 for(const id of['bJump','bSwap','bNade','bSlide']){const b=$(id);
- b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();audioInit();b.classList.add('down');if(id==='bSwap')switchTo((me.cur+1)%3);else if(id==='bNade')useUtil();else if(id==='bSlide')inp.slide=true;else inp.jump=true});
- const up=()=>b.classList.remove('down');b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up)}
+ b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();audioInit();b.classList.add('down');if(id==='bSwap')switchTo((me.cur+1)%3);else if(id==='bNade')useUtil();else if(id==='bSlide'){inp.slide=true;inp.slideHold=true}else inp.jump=true});
+ const up=()=>{b.classList.remove('down');if(id==='bSlide')inp.slideHold=false};b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up)}
 touchEl.addEventListener('pointerdown',e=>{if(paused)return;if(e.target!==touchEl&&!e.target.closest('#joyBase'))return;audioInit();
  if(e.clientX<innerWidth*.42&&joyId===null){joyId=e.pointerId;joyC=[e.clientX,e.clientY];const jb=$('joyBase');const r=$('hud').getBoundingClientRect();jb.style.left=(e.clientX-r.left-62)+'px';jb.style.top=(e.clientY-r.top-62)+'px';jb.style.bottom='auto';jb.style.opacity=1}
  else if(lookId===null){lookId=e.pointerId;lookL=[e.clientX,e.clientY]}});
@@ -975,9 +976,13 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];
  if(!me.alive||me.frozen){mx=mz=0}
  const sy=Math.sin(me.yaw),cy=Math.cos(me.yaw);const wx=mx*cy+mz*sy,wz=-mx*sy+mz*cy;
  const myC=PCL[PROG.pc]||{};const speed=me.down?1.3:(sprint?8.6:5.8)*(myC.spd||1)*(me.zoomT>.5?.7:1)*(w.slowSelf||1)*(me.slowT>performance.now()?me.slowF:1);const hs=Math.hypot(me.vel.x,me.vel.z);me.slideCd-=dt;
- if(inp.slide&&me.alive&&!me.frozen&&me.ground&&me.slideT<=0&&me.slideCd<=0&&hs>3.5){const ns=Math.min(12.8,Math.max(hs,6.5)*1.36);me.vel.x=me.vel.x/hs*ns;me.vel.z=me.vel.z/hs*ns;me.slideT=.7;window.__slides=(window.__slides||0)+1;me.slideCd=(myC.slideCd||1);SFX.slide()}
+ if(inp.slide&&me.alive&&!me.frozen&&me.ground&&me.slideT<=0&&me.slideCd<=0&&hs>3.5){const ns=Math.min(SLIDE.cap,Math.max(hs,6.5)*SLIDE.boost);me.vel.x=me.vel.x/hs*ns;me.vel.z=me.vel.z/hs*ns;me.slideT=SLIDE.max;me.slideAge=0;window.__slides=(window.__slides||0)+1;me.slideCd=9;SFX.slide()}
  inp.slide=false;
- if(me.slideT>0){me.slideT-=dt;const k=Math.max(0,1-1.4*dt);me.vel.x*=k;me.vel.z*=k;me.vel.x+=wx*dt*6;me.vel.z+=wz*dt*6;if(Math.hypot(me.vel.x,me.vel.z)<4)me.slideT=0}
+ // v41 slide: ~+50% burst; a tap lasts SLIDE.tap (0.7 s); holding C / the Slide button stretches it to SLIDE.max (1.6 s) with gradual decay; releasing after the tap window ends it. Cooldown starts when the slide ends.
+ if(me.slideT>0){me.slideT-=dt;me.slideAge+=dt;const a=me.slideAge;const k=Math.max(0,1-(a<SLIDE.tap?1.25:.8)*dt);me.vel.x*=k;me.vel.z*=k;me.vel.x+=wx*dt*6;me.vel.z+=wz*dt*6;
+  if(Math.hypot(me.vel.x,me.vel.z)<4||(a>=SLIDE.tap&&!inp.slideHold)||me.lad||me.mountT>0||(!me.ground&&a>=SLIDE.tap)||me.down)me.slideT=0;
+  if(me.slideT<=0){me.slideT=0;me.slideCd=(myC.slideCd||1)*(.45+.35*a);window.__slideLast=+a.toFixed(2)}}
+ else if(me.slideCd>2)me.slideCd=(myC.slideCd||1)*.7;
  else if(me.ground){const a=Math.min(1,dt*13);me.vel.x+=(wx*speed-me.vel.x)*a;me.vel.z+=(wz*speed-me.vel.z)*a}
  else{me.vel.x+=wx*speed*dt*2.5;me.vel.z+=wz*speed*dt*2.5;const n=Math.hypot(me.vel.x,me.vel.z);const cap=Math.max(hs,speed);if(n>cap){me.vel.x*=cap/n;me.vel.z*=cap/n}}
  if(me.down){inp.jump=false;inp.slide=false}if(inp.jump&&me.ground&&me.alive&&!me.frozen){me.vel.y=(myC.jump||8.3);if(me.slideT>0){me.vel.x*=1.08;me.vel.z*=1.08;me.slideT=0}SFX.jump()}inp.jump=false;
@@ -1484,3 +1489,4 @@ function swapCharModels(){for(const id in C.players){const q=C.players[id];if(!q
  if(hubVis&&hubVis.npcs)for(const n of hubVis.npcs){if(n.m.userData.kind==='hum'||!n.m.userData.args)continue;const p=n.m.parent,nm=makeCharacter(...n.m.userData.args);nm.position.copy(n.m.position);nm.rotation.copy(n.m.rotation);p.remove(n.m);p.add(nm);n.m=nm}
  for(const k in CLTH)delete CLTH[k];window.__humSwap=(window.__humSwap||0)+1}
 window.__hsz.HUM=HUM;
+addEventListener('blur',()=>{inp.slideHold=false});
