@@ -20,3 +20,16 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Model: crates | Wooden Crate 02 | James Ray Cock, Jurita Burger | https://polyhaven.com/a/wooden_crate_02 | CC0 |
 
 Processing: textures downscaled to 512px (colour maps converted to greyscale detail so map tints still apply); models optimised with gltf-transform (meshopt geometry, 512px WebP textures, simplified). Libraries: three.js r160 GLTFLoader + meshopt decoder (MIT).
+
+## Characters (v39)
+
+All player, bot and hub-NPC characters are built from **MakeHuman** assets, CC0 (public domain):
+
+| Use | Asset | Author | Source | License |
+|---|---|---|---|---|
+| Body mesh, skeleton ("game_engine" rig) + weights, low-poly proxy `male1591` | MakeHuman base mesh / MPFB 2.0.18 system assets | MakeHuman Community (makehuman_system) | https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html | CC0 |
+| Skins | young_caucasian_male, young_african_male, young_asian_male, middleage_african_male | makehuman_system | same pack | CC0 |
+| Clothes | male_casualsuit01 (recoloured in-shader into team shirt + class trousers/camo), shoes03 | makehuman_system | same pack | CC0 |
+| Hair, eyes, eyebrows, eyelashes | short02, low-poly eyes (brown), eyebrow001, eyelashes01 | makehuman_system | same pack | CC0 |
+
+Generated headless with Blender 4.2 + MPFB 2.0.18 (the exporter output is CC0 per the MakeHuman licence); three LOD tiers (hi ≈28k tris, md ≈17k, lo ≈9.7k) exported to glTF, compressed with gltf-transform (meshopt) and textures converted to WebP (1024/512 px). Helmets, plate carriers, packs and patches are procedural (HeadShotz code). Animation is procedural on the skeleton with IK hands on the weapon. Library: three.js SkeletonUtils (MIT).

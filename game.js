@@ -6,7 +6,7 @@ import {loadAssets,HQP} from './assets.js';import * as ASSETS from './assets.js'
 import {TURN} from './ice.js';
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL} from './maps.js';
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts} from './weapons.js';
-import {makeCharacter,animate,LOOKS} from './chars.js';
+import {makeCharacter,animate,LOOKS,HUM} from './chars.js';import {loadHumans} from './humans.js';
 // player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
 export const PCL={soldier:{n:'Soldier',p:0,ic:'🪖',perk:'No perk — the classic all-rounder.'},scout:{n:'Scout',p:700,ic:'🎯',perk:'Higher jump · slide recharges 2× faster.',jump:9.6,slideCd:.5},engineer:{n:'Engineer',p:800,ic:'🔧',perk:'+1 grenade / utility each life.',util:1},ninja:{n:'Ninja',p:900,ic:'🥷',perk:'+12% move speed · quiet footsteps · full 100 HP.',spd:1.12,quiet:1},medic:{n:'Medic',p:1100,ic:'⛑️',perk:'Revives teammates in 3 s (not 5) · regen 3 HP/s after 4 s unhurt.',rev:3,regen:3},juggernaut:{n:'Juggernaut',p:1500,ic:'🛡️',perk:'140 HP · 12% slower.',spd:.88,hp:140}};
 const PCL_IDS=Object.keys(PCL);const clOf=k=>PCL[k]?k:'soldier';
@@ -26,7 +26,7 @@ const hex=c=>'#'+new THREE.Color(c).getHexString();
 const PROF=(()=>{let p=new URLSearchParams(location.search).get('prof');try{if(p!=null)sessionStorage.setItem('hsz_prof',p);else p=sessionStorage.getItem('hsz_prof')}catch(e){}return(p||'').replace(/[^a-z0-9]/gi,'').slice(0,8)})();const LSP='hsz'+PROF+'_';
 const LS=k=>{try{return localStorage.getItem(LSP+k)}catch(e){return null}},LSS=(k,v)=>{try{localStorage.setItem(LSP+k,v)}catch(e){}};
 // ---------------- settings ----------------
-const S=Object.assign({sens:1,zsens:1,aimAssist:true,quality:'auto',vol:.85,sfx:1},JSON.parse(LS('settings')||'{}'));
+const S=Object.assign({sens:1,zsens:1,aimAssist:true,quality:'auto',vol:.85,sfx:1},JSON.parse(LS('settings')||'{}'));{const qq=new URLSearchParams(location.search).get('q');if(['low','medium','high'].includes(qq))S.quality=qq}
 function saveS(){LSS('settings',JSON.stringify(S))}
 // ---------------- renderer ----------------
 const canvas=$('c');
@@ -1451,8 +1451,10 @@ function frost(d){let o=$('frost');if(!o){o=document.createElement('div');o.id='
 setInterval(()=>{if(hubConn&&hubConn.open&&!hubConn.local)hubSend({t:'ka'})},2000);
 
 // ---- lazy HD asset load (CC0, see ASSETS.md / Credits) ----
-setTimeout(()=>{if(qLevel()==='low'||/noassets/.test(location.search))return;const bar=$('assetBar');if(bar)bar.classList.remove('hidden');const t0=performance.now();
- loadAssets((f)=>{if(bar)bar.querySelector('i').style.width=Math.round(f*100)+'%'}).then(ok=>{window.__assets={ok,ms:Math.round(performance.now()-t0),ready:HQP.ready};if(bar)bar.classList.add('hidden');for(const k in envCache)delete envCache[k];if(HQP.ready){const ids=rebuildForProps();window.__propSwap=ids;if(cur&&!C.hub&&ids.includes(C.map)){const nm=buildMap(C.map);scene.remove(cur.group);scene.add(nm.group);cur.group=nm.group;cur.hqProps=true;window.__propSwapLive=1}}if(cur)applyQuality()})},+(new URLSearchParams(location.search).get('assetdelay')||400));
+setTimeout(()=>{const bar=$('assetBar');const skipA=qLevel()==='low'||/noassets/.test(location.search),skipH=/nohum/.test(location.search);if(skipA&&skipH)return;if(bar)bar.classList.remove('hidden');const t0=performance.now();
+ let fa=skipA?1:0,fh=skipH?1:0,left=(skipA?0:1)+(skipH?0:1);const upd=()=>{if(bar)bar.querySelector('i').style.width=Math.round((fa+fh)/2*100)+'%'},fin=()=>{if(--left<=0&&bar)bar.classList.add('hidden')};
+ if(!skipH)loadHumans(f=>{fh=f;upd()}).then(ok=>{window.__humans={ok,ms:HUM.ms,tier:HUM.tier};if(ok)swapCharModels();fin()});
+ if(!skipA)loadAssets((f)=>{fa=f;upd()}).then(ok=>{fin();window.__assets={ok,ms:Math.round(performance.now()-t0),ready:HQP.ready};for(const k in envCache)delete envCache[k];if(HQP.ready){const ids=rebuildForProps();window.__propSwap=ids;if(cur&&!C.hub&&ids.includes(C.map)){const nm=buildMap(C.map);scene.remove(cur.group);scene.add(nm.group);cur.group=nm.group;cur.hqProps=true;window.__propSwapLive=1}}if(cur)applyQuality()})},+(new URLSearchParams(location.search).get('assetdelay')||400));
 $('openCredits').onclick=()=>$('credits').classList.remove('hidden');$('credClose').onclick=()=>$('credits').classList.add('hidden');
 
 // ---- solo on the hub FFA pad: choose online (public, bots, friends/pad can join) or offline bots ----
@@ -1470,3 +1472,9 @@ function playOnlineBots(mode){$('pobSel').classList.add('hidden');const auto={mo
 $('pobModes').addEventListener('click',e=>{const b=e.target.closest('[data-pob]');if(b)playOnlineBots(b.dataset.pob)});
 $('pobBtn').onclick=openPob;$('hubPob').onclick=openPob;$('pobX').onclick=()=>$('pobSel').classList.add('hidden');
 window.__hsz.playOnlineBots=playOnlineBots;
+
+// realistic humans arrived after some characters were built: rebuild remote players + hub NPCs with the new models
+function swapCharModels(){for(const id in C.players){const q=C.players[id];if(!q.model||id===me.id||q.model.userData.kind==='hum')continue;const a=q.model.userData.args;if(!a)continue;const vis=q.model.visible,dead=q.model.userData.dead;scene.remove(q.model);q.model=makeCharacter(...a);q.model.visible=vis;q.model.userData.dead=dead;scene.add(q.model);q.gunId=null;if(q.wid!=null)setRemoteGun(q,q.wid)}
+ if(hubVis&&hubVis.npcs)for(const n of hubVis.npcs){if(n.m.userData.kind==='hum'||!n.m.userData.args)continue;const p=n.m.parent,nm=makeCharacter(...n.m.userData.args);nm.position.copy(n.m.position);nm.rotation.copy(n.m.rotation);p.remove(n.m);p.add(nm);n.m=nm}
+ for(const k in CLTH)delete CLTH[k];window.__humSwap=(window.__humSwap||0)+1}
+window.__hsz.HUM=HUM;
