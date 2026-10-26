@@ -11,16 +11,25 @@ function hash(s){let h=7;for(const c of String(s))h=h*31+c.charCodeAt(0)|0;retur
 const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_up=new THREE.Vector3(0,1,0),_q=new THREE.Quaternion(),_m=new THREE.Matrix4();
 // material ids: 0 cloth+camo 1 skin 2 hard gear 3 eye 4 plain cloth/leather 5 stubble skin 6 hair
 let MID=0;const M=k=>{MID=k};
-function limb(P,a,b,r1,r2,c,seg=10){_a.set(...a);_b.set(...b);const d=_b.clone().sub(_a),l=d.length();_q.setFromUnitVectors(_up,d.normalize());_m.compose(_a.clone().add(_b).multiplyScalar(.5),_q,new THREE.Vector3(1,1,1));P.push({g:G('cyl',r2,r1,l,seg),m:_m.clone(),c,k:MID})}
-const LG={};function limbGeo(l,r1,r2,bu,seg){const k=[l,r1,r2,bu,seg].map(v=>+(+v).toFixed(4)).join(',');if(LG[k])return LG[k];const pts=[];const n=10;
- for(let i=0;i<=4;i++){const a=-Math.PI/2+i/4*Math.PI/2;pts.push(new THREE.Vector2(Math.cos(a)*r1,-l/2+Math.sin(a)*r1*.9))}
+function limb(P,a,b,r1,r2,c,seg=10){_a.set(...a);_b.set(...b);const d=_b.clone().sub(_a),l=d.length();_q.setFromUnitVectors(_up,d.normalize());_m.compose(_a.clone().add(_b).multiplyScalar(.5),_q,new THREE.Vector3(1,1,1));P.push({g:(lowQ()||Math.max(r1,r2)<(GQ.level==='high'?.02:.03))?G('cyl',r2,r1,l,lowQ()?Math.max(5,seg*.7|0):seg):limbGeo(l,r1,r2,0,seg+(GQ.level==='high'?4:0)),m:_m.clone(),c,k:MID})}
+const LG={};function limbGeo(l,r1,r2,bu,seg){const k=[l,r1,r2,bu,seg].map(v=>+(+v).toFixed(4)).join(',');if(LG[k])return LG[k];const pts=[];const n=GQ.level==='low'?4:GQ.level==='high'?10:6;
+ const nc=GQ.level==='low'?2:GQ.level==='high'?4:3;for(let i=0;i<=nc;i++){const a=-Math.PI/2+i/nc*Math.PI/2;pts.push(new THREE.Vector2(Math.cos(a)*r1,-l/2+Math.sin(a)*r1*.9))}
  for(let i=1;i<n;i++){const t=i/n;pts.push(new THREE.Vector2(r1+(r2-r1)*t+bu*Math.sin(Math.PI*t)*Math.sin(Math.PI*t),-l/2+l*t))}
- for(let i=0;i<=4;i++){const a=i/4*Math.PI/2;pts.push(new THREE.Vector2(Math.max(1e-4,Math.cos(a)*r2),l/2+Math.sin(a)*r2*.9))}
+ for(let i=0;i<=nc;i++){const a=i/nc*Math.PI/2;pts.push(new THREE.Vector2(Math.max(1e-4,Math.cos(a)*r2),l/2+Math.sin(a)*r2*.9))}
  const g=new THREE.LatheGeometry(pts,seg);return LG[k]=g}
-function limbO(P,a,b,r1,r2,c,bu=0,seg=14){_a.set(...a);_b.set(...b);const d=_b.clone().sub(_a),l=d.length();_q.setFromUnitVectors(_up,d.normalize());_m.compose(_a.clone().add(_b).multiplyScalar(.5),_q,new THREE.Vector3(1,1,1));P.push({g:limbGeo(l,r1,r2,bu,seg),m:_m.clone(),c,k:MID})}
+function limbO(P,a,b,r1,r2,c,bu=0,seg=14){_a.set(...a);_b.set(...b);const d=_b.clone().sub(_a),l=d.length();_q.setFromUnitVectors(_up,d.normalize());_m.compose(_a.clone().add(_b).multiplyScalar(.5),_q,new THREE.Vector3(1,1,1));P.push({g:limbGeo(l,r1,r2,bu,lowQ()?Math.max(6,seg*.55|0):seg+4),m:_m.clone(),c,k:MID})}
 function torsoGeo(pr,seg,sz){const k='T'+pr.join()+seg+sz;if(LG[k])return LG[k];const g=new THREE.LatheGeometry(pr.map(([r,y])=>new THREE.Vector2(Math.max(1e-4,r),y)),seg);g.scale(1,1,sz);return LG[k]=g}
-const bx=(P,w,h,d,x,y,z,c,rx=0,ry=0,rz=0)=>P.push({g:G('box',w,h,d),p:[x,y,z],r:[rx,ry,rz],c,k:MID});
-const sp=(P,r,x,y,z,c,sx=1,sy=1,sz=1,seg=12)=>P.push({g:G('sph',r,seg,Math.max(6,seg*.66|0)),p:[x,y,z],s:[sx,sy,sz],c,k:MID});
+// v19: every "box" part is a rounded box (spherified corners/edges, smooth normals) so gear, faces and plates read soft, not blocky.
+// Low tier uses 1 corner segment (cheap bevel), medium 2, high 3; geometry cached per size.
+const lowQ=()=>GQ.level==='low',CS=()=>GQ.level==='high'?2:1;
+const RB={};function rbox(w,h,d){const s=CS(),k=[w,h,d,s].map(v=>+(+v).toFixed(4)).join(',');if(RB[k])return RB[k];
+ const r=Math.min(w,h,d)*.42,n=2*s+1,g=new THREE.BoxGeometry(1,1,1,n,n,n),pa=g.attributes.position,na=g.attributes.normal,hx=[w/2-r,h/2-r,d/2-r],v=[0,0,0],c=[0,0,0];
+ const map=(u,hi)=>{const t=Math.round((u+.5)*n);let x;if(t<=s)x=-hi-r+r*t/s;else if(t>=n-s)x=hi+r*(t-(n-s))/s;else x=-hi+2*hi*(t-s)/(n-2*s);return x};
+ for(let i=0;i<pa.count;i++){v[0]=map(pa.getX(i),hx[0]);v[1]=map(pa.getY(i),hx[1]);v[2]=map(pa.getZ(i),hx[2]);for(let a=0;a<3;a++)c[a]=Math.max(-hx[a],Math.min(hx[a],v[a]));
+  let nx=v[0]-c[0],ny=v[1]-c[1],nz=v[2]-c[2];const l=Math.hypot(nx,ny,nz);if(l>1e-7){nx/=l;ny/=l;nz/=l;pa.setXYZ(i,c[0]+nx*r,c[1]+ny*r,c[2]+nz*r);na.setXYZ(i,nx,ny,nz)}else{pa.setXYZ(i,v[0],v[1],v[2])}}
+ return RB[k]=g}
+const bx=(P,w,h,d,x,y,z,c,rx=0,ry=0,rz=0)=>P.push({g:Math.min(w,h,d)<(GQ.level==='high'?.004:.012)||Math.max(w,h,d)<(lowQ()?.2:GQ.level==='high'?0:.04)?G('box',w,h,d):rbox(w,h,d),p:[x,y,z],r:[rx,ry,rz],c,k:MID});
+const sp=(P,r,x,y,z,c,sx=1,sy=1,sz=1,seg=12)=>{seg=lowQ()?Math.max(6,seg*.6|0):r>.05&&GQ.level==='high'?seg+8:seg;P.push({g:G('sph',r,seg,Math.max(6,seg*.7|0)),p:[x,y,z],s:[sx,sy,sz],c,k:MID})};
 const cy=(P,r1,r2,h,x,y,z,c,seg=12,rx=0,rz=0)=>P.push({g:G('cyl',r1,r2,h,seg),p:[x,y,z],r:[rx,0,rz],c,k:MID});
 // ---------- character material ----------
 const NOISE=`float h3(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -56,7 +65,7 @@ function charMat(lvl){if(lvl==='low')return texMat('char');if(CM[lvl])return CM[
  m.customProgramCacheKey=()=>'char3'+lvl;return CM[lvl]=m}
 MATHOOK.char3=charMat;
 const GEO={};const MAT=()=>texMat('char3');
-function mk(key,f,camo){if(!GEO[key]){const P=[];f(P);if(!P.length){GEO[key]=null}else{const g=mergeParts(P);const n=g.attributes.position.count;const md=new Float32Array(n),cm=new Float32Array(n);let o=0;
+function mk(key,f,camo){key+="|"+GQ.level;if(!GEO[key]){const P=[];f(P);if(!P.length){GEO[key]=null}else{const g=mergeParts(P);const n=g.attributes.position.count;const md=new Float32Array(n),cm=new Float32Array(n);let o=0;
   for(const pt of P){const c=pt.g.index?pt.g.index.count:pt.g.attributes.position.count;md.fill(pt.k||0,o,o+c);cm.fill((pt.k||0)===0?camo:0,o,o+c);o+=c}
   if(o===n){g.setAttribute('mid',new THREE.BufferAttribute(md,1));g.setAttribute('camo',new THREE.BufferAttribute(cm,1))}else{g.setAttribute('mid',new THREE.BufferAttribute(new Float32Array(n),1));g.setAttribute('camo',new THREE.BufferAttribute(new Float32Array(n),1))}GEO[key]=g}}return GEO[key]}
 let CAMO=0;

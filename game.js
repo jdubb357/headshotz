@@ -499,7 +499,7 @@ function hostHandle(from,m){const p=H.players[from];
  switch(m.t){
  case 'hello':{if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
   const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.hid=m.hid||null;
-  if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=teamSmaller();np.color=TEAMCOL[np.team]}
+  if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=teamForJoiner(from);np.color=TEAMCOL[np.team]}
    {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
    bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
    sendTo(from,{t:'round',round:H.round,score:H.score,spawns:{},count:0});sendSB();if(H.mode==='ffa')np.respawn=H.t+1}break}
@@ -525,6 +525,7 @@ function hostHandle(from,m){const p=H.players[from];
  case 'fall':if(p&&p.alive&&H.phase==='play')damage(p,999,from,false,'fall');break;
  }}
 function rayClearHost(a,b){const d=b.clone().sub(a);const l=d.length();d.divideScalar(l);if(rayWorld(a,d,l)<l-.3)return false;for(const s of H.smokes){if(s.t<1.2)continue;const lx=s.p.x-a.x,ly=s.p.y-a.y,lz=s.p.z-a.z;const tc=lx*d.x+ly*d.y+lz*d.z;const d2=lx*lx+ly*ly+lz*lz-tc*tc;const r=s.r*.8;if(d2<r*r&&tc>-r&&tc<l+r)return false}return true}
+function teamForJoiner(id){const h={A:0,B:0},n={A:0,B:0};for(const p of plist()){if(p.id===id||!(p.team in n))continue;n[p.team]++;if(!p.bot)h[p.team]++}return h.A!==h.B?(h.A<h.B?'A':'B'):(n.A<=n.B?'A':'B')}
 function teamSmaller(){let a=0,b=0;for(const p of plist()){if(p.team==='A')a++;else if(p.team==='B')b++}return a<=b?'A':'B'}
 const AS_WIN=10,AS_MIN=25;
 function asRec(v,dmg,by,w){if(!by||by===v.id||w==='fall'||w==='bleed'||!H.players[by])return;const D=v.dmgBy||(v.dmgBy={});const e=D[by]||(D[by]={d:0,t:-99});if(H.t-e.t>AS_WIN)e.d=0;e.d+=v.down?dmg*.5:dmg;e.t=H.t}
@@ -580,12 +581,12 @@ function hostTick(dt){H.t+=dt;if(H.phase==='play')for(const p of plist()){const 
  if(H.phase==='play'){
   for(const v of plist()){if(!v.down)continue;if(H.t>=v.downT){damage(v,999,v.id,false,'bleed');continue}
    const rv=plist().filter(q=>q.team===v.team&&q.id!==v.id&&q.alive&&!q.down&&Math.hypot(q.p[0]-v.p[0],q.p[1]-v.p[1],q.p[2]-v.p[2])<=DOWN.r);
-   if(rv.length){if(!v.rev||!rv.some(q=>q.id===v.rev.by))v.rev={by:rv[0].id,t0:H.t};if(H.t-v.rev.t0>=((PCL[(H.players[v.rev.by]||{}).cl]||{}).rev||DOWN.revive)){(window.__rv=window.__rv||[]).push(+(H.t-v.rev.t0).toFixed(3));v.down=false;v.hp=DOWN.revHp;v.dmgBy={};const by=v.rev.by;v.rev=null;bcast({t:'revive',id:v.id,by,hp:v.hp});bcast({t:'hp',id:v.id,hp:v.hp});sendSB();continue}}
+   if(rv.length){if(!v.rev||!rv.some(q=>q.id===v.rev.by))v.rev={by:rv[0].id,t0:H.t};if(H.t-v.rev.t0>=((PCL[(H.players[v.rev.by]||{}).cl]||{}).rev||DOWN.revive)){(window.__rv=window.__rv||[]).push(+(H.t-v.rev.t0).toFixed(3));(window.__rvBy=window.__rvBy||[]).push({id:v.id,by:v.rev.by});v.down=false;v.hp=DOWN.revHp;v.dmgBy={};const by=v.rev.by;v.rev=null;bcast({t:'revive',id:v.id,by,hp:v.hp});bcast({t:'hp',id:v.id,hp:v.hp});sendSB();continue}}
    else v.rev=null;
    if((v.dsT=(v.dsT||0)+dt)>.15){v.dsT=0;bcast({t:'dst',id:v.id,left:Math.max(0,v.downT-H.t),rv:v.rev?Math.min(1,(H.t-v.rev.t0)/((PCL[(H.players[v.rev.by]||{}).cl]||{}).rev||DOWN.revive)):0,by:v.rev?v.rev.by:null})}}
   if(H.t>=H.roundEnd){let win='draw';if(H.mode==='ffa'){let b=-1;for(const p of plist())if(p.rk>b){b=p.rk;win=p.id}}else{const a=teamAlive();win=(a.A||0)>(a.B||0)?'A':(a.B||0)>(a.A||0)?'B':'draw'}endRound(win)}
   if(H.mode==='ffa')for(const p of plist()){if(!p.alive&&p.respawn&&H.t>=p.respawn){p.respawn=0;p.dmgBy={};p.alive=true;p.hp=100;const s=respawnPoint(p);p.p=[s[0],0,s[1],s[2],0,0,0];if(p.bot)botReset(p,s);bcast({t:'spawn',id:p.id,s});sendSB()}}
-  for(const p of plist())if(p.bot&&p.alive)botTick(p,dt);
+  for(const p of plist())if(p.bot&&p.alive&&!(H.botFreeze&&H.botFreeze[p.id]))botTick(p,dt);
   // molotov damage over time
   H.fireT+=dt;for(const f of H.fires)f.t+=dt;H.fires=H.fires.filter(f=>f.t<f.life);for(const s of H.smokes)s.t+=dt;H.smokes=H.smokes.filter(s=>s.t<s.life);
   if(H.fireT>=.5){H.fireT=0;for(const f of H.fires){const o=H.players[f.owner];for(const p of plist()){if(!p.alive)continue;if(o&&H.mode!=='ffa'&&p.team===o.team&&p.id!==f.owner)continue;if(p.id===f.owner)continue;
@@ -611,7 +612,7 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;
   let wx=0,wz=0;if(m&&md>1){wx=(m.p[0]-e.pos.x)/md;wz=(m.p[2]-e.pos.z)/md;b.yaw=Math.atan2(-wx,-wz)}e.vel.x=wx*1.1;e.vel.z=wz*1.1;e.bump=0;physStep(e,dt);b.p=[e.pos.x,e.pos.y,e.pos.z,b.yaw,0,WIDX[b.gun]|0,0];return}
  // go revive a downed teammate when no enemy is in sight
  if(isTeamMode(H.mode)){const dn=plist().filter(q=>q.down&&q.alive&&q.team===b.team&&q.id!==b.id);if(dn.length){let best=null,bd=1e9;for(const q of dn){const d=Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z);if(d<bd){bd=d;best=q}}
-  if(best&&bd<35){b.revT=best.id;b.goal=[best.p[0],best.p[2],best.p[1]];b.via=null}else b.revT=null}else b.revT=null}b.blind=Math.max(0,(b.blind||0)-dt);const w=W[b.gun]||W.ar;
+  if(best&&bd<60){b.revT=best.id;b.goal=[best.p[0],best.p[2],best.p[1]];b.via=null}else b.revT=null}else b.revT=null}b.blind=Math.max(0,(b.blind||0)-dt);const w=W[b.gun]||W.ar;
  if(b.blind<=0&&!H.noFight)for(const q of plist()){if(!q.alive||q.id===b.id||(H.mode!=='ffa'&&q.team===b.team))continue;const dx=q.p[0]-e.pos.x,dz=q.p[2]-e.pos.z,dy=q.p[1]-e.pos.y,dd=Math.hypot(dx,dy,dz);if(dd>55||dd>=td)continue;if(dd>4.5&&hides.length&&inVol(hides,{x:q.p[0],y:q.p[1]+.5,z:q.p[2]})&&!(q.shotT>H.t-1.5))continue;
   _o.set(e.pos.x,e.pos.y+1.5,e.pos.z);if(!rayClearHost(_o,_d.set(q.p[0],q.p[1]+(q.down?.4:1.4),q.p[2])))continue;const sc=dd+(q.down?12:0);if(sc>=td)continue;td=sc;tgt=q}
  let wx=0,wz=0;b.st-=dt;if(b.st<=0){b.st=.5+Math.random()*1.2;b.strafe=Math.random()<.5?-1:1}
@@ -622,12 +623,24 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;
    bcast({t:'fx',id:b.id,a:[_o.x,_o.y,_o.z],b:end,w:b.gun});if(hit){const head=Math.random()<D.head;damage(tgt,Math.round((head?w.head:w.body)*falloff(w,td)),b.id,head,b.gun)}}}
  else{b.react=DIFF[H.diff||'normal'].react;const m=buildMap(H.map);if(b.goal&&b.hold>0&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)b.hold-=dt;if(!b.revT&&!(b.hold>0&&b.goal&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2.5)&&(!b.goal||(Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)||(!H.noFight&&(Math.random()<dt*.05||(b.goalT=(b.goalT||0)+dt)>25)))){const all=allSpawns(m);const foes=plist().filter(q=>q.alive&&q.id!==b.id&&(H.mode==='ffa'||q.team!==b.team));const hi=m.nav?m.nav.filter(n=>(n[2]||0)>2):[];if(hi.length&&Math.random()<.4){b.goal=hi[Math.random()*hi.length|0].slice();b.hold=4+Math.random()*6}else if(foes.length&&Math.random()<.55){const f=foes[Math.random()*foes.length|0];b.goal=[f.p[0]+(Math.random()-.5)*3,f.p[2]+(Math.random()-.5)*3,f.p[1]]}else if(m.nav&&m.nav.length&&Math.random()<.5)b.goal=m.nav[Math.random()*m.nav.length|0].slice();else b.goal=all[Math.random()*all.length|0].slice();b.via=null;b.goalT=0}
   const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z;b.climbY=nt[1];const l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*4)}
- if(b.detour>0){b.detour-=dt;wx=b.dd[0];wz=b.dd[1]}
- if(b.revT&&!tgt){const q=H.players[b.revT];if(q&&Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z)<.9){wx=wz=0;b.detour=0}}
+ // revive takes priority over fighting unless an enemy is very close (<7 m): keep aiming/shooting, but walk to the downed mate and hold
+ let revHold=false;if(b.revT){const q=H.players[b.revT];if(q&&q.down&&(!tgt||td>7)){const m=buildMap(H.map);if(tgt){const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z,l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;b.climbY=nt[1]}
+   if(Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z)<.9&&Math.abs(q.p[1]-e.pos.y)<1.2){wx=wz=0;b.detour=0;revHold=true}}}
+ if(b.detour>0&&!revHold){b.detour-=dt;wx=b.dd[0];wz=b.dd[1]}
  const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}const sp=(b.blind>0?2:5.2)*(b.slowT>H.t?b.slowF:1);{const cs=(PCL[b.cl]||{}).spd||1;e.vel.x+=(wx*sp*cs-e.vel.x)*Math.min(1,dt*10);e.vel.z+=(wz*sp*cs-e.vel.z)*Math.min(1,dt*10)}
  {const L=inVol(ladders,e.pos);e.ladTop=L&&(b.climbY??0)>e.pos.y+.3?L.y1:null;if(L){const ty=b.climbY??e.pos.y;if(ty>e.pos.y+.3){e.vel.y=4.4;e.vel.x-=L.n[0]*1.5;e.vel.z-=L.n[1]*1.5}else if(ty<e.pos.y-.3)e.vel.y=Math.min(e.vel.y,-2.5);else e.vel.y=Math.max(e.vel.y,0)}}
  if(e.ground&&!(b.via&&b.via.down)){const px=e.pos.x+e.vel.x*.45,pz=e.pos.z+e.vel.z*.45;if(!supportAt(px,e.pos.y,pz)){e.vel.x*=-.3;e.vel.z*=-.3;if(!b.via)b.goal=null}}
  if(e.ground&&supportAt(e.pos.x,e.pos.y,e.pos.z))b.lastG=[e.pos.x,e.pos.z];else if(!e.ground&&b.lastG&&!inVol(ladders,e.pos,.4)&&!(b.via&&b.via.down)&&!supportAt(e.pos.x,e.pos.y,e.pos.z)){const gx=b.lastG[0]-e.pos.x,gz=b.lastG[1]-e.pos.z,gl=Math.hypot(gx,gz)||1;e.vel.x=gx/gl*5;e.vel.z=gz/gl*5;if(!b.via)b.goal=null}
+ {const want=Math.hypot(wx,wz)>.1&&!revHold&&!(b.hold>0&&b.goal&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2.5)&&!b.down;
+  const spd=Math.hypot(e.vel.x,e.vel.z);if(H.phase==='play'){const sw=b.sw||(b.sw={t:0,w:0,x:e.pos.x,z:e.pos.z});sw.t+=dt;if(want)sw.w+=dt;if(sw.t>=4){if(sw.w>3){H.moveSec=(H.moveSec||0)+4;if(Math.hypot(e.pos.x-sw.x,e.pos.z-sw.z)<1.5)H.stuckSec=(H.stuckSec||0)+4}sw.t=sw.w=0;sw.x=e.pos.x;sw.z=e.pos.z}}
+  const pr=b.pr||(b.pr={t:0,x:e.pos.x,z:e.pos.z});pr.t+=dt;if(pr.t>=.8){const mv=Math.hypot(e.pos.x-pr.x,e.pos.z-pr.z);b.lowProg=want&&mv<.7;
+   if(b.lowProg&&!H.noUnstick&&!inVol(ladders,e.pos,.6)){b.stk=(b.stk||0)+1;const sg=(b.stk&1)?1:-1,vl=Math.hypot(wx,wz)||1;
+    // 1: back up + strafe + hop; 2+: also re-path (new goal); 4+: aim for the nearest reachable nav point; 6+: nudge to the last good ground
+    b.dd=[(-wx*.7-wz*sg)/vl,(-wz*.7+wx*sg)/vl];b.detour=.6+Math.random()*.4;if(e.ground)e.vel.y=7.5;
+    if(b.stk>=2&&!b.revT){b.goal=null;b.via=null}
+    if(b.stk>=4){const m=buildMap(H.map);const N=(m.nav||[]).filter(n=>Math.abs((n[2]||0)-e.pos.y)<1.5);let bn=null,bd=1e9;for(const n of N){const d=Math.hypot(n[0]-e.pos.x,n[1]-e.pos.z);if(d>2&&d<bd){bd=d;bn=n}}if(bn&&!b.revT){b.goal=bn.slice();b.via=null}}
+    if(b.stk>=6&&b.goodG&&supportAt(b.goodG[0],b.goodG[2],b.goodG[1])){e.pos.set(b.goodG[0],b.goodG[2],b.goodG[1]);e.vel.set(0,0,0);b.goal=null;b.via=null;b.stk=0}}
+   else if(!b.lowProg){b.stk=0;if(e.ground)b.goodG=[e.pos.x,e.pos.z,e.pos.y]}pr.t=0;pr.x=e.pos.x;pr.z=e.pos.z}}
  e.bump=0;{const n=Math.ceil(dt/.02);for(let i=0;i<n;i++){const bb=e.bump;physStep(e,dt/n);e.bump=e.bump||bb}}if(e.bump&&e.ground){e.vel.y=8;b.stuckN=(b.stuckN||0)+1;if(b.stuckN>1&&!(b.detour>0)){const sg=Math.random()<.5?1:-1;const vl=Math.hypot(wx,wz)||1;b.dd=[-wz/vl*sg,wx/vl*sg];b.detour=.7+Math.random()*.6;b.stuckN=0}if(Math.random()<.15&&!b.via&&!inVol(ladders,e.pos,.6))b.goal=null}else if(!e.bump)b.stuckN=Math.max(0,(b.stuckN||0)-dt);if(e.pos.y<-3)damage(b,999,b.id,false,'fall');
  b.p=[e.pos.x,e.pos.y,e.pos.z,b.yaw,0,WIDX[b.gun]|0,e.ground?0:2]}
 // ================= CLIENT =================
@@ -1269,7 +1282,7 @@ $('endAgain').onclick=()=>endGo(true);$('endLobby').onclick=()=>endGo(false);
 function afterMatch(){if(C.fromHub||sessionStorage.getItem('hsz_fromHub')){sessionStorage.removeItem('hsz_fromHub');location.href=hubUrl()}}
 // ---------- public rooms: registry, browser, quick join ----------
 let regIv=null;
-function roomInfo(){return{code:roomCode,host:H.players[me.id]?.name||'Host',mode:H.mode,map:H.phase==='lobby'?'Voting':MAPS[H.map].name,n:plist().filter(p=>!p.bot).length,max:MODEMAX[H.mode]||10,phase:H.phase,hubffa:!!(H.auto&&H.auto.solo)}}
+function roomInfo(){return{code:roomCode,host:H.players[me.id]?.name||'Host',mode:H.mode,map:H.phase==='lobby'?'Voting':MAPS[H.map].name,n:plist().filter(p=>!p.bot).length,max:MODEMAX[H.mode]||10,phase:H.phase,hubffa:!!(H.auto&&H.auto.solo&&H.mode==='ffa')}}
 function regRoom(){if(!isHost||H.offline)return;if(!H.pub){if(regIv){clearInterval(regIv);regIv=null;hubSend({t:'unreg',code:roomCode})}return}
  hubLink(hubKind||'reg');hubSend({t:'reg',room:roomInfo()});if(!regIv)regIv=setInterval(()=>{if(H.pub)hubSend({t:'reg',room:roomInfo()})},5000)}
 function fetchRooms(cb){brCb=cb;hubLink(hubKind||'browse');if(hubConn&&hubConn.open)hubSend({t:'list'})}
@@ -1448,3 +1461,12 @@ $('soloOn').onclick=()=>{$('soloSel').classList.add('hidden');startHubMatch({cod
 $('soloOff').onclick=()=>{$('soloSel').classList.add('hidden');hubUnlink();leaveHubWorld();C.fromHub=true;sessionStorage.setItem('hsz_fromHub','1');startOffline();H.mode='ffa';H.auto={mode:'ffa',map:Math.random()*5|0,expect:1,fromHub:1};H.autoAt=H.t+.5;sendLobby()};
 $('soloX').onclick=()=>$('soloSel').classList.add('hidden');
 Object.defineProperty(window.__hsz,'room',{get:()=>({code:roomCode,inGame,offline:!!(H&&H.offline),pub:!!(H&&H.pub),host:isHost})});
+
+// ---- Play Online with Bots (menu + hub): host a public, bot-filled match; joiners replace a bot (team modes: on the team that needs them) ----
+function openPob(){audioInit();$('pobModes').innerHTML=['ffa','team','t3','t4','t5','duel'].map(k=>`<button class="btnBig blue" data-pob="${k}">${MODES[k][1]} ${MODES[k][0]}</button>`).join('');$('pobSel').classList.remove('hidden');if(document.pointerLockElement)document.exitPointerLock()}
+function playOnlineBots(mode){$('pobSel').classList.add('hidden');const auto={mode,map:Math.random()*MAPS.length|0,teams:{},expect:1,solo:1};const code=genCode();
+ if(C.hub){startHubMatch({code,map:auto.map,mode,teams:{},expect:1,solo:1,host:hubSelfId});return}
+ $('menu').classList.add('hidden');createRoom(code,auto)}
+$('pobModes').addEventListener('click',e=>{const b=e.target.closest('[data-pob]');if(b)playOnlineBots(b.dataset.pob)});
+$('pobBtn').onclick=openPob;$('hubPob').onclick=openPob;$('pobX').onclick=()=>$('pobSel').classList.add('hidden');
+window.__hsz.playOnlineBots=playOnlineBots;
