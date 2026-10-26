@@ -1,5 +1,5 @@
 // Network-first service worker: always try fresh files (so updates show), fall back to cache offline.
-const CACHE='headshotz-v39';
+const CACHE='headshotz-v40';
 const ASSETS=['./','index.html','style.css','game.js','maps.js','maps2.js','mapdress.js','wskins.js','gfx.js','weapons.js','chars.js','humans.js','post.js','assets.js','ice.js','manifest.json','lib/three.module.min.js','lib/peerjs.min.js','lib/localpeer.js','icons/icon-180.png','icons/icon-192.png','icons/icon-512.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).catch(()=>{}))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==CACHE).map(n=>caches.delete(n)))).then(()=>self.clients.claim())));
