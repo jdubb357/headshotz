@@ -4,7 +4,7 @@
 // carriers, packs) is attached to bones. Animation is procedural on the skeleton (same pose model as the old rig: gait, crouch, slide,
 // jump, climb, downed crawl, death) with 2-bone IK putting both hands on the weapon, which is mounted on the right hand's aim frame.
 // If anything fails to load, chars.js keeps building the old procedural characters.
-import {THREE,GQ} from './gfx.js';
+import {THREE,GQ} from './gfx.js';import {buildGear} from './gear.js';
 export const HUM={ready:false,failed:false,tpl:{},tex:{},ms:0,bytes:0};
 const BASE=new URL('assets/hum/',import.meta.url).href;
 const SKINC=[0,1,2,3];
@@ -50,38 +50,25 @@ const SKM={};function partMat(part,key,tint){const k=part+key;if(SKM[k])return S
 const HAIRT=[0xffffff,0x8a6a50,0x5a4636,0xd8c4a0,0x303030];
 const gm=(c,r=.6,mt=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:mt});
 const GMC={};const gmat=(c,r,mt)=>GMC[c+'|'+r+'|'+mt]||(GMC[c+'|'+r+'|'+mt]=gm(c,r,mt));
-let GM=null;function gearMat(){if(GM)return GM;GM=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0,envMapIntensity:.5});
- GM.onBeforeCompile=s=>{s.vertexShader=s.vertexShader.replace('#include <color_vertex>','#include <color_vertex>\nvRgh=color.a;').replace('#include <common>','#include <common>\nvarying float vRgh;');s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vRgh;').replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=vRgh;')};GM.customProgramCacheKey=()=>'humgear';return GM}
+let GM=null;function gearMat(){if(GM)return GM;GM=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:1,envMapIntensity:.8});const hi=GQ.level!=='low';
+ // per-vertex roughness (color.a) + metalness/kind (gx); procedural micro-detail per kind (weave, brushed metal, cord wrap, glass, grain) as colour + bump
+ GM.onBeforeCompile=s=>{s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute vec2 gx;varying float vRgh;varying vec2 vGx;varying vec3 vGp;').replace('#include <color_vertex>','#include <color_vertex>\nvRgh=color.a;vGx=gx;vGp=position;');
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vRgh;varying vec2 vGx;varying vec3 vGp;\n'+NOISE+`
+vec3 gBump(vec3 sp,vec3 n,float h){vec3 dx=dFdx(sp),dy=dFdy(sp);float bx=dFdx(h),by=dFdy(h);vec3 r1=cross(dy,n),r2=cross(n,dx);float d=dot(dx,r1);vec3 g=sign(d)*(bx*r1+by*r2);return normalize(abs(d)*n-g);}`)
+   .replace('#include <map_fragment>',`#include <map_fragment>
+   float gH=0.;float gk=floor(vGx.y+.5);vec3 gp=vGp;
+   ${hi?`if(gk==1.){float w=sin(gp.x*1400.+gp.y*700.)*sin(gp.y*1400.-gp.z*700.);float n=vn(gp*90.);gH=w*.25+n*.6;diffuseColor.rgb*=.86+.22*n+.05*w;}
+   else if(gk==2.){float n=vn(gp*vec3(500.,25.,500.));float sc=step(.985,vn(gp*vec3(60.,700.,60.)));gH=n*.15;diffuseColor.rgb*=.9+.18*n+.5*sc;}
+   else if(gk==3.){float a=fract((gp.x+gp.y+gp.z)*55.),b=fract((gp.x-gp.y+gp.z)*55.);float dm=min(min(a,1.-a),min(b,1.-b));gH=smoothstep(.0,.18,dm);diffuseColor.rgb*=.55+.6*gH;}
+   else if(gk==5.){float n=vn(gp*260.)+.5*vn(gp*700.);gH=n*.4;diffuseColor.rgb*=.85+.2*n;}`:''}`)
+   .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=vRgh;')
+   .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\nmetalnessFactor=vGx.x;')
+   .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n'+(hi?'if(gH!=0.)normal=gBump(-vViewPosition,normal,gH*.0016);':''))
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\nif(gk==4.)totalEmissiveRadiance+=diffuseColor.rgb*.35;')};
+ GM.customProgramCacheKey=()=>'humgear2'+(hi?1:0);return GM}
 function box(w,h,d){return rboxF?rboxF(w,h,d):new THREE.BoxGeometry(w,h,d)}
 // gear, built in rig space (character faces -Z, feet at y=0) and re-parented onto bones keeping its transform
-function gear(L,teamCol,cls,add){const low=GQ.level==='low';const seg=low?10:20;
- const put=(geo,mat,x,y,z,bone,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,bone==='head'?z-.045:z);m.scale.set(sx,sy,sz);m.rotation.set(rx,ry,rz);m.castShadow=true;add(m,bone)};
- const vest=gmat(L.vest,.82,0),strap=gmat(0x24272a,.7,0),metal=gmat(0x6f747a,.4,.6),team=gmat(teamCol,.6,0);
- const hd=L.head;const HY=1.675;// head centre (bind pose)
- if(hd==='helmet'||hd==='jugg'){const hm=gmat(hd==='jugg'?0x34373c:new THREE.Color(L.vest).multiplyScalar(.9).getHex(),.55,.05);
-  put(new THREE.SphereGeometry(.128,seg,seg/2|0,0,Math.PI*2,0,Math.PI*.55),hm,0,HY+.025,.005,'head',1,hd==='jugg'?1.05:.95,1.1);
-  put(new THREE.TorusGeometry(.122,.012,6,seg),hm,0,HY+.0,.005,'head',1,1.1,1,Math.PI/2);
-  if(hd==='jugg'){put(box(.2,.06,.04),gmat(0x7fb3d5,.1,.3),0,HY-.005,-.118,'head');put(box(.24,.12,.06),hm,0,HY-.09,-.105,'head')}
-  else{put(box(.05,.035,.03),strap,0,HY+.1,-.11,'head');put(new THREE.TorusGeometry(.1,.006,4,seg,Math.PI),strap,0,HY-.03,0,'head',1,1.25,1,0,Math.PI/2,0)}}
- else if(hd==='ninja'){const bl=gmat(0x141518,.85,0);put(new THREE.SphereGeometry(.124,seg,seg/2|0,0,Math.PI*2,0,Math.PI*.6),bl,0,HY+.01,.0,'head',1,1.05,1.08);
-  put(new THREE.SphereGeometry(.118,seg,seg/2|0,0,Math.PI*2,Math.PI*.56,Math.PI*.44),bl,0,HY+.05,-.005,'head',.98,1.15,1.02);
-  put(box(.27,.035,.01),gmat(0xa31515,.6,0),0,HY+.06,-.12,'head')}
- else if(hd==='cap'){const c=gmat(0xe9ecef,.8,0);put(new THREE.SphereGeometry(.122,seg,seg/2|0,0,Math.PI*2,0,Math.PI*.45),c,0,HY+.02,.005,'head',1,.85,1.08);put(box(.14,.012,.08),c,0,HY+.015,-.13,'head');
-  put(box(.05,.015,.004),gmat(0xd63031,.6,0),0,HY+.12,-.105,'head');put(box(.015,.05,.004),gmat(0xd63031,.6,0),0,HY+.12,-.105,'head')}
- else if(hd==='boonie'){const c=gmat(0x6b5b3e,.9,0);put(new THREE.SphereGeometry(.124,seg,seg/2|0,0,Math.PI*2,0,Math.PI*.5),c,0,HY+.035,.005,'head',1,.85,1.08);put(new THREE.CylinderGeometry(.2,.21,.012,seg),c,0,HY+.03,.005,'head',1,1,1.05)}
- else if(hd==='hardhat'){const c=gmat(0xf1c40f,.35,0);put(new THREE.SphereGeometry(.13,seg,seg/2|0,0,Math.PI*2,0,Math.PI*.5),c,0,HY+.04,.005,'head',1,.9,1.1);put(new THREE.CylinderGeometry(.16,.165,.012,seg),c,0,HY+.035,-.005,'head',1,1,1.12)}
- if(L.goggles)put(box(.15,.028,.02),gmat(0x7fb3d5,.15,.3),0,HY+.045,-.122,'head');
- // plate carrier on the chest (spine_03), pouches, team patch on the shoulder
- if(!L.slim){const bk=L.bulk?1.12:1;put(box(.36*bk,.36,.07),vest,0,1.28,-.135*bk,'spine_03');put(box(.36*bk,.38,.06),vest,0,1.28,.13*bk,'spine_03');
-  for(const s of[-1,1])put(box(.07,.30,.24*bk),vest,s*.175*bk,1.25,0,'spine_03');
-  if(!low)for(let i=0;i<3;i++){put(box(.085,.11,.05),gmat(new THREE.Color(L.vest).multiplyScalar(.82).getHex(),.85,0),-.1+i*.1,1.15,-.18*bk,'spine_03')}
-  if(L.cross){put(box(.1,.03,.01),gmat(0xd63031,.6,0),0,1.33,-.175,'spine_03');put(box(.03,.1,.01),gmat(0xd63031,.6,0),0,1.33,-.175,'spine_03')}
-  put(box(.08,.08,.012),team,0,1.37,-.172*bk,'spine_03')}
- else put(box(.3,.05,.22),gmat(L.belt||0xa31515,.7,0),0,1.0,0,'pelvis');
- if(L.pack)put(box(.28,.36,.14),gmat(L.cross?0xd6d9dc:0x4a4f55,.8,0),0,1.22,.22,'spine_03');
- put(box(.38,.05,.28),strap,0,.99,0,'pelvis');
- if(!L.slim)put(box(.06,.17,.09),gmat(0x1d1f20,.6,0),.17,.82,-.02,'thigh_r');
- put(box(.1,.06,.012),team,-.205,1.36,0,'upperarm_l',1,1,1,0,Math.PI/2,0)}
+function gear(L,teamCol,cls,add){buildGear(L,teamCol,cls,add,rboxF)}
 const _v=new THREE.Vector3(),_w=new THREE.Vector3(),_x=new THREE.Vector3(),_y=new THREE.Vector3(),_q=new THREE.Quaternion(),_q2=new THREE.Quaternion(),_q3=new THREE.Quaternion(),_m=new THREE.Matrix4();
 function hashS(s){let h=7;for(const c of String(s))h=h*31+c.charCodeAt(0)|0;return Math.abs(h)}
 export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS(id);const L=LOOKS[cls]||LOOKS.soldier;
@@ -105,7 +92,7 @@ export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS
  const GB={};gear(L,teamCol,cls,(m,bn)=>{const b=bones[bn]?bn:'spine_03';(GB[b]=GB[b]||[]).push(m)});
  for(const bn in GB){const b=bones[bn];b.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(b.matrixWorld).invert();const gs=[];
   for(const m of GB[bn]){rig.add(m);m.updateMatrixWorld(true);let g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();for(const k of Object.keys(g.attributes))if(!['position','normal'].includes(k))g.deleteAttribute(k);
-   g.applyMatrix4(_m.multiplyMatrices(inv,m.matrixWorld));const col=m.material.color,n=g.attributes.position.count,ca=new Float32Array(n*4);const rr=m.material.roughness,mt=m.material.metalness;for(let i=0;i<n;i++){ca[i*4]=col.r;ca[i*4+1]=col.g;ca[i*4+2]=col.b;ca[i*4+3]=rr}g.setAttribute('color',new THREE.BufferAttribute(ca,4));rig.remove(m);gs.push(g)}
+   g.applyMatrix4(_m.multiplyMatrices(inv,m.matrixWorld));const col=m.material.color,n=g.attributes.position.count,ca=new Float32Array(n*4);const rr=m.material.roughness,mt=m.material.metalness,gk=m.material.userData.k||0;const gx=new Float32Array(n*2);for(let i=0;i<n;i++){ca[i*4]=col.r;ca[i*4+1]=col.g;ca[i*4+2]=col.b;ca[i*4+3]=rr;gx[i*2]=mt;gx[i*2+1]=gk}g.setAttribute('color',new THREE.BufferAttribute(ca,4));g.setAttribute('gx',new THREE.BufferAttribute(gx,2));rig.remove(m);gs.push(g)}
   const mg=HUM.BGU.mergeGeometries(gs);if(!mg)continue;const mesh=new THREE.Mesh(mg,gearMat());mesh.castShadow=true;b.add(mesh)}
  // aim frame + gun mount (same numbers as the old rig so gun FX/muzzle stay where the game expects)
  const aim=new THREE.Group();aim.position.set(0,1.36,0);rig.add(aim);const gunMount=new THREE.Group();gunMount.position.set(.055,-.085,-.4);aim.add(gunMount);
