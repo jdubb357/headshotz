@@ -67,9 +67,12 @@ const TAPSEL='button,.wc,.mode,.map,[data-q],[data-tap],#arsTabs > *';
 let tapDown=null,tapSynth=false;
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'){tapDown=null;return}const b=e.target.closest&&e.target.closest(TAPSEL);if(!b||b.closest('#touch')||b.closest('#slots')){tapDown=null;return}tapDown={b,id:e.pointerId,x:e.clientX,y:e.clientY}},true);
 document.addEventListener('pointerup',e=>{const d=tapDown;if(!d||e.pointerId!==d.id)return;tapDown=null;if(Math.hypot(e.clientX-d.x,e.clientY-d.y)>26)return;
- const el=document.elementFromPoint(e.clientX,e.clientY);const b=el&&el.closest(TAPSEL);if(b!==d.b||b.disabled)return;b.__tap=performance.now();tapSynth=true;try{b.click()}finally{tapSynth=false}},true);
+ const el=document.elementFromPoint(e.clientX,e.clientY);const b=el&&el.closest(TAPSEL);if(b!==d.b||b.disabled)return;b.__tap=performance.now();lastSynth={t:b.__tap,x:e.clientX,y:e.clientY};tapSynth=true;try{b.click()}finally{tapSynth=false}},true);
 document.addEventListener('pointercancel',e=>{if(tapDown&&e.pointerId===tapDown.id)tapDown=null},true);
-document.addEventListener('click',e=>{if(tapSynth)return;const b=e.target.closest&&e.target.closest(TAPSEL);if(b&&b.__tap&&performance.now()-b.__tap<800){e.stopPropagation();e.preventDefault()}},true);
+// ghost-click buster (v42): after a synthesized tap the browser still fires its own click at the same spot ~50-300 ms later. If the tap opened a modal, that
+// click used to land on whatever button was now under the finger (e.g. Cancel on the Play Online picker) and close/choose it by accident. Swallow ANY native click that
+// follows a synthesized tap near the same point, whatever the target is.
+let lastSynth=null;document.addEventListener('click',e=>{if(tapSynth)return;const L=lastSynth;if(L&&performance.now()-L.t<700&&(e.clientX===0&&e.clientY===0||Math.hypot(e.clientX-L.x,e.clientY-L.y)<48)){window.__ghostClicks=(window.__ghostClicks||0)+1;lastSynth=null;e.stopPropagation();e.preventDefault();return}const b=e.target.closest&&e.target.closest(TAPSEL);if(b&&b.__tap&&performance.now()-b.__tap<800){e.stopPropagation();e.preventDefault()}},true);
 let lastTouchEnd=0;document.addEventListener('touchend',e=>{const n=Date.now();if(inGame&&n-lastTouchEnd<300&&!e.target.closest('button,input'))e.preventDefault();lastTouchEnd=n},{passive:false});
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;
