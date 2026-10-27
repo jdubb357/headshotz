@@ -285,3 +285,14 @@ body.chSecret #chests::before{content:'';position:fixed;inset:0;background:radia
 @media(max-width:520px){#chOdds .odd{grid-template-columns:14px 78px 42px 1fr;font-size:12px}#chStage{height:200px}}
 
 #chStage .res{isolation:isolate}#chStage .res::before{content:'';position:absolute;inset:10% 14%;background:rgba(8,8,20,.72);border-radius:18px;z-index:-1;box-shadow:0 0 0 2px var(--c),0 0 24px var(--c)}#chStage .res em{-webkit-text-stroke:0;text-shadow:0 0 10px var(--c),0 2px 0 #000;color:#fff}
+
+/* v42 Play Online with Bots setup */
+#pobSel{z-index:70}.pobCard{width:min(560px,96vw);max-height:94dvh;overflow-y:auto;text-align:left;gap:4px}
+.pobCard h4{margin:6px 0 2px;font:900 12px system-ui;letter-spacing:.14em;color:#ffd23f}.pobSub{margin:0;font-size:13px;opacity:.85}
+.pobGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.pobGrid button,.pobRow button,.pobMaps button{min-height:44px;border-radius:12px;border:3px solid #111;background:#fff;color:#111;font:800 13px system-ui;font-style:italic;box-shadow:0 3px 0 #111;padding:4px 6px}
+.pobGrid button.sel,.pobRow button.sel,.pobMaps button.sel{background:#2ee59d;outline:3px solid #fff}
+.pobRow{display:flex;gap:6px}.pobRow button{flex:1}
+.pobMaps{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}.pobMaps button{flex:0 0 auto;min-width:92px;height:62px;background:#223 center/cover;color:#fff;font-style:normal;position:relative;text-shadow:0 1px 3px #000}
+.pobMaps button.sel{background-color:#1c6b4a}.pobMaps button small{display:block;font:600 10px system-ui;opacity:.85}
+.pobSum{margin:4px 0;font:700 12px system-ui;opacity:.9;text-align:center}.pobBtns{display:flex;gap:8px;align-items:center}.pobBtns .btnBig{flex:1;min-height:56px}.pobBtns .pill{min-height:56px}
+#roomTag{position:absolute;left:8px;top:8px;z-index:4;font:800 11px system-ui;color:#fff;background:rgba(0,0,0,.45);border-radius:999px;padding:4px 10px;pointer-events:auto}
