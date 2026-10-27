@@ -21,6 +21,7 @@
  <div id="assetBar" class="hidden" style="position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:220px;font:600 11px sans-serif;color:#fff;text-align:center;z-index:5"><div style="height:6px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden;margin-bottom:3px"><i style="display:block;height:100%;width:0;background:#ffd23f;transition:width .2s"></i></div>Loading HD textures…</div>
  <div class="wrap">
   <div class="logo"><span class="l1">HEAD</span><span class="l2">SHOTZ</span></div>
+  <div class="wkBan hidden">💎 2X DIAMOND WEEKEND 💎</div>
   <div class="homeGrid">
    <div class="card play">
     <div class="cardHead">⚡ PLAY <span class="dia sm">💎 <b class="diaBal">0</b></span></div>
@@ -38,6 +39,7 @@
     <button class="card nav" id="openShop"><span class="ico">🛒</span><span><b>WEAPON SHOP</b><small>Unlock weapons with 💎 earned by playing</small></span></button>
     <button class="card nav" id="openUpg"><span class="ico">⭐</span><span><b>UPGRADES</b><small>Camos · outfits · mag &amp; reload tiers</small></span></button>
     <button class="card nav" id="openArsenal"><span class="ico">🔫</span><span><b>ARSENAL</b><small>Equip your loadout</small></span></button>
+    <button class="card nav" id="openChests"><span class="ico">🎁</span><span><b>CHEST SHOP</b><small>300 💎 · weapons, skins, classes</small></span></button>
     <button class="card nav" id="openClasses"><span class="ico">🎭</span><span><b>CLASSES</b><small class="clBtnLbl">Soldier</small></span></button>
     <button class="card nav" id="openFriends"><span class="ico">👥<i class="frBadge hidden"></i></span><span><b>FRIENDS</b><small class="frOnline">Add friends by code</small></span></button>
     <button class="card nav" id="openCredits"><span class="ico">📜</span><span><b>CREDITS</b><small>Assets &amp; licenses</small></span></button>
@@ -93,6 +95,14 @@
  <p class="msg">Pick a class before the match. Looks are cosmetic; perks are small and balanced.</p><div id="clGrid"></div>
 </div></div>
 
+<div id="chests" class="screen bgfx2 hidden"><div class="wrap">
+ <div class="lobbyBar"><div class="roomChip">🎁 CHEST SHOP</div><span class="dia">💎 <b id="chDia">0</b></span><button id="chClose" class="pill red">✕ CLOSE</button></div>
+ <div class="wkBan hidden">💎 2X DIAMOND WEEKEND 💎</div>
+ <div id="chMain"><div id="chStage"><div class="box idle"><div class="lid"></div><div class="body"></div></div></div>
+ <button id="chBuy" class="btnBig">OPEN CHEST · 💎 300</button>
+ <h3 class="chH">DROP ODDS</h3><div id="chOdds"></div></div>
+</div></div>
+
 <!-- FRIENDS -->
 <div id="friends" class="screen bgfx2 hidden"><div class="wrap">
  <div class="lobbyBar"><div class="roomChip">👥 FRIENDS</div><button id="frClose" class="pill red">✕ CLOSE</button></div>
@@ -128,13 +138,13 @@
 </div>
 
 <!-- HUD -->
-<div id="hud" class="hidden">
+<div id="hud" class="hidden"><div id="wkHud" class="wkBan hidden">💎 2X DIAMOND WEEKEND</div>
   <div id="sbar"></div>
   <div id="timer"></div>
   <div id="cross"><i></i><i></i><i></i><i></i><em></em><b id="hitX"></b></div>
   <div id="center"></div>
   <button id="rlBtn" class="hidden">🎒 LOADOUT</button>
-  <div id="endScr" class="hidden"><h1 id="endT">VICTORY</h1><div id="endScore"></div><div id="endStats"></div><div class="endB"><button id="endAgain" class="btnBig">⚔️ REMATCH</button><button id="endLobby" class="btnBig alt">LOBBY</button></div></div>
+  <div id="endScr" class="hidden"><h1 id="endT">VICTORY</h1><div class="wkBan hidden">💎 2X DIAMOND WEEKEND 💎</div><div id="endScore"></div><div id="endStats"></div><div class="endB"><button id="endAgain" class="btnBig">⚔️ REMATCH</button><button id="endLobby" class="btnBig alt">LOBBY</button></div></div>
   <div id="feed"></div>
   <div id="bottom"><div id="hpWrap"><div id="hpBar"><div id="hpFill"></div></div><span id="hpTxt">100</span></div><div id="slots"></div></div>
   <div id="dmgLayer"></div>

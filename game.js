@@ -435,7 +435,9 @@ function panOf(p){return p.clone();const r=_v2.set(1,0,0).applyQuaternion(camera
 const DEFAULT_LOAD=['ar','handgun','fists','grenade'];
 // ---------------- progression: diamonds (earned only by playing, stored on this device; no real money anywhere) ----------------
 // economy: online match (first to 5) pays roughly 60-90 💎; mid-tier guns ~500-900 (5-8 matches), top tier ~1500-2000 (15-25). Offline / practice vs bots: everything x0.5 (kill 3→2 rounded)
-const ECON={kill:3,head:2,round:8,win:20,play:5,mul:()=>(H&&H.offline)||C.practice?.5:1};
+const ECON={kill:3,head:2,round:8,win:20,play:5,bot:2,mul:()=>(H&&H.offline)||C.practice?.5:1};
+// v41: 2X DIAMOND WEEKEND — Saturday + Sunday in the player's local time (window.__mockNow lets tests fake the date)
+const wkNow=()=>new Date(window.__mockNow!=null?window.__mockNow:Date.now());const isWknd=()=>{const d=wkNow().getDay();return d===0||d===6};window.__isWknd=isWknd;
 const CAMOS={factory:['Factory',0,null],desert:['Desert',150,0xc8a96a],forest:['Forest',150,0x4f6b3a],arctic:['Arctic',220,0xdfe8ee],crimson:['Crimson',300,0xb3202a],cobalt:['Cobalt',300,0x2a62c9],gold:['Gold',900,0xe8b923],neon:['Neon',650,0x39ff88]};
 const SKINS={default:['Default',0,null],ninja:['Ninja',100,[0x1b1d21,0x111214]],desert:['Desert Ops',100,[0xb59a6a,0x7d6a4a]],arctic:['Arctic',120,[0xe6edf2,0x9aa6b0]],royal:['Royal',160,[0x5b2a86,0xd4a83a]],neon:['Neon',200,[0x18e07a,0x101010]]};
 const UPG={mag:{name:'Extended Mag',per:.15,cost:[200,450]},reload:{name:'Fast Hands',per:.08,cost:[200,450]}};
@@ -453,7 +455,7 @@ function magOf(id){const w=W[id];return w.mag?Math.max(w.mag,Math.round(w.mag*(1
 function reloadOf(id){const w=W[id];return +(w.reload*(1-UPG.reload.per*tier(id,'reload'))).toFixed(2)}
 function updDiaUI(){for(const e of document.querySelectorAll('.diaBal'))e.textContent=PROG.dia}
 let diaToastT=null;
-function addDia(n,why){(window.__dlog||(window.__dlog=[])).push([n,why]);if(!n)return;PROG.dia+=n;C.matchDia=(C.matchDia||0)+n;saveProg();const t=$('diaToast');if(t){t.textContent=`+${n} 💎 ${why||''}`;t.classList.remove('show');void t.offsetWidth;t.classList.add('show')}}
+function addDia(n,why){if(n>0&&isWknd()){n*=2;why=(why||'')+' ×2 weekend'}(window.__dlog||(window.__dlog=[])).push([n,why]);if(!n)return;PROG.dia+=n;C.matchDia=(C.matchDia||0)+n;saveProg();const t=$('diaToast');if(t){t.textContent=`+${n} 💎 ${why||''}`;t.classList.remove('show');void t.offsetWidth;t.classList.add('show')}}
 const me={id:null,pos:new THREE.Vector3(),vel:new THREE.Vector3(),ground:false,yaw:0,pitch:0,hp:100,alive:false,
  load:DEFAULT_LOAD.slice(),utilN:2,cur:0,ammo:[0,0,0],cool:0,reloadT:0,reloadStage:0,switchT:0,slideT:0,slideCd:0,camH:1.62,stepT:0,zoomT:0,frozen:true,burst:0,burstT:0,shots:0,lastShot:0};
 try{const l=JSON.parse(LS('load2')||'null');if(l&&l.length===4&&l.every((k,i)=>W[k]&&W[k].slot===i&&owns(k)))me.load=l}catch(e){}
@@ -625,9 +627,9 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;
  let wx=0,wz=0;b.st-=dt;if(b.st<=0){b.st=.5+Math.random()*1.2;b.strafe=Math.random()<.5?-1:1}
  if(tgt){const dx=tgt.p[0]-e.pos.x,dz=tgt.p[2]-e.pos.z;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*DIFF[H.diff||'normal'].turn);
   const fx2=-Math.sin(b.yaw),fz=-Math.cos(b.yaw);wx=-fz*b.strafe;wz=fx2*b.strafe;if(td>14||(w.melee&&td>w.melee*.7)){wx+=fx2*(w.melee?3:1);wz+=fz*(w.melee?3:1)}
-  b.react-=dt;b.cool-=dt;if(b.react<=0&&b.cool<=0&&!(w.melee&&td>w.melee+.4)){b.cool=w.rate*1.25;const D=DIFF[H.diff||'normal'];const hit=Math.random()<Math.max(.08,D.hit-td/100);_o.set(e.pos.x,e.pos.y+1.4,e.pos.z);
+  b.react-=dt;b.cool-=dt;if(b.react<=0&&b.cool<=0&&!(w.melee&&td>w.melee+.4)){b.cool=w.rate*1.25;const D=DIFF[H.diff||'normal'];const hit=Math.random()<Math.max(.08,D.hit-td/100);const BS=window.__botStat||(window.__botStat={s:0,h:0,hd:0});BS.s++;if(hit)BS.h++;_o.set(e.pos.x,e.pos.y+1.4,e.pos.z);
    const end=[tgt.p[0]+(hit?0:(Math.random()-.5)*2),tgt.p[1]+1.2+(hit?0:Math.random()),tgt.p[2]+(hit?0:(Math.random()-.5)*2)];
-   bcast({t:'fx',id:b.id,a:[_o.x,_o.y,_o.z],b:end,w:b.gun});if(hit){const head=Math.random()<D.head;damage(tgt,Math.round((head?w.head:w.body)*falloff(w,td)),b.id,head,b.gun)}}}
+   bcast({t:'fx',id:b.id,a:[_o.x,_o.y,_o.z],b:end,w:b.gun});if(hit){const head=Math.random()<D.head;if(head)BS.hd++;damage(tgt,Math.round((head?w.head:w.body)*falloff(w,td)),b.id,head,b.gun)}}}
  else{b.react=DIFF[H.diff||'normal'].react;const m=buildMap(H.map);if(b.goal&&b.hold>0&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)b.hold-=dt;if(!b.revT&&!(b.hold>0&&b.goal&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2.5)&&(!b.goal||(Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)||(!H.noFight&&(Math.random()<dt*.05||(b.goalT=(b.goalT||0)+dt)>25)))){const all=allSpawns(m);const foes=plist().filter(q=>q.alive&&q.id!==b.id&&(H.mode==='ffa'||q.team!==b.team));const hi=m.nav?m.nav.filter(n=>(n[2]||0)>2):[];if(hi.length&&Math.random()<.4){b.goal=hi[Math.random()*hi.length|0].slice();b.hold=4+Math.random()*6}else if(foes.length&&Math.random()<.55){const f=foes[Math.random()*foes.length|0];b.goal=[f.p[0]+(Math.random()-.5)*3,f.p[2]+(Math.random()-.5)*3,f.p[1]]}else if(m.nav&&m.nav.length&&Math.random()<.5)b.goal=m.nav[Math.random()*m.nav.length|0].slice();else b.goal=all[Math.random()*all.length|0].slice();b.via=null;b.goalT=0}
   const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z;b.climbY=nt[1];const l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*4)}
  // revive takes priority over fighting unless an enemy is very close (<7 m): keep aiming/shooting, but walk to the downed mate and hold
@@ -675,14 +677,14 @@ function clientHandle(m){switch(m.t){
  case 'push':me.vel.x+=m.v[0];me.vel.z+=m.v[1];me.vel.y=Math.max(me.vel.y,1.5);me.ground=false;break;
  case 'dst':{const q=C.players[m.id];if(q)q.dst=m;if(m.id===me.id){me.dst=m;updDown()}break}
  case 'kill':{const k=C.players[m.k],v=C.players[m.v];if(m.k===me.id&&m.head&&m.v!==me.id){SFX.headKill();const hx=$('hitX');if(hx){hx.classList.add('hk');setTimeout(()=>hx.classList.remove('hk'),380)}}const asL=(m.as||[]).map(id=>C.players[id]).filter(Boolean);const KN=`<b style="color:${hex(k?.color||0xffffff)}">${esc(k?.name||'?')}</b>`+asL.map(a=>` <span class="as">+</span> <b class="asn" style="color:${hex(a.color)}">${esc(a.name)}</b>`).join('');if((m.as||[]).includes(me.id)&&m.k!==me.id&&!m.fin){addDia(1,'assist');center('ASSIST +1💎',800)}(window.__alog||(window.__alog=[])).push([m.k,m.as||[],m.v]);(window.__klog||(window.__klog=[])).push([m.k,m.v,C.map,m.w,m.dn?'down':m.fin?'fin':m.bleed?'bleed':'']);
-  if(m.dn){if(v){v.down=true;v.hp=0;sbDirty=1}if(m.k===me.id)addDia(Math.round((m.head?ECON.kill+ECON.head:ECON.kill)*ECON.mul()),m.head?'headshot down':'down');
+  if(m.dn){if(v){v.down=true;v.hp=0;sbDirty=1}if(m.k===me.id)addDia(Math.round((m.head?ECON.kill+ECON.head:ECON.kill)*ECON.mul()*(v&&v.bot?ECON.bot:1)),(m.head?'headshot down':'down')+(v&&v.bot?' (bot)':''));
    feed(`${KN} <span class="k">[${esc(W[m.w]?W[m.w].name:'')}${m.head?' 🎯':''} · downed]</span> <b style="color:${hex(v?.color||0xffffff)}">${esc(v?.name||'?')}</b>`,true);
    if(m.v===me.id){me.down=true;me.hp=0;me.slideT=0;me.zoomT=0;updHP();updDown();center('DOWNED!\nWaiting for a teammate…',1800)}if(m.k===me.id){SFX.kill();center('DOWNED '+(v?.name||''),1000)}break}
   if(v){v.down=false;v.dst=null}if(m.v===me.id){me.down=false;me.dst=null;updDown()}
   if(m.fin||m.bleed){if(m.fin&&m.k===me.id)addDia(Math.max(1,Math.round(1*ECON.mul())),'finish');if(v){v.alive=false;if(v.model&&!v.model.userData.dead)v.model.userData.dead=.001}
    feed(m.bleed?`<b style="color:${hex(v?.color||0xffffff)}">${esc(v?.name||'?')}</b> <span class="k">[bled out]</span>`:`<b style="color:${hex(k?.color||0xffffff)}">${esc(k?.name||'?')}</b> <span class="k">[finished]</span> <b style="color:${hex(v?.color||0xffffff)}">${esc(v?.name||'?')}</b>`,true);
    if(m.v===me.id){me.alive=false;me.hp=0;updHP();center(m.bleed?'BLED OUT':'FINISHED by '+(k?.name||'?'),2000)}if(m.fin&&m.k===me.id){SFX.kill();center('FINISHED '+(v?.name||''),900)}break}
-  if(m.k===me.id&&m.v!==me.id)addDia(Math.round((m.head?ECON.kill+ECON.head:ECON.kill)*ECON.mul()),m.head?'headshot':'kill');if(v){v.alive=false;if(v.model&&!v.model.userData.dead)v.model.userData.dead=.001}
+  if(m.k===me.id&&m.v!==me.id)addDia(Math.round((m.head?ECON.kill+ECON.head:ECON.kill)*ECON.mul()*(v&&v.bot?ECON.bot:1)),(m.head?'headshot':'kill')+(v&&v.bot?' (bot)':''));if(v){v.alive=false;if(v.model&&!v.model.userData.dead)v.model.userData.dead=.001}
   const wn=m.w==='fall'?'fell':m.w==='molotov'?'🔥':W[m.w]?W[m.w].name:'';
   if(m.w==='fall'||m.k===m.v)feed(`${v?.name||'?'} ${m.w==='fall'?'fell off':'eliminated themselves'}`);else feed(`${KN} <span class="k">[${esc(wn)}${m.head?' 🎯':''}]</span> <b style="color:${hex(v?.color||0xffffff)}">${esc(v?.name||'?')}</b>`,true);
   if(m.v===me.id){me.alive=false;me.hp=0;updHP();me.killer=m.k;center('ELIMINATED'+(k&&m.k!==m.v?'\nby '+k.name:'')+(C.mode==='ffa'?'\nRespawning…':''),2200)}
@@ -981,7 +983,7 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];
  // v41 slide: ~+50% burst; a tap lasts SLIDE.tap (0.7 s); holding C / the Slide button stretches it to SLIDE.max (1.6 s) with gradual decay; releasing after the tap window ends it. Cooldown starts when the slide ends.
  if(me.slideT>0){me.slideT-=dt;me.slideAge+=dt;const a=me.slideAge;const k=Math.max(0,1-(a<SLIDE.tap?1.25:.8)*dt);me.vel.x*=k;me.vel.z*=k;me.vel.x+=wx*dt*6;me.vel.z+=wz*dt*6;
   if(Math.hypot(me.vel.x,me.vel.z)<4||(a>=SLIDE.tap&&!inp.slideHold)||me.lad||me.mountT>0||(!me.ground&&a>=SLIDE.tap)||me.down)me.slideT=0;
-  if(me.slideT<=0){me.slideT=0;me.slideCd=(myC.slideCd||1)*(.45+.35*a);window.__slideLast=+a.toFixed(2)}}
+  if(me.slideT<=0){me.slideT=0;me.slideCd=(myC.slideCd||1)*(.3+.5*Math.max(0,a-SLIDE.tap)/(SLIDE.max-SLIDE.tap));window.__slideLast=+a.toFixed(2)}}
  else if(me.slideCd>2)me.slideCd=(myC.slideCd||1)*.7;
  else if(me.ground){const a=Math.min(1,dt*13);me.vel.x+=(wx*speed-me.vel.x)*a;me.vel.z+=(wz*speed-me.vel.z)*a}
  else{me.vel.x+=wx*speed*dt*2.5;me.vel.z+=wz*speed*dt*2.5;const n=Math.hypot(me.vel.x,me.vel.z);const cap=Math.max(hs,speed);if(n>cap){me.vel.x*=cap/n;me.vel.z*=cap/n}}
@@ -1259,7 +1261,7 @@ function updHub(dt,now){if(C.phase!=='hub')return;{const fs=ffaLeft();if(fs!==ff
   if(r.pts){const pa=r.pts.geometry.attributes.position,sd=r.pts.userData.seed;for(let i=0;i<pa.count;i++){let y=((now/1000)*(.6+fr*1.2+sd[i]*.4)+sd[i]*3)%2.2;pa.array[i*3+1]=.1+y}pa.needsUpdate=true;r.pts.material.opacity=.5+fr*.5}}}
  let st=null,bd=3.2;for(const s of HUB_ST){const d=Math.hypot(me.pos.x-s.x,me.pos.z-s.z);if(d<bd){bd=d;st=s}}const b=$('stationBtn');if(st){b.textContent='TAP: '+st.name;b.dataset.k=st.k;b.classList.remove('hidden')}else b.classList.add('hidden');
  if(Math.random()<dt)updHubInfo()}
-function useStation(k){if(k==='shop')openArsenal(null,'shop');else if(k==='upgrade')openArsenal(null,'upgrade');else if(k==='arsenal')openArsenal();else if(k==='classes')openClasses();else if(k==='skins')openArsenal('skins');else if(k==='practice'){location.href=location.pathname+'?offline=1'+(/[?&]net=local/.test(location.search)?'&net=local':'')}}
+function useStation(k){if(k==='shop')openArsenal(null,'shop');else if(k==='upgrade')openArsenal(null,'upgrade');else if(k==='arsenal')openArsenal();else if(k==='classes')openClasses();else if(k==='chest')openChests();else if(k==='skins')openArsenal('skins');else if(k==='practice'){location.href=location.pathname+'?offline=1'+(/[?&]net=local/.test(location.search)?'&net=local':'')}}
 $('stationBtn').onclick=()=>useStation($('stationBtn').dataset.k);
 // ---------- map selection (5 s, majority wins, random tie-break on the hub host) ----------
 let mapSelIv=null;
@@ -1490,3 +1492,47 @@ function swapCharModels(){for(const id in C.players){const q=C.players[id];if(!q
  for(const k in CLTH)delete CLTH[k];window.__humSwap=(window.__humSwap||0)+1}
 window.__hsz.HUM=HUM;
 addEventListener('blur',()=>{inp.slideHold=false});
+// ---------------- v41 CHEST SHOP (diamonds only) ----------------
+const CHEST={price:300,tiers:[['common','Common','#9aa3ad',45],['rare','Rare','#3b8bff',27],['epic','Epic','#a64dff',15],['legendary','Legendary','#ffc21a',8],['secret','Secret','#ff2b2b',5]],
+ // loot: [type,id|amount,weight]; higher tiers hold rarer items. Duplicates convert to diamonds (DUPE per tier).
+ loot:{common:[['dia',80,4],['dia',120,3],['wsk','carbon',2],['wsk','tiger',2],['wpn','water',1],['wpn','bat',1]],
+  rare:[['dia',200,3],['wsk','ice',2],['wsk','toxic',2],['wsk','neon',2],['wpn','m4',1],['wpn','mp5',1],['wpn','ump45',1],['wpn','pan',1],['cls','scout',1]],
+  epic:[['dia',350,2],['wsk','gold',2],['wsk','lightning',1],['wpn','ak47',1],['wpn','scar',1],['wpn','kriss',1],['wpn','p90',1],['wpn','deagle',1],['cls','engineer',1],['cls','ninja',1]],
+  legendary:[['dia',600,2],['wsk','lightning',2],['wsk','fire',2],['wpn','aa12',1],['wpn','lmg',1],['wpn','freeze',1],['wpn','laser',1],['wpn','barrett',1],['wpn','chainsaw',1],['cls','medic',2]],
+  secret:[['dia',1200,1],['wsk','galaxy',3],['wsk','fire',2],['wsk','lightning',2],['cls','juggernaut',3],['wpn','minigun',1.5],['wpn','awp',1.5],['wpn','rpg',1.5],['wpn','gl',1.5]]},
+ dupe:{common:40,rare:90,epic:160,legendary:280,secret:500}};
+function chestTier(r=Math.random()){let a=0;for(const t of CHEST.tiers){a+=t[3]/100;if(r<a)return t[0]}return 'common'}
+function chestPick(tier,r=Math.random()){const L=CHEST.loot[tier];const tot=L.reduce((s,x)=>s+x[2],0);let a=0;for(const x of L){a+=x[2]/tot;if(r<a)return x}return L[L.length-1]}
+const ownedWeapons=()=>Object.keys(W).filter(id=>W[id].cls!=='util'&&owns(id));
+// apply one loot item to the shared wallet (PROG, same save offline + online); returns a description
+function chestGrant(tier,it){const [ty,v]=it;let dup=false,name='',icon='💎',dia=0;
+ if(ty==='dia'){dia=v;name=v+' Diamonds'}
+ else if(ty==='wpn'){if(!W[v]){dia=CHEST.dupe[tier];name='Bonus'}else{name=W[v].name;icon='🔫';if(owns(v))dup=true;else PROG.owned.push(v)}}
+ else if(ty==='cls'){name=PCL[v].n+' class';icon=PCL[v].ic||'🎭';if(PROG.pcs.includes(v))dup=true;else PROG.pcs.push(v)}
+ else if(ty==='wsk'){const sk=WSKINS[v];name=(sk?sk[0]:v)+' skin';icon='🎨';const cand=ownedWeapons().filter(id=>!(PROG.wskins[id]||[]).includes(v));
+  const pref=cand.includes(me.load[0])?me.load[0]:cand[Math.floor(Math.random()*cand.length)];if(!pref)dup=true;else{(PROG.wskins[pref]=PROG.wskins[pref]||[]).push(v);name+=' · '+W[pref].name;it.w=pref}}
+ if(dup)dia=CHEST.dupe[tier];PROG.dia+=dia;(PROG.chestLog=PROG.chestLog||[]).push([tier,ty,v,dup?1:0,Date.now()]);if(PROG.chestLog.length>50)PROG.chestLog.shift();saveProg();
+ return {tier,ty,v,name,icon,dup,dia}}
+function chestBuy(r1,r2){if(PROG.dia<CHEST.price)return null;PROG.dia-=CHEST.price;const t=chestTier(r1);return chestGrant(t,chestPick(t,r2))}
+// sounds per tier (Web Audio, same synth as the rest)
+const chestSFX=(tier)=>{const d=out();if(!d)return;const i=['common','rare','epic','legendary','secret'].indexOf(tier);const base=[523,587,659,698,440][i];
+ if(tier==='secret'){tone(55,1.6,.35,'sawtooth',38,d,.05);noise('lowpass',300,.7,1.4,.4,d,.4,.2);setTimeout(()=>{noise('highpass',2500,.7,.25,.6,d,.6,.001);tone(110,.9,.3,'square',55,d,.001)},900);
+  [0,4,7,12,16,19].forEach((s,k)=>setTimeout(()=>tone(220*Math.pow(2,s/12),1.2,.12,'sawtooth',0,d,.02),1100+k*90));setTimeout(()=>tone(1760,1.1,.12,'sine',0,d,.01),1700)}
+ else{const n=2+i;for(let k=0;k<n;k++)setTimeout(()=>tone(base*Math.pow(2,[0,4,7,12,16][k]/12),.25+.08*i,.16,'triangle',0,d,.005),k*(110-i*10));if(i>=2)setTimeout(()=>noise('highpass',4000,.7,.4,.25,d,.3,.01),n*90);if(i>=3)setTimeout(()=>tone(base*4,.9,.1,'sine',0,d,.01),n*100)}};
+function chestRollSFX(){const d=out();if(!d)return;for(let k=0;k<8;k++)setTimeout(()=>noise('bandpass',700+k*120,4,.05,.18,d,0,.001),k*120)}
+let chestBusy=false;
+function openChests(){audioInit&&audioInit();$('chests').classList.remove('hidden');renderChests()}
+function renderChests(){$('chDia').textContent=PROG.dia;const tot=CHEST.tiers.reduce((s,t)=>s+t[3],0);
+ $('chOdds').innerHTML=CHEST.tiers.map(t=>`<div class="odd" style="--c:${t[2]}"><i></i><b>${t[1]}</b><span>${t[3]}%</span><small>${CHEST.loot[t[0]].filter(x=>x[0]!=='dia').slice(0,4).map(x=>x[0]==='wpn'?W[x[1]]?.name:x[0]==='cls'?PCL[x[1]].n:(WSKINS[x[1]]||[x[1]])[0]).join(' · ')}…</small></div>`).join('')+`<p class="msg">Odds total ${tot}%. Duplicates turn into diamonds. Diamonds only — no real money.</p>`;
+ const b=$('chBuy');b.disabled=chestBusy||PROG.dia<CHEST.price;b.textContent=PROG.dia<CHEST.price?`NEED 💎 ${CHEST.price}`:`OPEN CHEST · 💎 ${CHEST.price}`}
+function chestAnim(res){const st=$('chStage'),c=CHEST.tiers.find(t=>t[0]===res.tier);chestBusy=true;renderChests();st.className='go';st.style.setProperty('--c',c[2]);st.innerHTML=`<div class="rays"></div><div class="box"><div class="lid"></div><div class="body"></div></div><div class="res hidden"></div>`;
+ chestRollSFX();const secret=res.tier==='secret',dl=secret?2300:1150;st.classList.add('t-'+res.tier);if(secret)document.body.classList.add('chSecret');
+ setTimeout(()=>{st.classList.add('open');chestSFX(res.tier);const r=st.querySelector('.res');r.classList.remove('hidden');r.innerHTML=`<em>${c[1].toUpperCase()}${secret?' !!!':''}</em><div class="it">${res.icon}</div><b>${res.name}</b>${res.dup?`<small>Duplicate → +${res.dia} 💎</small>`:res.ty==='dia'?'':'<small>NEW! Added to your collection</small>'}`;
+  setTimeout(()=>{chestBusy=false;document.body.classList.remove('chSecret');renderChests()},secret?1400:600)},dl)}
+$('chBuy').onclick=()=>{if(chestBusy)return;const r=chestBuy(window.__chestR1,window.__chestR2);window.__chestR1=window.__chestR2=undefined;if(!r){SFX.beep&&SFX.beep();return}window.__lastChest=r;chestAnim(r)};
+if($('openChests'))$('openChests').onclick=openChests;
+$('chClose').onclick=()=>$('chests').classList.add('hidden');
+// weekend banners: menu, hub HUD and end screen
+function updWknd(){const on=isWknd();for(const e of document.querySelectorAll('.wkBan'))e.classList.toggle('hidden',!on||(e.id==='wkHud'&&!(cur&&cur.def&&cur.def.hub)))}
+setInterval(updWknd,1000);updWknd();
+Object.assign(window.__hsz,{CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
