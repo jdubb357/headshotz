@@ -2149,11 +2149,12 @@ function tpEnsure(){const roy=royaleMode();const m=me.model;const kind=roy?'toon
  window.__toonMe=roy;const nm=(me.name||'You');const mm=makeCharacter(0xffffff,nm,'me',undefined,roy?undefined:(SKINS[PROG.skin]||[])[2]||undefined,PROG.pc);window.__toonMe=false;mm.userData.mk=kind;mm.userData.fitIdx=fit;mm.userData.noTagMe=true;mm.visible=false;scene.add(mm);me.model=mm;me.gunKey='';return mm}
 const _tp1=new THREE.Vector3(),_tp2=new THREE.Vector3(),_tp3=new THREE.Vector3(),_tp4=new THREE.Vector3();
 function tpCam(dt,w,scopeOn){const eye=_tp1.copy(camera.position);const f=_tp2.set(0,0,-1).applyQuaternion(camera.quaternion);const r=_tp3.set(1,0,0).applyQuaternion(camera.quaternion);r.y=0;r.normalize();
- const ads=me.zoomT;const wantD=TPV.d+(1.55-TPV.d)*ads,wantS=TPV.side*(1-ads*.1)*TPV.sh,wantU=TPV.up*(1-ads*.4)+ (me.slideT>0?-.35:0);
+ const ads=me.zoomT;const wantD=TPV.d+(1.95-TPV.d)*ads,wantS=(TPV.side+(.82-TPV.side)*ads)*TPV.sh,wantU=TPV.up*(1-ads*.4)+ (me.slideT>0?-.35:0);
  // sideways shoulder offset first (walls beside you), then back along the view direction
  const piv=_tp4.copy(eye);piv.y+=wantU;let sd=wantS;{const dr=r.clone().multiplyScalar(Math.sign(sd)||1);const t=rayWorld(piv,dr,Math.abs(sd)+.3);if(t<Math.abs(sd)+.3)sd=Math.sign(sd)*Math.max(0,t-.28)}
  piv.addScaledVector(r,sd);
- const back=f.clone().multiplyScalar(-1);let t=rayWorld(piv,back,wantD+.35);const limit=Math.max(.12,Math.min(wantD,t-.32));
+ const back=f.clone().multiplyScalar(-1);let t=rayWorld(piv,back,wantD+.35);let limit=Math.max(.12,Math.min(wantD,t-.32));
+ {const des=piv.clone().addScaledVector(back,wantD),dv=des.clone().sub(eye),L=dv.length();dv.divideScalar(L);const tb=rayWorld(eye,dv,L+.3);if(tb<L+.3){const fr=Math.max(0,(tb-.3)/L);limit=Math.min(limit,Math.max(.12,wantD*fr))}}
  // snap in instantly when blocked, ease out when free
  if(limit<TPV.dist)TPV.dist=limit;else TPV.dist+=(limit-TPV.dist)*Math.min(1,dt*5);
  const sc=scopeOn?1:0;const dd=TPV.dist*(1-sc);TPV.cd=dd;
@@ -2163,7 +2164,7 @@ let _cbk='';function tpBody(dt){{const k=inGame+'|'+C.hub+'|'+TPV.on;if(k!==_cbk
  const u=m.userData;const alive=me.alive;if(m.parent!==scene)scene.add(m);
  if(!alive){if(!u.dead)u.dead=.001}else if(u.dead){u.dead=0}
  m.visible=!(TPV.hide&&alive)&&!C.hub;if(!m.visible)return;
- const id=me.load[me.cur];const key=id+'|'+(me.ws&&me.ws[id]||'');if(me.gunKey!==key&&u.gunMount){me.gunKey=key;u.gunMount.clear();const g=tpGun(id,'');u.gunMount.add(g)}
+ const id=me.load[me.cur];const key=id+'|'+(me.ws&&me.ws[id]||'');if(me.gunKey!==key&&u.gunMount){me.gunKey=key;u.gunMount.clear();const g=tpGun(id,'');u.gunMount.add(g);u.gunMount.scale.setScalar(u.kind==='toon'?1.3:1)}
  m.position.set(me.pos.x,me.pos.y,me.pos.z);m.rotation.y=me.yaw;
  const vx=me.vel.x,vz=me.vel.z,hs=Math.hypot(vx,vz);const fx=-Math.sin(me.yaw),fz=-Math.cos(me.yaw),rx=Math.cos(me.yaw),rz=-Math.sin(me.yaw);
  const lx=hs>.1?(vx*rx+vz*rz)/hs:0,lz=hs>.1?-((vx*fx+vz*fz)/hs):-1;
@@ -2173,4 +2174,4 @@ function updCamBtn(){const b=$('camBtn');if(!b)return;b.classList.toggle('hidden
 function camToggle(){if(!inGame||C.hub)return;TPV.on=!TPV.on;if(royaleMode())LSS('camR',TPV.on?'3':'1');else LSS('cam3',TPV.on?'1':'0');if(TPV.on)tpEnsure();else{if(me.model)me.model.visible=false;camera.fov=75;camera.updateProjectionMatrix()}updCamBtn();center(TPV.on?'Third person':'First person',700)}
 (function(){const b=document.createElement('button');b.id='camBtn';b.className='hidden';b.textContent='👁️';document.body.appendChild(b);b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();camToggle()});
  addEventListener('keydown',e=>{if(e.code==='KeyV'&&!e.repeat&&inGame&&!paused&&e.target.tagName!=='INPUT')camToggle();if(e.code==='KeyT'&&TPV.on&&!e.repeat&&inGame&&!paused&&e.target.tagName!=='INPUT'){TPV.sh=-TPV.sh;center(TPV.sh>0?'Camera: right shoulder':'Camera: left shoulder',600)}})})();
-window.__hsz.TPV=TPV;window.__hsz.camera=camera;window.__hsz.vmRoot=vmRoot;window.__hsz.camToggle=camToggle;
+window.__hsz.TPV=TPV;window.__hsz.rayW=(o,d,m)=>rayWorld(o,d,m);window.__hsz.camera=camera;window.__hsz.vmRoot=vmRoot;window.__hsz.camToggle=camToggle;
