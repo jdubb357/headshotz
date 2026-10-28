@@ -20,22 +20,22 @@ export function initSkinShop(A){
   const base=new THREE.Mesh(new THREE.CylinderGeometry(1.15,1.3,.22,36),new THREE.MeshStandardMaterial({color:0x19b8a6,roughness:.4,metalness:.2}));base.position.y=-.27;scene.add(base);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(1.0,.035,8,48),new THREE.MeshBasicMaterial({color:0xffd23f}));ring.rotation.x=Math.PI/2;ring.position.y=.005;scene.add(ring)}
  function resize(){if(!R)return;const b=cv.parentElement.getBoundingClientRect();const w=Math.max(120,b.width|0),h=Math.max(120,b.height|0);R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.setSize(w,h,false);cam.aspect=w/h;
-  const soldier=S.view==='soldier';cam.fov=soldier?(h>w?38:30):(h>w?34:28);cam.position.set(0,soldier?1.15:1.1,soldier?-5.9:-5.2);cam.lookAt(0,soldier?.92:.92,0);cam.updateProjectionMatrix()}
- function disposeModel(){if(!model)return;scene.remove(model);model.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh&&o.userData&&o.userData.own)o.geometry.dispose()});model=null}
+  const soldier=S.view==='soldier';cam.fov=soldier?(h>w?32:25):(h>w?34:28);cam.position.set(0,soldier?1.1:1.1,soldier?-5.9:-5.2);cam.lookAt(0,soldier?.98:.92,0);cam.updateProjectionMatrix()}
+ function disposeModel(){if(!model)return;scene.remove(model);model.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh&&o.geometry)o.geometry.dispose()});model=null}
  function gunFor(m){const u=m.userData;if(!u.gunMount||!A.gun)return;u.gunMount.clear();const g=A.gun('ar',u.outfit&&u.outfit.glove);if(g)u.gunMount.add(g)}
  function mkModel(){if(!scene)return;const keepRy=model?model.rotation.y:S.ry;disposeModel();const def=SKIN_BY[S.sel];if(!def)return;
   if(S.view==='hero'){model=makeToon(0xffffff,'','shop-'+def.id,'#fff',BASE_N+SKIN_DEFS.indexOf(def)+64*S.tint,{noTag:true})}
   else{const o=window.__toonOn;window.__toonOn=null;try{model=makeCharacter(0xffffff,'','shop-'+def.id,undefined,humanOutfit(def.id,S.tint),'soldier')}finally{window.__toonOn=o}if(model.userData.tag)model.userData.tag.visible=false}
   gunFor(model);model.rotation.y=keepRy;scene.add(model);resize();pose(0.016)}
  function pose(dt){if(!model)return;const st={speed:0,hold:true,pitch:0,lz:-1,lx:0,noTag:true,dist:3,lobby:1};if(model.userData.kind==='toon')animToon(model,st,dt);else animHum(model,st,dt)}
- function frame(t){if(!S.on)return;raf=requestAnimationFrame(frame);const dt=Math.min(.05,(t-last)/1000||.016);last=t;clock+=dt;if(model){if(!S.drag)model.rotation.y+=dt*.8;pose(dt)}R.render(scene,cam)}
+ function frame(t){if(!S.on)return;raf=requestAnimationFrame(frame);if(!S.uv&&((S.fc=(S.fc||0)+1)%10===0)){const want=window.__humans&&window.__humans.ok?'soldier':'hero';if(want!==S.view){S.view=want;mkModel();renderSide()}}const dt=Math.min(.05,(t-last)/1000||.016);last=t;clock+=dt;if(model){if(!S.drag)model.rotation.y+=dt*.8;pose(dt)}R.render(scene,cam)}
  // ---------- thumbnails (hero render of every skin; generated once in small batches by a throw-away renderer)
  const TH={};let thBusy=false;
  function makeThumbs(){if(thBusy)return;const todo=SKIN_DEFS.filter(d=>!TH[d.id]);if(!todo.length)return;thBusy=true;
-  let tr=null;try{tr=new THREE.WebGLRenderer({antialias:false,alpha:true,preserveDrawingBuffer:true});tr.setPixelRatio(1);tr.setSize(120,150);tr.outputColorSpace=THREE.SRGBColorSpace;tr.toneMapping=THREE.ACESFilmicToneMapping;tr.setClearColor(0,0)}catch(e){thBusy=false;return}
-  const sc=new THREE.Scene();mkLights(sc);const c2=new THREE.PerspectiveCamera(26,120/150,.1,40);c2.position.set(0,1.1,-5.2);c2.lookAt(0,.95,0);let i=0;
+  let tr=null;try{tr=new THREE.WebGLRenderer({antialias:false,alpha:true,preserveDrawingBuffer:true});tr.setPixelRatio(1);tr.setSize(110,160);tr.outputColorSpace=THREE.SRGBColorSpace;tr.toneMapping=THREE.ACESFilmicToneMapping;tr.setClearColor(0,0)}catch(e){thBusy=false;return}
+  const sc=new THREE.Scene();mkLights(sc);const c2=new THREE.PerspectiveCamera(33,110/160,.1,40);c2.position.set(0,1.1,-5.8);c2.lookAt(0,.92,0);const SOLD=!!(window.__humans&&window.__humans.ok);let i=0;
   const step=()=>{const d=todo[i++];if(!d){try{tr.dispose();tr.forceContextLoss&&tr.forceContextLoss()}catch(e){}thBusy=false;return}
-   try{const m=makeToon(0xffffff,'','th-'+d.id,'#fff',BASE_N+SKIN_DEFS.indexOf(d),{noTag:true});m.rotation.y=.55;sc.add(m);animToon(m,{speed:0,hold:false,relax:true,pitch:0,lz:-1,lx:0,noTag:true},.016);tr.render(sc,c2);TH[d.id]=tr.domElement.toDataURL('image/png');sc.remove(m);
+   try{let m;if(SOLD){const o=window.__toonOn;window.__toonOn=null;try{m=makeCharacter(0xffffff,'','th-'+d.id,undefined,humanOutfit(d.id,0),'soldier')}finally{window.__toonOn=o}if(m.userData.tag)m.userData.tag.visible=false;m.rotation.y=.5;sc.add(m);for(let q=0;q<4;q++)animHum(m,{speed:0,hold:false,relax:true,pitch:0,lz:-1,lx:0,noTag:true,dist:3,lobby:1},.05)}else{m=makeToon(0xffffff,'','th-'+d.id,'#fff',BASE_N+SKIN_DEFS.indexOf(d),{noTag:true});m.rotation.y=.55;sc.add(m);animToon(m,{speed:0,hold:false,relax:true,pitch:0,lz:-1,lx:0,noTag:true},.016)}tr.render(sc,c2);TH[d.id]=tr.domElement.toDataURL('image/png');sc.remove(m);m.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh&&o.geometry)o.geometry.dispose()});
     const img=el.querySelector(`.ssCard[data-id="${d.id}"] img`);if(img)img.src=TH[d.id]}catch(e){}
    setTimeout(step,S.on?30:200)};step()}
  // ---------- UI
@@ -56,7 +56,7 @@ export function initSkinShop(A){
  function select(id){S.sel=id;S.tint=(P.stint&&P.stint[id])||(eqId()===id?eqTint():0);mkModel();render()}
  function buy(){const d=SKIN_BY[S.sel];if(own(d.id)||P.dia<d.price){A.denied&&A.denied();return}P.dia-=d.price;P.skins.push(d.id);A.SFX&&A.SFX.kill&&A.SFX.kill();toast(`✨ ${d.name} unlocked!`);equip()}
  function equip(){const d=SKIN_BY[S.sel];if(!own(d.id))return;P.stint=P.stint||{};P.stint[d.id]=S.tint;A.equip(d.id,S.tint);render();toast(`Wearing ${d.name}${S.tint?' · '+TINT_N[S.tint]:''}`)}
- function open(from){A.audioInit&&A.audioInit();try{document.exitPointerLock&&document.exitPointerLock()}catch(e){}S.from=from||'menu';build();el.classList.remove('hidden');S.on=true;
+ function open(from){A.audioInit&&A.audioInit();try{document.exitPointerLock&&document.exitPointerLock()}catch(e){}S.from=from||'menu';if(!S.vSet){S.vSet=1;S.view=window.__humans&&window.__humans.ok?'soldier':'hero'}build();el.classList.remove('hidden');S.on=true;
   const cur=eqId();const start=SKIN_BY[cur]?cur:(SKIN_BY[S.sel]?S.sel:SKIN_DEFS[0].id);S.sel=start;S.tint=SKIN_BY[cur]&&cur===start?eqTint():(P.stint&&P.stint[start])||0;render();
   requestAnimationFrame(()=>{resize();mkModel();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);setTimeout(makeThumbs,120)})}
  function close(){S.on=false;cancelAnimationFrame(raf);el.classList.add('hidden');disposeModel();if(R){try{R.dispose();R.forceContextLoss&&R.forceContextLoss()}catch(e){}R=null;scene=null;cam=null}A.onClose&&A.onClose(S.from)}
@@ -65,7 +65,7 @@ export function initSkinShop(A){
   else if(b.dataset.id)select(b.dataset.id);
   else if(b.dataset.f!=null){S.fil=b.dataset.f;render()}
   else if(b.dataset.t!=null){S.tint=+b.dataset.t;mkModel();renderSide()}
-  else if(b.dataset.v){S.view=b.dataset.v;mkModel();renderSide()}
+  else if(b.dataset.v){S.uv=1;S.view=b.dataset.v;mkModel();renderSide()}
   else if(b.id==='ssBuy'){const a=b.dataset.act;if(a==='buy')buy();else if(a==='equip')equip();else if(a==='poor')A.denied&&A.denied()}
   else if(b.id==='ssDef'){A.equip('default',0);render();toast('Wearing the default outfit')}});
  const cvEl=$('ssStage');cvEl.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;S.drag={x:e.clientX};try{cvEl.setPointerCapture(e.pointerId)}catch(x){}});

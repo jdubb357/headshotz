@@ -47,3 +47,7 @@ Generated headless with Blender 4.2 + MPFB 2.0.18 (the exporter output is CC0 pe
 | Hyper3D Rodin | No (no key) | API needs a Business plan; env var would be `HYPER3D_API_KEY` (Rodin docs call it `RODIN_API_KEY`). ~0.5 credit per Gen-1 generation at ~$1.50/credit. |
 
 Heroes (`toon.js`), battle bus, glider and gun grips are original, procedurally built in code. Gun hands are the existing procedural viewmodel hands (no third-party assets).
+
+## Character skins (v56)
+
+The 40 shop skins are **original procedural geometry written in code** (`kits.js`): armour plates, helmets, capes, hats, packs, belts and props are lathed/extruded primitives attached to the MakeHuman skeleton bones, with per-skin cloth shader styles (mummy wraps, zombie rags, stripes), PBR-style gear materials (metal, leather, cloth, glass, scales, fur) and a built-in analytic sky/ground reflection. No third-party models or textures were added; the only external assets in the characters remain the CC0 MakeHuman body/skin/hair/eyes above. Skin tone, eyes and body proportions are recoloured/scaled per skin. The v55 galaxy skins' animated star/nebula shader is original code too. (Retargeting third-party rigged outfits was not possible without Blender in this environment.)
