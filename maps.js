@@ -219,7 +219,7 @@ export const HUB_PADS=[
  {k:'duel',n:1,x:-15,z:-15},{k:'team',n:2,x:0,z:-15},{k:'t3',n:3,x:15,z:-15},
  {k:'t4',n:4,x:-13,z:13},{k:'t5',n:5,x:3,z:13},{k:'ffa',n:8,x:18.5,z:13,single:1},{k:'ctf',n:4,x:-9,z:-2},{k:'ext',n:4,q:1,x:9,z:-2},{k:'br',n:8,q:1,x:21,z:-2},{k:'brs',n:4,q:1,x:9,z:6}];
 export function padCircles(p){const h=p.single||p.q?3.2:Math.min(3.1,.95+.45*p.n);const r=h;if(p.single||p.q)return[{side:'F',x:p.x,z:p.z,r,h}];const off=h+.45;return[{side:'A',x:p.x-off,z:p.z,r,h},{side:'B',x:p.x+off,z:p.z,r,h}]}// square pads: h = half side
-export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3,col:0xffb020,npc:'Gus',cls:'soldier'},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5,col:0xb06bff,npc:'Ivy',cls:'engineer'},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'classes',name:'🎭 CLASS BOOTH',x:-27,z:-11,col:0x3fa9ff,npc:'Kai',cls:'ninja'},{k:'skins',name:'🎨 SKIN STUDIO',x:-27,z:13,col:0xff4fa3,npc:'Remy',cls:'scout'}].concat([{k:'chest',name:'🎁 CHEST SHOP',x:-27,z:-19,col:0xff3b3b,npc:'Lola',cls:'medic'}]);
+export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3,col:0xffb020,npc:'Gus',cls:'soldier'},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5,col:0xb06bff,npc:'Ivy',cls:'engineer'},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'classes',name:'🎭 CLASS BOOTH',x:-27,z:-11,col:0x3fa9ff,npc:'Kai',cls:'ninja'},{k:'skins',name:'🎨 SKIN STUDIO',x:-27,z:13,col:0xff4fa3,npc:'Remy',cls:'scout'}].concat([{k:'chest',name:'🎁 CHEST SHOP',x:-27,z:-19,col:0xff3b3b,npc:'Lola',cls:'medic'},{k:'pskins',name:'👕 SKIN SHOP',x:-27,z:21,col:0x19e0c8,npc:'Sage',cls:'soldier'}]);
 DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,48],ground:['tiles',0x9aa3b5,.22],grade:[1,1,1.04,1.15,1.06],horizon:'city',
  sky:[0x24306e,0xff8fa3,0xffc59a],fog:[0xd99aa8,60,160],hemi:[0xe8e4ff,0x6a5a7a,1.35],sun:[0xffd6b0,1.7,[-.4,.55,-.6]],
  build(B){// perimeter: glassy towers + low walls
@@ -241,6 +241,7 @@ DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,
    B.glow(x-.6,3.95,z,1.6,.03,1.2,0xfff1d6);
    for(let si=0;si<3;si++){const y=1.25+si*.8;for(let i=0;i<5;i++){const zz=z-W/2+1+i*(W-2)/4;if(k==='shop'){B.box(bx+.45,y,zz,.08,.12,.7,0x8a9099,'metal',{solid:false,shadow:false});B.box(bx+.45,y+.12,zz+.15,.08,.18,.08,0x8a9099,'metal',{solid:false,shadow:false});B.glow(bx+.5,y-.01,zz,.02,.02,.7,0xffb020)}
     else if(k==='skins'){const cs=[0xff4fa3,0x2fd5ff,0xffd23f,0x9b59ff,0x4cff7a];B.box(bx+.45,y,zz,.06,.1,.6,cs[(i+si)%5],'metal',{solid:false,shadow:false});if((i+si)%2)B.glow(bx+.49,y+.02,zz,.01,.06,.5,cs[(i+si+2)%5])}
+    else if(k==='pskins'){const cs=[0x19e0c8,0xff7a45,0xb36bff,0xffd23f,0x4fb3ff];B.box(bx+.45,y,zz,.1,.3,.22,cs[(i+si)%5],'metal',{solid:false,shadow:false});B.part('metal',{g:G('sph',.1,8,6),p:[bx+.45,y+.4,zz],c:cs[(i+si+2)%5]});B.glow(bx+.5,y-.01,zz,.02,.02,.5,0xfff1d6)}
     else if(k==='classes'){B.part('metal',{g:G('sph',.13,10,8),p:[bx+.45,y+.13,zz],s:[1,.8,1.1],c:[0x4b5344,0x15161a,0x2f3338,0xe9ecef,0x6b5b3e][i]})}
     else{B.glow(bx+.45,y+.02,zz,.04,.22,.22,[0xffd23f,0xb06bff,0x2fd5ff][(i+si)%3])}}}
    if(!B.lo)B.box(x+1.8,0,z+W/2-.3,.5,.9,.5,0x9c7a4b,'crate',{local:true})};
@@ -249,7 +250,7 @@ DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,
   B.box(28,0,-6,.8,4.2,.8,0x2b2f3a,'metal');B.box(28,0,-2,.8,4.2,.8,0x2b2f3a,'metal');B.box(28,4.2,-4,.8,.7,4.8,0x2b2f3a,'metal');B.glow(28,.05,-4,.1,4.1,3.2,0x2ee59d);
   // benches, planters, lamps for life
   for(const s of[-1,1]){B.planter(s*6,4,2.4,2.4,1);B.planter(s*16,-4,2.2,2.2,1);B.bench(s*3,-7.5,0);B.lamp(s*13,0,4.4,s>0?2:0);B.lamp(s*20,20,4.4,s>0?2:0);B.lamp(s*20,-21,4.4,s>0?2:0)}
-  B.palm(-30,21);B.palm(30,21);B.palm(-30,-21);B.palm(30,-21)},
+  B.palm(30,21);B.palm(-30,-21);B.palm(30,-21)},
  spawnsA:[[0,4],[2,5],[-2,5],[3,3],[-3,3]],spawnsB:[[0,6]],spawnsM:[[0,6]]});
 export const HUB_I=DEFS.length-1;
 DEFS.push(brDef({G,rng,_c}));export const BR_I=DEFS.length-1;export const BR_INFO={name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',def:DEFS[BR_I]};export{BR_ZONES};

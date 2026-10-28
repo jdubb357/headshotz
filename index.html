@@ -38,6 +38,7 @@
    </div>
    <div class="side">
     <button class="card nav" id="openShop"><span class="ico">🛒</span><span><b>WEAPON SHOP</b><small>Unlock weapons with 💎 earned by playing</small></span></button>
+    <button class="card nav" id="openSkinShop"><span class="ico">👕</span><span><b>SKIN SHOP</b><small>36 outfits · colors · 💎 only</small></span></button>
     <button class="card nav" id="openUpg"><span class="ico">⭐</span><span><b>UPGRADES</b><small>Camos · outfits · mag &amp; reload tiers</small></span></button>
     <button class="card nav" id="openArsenal"><span class="ico">🔫</span><span><b>ARSENAL</b><small>Equip your loadout</small></span></button>
     <button class="card nav" id="openChests"><span class="ico">🎁</span><span><b>CHEST SHOP</b><small>300 💎 · weapons, skins, classes</small></span></button>
@@ -195,6 +196,16 @@
   <button id="menuBtn" aria-label="Pause menu"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/><rect x="14.5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/></svg></button>
   <div id="pause" class="hidden"><div class="card pauseCard"><div id="board"></div>
     <div class="row"><button id="pResume" class="pill yellow">RESUME</button><button id="pArsenal" class="pill">🔫 ARSENAL</button><button id="pShop" class="pill">🛒 SHOP</button><button id="pClass" class="pill">🎭 CLASS</button><button id="pFriends" class="pill">👥 FRIENDS<i class="frBadge hidden"></i></button><button id="pSettings" class="pill">⚙️ SETTINGS</button><button id="pLeave" class="pill red">LEAVE</button></div></div></div>
+</div>
+<!-- v54 SKIN SHOP -->
+<div id="skinShop" class="screen hidden">
+ <div class="ssTop"><button id="ssClose" class="pill">◀ BACK</button><div class="ssTitle">👕 SKIN SHOP <small id="ssCount"></small></div><div class="ssDiaBox">💎 <b id="ssDia">0</b></div></div>
+ <div class="ssBody">
+  <div id="ssStage"><canvas id="ssCv"></canvas><div class="ssInfo"><b id="ssName"></b><i id="ssRar"></i></div><div id="ssView"><button data-v="hero">🦸 HERO</button><button data-v="soldier">🪖 SOLDIER</button></div><p class="ssHint">drag to rotate</p></div>
+  <div class="ssSide"><div id="ssFil" class="ssFil"></div><div id="ssGrid" class="ssGrid"></div><div id="ssTints" class="ssTints"></div>
+   <div class="ssAct"><button id="ssBuy" class="btnBig yellow">BUY</button><button id="ssDef" class="pill">DEFAULT</button></div></div>
+ </div>
+ <div id="ssToast"></div>
 </div>
 <div id="rotate">📱↻<br>Rotate your phone sideways to play</div>
 

@@ -4,7 +4,7 @@
 // carriers, packs) is attached to bones. Animation is procedural on the skeleton (same pose model as the old rig: gait, crouch, slide,
 // jump, climb, downed crawl, death) with 2-bone IK putting both hands on the weapon, which is mounted on the right hand's aim frame.
 // If anything fails to load, chars.js keeps building the old procedural characters.
-import {THREE,GQ} from './gfx.js';import {buildGear} from './gear.js';
+import {THREE,GQ} from './gfx.js';import {buildGear,buildSkinHat} from './gear.js';
 export const HUM={ready:false,failed:false,tpl:{},tex:{},ms:0,bytes:0};
 const BASE=new URL('assets/hum/',import.meta.url).href;
 const SKINC=[0,1,2,3];
@@ -45,7 +45,7 @@ const TONES=[0xffffff,0xfaf2ec,0xf5e6da,0xefd9c6,0xe6c7ac,0xdcb394,0xcfa183];con
   m.color=new THREE.Color(TONES[tone|0]);
   // v54 realism: cheap sub-surface look (warm red fresnel rim + wrapped warmth), oilier highlights on bright planes (forehead/nose/cheeks), softer ears/edges
   m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\n{float lm=dot(diffuseColor.rgb,vec3(.3,.59,.11));roughnessFactor=mix(.66,.36,smoothstep(.45,.85,lm));}')
-   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n{vec3 nv=normalize(normal);float fr=pow(1.-saturate(dot(nv,normalize(vViewPosition))),2.3);totalEmissiveRadiance+=diffuseColor.rgb*vec3(.7,.22,.12)*fr*.10;}')
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n{vec3 nv=normalize(normal);float fr=pow(1.-saturate(dot(nv,normalize(vViewPosition))),2.3);totalEmissiveRadiance+=diffuseColor.rgb*vec3(.7,.22,.12)*fr*.06;}')
    .replace('#include <opaque_fragment>','outgoingLight+=diffuseColor.rgb*vec3(.10,.03,.02);\n#include <opaque_fragment>')};m.customProgramCacheKey=()=>'humskin2'}
  else if(part==='shoes')m=new THREE.MeshStandardMaterial({map:HUM.tex.shoes,roughness:.55,metalness:0});
  else if(part==='hair'){m=new THREE.MeshStandardMaterial({map:HUM.tex.hair,color:tint,alphaTest:.45,side:THREE.DoubleSide,roughness:.5});
@@ -77,11 +77,11 @@ function box(w,h,d){return rboxF?rboxF(w,h,d):new THREE.BoxGeometry(w,h,d)}
 function gear(L,teamCol,cls,add){buildGear(L,teamCol,cls,add,rboxF)}
 const _v=new THREE.Vector3(),_w=new THREE.Vector3(),_x=new THREE.Vector3(),_y=new THREE.Vector3(),_q=new THREE.Quaternion(),_q2=new THREE.Quaternion(),_q3=new THREE.Quaternion(),_m=new THREE.Matrix4();
 function hashS(s){let h=7;for(const c of String(s))h=h*31+c.charCodeAt(0)|0;return Math.abs(h)}
-export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS(id);const L=LOOKS[cls]||LOOKS.soldier;
+export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS(id);let L=LOOKS[cls]||LOOKS.soldier;const SX=outfit&&outfit.x&&outfit.x.hat?outfit.x:null;if(SX)L={...L,head:null,vest:SX.vest||L.vest};
  const root=new THREE.Group(),rig=new THREE.Group();root.add(rig);const T=HUM.tier;
  const body=HUM.SU.clone(HUM.tpl[T]);body.rotation.y=Math.PI;const bw=L.bulk?1.1:L.slim?.96:1;body.scale.set(bw,1,bw);rig.add(body);
  const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o});
- const skinK=String(SKINC[(h>>2)%SKINC.length]),shirt=outfit?outfit[0]:(L.shirt??new THREE.Color(teamCol).lerp(new THREE.Color(0x3a3d36),.3).getHex()),pants=outfit?outfit[1]:L.pants,cm=clothMat(shirt,pants,outfit?0:L.camo);
+ const skinK=String(SKINC[(h>>2)%SKINC.length]),shirt=outfit?outfit[0]:(L.shirt??new THREE.Color(teamCol).lerp(new THREE.Color(0x3a3d36),.3).getHex()),pants=outfit?outfit[1]:L.pants,cm=clothMat(shirt,pants,outfit?(outfit.camo||0):L.camo);
  const hairT=HAIRT[(h>>5)%HAIRT.length],toneI=outfit&&outfit.x&&outfit.x.tone!=null?outfit.x.tone:(h>>9)%TONES.length;
  const setMats=o=>{if(!o.isSkinnedMesh)return;const p=o.userData.part;o.material=p==='cloth'?cm:partMat(p,p==='skin'?skinK:p==='hair'?String(hairT):'',hairT,toneI);o.castShadow=true;if(p==='hair'&&L.head&&L.head!=='cap')o.visible=false};
  body.traverse(setMats);
@@ -95,7 +95,7 @@ export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS
  const X=new THREE.Vector3(1,0,0),Z=new THREE.Vector3(0,0,1),Y=new THREE.Vector3(0,1,0);const AX={};for(const n in bones)AX[n]={x:axL(n,X),z:axL(n,Z),y:axL(n,Y)};
  // gear on bones
  // gear: collected per bone, baked into that bone's space and merged into ONE vertex-coloured mesh per bone (few draw calls)
- const GB={};gear(L,teamCol,cls,(m,bn)=>{const b=bones[bn]?bn:'spine_03';(GB[b]=GB[b]||[]).push(m)});
+ const GB={};const addG=(m,bn)=>{const b=bones[bn]?bn:'spine_03';(GB[b]=GB[b]||[]).push(m)};gear(L,teamCol,cls,addG);if(SX)buildSkinHat(SX.hat,SX.hatc,SX.acc,addG);
  for(const bn in GB){const b=bones[bn];b.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(b.matrixWorld).invert();const gs=[];
   for(const m of GB[bn]){rig.add(m);m.updateMatrixWorld(true);let g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();for(const k of Object.keys(g.attributes))if(!['position','normal'].includes(k))g.deleteAttribute(k);
    g.applyMatrix4(_m.multiplyMatrices(inv,m.matrixWorld));const col=m.material.color,n=g.attributes.position.count,ca=new Float32Array(n*4);const rr=m.material.roughness,mt=m.material.metalness,gk=m.material.userData.k||0;const gx=new Float32Array(n*2);for(let i=0;i<n;i++){ca[i*4]=col.r;ca[i*4+1]=col.g;ca[i*4+2]=col.b;ca[i*4+3]=rr;gx[i*2]=mt;gx[i*2+1]=gk}g.setAttribute('color',new THREE.BufferAttribute(ca,4));g.setAttribute('gx',new THREE.BufferAttribute(gx,2));rig.remove(m);gs.push(g)}

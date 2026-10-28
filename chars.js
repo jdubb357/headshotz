@@ -85,7 +85,7 @@ export function makeCharacter(teamCol,name,id,tagCol,outfit,cls){let m=null;if(w
 export {HUM};
 function makeProc(teamCol,name,id,tagCol,outfit,cls){const h=hash(id);const skin=SKINS[h%SKINS.length],hair=HAIR[(h>>3)%HAIR.length],iris=IRIS[(h>>5)%IRIS.length];
  const hs=(h>>7)%4,fh=(h>>9)%4;// hair style, facial hair
- const L=LOOKS[cls]||LOOKS.soldier;CAMO=outfit?0:L.camo;const col=new THREE.Color(teamCol),dark=col.clone().multiplyScalar(.55).getHex();
+ const L=LOOKS[cls]||LOOKS.soldier;CAMO=outfit?(outfit.camo||0):L.camo;const col=new THREE.Color(teamCol),dark=col.clone().multiplyScalar(.55).getHex();
  const shirt=L.shirt??teamCol,vest=outfit?outfit[0]:L.vest,pants=outfit?outfit[1]:L.pants,boot=0x2a2520,sole=0x0e0e0e,glove=0x2a2a2a,strap=0x26292b,pouch=new THREE.Color(vest).multiplyScalar(.82).getHex(),metal=0x6f747a,seam=new THREE.Color(pants).multiplyScalar(.6).getHex(),lip=new THREE.Color(skin).lerp(new THREE.Color(0x9e4b46),.45).getHex(),skinD=new THREE.Color(skin).multiplyScalar(.85).getHex();
  const bw=L.bulk?1.18:L.slim?.92:1;const K=['v3',cls||'soldier',teamCol,skin,hair,iris,hs,fh,vest,pants,outfit?1:0].join('|');
  const root=new THREE.Group(),rig=new THREE.Group();root.add(rig);

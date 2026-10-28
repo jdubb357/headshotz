@@ -1,6 +1,9 @@
 // HeadShotz – free browser multiplayer FPS. Three.js + PeerJS (host-authoritative star).
 import {THREE,FX,TX,MC,G,mergeParts,GQ,texMat,swapMats,WT,GRASS_T,scatterGrass,makeSky,RET,GLASS,camoTex} from './gfx.js';
 import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './wskins.js';
+import {SKIN_DEFS,SKIN_BY,SKIN_IDS,humanOutfit,splitSkin,joinSkin} from './skins.js';
+import {BASE_N} from './toon.js';
+import {initSkinShop} from './skinshop.js';
 import {Post} from './post.js';
 import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
@@ -458,7 +461,11 @@ const ECON={kill:3,head:2,round:8,win:20,play:5,bot:2,mul:()=>(H&&H.offline)||C.
 // v41: 2X DIAMOND WEEKEND — Saturday + Sunday in the player's local time (window.__mockNow lets tests fake the date)
 const wkNow=()=>new Date(window.__mockNow!=null?window.__mockNow:Date.now());const isWknd=()=>{const d=wkNow().getDay();return d===0||d===6};window.__isWknd=isWknd;
 const CAMOS={factory:['Factory',0,null],desert:['Desert',150,0xc8a96a],forest:['Forest',150,0x4f6b3a],arctic:['Arctic',220,0xdfe8ee],crimson:['Crimson',300,0xb3202a],cobalt:['Cobalt',300,0x2a62c9],gold:['Gold',900,0xe8b923],neon:['Neon',650,0x39ff88]};
-const SKINS={default:['Default',0,null],ninja:['Ninja',100,[0x1b1d21,0x111214]],desert:['Desert Ops',100,[0xb59a6a,0x7d6a4a]],arctic:['Arctic',120,[0xe6edf2,0x9aa6b0]],royal:['Royal',160,[0x5b2a86,0xd4a83a]],neon:['Neon',200,[0x18e07a,0x101010]]};
+// v54: one catalogue (skins.js) drives the shop, chests, humans and Royale heroes. SKINS[id]=[name,price,humanOutfit]; wire/save form is "id" or "id~tint"
+const SKINS=Object.assign({default:['Default',0,null]},Object.fromEntries(SKIN_DEFS.map(d=>[d.id,[d.name,d.price,humanOutfit(d.id,0)]])));
+const cleanSkin=s=>{const{id,tint}=splitSkin(s);return SKINS[id]?joinSkin(id,id==='default'?0:tint):'default'};
+const skinOutfit=s=>{const{id,tint}=splitSkin(s);return id==='default'||!SKIN_BY[id]?null:humanOutfit(id,tint)};
+const FIT_N=BASE_N+SKIN_DEFS.length;
 const UPG={mag:{name:'Extended Mag',per:.15,cost:[200,450]},reload:{name:'Fast Hands',per:.08,cost:[200,450]}};
 // one wallet + inventory per device, shared by offline, hub and online play. Versioned key; migrates the old 'prog' save.
 const WALLET_V=3;const PROG=(()=>{const base={v:WALLET_V,dia:0,owned:[],upg:{},camo:{},camos:{},skin:'default',skins:['default'],wskin:{},wskins:{},fr:null,pc:'soldier',pcs:['soldier']};let w=null;try{w=JSON.parse(LS('wallet')||'null')}catch(e){}
@@ -529,7 +536,7 @@ function hostLeave(id){const lp=H.players[id];if(!lp)return;if(H.br&&BRM(H.mode)
 function hostHandle(from,m){const p=H.players[from];
  switch(m.t){
  case 'hello':{if(BRM(H.mode)&&H.phase!=='lobby'){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'full'});return}if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
-  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
+  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
   if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=H.mode==='ext'?'A':teamForJoiner(from);np.color=TEAMCOL[np.team]}
    {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
    bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
@@ -543,7 +550,7 @@ function hostHandle(from,m){const p=H.players[from];
  case 'rem':if(p&&H.matchOver){H.rem[from]=m.v?1:0;remCheck()}break;
  case 'ws':if(p){p.ws=cleanWS(m.ws);bcast({t:'ws',id:from,ws:p.ws})}break;
  case 'cl':if(p){p.cl=clOf(m.cl);bcast({t:'cl',id:from,cl:p.cl})}break;
- case 'fit':if(p){p.fit=fitOf(m.fit);bcast({t:'fit',id:from,ft:p.fit})}break;
+ case 'fit':if(p){p.fit=fitOf(m.fit);if(m.sk!=null)p.skin=cleanSkin(m.sk);bcast({t:'fit',id:from,ft:p.fit,sk:p.skin})}break;
  case 'emo':if(p&&p.alive!==false&&Number.isInteger(m.e)&&m.e>=-1&&m.e<EMOTES.length)bcast({t:'emo',id:from,e:m.e},from);break;
  case 'ping':conns[from]?.send({t:'pong',ts:m.ts,n:plist().length});break;
  case 'st':if(p&&Array.isArray(m.p))p.p=m.p;break;
@@ -700,8 +707,8 @@ function clientHandle(m){if(BC&&brMsg(m))return;switch(m.t){
  case 'rematch':center('REMATCH!\nSame room, same players',1800);remWait=false;break;
  case 'remv':{const b=$('endAgain');if(b&&remWait)b.textContent=`⏳ WAITING (${m.y}/${m.n})`;break}
  case 'emo':{const q=C.players[m.id];if(q&&m.id!==me.id)q.emo=m.e>=0&&EMOTES[m.e]?{id:EMOTES[m.e],until:performance.now()+((EMOTE_DUR[EMOTES[m.e]]||3)+.3)*1000}:null;break}
- case 'fit':{const q=C.players[m.id];if(q){q.fit=fitOf(m.ft);if(q.model&&m.id!==me.id&&q.model.userData.kind==='toon'){const vis=q.model.visible;scene.remove(q.model);window.__fitNext=q.fit;q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}}break}
- case 'cl':{const q=C.players[m.id];if(q&&q.model&&m.id!==me.id){const vis=q.model.visible;scene.remove(q.model);q.cl=clOf(m.cl);q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}else if(q)q.cl=clOf(m.cl);break}
+ case 'fit':{const q=C.players[m.id];if(q){q.fit=fitOf(m.ft);if(m.sk!=null&&m.id!==me.id&&q.sk!==m.sk){q.sk=m.sk;if(q.model&&q.model.userData.kind!=='toon'){const vis=q.model.visible;scene.remove(q.model);q.model=makeCharacter(q.color,q.name,m.id,undefined,skinOutfit(m.sk)||undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}}if(q.model&&m.id!==me.id&&q.model.userData.kind==='toon'){const vis=q.model.visible;scene.remove(q.model);window.__fitNext=q.fit;q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}}break}
+ case 'cl':{const q=C.players[m.id];if(q&&q.model&&m.id!==me.id){const vis=q.model.visible;scene.remove(q.model);q.cl=clOf(m.cl);q.model=makeCharacter(q.color,q.name,m.id,undefined,skinOutfit(q.sk)||undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}else if(q)q.cl=clOf(m.cl);break}
  case 'ws':{const q=C.players[m.id];if(q){q.ws=m.ws||{};q.gunSk=null;if(q.gunId){const g=q.gunId;q.gunId=null;setRemoteGun(q,WIDX[g])}}break}
  case 'join':addRemote(m.id,{name:m.name,team:m.team,color:m.color,o:m.o,sk:m.sk,ws:m.ws,cl:m.cl,bot:m.bot,raider:m.raider});renderSB();feed(`${m.name} joined`);break;
  case 'bye':{const q=C.players[m.id];if(q){if(q.model)scene.remove(q.model);feed(q.name+' left');delete C.players[m.id];delete C.sb[m.id];renderSB()}break}
@@ -743,7 +750,7 @@ function clientHandle(m){if(BC&&brMsg(m))return;switch(m.t){
  }}
 function addRemote(id,info){if(C.players[id]?.model)scene.remove(C.players[id].model);
  const q={id,cl:clOf(info.cl),ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,raider:info.raider||info.rd,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
- q.fit=fitOf(info.ft);if(id!==me.id){window.__fitNext=q.fit;q.model=makeCharacter(q.color,info.name,id,undefined,(SKINS[info.sk]||[])[2]||undefined,info.cl);q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
+ q.fit=fitOf(info.ft);if(id!==me.id){window.__fitNext=q.fit;q.model=makeCharacter(q.color,info.name,id,undefined,skinOutfit(info.sk)||undefined,info.cl);q.sk=info.sk;q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
 function startGame(m){hideEnd();setTimeout(renderParty,50);remWait=false;{const rt=$('roomTag');if(rt){const online=!(H&&H.offline)&&roomCode&&roomCode!=='OFFLINE'&&!C.hub;rt.classList.toggle('hidden',!online);if(online){const pub=lastLobby?!!lastLobby.pub:!!H.pub;rt.textContent=(pub?'🌐 PUBLIC · ':'🔒 PRIVATE · ')+roomCode+' · tap to invite'}}}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
  loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);missionClientInit(m.ms||null);if(m.br)brClientInit(m.br);else brClear();tpSetup();
  for(const s of['menu','lobby','arsenal','settings'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
@@ -879,8 +886,8 @@ $('arsDetail').addEventListener('click',e=>{const b=e.target.closest('[data-act]
  else if(act==='wsk'){wskSel=b.dataset.k;SFX.swap()}
  else if(act==='buywsk'){const p=WSKINS[wskSel][1];if(PROG.dia<p)return denied();PROG.dia-=p;(PROG.wskins[w.id]=PROG.wskins[w.id]||[]).push(wskSel);setWSkin(w.id,wskSel);SFX.kill();center(`🎨 ${WSKINS[wskSel][0]} unlocked!`,1400)}
  else if(act==='eqwsk'){setWSkin(w.id,wskSel);SFX.magIn()}
- else if(act==='buyskin'){const p=SKINS[skinSel][1];if(PROG.dia<p)return denied();PROG.dia-=p;PROG.skins.push(skinSel);PROG.skin=skinSel;saveProg();SFX.kill();hubEquip&&hubEquip()}
- else if(act==='wear'){PROG.skin=skinSel;saveProg();hubEquip&&hubEquip()}
+ else if(act==='buyskin'){const p=SKINS[skinSel][1];if(PROG.dia<p)return denied();PROG.dia-=p;PROG.skins.push(skinSel);saveProg();equipSkin(skinSel,0);SFX.kill()}
+ else if(act==='wear'){equipSkin(skinSel,0)}
  renderArsenal()});
 $('arsClose').onclick=()=>{$('arsenal').classList.add('hidden');stopPreview()};
 $('openArsenal').onclick=()=>openArsenal();$('lobArsenal').onclick=()=>openArsenal();$('openShop').onclick=()=>openArsenal(null,'shop');$('openUpg').onclick=()=>openArsenal(null,'upgrade');$('lobShop').onclick=()=>openArsenal(null,'shop');
@@ -1215,13 +1222,13 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
   if(m.t==='hi'){if(c){c.busy=false;if(conn)c.conn=conn}if(c&&c.kind!==m.kind&&m.kind==='player'){c.kind='player'}
    else if(!c){if(m.kind==='player'&&this.players().length>=HUB_MAX){conn&&conn.send({t:'hubfull'});return}
     c=this.cl[id]={id,conn,local:!conn,kind:m.kind,ord:++this.ord,pos:[0,0,5,0],busy:false,seen:Date.now()}}
-   c.name=String(m.name||'Player').slice(0,12);c.skin=SKINS[m.skin]?m.skin:'default';c.cl=clOf(m.cl);
+   c.name=String(m.name||'Player').slice(0,12);c.skin=cleanSkin(m.skin);c.cl=clOf(m.cl);
    if(c.kind==='player'){this.send(c,{t:'hw',you:c.ord,n:this.n,players:this.players().filter(p=>p!==c).map(p=>[p.ord,p.name,p.skin,...[0,1,2,3].map(i=>(p.pos&&p.pos[i])||0),p.cl])});this.bc({t:'hj',p:[c.ord,c.name,c.skin,c.cl]},id);this.lastPads=''}
    else this.send(c,{t:'hw',you:c.ord,n:this.n});return}
   if(!c){if(conn&&conn.open)conn.send({t:'rehi'});else if(!conn)queueMicrotask(()=>hubRecv({t:'rehi'}));return}
   switch(m.t){
    case 'pos':if(Array.isArray(m.p))c.pos=m.p.slice(0,4).map(v=>+v||0);break;
-   case 'eq':c.skin=SKINS[m.skin]?m.skin:c.skin;c.cl=clOf(m.cl||c.cl);c.name=String(m.name||c.name).slice(0,12);this.bc({t:'hj',p:[c.ord,c.name,c.skin,c.cl]},id);break;
+   case 'eq':c.skin=SKINS[splitSkin(m.skin).id]?cleanSkin(m.skin):c.skin;c.cl=clOf(m.cl||c.cl);c.name=String(m.name||c.name).slice(0,12);this.bc({t:'hj',p:[c.ord,c.name,c.skin,c.cl]},id);break;
    case 'vote':{const s=this.sel[m.sid];if(s&&s.ids.includes(id)&&s.maps.includes(m.map)){s.votes[id]=m.map;this.toSel(s,{t:'votes',sid:s.id,votes:Object.values(s.votes)})}break}
    case 'reg':if(m.room&&m.room.code)this.rooms[m.room.code]={...m.room,at:Date.now(),by:id};break;
    case 'unreg':delete this.rooms[m.code];break;
@@ -1291,7 +1298,7 @@ function buildPadVis(){if(hubVis){scene.remove(hubVis.g)}const g=new THREE.Group
   const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex([MODES[p.k][0].split(' ')[0],'0/'+p.n],'#'+col.getHexString()),depthWrite:false,transparent:true}));spr.scale.set(3.2,1.2,1);spr.position.set(c.x,2.9,c.z);
   g.add(edge,fill,sideBar,spr);hubVis.rings.push({edge,em,fill,pts,c,p});hubVis.labels[p.k+c.side]={spr,col:'#'+col.getHexString(),p,c}}
  for(const s of HUB_ST){const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex([s.name.split(' ')[0],s.name.split(' ').slice(1).join(' ')],'#'+new THREE.Color(s.col||0xffd23f).getHexString()),depthWrite:false,transparent:true}));spr.scale.set(3.6,1.35,1);spr.position.set(s.x+(s.k==='practice'?0:1.2),5.3,s.z);g.add(spr);
-  if(s.npc){const m=makeCharacter(s.col,s.npc,'npc'+s.k,0xffffff,null,s.cls);m.position.set(s.x+.35,0,s.z);m.rotation.y=-Math.PI/2;g.add(m);hubVis.npcs.push({m,s,wave:0,near:false})}}
+  if(s.npc){const m=makeCharacter(s.col,s.npc,'npc'+s.k,0xffffff,s.k==='pskins'?humanOutfit('pirate',0):null,s.cls);m.position.set(s.x+.35,0,s.z);m.rotation.y=-Math.PI/2;g.add(m);hubVis.npcs.push({m,s,wave:0,near:false})}}
  scene.add(g);updPadLabels()}
 function updNPCs(dt,now){if(!hubVis)return;const t=now/1000;for(const n of hubVis.npcs){const u=n.m.userData;const ps=[me.pos,...Object.values(C.players).filter(q=>q.rp).map(q=>q.rp)];let best=null,bd=7;for(const p of ps){const d=Math.hypot(p.x-n.m.position.x,p.z-n.m.position.z);if(d<bd){bd=d;best=p}}
   animate(n.m,{speed:0,pitch:0,dist:camera.position.distanceTo(n.m.position)},dt);
@@ -1309,7 +1316,7 @@ function updHub(dt,now){if(C.phase!=='hub')return;{const fs=ffaLeft();const qsig
   if(r.pts){const pa=r.pts.geometry.attributes.position,sd=r.pts.userData.seed;for(let i=0;i<pa.count;i++){let y=((now/1000)*(.6+fr*1.2+sd[i]*.4)+sd[i]*3)%2.2;pa.array[i*3+1]=.1+y}pa.needsUpdate=true;r.pts.material.opacity=.5+fr*.5}}}
  let st=null,bd=3.2;for(const s of HUB_ST){const d=Math.hypot(me.pos.x-s.x,me.pos.z-s.z);if(d<bd){bd=d;st=s}}const b=$('stationBtn');if(st){b.textContent='TAP: '+st.name;b.dataset.k=st.k;b.classList.remove('hidden')}else b.classList.add('hidden');
  if(Math.random()<dt)updHubInfo()}
-function useStation(k){if(k==='shop')openArsenal(null,'shop');else if(k==='upgrade')openArsenal(null,'upgrade');else if(k==='arsenal')openArsenal();else if(k==='classes')openClasses();else if(k==='chest')openChests();else if(k==='skins')openArsenal('skins');else if(k==='practice'){location.href=location.pathname+'?offline=1'+(/[?&]net=local/.test(location.search)?'&net=local':'')}}
+let SHOP=null;function useStation(k){if(k==='shop')openArsenal(null,'shop');else if(k==='upgrade')openArsenal(null,'upgrade');else if(k==='arsenal')openArsenal();else if(k==='classes')openClasses();else if(k==='chest')openChests();else if(k==='skins')openArsenal('skins');else if(k==='pskins')SHOP&&SHOP.open();else if(k==='practice'){location.href=location.pathname+'?offline=1'+(/[?&]net=local/.test(location.search)?'&net=local':'')}}
 $('stationBtn').onclick=()=>useStation($('stationBtn').dataset.k);
 // ---------- map selection (5 s, majority wins, random tie-break on the hub host) ----------
 let mapSelIv=null;
@@ -1561,11 +1568,11 @@ addEventListener('blur',()=>{inp.slideHold=false});
 // ---------------- v41 CHEST SHOP (diamonds only) ----------------
 const CHEST={price:300,tiers:[['common','Common','#9aa3ad',45],['rare','Rare','#3b8bff',27],['epic','Epic','#a64dff',15],['legendary','Legendary','#ffc21a',8],['secret','Secret','#ff2b2b',5]],
  // loot: [type,id|amount,weight]; higher tiers hold rarer items. Duplicates convert to diamonds (DUPE per tier).
- loot:{common:[['dia',80,4],['dia',120,3],['wsk','carbon',2],['wsk','tiger',2],['wpn','water',1],['wpn','bat',1]],
-  rare:[['dia',200,3],['wsk','ice',2],['wsk','toxic',2],['wsk','neon',2],['wpn','m4',1],['wpn','mp5',1],['wpn','ump45',1],['wpn','pan',1],['cls','scout',1]],
-  epic:[['dia',350,2],['wsk','gold',2],['wsk','lightning',1],['wpn','ak47',1],['wpn','scar',1],['wpn','kriss',1],['wpn','p90',1],['wpn','deagle',1],['cls','engineer',1],['cls','ninja',1]],
-  legendary:[['dia',600,2],['wsk','lightning',2],['wsk','fire',2],['wpn','aa12',1],['wpn','lmg',1],['wpn','freeze',1],['wpn','laser',1],['wpn','barrett',1],['wpn','chainsaw',1],['cls','medic',2]],
-  secret:[['dia',1200,1],['wsk','galaxy',3],['wsk','fire',2],['wsk','lightning',2],['cls','juggernaut',3],['wpn','minigun',1.5],['wpn','awp',1.5],['wpn','rpg',1.5],['wpn','gl',1.5]]},
+ loot:{common:[['dia',80,4],['dia',120,3],['wsk','carbon',2],['wsk','tiger',2],['wpn','water',1],['wpn','bat',1],['skin','sky',1.5],['skin','sunset',1.5],['skin','lemon',1.5],['skin','forest',1.2],['skin','ocean',1.2]],
+  rare:[['dia',200,3],['wsk','ice',2],['wsk','toxic',2],['wsk','neon',2],['wpn','m4',1],['wpn','mp5',1],['wpn','ump45',1],['wpn','pan',1],['cls','scout',1],['skin','rose',1.5],['skin','steel',1.5],['skin','jungle',1.3],['skin','tiger',1.3],['skin','ranger',1.2],['skin','cherry',1.2]],
+  epic:[['dia',350,2],['wsk','gold',2],['wsk','lightning',1],['wpn','ak47',1],['wpn','scar',1],['wpn','kriss',1],['wpn','p90',1],['wpn','deagle',1],['cls','engineer',1],['cls','ninja',1],['skin','moonmage',1.4],['skin','viking',1.4],['skin','samurai',1.4],['skin','pirate',1.2],['skin','cyber',1.2],['skin','ronin',1.2]],
+  legendary:[['dia',600,2],['wsk','lightning',2],['wsk','fire',2],['wpn','aa12',1],['wpn','lmg',1],['wpn','freeze',1],['wpn','laser',1],['wpn','barrett',1],['wpn','chainsaw',1],['cls','medic',2],['skin','galaxy',1.6],['skin','gladiator',1.6],['skin','inferno',1.4],['skin','candy',1.4],['skin','starpilot',1.2]],
+  secret:[['dia',1200,1],['wsk','galaxy',3],['wsk','fire',2],['wsk','lightning',2],['cls','juggernaut',3],['skin','dragon',2.5],['skin','aurora',2.5],['skin','void',2],['skin','solar',2],['wpn','minigun',1.5],['wpn','awp',1.5],['wpn','rpg',1.5],['wpn','gl',1.5]]},
  dupe:{common:40,rare:90,epic:160,legendary:280,secret:500}};
 function chestTier(r=Math.random()){let a=0;for(const t of CHEST.tiers){a+=t[3]/100;if(r<a)return t[0]}return 'common'}
 function chestPick(tier,r=Math.random()){const L=CHEST.loot[tier];const tot=L.reduce((s,x)=>s+x[2],0);let a=0;for(const x of L){a+=x[2]/tot;if(r<a)return x}return L[L.length-1]}
@@ -1575,10 +1582,12 @@ function chestGrant(tier,it){const [ty,v]=it;let dup=false,name='',icon='💎',d
  if(ty==='dia'){dia=v;name=v+' Diamonds'}
  else if(ty==='wpn'){if(!W[v]){dia=CHEST.dupe[tier];name='Bonus'}else{name=W[v].name;icon='🔫';if(owns(v))dup=true;else PROG.owned.push(v)}}
  else if(ty==='cls'){name=PCL[v].n+' class';icon=PCL[v].ic||'🎭';if(PROG.pcs.includes(v))dup=true;else PROG.pcs.push(v)}
+ else if(ty==='skin'){const d=SKIN_BY[v];if(!d){dia=CHEST.dupe[tier];name='Bonus'}else{name=d.name+' outfit';icon='👕';if(PROG.skins.includes(v))dup=true;else PROG.skins.push(v)}}
  else if(ty==='wsk'){const sk=WSKINS[v];name=(sk?sk[0]:v)+' skin';icon='🎨';const cand=ownedWeapons().filter(id=>!(PROG.wskins[id]||[]).includes(v));
   const pref=cand.includes(me.load[0])?me.load[0]:cand[Math.floor(Math.random()*cand.length)];if(!pref)dup=true;else{(PROG.wskins[pref]=PROG.wskins[pref]||[]).push(v);name+=' · '+W[pref].name;it.w=pref}}
  if(dup)dia=CHEST.dupe[tier];PROG.dia+=dia;(PROG.chestLog=PROG.chestLog||[]).push([tier,ty,v,dup?1:0,Date.now()]);if(PROG.chestLog.length>50)PROG.chestLog.shift();saveProg();
  return {tier,ty,v,name,icon,dup,dia}}
+window.__hsz.chestGrant=chestGrant;window.__hsz.CHEST=CHEST;
 function chestBuy(r1,r2){if(PROG.dia<CHEST.price)return null;PROG.dia-=CHEST.price;const t=chestTier(r1);return chestGrant(t,chestPick(t,r2))}
 // sounds per tier (Web Audio, same synth as the rest)
 const chestSFX=(tier)=>{const d=out();if(!d)return;const i=['common','rare','epic','legendary','secret'].indexOf(tier);const base=[523,587,659,698,440][i];
@@ -1589,7 +1598,7 @@ function chestRollSFX(){const d=out();if(!d)return;for(let k=0;k<8;k++)setTimeou
 let chestBusy=false;
 function openChests(){audioInit&&audioInit();$('chests').classList.remove('hidden');renderChests()}
 function renderChests(){$('chDia').textContent=PROG.dia;const tot=CHEST.tiers.reduce((s,t)=>s+t[3],0);
- $('chOdds').innerHTML=CHEST.tiers.map(t=>`<div class="odd" style="--c:${t[2]}"><i></i><b>${t[1]}</b><span>${t[3]}%</span><small>${CHEST.loot[t[0]].filter(x=>x[0]!=='dia').slice(0,4).map(x=>x[0]==='wpn'?W[x[1]]?.name:x[0]==='cls'?PCL[x[1]].n:(WSKINS[x[1]]||[x[1]])[0]).join(' · ')}…</small></div>`).join('')+`<p class="msg">Odds total ${tot}%. Duplicates turn into diamonds. Diamonds only — no real money.</p>`;
+ $('chOdds').innerHTML=CHEST.tiers.map(t=>`<div class="odd" style="--c:${t[2]}"><i></i><b>${t[1]}</b><span>${t[3]}%</span><small>${CHEST.loot[t[0]].filter(x=>x[0]!=='dia').slice(0,4).map(x=>x[0]==='wpn'?W[x[1]]?.name:x[0]==='cls'?PCL[x[1]].n:x[0]==='skin'?(SKIN_BY[x[1]]||{name:x[1]}).name:(WSKINS[x[1]]||[x[1]])[0]).join(' · ')}…</small></div>`).join('')+`<p class="msg">Odds total ${tot}%. Duplicates turn into diamonds. Diamonds only — no real money.</p>`;
  const b=$('chBuy');b.disabled=chestBusy||PROG.dia<CHEST.price;b.textContent=PROG.dia<CHEST.price?`NEED 💎 ${CHEST.price}`:`OPEN CHEST · 💎 ${CHEST.price}`}
 function chestAnim(res){const st=$('chStage'),c=CHEST.tiers.find(t=>t[0]===res.tier);chestBusy=true;renderChests();st.className='go';st.style.setProperty('--c',c[2]);st.innerHTML=`<div class="rays"></div><div class="box"><div class="lid"></div><div class="body"></div></div><div class="res hidden"></div>`;
  chestRollSFX();const secret=res.tier==='secret',dl=secret?2300:1150;st.classList.add('t-'+res.tier);if(secret)document.body.classList.add('chSecret');
@@ -2166,11 +2175,11 @@ const royaleMode=()=>BRM(C.mode)||(!!BC);
 const camPref=()=>royaleMode()?(LS('camR')!=='1'):(LS('cam3')==='1');
 window.__toonOn=id=>royaleMode()||(id==='me'&&!!window.__toonMe);
 window.__toonFit=id=>{if(id==='me')return curFit();const f=window.__fitNext;window.__fitNext=null;return f==null?null:f};
-function fitOf(v){const f=parseInt(v);return isNaN(f)?null:((f%8)+8)%8}
-function curFit(){const f=parseInt(LS('fit')||'0');return isNaN(f)?0:f}
+function fitOf(v){const f=parseInt(v);if(isNaN(f)||f<0)return null;const i=f&63,tn=f>>6;return(i<FIT_N?i:0)+64*(tn<=8?tn:0)}
+function curFit(){return fitOf(LS('fit')||'0')||0}
 function tpSetup(){TPV.on=camPref();TPV.dist=TPV.d;if(TPV.on)tpEnsure();else if(me.model)me.model.visible=false;updCamBtn()}
 function tpEnsure(){const roy=royaleMode();const m=me.model;const kind=roy?'toon':'hum';const fit=curFit();if(m&&m.userData.mk===kind&&(!roy||m.userData.fitIdx===fit)&&m.parent===scene)return m;if(m)scene.remove(m);
- window.__toonMe=roy;const nm=(me.name||'You');const mm=makeCharacter(0xffffff,nm,'me',undefined,roy?undefined:(SKINS[PROG.skin]||[])[2]||undefined,PROG.pc);window.__toonMe=false;mm.userData.mk=kind;mm.userData.fitIdx=fit;mm.userData.noTagMe=true;mm.visible=false;scene.add(mm);me.model=mm;me.gunKey='';return mm}
+ window.__toonMe=roy;const nm=(me.name||'You');const mm=makeCharacter(0xffffff,nm,'me',undefined,roy?undefined:skinOutfit(PROG.skin)||undefined,PROG.pc);window.__toonMe=false;mm.userData.mk=kind;mm.userData.fitIdx=fit;mm.userData.noTagMe=true;mm.visible=false;scene.add(mm);me.model=mm;me.gunKey='';return mm}
 const _tp1=new THREE.Vector3(),_tp2=new THREE.Vector3(),_tp3=new THREE.Vector3(),_tp4=new THREE.Vector3();
 function tpCam(dt,w,scopeOn){const eye=_tp1.copy(camera.position);const f=_tp2.set(0,0,-1).applyQuaternion(camera.quaternion);const r=_tp3.set(1,0,0).applyQuaternion(camera.quaternion);r.y=0;r.normalize();
  const ads=me.zoomT;const wantD=TPV.d+(1.95-TPV.d)*ads-EM.k*.5,wantS=(TPV.side+(.82-TPV.side)*ads)*TPV.sh*(1-EM.k),wantU=TPV.up*(1-ads*.4)+ (me.slideT>0?-.35:0);
@@ -2227,4 +2236,11 @@ window.__hsz.EMOTE_DUR=EMOTE_DUR;window.__hsz.info=()=>({calls:renderer.info.ren
 window.__hsz.TPV=TPV;window.__hsz.rayW=(o,d,m)=>rayWorld(o,d,m);window.__hsz.camera=camera;window.__hsz.vmRoot=vmRoot;window.__hsz.camToggle=camToggle;
 
 // ---- v47 Royale menu entry + lobby ----
-{const ROY=initRoyale({$,LS,LSS,audioInit,play:(m,o)=>playOnlineBots(m,o),party:()=>PARTY,partyLead,myCode:()=>FR.code,esc,openFriends,partyLeave,r2,gun:(id,gl)=>tpGun(id,'',gl),W});window.__hsz.royale=ROY;if(ROY&&$('royaleBtn'))$('royaleBtn').onclick=()=>ROY.open()}
+// ---- v54 skin shop wiring: equipping sets the main-game human outfit AND the Royale hero (LS 'fit' = outfit index + 64*tint), then syncs online
+function equipSkin(id,tint=0){tint=tint|0;const full=id==='default'?'default':joinSkin(id,tint);PROG.skin=full;
+ if(id!=='default'){const i=SKIN_IDS.indexOf(id);if(i>=0)LSS('fit',String(BASE_N+i+64*tint))}else if(curFit()>=BASE_N)LSS('fit','0');
+ saveProg();if(me.model)me.model.userData.mk='stale';
+ try{hubEquip&&hubEquip();const hp=H&&H.players&&H.players[me.id];if(hp&&C.hostId===me.id){hp.skin=cleanSkin(full);hp.fit=curFit();bcast({t:'fit',id:me.id,ft:hp.fit,sk:hp.skin})}else if(C.hostId&&C.hostId!==me.id&&!C.hub)send({t:'fit',fit:curFit(),sk:full})}catch(e){}}
+window.__hsz.equipSkin=equipSkin;
+SHOP=initSkinShop({$,PROG,saveProg,SFX,esc,audioInit,equip:equipSkin,gun:(id,gl)=>tpGun(id,'',gl),denied:()=>{SFX.beep&&SFX.beep()},onClose:from=>{if(from==='royale'&&window.__hsz.royale)window.__hsz.royale.refresh()}});window.__hsz.shop=SHOP;if(SHOP&&$('openSkinShop'))$('openSkinShop').onclick=()=>SHOP.open('menu');
+{const ROY=initRoyale({$,LS,LSS,audioInit,play:(m,o)=>playOnlineBots(m,o),party:()=>PARTY,partyLead,myCode:()=>FR.code,esc,openFriends,partyLeave,r2,gun:(id,gl)=>tpGun(id,'',gl),W,shop:SHOP,equipSkin,PROG});window.__hsz.royale=ROY;if(ROY&&$('royaleBtn'))$('royaleBtn').onclick=()=>ROY.open()}

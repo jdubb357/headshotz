@@ -123,3 +123,24 @@ export function buildGear(L,teamCol,cls,add,rbox){const low=GQ.level==='low';con
   carrier(L.vest,1);belt(0x2b2d22);put(plate(.07,.17,.1,.015),gmat(0x1d1f20,.6,0,5),.17,.82,-.02,'thigh_r');for(const s of[-1,1])knee(s,gmat(0x2b2d22,.7,0,5));
   put(plate(.06,.12,.04,.012),gmat(dk(L.vest),.85,0,1),-.14,1.3,.17,'spine_03');put(plate(.18,.1,.07,.02),gmat(dk(L.vest),.85,0,1),0,1.0,.15,'pelvis')}// radio + dump pouch
  if(hd!=='ninja')put(plate(.1,.06,.008,.01),team,-.21,1.36,0,'upperarm_l',1,1,1,0,Math.PI/2,0)}
+// v54 shop skins: head pieces for the realistic humans (built in rig space like the class gear; baked onto the head bone by humans.js)
+export function buildSkinHat(hat,c,acc,add){const low=GQ.level==='low',S=low?8:14,S2=low?6:10;
+ const put=(geo,mat,x,y,z,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z+HZ);m.scale.set(sx,sy,sz);m.rotation.set(rx,ry,rz);add(m,'head')};
+ const cl=gmat(c,.8,0,1),ac=gmat(acc,.55,0,1),dk=gmat(new THREE.Color(c).multiplyScalar(.45).getHex(),.7,0,1),gl=gmat(c,.12,.4,4),mt=gmat(c,.3,.7,2),Y=HY;
+ const sph=(r)=>new THREE.SphereGeometry(r,S2,S2),cyl=(a,b,h)=>new THREE.CylinderGeometry(a,b,h,S),tor=(r,t,a=Math.PI*2)=>new THREE.TorusGeometry(r,t,low?4:6,S,a),cone=(r,h)=>new THREE.ConeGeometry(r,h,S2),dome=(r,a)=>new THREE.SphereGeometry(r,S,Math.max(4,S/2|0),0,Math.PI*2,0,a);
+ switch(hat){
+ case 'beanie':put(dome(.128,Math.PI*.62),cl,0,Y+.005,.0);put(tor(.124,.018),ac,0,Y+.045,0,1,1,1.02,Math.PI/2);put(sph(.03),ac,0,Y+.134,0);break;
+ case 'bandana':put(tor(.121,.016),cl,0,Y+.065,0,1,1,1.06,Math.PI/2);put(sph(.026),cl,0,Y+.06,.122);put(cone(.018,.07),cl,-.02,Y+.02,.13,1,1,.4,Math.PI,0,.3);put(cone(.018,.06),cl,.025,Y+.025,.13,1,1,.4,Math.PI,0,-.3);break;
+ case 'ears':for(const s of[-1,1]){put(sph(.04),cl,s*.075,Y+.12,.0,1,1,.5);put(sph(.026),gmat(0xffb3c1,.8,0,1),s*.075,Y+.12,-.012,1,1,.4)}break;
+ case 'headphones':put(tor(.13,.011,Math.PI),mt,0,Y+.005,0);for(const s of[-1,1]){put(cyl(.04,.04,.03),mt,s*.13,Y-.005,0,1,1,1,0,0,Math.PI/2);put(cyl(.026,.026,.008),ac,s*.147,Y-.005,0,1,1,1,0,0,Math.PI/2)}break;
+ case 'visor':put(tor(.123,.01),dk,0,Y+.045,0,1,1,1.05,Math.PI/2);put(new THREE.BoxGeometry(.19,.045,.02),gl,0,Y+.02,-.118,1,1,1,.05);put(new THREE.BoxGeometry(.17,.008,.01),ac,0,Y+.045,-.126);break;
+ case 'bunny':for(const s of[-1,1]){put(new THREE.CapsuleGeometry(.024,.13,3,S2),cl,s*.045,Y+.2,.01,1,1,.5,0,0,s*-.12);put(new THREE.CapsuleGeometry(.012,.11,3,S2),gmat(0xffb3c1,.8,0,1),s*.045,Y+.2,-.004,1,1,.4,0,0,s*-.12)}break;
+ case 'mask':put(sph(.108),dk,0,Y-.045,-.03,1,.58,1);put(tor(.122,.012),ac,0,Y+.045,0,1,1,1.05,Math.PI/2);put(cone(.012,.1),ac,.12,Y+.03,.08,1,1,.5,.4,0,.9);break;
+ case 'pirate':put(cyl(.17,.17,.012),cl,0,Y+.082,0,1,1,.9);put(dome(.12,Math.PI*.5),cl,0,Y+.08,0);put(sph(.018),gmat(0xffffff,.7,0,1),0,Y+.125,-.115,1,1,.5);for(const s of[-1,1])put(cone(.025,.08),cl,s*.17,Y+.085,0,1,1,1,0,0,-s*Math.PI/2);break;
+ case 'chef':put(cyl(.1,.1,.09),cl,0,Y+.12,0);put(sph(.12),cl,0,Y+.21,0,1,.75,1);put(sph(.07),cl,.075,Y+.18,.03);put(sph(.07),cl,-.075,Y+.18,.03);break;
+ case 'horns':for(const s of[-1,1])put(cone(.03,.14),ac,s*.115,Y+.095,0,1,1,1,0,0,-s*.7);put(tor(.122,.012),dk,0,Y+.05,0,1,1,1.05,Math.PI/2);break;
+ case 'halo':put(tor(.1,.012),gl,0,Y+.23,0,1,1,1,Math.PI/2);break;
+ case 'tophat':put(cyl(.15,.15,.012),cl,0,Y+.07,0);put(cyl(.088,.088,.14),cl,0,Y+.145,0);put(cyl(.09,.09,.02),ac,0,Y+.095,0);break;
+ case 'mohawk':for(let i=0;i<7;i++)put(cone(.022,.09-Math.abs(i-3)*.012),cl,0,Y+.115-Math.abs(i-3)*.008,-.09+i*.03,1,1,1,(i-3)*.12);break;
+ case 'crown':put(cyl(.108,.108,.04),ac,0,Y+.085,0);for(let i=0;i<5;i++){const a=i/5*Math.PI*2;put(cone(.018,.06),ac,Math.sin(a)*.1,Y+.14,Math.cos(a)*.1)}break;
+ case 'helmet':put(dome(.128,Math.PI*.62),mt,0,Y+.005,0);put(new THREE.BoxGeometry(.015,.06,.2),ac,0,Y+.14,0);put(tor(.124,.012),ac,0,Y+.05,0,1,1,1.02,Math.PI/2);break}}

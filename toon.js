@@ -2,6 +2,7 @@
 // One shared vertex-colour material, geometry cached per outfit/part, ~11 meshes per character, procedural skeletal animation
 // (run/strafe/jump/aim/crouch/slide/climb/down/freefall/glide/chute/emotes) and a 2-bone IK for the two-handed weapon grip.
 import {THREE,mergeParts,GQ} from './gfx.js';
+import {SKIN_DEFS,toonDef,skinColors} from './skins.js';
 const V3=THREE.Vector3;
 export const OUTFITS=[
  {id:0,name:'Sunny Scout',top:0xff9a2e,acc:0xfff1c9,pants:0x3b4a6b,shoes:0x6b3b1f,glove:0xfff1c9,skin:0xf1c27d,hair:0x5a3825,hs:0,hat:'cap',hatc:0x2f6fdf,iris:0x3a7bd5,pack:'round',packc:0x2f6fdf,sleeve:1,rar:0},
@@ -12,6 +13,9 @@ export const OUTFITS=[
  {id:5,name:'Lime Lancer',top:0x7ed957,acc:0x1b3a1b,pants:0x2d3b2d,shoes:0x1b3a1b,glove:0x1b3a1b,skin:0xd4a373,hair:0x111111,hs:7,hat:'band',hatc:0xffd23f,iris:0x2a1a10,pack:'quiver',packc:0x6b4226,sleeve:0,rar:2},
  {id:6,name:'Golden Glimmer',top:0xffd23f,acc:0xffffff,pants:0xf2f2f2,shoes:0xb8860b,glove:0xffffff,skin:0xa86b45,hair:0x2b1d14,hs:4,hat:'crown',hatc:0xffd23f,iris:0x5b3a1e,pack:'cape',packc:0xffffff,sleeve:1,rar:3},
  {id:7,name:'Night Owl',top:0x3a3f52,acc:0xffd23f,pants:0x20232e,shoes:0xffd23f,glove:0x20232e,skin:0xf1c27d,hair:0x20232e,hs:0,hat:'hood',hatc:0x3a3f52,iris:0xffd23f,pack:'wings2',packc:0x2a2d3a,sleeve:1,rar:4}];
+// v54 shop skins: one extra hero outfit per catalogue entry (index 8+). Heroes 0-7 are the free starter outfits.
+export const BASE_N=OUTFITS.length;SKIN_DEFS.forEach((d,i)=>OUTFITS.push({id:BASE_N+i,...toonDef(d)}));
+const TOUT={};function tinted(o,tint){if(!tint||!o.skinId)return o;const k=o.id+'t'+tint;if(TOUT[k])return TOUT[k];const def=SKIN_DEFS.find(d=>d.id===o.skinId),c=skinColors(def,tint);return TOUT[k]={...o,id:k,top:c.top,acc:c.acc,hatc:c.hatc||o.hatc,packc:c.packc||o.packc,glove:o.glove===o.acc?c.acc:o.glove}}
 const RARN=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY'];export {RARN};
 let MAT=null;const mat=()=>{if(MAT)return MAT;MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.42,metalness:.02,envMapIntensity:.7});
  // stylized look: warm fresnel rim light + soft sky-bounce tint on downward normals (cheap toon-ish shading, no extra passes)
@@ -56,6 +60,19 @@ function headParts(P,o){const hy=1.55,sk=o.skin;
  case 'helmet':part(P,shell(0,Math.PI*.7),o.hatc,[0,hy+.02,.0],[.31,.3,.31],[-.12,0,0]);part(P,cyl(),0x10253f,[0,hy+.02,-.2],[.26,.065,.2],[Math.PI/2,0,0]).g;part(P,cone(),0xe5333f,[.3,hy+.03,0],[.04,.16,.04],[0,0,-Math.PI/2]);part(P,cone(),0xe5333f,[-.3,hy+.03,0],[.04,.16,.04],[0,0,Math.PI/2]);break;
  case 'band':part(P,tor(.272,.025,Math.PI*2),o.hatc,[0,hy+.1,0],[1,1,.98],[Math.PI/2,0,0]);part(P,cap(.03,.2),o.hatc,[.1,hy+.1,.27],[1,1,1],[.5,0,.4]);break;
  case 'crown':for(let i=0;i<5;i++){const a=(i/5-.4)*Math.PI;part(P,cone(),o.hatc,[Math.sin(a)*.2,hy+.31,Math.cos(a)*.2-.02],[.05,.14,.05])}part(P,tor(.2,.03,Math.PI*2),o.hatc,[0,hy+.27,-.0],[1,1,1],[Math.PI/2,0,0]);S(P,0xe5333f,[0,hy+.3,-.2],[.03,.03,.03]);break;
+case 'beanie':part(P,shell(0,Math.PI*.6),o.hatc,[0,hy+.03,.01],[.305,.29,.305],[-.15,0,0]);part(P,tor(.29,.034,Math.PI*2),mix(o.hatc,0xffffff,.25),[0,hy+.08,0],[1,1,.98],[Math.PI/2,0,0]);S(P,o.acc,[0,hy+.3,.0],[.055,.055,.055]);break;
+ case 'bandana':part(P,tor(.272,.03,Math.PI*2),o.hatc,[0,hy+.12,0],[1,1,.98],[Math.PI/2,0,0]);S(P,o.hatc,[0,hy+.11,.28],[.06,.05,.05]);part(P,cone(),o.hatc,[-.04,hy+.04,.3],[.04,.14,.02],[Math.PI,0,.3]);part(P,cone(),o.hatc,[.05,hy+.05,.3],[.04,.12,.02],[Math.PI,0,-.3]);break;
+ case 'ears':for(const s of[-1,1]){S(P,o.hatc,[s*.19,hy+.25,0],[.1,.1,.045]);S(P,0xffb3c1,[s*.19,hy+.25,-.03],[.06,.06,.02])}break;
+ case 'headphones':part(P,tor(.3,.026,Math.PI),o.hatc,[0,hy+.01,0],[1,1,1],[0,0,0]);for(const s of[-1,1]){part(P,cyl(),o.hatc,[s*.3,hy,0],[.1,.05,.1],[0,0,Math.PI/2]);part(P,cyl(),mix(o.hatc,0xffffff,.5),[s*.34,hy,0],[.06,.012,.06],[0,0,Math.PI/2])}break;
+ case 'visor':part(P,tor(.28,.02,Math.PI*2),0x20232e,[0,hy+.06,0],[1,1,.98],[Math.PI/2,0,0]);part(P,box(),o.hatc,[0,hy+.05,-.255],[.42,.1,.03],[.06,0,0]);part(P,box(),mix(o.hatc,0xffffff,.55),[0,hy+.075,-.272],[.36,.02,.01],[.06,0,0]);break;
+ case 'bunny':for(const s of[-1,1]){part(P,cap(.06,.3),o.hatc,[s*.11,hy+.46,.02],[1,1,.45],[0,0,s*-.14]);part(P,cap(.03,.26),0xffb3c1,[s*.11,hy+.46,-.004],[1,1,.4],[0,0,s*-.14])}break;
+ case 'mask':part(P,sph(),o.hatc,[0,hy-.085,-.12],[.22,.115,.17]);part(P,tor(.27,.022,Math.PI*2),o.acc,[0,hy+.1,0],[1,1,.98],[Math.PI/2,0,0]);part(P,cap(.02,.16),o.acc,[.27,hy+.1,.12],[1,1,1],[.4,0,.8]);break;
+ case 'pirate':part(P,cyl(),o.hatc,[0,hy+.17,0],[.4,.03,.34],[0,0,0]);part(P,shell(0,Math.PI*.5),o.hatc,[0,hy+.17,0],[.27,.2,.27]);S(P,0xffffff,[0,hy+.28,-.2],[.04,.04,.02]);part(P,cone(),o.hatc,[.38,hy+.18,0],[.05,.14,.05],[0,0,-Math.PI/2]);part(P,cone(),o.hatc,[-.38,hy+.18,0],[.05,.14,.05],[0,0,Math.PI/2]);break;
+ case 'chef':part(P,cyl(),o.hatc,[0,hy+.3,0],[.22,.13,.22]);S(P,o.hatc,[0,hy+.48,0],[.27,.17,.27]);S(P,o.hatc,[.13,hy+.43,.05],[.15,.12,.15]);S(P,o.hatc,[-.13,hy+.43,.05],[.15,.12,.15]);break;
+ case 'horns':for(const s of[-1,1]){part(P,cone(),o.hatc,[s*.23,hy+.22,0],[.075,.28,.075],[0,0,-s*.7])}part(P,tor(.27,.02,Math.PI*2),o.acc,[0,hy+.1,0],[1,1,.98],[Math.PI/2,0,0]);break;
+ case 'halo':part(P,tor(.2,.028,Math.PI*2),o.hatc,[0,hy+.48,0],[1,1,1],[Math.PI/2,0,0]);break;
+ case 'tophat':part(P,cyl(),o.hatc,[0,hy+.17,0],[.36,.025,.34]);part(P,cyl(),o.hatc,[0,hy+.33,0],[.2,.17,.2]);part(P,cyl(),o.acc,[0,hy+.22,0],[.205,.03,.205]);break;
+ case 'mohawk':for(let i=0;i<7;i++){part(P,cone(),o.hatc,[0,hy+.26-Math.abs(i-3)*.025,-.2+i*.075],[.07,.3-Math.abs(i-3)*.03,.07],[(i-3)*.12,0,0])}break;
  case 'hood':part(P,shell(0,Math.PI*.8),o.hatc,[0,hy+.0,.11],[.31,.32,.3],[-.25,0,0]);part(P,tor(.2,.045,Math.PI*1.5),o.hatc,[0,hy-.01,-.2],[1,1.1,.5],[0,0,Math.PI*.75]);hairParts(P,{...o,hs:-1});break}
  if(o.hat!=='hood'&&o.hat!=='helmet')hairParts(P,o)}
 function bodyParts(P,o){const t=o.top,a=o.acc;
@@ -63,10 +80,14 @@ function bodyParts(P,o){const t=o.top,a=o.acc;
  part(P,cap(.205,.04),o.pants,[0,.84,0],[1.1,.8,.85]);// hips
  part(P,cyl(),a,[0,.9,0],[.235,.03,.185]);// belt
  part(P,cyl(),o.skin,[0,1.31,0],[.08,.07,.08]);// neck
- for(const s of[-1,1])part(P,box(),mix(t,0x000000,.22),[s*.105,.95,-.172],[.1,.085,.02]);// chest pockets
  S(P,0xd9c27a,[0,.9,-.185],[.04,.03,.012]);// buckle
  S(P,a,[0,1.12,-.17],[.06,.06,.02]);// chest emblem
  part(P,tor(.12,.035,Math.PI*2),mix(t,0xffffff,.15),[0,1.28,0],[1,1,.8],[Math.PI/2,0,0]);// collar
+if(o.pat==='stripe')part(P,tor(.2,.03,Math.PI*2),a,[0,1.06,0],[1.35,1,1],[Math.PI/2,0,0]);
+ else if(o.pat==='dots')for(let i=0;i<5;i++)S(P,a,[(i-2)*.1,1.14-(i%2)*.1,-.184],[.034,.034,.012]);
+ else if(o.pat==='hazard')for(let i=0;i<4;i++)part(P,box(),0x111111,[(i-1.5)*.11,1.03,-.19],[.05,.2,.02],[0,0,.6]);
+ else if(o.pat==='bolt'){part(P,box(),a,[.035,1.15,-.19],[.17,.04,.02],[0,0,-.55]);part(P,box(),a,[-.03,1.06,-.19],[.17,.04,.02],[0,0,-.55]);part(P,box(),a,[0,1.105,-.19],[.1,.035,.02],[0,0,.9])}
+ else if(o.pat==='stars')for(let k=0;k<3;k++)part(P,box(),a,[0,1.1,-.19],[.15,.032,.02],[0,0,k*Math.PI/3]);
  switch(o.pack){
  case'round':part(P,cap(.14,.14),o.packc,[0,1.06,.24],[1,1,.7]);break;
  case'box':part(P,box(),o.packc,[0,1.06,.26],[.3,.36,.16]);part(P,box(),a,[0,1.2,.35],[.22,.06,.03]);break;
@@ -102,7 +123,7 @@ function ik(root,sh,el,hand,tx,ty,tz,l1,l2,pole){// 2-bone IK in the parent spac
  // elbow bends in the plane defined by upper-arm dir & pole: express as rotation about the sh-local axis perpendicular to that plane
  const loc=pAxis.clone().applyQuaternion(sh.quaternion.clone().invert());el.quaternion.setFromAxisAngle(loc,-bend)}
 export function makeToon(teamCol,name,id,tagCol,outfitIdx,opt={}){
- const h=Math.abs([...String(id)].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7));const oi=outfitIdx!=null?outfitIdx:h%OUTFITS.length;const o=OUTFITS[((oi%OUTFITS.length)+OUTFITS.length)%OUTFITS.length];
+ const h=Math.abs([...String(id)].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7));const raw=outfitIdx!=null?(parseInt(outfitIdx)||0):null,tn=raw!=null?Math.min(8,Math.max(0,raw>>6)):0,oi=raw!=null?raw&63:h%BASE_N;const o=tinted(OUTFITS[((oi%OUTFITS.length)+OUTFITS.length)%OUTFITS.length],tn);
  const root=new THREE.Group();const rig=new THREE.Group();root.add(rig);
  const hips=new THREE.Group();hips.position.y=.78;rig.add(hips);
  const torso=new THREE.Group();hips.add(torso);const T=mesh(geo(o,'body',P=>bodyParts(P,o)));T.position.y=-.78;torso.add(T);
