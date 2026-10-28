@@ -2171,7 +2171,7 @@ function tpEnsure(){const roy=royaleMode();const m=me.model;const kind=roy?'toon
  window.__toonMe=roy;const nm=(me.name||'You');const mm=makeCharacter(0xffffff,nm,'me',undefined,roy?undefined:(SKINS[PROG.skin]||[])[2]||undefined,PROG.pc);window.__toonMe=false;mm.userData.mk=kind;mm.userData.fitIdx=fit;mm.userData.noTagMe=true;mm.visible=false;scene.add(mm);me.model=mm;me.gunKey='';return mm}
 const _tp1=new THREE.Vector3(),_tp2=new THREE.Vector3(),_tp3=new THREE.Vector3(),_tp4=new THREE.Vector3();
 function tpCam(dt,w,scopeOn){const eye=_tp1.copy(camera.position);const f=_tp2.set(0,0,-1).applyQuaternion(camera.quaternion);const r=_tp3.set(1,0,0).applyQuaternion(camera.quaternion);r.y=0;r.normalize();
- const ads=me.zoomT;const wantD=TPV.d+(1.95-TPV.d)*ads+EM.k*1.3,wantS=(TPV.side+(.82-TPV.side)*ads)*TPV.sh*(1-EM.k),wantU=TPV.up*(1-ads*.4)+ (me.slideT>0?-.35:0);
+ const ads=me.zoomT;const wantD=TPV.d+(1.95-TPV.d)*ads-EM.k*.5,wantS=(TPV.side+(.82-TPV.side)*ads)*TPV.sh*(1-EM.k),wantU=TPV.up*(1-ads*.4)+ (me.slideT>0?-.35:0);
  // sideways shoulder offset first (walls beside you), then back along the view direction
  const piv=_tp4.copy(eye);piv.y+=wantU;let sd=wantS;{const dr=r.clone().multiplyScalar(Math.sign(sd)||1);const t=rayWorld(piv,dr,Math.abs(sd)+.3);if(t<Math.abs(sd)+.3)sd=Math.sign(sd)*Math.max(0,t-.28)}
  piv.addScaledVector(r,sd);
@@ -2220,7 +2220,7 @@ addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||!royaleMode()||!in
 addEventListener('keyup',e=>{if(e.code==='KeyB'&&EM.wheel&&!EM.sticky){const quick=performance.now()-EM.t0<260;if(EM.sel>=0)startEmote(EM.sel);else if(quick)startEmote(EM.last);else wheelShow(false)}});
 (function(){const b=document.createElement('button');b.id='emoBtn';b.className='hidden';b.textContent='😀';document.body.appendChild(b);b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();if(me.emo){stopEmote();return}if(EM.wheel)wheelShow(false);else if(emoCan()){wheelShow(true);EM.sticky=true}});
  setInterval(()=>{b.classList.toggle('hidden',!(inGame&&!C.hub&&royaleMode()&&!paused));if(EM.wheel&&!emoCan()&&!me.emo)wheelShow(false)},400)})();
-window.__hsz.emote=startEmote;window.__hsz.emoStop=stopEmote;window.__hsz.EM=EM;
+window.__hsz.EMOTE_DUR=EMOTE_DUR;window.__hsz.emote=startEmote;window.__hsz.emoStop=stopEmote;window.__hsz.EM=EM;
 window.__hsz.TPV=TPV;window.__hsz.rayW=(o,d,m)=>rayWorld(o,d,m);window.__hsz.camera=camera;window.__hsz.vmRoot=vmRoot;window.__hsz.camToggle=camToggle;
 
 // ---- v47 Royale menu entry + lobby ----
