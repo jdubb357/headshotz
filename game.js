@@ -2224,4 +2224,4 @@ window.__hsz.EMOTE_DUR=EMOTE_DUR;window.__hsz.emote=startEmote;window.__hsz.emoS
 window.__hsz.TPV=TPV;window.__hsz.rayW=(o,d,m)=>rayWorld(o,d,m);window.__hsz.camera=camera;window.__hsz.vmRoot=vmRoot;window.__hsz.camToggle=camToggle;
 
 // ---- v47 Royale menu entry + lobby ----
-{const ROY=initRoyale({$,LS,LSS,audioInit,play:(m,o)=>playOnlineBots(m,o),party:()=>PARTY,partyLead,myCode:()=>FR.code,esc,openFriends,partyLeave,r2});window.__hsz.royale=ROY;if(ROY&&$('royaleBtn'))$('royaleBtn').onclick=()=>ROY.open()}
+{const ROY=initRoyale({$,LS,LSS,audioInit,play:(m,o)=>playOnlineBots(m,o),party:()=>PARTY,partyLead,myCode:()=>FR.code,esc,openFriends,partyLeave,r2,gun:(id,gl)=>tpGun(id,'',gl),W});window.__hsz.royale=ROY;if(ROY&&$('royaleBtn'))$('royaleBtn').onclick=()=>ROY.open()}
