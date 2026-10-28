@@ -51,3 +51,7 @@ Heroes (`toon.js`), battle bus, glider and gun grips are original, procedurally 
 ## Character skins (v56)
 
 The 40 shop skins are **original procedural geometry written in code** (`kits.js`): armour plates, helmets, capes, hats, packs, belts and props are lathed/extruded primitives attached to the MakeHuman skeleton bones, with per-skin cloth shader styles (mummy wraps, zombie rags, stripes), PBR-style gear materials (metal, leather, cloth, glass, scales, fur) and a built-in analytic sky/ground reflection. No third-party models or textures were added; the only external assets in the characters remain the CC0 MakeHuman body/skin/hair/eyes above. Skin tone, eyes and body proportions are recoloured/scaled per skin. The v55 galaxy skins' animated star/nebula shader is original code too. (Retargeting third-party rigged outfits was not possible without Blender in this environment.)
+
+## Sidekicks (v57)
+
+The 15 sidekick buddies (dog, cat, bunny, bat, fox, penguin, bear, tiger, speedy hedgehog, lion cub, caped hero pup, two-headed cat-dog, robot, ghost, baby dragon) are **original low-poly models written in code** (`sidekicks.js`): shared primitive geometry, cached materials, procedural animation. The hedgehog, hero pup, cat-dog, robot, ghost and dragon are original designs (not based on any existing franchise character). No third-party models, textures or sounds were added.
