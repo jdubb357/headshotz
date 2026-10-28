@@ -212,11 +212,11 @@ export const MAPS=DEFS.map(d=>({name:d.name,desc:d.desc,icon:d.icon,def:d}));
 // ---------- 3D MAIN HUB (not in the map vote) ----------
 // queue pads: pairs of circles (blue A / red B); radius scales with team size so n players fit side by side
 export const PAD_R=n=>1.15+.5*n;
-export const PAD_COL={duel:0xff8a3d,team:0x2fd5ff,t3:0x4cff7a,t4:0xb37bff,t5:0xff4fa3,ffa:0xffd23f};
+export const PAD_COL={duel:0xff8a3d,team:0x2fd5ff,t3:0x4cff7a,t4:0xb37bff,t5:0xff4fa3,ffa:0xffd23f,ctf:0xff3b3b};
 export function inPad(c,x,z){return Math.abs(x-c.x)<c.h&&Math.abs(z-c.z)<c.h}
 export const HUB_PADS=[
  {k:'duel',n:1,x:-15,z:-15},{k:'team',n:2,x:0,z:-15},{k:'t3',n:3,x:15,z:-15},
- {k:'t4',n:4,x:-13,z:13},{k:'t5',n:5,x:3,z:13},{k:'ffa',n:8,x:18.5,z:13,single:1}];
+ {k:'t4',n:4,x:-13,z:13},{k:'t5',n:5,x:3,z:13},{k:'ffa',n:8,x:18.5,z:13,single:1},{k:'ctf',n:4,x:-9,z:-2}];
 export function padCircles(p){const h=p.single?3.2:Math.min(3.1,.95+.45*p.n);const r=h;if(p.single)return[{side:'F',x:p.x,z:p.z,r,h}];const off=h+.45;return[{side:'A',x:p.x-off,z:p.z,r,h},{side:'B',x:p.x+off,z:p.z,r,h}]}// square pads: h = half side
 export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3,col:0xffb020,npc:'Gus',cls:'soldier'},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5,col:0xb06bff,npc:'Ivy',cls:'engineer'},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'classes',name:'🎭 CLASS BOOTH',x:-27,z:-11,col:0x3fa9ff,npc:'Kai',cls:'ninja'},{k:'skins',name:'🎨 SKIN STUDIO',x:-27,z:13,col:0xff4fa3,npc:'Remy',cls:'scout'}].concat([{k:'chest',name:'🎁 CHEST SHOP',x:-27,z:-19,col:0xff3b3b,npc:'Lola',cls:'medic'}]);
 DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,48],ground:['tiles',0x9aa3b5,.22],grade:[1,1,1.04,1.15,1.06],horizon:'city',
