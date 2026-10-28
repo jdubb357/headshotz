@@ -20,7 +20,7 @@ export function initSkinShop(A){
   const base=new THREE.Mesh(new THREE.CylinderGeometry(1.15,1.3,.22,36),new THREE.MeshStandardMaterial({color:0x19b8a6,roughness:.4,metalness:.2}));base.position.y=-.27;scene.add(base);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(1.0,.035,8,48),new THREE.MeshBasicMaterial({color:0xffd23f}));ring.rotation.x=Math.PI/2;ring.position.y=.005;scene.add(ring)}
  function resize(){if(!R)return;const b=cv.parentElement.getBoundingClientRect();const w=Math.max(120,b.width|0),h=Math.max(120,b.height|0);R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.setSize(w,h,false);cam.aspect=w/h;
-  const soldier=S.view==='soldier';cam.fov=soldier?(h>w?38:30):(h>w?34:28);cam.position.set(0,soldier?1.15:1.1,soldier?-5.9:-5.2);cam.lookAt(0,soldier?.92:.92,0);cam.updateProjectionMatrix()}
+  const soldier=S.view==='soldier';cam.fov=soldier?(h>w?32:25):(h>w?34:28);cam.position.set(0,soldier?1.1:1.1,soldier?-5.9:-5.2);cam.lookAt(0,soldier?.98:.92,0);cam.updateProjectionMatrix()}
  function disposeModel(){if(!model)return;scene.remove(model);model.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh&&o.geometry)o.geometry.dispose()});model=null}
  function gunFor(m){const u=m.userData;if(!u.gunMount||!A.gun)return;u.gunMount.clear();const g=A.gun('ar',u.outfit&&u.outfit.glove);if(g)u.gunMount.add(g)}
  function mkModel(){if(!scene)return;const keepRy=model?model.rotation.y:S.ry;disposeModel();const def=SKIN_BY[S.sel];if(!def)return;
@@ -28,7 +28,7 @@ export function initSkinShop(A){
   else{const o=window.__toonOn;window.__toonOn=null;try{model=makeCharacter(0xffffff,'','shop-'+def.id,undefined,humanOutfit(def.id,S.tint),'soldier')}finally{window.__toonOn=o}if(model.userData.tag)model.userData.tag.visible=false}
   gunFor(model);model.rotation.y=keepRy;scene.add(model);resize();pose(0.016)}
  function pose(dt){if(!model)return;const st={speed:0,hold:true,pitch:0,lz:-1,lx:0,noTag:true,dist:3,lobby:1};if(model.userData.kind==='toon')animToon(model,st,dt);else animHum(model,st,dt)}
- function frame(t){if(!S.on)return;raf=requestAnimationFrame(frame);const dt=Math.min(.05,(t-last)/1000||.016);last=t;clock+=dt;if(model){if(!S.drag)model.rotation.y+=dt*.8;pose(dt)}R.render(scene,cam)}
+ function frame(t){if(!S.on)return;raf=requestAnimationFrame(frame);if(!S.uv&&((S.fc=(S.fc||0)+1)%10===0)){const want=window.__humans&&window.__humans.ok?'soldier':'hero';if(want!==S.view){S.view=want;mkModel();renderSide()}}const dt=Math.min(.05,(t-last)/1000||.016);last=t;clock+=dt;if(model){if(!S.drag)model.rotation.y+=dt*.8;pose(dt)}R.render(scene,cam)}
  // ---------- thumbnails (hero render of every skin; generated once in small batches by a throw-away renderer)
  const TH={};let thBusy=false;
  function makeThumbs(){if(thBusy)return;const todo=SKIN_DEFS.filter(d=>!TH[d.id]);if(!todo.length)return;thBusy=true;
@@ -65,7 +65,7 @@ export function initSkinShop(A){
   else if(b.dataset.id)select(b.dataset.id);
   else if(b.dataset.f!=null){S.fil=b.dataset.f;render()}
   else if(b.dataset.t!=null){S.tint=+b.dataset.t;mkModel();renderSide()}
-  else if(b.dataset.v){S.view=b.dataset.v;mkModel();renderSide()}
+  else if(b.dataset.v){S.uv=1;S.view=b.dataset.v;mkModel();renderSide()}
   else if(b.id==='ssBuy'){const a=b.dataset.act;if(a==='buy')buy();else if(a==='equip')equip();else if(a==='poor')A.denied&&A.denied()}
   else if(b.id==='ssDef'){A.equip('default',0);render();toast('Wearing the default outfit')}});
  const cvEl=$('ssStage');cvEl.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;S.drag={x:e.clientX};try{cvEl.setPointerCapture(e.pointerId)}catch(x){}});
