@@ -57,7 +57,7 @@ export function skinColors(def,tint=0){const [p,s,a]=def.c;const T=tint>0?TINTS[
 // toon hero definition (appended to toon.js OUTFITS)
 export function toonDef(def){const [p,s,a]=def.c;return{name:def.name,top:p,acc:a,pants:s,shoes:mixc(s,0x000000,.35),glove:a===0x111111?s:a,skin:[0xf1c27d,0xe0ac69,0xc68642,0x8d5524,0xffdbac,0xd4a373][def.id.length%6],hair:[0x5a3825,0x111111,0x2b1d14,0xf2c94c,0x7a3b1d][def.id.charCodeAt(0)%5],hs:def.hs??(def.id.charCodeAt(1)%4),hat:def.hat||'none',hatc:def.hatc||0,iris:0x3a7bd5,pack:def.pack||'none',packc:def.packc||0,pat:def.pat||'',sleeve:1,rar:def.rar,skinId:def.id,fx:def.fx||''}}
 // human outfit descriptor consumed by chars.js/humans.js: an array [shirt,pants] carrying extras
-export function humanOutfit(id,tint=0){const def=SKIN_BY[id];if(!def)return null;const k=skinColors(def,tint);const o=[k.top,k.pants];o.camo=def.camo||0;o.x={hat:def.hat||'',hatc:k.hatc||k.acc,acc:k.acc,vest:mixc(k.top,0x1c1f22,.55),pat:def.pat||'',fx:def.fx||''};o.skinId=id;return o}
+export function humanOutfit(id,tint=0){const def=SKIN_BY[id];if(!def)return null;const k=skinColors(def,tint);const o=[k.top,k.pants];o.camo=def.camo||0;o.x={hat:def.hat||'',hatc:k.hatc||k.acc,acc:k.acc,vest:mixc(k.top,0x1c1f22,.55),pat:def.pat||'',fx:def.fx||'',kit:id,c:{top:k.top,pants:k.pants,acc:k.acc,hat:k.hatc||k.acc,pack:k.packc||k.acc}};o.skinId=id;return o}
 // composite id used on the wire + in saves: "ember" or "ember~3" (tint index)
 export function splitSkin(s){s=String(s||'default');const i=s.indexOf('~');const id=i<0?s:s.slice(0,i);let t=i<0?0:parseInt(s.slice(i+1));if(!(t>=0&&t<TINTS.length))t=0;return{id,tint:t}}
 export const joinSkin=(id,tint)=>tint>0?id+'~'+tint:id;
