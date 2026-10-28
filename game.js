@@ -2,7 +2,7 @@
 import {THREE,FX,TX,MC,G,mergeParts,GQ,texMat,swapMats,WT,GRASS_T,scatterGrass,makeSky,RET,GLASS,camoTex} from './gfx.js';
 import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './wskins.js';
 import {Post} from './post.js';
-import {loadAssets,HQP} from './assets.js';import * as ASSETS from './assets.js';
+import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
@@ -508,13 +508,13 @@ function joinRoom(code,auto){audioInit();code=(code||'').toUpperCase().trim();if
  const name=myName();roomCode=code;menuMsg('Joining '+code+'…');peer=new Peer({config:ICE,debug:0});
  peer.on('open',id=>{me.id=id;conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});
   const to=setTimeout(()=>{if(!conn.open)menuMsg('Could not reach room '+code+'. Check the code or try again.')},12000);
-  conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name,skin:PROG.skin,hid:hubSelfId,ws:PROG.wskin,cl:PROG.pc,party:PARTY?PARTY.id:null})});conn.on('data',clientHandle);conn.on('close',hostGone)});
+  conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name,fit:curFit(),skin:PROG.skin,hid:hubSelfId,ws:PROG.wskin,cl:PROG.pc,party:PARTY?PARTY.id:null})});conn.on('data',clientHandle);conn.on('close',hostGone)});
  peer.on('error',e=>{if(e.type==='peer-unavailable'){menuMsg(auto?'Setting up the match…':'Room '+code+' not found — creating it so friends can join you!');peer.destroy();setTimeout(()=>createRoom(code,auto),auto?Math.random()*500:600)}else menuMsg('Network error: '+e.type)})}
 function hostGone(){if(isHost)return;if(C.fromHub){location.href=hubUrl();return}alert('The host left the game. Tap OK to go back to the room link.');location.href=location.pathname+'?room='+roomCode}
 // ================= HOST =================
 const H={players:{},mode:'team',phase:'lobby',map:0,score:{},round:0,t:0,next:0,roundEnd:0,botN:0,order:0,fires:[],smokes:[],fireT:0,sideFlip:false};
 const BOTNAMES=['Bolt','Ziggy','Rex','Nova','Pip','Tank','Moxie','Echo','Juno','Blaze','Kit','Ace'];const BOTGUNS=['ar','smg','battle','bullpup','pdw','vector','paintball','laser','freeze','bat','chainsaw'];
-function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].ws=cleanWS(PROG.wskin);H.players[me.id].cl=clOf(PROG.pc);H.players[me.id].hid=hubSelfId;H.players[me.id].party=PARTY?PARTY.id:null;sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
+function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].fit=curFit();H.players[me.id].ws=cleanWS(PROG.wskin);H.players[me.id].cl=clOf(PROG.pc);H.players[me.id].hid=hubSelfId;H.players[me.id].party=PARTY?PARTY.id:null;sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
 function newP(id,name,bot){return{id,name,team:'A',color:0xffffff,hp:100,alive:false,kills:0,deaths:0,pts:0,hs:0,rk:0,vote:-1,bot:!!bot,p:[0,-50,0,0,0,0,0],respawn:0,ord:H.order++,gun:bot?BOTGUNS[(Math.random()*BOTGUNS.length)|0]:null,cl:bot?PCL_IDS[Math.random()*PCL_IDS.length|0]:'soldier',ws:bot&&Math.random()<.35?{'*':WSKIN_IDS[1+(Math.random()*(WSKIN_IDS.length-1))|0]}:{}}}
 function plist(){return Object.values(H.players).sort((a,b)=>a.ord-b.ord)}
 function assignTeams(){let i=0;const AT=H.auto&&H.auto.teams;for(const p of plist()){if(AT&&p.hid&&AT[p.hid]&&H.mode!=='ffa'){p.team=AT[p.hid];p.color=TEAMCOL[p.team];i++;continue}if(H.mode==='ffa'){p.team=p.id;p.color=FFACOL[i%10]}else{p.team=i%2?'B':'A';p.color=TEAMCOL[p.team]}i++}}
@@ -524,12 +524,12 @@ function sbData(){return{t:'sb',p:plist().map(p=>[p.id,p.kills,p.deaths,p.pts,p.
 function sendSB(){bcast(sbData())}
 // a bot takes over a leaver's spot (fill-with-bots rooms) so teams stay even and the match keeps its size
 function botTakeover(team){if(!H.fill||H.phase==='lobby'||H.phase==='starting')return;const want=MODEMAX[H.mode]||4;if(plist().length>=want)return;const id='bot'+(++H.botN);const b=H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true);
- if(H.mode==='ffa'){b.team=id;b.color=FFACOL[plist().length%10]}else{b.team=team;b.color=TEAMCOL[team]}b.respawn=H.t+1.5;b.hp=100;bcast(lobbyData());bcast({t:'join',id,name:b.name,team:b.team,color:b.color,o:b.ord,sk:b.skin,ws:b.ws,cl:b.cl,bot:1});sendSB()}
+ if(H.mode==='ffa'){b.team=id;b.color=FFACOL[plist().length%10]}else{b.team=team;b.color=TEAMCOL[team]}b.respawn=H.t+1.5;b.hp=100;bcast(lobbyData());bcast({t:'join',id,name:b.name,team:b.team,color:b.color,o:b.ord,sk:b.skin,ft:b.fit,ws:b.ws,cl:b.cl,bot:1});sendSB()}
 function hostLeave(id){const lp=H.players[id];if(!lp)return;if(H.br&&BRM(H.mode)&&H.phase==='play'&&!lp.elim&&!lp.bot){lp.alive=false;brElim(lp)}delete H.players[id];delete conns[id];bcast({t:'bye',id});if(H.phase==='lobby')sendLobby();else{if(!lp.bot&&H.phase!=='roundEnd'&&!BRM(H.mode))botTakeover(lp.team);sendSB();checkRound();remCheck()}}
 function hostHandle(from,m){const p=H.players[from];
  switch(m.t){
  case 'hello':{if(BRM(H.mode)&&H.phase!=='lobby'){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'full'});return}if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
-  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.hid=m.hid||null;
+  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
   if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=H.mode==='ext'?'A':teamForJoiner(from);np.color=TEAMCOL[np.team]}
    {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
    bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
@@ -543,6 +543,7 @@ function hostHandle(from,m){const p=H.players[from];
  case 'rem':if(p&&H.matchOver){H.rem[from]=m.v?1:0;remCheck()}break;
  case 'ws':if(p){p.ws=cleanWS(m.ws);bcast({t:'ws',id:from,ws:p.ws})}break;
  case 'cl':if(p){p.cl=clOf(m.cl);bcast({t:'cl',id:from,cl:p.cl})}break;
+ case 'fit':if(p){p.fit=fitOf(m.fit);bcast({t:'fit',id:from,ft:p.fit})}break;
  case 'ping':conns[from]?.send({t:'pong',ts:m.ts,n:plist().length});break;
  case 'st':if(p&&Array.isArray(m.p))p.p=m.p;break;
  case 'fx':if(p)p.shotT=H.t;bcast({t:'fx',id:from,a:m.a,b:m.b,w:m.w},from);break;
@@ -577,7 +578,7 @@ function damage(v,dmg,by,head,w){if(!v.alive)return;if(v.air&&w!=='storm'&&w!=='
 function toPlayer(id,msg){if(conns[id]&&conns[id].open)conns[id].send(msg);else if(id===me.id)clientHandle(msg)}
 function hitFX(v,w,by){const k=H.players[by];if(w.slow){if(v.bot){v.slowT=H.t+w.slow[1];v.slowF=w.slow[0]}else toPlayer(v.id,{t:'slow',f:w.slow[0],d:w.slow[1]})}
  if(w.push&&k){const dx=v.p[0]-k.p[0],dz=v.p[2]-k.p[2],l=Math.hypot(dx,dz)||1;const px=dx/l*w.push,pz=dz/l*w.push;if(v.bot&&v.e){v.e.vel.x+=px;v.e.vel.z+=pz;v.e.vel.y=Math.max(v.e.vel.y,1.2)}else toPlayer(v.id,{t:'push',v:[px,pz]})}}
-function startData(){return{t:'start',map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ws:p.ws||{},cl:p.cl||'soldier',rd:p.raider?1:0}])),ms:MISSION(H.mode)?mInfo():null,br:BRM(H.mode)&&H.br?brInfo():null}}
+function startData(){return{t:'start',map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ft:p.fit==null?null:p.fit,ws:p.ws||{},cl:p.cl||'soldier',rd:p.raider?1:0}])),ms:MISSION(H.mode)?mInfo():null,br:BRM(H.mode)&&H.br?brInfo():null}}
 function startMatch(){for(const p of plist())if(p.raider){delete H.players[p.id];bcast({t:'bye',id:p.id})}{const mx=MODEMAX[H.mode]||10;const bots=plist().filter(p=>p.bot);while(plist().length>mx&&bots.length){const b=bots.pop();delete H.players[b.id];bcast({t:'bye',id:b.id})}}if(H.fill||BRM(H.mode)){const want=MODEMAX[H.mode]||4;while(Object.keys(H.players).length<want){const id='bot'+(++H.botN);H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true)}}if(!H.rematch)assignTeams();const votes=MAPS.map(()=>0);for(const p of plist())if(p.vote>=0)votes[p.vote]++;
  const mx=Math.max(...votes);const best=votes.map((v,i)=>v===mx?i:-1).filter(i=>i>=0);H.map=best[Math.random()*best.length|0];if(H.auto&&H.auto.map!=null)H.map=H.auto.map;if(H.rematch&&H.prevMap!=null)H.map=H.prevMap;H.rematch=0;if(BRM(H.mode))H.map=BR_I;
  H.score={};H.round=0;H.fires=[];H.smokes=[];for(const p of plist()){p.kills=p.deaths=p.pts=p.hs=p.as=0}const m=buildMap(H.map);cols=m.cols;groundHalf=m.groundHalf;ladders=m.ladders||[];hides=m.hides||[];buildGrid();
@@ -697,6 +698,7 @@ function clientHandle(m){if(BC&&brMsg(m))return;switch(m.t){
  case 'mev':missionEvent(m);break;
  case 'rematch':center('REMATCH!\nSame room, same players',1800);remWait=false;break;
  case 'remv':{const b=$('endAgain');if(b&&remWait)b.textContent=`⏳ WAITING (${m.y}/${m.n})`;break}
+ case 'fit':{const q=C.players[m.id];if(q){q.fit=fitOf(m.ft);if(q.model&&m.id!==me.id&&q.model.userData.kind==='toon'){const vis=q.model.visible;scene.remove(q.model);window.__fitNext=q.fit;q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}}break}
  case 'cl':{const q=C.players[m.id];if(q&&q.model&&m.id!==me.id){const vis=q.model.visible;scene.remove(q.model);q.cl=clOf(m.cl);q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}else if(q)q.cl=clOf(m.cl);break}
  case 'ws':{const q=C.players[m.id];if(q){q.ws=m.ws||{};q.gunSk=null;if(q.gunId){const g=q.gunId;q.gunId=null;setRemoteGun(q,WIDX[g])}}break}
  case 'join':addRemote(m.id,{name:m.name,team:m.team,color:m.color,o:m.o,sk:m.sk,ws:m.ws,cl:m.cl,bot:m.bot,raider:m.raider});renderSB();feed(`${m.name} joined`);break;
@@ -739,7 +741,7 @@ function clientHandle(m){if(BC&&brMsg(m))return;switch(m.t){
  }}
 function addRemote(id,info){if(C.players[id]?.model)scene.remove(C.players[id].model);
  const q={id,cl:clOf(info.cl),ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,raider:info.raider||info.rd,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
- if(id!==me.id){q.model=makeCharacter(q.color,info.name,id,undefined,(SKINS[info.sk]||[])[2]||undefined,info.cl);q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
+ q.fit=fitOf(info.ft);if(id!==me.id){window.__fitNext=q.fit;q.model=makeCharacter(q.color,info.name,id,undefined,(SKINS[info.sk]||[])[2]||undefined,info.cl);q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
 function startGame(m){hideEnd();setTimeout(renderParty,50);remWait=false;{const rt=$('roomTag');if(rt){const online=!(H&&H.offline)&&roomCode&&roomCode!=='OFFLINE'&&!C.hub;rt.classList.toggle('hidden',!online);if(online){const pub=lastLobby?!!lastLobby.pub:!!H.pub;rt.textContent=(pub?'🌐 PUBLIC · ':'🔒 PRIVATE · ')+roomCode+' · tap to invite'}}}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
  loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);missionClientInit(m.ms||null);if(m.br)brClientInit(m.br);else brClear();tpSetup();
  for(const s of['menu','lobby','arsenal','settings'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
@@ -2133,7 +2135,7 @@ function partyMsg(m,code,name,cat){
  if(m.t==='pdis'){if(PARTY&&PARTY.lead===code){PARTY=null;toast('👥 Party disbanded');renderParty();if(frOpen)renderFriends()}return{t:'ok'}}
  if(m.t==='pgo'){if(PARTY&&PARTY.lead===code&&/^[A-Z0-9]{4,8}$/.test(String(m.room))&&roomCode!==m.room&&(!inGame||C.hub)){toast(`👥 ${name} started a match — joining`);const nl=/[?&]net=local/.test(location.search)?'&net=local':'';window.__partyGo=m.room;if(!$('lobby').classList.contains('hidden')||inGame||C.hub)location.href=location.pathname+'?join='+m.room+nl+(PROF?'&prof='+PROF:'');else{closeFriends();joinRoom(m.room)}}return{t:'ok'}}
  return{t:'ok'}}
-let partyKey='';function renderParty(){const b=$('partyBar');if(!b)return;const show=(PARTY||PINV)&&(!inGame||C.hub)&&!(PARTY&&PARTY.m.length<2&&!PINV&&false);
+let partyKey='';function renderParty(){try{window.__hsz.royale&&window.__hsz.royale.refresh()}catch(e){}const b=$('partyBar');if(!b)return;const show=(PARTY||PINV)&&(!inGame||C.hub)&&!(PARTY&&PARTY.m.length<2&&!PINV&&false);
  let h='';if(PINV)h+=`<div class="pInv">👥 <b>${esc(PINV.name)}</b> invites you to a party <button data-p="acc" class="pill green sm">JOIN</button><button data-p="dec" class="pill red sm">✕</button></div>`;
  if(PARTY)h+=`<div class="pMem"><b>👥 PARTY ${PARTY.m.length}/4</b>${PARTY.m.map(x=>`<span class="${x.code===PARTY.lead?'lead':''}">${x.code===PARTY.lead?'👑 ':''}${esc(x.name)}</span>`).join('')}${partyLead()?'<button data-p="inv" class="pill sm">➕</button>':''}<button data-p="lv" class="pill red sm">LEAVE</button></div>`;
  const k=(show?'1':'0')+h;if(k===partyKey)return;partyKey=k;b.classList.toggle('hidden',!show);b.innerHTML=h}
@@ -2149,7 +2151,8 @@ const TPV={on:false,d:3.2,side:.62,up:.18,sh:1,dist:3.2,k:1};
 const royaleMode=()=>BRM(C.mode)||(!!BC);
 const camPref=()=>royaleMode()?(LS('camR')!=='1'):(LS('cam3')==='1');
 window.__toonOn=id=>royaleMode()||(id==='me'&&!!window.__toonMe);
-window.__toonFit=id=>id==='me'?curFit():null;
+window.__toonFit=id=>{if(id==='me')return curFit();const f=window.__fitNext;window.__fitNext=null;return f==null?null:f};
+function fitOf(v){const f=parseInt(v);return isNaN(f)?null:((f%8)+8)%8}
 function curFit(){const f=parseInt(LS('fit')||'0');return isNaN(f)?0:f}
 function tpSetup(){TPV.on=camPref();TPV.dist=TPV.d;if(TPV.on)tpEnsure();else if(me.model)me.model.visible=false;updCamBtn()}
 function tpEnsure(){const roy=royaleMode();const m=me.model;const kind=roy?'toon':'hum';const fit=curFit();if(m&&m.userData.mk===kind&&(!roy||m.userData.fitIdx===fit)&&m.parent===scene)return m;if(m)scene.remove(m);
@@ -2182,3 +2185,6 @@ function camToggle(){if(!inGame||C.hub)return;TPV.on=!TPV.on;if(royaleMode())LSS
 (function(){const b=document.createElement('button');b.id='camBtn';b.className='hidden';b.textContent='👁️';document.body.appendChild(b);b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();camToggle()});
  addEventListener('keydown',e=>{if(e.code==='KeyV'&&!e.repeat&&inGame&&!paused&&e.target.tagName!=='INPUT')camToggle();if(e.code==='KeyT'&&TPV.on&&!e.repeat&&inGame&&!paused&&e.target.tagName!=='INPUT'){TPV.sh=-TPV.sh;center(TPV.sh>0?'Camera: right shoulder':'Camera: left shoulder',600)}})})();
 window.__hsz.TPV=TPV;window.__hsz.rayW=(o,d,m)=>rayWorld(o,d,m);window.__hsz.camera=camera;window.__hsz.vmRoot=vmRoot;window.__hsz.camToggle=camToggle;
+
+// ---- v47 Royale menu entry + lobby ----
+{const ROY=initRoyale({$,LS,LSS,audioInit,play:(m,o)=>playOnlineBots(m,o),party:()=>PARTY,partyLead,myCode:()=>FR.code,esc,openFriends,partyLeave,r2});window.__hsz.royale=ROY;if(ROY&&$('royaleBtn'))$('royaleBtn').onclick=()=>ROY.open()}
