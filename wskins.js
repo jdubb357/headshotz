@@ -12,7 +12,10 @@ export const WSKINS={
  gold:['Solid Gold',300,'std','linear-gradient(135deg,#fff1a8,#e8b923 45%,#9a6b0c)'],
  lightning:['Lightning',450,'shader','linear-gradient(135deg,#0a1030,#3a7bff 50%,#e8f4ff 52%,#0a1030)',1],
  fire:['Inferno',550,'shader','linear-gradient(0deg,#3a0500,#ff3c00 45%,#ffb000 75%,#fff3a0)',1],
- galaxy:['Galaxy',650,'shader','radial-gradient(circle at 60% 40%,#ff7ad9,#6a2bd1 35%,#120a3a 70%,#05030f)',1]};
+ galaxy:['Galaxy',650,'shader','radial-gradient(circle at 60% 40%,#ff7ad9,#6a2bd1 35%,#120a3a 70%,#05030f)',1],
+ galaxy_blue:['Galaxy Azure',700,'shader','radial-gradient(circle at 60% 40%,#7ae8ff,#2a6bff 35%,#0a1a4a 70%,#02061a)',1],
+ galaxy_red:['Galaxy Crimson',700,'shader','radial-gradient(circle at 60% 40%,#ffb06a,#e0243a 35%,#3a0814 70%,#14030a)',1],
+ galaxy_gold:['Galaxy Gold',900,'shader','radial-gradient(circle at 60% 40%,#fff3b0,#e8a21a 35%,#4a2c05 70%,#1a0f02)',1]};
 export const WSKIN_IDS=Object.keys(WSKINS);export const WSKIN_FEAT=WSKIN_IDS.filter(k=>WSKINS[k][4]);
 export const skinU={uT:{value:0}};
 export function tickSkins(t){skinU.uT.value=t%600}
@@ -47,24 +50,54 @@ fire:`void main(){${SHADE}float t=uT;vec3 p=vP*14.;vec3 q=p+vec3(0.,-t*2.6,0.);f
  vec3 c=mix(vec3(.08,.01,0.),vec3(.9,.12,0.),smoothstep(.2,.5,h));c=mix(c,vec3(1.,.55,0.),smoothstep(.5,.75,h));c=mix(c,vec3(1.,.95,.6),smoothstep(.78,.95,h));c*= .65+.35*dif;
  float glow=.5+.5*sin(t*2.3+vP.z*9.);c+=vec3(.35,.06,0.)*glow*(1.-h);
  vec3 ep=vP*45.+vec3(0.,-t*2.2,0.);vec3 ec=floor(ep);float er=h3(ec);float em=step(.93,er)*(1.-smoothstep(0.,.3,length(fract(ep)-.5)))*(.5+.5*sin(t*9.+er*50.));c+=vec3(1.,.75,.3)*em*1.6;
- c+=vec3(1.,.4,.05)*rim*.7;gl_FragColor=vec4(c,1.);}`,
-galaxy:`void main(){${SHADE}float t=uT;vec3 V=normalize(vV);vec3 p=vP*8.;float n=clamp((fbm(p*1.6+vec3(t*.06,0.,t*.04))-.5)*2.6+.5,0.,1.);float n2=clamp((fbm(p*2.6-vec3(0.,t*.05,0.)+n*1.5)-.5)*2.6+.5,0.,1.);
- vec3 c=vec3(.05,.02,.14);c=mix(c,vec3(.5,.1,.85),smoothstep(.42,.62,n));c=mix(c,vec3(1.,.35,.75),smoothstep(.55,.7,n2)*.85);c=mix(c,vec3(.02,.01,.06),smoothstep(.45,.3,n2)*.7);c=mix(c,vec3(.25,.6,1.),smoothstep(.5,.8,n*n2*2.)*.6);
-#ifdef HQ
- float n3v=clamp((fbm(p*4.+V*1.2+vec3(0.,0.,t*.08))-.5)*3.+.5,0.,1.);c=mix(c,vec3(.15,.85,.95),smoothstep(.6,.85,n3v)*.35);c+=vec3(1.,.5,.9)*pow(n*n2,3.)*.6;
+ c+=vec3(1.,.4,.05)*rim*.7;gl_FragColor=vec4(c,1.);}`};
+
+// ---------- v55 animated GALAXY: ONE shader function shared by weapons, Royale heroes and realistic soldiers ----------
+// nebula swirls (domain-warped fbm scrolling over time) + two layers of twinkling parallax stars (view-dependent) + rim glow (+ rare shooting star on HQ).
+// Stars fade with their pixel footprint (fwidth) so nothing shimmers/flickers at range. Palette is 4 uniforms, so every colourway shares one program.
+export const GX_PAL={purple:[[.05,.02,.14],[.5,.1,.85],[1,.35,.75],[.25,.6,1]],blue:[[.01,.04,.15],[.1,.35,.95],[.2,.85,1],[.6,.4,1]],red:[[.13,.01,.03],[.85,.08,.15],[1,.5,.2],[1,.2,.6]],gold:[[.1,.06,.01],[.85,.55,.08],[1,.85,.35],[1,.4,.15]]};
+export const GX_GLSL=`uniform float uT;uniform vec3 uC0;uniform vec3 uC1;uniform vec3 uC2;uniform vec3 uC3;
+float gh(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float gn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(gh(i),gh(i+vec3(1,0,0)),f.x),mix(gh(i+vec3(0,1,0)),gh(i+vec3(1,1,0)),f.x),f.y),mix(mix(gh(i+vec3(0,0,1)),gh(i+vec3(1,0,1)),f.x),mix(gh(i+vec3(0,1,1)),gh(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float gf(vec3 p){float a=.5,s=0.;for(int i=0;i<GXOCT;i++){s+=a*gn(p);p=p*2.03+1.7;a*=.5;}return s*(GXOCT==1?1.5:1.);}
+vec3 gxCol(vec3 vp,vec3 V,float dif,float rim){float t=uT;vp*=GXS;vec3 p=vp*8.;
+ float n=clamp((gf(p*1.6+vec3(t*.06,0.,t*.04))-.5)*GXK+.5,0.,1.);
+#ifdef GXLO
+ float n2=n*n*.9;
+#else
+ float n2=clamp((gf(p*2.6-vec3(0.,t*.05,0.)+n*1.5)-.5)*2.6+.5,0.,1.);
 #endif
- c*=.7+.4*dif;
- vec3 sp=vP*28.+V*.35;vec3 cell=floor(sp);float r=h3(cell);vec3 fp=fract(sp)-.5;float st=step(.84,r)*(1.-smoothstep(.0,.36,length(fp)));float tw=.4+.6*sin(t*(2.+r*5.)+r*40.);c+=vec3(1.,.97,.9)*st*max(tw,0.)*1.6*STARS;
- vec3 sp2=vP*70.+V*.9;float r2=h3(floor(sp2)+7.);float st2=step(.82,r2)*(1.-smoothstep(0.,.25,length(fract(sp2)-.5)));c+=vec3(.85,.9,1.)*st2*(.5+.5*sin(t*3.+r2*30.))*STARS;
-#ifdef HQ
- float ph=floor(t/1.8);float pt=fract(t/1.8);vec3 dir=normalize(vec3(h3(vec3(ph,1.,2.))-.5,h3(vec3(ph,3.,1.))-.5,h3(vec3(2.,ph,5.))-.5));vec3 up=normalize(cross(dir,vec3(.3,1.,.2)));
- float u=dot(vP,dir)*10.,v=dot(vP,up)*10.-(h3(vec3(ph,9.,9.))-.5)*2.;float head=(pt*3.-1.5);float tail=clamp((head-u)/.6,0.,1.);float ss=step(0.,head-u)*(1.-tail)*exp(-abs(v)*90.)*smoothstep(1.,.6,pt);c+=vec3(1.,.95,.85)*ss*2.5;
+ vec3 c=uC0;c=mix(c,uC1,smoothstep(.42,.62,n));c=mix(c,uC2,smoothstep(.55,.7,n2)*.85);c=mix(c,uC0*.35,smoothstep(.45,.3,n2)*.7);c=mix(c,uC3,smoothstep(.5,.8,n*n2*2.)*.6);
+#ifdef GXHQ
+ float n3v=clamp((gf(p*4.+V*1.2+vec3(0.,0.,t*.08))-.5)*3.+.5,0.,1.);c=mix(c,mix(uC3,uC2,.5)*1.1,smoothstep(.6,.85,n3v)*.35);c+=uC2*pow(n*n2,3.)*.6;
 #endif
- c=mix(c,c*vec3(.7,.8,1.3),smoothstep(.5,.2,n));c+=vec3(.6,.4,1.)*rim*.6;gl_FragColor=vec4(c,1.);}`};
+ c*=.5+.35*dif;
+ vec3 sp=vp*28.*GXSM+V*.35;float fw=fwidth(sp.x)+fwidth(sp.y)+fwidth(sp.z);float aa=1.-smoothstep(.22,.65,fw);
+ float r=gh(floor(sp));float st=step(.8,r)*(1.-smoothstep(.0,.46,length(fract(sp)-.5)));float tw=.4+.6*sin(t*(2.+r*5.)+r*40.);c+=vec3(1.,.97,.9)*st*max(tw,0.)*2.3*GXSTARS*aa;
+ vec3 sp2=vp*70.*GXSM+V*.9;float aa2=1.-smoothstep(.22,.65,fw*2.5);float r2=gh(floor(sp2)+7.);float st2=step(.82,r2)*(1.-smoothstep(0.,.25,length(fract(sp2)-.5)));c+=vec3(.85,.9,1.)*st2*(.5+.5*sin(t*3.+r2*30.))*GXSTARS*aa2;
+ c+=vec3(1.,.97,.9)*.05*(1.-aa)*GXSTARS;
+#ifdef GXHQ
+ float ph=floor(t/1.8);float pt=fract(t/1.8);vec3 dir=normalize(vec3(gh(vec3(ph,1.,2.))-.5,gh(vec3(ph,3.,1.))-.5,gh(vec3(2.,ph,5.))-.5));vec3 up=normalize(cross(dir,vec3(.3,1.,.2)));
+ float u=dot(vp,dir)*10.,v=dot(vp,up)*10.-(gh(vec3(ph,9.,9.))-.5)*2.;float head=(pt*3.-1.5);float tail=clamp((head-u)/.6,0.,1.);float ss=step(0.,head-u)*(1.-tail)*exp(-abs(v)*90.)*smoothstep(1.,.6,pt);c+=vec3(1.,.95,.85)*ss*2.5*aa;
+#endif
+ c=mix(c,c*vec3(.7,.8,1.3),smoothstep(.5,.2,n)*.6);c+=mix(uC1,vec3(1.),.35)*rim*.6;return c;}`;
+export const gxDefs=(scale,lo,sm=1)=>`#define GXSM ${sm.toFixed(2)}\n#define GXK ${lo?'1.5':'2.6'}\n#define GXOCT ${lo?1:2}\n#define GXS ${scale.toFixed(2)}\n#define GXSTARS ${lo?'0.6':'1.0'}\n${lo?'#define GXLO\n':'#define GXHQ\n'}`;
+const GXM={};
+// mode 'gun' (weapons, plain), 'toon' (Royale hero suit: modulated by the part's vertex colours so belts/emblems keep their shape)
+export function gxMat(pal,mode='gun'){const lo=GQ.level==='low',k=pal+mode+(lo?'L':'H');if(GXM[k])return GXM[k];const P=GX_PAL[pal]||GX_PAL.purple,toon=mode==='toon';
+ const vs=`varying vec3 vP;varying vec3 vN;varying vec3 vV;${toon?'varying vec3 vC;':''}void main(){vP=position;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vV=-mv.xyz;${toon?'vC=color;':''}gl_Position=projectionMatrix*mv;}`;
+ const fs=gxDefs(toon?1.5:1.6,lo,toon?1:1.7)+`varying vec3 vP;varying vec3 vN;varying vec3 vV;${toon?'varying vec3 vC;':''}\n`+GX_GLSL+`
+void main(){vec3 N=normalize(vN),V=normalize(vV);float dif=.45+.55*max(0.,dot(N,normalize(vec3(.35,.8,.45))));float rim=pow(1.-max(0.,dot(N,V)),2.5);vec3 c=gxCol(vP,V,dif,rim);
+ ${toon?'c*=.5+1.0*dot(vC,vec3(.3,.59,.11))+.15*vC;':''}gl_FragColor=vec4(c,1.);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`;
+ const m=new THREE.ShaderMaterial({uniforms:{uT:skinU.uT,uC0:{value:new THREE.Vector3(...P[0])},uC1:{value:new THREE.Vector3(...P[1])},uC2:{value:new THREE.Vector3(...P[2])},uC3:{value:new THREE.Vector3(...P[3])}},vertexShader:vs,fragmentShader:fs,vertexColors:toon});m.userData.anim=1;m.userData.skin='galaxy';return GXM[k]=m}
 const cache={};
 export function skinMat(key){const lo=GQ.level==='low';const ck=key+(lo?'_lo':'');if(cache[ck])return cache[ck];const S=WSKINS[key];if(!S||S[2]==='none')return null;let m;
  if(key==='gold')m=lo?new THREE.MeshStandardMaterial({color:0xffc93c,metalness:.6,roughness:.26,emissive:0x5a3a00,emissiveIntensity:.7}):new THREE.MeshPhysicalMaterial({color:0xffcf4a,metalness:.85,roughness:.2,clearcoat:1,clearcoatRoughness:.08,emissive:0x4a2e00,emissiveIntensity:.55,sheen:.3,sheenColor:new THREE.Color(0xfff0b0)});
  else if(key==='ice')m=lo?new THREE.MeshStandardMaterial({color:0xdaf5ff,metalness:.25,roughness:.1,emissive:0x2f7aa6,emissiveIntensity:.75}):new THREE.MeshPhysicalMaterial({color:0xd6f3ff,metalness:.1,roughness:.18,clearcoat:1,clearcoatRoughness:.02,iridescence:.6,iridescenceIOR:1.3,emissive:0x2f7aa6,emissiveIntensity:.6,sheen:.6,sheenColor:new THREE.Color(0xbfefff)});
+ else if(key.startsWith('galaxy'))m=gxMat(({galaxy:'purple',galaxy_blue:'blue',galaxy_red:'red',galaxy_gold:'gold'})[key]||'purple','gun');
  else if(key==='tiger')m=new THREE.MeshStandardMaterial({map:camoTex(0xd07a1e),metalness:.15,roughness:.6});
  else{const fs=`uniform float uT;varying vec3 vP;varying vec3 vN;varying vec3 vV;#define OCT ${lo?2:(key==='fire'?3:2)}\n#define STARS ${lo?'0.6':'1.0'}\n${lo?'':'#define HQ\n'}`.replace('#define','\n#define')+NOISE+FS[key].replace(/gl_FragColor=vec4\(c,1\.\);\}$/,'gl_FragColor=vec4(c,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}');
   m=new THREE.ShaderMaterial({uniforms:skinU,vertexShader:VS,fragmentShader:fs});m.userData.anim=1}

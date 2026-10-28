@@ -5,6 +5,7 @@
 // jump, climb, downed crawl, death) with 2-bone IK putting both hands on the weapon, which is mounted on the right hand's aim frame.
 // If anything fails to load, chars.js keeps building the old procedural characters.
 import {THREE,GQ} from './gfx.js';import {buildGear,buildSkinHat} from './gear.js';
+import {skinU,GX_PAL,GX_GLSL,gxDefs} from './wskins.js';
 export const HUM={ready:false,failed:false,tpl:{},tex:{},ms:0,bytes:0};
 const BASE=new URL('assets/hum/',import.meta.url).href;
 const SKINC=[0,1,2,3];
@@ -27,19 +28,20 @@ function prepTpl(sc){sc.updateMatrixWorld(true);const v=new THREE.Vector3();
   o.frustumCulled=false})}
 const NOISE=`float h3(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float vn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}`;
-function clothMat(shirt,pants,camo){const m=new THREE.MeshStandardMaterial({map:HUM.tex.cloth,normalMap:HUM.tex.clothn||null,roughness:.92,metalness:0,envMapIntensity:.4});
+function clothMat(shirt,pants,camo,fx){const gxp=fx&&GX_PAL[fx]?GX_PAL[fx]:null,glo=GQ.level==='low';const m=new THREE.MeshStandardMaterial({map:HUM.tex.cloth,normalMap:HUM.tex.clothn||null,roughness:.92,metalness:0,envMapIntensity:.4});
  m.userData.u={uShirt:{value:new THREE.Color(shirt)},uPants:{value:new THREE.Color(pants)},uCamo:{value:camo}};
+ if(gxp)Object.assign(m.userData.u,{uT:skinU.uT,uC0:{value:new THREE.Vector3(...gxp[0])},uC1:{value:new THREE.Vector3(...gxp[1])},uC2:{value:new THREE.Vector3(...gxp[2])},uC3:{value:new THREE.Vector3(...gxp[3])}});
  m.onBeforeCompile=s=>{Object.assign(s.uniforms,m.userData.u);
   s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float pants;varying float vP;varying vec3 vOP;').replace('#include <begin_vertex>','#include <begin_vertex>\nvP=pants;vOP=position;');
-  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uShirt;uniform vec3 uPants;uniform float uCamo;varying float vP;varying vec3 vOP;\n'+NOISE)
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uShirt;uniform vec3 uPants;uniform float uCamo;varying float vP;varying vec3 vOP;\n'+NOISE+(gxp?'\n'+gxDefs(1.25,glo)+GX_GLSL+'\n':''))
    .replace('#include <map_fragment>',`#include <map_fragment>
    {float l=dot(diffuseColor.rgb,vec3(.3,.59,.11));float d=clamp(.45+l*1.6,.35,1.35);vec3 c=mix(uShirt,uPants,step(.5,vP));
     if(uCamo>.5&&vP>.5){vec3 q=vOP*vec3(5.5,4.,5.5);float n=vn(q)+.5*vn(q*2.3);
      if(uCamo<1.5)c=n<.62?c*.6:n<.98?c:mix(c,vec3(.22,.2,.14),.5);else if(uCamo<2.5){float e=h3(floor(vOP*vec3(26.)))+.4*h3(floor(vOP*vec3(9.)));c=e<.5?c*.7:e<1.05?c:c*1.22;}
      else if(uCamo<3.5){float t=sin(vOP.y*30.+vn(q*.7)*5.);c=t>.55?c*.5:c;}else c*=(.85+.25*vn(q*3.));}
-    diffuseColor.rgb=c*d;}`)
-   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=diffuseColor.rgb*pow(1.-saturate(dot(normalize(normal),normalize(vViewPosition))),3.)*.14;')};
- m.customProgramCacheKey=()=>'humcloth2'+(HUM.tex.clothn?1:0);return m}
+    diffuseColor.rgb=c*d;${gxp?'diffuseColor.rgb*=.22;':''}}`)
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=diffuseColor.rgb*pow(1.-saturate(dot(normalize(normal),normalize(vViewPosition))),3.)*.14;'+(gxp?'{vec3 gv=normalize(vViewPosition);float gr=pow(1.-saturate(dot(normalize(normal),gv)),2.5);totalEmissiveRadiance+=gxCol(vOP,gv,.8,gr)*.85;}':''))};
+ m.customProgramCacheKey=()=>'humcloth2'+(HUM.tex.clothn?1:0)+(gxp?'gx'+(glo?'L':'H'):'');return m}
 const TONES=[0xffffff,0xfaf2ec,0xf5e6da,0xefd9c6,0xe6c7ac,0xdcb394,0xcfa183];const SKM={};function partMat(part,key,tint,tone){const k=part+key+'|'+(part==='skin'?tone|0:'');if(SKM[k])return SKM[k];let m;
  if(part==='skin'){m=new THREE.MeshStandardMaterial({map:HUM.tex['skin'+key],roughness:.55,metalness:0,envMapIntensity:.45});
   m.color=new THREE.Color(TONES[tone|0]);
@@ -81,7 +83,7 @@ export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS
  const root=new THREE.Group(),rig=new THREE.Group();root.add(rig);const T=HUM.tier;
  const body=HUM.SU.clone(HUM.tpl[T]);body.rotation.y=Math.PI;const bw=L.bulk?1.1:L.slim?.96:1;body.scale.set(bw,1,bw);rig.add(body);
  const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o});
- const skinK=String(SKINC[(h>>2)%SKINC.length]),shirt=outfit?outfit[0]:(L.shirt??new THREE.Color(teamCol).lerp(new THREE.Color(0x3a3d36),.3).getHex()),pants=outfit?outfit[1]:L.pants,cm=clothMat(shirt,pants,outfit?(outfit.camo||0):L.camo);
+ const skinK=String(SKINC[(h>>2)%SKINC.length]),shirt=outfit?outfit[0]:(L.shirt??new THREE.Color(teamCol).lerp(new THREE.Color(0x3a3d36),.3).getHex()),pants=outfit?outfit[1]:L.pants,cm=clothMat(shirt,pants,outfit?(outfit.camo||0):L.camo,SX&&SX.fx);
  const hairT=HAIRT[(h>>5)%HAIRT.length],toneI=outfit&&outfit.x&&outfit.x.tone!=null?outfit.x.tone:(h>>9)%TONES.length;
  const setMats=o=>{if(!o.isSkinnedMesh)return;const p=o.userData.part;o.material=p==='cloth'?cm:partMat(p,p==='skin'?skinK:p==='hair'?String(hairT):'',hairT,toneI);o.castShadow=true;if(p==='hair'&&L.head&&L.head!=='cap')o.visible=false};
  body.traverse(setMats);

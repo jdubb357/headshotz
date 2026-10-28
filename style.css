@@ -411,3 +411,5 @@ body.brAirOn #slots,body.brAirOn #bZoom,body.brAirOn #bNade,body.brAirOn #bSlide
 @media (max-width:760px),(max-height:430px){.ssBody{grid-template-columns:minmax(0,4fr) minmax(0,6fr);gap:8px}.ssGrid{grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}.ssCard .ph{height:60px}.ssCard b{font-size:11px}.ssTitle{font-size:18px}.tw{width:22px;height:22px}.ssAct .btnBig{padding:9px 6px;font-size:15px}}
 @media (orientation:portrait) and (max-width:760px){.ssBody{grid-template-columns:1fr;grid-template-rows:38% 1fr}}
 .royShopBtn{width:100%;margin:10px 0 4px;padding:10px;font-size:14px}
+.fxTag{font:800 9px system-ui;text-decoration:none;color:#fff;background:linear-gradient(90deg,#7a3bff,#ff4fd8);border-radius:5px;padding:1px 6px;margin-top:1px}
+.ssCard .ph:after{content:none}

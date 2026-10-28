@@ -43,7 +43,11 @@ export const SKIN_DEFS=[
  {id:'desert',name:'Desert Ops',rar:0,price:100,c:[0xb59a6a,0x7d6a4a,0xd9c48a],hat:'bandana',hatc:0xd9c48a,pat:'',camo:2,pack:'box',packc:0x7d6a4a,legacy:1},
  {id:'arctic',name:'Arctic',rar:1,price:120,c:[0xe6edf2,0x9aa6b0,0x2fd5ff],hat:'beanie',hatc:0xe6edf2,pat:'',pack:'round',packc:0x9aa6b0,legacy:1},
  {id:'royal',name:'Royal',rar:2,price:160,c:[0x5b2a86,0xd4a83a,0xffd23f],hat:'crown',hatc:0xd4a83a,pat:'stripe',pack:'cape',packc:0x5b2a86,legacy:1},
- {id:'neon',name:'Neon',rar:2,price:200,c:[0x18e07a,0x101010,0xffffff],hat:'visor',hatc:0x18e07a,pat:'bolt',pack:'tank',packc:0x18e07a,legacy:1}];
+ {id:'neon',name:'Neon',rar:2,price:200,c:[0x18e07a,0x101010,0xffffff],hat:'visor',hatc:0x18e07a,pat:'bolt',pack:'tank',packc:0x18e07a,legacy:1},
+ {id:'gxv',name:'Nebula Walker',rar:4,price:700,c:[0x3a1a7a,0x1a0f3a,0xff7ad9],hat:'halo',hatc:0xc58bff,pat:'',pack:'wings',packc:0x6a2bd1,hs:4,fx:'purple'},
+ {id:'gxb',name:'Azure Nova',rar:4,price:700,c:[0x153a8a,0x0a1a40,0x2fd5ff],hat:'halo',hatc:0x2fd5ff,pat:'',pack:'wings',packc:0x2a6bff,hs:0,fx:'blue'},
+ {id:'gxr',name:'Crimson Eclipse',rar:4,price:700,c:[0x7a1020,0x2a0810,0xff6a3a],hat:'horns',hatc:0xff6a3a,pat:'',pack:'wings2',packc:0xe0243a,hs:7,fx:'red'},
+ {id:'gxg',name:'Golden Quasar',rar:4,price:900,c:[0x8a5a10,0x2a1a05,0xffe27a],hat:'crown',hatc:0xffd23f,pat:'',pack:'cape',packc:0xe8a21a,hs:2,fx:'gold'}];
 export const SKIN_BY=Object.fromEntries(SKIN_DEFS.map(d=>[d.id,d]));
 export const SKIN_IDS=SKIN_DEFS.map(d=>d.id);
 const mixc=(a,b,t)=>{const ar=a>>16&255,ag=a>>8&255,ab=a&255,br=b>>16&255,bg=b>>8&255,bb=b&255;return(Math.round(ar+(br-ar)*t)<<16)|(Math.round(ag+(bg-ag)*t)<<8)|Math.round(ab+(bb-ab)*t)};
@@ -51,9 +55,9 @@ const mixc=(a,b,t)=>{const ar=a>>16&255,ag=a>>8&255,ab=a&255,br=b>>16&255,bg=b>>
 export function skinColors(def,tint=0){const [p,s,a]=def.c;const T=tint>0?TINTS[tint]:null;
  return{top:T?mixc(p,T,def.rar>=3?.45:.62):p,pants:s,acc:T||a,hatc:T&&def.hat?(def.hatc===0xffffff||def.hatc===0x101010||def.hatc===0x20232e?def.hatc:T):def.hatc,packc:T&&def.pack?T:def.packc}}
 // toon hero definition (appended to toon.js OUTFITS)
-export function toonDef(def){const [p,s,a]=def.c;return{name:def.name,top:p,acc:a,pants:s,shoes:mixc(s,0x000000,.35),glove:a===0x111111?s:a,skin:[0xf1c27d,0xe0ac69,0xc68642,0x8d5524,0xffdbac,0xd4a373][def.id.length%6],hair:[0x5a3825,0x111111,0x2b1d14,0xf2c94c,0x7a3b1d][def.id.charCodeAt(0)%5],hs:def.hs??(def.id.charCodeAt(1)%4),hat:def.hat||'none',hatc:def.hatc||0,iris:0x3a7bd5,pack:def.pack||'none',packc:def.packc||0,pat:def.pat||'',sleeve:1,rar:def.rar,skinId:def.id}}
+export function toonDef(def){const [p,s,a]=def.c;return{name:def.name,top:p,acc:a,pants:s,shoes:mixc(s,0x000000,.35),glove:a===0x111111?s:a,skin:[0xf1c27d,0xe0ac69,0xc68642,0x8d5524,0xffdbac,0xd4a373][def.id.length%6],hair:[0x5a3825,0x111111,0x2b1d14,0xf2c94c,0x7a3b1d][def.id.charCodeAt(0)%5],hs:def.hs??(def.id.charCodeAt(1)%4),hat:def.hat||'none',hatc:def.hatc||0,iris:0x3a7bd5,pack:def.pack||'none',packc:def.packc||0,pat:def.pat||'',sleeve:1,rar:def.rar,skinId:def.id,fx:def.fx||''}}
 // human outfit descriptor consumed by chars.js/humans.js: an array [shirt,pants] carrying extras
-export function humanOutfit(id,tint=0){const def=SKIN_BY[id];if(!def)return null;const k=skinColors(def,tint);const o=[k.top,k.pants];o.camo=def.camo||0;o.x={hat:def.hat||'',hatc:k.hatc||k.acc,acc:k.acc,vest:mixc(k.top,0x1c1f22,.55),pat:def.pat||''};o.skinId=id;return o}
+export function humanOutfit(id,tint=0){const def=SKIN_BY[id];if(!def)return null;const k=skinColors(def,tint);const o=[k.top,k.pants];o.camo=def.camo||0;o.x={hat:def.hat||'',hatc:k.hatc||k.acc,acc:k.acc,vest:mixc(k.top,0x1c1f22,.55),pat:def.pat||'',fx:def.fx||''};o.skinId=id;return o}
 // composite id used on the wire + in saves: "ember" or "ember~3" (tint index)
 export function splitSkin(s){s=String(s||'default');const i=s.indexOf('~');const id=i<0?s:s.slice(0,i);let t=i<0?0:parseInt(s.slice(i+1));if(!(t>=0&&t<TINTS.length))t=0;return{id,tint:t}}
 export const joinSkin=(id,tint)=>tint>0?id+'~'+tint:id;

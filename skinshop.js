@@ -5,7 +5,7 @@ import {SKIN_DEFS,SKIN_BY,TINTS,TINT_N,RAR_N,RAR_C,humanOutfit,skinColors} from 
 import {makeToon,animToon,BASE_N} from './toon.js';
 import {makeCharacter,animate as animHum} from './chars.js';
 const hex=c=>'#'+(c>>>0).toString(16).padStart(6,'0');
-const FIL=[['all','ALL'],['owned','OWNED'],['0','COMMON'],['1','UNCOMMON'],['2','RARE'],['3','EPIC'],['4','LEGENDARY']];
+const FIL=[['all','ALL'],['fx','✨ GALAXY'],['owned','OWNED'],['0','COMMON'],['1','UNCOMMON'],['2','RARE'],['3','EPIC'],['4','LEGENDARY']];
 export function initSkinShop(A){
  const $=A.$;const el=$('skinShop');if(!el)return null;const P=A.PROG;
  const S={sel:SKIN_DEFS[0].id,tint:0,view:'hero',fil:'all',on:false,ry:.5,drag:null,from:'menu'};
@@ -39,11 +39,11 @@ export function initSkinShop(A){
     const img=el.querySelector(`.ssCard[data-id="${d.id}"] img`);if(img)img.src=TH[d.id]}catch(e){}
    setTimeout(step,S.on?30:200)};step()}
  // ---------- UI
- function card(d){const o=own(d.id),eq=eqId()===d.id,k=skinColors(d,0);return `<button class="ssCard${d.id===S.sel?' sel':''}${eq?' eqd':''}" data-id="${d.id}" style="--rc:${RAR_C[d.rar]};--a:${hex(k.top)};--b:${hex(k.pants)};--c:${hex(k.acc)}"><span class="ph"><img alt="" src="${TH[d.id]||''}"></span><b>${A.esc(d.name)}</b><i style="background:${RAR_C[d.rar]}">${RAR_N[d.rar]}</i><em>${eq?'✔ WEARING':o?'OWNED':'💎 '+d.price}</em></button>`}
- function list(){return SKIN_DEFS.filter(d=>S.fil==='all'||(S.fil==='owned'?own(d.id):d.rar===+S.fil)).sort((a,b)=>a.rar-b.rar||a.price-b.price)}
+ function card(d){const o=own(d.id),eq=eqId()===d.id,k=skinColors(d,0);return `<button class="ssCard${d.id===S.sel?' sel':''}${eq?' eqd':''}" data-id="${d.id}" style="--rc:${RAR_C[d.rar]};--a:${hex(k.top)};--b:${hex(k.pants)};--c:${hex(k.acc)}"><span class="ph"><img alt="" src="${TH[d.id]||''}"></span><b>${A.esc(d.name)}</b><i style="background:${RAR_C[d.rar]}">${RAR_N[d.rar]}</i>${d.fx?'<s class="fxTag">✨ MOVING</s>':''}<em>${eq?'✔ WEARING':o?'OWNED':'💎 '+d.price}</em></button>`}
+ function list(){return SKIN_DEFS.filter(d=>S.fil==='all'||(S.fil==='owned'?own(d.id):S.fil==='fx'?!!d.fx:d.rar===+S.fil)).sort((a,b)=>a.rar-b.rar||a.price-b.price)}
  function renderGrid(){const L=list();$('ssGrid').innerHTML=L.length?L.map(card).join(''):'<p class="ssEmpty">Nothing here yet — buy a skin or open a chest!</p>';$('ssCount').textContent=`${SKIN_DEFS.filter(d=>own(d.id)).length}/${SKIN_DEFS.length} owned`}
  function renderSide(){const d=SKIN_BY[S.sel],o=own(d.id),eq=eqId()===d.id&&eqTint()===S.tint;$('ssDia').textContent=P.dia;
-  $('ssName').textContent=d.name;$('ssRar').textContent=RAR_N[d.rar];$('ssRar').style.background=RAR_C[d.rar];
+  $('ssName').textContent=d.name;$('ssRar').textContent=RAR_N[d.rar]+(d.fx?' · ✨ ANIMATED GALAXY':'');$('ssRar').style.background=RAR_C[d.rar];
   $('ssFil').innerHTML=FIL.map(f=>`<button data-f="${f[0]}" class="${S.fil===f[0]?'sel':''}">${f[1]}</button>`).join('');
   $('ssTints').innerHTML='<span>COLOR</span>'+TINTS.map((c,i)=>`<button class="tw${i===S.tint?' sel':''}" data-t="${i}" title="${TINT_N[i]}" style="background:${c==null?`conic-gradient(${hex(d.c[0])} 0 33%,${hex(d.c[1])} 0 66%,${hex(d.c[2])} 0)`:hex(c)}"></button>`).join('');
   document.querySelectorAll('#ssView button').forEach(b=>b.classList.toggle('sel',b.dataset.v===S.view));

@@ -3,6 +3,7 @@
 // (run/strafe/jump/aim/crouch/slide/climb/down/freefall/glide/chute/emotes) and a 2-bone IK for the two-handed weapon grip.
 import {THREE,mergeParts,GQ} from './gfx.js';
 import {SKIN_DEFS,toonDef,skinColors} from './skins.js';
+import {gxMat} from './wskins.js';
 const V3=THREE.Vector3;
 export const OUTFITS=[
  {id:0,name:'Sunny Scout',top:0xff9a2e,acc:0xfff1c9,pants:0x3b4a6b,shoes:0x6b3b1f,glove:0xfff1c9,skin:0xf1c27d,hair:0x5a3825,hs:0,hat:'cap',hatc:0x2f6fdf,iris:0x3a7bd5,pack:'round',packc:0x2f6fdf,sleeve:1,rar:0},
@@ -140,6 +141,8 @@ export function makeToon(teamCol,name,id,tagCol,outfitIdx,opt={}){
  const cv=document.createElement('canvas');cv.width=256;cv.height=64;const x=cv.getContext('2d');x.font='bold 38px system-ui,sans-serif';x.textAlign='center';x.lineWidth=8;x.strokeStyle='rgba(0,0,0,.85)';x.strokeText(name,128,46);x.fillStyle='#'+new THREE.Color(tagCol??teamCol).getHexString();x.fillText(name,128,46);
  const tg=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthWrite:false,transparent:true}));tg.scale.set(1.5,.375,1);tg.position.y=2.25;root.add(tg);
  if(opt.noTag)tg.visible=false;
+ // v55 galaxy suits: torso/arms/legs/pack swap to the animated galaxy shader (head, hat, hair, eyes and mittens stay normal)
+ if(o.fx){const gm=gxMat(o.fx,'toon');root.traverse(c=>{if(c.isMesh&&c!==Hm&&c!==eyes&&!handM.includes(c)&&c.material===MAT)c.material=gm})}
  if(opt.outline){const om=new THREE.MeshBasicMaterial({color:0x10141f,side:THREE.BackSide});root.traverse(c=>{if(c.isMesh&&c!==eyes){const m=new THREE.Mesh(c.geometry,om);m.scale.setScalar(1.05);c.add(m)}})}
  root.userData={kind:'toon',anim:animToon,rig,hips,torso,headG,eyes,arm,fore,handM,leg,shin,aim,gunMount,gR,gL,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod:[],far:[],lodOn:true,cls:'soldier',crouch:0,climb:0,down:0,lean:0,outfit:o,blinkT:2+(h%30)/10,mood:0,J:{}};
  root.userData.args=[teamCol,name,id,tagCol,oi];return root}
