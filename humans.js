@@ -37,17 +37,23 @@ function clothMat(shirt,pants,camo){const m=new THREE.MeshStandardMaterial({map:
     if(uCamo>.5&&vP>.5){vec3 q=vOP*vec3(5.5,4.,5.5);float n=vn(q)+.5*vn(q*2.3);
      if(uCamo<1.5)c=n<.62?c*.6:n<.98?c:mix(c,vec3(.22,.2,.14),.5);else if(uCamo<2.5){float e=h3(floor(vOP*vec3(26.)))+.4*h3(floor(vOP*vec3(9.)));c=e<.5?c*.7:e<1.05?c:c*1.22;}
      else if(uCamo<3.5){float t=sin(vOP.y*30.+vn(q*.7)*5.);c=t>.55?c*.5:c;}else c*=(.85+.25*vn(q*3.));}
-    diffuseColor.rgb=c*d;}`)};
- m.customProgramCacheKey=()=>'humcloth'+(HUM.tex.clothn?1:0);return m}
-const SKM={};function partMat(part,key,tint){const k=part+key;if(SKM[k])return SKM[k];let m;
- if(part==='skin'){m=new THREE.MeshStandardMaterial({map:HUM.tex['skin'+key],roughness:.55,metalness:0,envMapIntensity:.35});
-  m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <opaque_fragment>','outgoingLight+=diffuseColor.rgb*vec3(.10,.03,.02);\n#include <opaque_fragment>')};m.customProgramCacheKey=()=>'humskin'}
+    diffuseColor.rgb=c*d;}`)
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=diffuseColor.rgb*pow(1.-saturate(dot(normalize(normal),normalize(vViewPosition))),3.)*.14;')};
+ m.customProgramCacheKey=()=>'humcloth2'+(HUM.tex.clothn?1:0);return m}
+const TONES=[0xffffff,0xfaf2ec,0xf5e6da,0xefd9c6,0xe6c7ac,0xdcb394,0xcfa183];const SKM={};function partMat(part,key,tint,tone){const k=part+key+'|'+(part==='skin'?tone|0:'');if(SKM[k])return SKM[k];let m;
+ if(part==='skin'){m=new THREE.MeshStandardMaterial({map:HUM.tex['skin'+key],roughness:.55,metalness:0,envMapIntensity:.45});
+  m.color=new THREE.Color(TONES[tone|0]);
+  // v54 realism: cheap sub-surface look (warm red fresnel rim + wrapped warmth), oilier highlights on bright planes (forehead/nose/cheeks), softer ears/edges
+  m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\n{float lm=dot(diffuseColor.rgb,vec3(.3,.59,.11));roughnessFactor=mix(.66,.36,smoothstep(.45,.85,lm));}')
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n{vec3 nv=normalize(normal);float fr=pow(1.-saturate(dot(nv,normalize(vViewPosition))),2.3);totalEmissiveRadiance+=diffuseColor.rgb*vec3(.7,.22,.12)*fr*.10;}')
+   .replace('#include <opaque_fragment>','outgoingLight+=diffuseColor.rgb*vec3(.10,.03,.02);\n#include <opaque_fragment>')};m.customProgramCacheKey=()=>'humskin2'}
  else if(part==='shoes')m=new THREE.MeshStandardMaterial({map:HUM.tex.shoes,roughness:.55,metalness:0});
- else if(part==='hair')m=new THREE.MeshStandardMaterial({map:HUM.tex.hair,color:tint,alphaTest:.45,side:THREE.DoubleSide,roughness:.7});
- else if(part==='eye')m=new THREE.MeshStandardMaterial({map:HUM.tex.eye,roughness:.15});
+ else if(part==='hair'){m=new THREE.MeshStandardMaterial({map:HUM.tex.hair,color:tint,alphaTest:.45,side:THREE.DoubleSide,roughness:.5});
+  m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n{vec3 nv=normalize(normal);float sh=pow(saturate(nv.y*.8+.35),5.);totalEmissiveRadiance+=diffuseColor.rgb*sh*.5+vec3(.9,.8,.7)*pow(1.-saturate(dot(nv,normalize(vViewPosition))),3.)*.04;}')};m.customProgramCacheKey=()=>'humhair2'}
+ else if(part==='eye')m=new THREE.MeshStandardMaterial({map:HUM.tex.eye,roughness:.05,metalness:0,envMapIntensity:1.6});
  else m=new THREE.MeshStandardMaterial({map:HUM.tex[part],alphaTest:.4,side:THREE.DoubleSide,roughness:.8,transparent:false});
  return SKM[k]=m}
-const HAIRT=[0xffffff,0x8a6a50,0x5a4636,0xd8c4a0,0x303030];
+const HAIRT=[0xffffff,0x8a6a50,0x5a4636,0xd8c4a0,0x303030,0x7a3b24,0xb36a3c,0x9aa0a6,0x1b1512];
 const gm=(c,r=.6,mt=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:mt});
 const GMC={};const gmat=(c,r,mt)=>GMC[c+'|'+r+'|'+mt]||(GMC[c+'|'+r+'|'+mt]=gm(c,r,mt));
 let GM=null;function gearMat(){if(GM)return GM;GM=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:1,envMapIntensity:.8});const hi=GQ.level!=='low';
@@ -76,8 +82,8 @@ export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS
  const body=HUM.SU.clone(HUM.tpl[T]);body.rotation.y=Math.PI;const bw=L.bulk?1.1:L.slim?.96:1;body.scale.set(bw,1,bw);rig.add(body);
  const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o});
  const skinK=String(SKINC[(h>>2)%SKINC.length]),shirt=outfit?outfit[0]:(L.shirt??new THREE.Color(teamCol).lerp(new THREE.Color(0x3a3d36),.3).getHex()),pants=outfit?outfit[1]:L.pants,cm=clothMat(shirt,pants,outfit?0:L.camo);
- const hairT=HAIRT[(h>>5)%HAIRT.length];
- const setMats=o=>{if(!o.isSkinnedMesh)return;const p=o.userData.part;o.material=p==='cloth'?cm:partMat(p,p==='skin'?skinK:p==='hair'?String(hairT):'',hairT);o.castShadow=true;if(p==='hair'&&L.head&&L.head!=='cap')o.visible=false};
+ const hairT=HAIRT[(h>>5)%HAIRT.length],toneI=outfit&&outfit.x&&outfit.x.tone!=null?outfit.x.tone:(h>>9)%TONES.length;
+ const setMats=o=>{if(!o.isSkinnedMesh)return;const p=o.userData.part;o.material=p==='cloth'?cm:partMat(p,p==='skin'?skinK:p==='hair'?String(hairT):'',hairT,toneI);o.castShadow=true;if(p==='hair'&&L.head&&L.head!=='cap')o.visible=false};
  body.traverse(setMats);
  // far LOD: the lo tier bound to this body's skeleton
  const lod=[],far=[];if(T!=='lo'&&HUM.tpl.lo){const lo=HUM.SU.clone(HUM.tpl.lo);lo.traverse(o=>{if(o.isSkinnedMesh){const bs=o.skeleton.bones.map(b=>bones[b.name]);o.bind(new THREE.Skeleton(bs,o.skeleton.boneInverses),o.bindMatrix);setMats(o)}});
