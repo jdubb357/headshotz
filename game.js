@@ -560,7 +560,7 @@ const AS_WIN=10,AS_MIN=25;
 function asRec(v,dmg,by,w){if(!by||by===v.id||w==='fall'||w==='bleed'||!H.players[by])return;const D=v.dmgBy||(v.dmgBy={});const e=D[by]||(D[by]={d:0,t:-99});if(H.t-e.t>AS_WIN)e.d=0;e.d+=v.down?dmg*.5:dmg;e.t=H.t}
 function asTake(v,k){const D=v.dmgBy||{};v.dmgBy={};const tm=isTeamMode(H.mode);const out=Object.entries(D).filter(([id,e])=>id!==k&&id!==v.id&&e.d>=AS_MIN&&H.t-e.t<=AS_WIN&&H.players[id]&&!(tm&&H.players[id].team===v.team)).sort((a,b)=>b[1].d-a[1].d).slice(0,2).map(x=>x[0]);
  for(const id of out){const a=H.players[id];a.as=(a.as||0)+1;a.pts+=50}return out}
-function damage(v,dmg,by,head,w){if(!v.alive)return;if(v.air&&w!=='storm'&&w!=='bleed')return;if(v.prot&&H.t<v.prot&&w!=='fall'&&w!=='bleed')return;asRec(v,dmg,by,w);{const pc=PCL[v.cl];if(pc&&pc.hp&&w!=='fall'&&w!=='bleed')dmg=Math.max(1,Math.round(dmg*100/pc.hp));v.hurtT=H.t}{const ww=W[w];if(ww&&(ww.slow||ww.push)&&by!==v.id)hitFX(v,ww,by)}
+function damage(v,dmg,by,head,w){if(!v.alive)return;if(v.air&&w!=='storm'&&w!=='bleed')return;if(v.prot&&H.t<v.prot&&w!=='fall'&&w!=='bleed')return;asRec(v,dmg,by,w);{const pc=PCL[v.cl];if(pc&&pc.hp&&w!=='fall'&&w!=='bleed')dmg=Math.max(1,Math.round(dmg*100/pc.hp));v.hurtT=H.t;if(v.bot&&v.flag&&H.mode==='ctf'&&w!=='fall')dmg=Math.max(1,Math.round(dmg*.28))}{const ww=W[w];if(ww&&(ww.slow||ww.push)&&by!==v.id)hitFX(v,ww,by)}
  if(v.down){if(by===v.id&&w!=='fall'&&w!=='bleed')return;v.dhp-=dmg;bcast({t:'hp',id:v.id,hp:0,by,dmg,head,d:1});if(v.dhp>0&&w!=='fall'&&w!=='bleed')return;
   v.down=false;v.rev=null;v.alive=false;const k=H.players[by];const fin=k&&by!==v.id;if(fin)k.pts+=25;v.dmgBy={};bcast({t:'kill',k:by,v:v.id,head,w,fin:fin?1:0,bleed:w==='bleed'?1:0});{const rd=respawnDelay(v);if(rd&&H.phase==='play')v.respawn=H.t+rd}sendSB();if(BRM(H.mode)&&H.br)brElim(v,by);checkRound();return}
  if(v.sh>0&&w!=='storm'&&w!=='fall'&&w!=='bleed'){const a=Math.min(v.sh,dmg);v.sh-=a;dmg-=a;if(!v.bot)toPlayer(v.id,{t:'shd',sh:Math.round(v.sh)});if(dmg<=0){bcast({t:'hp',id:v.id,hp:Math.max(0,v.hp),by,dmg:0,head,sh:1});return}}
@@ -652,7 +652,7 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt)
  // go revive a downed teammate when no enemy is in sight
  if(isTeamMode(H.mode)){const dn=plist().filter(q=>q.down&&q.alive&&q.team===b.team&&q.id!==b.id);if(dn.length){let best=null,bd=1e9;for(const q of dn){const d=Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z);if(d<bd){bd=d;best=q}}
   if(best&&bd<60){b.revT=best.id;b.goal=[best.p[0],best.p[2],best.p[1]];b.via=null}else b.revT=null}else b.revT=null}b.blind=Math.max(0,(b.blind||0)-dt);const w=W[b.gun]||W.ar;
- if(b.blind<=0&&!H.noFight&&!b.far)for(const q of plist()){if(!q.alive||q.id===b.id||q.air||(H.mode!=='ffa'&&q.team===b.team))continue;const dx=q.p[0]-e.pos.x,dz=q.p[2]-e.pos.z,dy=q.p[1]-e.pos.y,dd=Math.hypot(dx,dy,dz);if(dd>55||dd>=td||((b.flag||b.drive!=null)&&dd>9)||(b.inv&&(b.gun==='fists'||H.t<(b.calm||0))&&dd>9&&!(q.shotT>H.t-2)))continue;if(dd>4.5&&hides.length&&inVol(hides,{x:q.p[0],y:q.p[1]+.5,z:q.p[2]})&&!(q.shotT>H.t-1.5))continue;
+ if(b.blind<=0&&!H.noFight&&!b.far)for(const q of plist()){if(!q.alive||q.id===b.id||q.air||(H.mode!=='ffa'&&q.team===b.team))continue;const dx=q.p[0]-e.pos.x,dz=q.p[2]-e.pos.z,dy=q.p[1]-e.pos.y,dd=Math.hypot(dx,dy,dz);if(dd>55||dd>=td||((b.flag||b.drive!=null||b.rush)&&dd>(b.rush===2?5:b.rush===1?14:9))||(b.inv&&(b.gun==='fists'||H.t<(b.calm||0))&&dd>9&&!(q.shotT>H.t-2)))continue;if(dd>4.5&&hides.length&&inVol(hides,{x:q.p[0],y:q.p[1]+.5,z:q.p[2]})&&!(q.shotT>H.t-1.5))continue;
   _o.set(e.pos.x,e.pos.y+1.5,e.pos.z);if(!rayClearHost(_o,_d.set(q.p[0],q.p[1]+(q.down?.4:1.4),q.p[2])))continue;const sc=dd+(q.down?12:0);if(sc>=td)continue;td=sc;tgt=q}
  let wx=0,wz=0;b.st-=dt;if(b.st<=0){b.st=.5+Math.random()*1.2;b.strafe=Math.random()<.5?-1:1}
  if(tgt){const dx=tgt.p[0]-e.pos.x,dz=tgt.p[2]-e.pos.z;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*DIFF[H.diff||'normal'].turn);
@@ -662,11 +662,12 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt)
    bcast({t:'fx',id:b.id,a:[_o.x,_o.y,_o.z],b:end,w:b.gun});if(hit){const head=Math.random()<D.head;if(head)BS.hd++;damage(tgt,Math.round((head?w.head:w.body)*falloff(w,td)*(b.rarD||1)),b.id,head,b.gun)}}}
  else{b.react=DIFF[H.diff||'normal'].react;const m=buildMap(H.map);const og=MISSION(H.mode)&&!b.revT?botMission(b):(BRM(H.mode)&&H.br&&!b.revT?botBR(b,dt):null);if(og){const g=b.goal;if(!g||Math.hypot(g[0]-og[0],g[1]-og[1])>3||Math.abs((g[2]||0)-(og[2]||0))>1.5){b.goal=og;b.via=null;b.hold=0}}if(b.goal&&b.hold>0&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)b.hold-=dt;if(!og&&!b.revT&&!(b.hold>0&&b.goal&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2.5)&&(!b.goal||(Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)||(!H.noFight&&(Math.random()<dt*.05||(b.goalT=(b.goalT||0)+dt)>25)))){const all=allSpawns(m);const foes=plist().filter(q=>q.alive&&q.id!==b.id&&(H.mode==='ffa'||q.team!==b.team));const hi=m.nav?m.nav.filter(n=>(n[2]||0)>2):[];if(hi.length&&Math.random()<.4){b.goal=hi[Math.random()*hi.length|0].slice();b.hold=4+Math.random()*6}else if(foes.length&&Math.random()<.55){const f=foes[Math.random()*foes.length|0];b.goal=[f.p[0]+(Math.random()-.5)*3,f.p[2]+(Math.random()-.5)*3,f.p[1]]}else if(m.nav&&m.nav.length&&Math.random()<.5)b.goal=m.nav[Math.random()*m.nav.length|0].slice();else b.goal=all[Math.random()*all.length|0].slice();b.via=null;b.goalT=0}
   const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z;b.climbY=nt[1];const l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*4)}
+ if(tgt&&b.flag&&H.mode==='ctf'){const og=botMission(b),g=b.goal;if(og&&(!g||Math.hypot(g[0]-og[0],g[1]-og[1])>3)){b.goal=og;b.via=null}const m=buildMap(H.map);const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z,l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;b.climbY=nt[1]}
  // revive takes priority over fighting unless an enemy is very close (<7 m): keep aiming/shooting, but walk to the downed mate and hold
  let revHold=false;if(b.revT){const q=H.players[b.revT];if(q&&q.down&&(!tgt||td>7)){const m=buildMap(H.map);if(tgt){const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z,l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;b.climbY=nt[1]}
    if(Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z)<.9&&Math.abs(q.p[1]-e.pos.y)<1.2){wx=wz=0;b.detour=0;revHold=true}}}
  if(b.detour>0&&!revHold){b.detour-=dt;wx=b.dd[0];wz=b.dd[1]}
- const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}const sp=(b.blind>0?2:5.2)*(b.slowT>H.t?b.slowF:1);{const cs=(PCL[b.cl]||{}).spd||1;e.vel.x+=(wx*sp*cs-e.vel.x)*Math.min(1,dt*10);e.vel.z+=(wz*sp*cs-e.vel.z)*Math.min(1,dt*10)}
+ const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}const sp=(b.blind>0?2:5.2)*(b.slowT>H.t?b.slowF:1)*(b.flag?1.35:1);{const cs=(PCL[b.cl]||{}).spd||1;e.vel.x+=(wx*sp*cs-e.vel.x)*Math.min(1,dt*10);e.vel.z+=(wz*sp*cs-e.vel.z)*Math.min(1,dt*10)}
  {const L=inVol(ladders,e.pos);e.ladTop=L&&(b.climbY??0)>e.pos.y+.3?L.y1:null;if(L){const ty=b.climbY??e.pos.y;if(ty>e.pos.y+.3){e.vel.y=4.4;e.vel.x-=L.n[0]*1.5;e.vel.z-=L.n[1]*1.5}else if(ty<e.pos.y-.3)e.vel.y=Math.min(e.vel.y,-2.5);else e.vel.y=Math.max(e.vel.y,0)}}
  if(e.ground&&!(b.via&&b.via.down)){const px=e.pos.x+e.vel.x*.45,pz=e.pos.z+e.vel.z*.45;if(!supportAt(px,e.pos.y,pz)){e.vel.x*=-.3;e.vel.z*=-.3;if(!b.via)b.goal=null}}
  if(e.ground&&supportAt(e.pos.x,e.pos.y,e.pos.z))b.lastG=[e.pos.x,e.pos.z];else if(!e.ground&&b.lastG&&!inVol(ladders,e.pos,.4)&&!(b.via&&b.via.down)&&!supportAt(e.pos.x,e.pos.y,e.pos.z)){const gx=b.lastG[0]-e.pos.x,gz=b.lastG[1]-e.pos.z,gl=Math.hypot(gx,gz)||1;e.vel.x=gx/gl*5;e.vel.z=gz/gl*5;if(!b.via)b.goal=null}
@@ -1631,7 +1632,7 @@ function ctfCapture(T,c){const F=H.ctf.f[T];c.flag=null;F.st='home';F.pos=F.home
  if(H.ctf.caps[c.team]>=CTF.goal)endMission(c.team,'FLAG CAPTURED ×'+CTF.goal,H.ctf.caps.A+' – '+H.ctf.caps.B)}
 function ctfTick(dt){for(const T of['A','B']){const F=H.ctf.f[T],O=T==='A'?'B':'A';
   if(F.st==='carried'){const c=H.players[F.car];if(!c||!c.alive||c.down||c.team===T){ctfDrop(T,'death');continue}F.pos=[c.p[0],c.p[1],c.p[2]];const OF=H.ctf.f[O];if(OF.st==='home'&&hd2(c.p,OF.home)<CTF.cap&&Math.abs(c.p[1]-OF.home[1])<2.5)ctfCapture(T,c)}
-  else{for(const p of plist()){if(!p.alive||p.down||p.hp<=0)continue;if(hd2(p.p,F.pos)>CTF.pick||Math.abs(p.p[1]-F.pos[1])>2.4)continue;if(p.team===T){if(F.st==='dropped'){ctfReturn(T,p);break}}else{ctfTake(T,p);break}}
+  else{for(const p of plist()){if(!p.alive||p.down||p.hp<=0)continue;if(hd2(p.p,F.pos)>CTF.pick||Math.abs(p.p[1]-F.pos[1])>(p.bot?3.4:2.4))continue;if(p.team===T){if(F.st==='dropped'){ctfReturn(T,p);break}}else{ctfTake(T,p);break}}
    if(F.st==='dropped'&&H.t-F.t>CTF.ret)ctfReturn(T,null)}}}
 function ctfTimeUp(){const c=H.ctf.caps;if(c.A!==c.B)endMission(c.A>c.B?'A':'B','TIME UP',c.A+' – '+c.B);else if(!H.ctf.sd){H.ctf.sd=1;H.roundEnd=H.t+60;mEv('sd')}else endMission('draw','DRAW',c.A+' – '+c.B)}
 // --- Extraction ---
@@ -1664,13 +1665,13 @@ function endMission(win,title,sub){if(H.phase!=='play')return;H.phase='roundEnd'
 // bot objectives (return a goal [x,z,y] or null)
 function botIdx(b){let i=0;for(const q of plist()){if(q.id===b.id)return i;if(q.bot&&q.team===b.team)i++}return i}
 function botMission(b){if(H.mode==='ctf'){const T=b.team,O=T==='A'?'B':'A',mine=H.ctf.f[T],en=H.ctf.f[O];
-  if(b.flag===O)return[mine.home[0],mine.home[2],0];
+  b.rush=0;if(b.flag===O)return[mine.home[0],mine.home[2],0];
   if(mine.st==='carried'){const c=H.players[mine.car];if(c)return[c.p[0],c.p[2],c.p[1]]}
   if(mine.st==='dropped')return[mine.pos[0],mine.pos[2],mine.pos[1]];
   if(en.st==='dropped'&&hd2(b.e.pos.toArray(),en.pos)<60)return[en.pos[0],en.pos[2],en.pos[1]];
-  if(en.st==='carried'){const c=H.players[en.car];if(c&&c.id!==b.id)return[c.p[0],c.p[2],c.p[1]]}
-  const i=botIdx(b);if(i%3===1){const L=H.ctf.defPts[T];if(L&&L.length){const n=L[(i*7)%L.length];return[n[0],n[2],0]}return[mine.home[0],mine.home[2],0]}
-  return[en.home[0],en.home[2],0]}
+  if(en.st==='carried'){const c=H.players[en.car];if(c&&c.id!==b.id){if(c.team===T)return[(c.p[0]+mine.home[0])/2*.5+c.p[0]*.5,(c.p[2]+mine.home[2])/2*.5+c.p[2]*.5,c.p[1]];return[c.p[0],c.p[2],c.p[1]]}}
+  const i=botIdx(b);if(i%4===1&&plist().filter(q=>q.team===T).length>=5){const L=H.ctf.defPts[T];if(L&&L.length){const n=L[(i*7)%L.length];return[n[0],n[2],0]}return[mine.home[0],mine.home[2],0]}
+  b.rush=en.st==='home'?(hd2(b.e.pos.toArray(),en.home)<24?2:1):0;return[en.home[0],en.home[2],0]}
  const E=H.ext;if(!E)return null;const me_=b.e.pos.toArray();
  if(b.raider){if(b.hunt||E.ph==='called'||E.ph==='extract'){const ops=plist().filter(q=>q.team==='A'&&q.alive);let best=null,bd=1e9;for(const q of ops){const d=Math.hypot(q.p[0]-b.e.pos.x,q.p[2]-b.e.pos.z);if(d<bd){bd=d;best=q}}if(E.ph==='extract'&&(!best||bd>40))return[E.lz[0],E.lz[2],0];if(best)return[best.p[0],best.p[2],best.p[1]];return[E.lz[0],E.lz[2],0]}
   const d=E.d[b.post];if(!d)return null;if(!b.postPt)b.postPt=raiderSpot(b);return[b.postPt[0],b.postPt[1],0]}
@@ -2101,7 +2102,7 @@ function brHostMsg(from,m,p){if(!H.br||!p)return false;const E=H.br;
 
 function brReloadDone(id){const have=me.ammo[me.cur],need=magOf(id)-have,t=ammoOf(id),take=Math.max(0,Math.min(need,BC.res[t]));BC.res[t]-=take;send({t:'rs',r:BC.res});return have+take}
 
-window.__hsz.BR=()=>BC;window.__hsz.ME=()=>me;window.__hsz.CC=()=>C;window.__hsz.brx={brLand,brScale,brJump,brOpen,brTake,brGive,brElim,brCheck,stormState,RAR,W,WIDX,WIDS,gunScore,damage,brApplyInv,brUse,brMap,rollItem,gunItem,fixItem,brItem,BRC,STORM,newInv};
+window.__hsz.BR=()=>BC;window.__hsz.ME=()=>me;window.__hsz.CC=()=>C;window.__hsz.brx={brLand,brScale,brJump,brOpen,brTake,brGive,brElim,brCheck,stormState,RAR,W,WIDX,WIDS,gunScore,damage,brApplyInv,brUse,brMap,rollItem,gunItem,fixItem,brItem,bcast,BRC,STORM,newInv};
 
 // ================= v44 PARTY (clan) =================
 // A party is up to 4 friends. The leader (creator) owns the roster and pushes it to everyone; everyone in it joins the leader's room together,
