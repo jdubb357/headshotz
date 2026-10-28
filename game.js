@@ -2,7 +2,7 @@
 import {THREE,FX,TX,MC,G,mergeParts,GQ,texMat,swapMats,WT,GRASS_T,scatterGrass,makeSky,RET,GLASS,camoTex} from './gfx.js';
 import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './wskins.js';
 import {Post} from './post.js';
-import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import * as ASSETS from './assets.js';
+import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
@@ -1157,7 +1157,7 @@ function updRemotes(dt){const a=Math.min(1,dt*14);for(const id in C.players){con
  if(!q.alive&&!u.dead){q.model.visible=false;continue}if(u.dead>3){q.model.visible=false;continue}q.model.visible=true;
  if(q.alive){if(q.rp.distanceTo(q.tp)>6)q.rp.copy(q.tp);else q.rp.lerp(q.tp,a);let dy=q.tyaw-q.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));q.yaw+=dy*a;q.pitch+=(q.tpitch-q.pitch)*a}
  const sp=Math.hypot(q.rp.x-q.lp.x,q.rp.z-q.lp.z)/Math.max(dt,.001);q.lp.copy(q.rp);q.spd=(q.spd||0)+(sp-(q.spd||0))*Math.min(1,dt*8);
- if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);q.model.rotation.y=q.yaw;{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);animate(q.model,{shot:q.shotAt!==q.shotSeen,speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,pitch:q.pitch,climb:cl,down:dn,slope:dn?downSlope(q):null,dist:camera.position.distanceTo(q.rp)},dt);q.shotSeen=q.shotAt;q.model.rotation.x=0;downMark(q,dn);if(BC)brRemote(q)}}}
+ if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);q.model.rotation.y=q.yaw;{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);animate(q.model,{pose:BC&&!(q.flags&32)?((q.flags&16)?'fall':(q.flags&8)?'glide':null):null,bank:0,shot:q.shotAt!==q.shotSeen,speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,pitch:q.pitch,climb:cl,down:dn,slope:dn?downSlope(q):null,dist:camera.position.distanceTo(q.rp)},dt);q.shotSeen=q.shotAt;q.model.rotation.x=0;downMark(q,dn);if(BC)brRemote(q)}}}
 // ================= LOOP =================
 renderer.autoClear=false;renderer.info.autoReset=false;
 let last=performance.now(),acc=0,frames=0,fpsShown=0;const fpsLog=[];
@@ -1944,14 +1944,9 @@ function brBuild(){const B=BC;const g=B.g=new THREE.Group();g.name='brFx';scene.
  const rp=[];for(let i=0;i<=64;i++){const a=i/64*6.2832;rp.push(new THREE.Vector3(Math.cos(a),0,Math.sin(a)))}
  B.nextM=new THREE.Line(new THREE.BufferGeometry().setFromPoints(rp),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false}));B.nextM.position.y=.6;B.nextM.frustumCulled=false;g.add(B.nextM);
  B.nextW=new THREE.Mesh(new THREE.CylinderGeometry(1,1,60,48,1,true),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.07,side:THREE.DoubleSide,depthWrite:false,fog:false}));B.nextW.position.y=30;B.nextW.frustumCulled=false;g.add(B.nextW);
- // helicopter
- const H_=B.heliM=new THREE.Group();const mb=new THREE.MeshLambertMaterial({color:0x3d4f63}),md=new THREE.MeshLambertMaterial({color:0x1f2933}),mw=new THREE.MeshLambertMaterial({color:0x8fd3ff,emissive:0x1a3a55});
- const bx=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);H_.add(o);return o};
- bx(3.2,2.8,7.5,mb,0,0,0);bx(3.3,1.4,2.4,mw,0,.5,-3.0);bx(1,1,7.5,mb,0,.5,7);bx(.3,2.4,1.4,mb,0,1.6,10.4);bx(.3,.3,1.4,md,0,0,0).visible=false;bx(.4,.4,.4,md,0,2,0);
- for(const s of[-1,1]){bx(.18,.18,6,md,s*1.7,-1.9,-.5);bx(.14,1.2,.14,md,s*1.6,-1.3,-2);bx(.14,1.2,.14,md,s*1.6,-1.3,1.6)}
- B.rotor=new THREE.Group();B.rotor.position.y=2.3;H_.add(B.rotor);for(const a of[0,Math.PI/2]){const r=new THREE.Mesh(new THREE.BoxGeometry(15,.08,.5),md);r.rotation.y=a;B.rotor.add(r)}
- const tr=new THREE.Mesh(new THREE.BoxGeometry(.1,2.2,.3),md);tr.position.set(.25,1.6,10.4);H_.add(tr);B.tail=tr;
- H_.scale.setScalar(1.25);H_.visible=false;g.add(H_);
+ // battle airship (v48) + wind streaks + low clouds
+ {const bus=makeBus();bus.visible=false;g.add(bus);B.heliM=bus;B.rotor={rotation:{y:0}};B.tail={rotation:{x:0}};
+  B.wind=makeWind(GQ.level==='low'?40:90);g.add(B.wind);if(GQ.level!=='low'){B.clouds=makeCloudField(0,0,210,95,205);g.add(B.clouds)}}
  // my parachute canopy
  const cm=new THREE.Mesh(new THREE.SphereGeometry(2.6,14,8,0,Math.PI*2,0,Math.PI/2),new THREE.MeshLambertMaterial({color:0xff6a2a,side:THREE.DoubleSide,emissive:0x3a1000}));cm.scale.set(1,.7,1);cm.visible=false;g.add(cm);B.canopy=cm;
  brBaseMap();brRefresh()}
@@ -1985,7 +1980,7 @@ function brHudInit(){let h=$('brHud');if(!h){h=document.createElement('div');h.i
  $('brNear').addEventListener('pointerdown',e=>{const b=e.target.closest('button');if(!b)return;e.stopPropagation();e.preventDefault();brAct(b.dataset.k,+b.dataset.i)})}
 function brMap(on){const w=$('brMapWrap');if(!w)return;w.classList.toggle('hidden',!on);if(on){brDrawMap($('brMapCv'),true);if(document.pointerLockElement)document.exitPointerLock()}BC.mapOn=on}
 function brClear(){if(!BC)return;try{scene.remove(BC.g)}catch(e){}if(BC.saved)me.load=BC.saved;for(const k of['air'])me[k]=null;BC=null;const h=$('brHud');if(h)h.className='hidden';vmRoot.visible=true}
-function brClientInit(info){brClear();BC={y:info.y,heli:info.heli,zones:info.zones||[],items:new Map(),chests:info.chests.map(c=>({id:c[0],x:c[1],y:c[2],z:c[3],ry:c[4],open:!!c[5]})),bt0:-3,btAt:performance.now(),btNow:-3,storm:null,sdisp:{cx:0,cz:0,r:300},
+function brClientInit(info){brClear();BC={bank:0,y:info.y,heli:info.heli,zones:info.zones||[],items:new Map(),chests:info.chests.map(c=>({id:c[0],x:c[1],y:c[2],z:c[3],ry:c[4],open:!!c[5]})),bt0:-3,btAt:performance.now(),btNow:-3,storm:null,sdisp:{cx:0,cz:0,r:300},
   inv:{g:[null,null],m:[WIDX.fists,0],u:null,c:[0,0,0,0]},res:[0,0,0,0],sh:0,air:null,kills:0,al:0,sq:0,cast:null,paid:0,saved:me.load.slice(),gk:['',''],near:[],nearK:'',pkT:{},dirty:1,placed:0,spec:null,scan:0,mapT:0,chT:0,hT:0,wT:0,stT:0,mapOn:false};
  for(const it of info.items)BC.items.set(it[0],it);me.load=['fists','fists','fists','grenade'];me.ammo=[0,0,0];me.utilN=0;brBuild();brHudInit();brApplyInv(true)}
 function brRoundStart(){const B=BC;B.air='bus';me.air='bus';B.inv={g:[null,null],m:[WIDX.fists,0],u:null,c:[0,0,0,0]};B.res=[0,0,0,0];B.sh=0;B.gk=['',''];B.cast=null;B.placed=0;B.paid=0;B.kills=0;B.spec=null;me.cur=2;brApplyInv(true);
@@ -2003,7 +1998,7 @@ function brHudUpd(){const B=BC;if(!B)return;document.querySelectorAll('#brCons .
  const sh=$('brShBar');if(sh){sh.firstChild.style.width=Math.min(100,B.sh)+'%';sh.style.opacity=B.sh>0?1:.35}
  $('brAl').innerHTML=`👥 <b>${B.al||'-'}</b>${C.mode==='brs'?` <small>${B.sq||'-'} squads</small>`:''} · ☠️ <b>${B.kills}</b>`}
 function brJumpOut(){const B=BC;if(B.air!=='bus'||!me.alive)return;B.air=me.air='fall';me.vel.set(0,-10,0);send({t:'bj'});SFX.whoosh&&SFX.whoosh();center('FREEFALL',1200)}
-function brLand(){const B=BC;B.air=me.air=null;me.vel.set(0,0,0);send({t:'bl'});me.cur=B.inv.g[0]?0:B.inv.g[1]?1:2;setViewModel(me.load[me.cur]);me.switchT=.3;SFX.land&&SFX.land();landDip=.25;center('Landed — find a weapon!',1800)}
+function brLand(){const B=BC;B.air=me.air=null;B.cp=null;B.camLast=null;B.fT=0;TPV.dist=Math.max(TPV.dist||0,(TPV.d||3)+4);me.vel.set(0,0,0);send({t:'bl'});me.cur=B.inv.g[0]?0:B.inv.g[1]?1:2;setViewModel(me.load[me.cur]);me.switchT=.3;SFX.land&&SFX.land();landDip=.25;center('Landed — find a weapon!',1800)}
 function brSendSt(flags){send({t:'st',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(3),+me.pitch.toFixed(2),WIDX[me.load[me.cur]]|0,flags]})}
 function brAirMe(dt){const B=BC;if(isTouch)applyTouchLook(dt);let mx=inp.mx,mz=inp.mz;if(keys.KeyW||keys.ArrowUp)mz-=1;if(keys.KeyS||keys.ArrowDown)mz+=1;if(keys.KeyA||keys.ArrowLeft)mx-=1;if(keys.KeyD||keys.ArrowRight)mx+=1;
  const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}if(!me.alive)mx=mz=0;vmRoot.visible=false;me.camH=1.62;
@@ -2011,15 +2006,28 @@ function brAirMe(dt){const B=BC;if(isTouch)applyTouchLook(dt);let mx=inp.mx,mz=i
  B.stT+=dt;let fl=0;
  if(B.air==='bus'){const hp=heliPos(B.btNow);me.pos.set(hp[0],B.y-2.4,hp[1]);me.vel.set(0,0,0);me.ground=false;fl=32;if(inp.jump&&C.phase==='play'&&B.btNow>-.5)brJumpOut();inp.jump=false}
  else{const fall=B.air==='fall';const hv=fall?(mz<-.3?24:20):14;me.vel.x+=(wx*hv-me.vel.x)*Math.min(1,dt*2.5);me.vel.z+=(wz*hv-me.vel.z)*Math.min(1,dt*2.5);me.vel.y=fall?-BRC.ft:-8.5;
-  if(inp.jump){if(fall&&me.pos.y<B.y-18){B.air=me.air='chute';SFX.swap&&SFX.swap();center('PARACHUTE OPEN',900)}inp.jump=false}
-  if(B.air==='fall'&&me.pos.y<=BRC.chuteY){B.air=me.air='chute';SFX.swap&&SFX.swap();center('PARACHUTE OPEN',900)}
+  if(inp.jump){if(fall&&me.pos.y<B.y-18){B.air=me.air='chute';SFX.swap&&SFX.swap();center('GLIDER DEPLOYED',900)}inp.jump=false}
+  if(B.air==='fall'&&me.pos.y<=BRC.chuteY){B.air=me.air='chute';SFX.swap&&SFX.swap();center('GLIDER DEPLOYED',900)}
   physStep(me,dt);me.pos.x=Math.max(-196,Math.min(196,me.pos.x));me.pos.z=Math.max(-196,Math.min(196,me.pos.z));fl=(B.air==='fall'?16:8)|2;
   if(me.ground||me.pos.y<=.02){me.pos.y=Math.max(me.pos.y,0);brLand();fl=0}
   else if(me.pos.y<-3){me.pos.y=0}}
  if(B.stT>=.05){B.stT=0;if(me.alive)brSendSt(fl)}
- camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);
- const a=$('brAir');if(B.air){a.classList.remove('hidden');const alt=Math.max(0,Math.round(me.pos.y));a.innerHTML=B.air==='bus'?`🚁 BATTLE BUS<br><small>${B.btNow<0?'Departing…':'JUMP to drop · MAP to plan'}</small>`:`${B.air==='fall'?'🪂 FREEFALL':'🪂 GLIDING'} · <b>${alt}</b> m<br><small>${B.air==='fall'?'JUMP = open parachute':'steer to your landing spot'}</small>`}else a.classList.add('hidden');
+ B.bank+=((mx*(B.air==='chute'?1:.7))-B.bank)*Math.min(1,dt*4);
+ if(TPV.on&&B.air)brAirCam(dt);else{camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0)}
+ const a=$('brAir');if(B.air){a.classList.remove('hidden');const alt=Math.max(0,Math.round(me.pos.y));a.innerHTML=B.air==='bus'?`🎈 BATTLE BUS<br><small>${B.btNow<0?'Departing…':'JUMP to drop · MAP to plan'}</small>`:`${B.air==='fall'?'🪂 FREEFALL':'🪂 GLIDING'} · <b>${alt}</b> m<br><small>${B.air==='fall'?'JUMP = deploy glider':'steer to your landing spot'}</small>`}else a.classList.add('hidden');
  $('brJumpBtn').classList.toggle('hidden',!(isTouch&&(B.air==='bus'||B.air==='fall')))}
+const _bc=new THREE.Vector3(),_bd=new THREE.Vector3(),_bl=new THREE.Vector3();
+// third-person air camera: orbit the airship, chase the skydiver, trail the glider (smoothed; look direction = mouse/touch look)
+function brAirCam(dt){const B=BC,a=B.air,cy=Math.cos(me.pitch);_bd.set(-Math.sin(me.yaw)*cy,Math.sin(me.pitch),-Math.cos(me.yaw)*cy);TPV.hide=false;
+ let dist,up,fov,ahead;
+ if(a==='bus'){const hm=B.heliM;_bc.set(hm.position.x,hm.position.y+2.2,hm.position.z);dist=15;up=1.0;fov=64;ahead=0}
+ else if(a==='fall'){_bc.set(me.pos.x,me.pos.y+1.1,me.pos.z);const sp=Math.min(1,(B.fT=(B.fT||0)+dt)/2);dist=6.8;up=1.5;fov=70+8*sp;ahead=3}
+ else{_bc.set(me.pos.x,me.pos.y+1.6,me.pos.z);dist=8.6;up=1.6;fov=68;ahead=3}
+ B.camGoal=B.camGoal||new THREE.Vector3();B.camGoal.copy(_bc).addScaledVector(_bd,-dist);B.camGoal.y+=up;B.camGoal.y=Math.max(B.camGoal.y,1.0);
+ const k=B.camLast===a?Math.min(1,dt*(a==='bus'?20:9)):1;if(B.camLast!==a)B.camLast=a;
+ if(!B.cp)B.cp=new THREE.Vector3().copy(B.camGoal);B.cp.lerp(B.camGoal,k);camera.position.copy(B.cp);
+ _bl.copy(_bc).addScaledVector(_bd,ahead);camera.lookAt(_bl);if(a==='chute')camera.rotateZ(-B.bank*.1);
+ if(Math.abs(camera.fov-fov)>.05){camera.fov+=(fov-camera.fov)*Math.min(1,dt*4);camera.updateProjectionMatrix()}}
 function brRefresh(){const B=BC;if(!B)return;B.dirty=0;const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),sv=new THREE.Vector3(),pv=new THREE.Vector3(),col=new THREE.Color();let n=0,nb=0;const CAP=1400;
  for(const it of B.items.values()){if(n>=CAP)break;const k=it[1];e.set(0,hash1(it[0])*6.28,0);q.setFromEuler(e);
   if(k===0)sv.set(.95,.12,.3);else if(k===4)sv.set(.7,.08,.16);else if(k===1)sv.set(.34,.24,.34);else sv.set(.3,.3,.3);
@@ -2044,10 +2052,11 @@ function brStormTick(){if(typeof noise==='function'&&AC)noise('lowpass',420,1,.2
 function brFrame(dt,now){const B=BC;if(!B)return;B.btNow=B.bt0+(now-B.btAt)/1000;const bt=B.btNow;
  if(B.dirty)brRefresh();
  // helicopter
- const hm=B.heliM;if(bt<B.heli.dur+14){const k=Math.max(0,bt);const h=B.heli,t=Math.min(k,h.dur+14)/h.dur;const x=h.a[0]+(h.b[0]-h.a[0])*t,z=h.a[1]+(h.b[1]-h.a[1])*t;hm.visible=true;hm.position.set(x,B.y,z);hm.rotation.y=Math.atan2(-(h.b[0]-h.a[0]),-(h.b[1]-h.a[1]));B.rotor.rotation.y+=dt*38;B.tail.rotation.x+=dt*30;
+ const hm=B.heliM;if(bt<B.heli.dur+14){const k=Math.max(0,bt);const h=B.heli,t=Math.min(k,h.dur+14)/h.dur;const x=h.a[0]+(h.b[0]-h.a[0])*t,z=h.a[1]+(h.b[1]-h.a[1])*t;hm.visible=true;hm.position.set(x,B.y-2.4,z);hm.rotation.y=Math.atan2(-(h.b[0]-h.a[0]),-(h.b[1]-h.a[1]));hm.userData.update(dt,performance.now()/1000);
   if(B.air==='bus'||bt<B.heli.dur){B.hT-=dt;if(B.hT<=0&&AC){B.hT=.16;const d=Math.hypot(camera.position.x-x,camera.position.y-B.y,camera.position.z-z);const v=Math.max(0,1-d/260);if(v>0)tone(58,.1,.2*v,'square',40,out())}}}else hm.visible=false;
  // my canopy
- B.canopy.visible=me.air==='chute';if(B.canopy.visible)B.canopy.position.set(me.pos.x,me.pos.y+3.2,me.pos.z);
+ B.canopy.visible=me.air==='chute'&&!TPV.on;if(B.canopy.visible)B.canopy.position.set(me.pos.x,me.pos.y+3.2,me.pos.z);
+ if(B.wind){const fall=me.air==='fall',gl=me.air==='chute';B.wind.userData.update(dt,_v.set(me.pos.x,me.pos.y+1.2,me.pos.z),fall||gl?me.vel:_v2.set(0,-1,0),fall?1:gl?.22:0)}
  // storm
  const s=B.storm,sd=B.sdisp;if(s){const a=Math.min(1,dt*5);if(B.first){sd.cx=s.cx;sd.cz=s.cz;sd.r=s.r;B.first=0}else{sd.cx+=(s.cx-sd.cx)*a;sd.cz+=(s.cz-sd.cz)*a;sd.r+=(s.r-sd.r)*a}
   B.stormM.position.x=sd.cx;B.stormM.position.z=sd.cz;B.stormM.scale.set(sd.r,1,sd.r);B.nextM.position.x=s.tcx;B.nextM.position.z=s.tcz;B.nextM.scale.set(s.tr,1,s.tr);B.nextW.position.x=s.tcx;B.nextW.position.z=s.tcz;B.nextW.scale.set(s.tr,1,s.tr);
@@ -2089,6 +2098,7 @@ function brSpec(dt){const B=BC;if(!B||C.phase!=='play')return false;let t=B.spec
 function brSpecNext(){const B=BC;if(!B||me.alive)return;const al=Object.values(C.players).filter(p=>p.alive&&p.id!==me.id&&!p.raider);if(!al.length)return;const i=al.findIndex(p=>p.id===B.spec);B.spec=al[(i+1)%al.length].id}
 function brRemote(q){const B=BC;if(!B)return;const mo=q.model;if(mo.rotation.order!=='YXZ')mo.rotation.order='YXZ';
  if(q.flags&32){mo.visible=false;return}
+ if(mo.userData.kind==='toon'){gliderOf(mo,!!(q.flags&8),.016);return}
  if(q.flags&16){mo.rotation.x=-1.25;mo.position.y+=.9}
  if(q.flags&8){let c=mo.userData.chute;if(!c){c=new THREE.Mesh(new THREE.SphereGeometry(2.4,12,7,0,Math.PI*2,0,Math.PI/2),new THREE.MeshLambertMaterial({color:q.color,side:THREE.DoubleSide,emissive:0x222222}));c.scale.set(1,.7,1);c.position.y=3.4;mo.userData.chute=c;mo.add(c)}c.visible=true}
  else if(mo.userData.chute)mo.userData.chute.visible=false}
@@ -2170,16 +2180,18 @@ function tpCam(dt,w,scopeOn){const eye=_tp1.copy(camera.position);const f=_tp2.s
  const sc=scopeOn?1:0;const dd=TPV.dist*(1-sc);TPV.cd=dd;
  camera.position.copy(piv).addScaledVector(back,dd);if(scopeOn)camera.position.copy(eye);camera.updateMatrixWorld();TPV.hide=dd<.85}
 const _tv=new THREE.Vector3();
-let _cbk='';function tpBody(dt){{const k=inGame+'|'+C.hub+'|'+TPV.on;if(k!==_cbk){_cbk=k;updCamBtn()}}const m=me.model;if(!m)return;if(!TPV.on||!inGame||(BC&&me.air)||paused&&false){m.visible=false;return}
+let _cbk='';function tpBody(dt){{const k=inGame+'|'+C.hub+'|'+TPV.on;if(k!==_cbk){_cbk=k;updCamBtn()}}const m=me.model;if(!m)return;if(!TPV.on||!inGame||paused&&false){m.visible=false;return}
  const u=m.userData;const alive=me.alive;if(m.parent!==scene)scene.add(m);
  if(!alive){if(!u.dead)u.dead=.001}else if(u.dead){u.dead=0}
- m.visible=!(TPV.hide&&alive)&&!C.hub;if(!m.visible)return;
+ m.visible=!(TPV.hide&&alive)&&!C.hub;if(!m.visible)return;const air=BC&&me.air;
  const id=me.load[me.cur];const key=id+'|'+(me.ws&&me.ws[id]||'');if((me.gunKey!==key||me.gunMdl!==m)&&u.gunMount){me.gunKey=key;me.gunMdl=m;u.gunMount.clear();const g=tpGun(id,'',u.outfit&&u.outfit.glove);u.gunMount.add(g);u.gunMount.scale.setScalar(u.kind==='toon'?1:1)}
  m.position.set(me.pos.x,me.pos.y,me.pos.z);m.rotation.y=me.yaw;
  const vx=me.vel.x,vz=me.vel.z,hs=Math.hypot(vx,vz);const fx=-Math.sin(me.yaw),fz=-Math.cos(me.yaw),rx=Math.cos(me.yaw),rz=-Math.sin(me.yaw);
  const lx=hs>.1?(vx*rx+vz*rz)/hs:0,lz=hs>.1?-((vx*fx+vz*fz)/hs):-1;
- animate(m,{speed:hs,air:!me.ground&&!me.lad,slide:me.slideT>0,pitch:me.pitch+recoilP,climb:!!me.lad,down:!!me.down,lx,lz,hold:true,noTag:true,dist:5,crouch:false,ads:me.zoomT,shot:me.lastShot!==me.lsSeen,reload:me.reloadT>0?1-me.reloadT/reloadOf(id):0},dt);me.lsSeen=me.lastShot;m.rotation.x=0;
+ animate(m,{pose:air==='fall'?'fall':air==='chute'?'glide':air==='bus'?'bus':null,bank:BC?BC.bank:0,speed:air==='bus'?0:hs,air:!me.ground&&!me.lad,slide:me.slideT>0,pitch:me.pitch+recoilP,climb:!!me.lad,down:!!me.down,lx,lz,hold:true,noTag:true,dist:5,crouch:false,ads:me.zoomT,shot:me.lastShot!==me.lsSeen,reload:me.reloadT>0?1-me.reloadT/reloadOf(id):0},dt);me.lsSeen=me.lastShot;m.rotation.x=0;gliderOf(m,air==='chute',dt);
  u.tag.visible=false}
+function gliderOf(m,open,dt){const u=m.userData;if(u.kind!=='toon')return;if(!u.glider){const o=u.outfit||{};u.glider=makeGlider(o.top??0xff4fa3,o.acc??0xffd23f);u.glider.visible=false;u.gs=0;m.add(u.glider)}
+ const tgt=open?1:0;u.gs+=(tgt-u.gs)*Math.min(1,dt*(open?9:12));const s=u.gs>.98?1:u.gs;u.glider.visible=u.gs>.02;const pop=open?1+Math.sin(Math.min(1,u.gs)*Math.PI)*.12:1;u.glider.scale.setScalar(Math.max(.01,s*pop));u.glider.userData.flex(BC?BC.bank:0,0,performance.now()/1000)}
 function updCamBtn(){const b=$('camBtn');if(!b)return;b.classList.toggle('hidden',!inGame||C.hub);b.textContent=TPV.on?'👤':'👁️';b.title=TPV.on?'Third person (V)':'First person (V)'}
 function camToggle(){if(!inGame||C.hub)return;TPV.on=!TPV.on;if(royaleMode())LSS('camR',TPV.on?'3':'1');else LSS('cam3',TPV.on?'1':'0');if(TPV.on)tpEnsure();else{if(me.model)me.model.visible=false;camera.fov=75;camera.updateProjectionMatrix()}updCamBtn();center(TPV.on?'Third person':'First person',700)}
 (function(){const b=document.createElement('button');b.id='camBtn';b.className='hidden';b.textContent='👁️';document.body.appendChild(b);b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();camToggle()});
