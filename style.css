@@ -332,3 +332,8 @@ body.chSecret #chests::before{content:'';position:fixed;inset:0;background:radia
 #brStormFx{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;background:radial-gradient(ellipse at center,rgba(122,44,255,0) 40%,rgba(122,44,255,.5) 100%);z-index:3}
 #slots .sl.empty{opacity:.45}#slots .sl small{font-size:9px;opacity:.8}
 body.brAirOn #slots,body.brAirOn #bZoom,body.brAirOn #bNade,body.brAirOn #bSlide,body.brAirOn #cross,body.brAirOn #ammo{opacity:.15}
+/* ===== v44 Party ===== */
+#partyBar{position:fixed;left:8px;bottom:8px;z-index:70;display:flex;flex-direction:column;gap:6px;max-width:92vw}#partyBar.hidden{display:none}
+#partyBar .pMem,#partyBar .pInv{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:rgba(10,14,35,.88);border:2px solid #7ff3ff;border-radius:14px;padding:6px 10px;font:700 12px system-ui;color:#fff}
+#partyBar .pMem span{background:rgba(255,255,255,.12);border-radius:99px;padding:2px 8px}#partyBar .pMem span.lead{background:rgba(255,210,63,.3)}
+#partyBar button{pointer-events:auto}

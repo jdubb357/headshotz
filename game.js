@@ -4,7 +4,7 @@ import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './
 import {Post} from './post.js';
 import {loadAssets,HQP} from './assets.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
-import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;
+import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts} from './weapons.js';
 import {makeCharacter,animate,LOOKS,HUM} from './chars.js';import {loadHumans} from './humans.js';
 // player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
@@ -494,7 +494,7 @@ function myName(){let n=$('nameIn').value.trim().slice(0,12);if(!n)n='Player'+(M
 function menuMsg(t){$('menuMsg').textContent=t}
 function createRoom(code,auto){audioInit();const name=myName();roomCode=code||genCode();menuMsg('Creating room…');if(auto)H.auto=auto;
  peer=new Peer(PREFIX+roomCode,{config:ICE,debug:0});
- peer.on('open',id=>{isHost=true;me.id=id;hostInit(name);if(H.auto)setupAuto();else if(H.pub)regRoom()});
+ peer.on('open',id=>{isHost=true;me.id=id;hostInit(name);if(H.auto)setupAuto();else if(H.pub)regRoom();if(!(H.auto&&H.auto.fromHub))partyGo(roomCode)});
  peer.on('connection',c=>{c.on('data',d=>hostHandle(c.peer,d));c.on('open',()=>{conns[c.peer]=c});c.on('close',()=>hostLeave(c.peer));c.on('error',()=>hostLeave(c.peer))});
  peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();if(code)joinRoom(code,auto);else createRoom()}else if(!isHost)menuMsg('Network error: '+e.type)});
  peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}})}
@@ -504,13 +504,13 @@ function joinRoom(code,auto){audioInit();code=(code||'').toUpperCase().trim();if
  const name=myName();roomCode=code;menuMsg('Joining '+code+'…');peer=new Peer({config:ICE,debug:0});
  peer.on('open',id=>{me.id=id;conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});
   const to=setTimeout(()=>{if(!conn.open)menuMsg('Could not reach room '+code+'. Check the code or try again.')},12000);
-  conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name,skin:PROG.skin,hid:hubSelfId,ws:PROG.wskin,cl:PROG.pc})});conn.on('data',clientHandle);conn.on('close',hostGone)});
+  conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name,skin:PROG.skin,hid:hubSelfId,ws:PROG.wskin,cl:PROG.pc,party:PARTY?PARTY.id:null})});conn.on('data',clientHandle);conn.on('close',hostGone)});
  peer.on('error',e=>{if(e.type==='peer-unavailable'){menuMsg(auto?'Setting up the match…':'Room '+code+' not found — creating it so friends can join you!');peer.destroy();setTimeout(()=>createRoom(code,auto),auto?Math.random()*500:600)}else menuMsg('Network error: '+e.type)})}
 function hostGone(){if(isHost)return;if(C.fromHub){location.href=hubUrl();return}alert('The host left the game. Tap OK to go back to the room link.');location.href=location.pathname+'?room='+roomCode}
 // ================= HOST =================
 const H={players:{},mode:'team',phase:'lobby',map:0,score:{},round:0,t:0,next:0,roundEnd:0,botN:0,order:0,fires:[],smokes:[],fireT:0,sideFlip:false};
 const BOTNAMES=['Bolt','Ziggy','Rex','Nova','Pip','Tank','Moxie','Echo','Juno','Blaze','Kit','Ace'];const BOTGUNS=['ar','smg','battle','bullpup','pdw','vector','paintball','laser','freeze','bat','chainsaw'];
-function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].ws=cleanWS(PROG.wskin);H.players[me.id].cl=clOf(PROG.pc);H.players[me.id].hid=hubSelfId;sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
+function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].ws=cleanWS(PROG.wskin);H.players[me.id].cl=clOf(PROG.pc);H.players[me.id].hid=hubSelfId;H.players[me.id].party=PARTY?PARTY.id:null;sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
 function newP(id,name,bot){return{id,name,team:'A',color:0xffffff,hp:100,alive:false,kills:0,deaths:0,pts:0,hs:0,rk:0,vote:-1,bot:!!bot,p:[0,-50,0,0,0,0,0],respawn:0,ord:H.order++,gun:bot?BOTGUNS[(Math.random()*BOTGUNS.length)|0]:null,cl:bot?PCL_IDS[Math.random()*PCL_IDS.length|0]:'soldier',ws:bot&&Math.random()<.35?{'*':WSKIN_IDS[1+(Math.random()*(WSKIN_IDS.length-1))|0]}:{}}}
 function plist(){return Object.values(H.players).sort((a,b)=>a.ord-b.ord)}
 function assignTeams(){let i=0;const AT=H.auto&&H.auto.teams;for(const p of plist()){if(AT&&p.hid&&AT[p.hid]&&H.mode!=='ffa'){p.team=AT[p.hid];p.color=TEAMCOL[p.team];i++;continue}if(H.mode==='ffa'){p.team=p.id;p.color=FFACOL[i%10]}else{p.team=i%2?'B':'A';p.color=TEAMCOL[p.team]}i++}}
@@ -525,7 +525,7 @@ function hostLeave(id){const lp=H.players[id];if(!lp)return;if(H.br&&BRM(H.mode)
 function hostHandle(from,m){const p=H.players[from];
  switch(m.t){
  case 'hello':{if(BRM(H.mode)&&H.phase!=='lobby'){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'full'});return}if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
-  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.hid=m.hid||null;
+  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.hid=m.hid||null;
   if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=H.mode==='ext'?'A':teamForJoiner(from);np.color=TEAMCOL[np.team]}
    {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
    bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
@@ -735,7 +735,7 @@ function clientHandle(m){if(BC&&brMsg(m))return;switch(m.t){
 function addRemote(id,info){if(C.players[id]?.model)scene.remove(C.players[id].model);
  const q={id,cl:clOf(info.cl),ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,raider:info.raider||info.rd,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
  if(id!==me.id){q.model=makeCharacter(q.color,info.name,id,undefined,(SKINS[info.sk]||[])[2]||undefined,info.cl);q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
-function startGame(m){hideEnd();remWait=false;{const rt=$('roomTag');if(rt){const online=!(H&&H.offline)&&roomCode&&roomCode!=='OFFLINE'&&!C.hub;rt.classList.toggle('hidden',!online);if(online){const pub=lastLobby?!!lastLobby.pub:!!H.pub;rt.textContent=(pub?'🌐 PUBLIC · ':'🔒 PRIVATE · ')+roomCode+' · tap to invite'}}}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
+function startGame(m){hideEnd();setTimeout(renderParty,50);remWait=false;{const rt=$('roomTag');if(rt){const online=!(H&&H.offline)&&roomCode&&roomCode!=='OFFLINE'&&!C.hub;rt.classList.toggle('hidden',!online);if(online){const pub=lastLobby?!!lastLobby.pub:!!H.pub;rt.textContent=(pub?'🌐 PUBLIC · ':'🔒 PRIVATE · ')+roomCode+' · tap to invite'}}}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
  loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);missionClientInit(m.ms||null);if(m.br)brClientInit(m.br);else brClear();
  for(const s of['menu','lobby','arsenal','settings'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
  inGame=true;resize();me.alive=false;me.frozen=true;feed(`${MI(m.map).icon} ${MI(m.map).name} · ${MODES[m.mode][0]}`);center(MI(m.map).name.toUpperCase(),1500);renderSB();buildSlots();
@@ -1221,16 +1221,17 @@ class HubServer{constructor(peer,n){this.peer=peer;this.n=n;this.cl={};this.ord=
   // queue = who is physically standing inside each circle (server-side check, so leaving a circle unqueues instantly)
   const st={};for(const p of HUB_PADS){st[p.k]={};for(const c of padCircles(p))st[p.k][c.side]=free.filter(q=>inPad(c,q.pos[0],q.pos[2])).sort((a,b)=>a.ord-b.ord).slice(0,p.n).map(q=>q.id)}
   // FFA countdown: 10 s once 2+ stand on the pad; a newcomer keeps at least 5 s left (never resets); full pad starts now; <2 cancels
-  const fp=HUB_PADS.find(p=>p.single);if(fp){const F=st[fp.k].F;this.soloSeen=this.soloSeen||{};for(const id in this.soloSeen)if(!F.includes(id))delete this.soloSeen[id];
+  this.qEnd=this.qEnd||{};const fp=HUB_PADS.find(p=>p.single);if(fp){const F=st[fp.k].F;this.soloSeen=this.soloSeen||{};for(const id in this.soloSeen)if(!F.includes(id))delete this.soloSeen[id];
    // anyone stepping on the FFA pad while a hub solo/online FFA room is open joins it in progress
    const hr=this.roomList().find(r=>r.hubffa&&r.n<r.max&&r.phase!=='roundEnd');if(hr&&F.length){for(const id of F){const c=this.cl[id];if(c){c.busy=true;this.send(c,{t:'go',code:hr.code,map:-1,mode:'ffa',host:'',teams:{},expect:1,join:1});setTimeout(()=>{if(this.cl[id])this.cl[id].busy=false},8000)}}this.ffaEnd=0;this.lastPads=''}
    const n=F.length;if(n===1&&this.soloSeen[F[0]]){this.ffaEnd=0}else if(n<1)this.ffaEnd=0;else if(n===1){if(!this.ffaEnd)this.ffaEnd=now+10000}else{if(!this.ffaEnd||this.ffaN<2)this.ffaEnd=now+10000;else if(n>this.ffaN)this.ffaEnd=now+Math.max(this.ffaEnd-now,5000);if(n>=fp.n)this.ffaEnd=now}this.ffaN=n}
-  const key=JSON.stringify(st)+'|'+this.ffaEnd;if(key!==this.lastPads){this.lastPads=key;const o={};for(const k in st){o[k]={};for(const s in st[k])o[k][s]=st[k][s].map(id=>this.cl[id].ord)}this.bc({t:'pads',q:o,ffa:this.ffaEnd?Math.max(0,this.ffaEnd-now):0})}
-  for(const p of HUB_PADS){const s=st[p.k];if(p.single){if(this.ffaEnd&&now>=this.ffaEnd&&s.F.length>=2){this.ffaEnd=0;this.ffaN=0;this.startSel(p,s)}else if(this.ffaEnd&&now>=this.ffaEnd&&s.F.length===1){this.ffaEnd=0;const id=s.F[0];this.soloSeen[id]=1;const c=this.cl[id];if(c)this.send(c,{t:'solo'});this.lastPads=''}}else if(s.A.length>=p.n&&s.B.length>=p.n)this.startSel(p,s)}
+  const key=JSON.stringify(st)+'|'+this.ffaEnd+JSON.stringify(this.qEnd||{});if(key!==this.lastPads){this.lastPads=key;const o={};for(const k in st){o[k]={};for(const s in st[k])o[k][s]=st[k][s].map(id=>this.cl[id].ord)}const qe={};for(const k in this.qEnd)qe[k]=Math.max(0,this.qEnd[k]-now);this.bc({t:'pads',q:o,ffa:this.ffaEnd?Math.max(0,this.ffaEnd-now):0,qe})}
+  for(const p of HUB_PADS){const s=st[p.k];if(p.q){const F=s.F;if(!F.length)delete this.qEnd[p.k];else if(F.length>=p.n)this.qEnd[p.k]=now;else if(!this.qEnd[p.k])this.qEnd[p.k]=now+(p.k==='ext'?10000:12000);if(this.qEnd[p.k]&&now>=this.qEnd[p.k]){delete this.qEnd[p.k];this.lastPads='';this.startSel(p,s)}continue}if(p.single){if(this.ffaEnd&&now>=this.ffaEnd&&s.F.length>=2){this.ffaEnd=0;this.ffaN=0;this.startSel(p,s)}else if(this.ffaEnd&&now>=this.ffaEnd&&s.F.length===1){this.ffaEnd=0;const id=s.F[0];this.soloSeen[id]=1;const c=this.cl[id];if(c)this.send(c,{t:'solo'});this.lastPads=''}}else if(s.A.length>=p.n&&s.B.length>=p.n)this.startSel(p,s)}
   for(const k in this.sel)if(now>=this.sel[k].until)this.finish(this.sel[k]);
   // hub positions at 8 Hz, compact ints
   if(ps.length>1){const rows=ps.map(p=>[p.ord,Math.round(p.pos[0]*100),Math.round(p.pos[1]*100),Math.round(p.pos[2]*100),Math.round(p.pos[3]*100)]);for(const p of ps)this.send(p,{t:'hpos',p:rows.filter(r=>r[0]!==p.ord)})}}
  startSel(pad,s){const ids=[...(s.A||[]),...(s.B||[]),...(s.F||[])];if(!ids.length)return;for(const id of ids)this.cl[id].busy=true;
+  if(BRM(pad.k)){const sid=Math.random().toString(36).slice(2,8);const sel={id:sid,mode:pad.k,ids,teams:{A:[],B:[]},maps:[BR_I],votes:{},until:0};this.sel[sid]=sel;this.lastPads='';this.finish(sel);return}
   const order=[0,1,2,3,4].sort(()=>Math.random()-.5);if(pad.n>=4){order.sort((a,b)=>((b===4||b===2)?1:0)-((a===4||a===2)?1:0)+(Math.random()-.5)*.1)}const maps=order.slice(0,3);
   const sid=Math.random().toString(36).slice(2,8);const sel={id:sid,mode:pad.k,ids,teams:{A:s.A||[],B:s.B||[]},maps,votes:{},until:Date.now()+5000};this.sel[sid]=sel;this.lastPads='';
   this.toSel(sel,{t:'sel',sid,mode:pad.k,maps,ms:5000,names:ids.map(i=>this.cl[i].name)})}
@@ -1248,7 +1249,7 @@ function hubRecv(m){switch(m.t){
  case 'hl':{const q=C.players['h'+m.o];if(q){if(q.model)scene.remove(q.model);delete C.players['h'+m.o]}break}
  case 'hpos':if(C.phase==='hub')for(const r of m.p){const q=C.players['h'+r[0]];if(!q)continue;q.tp.set(r[1]/100,r[2]/100,r[3]/100);q.tyaw=r[4]/100;if(!q.seen){q.seen=1;q.rp.copy(q.tp)}}break;
  case 'rehi':hubSendHi();break;
- case 'pads':myPads=m.q;window.__pads3=!!(m.q.ffa&&m.q.ffa.F&&m.q.ffa.F.length>=3);ffaEndAt=m.ffa?Date.now()+m.ffa:0;updPadLabels(true);break;
+ case 'pads':myPads=m.q;window.__pads3=!!(m.q.ffa&&m.q.ffa.F&&m.q.ffa.F.length>=3);ffaEndAt=m.ffa?Date.now()+m.ffa:0;qeAt={};for(const k in(m.qe||{}))qeAt[k]=Date.now()+m.qe[k];updPadLabels(true);break;
  case 'sel':openMapSel(m);break;
  case 'votes':if(hubSel&&hubSel.sid===m.sid){hubSel.votes=m.votes;renderMapSel()}break;
  case 'go':startHubMatch(m);break;
@@ -1285,12 +1286,12 @@ function updNPCs(dt,now){if(!hubVis)return;const t=now/1000;for(const n of hubVi
   const near=!!best;if(near&&!n.near)n.wave=1.6;n.near=near;
   if(best){const dx=best.x-n.m.position.x,dz=best.z-n.m.position.z;let a=Math.atan2(-dx,-dz)-n.m.rotation.y;a=Math.atan2(Math.sin(a),Math.cos(a));a=Math.max(-1,Math.min(1,a));u.head.rotation.y+=(a-u.head.rotation.y)*Math.min(1,dt*5);if(u.torso)u.torso.rotation.y=a*.3}else u.head.rotation.y*=.95;
   if(n.wave>0){n.wave-=dt;u.aim.rotation.x=-1.9+Math.sin(t*12)*.25;u.aim.rotation.z=Math.sin(t*12)*.15}else{u.aim.rotation.x+=(.55-u.aim.rotation.x)*Math.min(1,dt*4);u.aim.rotation.z*=.9}}}
-let ffaEndAt=0,ffaSecs=-1;function ffaLeft(){return ffaEndAt?Math.max(0,Math.ceil((ffaEndAt-Date.now())/1000)):0}
-function updPadLabels(){if(!hubVis)return;const fs=ffaLeft();for(const k in hubVis.labels){const L=hubVis.labels[k];const n=myPads&&myPads[L.p.k]?(myPads[L.p.k][L.c.side]||[]).length:0;const side=L.c.side==='A'?'BLUE':L.c.side==='B'?'RED':'FFA';const cd=L.p.single&&fs>0;
-  const key=n+'|'+(cd?fs:'');if(L.k===key)continue;L.k=key;L.spr.material.map.dispose();L.spr.material.map=labelTex([MODES[L.p.k][0].split(' ')[0]+' '+side,cd?`${n}/${L.p.n}  ⏱ ${fs}`:`${n}/${L.p.n}`],L.col);L.spr.material.needsUpdate=true}
+let ffaEndAt=0,ffaSecs=-1,qeAt={};const qLeft=k=>qeAt[k]?Math.max(0,Math.ceil((qeAt[k]-Date.now())/1000)):0;function ffaLeft(){return ffaEndAt?Math.max(0,Math.ceil((ffaEndAt-Date.now())/1000)):0}
+function updPadLabels(){if(!hubVis)return;const fs=ffaLeft();for(const k in hubVis.labels){const L=hubVis.labels[k];const n=myPads&&myPads[L.p.k]?(myPads[L.p.k][L.c.side]||[]).length:0;const side=L.p.q?'QUEUE':L.c.side==='A'?'BLUE':L.c.side==='B'?'RED':'FFA';const qs=L.p.q?qLeft(L.p.k):0;const cd=(L.p.single&&fs>0)||qs>0;const fs2=L.p.q?qs:fs;
+  const key=n+'|'+(cd?fs2:'');if(L.k===key)continue;L.k=key;L.spr.material.map.dispose();L.spr.material.map=labelTex([MODES[L.p.k][0].split(' ')[0]+' '+side,cd?`${n}/${L.p.n}  ⏱ ${fs2}`:`${n}/${L.p.n}`],L.col);L.spr.material.needsUpdate=true}
  let mine=null;if(myPads)for(const k in myPads)for(const s in myPads[k])if(myPads[k][s].includes(hubOrd))mine=[k,s];if(mine)lastPad=mine;
- const ffaCd=fs>0&&HUB_PADS.find(p=>p.single&&p.k===(mine&&mine[0]));$('padInfo').textContent=mine?(ffaCd?`FFA STARTS IN ${fs}… (${(myPads[mine[0]][mine[1]]||[]).length} players) — step off to leave`:`Queued: ${MODES[mine[0]][0]} · ${mine[1]==='A'?'BLUE':mine[1]==='B'?'RED':'FFA'} side — waiting for players… step off to leave`):'';$('padInfo').classList.toggle('cd',!!ffaCd)}
-function updHub(dt,now){if(C.phase!=='hub')return;{const fs=ffaLeft();if(fs!==ffaSecs){if(fs>0&&ffaSecs!==-1&&myPads)SFX.beep(fs<=3?990:660);ffaSecs=fs;updPadLabels()}}hubPosT+=dt;if(hubPosT>=.125){hubPosT=0;hubSend({t:'pos',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(2)]})}
+ const qpad=mine&&HUB_PADS.find(p=>p.q&&p.k===mine[0]);const ffaCd=(fs>0&&HUB_PADS.find(p=>p.single&&p.k===(mine&&mine[0])))||(qpad&&qLeft(mine[0])>0);const fsx=qpad?qLeft(mine[0]):fs;$('padInfo').textContent=mine?(ffaCd?`${qpad?MODES[mine[0]][0].toUpperCase():'FFA'} STARTS IN ${fsx}… (${(myPads[mine[0]][mine[1]]||[]).length} players) — step off to leave`:`Queued: ${MODES[mine[0]][0]} · ${mine[1]==='A'?'BLUE':mine[1]==='B'?'RED':'FFA'} side — waiting for players… step off to leave`):'';$('padInfo').classList.toggle('cd',!!ffaCd)}
+function updHub(dt,now){if(C.phase!=='hub')return;{const fs=ffaLeft();const qsig=qLeft('br')+qLeft('brs')*100+qLeft('ext')*10000;if(qsig!==updHub.qs){updHub.qs=qsig;updPadLabels()}if(fs!==ffaSecs){if(fs>0&&ffaSecs!==-1&&myPads)SFX.beep(fs<=3?990:660);ffaSecs=fs;updPadLabels()}}hubPosT+=dt;if(hubPosT>=.125){hubPosT=0;hubSend({t:'pos',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(2)]})}
  if(hubVis){updNPCs(dt,now);for(const r of hubVis.rings){const inside=inPad(r.c,me.pos.x,me.pos.z);const n=myPads&&myPads[r.p.k]?(myPads[r.p.k][r.c.side]||[]).length:0;const fr=n/r.p.n;const rate=150+450*(1-fr);const pl=.5+.5*Math.sin(now/rate+r.c.x);
   r.em.opacity=.55+.45*pl;r.edge.scale.set(1+pl*.012*(1+fr),1+fr*1.5,1+pl*.012*(1+fr));r.fill.material.opacity=(inside?.3:.1)+fr*.25+pl*.06;
   if(r.pts){const pa=r.pts.geometry.attributes.position,sd=r.pts.userData.seed;for(let i=0;i<pa.count;i++){let y=((now/1000)*(.6+fr*1.2+sd[i]*.4)+sd[i]*3)%2.2;pa.array[i*3+1]=.1+y}pa.needsUpdate=true;r.pts.material.opacity=.5+fr*.5}}}
@@ -1303,7 +1304,7 @@ let mapSelIv=null;
 function openMapSel(m){hubSel={sid:m.sid,maps:m.maps,votes:[],mine:-1,end:performance.now()+m.ms,mode:m.mode,names:m.names};$('mapSel').classList.remove('hidden');SFX.kill();renderMapSel();
  clearInterval(mapSelIv);mapSelIv=setInterval(()=>{const left=Math.max(0,Math.ceil((hubSel.end-performance.now())/1000));$('mapSelT').textContent=left;if(left<=0)clearInterval(mapSelIv)},200);if(Object.keys(THUMB).length<MAPS.length)renderThumbs(()=>renderMapSel())}
 function renderMapSel(){if(!hubSel)return;$('mapSelSub').textContent=`${MODES[hubSel.mode][0]} · ${hubSel.names.join(', ')}`;
- const tv=hubSel.votes.length;$('mapSelList').innerHTML=hubSel.maps.map(i=>{const v=hubSel.votes.filter(x=>x===i).length;const pct=tv?Math.round(v/tv*100):Math.round(100/hubSel.maps.length);return`<button class="map${hubSel.mine===i?' sel':''}" data-ms="${i}" style="${THUMB[i]?`background-image:url(${THUMB[i]})`:''}"><span class="vc">${pct}%${v?` · ${v}🗳️`:''}</span><span class="mn">${MAPS[i].icon} ${MAPS[i].name}<small>${MAPS[i].desc}</small></span></button>`}).join('')}
+ const tv=hubSel.votes.length;$('mapSelList').innerHTML=hubSel.maps.map(i=>{const v=hubSel.votes.filter(x=>x===i).length;const pct=tv?Math.round(v/tv*100):Math.round(100/hubSel.maps.length);return`<button class="map${hubSel.mine===i?' sel':''}" data-ms="${i}" style="${THUMB[i]?`background-image:url(${THUMB[i]})`:''}"><span class="vc">${pct}%${v?` · ${v}🗳️`:''}</span><span class="mn">${MI(i).icon} ${MI(i).name}<small>${MI(i).desc}</small></span></button>`}).join('')}
 $('mapSelList').addEventListener('click',e=>{const b=e.target.closest('[data-ms]');if(!b||!hubSel)return;hubSel.mine=+b.dataset.ms;hubSend({t:'vote',sid:hubSel.sid,map:hubSel.mine});SFX.swap();renderMapSel()});
 function startHubMatch(m){clearInterval(mapSelIv);$('mapSelT').textContent='GO';$('soloSel').classList.add('hidden');center(m.join?'Joining FFA in progress…':`${MI(m.map).icon} ${MI(m.map).name}\nStarting ${MODES[m.mode][0]}…`,3000);
  const auto=m.join?null:{mode:m.mode,map:m.map,teams:m.teams,expect:m.expect,fromHub:1,solo:m.solo?1:0,diff:m.diff,pub:m.pub};
@@ -1413,6 +1414,7 @@ function frServe(){if(frPeer||typeof Peer==='undefined')return;const p=new Peer(
   else if(m.t==='acc'){if(cat==='out'||cat==='inc'||cat==='list'){if(cat!=='list')toast(`👥 ${name} accepted — you're friends!`);frSet(code,'list',name)}else if(!(FR.rm[code])){frSet(code,'list',name)}r={t:'ok'}}
   else if(m.t==='dec'){if(cat==='out')frSet(code,null)}
   else if(m.t==='rm'){if(cat){frSet(code,null);delete frStat[code]}}
+  else if(m.t==='pinv'||m.t==='pjoin'||m.t==='plv'||m.t==='pst'||m.t==='pdis'||m.t==='pgo'){r=partyMsg(m,code,name,cat)}
   else if(m.t==='st'){r=cat==='list'?{t:'st',name:frName(),s:myStatus()}:{t:'st',s:null,rel:cat==='out'?'req':cat==='inc'?'pend':null}}
   try{c.send(r)}catch(e){}setTimeout(()=>{try{c.close()}catch(e){}},400)})})}
 function frRevive(){frReload();if(!frPeer||frPeer.destroyed||frPeer.disconnected){if(frPeer&&frPeer.disconnected&&!frPeer.destroyed){try{frPeer.reconnect()}catch(e){}}else{frPeer=null;frBack=2000;frServe()}}frPoll()}
@@ -1445,7 +1447,7 @@ function stText(s){if(!s)return'<span class="off">● Offline</span>';let t=s.t;
 function renderFriends(){$('frCode').textContent=FR.code;$('frMe').textContent=frName();
  const L=FR.list.slice().sort((a,b)=>(frStat[b.code]?1:0)-(frStat[a.code]?1:0));
  $('frList').innerHTML=(L.length?L.map(f=>{const s=frStat[f.code];return`<div class="frRow" data-code="${f.code}"><div class="frWho"><b>${esc(f.name)}</b><small>${f.code}</small></div><div class="frSt">${f.code in frStat?stText(s):'<span class="off">● checking…</span>'}</div>
-  <button class="pill ${s&&s.join?'yellow':'poor'}" data-fr="join" ${s&&s.join?'':'disabled'}>${s&&s.join&&s.join.hub?'GO TO HUB':'JOIN'}</button><button class="pill red sm" data-fr="rm" title="Remove">✕</button></div>`}).join(''):'<p class="msg">No friends yet — share your code or add theirs.</p>');
+  <button class="pill ${s&&s.join?'yellow':'poor'}" data-fr="join" ${s&&s.join?'':'disabled'}>${s&&s.join&&s.join.hub?'GO TO HUB':'JOIN'}</button><button class="pill sm" data-fr="party" ${s&&(!PARTY||partyLead())&&!(PARTY&&PARTY.m.some(x=>x.code===f.code))?'':'disabled'} title="Invite to party">➕👥</button><button class="pill red sm" data-fr="rm" title="Remove">✕</button></div>`}).join(''):'<p class="msg">No friends yet — share your code or add theirs.</p>');
  $('frInc').innerHTML=FR.inc.map(f=>`<div class="frRow" data-code="${f.code}"><div class="frWho"><b>${esc(f.name)}</b><small>${f.code}</small></div><span class="frSt">wants to be friends</span><button class="pill green" data-fr="acc">ACCEPT</button><button class="pill red sm" data-fr="dec">DECLINE</button></div>`).join('')+FR.out.map(f=>`<div class="frRow out" data-code="${f.code}"><div class="frWho"><b>${esc(f.name)}</b><small>${f.code}</small></div><span class="frSt">⏳ Pending${f.del?' · delivered':' · sends when they are online'}</span><button class="pill red sm" data-fr="rm">CANCEL</button></div>`).join('');
  $('frReqHead').classList.toggle('hidden',!FR.inc.length&&!FR.out.length)}
 function updFrBadge(){const n=FR.inc.length;document.querySelectorAll('.frBadge').forEach(b=>{b.textContent=n||'';b.classList.toggle('hidden',!n)});const on=FR.list.filter(f=>frStat[f.code]).length;document.querySelectorAll('.frOnline').forEach(b=>b.textContent=FR.list.length?`${on}/${FR.list.length} online`:'Add friends by code')}
@@ -1454,7 +1456,7 @@ function closeFriends(){frOpen=false;$('friends').classList.add('hidden');frSche
 function toast(t){const el=document.createElement('div');el.className='toast';el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.classList.add('out'),2600);setTimeout(()=>el.remove(),3200)}
 $('frClose').onclick=closeFriends;$('frAddBtn').onclick=()=>{frAdd($('frIn').value);$('frIn').value=''};$('frIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('frAddBtn').click()});
 $('frCopy').onclick=async()=>{try{await navigator.clipboard.writeText(FR.code);frMsg('Code copied!')}catch(e){frMsg('Your code: '+FR.code)}};
-$('friends').addEventListener('click',e=>{const b=e.target.closest('[data-fr]');if(!b)return;const code=b.closest('[data-code]').dataset.code;const a=b.dataset.fr;if(a==='join')frJoin(code);else if(a==='rm')frRemove(code);else if(a==='acc')frAccept(code);else if(a==='dec')frDecline(code)});
+$('friends').addEventListener('click',e=>{const b=e.target.closest('[data-fr]');if(!b)return;const code=b.closest('[data-code]').dataset.code;const a=b.dataset.fr;if(a==='join')frJoin(code);else if(a==='party')partyInvite(code);else if(a==='rm')frRemove(code);else if(a==='acc')frAccept(code);else if(a==='dec')frDecline(code)});
 for(const id of['openFriends','lobFriends','pFriends','hubFriends'])if($(id))$(id).onclick=openFriends;
 addEventListener('storage',e=>{if(e.key===LSP+FRK)frReload()});
 setTimeout(()=>{frServe();frSchedule();updFrBadge();if(FR.list.length||FR.out.length)setTimeout(frPoll,1500)},800);
@@ -1529,7 +1531,7 @@ function renderPob(){if(!MODES[POB.mode])POB.mode='team';if(POB.map>=MAPS.length
 function openPob(){audioInit();pobBusy=false;renderPob();$('pobSel').classList.remove('hidden');if(document.pointerLockElement)document.exitPointerLock();if(Object.keys(THUMB).length<MAPS.length&&!C.hub)setTimeout(()=>{if(!$('pobSel').classList.contains('hidden'))renderThumbs(()=>renderPob())},300)}
 function closePob(){$('pobSel').classList.add('hidden')}
 function playOnlineBots(mode,opts){if(pobBusy)return;pobBusy=true;closePob();if(mode)POB.mode=mode;if(opts)Object.assign(POB,opts);LSS('pob',JSON.stringify(POB));
- const map=BRM(POB.mode)?BR_I:POB.map<0?Math.random()*MAPS.length|0:POB.map;const auto={mode:POB.mode,map,diff:POB.diff,pub:POB.pub,teams:{},expect:1,solo:1};const code=genCode();window.__lastPob={...auto,code};
+ const map=BRM(POB.mode)?BR_I:POB.map<0?Math.random()*MAPS.length|0:POB.map;const pn=PARTY&&partyLead()?PARTY.m.length:1;const auto={mode:POB.mode,map,diff:POB.diff,pub:POB.pub,teams:{},expect:pn,solo:pn>1?0:1};const code=genCode();window.__lastPob={...auto,code};
  if(C.hub){startHubMatch({code,map,mode:POB.mode,teams:{},expect:1,solo:1,diff:POB.diff,pub:POB.pub,host:hubSelfId});return}
  $('menu').classList.add('hidden');createRoom(code,auto)}
 $('pobSel').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
@@ -2100,3 +2102,32 @@ function brHostMsg(from,m,p){if(!H.br||!p)return false;const E=H.br;
 function brReloadDone(id){const have=me.ammo[me.cur],need=magOf(id)-have,t=ammoOf(id),take=Math.max(0,Math.min(need,BC.res[t]));BC.res[t]-=take;send({t:'rs',r:BC.res});return have+take}
 
 window.__hsz.BR=()=>BC;window.__hsz.ME=()=>me;window.__hsz.CC=()=>C;window.__hsz.brx={brLand,brScale,brJump,brOpen,brTake,brGive,brElim,brCheck,stormState,RAR,W,WIDX,WIDS,gunScore,damage,brApplyInv,brUse,brMap,rollItem,gunItem,fixItem,brItem,BRC,STORM,newInv};
+
+// ================= v44 PARTY (clan) =================
+// A party is up to 4 friends. The leader (creator) owns the roster and pushes it to everyone; everyone in it joins the leader's room together,
+// and in Squad Royale party members always land in the same squad.
+let PARTY=null,PINV=null;
+const partyLead=()=>!!PARTY&&PARTY.lead===FR.code;
+const partyCodes=()=>PARTY?PARTY.m.map(x=>x.code).filter(c=>c!==FR.code):[];
+function partyPush(){if(!partyLead())return;const msg={t:'pst',pid:PARTY.id,lead:PARTY.lead,m:PARTY.m};for(const c of partyCodes())frAsk(c,msg);renderParty()}
+function partyInvite(code){if(frCat(code)!=='list')return;if(PARTY&&!partyLead())return frMsg('Only the party leader can invite');if(PARTY&&PARTY.m.some(x=>x.code===code))return;
+ if(!PARTY)PARTY={id:FR.code,lead:FR.code,m:[{code:FR.code,name:frName()}]};if(PARTY.m.length>=4)return frMsg('Party is full (4)');
+ frAsk(code,{t:'pinv',pid:PARTY.id,lead:PARTY.lead,m:PARTY.m}).then(r=>{if(!r)frMsg('They seem to be offline')});frMsg('👥 Party invite sent');renderParty();renderFriends()}
+function partyAccept(){const v=PINV;PINV=null;if(!v){renderParty();return}PARTY={id:v.pid,lead:v.lead,m:v.m.filter(x=>x.code!==FR.code).concat([{code:FR.code,name:frName()}])};renderParty();frAsk(v.lead,{t:'pjoin',pid:v.pid})}
+function partyLeave(){if(!PARTY)return;if(partyLead()){for(const c of partyCodes())frAsk(c,{t:'pdis'})}else frAsk(PARTY.lead,{t:'plv'});PARTY=null;renderParty();if(frOpen)renderFriends()}
+function partyGo(room){if(!partyLead()||PARTY.m.length<2||!room||room==='OFFLINE')return;for(const c of partyCodes())frAsk(c,{t:'pgo',room})}
+function partyMsg(m,code,name,cat){
+ if(m.t==='pinv'){if(cat!=='list'||(PARTY&&PARTY.m.length>1)){return{t:'busy'}}PINV={pid:String(m.pid).slice(0,12),lead:code,name,m:(Array.isArray(m.m)?m.m:[]).slice(0,4).map(x=>({code:normCode(x.code)||'',name:String(x.name||'').slice(0,12)})).filter(x=>x.code)};toast(`👥 ${name} invited you to a party`);renderParty();return{t:'ok'}}
+ if(m.t==='pjoin'){if(partyLead()&&PARTY.id===m.pid&&cat==='list'&&PARTY.m.length<4&&!PARTY.m.some(x=>x.code===code)){PARTY.m.push({code,name});toast(`👥 ${name} joined your party`);partyPush()}return{t:'ok'}}
+ if(m.t==='plv'){if(partyLead()&&PARTY.m.some(x=>x.code===code)){PARTY.m=PARTY.m.filter(x=>x.code!==code);toast(`👥 ${name} left the party`);if(PARTY.m.length<2){PARTY=null;renderParty()}else partyPush()}return{t:'ok'}}
+ if(m.t==='pst'){if(PARTY&&PARTY.lead===code&&PARTY.id===m.pid){const mm=(Array.isArray(m.m)?m.m:[]).slice(0,4).map(x=>({code:normCode(x.code)||'',name:String(x.name||'').slice(0,12)})).filter(x=>x.code);if(mm.some(x=>x.code===FR.code))PARTY.m=mm;else PARTY=null;renderParty();if(frOpen)renderFriends()}return{t:'ok'}}
+ if(m.t==='pdis'){if(PARTY&&PARTY.lead===code){PARTY=null;toast('👥 Party disbanded');renderParty();if(frOpen)renderFriends()}return{t:'ok'}}
+ if(m.t==='pgo'){if(PARTY&&PARTY.lead===code&&/^[A-Z0-9]{4,8}$/.test(String(m.room))&&roomCode!==m.room&&(!inGame||C.hub)){toast(`👥 ${name} started a match — joining`);const nl=/[?&]net=local/.test(location.search)?'&net=local':'';window.__partyGo=m.room;if(!$('lobby').classList.contains('hidden')||inGame||C.hub)location.href=location.pathname+'?join='+m.room+nl+(PROF?'&prof='+PROF:'');else{closeFriends();joinRoom(m.room)}}return{t:'ok'}}
+ return{t:'ok'}}
+let partyKey='';function renderParty(){const b=$('partyBar');if(!b)return;const show=(PARTY||PINV)&&(!inGame||C.hub)&&!(PARTY&&PARTY.m.length<2&&!PINV&&false);
+ let h='';if(PINV)h+=`<div class="pInv">👥 <b>${esc(PINV.name)}</b> invites you to a party <button data-p="acc" class="pill green sm">JOIN</button><button data-p="dec" class="pill red sm">✕</button></div>`;
+ if(PARTY)h+=`<div class="pMem"><b>👥 PARTY ${PARTY.m.length}/4</b>${PARTY.m.map(x=>`<span class="${x.code===PARTY.lead?'lead':''}">${x.code===PARTY.lead?'👑 ':''}${esc(x.name)}</span>`).join('')}${partyLead()?'<button data-p="inv" class="pill sm">➕</button>':''}<button data-p="lv" class="pill red sm">LEAVE</button></div>`;
+ const k=(show?'1':'0')+h;if(k===partyKey)return;partyKey=k;b.classList.toggle('hidden',!show);b.innerHTML=h}
+document.addEventListener('pointerdown',e=>{const b=e.target.closest&&e.target.closest('#partyBar [data-p]');if(!b)return;e.stopPropagation();const a=b.dataset.p;if(a==='acc')partyAccept();else if(a==='dec'){PINV=null;renderParty()}else if(a==='lv')partyLeave();else if(a==='inv')openFriends()},true);
+setInterval(renderParty,1200);
+window.__hsz.PARTY=()=>PARTY;window.__hsz.partyInvite=partyInvite;window.__hsz.partyAccept=partyAccept;window.__hsz.partyLeave=partyLeave;
