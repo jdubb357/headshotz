@@ -2,6 +2,7 @@
 import {newDefs} from './maps2.js';
 import {dress} from './mapdress.js';
 import {HQP} from './assets.js';
+import {brDef,BR_ZONES} from './br.js';
 const useHQ=k=>HQP.ready&&HQP.models[k]&&GQ.level!=='low';
 import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng} from './gfx.js';
 const _c=new THREE.Color();
@@ -251,6 +252,7 @@ DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,
   B.palm(-30,21);B.palm(30,21);B.palm(-30,-21);B.palm(30,-21)},
  spawnsA:[[0,4],[2,5],[-2,5],[3,3],[-3,3]],spawnsB:[[0,6]],spawnsM:[[0,6]]});
 export const HUB_I=DEFS.length-1;
+DEFS.push(brDef({G,rng,_c}));export const BR_I=DEFS.length-1;export const BR_INFO={name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',def:DEFS[BR_I]};export{BR_ZONES};
 // --------- collision-free spawn fix ----------
 function clear(cols,x,z,r=.6){for(const c of cols)if(x+r>c.x0&&x-r<c.x1&&z+r>c.z0&&z-r<c.z1&&c.y0<1.8&&c.y1>.05)return false;return true}
 function fixSpawn(cols,s,lim){if(clear(cols,s[0],s[1]))return s;for(let rad=.5;rad<6;rad+=.5)for(let a=0;a<16;a++){const x=s[0]+Math.cos(a/16*6.283)*rad,z=s[1]+Math.sin(a/16*6.283)*rad;if(Math.abs(x)<lim[0]-1&&Math.abs(z)<lim[1]-1&&clear(cols,x,z))return[+x.toFixed(2),+z.toFixed(2)]}return s}
@@ -264,7 +266,10 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  if(!d.hub&&!d.noDress)try{dress(B,d,GQ.level==='low'?0:GQ.level==='high'?2:1)}catch(e){console.warn('dress',e)}
  if(!d.pier&&!d.indoor){for(const s of[-1,1]){const wh=d.wallH||4;B.box(0,0,s*(sz/2+.5),sx+2,wh,1,0x000000,'plain',{shadow:false});B.box(s*(sx/2+.5),0,0,1,wh,sz,0x000000,'plain',{shadow:false})}for(let k=0;k<4;k++)B.T.plain.pop()}
  const group=new THREE.Group();
- for(const t in B.T){if(!B.T[t].length)continue;const m=new THREE.Mesh(mergeParts(B.T[t],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}
+ for(const t in B.T){if(!B.T[t].length)continue;if(d.br){// big map: split into 56 m cells so the GPU/frustum can cull far chunks (iPhone)
+  const cells={};for(const pt of B.T[t]){const k=Math.floor((pt.p[0]+250)/56)+'_'+Math.floor((pt.p[2]+250)/56);(cells[k]=cells[k]||[]).push(pt)}
+  for(const k in cells){const m=new THREE.Mesh(mergeParts(cells[k],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}continue}
+  const m=new THREE.Mesh(mergeParts(B.T[t],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}
  if(B.glows.length)group.add(new THREE.Mesh(mergeParts(B.glows),glowMat));
  // contact shadows
  if(B.shadows.length){const planes=B.shadows.map(([x,z,w,dd])=>{const p=new THREE.PlaneGeometry(w,dd).toNonIndexed();p.rotateX(-Math.PI/2);p.translate(x,.014,z);return p});
@@ -280,7 +285,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
  if(B.props.length){const by={};for(const q of B.props)(by[q.k]=by[q.k]||[]).push(q);const o=new THREE.Object3D(),col=new THREE.Color();for(const k in by){const M=HQP.models[k],L=by[k];const im=new THREE.InstancedMesh(M.geo,M.mat,L.length);
   L.forEach((q,j)=>{o.position.set(q.x,q.y,q.z);o.rotation.set(0,q.ry,0);if(k==='crate')o.scale.set(q.s/M.size.x,q.s/M.size.y,q.s/M.size.z);else o.scale.setScalar(q.s/M.size.y);o.updateMatrix();im.setMatrixAt(j,o.matrix);im.setColorAt(j,col.set(0xffffff).lerp(col.clone().set(q.c),k==='barrel'?.55:.15))});im.castShadow=im.receiveShadow=true;im.userData.hqProp=1;group.add(im)}}
- return cache[i]={hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ return cache[i]={lootSpots:B.brLoot||[],chestSpots:B.brChests||[],doors:B.brDoors||[],zones:d.zones||null,hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}
