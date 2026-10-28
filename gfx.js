@@ -162,7 +162,7 @@ export function makeSky(top,mid,bottom,sunDir,sunCol=0xfff0d0,opt={}){const g=ne
  const mat=new THREE.ShaderMaterial({vertexShader:SKY_V,fragmentShader:SKY_F,side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
   uniforms:{top:{value:new THREE.Color(top)},mid:{value:new THREE.Color(mid)},bot:{value:new THREE.Color(bottom)},sunDir:{value:(sunDir||new THREE.Vector3(0,1,0)).clone()},sunCol:{value:new THREE.Color(sunCol)},sunI:{value:sunDir?1:0}}});
  const m=new THREE.Mesh(g,mat);m.renderOrder=-10;m.frustumCulled=false;const grp=new THREE.Group();grp.add(m);
- if(opt.clouds!==false){const cl=[];const r=rng(42);for(let i=0;i<18;i++){const a=r()*Math.PI*2,d=230+r()*80,y=60+r()*70;const shade=.92+r()*.08;
+ if(opt.clouds!==false){const cl=[];const r=rng(42);for(let i=0;i<(opt.cloudN||18);i++){const a=r()*Math.PI*2,d=230+r()*80,y=60+r()*70;const shade=.92+r()*.08;
    for(let k=0;k<5;k++)cl.push({g:G('ico',1,1),top:null,p:[Math.cos(a)*d+k*13-26+r()*6,y+r()*7,Math.sin(a)*d+r()*12],s:[16+r()*14,6+r()*5,11+r()*8],c:new THREE.Color(shade,shade,shade).getHex()})}
   const cm=new THREE.Mesh(mergeParts(cl),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,transparent:true,opacity:.88,depthWrite:false,color:new THREE.Color(0xffffff).lerp(new THREE.Color(mid),.12)}));cm.renderOrder=-8;cm.frustumCulled=false;grp.add(cm)}
  return grp}

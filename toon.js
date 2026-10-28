@@ -13,7 +13,11 @@ export const OUTFITS=[
  {id:6,name:'Golden Glimmer',top:0xffd23f,acc:0xffffff,pants:0xf2f2f2,shoes:0xb8860b,glove:0xffffff,skin:0xa86b45,hair:0x2b1d14,hs:4,hat:'crown',hatc:0xffd23f,iris:0x5b3a1e,pack:'cape',packc:0xffffff,sleeve:1,rar:3},
  {id:7,name:'Night Owl',top:0x3a3f52,acc:0xffd23f,pants:0x20232e,shoes:0xffd23f,glove:0x20232e,skin:0xf1c27d,hair:0x20232e,hs:0,hat:'hood',hatc:0x3a3f52,iris:0xffd23f,pack:'wings2',packc:0x2a2d3a,sleeve:1,rar:4}];
 const RARN=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY'];export {RARN};
-let MAT=null;const mat=()=>MAT||(MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.58,metalness:.02}));
+let MAT=null;const mat=()=>{if(MAT)return MAT;MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5,metalness:.02});
+ // stylized look: warm fresnel rim light + soft sky-bounce tint on downward normals (cheap toon-ish shading, no extra passes)
+ MAT.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
+  {float fr=pow(1.0-saturate(dot(normalize(normal),normalize(vViewPosition))),2.4);totalEmissiveRadiance+=vec3(1.0,.93,.8)*fr*.42;totalEmissiveRadiance+=vec3(.07,.1,.16)*saturate(-normal.y)*.35;}`)};
+ return MAT};
 const GC={};const cap=(r,l,s=1)=>{const k='c'+r+'|'+l+'|'+GQ.level;return GC[k]||(GC[k]=new THREE.CapsuleGeometry(r,l,GQ.level==='low'?3:4,GQ.level==='low'?8:12))};
 const sph=(r=1)=>{const k='s'+GQ.level;return GC[k]||(GC[k]=new THREE.SphereGeometry(1,GQ.level==='low'?10:16,GQ.level==='low'?8:12))};
 const sphLo=()=>GC.sl||(GC.sl=new THREE.SphereGeometry(1,8,6));
@@ -67,9 +71,10 @@ function bodyParts(P,o){const t=o.top,a=o.acc;
  case'wings2':for(const s of[-1,1])part(P,cap(.05,.5),o.packc,[s*.26,1.1,.27],[1,1,.3],[0,0,s*-.45]);part(P,cap(.1,.2),a,[0,1.05,.24],[1,1,.6]);break}
  if(o.hat==='hood')part(P,cone(),o.hatc,[0,1.2,.19],[.12,.18,.06],[Math.PI,0,0]);
 }
-function armParts(P,o,s,seg){// seg 0 upper, 1 fore
- const sl=o.sleeve;if(seg===0){part(P,cap(.075,.18),o.top,[0,-.14,0]);S(P,o.top,[0,0,0],[.09,.09,.09]);part(P,tor(.07,.012,Math.PI*2),o.acc,[0,-.06,0],[1,1,1],[Math.PI/2,0,0])}
- else{part(P,cap(.066,.15),sl?o.top:o.skin,[0,-.11,0]);part(P,tor(.067,.016,Math.PI*2),o.acc,[0,-.2,0],[1,1,1],[Math.PI/2,0,0]);S(P,o.glove,[0,-.29,-.01],[.085,.08,.09]);S(P,o.glove,[0,-.26,-.075],[.035,.04,.04])}}
+function armParts(P,o,s,seg){// seg 0 upper, 1 fore (mitten is a separate mesh so it can hide when a gun's own hands take over)
+ const sl=o.sleeve;if(seg===0){part(P,cap(.075,.2),o.top,[0,-.15,0]);S(P,o.top,[0,0,0],[.09,.09,.09]);part(P,tor(.07,.012,Math.PI*2),o.acc,[0,-.06,0],[1,1,1],[Math.PI/2,0,0])}
+ else{part(P,cap(.066,.17),sl?o.top:o.skin,[0,-.15,0]);part(P,tor(.067,.016,Math.PI*2),o.acc,[0,-.23,0],[1,1,1],[Math.PI/2,0,0])}}
+function mittParts(P,o){S(P,o.glove,[0,-.325,-.01],[.085,.08,.09]);S(P,o.glove,[0,-.295,-.075],[.035,.04,.04])}
 function legParts(P,o,seg){
  if(seg===0){part(P,cap(.11,.2),o.pants,[0,-.19,0]);S(P,o.pants,[0,0,0],[.115,.115,.115])}
  else{part(P,cap(.08,.15),o.pants,[0,-.15,0]);S(P,o.pants,[0,0,0],[.085,.085,.085]);part(P,cap(.095,.1),o.shoes,[0,-.37,-.045],[1,1,1.7],[Math.PI/2,0,0]);part(P,box(),mix(o.shoes,0xffffff,.55),[0,-.445,-.04],[.19,.03,.34])}}
@@ -97,8 +102,8 @@ export function makeToon(teamCol,name,id,tagCol,outfitIdx,opt={}){
  const headG=new THREE.Group();headG.position.set(0,1.38-.78,0);torso.add(headG);const Hm=mesh(geo(o,'head',P=>headParts(P,o)));Hm.position.set(0,-1.38,0);headG.add(Hm);
  const eyes=mesh(geo(o,'eyes',P=>eyeParts(P,o)));eyes.position.set(0,-1.38,0);eyes.castShadow=false;headG.add(eyes);
  const mk=(seg,fn,pos,par)=>{const g=new THREE.Group();g.position.set(...pos);par.add(g);if(fn){const m=mesh(geo(o,fn[0],fn[1]));g.add(m)}return g};
- const arm=[],fore=[],leg=[],shin=[];
- for(const s of[-1,1]){const i=s<0?0:1;const a=mk(0,['au'+s,P=>armParts(P,o,s,0)],[s*.285,1.24-.78,0],torso);const f=mk(0,['af'+s,P=>armParts(P,o,s,1)],[0,-.27,0],a);arm[i]=a;fore[i]=f;
+ const arm=[],fore=[],leg=[],shin=[],handM=[];
+ for(const s of[-1,1]){const i=s<0?0:1;const a=mk(0,['au'+s,P=>armParts(P,o,s,0)],[s*.285,1.24-.78,0],torso);const f=mk(0,['af'+s,P=>armParts(P,o,s,1)],[0,-.29,0],a);const hm=mesh(geo(o,'mit'+s,P=>mittParts(P,o)));f.add(hm);handM[i]=hm;arm[i]=a;fore[i]=f;
   const l=mk(0,['lt'+s,P=>legParts(P,o,0)],[s*.115,0,0],hips);const sh=mk(0,['ls'+s,P=>legParts(P,o,1)],[0,-.4,0],l);leg[i]=l;shin[i]=sh}
  // weapon mount in torso space (aim group pitches with the camera)
  const aim=new THREE.Group();aim.position.set(0,1.3-.78,0);torso.add(aim);const gunMount=new THREE.Group();gunMount.position.set(.1,-.12,-.3);aim.add(gunMount);
@@ -108,8 +113,40 @@ export function makeToon(teamCol,name,id,tagCol,outfitIdx,opt={}){
  const tg=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthWrite:false,transparent:true}));tg.scale.set(1.5,.375,1);tg.position.y=2.25;root.add(tg);
  if(opt.noTag)tg.visible=false;
  if(opt.outline){const om=new THREE.MeshBasicMaterial({color:0x10141f,side:THREE.BackSide});root.traverse(c=>{if(c.isMesh&&c!==eyes){const m=new THREE.Mesh(c.geometry,om);m.scale.setScalar(1.05);c.add(m)}})}
- root.userData={kind:'toon',anim:animToon,rig,hips,torso,headG,eyes,arm,fore,leg,shin,aim,gunMount,gR,gL,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod:[],far:[],lodOn:true,cls:'soldier',crouch:0,climb:0,down:0,lean:0,outfit:o,blinkT:2+(h%30)/10,mood:0,J:{}};
+ root.userData={kind:'toon',anim:animToon,rig,hips,torso,headG,eyes,arm,fore,handM,leg,shin,aim,gunMount,gR,gL,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod:[],far:[],lodOn:true,cls:'soldier',crouch:0,climb:0,down:0,lean:0,outfit:o,blinkT:2+(h%30)/10,mood:0,J:{}};
  root.userData.args=[teamCol,name,id,tagCol,oi];return root}
+
+// ---- gun grip solver: the gun group carries its own gloved hands (fingers wrapped on the grip, trigger finger on the trigger, support hand on the handguard).
+// We place the gun per class (stock at the shoulder / extended pistol / blade at the hip...), then 2-bone IK both arms onto the gun's wrist points.
+const sstep=(a,b,x)=>{x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x)};
+const _m4=new THREE.Matrix4(),_q=new THREE.Quaternion(),_e=new THREE.Euler(),_p=new V3(),_w=new V3();
+export function gunKind(info){if(info.fists)return'fists';if(info.util)return'util';if(info.hold==='knife'||info.hold==='axe')return'blade';if(info.hold==='katana')return'katana';if(info.pistol)return'pistol';if(info.hold==='launcher')return'rpg';return'long'}
+function solveGun(u,st,dt,run,sw){
+ const gun=u.gunMount.children[0];if(!gun)return null;const info=gun.userData.info,wr=gun.userData.wr;if(!info||!wr||!wr.R)return null;
+ const kind=gunKind(info),zr=gun.userData.zr||.2;
+ if(u.gunSeen!==gun){u.gunSeen=gun;u.swT=1}u.swT=Math.max(0,(u.swT||0)-dt*3.2);
+ if(st.shot)u.kk=1;u.kk=(u.kk||0)*Math.exp(-dt*11);
+ const ads=u.adsS=lerp(u.adsS||0,st.ads||0,Math.min(1,dt*10));const rl=st.reload>0?st.reload:0;
+ const bump=sstep(0,.22,rl)*(1-sstep(.72,.95,rl)),tilt=sstep(0,.2,rl)*(1-sstep(.8,1,rl));
+ const bob=Math.sin(u.it*1.9)*.004+Math.abs(Math.sin(u.ph))*.016*run,sway=Math.cos(u.ph)*.01*run;
+ const O=new V3(),E=new THREE.Euler(0,0,0,'YXZ');const wR=new V3(...wr.R.w);const dL=wr.L?zr-wr.L.w[2]:.3;const GS=(kind==='long'||kind==='rpg')?Math.max(.95,Math.min(1.6,.6/dL)):1.6;
+ if(kind==='long'||kind==='rpg'){const rp=kind==='rpg';O.set(rp?.28:lerp(.21,.15,ads),rp?.1:lerp(-.15,-.04,ads),-.09-GS*zr+(rp?.12:0));E.set(rp?.05:0,0,0)}
+ else if(kind==='pistol'){_p.set(lerp(.12,.07,ads),lerp(-.0,.03,ads),-.4);O.copy(_p).sub(wR.clone().multiplyScalar(GS))}
+ else if(kind==='blade'){_p.set(.32,-.32,-.36);E.set(.75,-.15,0);O.copy(_p).sub(wR.clone().multiplyScalar(GS).applyEuler(E))}
+ else if(kind==='katana'){_p.set(.22,-.24,-.4);E.set(.95,-.1,0);O.copy(_p).sub(wR.clone().multiplyScalar(GS).applyEuler(E))}
+ else if(kind==='util'){_p.set(.3,-.12,-.42);O.copy(_p).sub(wR.clone().multiplyScalar(GS))}
+ else{_p.set(.17,-.12,-.38);O.copy(_p).sub(wR.clone().multiplyScalar(GS))}// fists
+ E.x+=.1*u.kk*(kind==='long'||kind==='pistol'||kind==='rpg'?1:0)-tilt*.45*(kind==='long'||kind==='pistol'?1:.3)-u.swT*.9;E.z+=tilt*.35;E.y+=tilt*.2;
+ O.z+=.07*u.kk;O.y+=bob-u.swT*.28-tilt*.04;O.x+=sway;
+ // left hand to the mag during reload (hand mesh lives in the 'lh' sub-group)
+ const G=gun.userData.G||{},lh=G.lh;let ld=null;
+ if(lh&&wr.L){if(!lh.userData.b0)lh.userData.b0=lh.position.clone();const mc=G.mag&&G.mag.userData.c?G.mag.userData.c:new V3(0,-.05,.02);const lc=new V3(...wr.L.w);ld=mc.clone().add(new V3(0,-.045,.02)).sub(lc).multiplyScalar(bump);lh.position.copy(lh.userData.b0).add(ld)}
+ const gm=u.gunMount;gm.position.copy(O);gm.quaternion.setFromEuler(E);gm.scale.set(GS,GS,GS);gm.updateMatrix();
+ const out={R:new V3(...wr.R.w).applyMatrix4(gm.matrix)};if(wr.L){out.L=new V3(...wr.L.w);if(ld)out.L.add(ld);out.L.applyMatrix4(gm.matrix)}
+ // reach: if a hand is too far from its shoulder, slide the whole gun back toward the body
+ const shR=new V3(.285,-.06,0),shL=new V3(-.285,-.06,0);let over=Math.max(out.R.distanceTo(shR),out.L?out.L.distanceTo(shL):0)-.585;
+ if(over>0&&kind!=='pistol'){gm.position.z+=over;gm.updateMatrix();out.R.z+=over;if(out.L)out.L.z+=over}
+ return out}
 const AX=new V3(1,0,0);
 // st: speed, air, slide, pitch, climb, down, slope, dist, crouch, lx/lz (local move dir), pose ('fall'|'glide'|'chute'|'bus'), emote(string)|null, aim(bool), hold(bool: gun raised)
 export function animToon(m,st,dt){const u=m.userData;const sp=Math.min(st.speed||0,11);
@@ -157,12 +194,13 @@ export function animToon(m,st,dt){const u=m.userData;const sp=Math.min(st.speed|
  u.blinkT-=dt;let bl=1;if(u.blinkT<0){const t=-u.blinkT;bl=t<.12?1-Math.sin(t/.12*Math.PI)*.92:1;if(t>.12)u.blinkT=2+Math.random()*3.5}u.eyes.scale.y=bl;
  // arms
  const hold=st.hold!==false&&armPose==='hold';
+ const gp=(armPose==='hold'&&!emo)?solveGun(u,st,dt,run,0):null;
+ for(let i=0;i<u.handM.length;i++)u.handM[i].visible=!(gp&&(i===1||gp.L));
  for(let i=0;i<2;i++){const A=u.arm[i],F=u.fore[i],sd=i?1:-1;
-  if(armPose==='hold'&&!emo){const t=i?u.gR:u.gL;const q=new V3(t.position.x,t.position.y+(u.aim.position.y),t.position.z);
-   // transform aim-local target through aim pitch into torso space
-   q.set(t.position.x,t.position.y,t.position.z).applyAxisAngle(AX,u.aim.rotation.x).add(u.aim.position);
-   ik(u.torso,A,F,null,q.x,q.y,q.z,.27,.29,new V3(sd*.8,-.6,.2).normalize());A.rotation.z+=0;
-   const sw=idle>.01?Math.sin(u.it*1.9)*.02:0;A.rotation.x+=sw}
+  if(armPose==='hold'&&!emo){const gt=gp&&(i?gp.R:(gp.L||new V3(-.3,-.5,-.12)));const t=i?u.gR:u.gL;const q=new V3();
+   if(gt)q.copy(gt);else q.set(t.position.x,t.position.y,t.position.z);q.applyAxisAngle(AX,u.aim.rotation.x).add(u.aim.position);
+   ik(u.torso,A,F,null,q.x,q.y,q.z,.29,.31,new V3(sd*.8,-.6,.2).normalize());A.rotation.z+=0;
+   const sw=idle>.01&&!gt?Math.sin(u.it*1.9)*.02:0;A.rotation.x+=sw}
   else if(armPose==='climb'){A.rotation.set(-2.5+(i?Math.cos(u.ph):-Math.cos(u.ph))*.5,0,sd*.2);F.rotation.set(-.5,0,0)}
   else if(armPose==='fall'){A.rotation.set(-.3,0,sd*-1.05);A.rotation.order='ZXY';F.rotation.set(-.2,0,0)}
   else if(armPose==='glide'){A.rotation.set(-2.7,0,sd*.25);F.rotation.set(-.15,0,0)}
@@ -173,7 +211,7 @@ export function animToon(m,st,dt){const u=m.userData;const sp=Math.min(st.speed|
   else{const sw=(i?s:-s)*amp*.9;A.rotation.set(sw,0,sd*.08);F.rotation.set(-.3-run*.5,0,0)}
   if(armPose!=='hold'||emo){if(A.rotation.order!=='XYZ'&&armPose!=='fall')A.rotation.order='XYZ'}}
  if(emo&&emo.body)emo.body(u,u.et);
- u.gunMount.visible=armPose==='hold'&&!emo;
+ u.gunMount.visible=armPose==='hold'&&!emo;if(!(gp)&&armPose!=='hold'||emo)for(const h of u.handM)h.visible=true;
  // far LOD: skip face blink etc. handled by caller visibility
 }
 // emotes: each {arms(A,F,i,t,u), body(u,t), head(t), dur}

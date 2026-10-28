@@ -17,6 +17,7 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Texture: crate surface | Plywood | Rob Tuytel | https://polyhaven.com/a/plywood | CC0 |
 | HDRI sky (environment reflections) | Kloofendal 48d Partly Cloudy (Pure Sky) | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
 | Model: barrels | Barrel 03 | Serhii Khromov | https://polyhaven.com/a/barrel_03 | CC0 |
+| Model: Royale loot chest (v46) | Treasure Chest | Rico Cilliers | https://polyhaven.com/a/treasure_chest | CC0 |
 | Model: crates | Wooden Crate 02 | James Ray Cock, Jurita Burger | https://polyhaven.com/a/wooden_crate_02 | CC0 |
 
 Processing: textures downscaled to 512px (colour maps converted to greyscale detail so map tints still apply); models optimised with gltf-transform (meshopt geometry, 512px WebP textures, simplified). Libraries: three.js r160 GLTFLoader + meshopt decoder (MIT).
@@ -33,3 +34,16 @@ All player, bot and hub-NPC characters are built from **MakeHuman** assets, CC0 
 | Hair, eyes, eyebrows, eyelashes | short02, low-poly eyes (brown), eyebrow001, eyelashes01 | makehuman_system | same pack | CC0 |
 
 Generated headless with Blender 4.2 + MPFB 2.0.18 (the exporter output is CC0 per the MakeHuman licence); three LOD tiers (hi ≈28k tris, md ≈17k, lo ≈9.7k) exported to glTF, compressed with gltf-transform (meshopt) and textures converted to WebP (1024/512 px). Helmets, plate carriers, packs and patches are procedural (HeadShotz code). Animation is procedural on the skeleton with IK hands on the weapon. Library: three.js SkeletonUtils (MIT).
+
+## HeadShotz Royale (v45+) — asset source review
+
+| Source | Used? | Why |
+|---|---|---|
+| Poly Haven | **Yes** (CC0, keyless API, unique User-Agent) | Treasure Chest model (Royale chests) + all earlier textures/models/HDRI. It has no airship, balloon, helicopter or glider models. Large foliage (island_tree_*) was tried and rejected: 8–12 MB after meshopt, too heavy for iPhone. |
+| SketchUp 3D Warehouse | No | Models are under the 3D Warehouse General Model Terms; redistribution inside a public web game is not permitted, and downloads need a Trimble sign-in. |
+| BIMobject | No | Personal / project-planning use only; no redistribution rights. |
+| Fab | No | Requires a signed-in Epic account (not allowed to create one). Only individual CC0/CC-BY listings would be usable; the Fab Standard License forbids redistributing raw files in a web game. |
+| Meshy | No (no key) | API needs a paid Pro plan; env var would be `MESHY_API_KEY`. Free plan = 100 credits/month, web UI only, CC BY 4.0 output (~30 credits per textured model). |
+| Hyper3D Rodin | No (no key) | API needs a Business plan; env var would be `HYPER3D_API_KEY` (Rodin docs call it `RODIN_API_KEY`). ~0.5 credit per Gen-1 generation at ~$1.50/credit. |
+
+Heroes (`toon.js`), battle bus, glider and gun grips are original, procedurally built in code. Gun hands are the existing procedural viewmodel hands (no third-party assets).

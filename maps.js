@@ -280,7 +280,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
   water=new THREE.Mesh(new THREE.PlaneGeometry(500,500),wm);water.rotation.x=-Math.PI/2;water.position.y=-.9;water.receiveShadow=true;group.add(water)}
  const sunDir=new THREE.Vector3(...d.sun[2]).normalize();
  if(water){water.userData.lo=water.material;water.userData.hi=makeWater(d.water,d.sky[0],d.sky[2],sunDir,d.sun[0])}
- const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0]);
+ const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0],d.br?{cloudN:34}:{});
  if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
  if(B.props.length){const by={};for(const q of B.props)(by[q.k]=by[q.k]||[]).push(q);const o=new THREE.Object3D(),col=new THREE.Color();for(const k in by){const M=HQP.models[k],L=by[k];const im=new THREE.InstancedMesh(M.geo,M.mat,L.length);

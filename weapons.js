@@ -791,8 +791,10 @@ function seg(a,b,r1,r2,col,n=8){const d=b.clone().sub(a),L=d.length();_Q.setFrom
  return push(new THREE.CylinderGeometry(r2,r1,L,SEG(n)),[(a.x+b.x)/2,(a.y+b.y)/2,(a.z+b.z)/2],[_E.x,_E.y,_E.z],col)}
 function orBox(w,h,d,c,dirY,col,r=.006){// box whose local +y points along dirY (rotation from y axis)
  _Q.setFromUnitVectors(V3(0,1,0),dirY.clone().normalize());_E.setFromQuaternion(_Q);return rbox(w,h,d,c.x,c.y,c.z,col,r,_E.x,_E.y,_E.z)}
-function forearm(w,e,sleeve,glove){const m0=MAT;MAT='sleeve';seg(w,e,.03,.044,sleeve,10);const dir=e.clone().sub(w).normalize();
- const cf=w.clone().addScaledVector(dir,.05);seg(cf,cf.clone().addScaledVector(dir,.018),.0405,.041,new THREE.Color(sleeve).multiplyScalar(.7).getHex(),10);MAT='glove';seg(w.clone().addScaledVector(dir,-.012),w.clone().addScaledVector(dir,.022),.031,.032,glove,10);MAT=m0}
+let NOFA=false,WSIDE=null;export const wristOut={};
+function forearm(w,e,sleeve,glove){const m0=MAT;const dir=e.clone().sub(w).normalize();wristOut[WSIDE||(GRP==='lh'?'L':'R')]={w:[w.x,w.y,w.z],e:[e.x,e.y,e.z]};
+ if(!NOFA){MAT='sleeve';seg(w,e,.03,.044,sleeve,10);
+ const cf=w.clone().addScaledVector(dir,.05);seg(cf,cf.clone().addScaledVector(dir,.018),.0405,.041,new THREE.Color(sleeve).multiplyScalar(.7).getHex(),10)}MAT='glove';seg(w.clone().addScaledVector(dir,-.012),w.clone().addScaledVector(dir,.022),.031,.032,glove,10);MAT=m0}
 // right hand on a pistol grip (rake a), index finger on the trigger
 function rightGrip(g,trg,sleeve,glove,pad,two){const a=g.a,d=V3(0,-Math.cos(a),Math.sin(a)),e1=V3(1,0,0),e2=V3().crossVectors(d,e1);const c=V3(...g.c);const R=.026,ell=[.72,1];
  const D=Math.PI/180;
@@ -830,8 +832,8 @@ function fistZ(cz,R0,side,sleeve,glove,pad,elbow){const D=Math.PI/180;const c=V3
  [-.026,-.008,.01,.027].forEach((t,i)=>arcF(c.clone().addScaledVector(d,t),d,e1,R,i===3?.0085:.0096,(side>0?-10:10)*D*side,215*D,glove,'end'));
  orBox(.022,.05,.08,c.clone().addScaledVector(e1,R*.8),V3(0,1,0),glove,.01);arcF(c.clone().addScaledVector(d,-.03),d,e1,R+.001,.0095,(side>0?250:110)*D,80*D,glove,'end');
  forearm(c.clone().addScaledVector(e1,.016).add(V3(0,-.01,.05)),elbow,sleeve,glove)}
-export function handParts(info,sleeve=0x3d4a5c,glove=C.glove,pad=C.pad){parts.length=0;LOD=0;XF=null;MAT='glove';GRP=null;
- if(info.fists){for(const s of[1,-1]){const x=s>0?0:-.2;const D=Math.PI/180;rbox(.07,.06,.08,x,0,0,glove,.02);for(let i=0;i<4;i++)arcF(V3(x-.026+i*.017,-.005,-.04),V3(1,0,0),V3(0,0,-1),.016,.0095,0,200*D,glove,'end');
+export function handParts(info,sleeve=0x3d4a5c,glove=C.glove,pad=C.pad,nofa=false){NOFA=nofa;wristOut.R=wristOut.L=null;WSIDE=null;parts.length=0;LOD=0;XF=null;MAT='glove';GRP=null;
+ if(info.fists){for(const s of[1,-1]){WSIDE=s>0?'R':'L';const x=s>0?0:-.2;const D=Math.PI/180;rbox(.07,.06,.08,x,0,0,glove,.02);for(let i=0;i<4;i++)arcF(V3(x-.026+i*.017,-.005,-.04),V3(1,0,0),V3(0,0,-1),.016,.0095,0,200*D,glove,'end');
   if(det())rbox(.06,.012,.05,x,.032,-.005,pad,.005);forearm(V3(x,-.01,.045),V3(x+s*.04,-.2,.45),sleeve,glove)}return parts.splice(0)}
  if(info.util){const D=Math.PI/180;for(let i=0;i<4;i++)arcF(V3(0,-.015+i*.0,0+(i-1.5)*.0),V3(0,1,0),V3(1,0,0),.045,.0095,(i*12-30)*D,160*D,glove,'end');rbox(.025,.08,.06,.045,-.02,.015,glove,.012);forearm(V3(.05,-.05,.05),V3(.08,-.27,.45),sleeve,glove);return parts.splice(0)}
  const h=info.hold;
