@@ -526,7 +526,7 @@ function hostHandle(from,m){const p=H.players[from];
  switch(m.t){
  case 'hello':{if(BRM(H.mode)&&H.phase!=='lobby'){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'full'});return}if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
   const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.skin=SKINS[m.skin]?m.skin:'default';np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.hid=m.hid||null;
-  if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=teamForJoiner(from);np.color=TEAMCOL[np.team]}
+  if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=H.mode==='ext'?'A':teamForJoiner(from);np.color=TEAMCOL[np.team]}
    {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
    bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
    sendTo(from,{t:'round',round:H.round,score:H.score,spawns:{},count:0});sendSB();if(H.phase==='play'||H.mode==='ffa')np.respawn=H.t+1}break}
