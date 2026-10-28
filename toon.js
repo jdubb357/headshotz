@@ -210,7 +210,7 @@ export function animToon(m,st,dt){const u=m.userData;const sp=Math.min(st.speed|
   else if(emo){emo.arms(A,F,i,u.et,u)}
   else{const sw=(i?s:-s)*amp*.9;A.rotation.set(sw,0,sd*.08);F.rotation.set(-.3-run*.5,0,0)}
   if(armPose!=='hold'||emo){if(A.rotation.order!=='XYZ'&&armPose!=='fall')A.rotation.order='XYZ'}}
- if(emo&&emo.body)emo.body(u,u.et);
+ u.rig.rotation.y=emo&&emo.spin?emo.spin(u.et):0;if(emo&&emo.body)emo.body(u,u.et);
  u.gunMount.visible=armPose==='hold'&&!emo;if(!(gp)&&armPose!=='hold'||emo)for(const h of u.handM)h.visible=true;
  // far LOD: skip face blink etc. handled by caller visibility
 }
@@ -220,5 +220,8 @@ const EMO={
  dance:{dur:6,arms:(A,F,i,t)=>{const sd=i?1:-1,b=Math.sin(t*7+i*Math.PI);A.rotation.set(-2.6+b*.5,0,sd*(.5+Math.sin(t*3.5)*.3));F.rotation.set(-.5,0,0)},body:(u,t)=>{u.rig.rotation.z=Math.sin(t*3.5)*.12;u.hips.position.y=.78+Math.abs(Math.sin(t*7))*.07;u.leg[0].rotation.x=Math.sin(t*7)*.5;u.leg[1].rotation.x=-Math.sin(t*7)*.5;u.torso.rotation.y=Math.sin(t*3.5)*.4},head:t=>Math.sin(t*3.5)*.3},
  flex:{dur:3,arms:(A,F,i,t)=>{const sd=i?1:-1;A.rotation.set(0,0,sd*-1.5);F.rotation.set(0,0,sd*-2.3+Math.sin(t*10)*.05)},body:(u,t)=>{u.torso.scale.setScalar(1+Math.abs(Math.sin(t*5))*.04)},head:()=>0},
  cheer:{dur:3,arms:(A,F,i,t)=>{const sd=i?1:-1;A.rotation.set(0,0,sd*-2.9+Math.sin(t*12+i)*.2);F.rotation.set(-.2,0,0)},body:(u,t)=>{u.hips.position.y=.78+Math.abs(Math.sin(t*6))*.1;u.leg[0].rotation.x=.1;u.leg[1].rotation.x=.1},head:t=>Math.sin(t*6)*.15},
+ salute:{dur:2.6,arms:(A,F,i,t)=>{const sd=i?1:-1;if(i===1){const k=Math.min(1,t*5)*(t>2.1?Math.max(0,1-(t-2.1)*5):1);A.rotation.set(-.9*k,0,-1.5*k+.0);F.rotation.set(-2.4*k,0,0)}else{A.rotation.set(0,0,sd*.08);F.rotation.set(-.15,0,0)}},body:(u,t)=>{u.torso.rotation.x=-.04},head:t=>Math.sin(t*1.5)*.05},
+ spin:{dur:2.4,spin:t=>{const k=Math.min(1,t/1.5);return -(1-Math.pow(1-k,3))*Math.PI*4},arms:(A,F,i,t)=>{const sd=i?1:-1;A.rotation.set(0,0,sd*-1.45);F.rotation.set(0,0,sd*-.1)},body:(u,t)=>{u.hips.position.y=.78+Math.max(0,Math.sin(Math.min(1,t/.5)*Math.PI))*.12;u.leg[0].rotation.x=.12;u.leg[1].rotation.x=-.12},head:()=>0},
+ clap:{dur:3,arms:(A,F,i,t)=>{const sd=i?1:-1,c=(1+Math.sin(t*15))/2;A.rotation.set(-1.25,0,sd*(.03+.3*c));F.rotation.set(-.7,0,0)},body:(u,t)=>{u.hips.position.y=.78+Math.abs(Math.sin(t*7.5))*.025},head:t=>Math.sin(t*2)*.1},
  sit:{dur:5,arms:(A,F,i,t)=>{A.rotation.set(-.6,0,(i?1:-1)*.1);F.rotation.set(-1.2,0,0)},body:(u,t)=>{u.hips.position.y=.5;u.leg[0].rotation.x=1.4;u.leg[1].rotation.x=1.4;u.shin[0].rotation.x=-1.4;u.shin[1].rotation.x=-1.4},head:t=>Math.sin(t*1.5)*.3}};
 export const EMOTES=Object.keys(EMO);export const EMOTE_DUR=Object.fromEntries(Object.entries(EMO).map(([k,v])=>[k,v.dur]));

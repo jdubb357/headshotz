@@ -3,7 +3,7 @@
 import {THREE,GQ} from './gfx.js';
 import {makeToon,animToon,OUTFITS,RARN,EMOTES,EMOTE_DUR} from './toon.js';
 const RC=['#9aa4b2','#4cd964','#4dabff','#b37bff','#ffb020'];// common..legendary
-const EMO_LBL={wave:'👋 Wave',dance:'🕺 Dance',flex:'💪 Flex',cheer:'🎉 Cheer',sit:'🪑 Sit'};
+const EMO_LBL={wave:'👋 Wave',dance:'🕺 Dance',flex:'💪 Flex',cheer:'🎉 Cheer',sit:'🪑 Sit',salute:'🫡 Salute',spin:'🌀 Spin',clap:'👏 Clap'};
 export function initRoyale(A){
  const $=A.$,el=$('royale');if(!el)return null;
  const S={tab:'lobby',mode:A.LS('royMode')==='brs'?'brs':'br',diff:A.LS('royDiff')||'normal',fit:0,ry:-.45,vry:0,emote:null,et:0,on:false,mates:[],drag:null};

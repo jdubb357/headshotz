@@ -2,7 +2,7 @@
 import {THREE,FX,TX,MC,G,mergeParts,GQ,texMat,swapMats,WT,GRASS_T,scatterGrass,makeSky,RET,GLASS,camoTex} from './gfx.js';
 import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './wskins.js';
 import {Post} from './post.js';
-import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
+import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
@@ -544,6 +544,7 @@ function hostHandle(from,m){const p=H.players[from];
  case 'ws':if(p){p.ws=cleanWS(m.ws);bcast({t:'ws',id:from,ws:p.ws})}break;
  case 'cl':if(p){p.cl=clOf(m.cl);bcast({t:'cl',id:from,cl:p.cl})}break;
  case 'fit':if(p){p.fit=fitOf(m.fit);bcast({t:'fit',id:from,ft:p.fit})}break;
+ case 'emo':if(p&&p.alive!==false&&Number.isInteger(m.e)&&m.e>=-1&&m.e<EMOTES.length)bcast({t:'emo',id:from,e:m.e},from);break;
  case 'ping':conns[from]?.send({t:'pong',ts:m.ts,n:plist().length});break;
  case 'st':if(p&&Array.isArray(m.p))p.p=m.p;break;
  case 'fx':if(p)p.shotT=H.t;bcast({t:'fx',id:from,a:m.a,b:m.b,w:m.w},from);break;
@@ -698,6 +699,7 @@ function clientHandle(m){if(BC&&brMsg(m))return;switch(m.t){
  case 'mev':missionEvent(m);break;
  case 'rematch':center('REMATCH!\nSame room, same players',1800);remWait=false;break;
  case 'remv':{const b=$('endAgain');if(b&&remWait)b.textContent=`⏳ WAITING (${m.y}/${m.n})`;break}
+ case 'emo':{const q=C.players[m.id];if(q&&m.id!==me.id)q.emo=m.e>=0&&EMOTES[m.e]?{id:EMOTES[m.e],until:performance.now()+((EMOTE_DUR[EMOTES[m.e]]||3)+.3)*1000}:null;break}
  case 'fit':{const q=C.players[m.id];if(q){q.fit=fitOf(m.ft);if(q.model&&m.id!==me.id&&q.model.userData.kind==='toon'){const vis=q.model.visible;scene.remove(q.model);window.__fitNext=q.fit;q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}}break}
  case 'cl':{const q=C.players[m.id];if(q&&q.model&&m.id!==me.id){const vis=q.model.visible;scene.remove(q.model);q.cl=clOf(m.cl);q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}else if(q)q.cl=clOf(m.cl);break}
  case 'ws':{const q=C.players[m.id];if(q){q.ws=m.ws||{};q.gunSk=null;if(q.gunId){const g=q.gunId;q.gunId=null;setRemoteGun(q,WIDX[g])}}break}
@@ -905,7 +907,7 @@ canvas.addEventListener('mousedown',e=>{audioInit();if(!inGame||isTouch)return;i
 addEventListener('mouseup',e=>{if(e.button===0)inp.fire=false;if(e.button===2)zoomRelease()});
 addEventListener('contextmenu',e=>{if(inGame)e.preventDefault()});
 addEventListener('wheel',e=>{if(inGame&&document.pointerLockElement)switchTo((me.cur+(e.deltaY>0?1:2))%3)},{passive:true});
-addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;const s=.0021*S.sens*zoomSens();me.yaw-=e.movementX*s;me.pitch-=e.movementY*s;clampPitch()});
+addEventListener('mousemove',e=>{if(document.pointerLockElement!==canvas)return;if(EM.wheel){emoMove(e.movementX,e.movementY);return}const s=.0021*S.sens*zoomSens();me.yaw-=e.movementX*s;me.pitch-=e.movementY*s;clampPitch()});
 function clampPitch(){me.pitch=Math.max(-1.5,Math.min(1.5,me.pitch))}
 // zoom sensitivity follows the FOV ratio (so aim feels the same on screen), a touch slower when fully scoped
 function zoomSens(){const r=Math.tan(camera.fov*Math.PI/360)/Math.tan(75*Math.PI/360);const w=W[me.load[me.cur]];const scoped=w&&w.cls==='sniper'&&me.zoomT>.85;
@@ -1157,7 +1159,7 @@ function updRemotes(dt){const a=Math.min(1,dt*14);for(const id in C.players){con
  if(!q.alive&&!u.dead){q.model.visible=false;continue}if(u.dead>3){q.model.visible=false;continue}q.model.visible=true;
  if(q.alive){if(q.rp.distanceTo(q.tp)>6)q.rp.copy(q.tp);else q.rp.lerp(q.tp,a);let dy=q.tyaw-q.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));q.yaw+=dy*a;q.pitch+=(q.tpitch-q.pitch)*a}
  const sp=Math.hypot(q.rp.x-q.lp.x,q.rp.z-q.lp.z)/Math.max(dt,.001);q.lp.copy(q.rp);q.spd=(q.spd||0)+(sp-(q.spd||0))*Math.min(1,dt*8);
- if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);q.model.rotation.y=q.yaw;{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);animate(q.model,{pose:BC&&!(q.flags&32)?((q.flags&16)?'fall':(q.flags&8)?'glide':null):null,bank:0,shot:q.shotAt!==q.shotSeen,speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,pitch:q.pitch,climb:cl,down:dn,slope:dn?downSlope(q):null,dist:camera.position.distanceTo(q.rp)},dt);q.shotSeen=q.shotAt;q.model.rotation.x=0;downMark(q,dn);if(BC)brRemote(q)}}}
+ if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);{const eo=q.emo&&performance.now()<q.emo.until&&q.spd<1.5&&q.alive?q.emo.id:null;if(q.emo&&!eo)q.emo=null;q.ek=(q.ek||0)+((eo?1:0)-(q.ek||0))*a;q.model.rotation.y=q.yaw+Math.PI*q.ek;q.eo=eo}{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);animate(q.model,{emote:q.eo,pose:BC&&!(q.flags&32)?((q.flags&16)?'fall':(q.flags&8)?'glide':null):null,bank:0,shot:q.shotAt!==q.shotSeen,speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,pitch:q.pitch,climb:cl,down:dn,slope:dn?downSlope(q):null,dist:camera.position.distanceTo(q.rp)},dt);q.shotSeen=q.shotAt;q.model.rotation.x=0;downMark(q,dn);if(BC)brRemote(q)}}}
 // ================= LOOP =================
 renderer.autoClear=false;renderer.info.autoReset=false;
 let last=performance.now(),acc=0,frames=0,fpsShown=0;const fpsLog=[];
@@ -2169,7 +2171,7 @@ function tpEnsure(){const roy=royaleMode();const m=me.model;const kind=roy?'toon
  window.__toonMe=roy;const nm=(me.name||'You');const mm=makeCharacter(0xffffff,nm,'me',undefined,roy?undefined:(SKINS[PROG.skin]||[])[2]||undefined,PROG.pc);window.__toonMe=false;mm.userData.mk=kind;mm.userData.fitIdx=fit;mm.userData.noTagMe=true;mm.visible=false;scene.add(mm);me.model=mm;me.gunKey='';return mm}
 const _tp1=new THREE.Vector3(),_tp2=new THREE.Vector3(),_tp3=new THREE.Vector3(),_tp4=new THREE.Vector3();
 function tpCam(dt,w,scopeOn){const eye=_tp1.copy(camera.position);const f=_tp2.set(0,0,-1).applyQuaternion(camera.quaternion);const r=_tp3.set(1,0,0).applyQuaternion(camera.quaternion);r.y=0;r.normalize();
- const ads=me.zoomT;const wantD=TPV.d+(1.95-TPV.d)*ads,wantS=(TPV.side+(.82-TPV.side)*ads)*TPV.sh,wantU=TPV.up*(1-ads*.4)+ (me.slideT>0?-.35:0);
+ const ads=me.zoomT;const wantD=TPV.d+(1.95-TPV.d)*ads+EM.k*1.3,wantS=(TPV.side+(.82-TPV.side)*ads)*TPV.sh*(1-EM.k),wantU=TPV.up*(1-ads*.4)+ (me.slideT>0?-.35:0);
  // sideways shoulder offset first (walls beside you), then back along the view direction
  const piv=_tp4.copy(eye);piv.y+=wantU;let sd=wantS;{const dr=r.clone().multiplyScalar(Math.sign(sd)||1);const t=rayWorld(piv,dr,Math.abs(sd)+.3);if(t<Math.abs(sd)+.3)sd=Math.sign(sd)*Math.max(0,t-.28)}
  piv.addScaledVector(r,sd);
@@ -2185,10 +2187,10 @@ let _cbk='';function tpBody(dt){{const k=inGame+'|'+C.hub+'|'+TPV.on;if(k!==_cbk
  if(!alive){if(!u.dead)u.dead=.001}else if(u.dead){u.dead=0}
  m.visible=!(TPV.hide&&alive)&&!C.hub;if(!m.visible)return;const air=BC&&me.air;
  const id=me.load[me.cur];const key=id+'|'+(me.ws&&me.ws[id]||'');if((me.gunKey!==key||me.gunMdl!==m)&&u.gunMount){me.gunKey=key;me.gunMdl=m;u.gunMount.clear();const g=tpGun(id,'',u.outfit&&u.outfit.glove);u.gunMount.add(g);u.gunMount.scale.setScalar(u.kind==='toon'?1:1)}
- m.position.set(me.pos.x,me.pos.y,me.pos.z);m.rotation.y=me.yaw;
+ emoTick(dt);m.position.set(me.pos.x,me.pos.y,me.pos.z);m.rotation.y=me.yaw+Math.PI*EM.k;
  const vx=me.vel.x,vz=me.vel.z,hs=Math.hypot(vx,vz);const fx=-Math.sin(me.yaw),fz=-Math.cos(me.yaw),rx=Math.cos(me.yaw),rz=-Math.sin(me.yaw);
  const lx=hs>.1?(vx*rx+vz*rz)/hs:0,lz=hs>.1?-((vx*fx+vz*fz)/hs):-1;
- animate(m,{pose:air==='fall'?'fall':air==='chute'?'glide':air==='bus'?'bus':null,bank:BC?BC.bank:0,speed:air==='bus'?0:hs,air:!me.ground&&!me.lad,slide:me.slideT>0,pitch:me.pitch+recoilP,climb:!!me.lad,down:!!me.down,lx,lz,hold:true,noTag:true,dist:5,crouch:false,ads:me.zoomT,shot:me.lastShot!==me.lsSeen,reload:me.reloadT>0?1-me.reloadT/reloadOf(id):0},dt);me.lsSeen=me.lastShot;m.rotation.x=0;gliderOf(m,air==='chute',dt);
+ animate(m,{emote:me.emo?me.emo.id:null,pose:air==='fall'?'fall':air==='chute'?'glide':air==='bus'?'bus':null,bank:BC?BC.bank:0,speed:air==='bus'?0:hs,air:!me.ground&&!me.lad,slide:me.slideT>0,pitch:me.pitch+recoilP,climb:!!me.lad,down:!!me.down,lx,lz,hold:true,noTag:true,dist:5,crouch:false,ads:me.zoomT,shot:me.lastShot!==me.lsSeen,reload:me.reloadT>0?1-me.reloadT/reloadOf(id):0},dt);me.lsSeen=me.lastShot;m.rotation.x=0;gliderOf(m,air==='chute',dt);
  u.tag.visible=false}
 function gliderOf(m,open,dt){const u=m.userData;if(u.kind!=='toon')return;if(!u.glider){const o=u.outfit||{};u.glider=makeGlider(o.top??0xff4fa3,o.acc??0xffd23f);u.glider.visible=false;u.gs=0;m.add(u.glider)}
  const tgt=open?1:0;u.gs+=(tgt-u.gs)*Math.min(1,dt*(open?9:12));const s=u.gs>.98?1:u.gs;u.glider.visible=u.gs>.02;const pop=open?1+Math.sin(Math.min(1,u.gs)*Math.PI)*.12:1;u.glider.scale.setScalar(Math.max(.01,s*pop));u.glider.userData.flex(BC?BC.bank:0,0,performance.now()/1000)}
@@ -2196,6 +2198,29 @@ function updCamBtn(){const b=$('camBtn');if(!b)return;b.classList.toggle('hidden
 function camToggle(){if(!inGame||C.hub)return;TPV.on=!TPV.on;if(royaleMode())LSS('camR',TPV.on?'3':'1');else LSS('cam3',TPV.on?'1':'0');if(TPV.on)tpEnsure();else{if(me.model)me.model.visible=false;camera.fov=75;camera.updateProjectionMatrix()}updCamBtn();center(TPV.on?'Third person':'First person',700)}
 (function(){const b=document.createElement('button');b.id='camBtn';b.className='hidden';b.textContent='👁️';document.body.appendChild(b);b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();camToggle()});
  addEventListener('keydown',e=>{if(e.code==='KeyV'&&!e.repeat&&inGame&&!paused&&e.target.tagName!=='INPUT')camToggle();if(e.code==='KeyT'&&TPV.on&&!e.repeat&&inGame&&!paused&&e.target.tagName!=='INPUT'){TPV.sh=-TPV.sh;center(TPV.sh>0?'Camera: right shoulder':'Camera: left shoulder',600)}})})();
+
+// ===== v49 in-game emotes (Royale): hold B = wheel (mouse picks), tap B = replay last, touch button opens the wheel =====
+const EM={wheel:false,sel:-1,last:'wave',fp:false,k:0,mx:0,my:0,t0:0,sticky:false};me.emo=null;
+const EM_LBL={wave:['👋','Wave'],dance:['🕺','Dance'],flex:['💪','Flex'],cheer:['🎉','Cheer'],sit:['🪑','Sit'],salute:['🫡','Salute'],spin:['🌀','Spin'],clap:['👏','Clap']};
+const emoCan=()=>royaleMode()&&inGame&&!paused&&!C.hub&&me.alive&&!me.down&&!me.air&&me.ground&&!me.lad&&me.slideT<=0&&C.phase==='play';
+function startEmote(id){if(typeof id==='number')id=EMOTES[id];if(!id||!EMOTES.includes(id)||!emoCan())return false;EM.last=id;me.emo={id,t:0,hp:me.hp};if(!TPV.on){TPV.on=true;EM.fp=true;tpEnsure()}send({t:'emo',e:EMOTES.indexOf(id)});wheelShow(false);return true}
+function stopEmote(){if(!me.emo)return;me.emo=null;send({t:'emo',e:-1});if(EM.fp){EM.fp=false;TPV.on=false;if(me.model)me.model.visible=false;camera.fov=75;camera.updateProjectionMatrix()}}
+function emoTick(dt){EM.k+=((me.emo?1:0)-EM.k)*Math.min(1,dt*7);const e=me.emo;if(!e)return;e.t+=dt;
+ const mv=Math.hypot(me.vel.x,me.vel.z)>1.5||keys.KeyW||keys.KeyA||keys.KeyS||keys.KeyD||inp.mx||inp.mz;
+ if(!emoCan()||mv||inp.fire||inp.jump||me.hp<e.hp||e.t>(EMOTE_DUR[e.id]||3)+.15)stopEmote()}
+function wheelEl(){let w=$('emoWheel');if(w)return w;w=document.createElement('div');w.id='emoWheel';w.className='hidden';const n=EMOTES.length;
+ w.innerHTML='<div class="ewHub">EMOTES</div>'+EMOTES.map((id,i)=>{const a=-Math.PI/2+i/n*Math.PI*2,l=EM_LBL[id]||['✨',id];return `<button class="ewB" data-i="${i}" style="left:calc(50% + ${Math.cos(a)*140}px);top:calc(50% + ${Math.sin(a)*140}px)"><span>${l[0]}</span><small>${l[1]}</small><i>${i+1}</i></button>`}).join('');
+ document.body.appendChild(w);w.addEventListener('pointerdown',e=>{e.stopPropagation();const b=e.target.closest('.ewB');e.preventDefault();if(b)startEmote(+b.dataset.i);else wheelShow(false)});return w}
+function wheelShow(on){const w=wheelEl();if(on&&!emoCan()&&!me.emo)on=false;EM.wheel=on;w.classList.toggle('hidden',!on);if(!on){EM.sticky=false;EM.sel=-1}else{EM.mx=EM.my=0;EM.sel=-1;EM.t0=performance.now();w.querySelectorAll('.ewB').forEach(b=>b.classList.toggle('on',false))}}
+function emoMove(dx,dy){EM.mx=Math.max(-90,Math.min(90,EM.mx+dx*.6));EM.my=Math.max(-90,Math.min(90,EM.my+dy*.6));let s=-1;if(Math.hypot(EM.mx,EM.my)>32){const n=EMOTES.length;let a=Math.atan2(EM.my,EM.mx)+Math.PI/2;a=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);s=Math.round(a/(Math.PI*2)*n)%n}emoSel(s)}
+function emoSel(s){EM.sel=s;wheelEl().querySelectorAll('.ewB').forEach((b,i)=>b.classList.toggle('on',i===s))}
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||!royaleMode()||!inGame||paused)return;
+ if(e.code==='KeyB'&&!e.repeat){e.preventDefault();if(me.emo){stopEmote();return}if(emoCan())wheelShow(true)}
+ else if(EM.wheel&&/^Digit[1-8]$/.test(e.code)){e.preventDefault();e.stopImmediatePropagation();startEmote(+e.code[5]-1)}},true);
+addEventListener('keyup',e=>{if(e.code==='KeyB'&&EM.wheel&&!EM.sticky){const quick=performance.now()-EM.t0<260;if(EM.sel>=0)startEmote(EM.sel);else if(quick)startEmote(EM.last);else wheelShow(false)}});
+(function(){const b=document.createElement('button');b.id='emoBtn';b.className='hidden';b.textContent='😀';document.body.appendChild(b);b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();if(me.emo){stopEmote();return}if(EM.wheel)wheelShow(false);else if(emoCan()){wheelShow(true);EM.sticky=true}});
+ setInterval(()=>{b.classList.toggle('hidden',!(inGame&&!C.hub&&royaleMode()&&!paused));if(EM.wheel&&!emoCan()&&!me.emo)wheelShow(false)},400)})();
+window.__hsz.emote=startEmote;window.__hsz.emoStop=stopEmote;window.__hsz.EM=EM;
 window.__hsz.TPV=TPV;window.__hsz.rayW=(o,d,m)=>rayWorld(o,d,m);window.__hsz.camera=camera;window.__hsz.vmRoot=vmRoot;window.__hsz.camToggle=camToggle;
 
 // ---- v47 Royale menu entry + lobby ----

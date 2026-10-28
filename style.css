@@ -376,3 +376,13 @@ body.brAirOn #slots,body.brAirOn #bZoom,body.brAirOn #bNade,body.brAirOn #bSlide
 @media (max-width:760px),(max-height:430px){.royPanel{width:min(50vw,360px)}#royStage{inset:0 min(50vw,360px) 0 0}.outGrid{grid-template-columns:repeat(4,1fr)}.royMode button{font-size:15px;padding:8px 4px}.royPlay{font-size:22px!important;padding:9px!important}.royLogo small{font-size:10px}.rbCrown{font-size:28px}}
 @media (max-width:560px) and (orientation:portrait){#royStage{inset:0 0 46% 0}.royPanel{left:8px;right:8px;top:auto;height:46%;width:auto}.royNameBox{bottom:calc(46% + 8px)}}
 .royMode{display:flex;gap:6px}
+
+#emoBtn{position:fixed;right:124px;top:12px;z-index:60;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(10,14,35,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer}
+#emoBtn.hidden{display:none}
+#emoWheel{position:fixed;left:50%;top:50%;width:0;height:0;z-index:70}
+#emoWheel.hidden{display:none}
+#emoWheel .ewHub{position:absolute;left:-52px;top:-52px;width:104px;height:104px;border-radius:50%;background:rgba(10,14,35,.72);border:2px solid rgba(255,255,255,.35);color:#fff;font:800 13px system-ui;letter-spacing:.12em;display:flex;align-items:center;justify-content:center}
+#emoWheel .ewB{position:absolute;width:72px;height:72px;margin:-36px 0 0 -36px;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(10,14,35,.78);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:none;font:700 10px system-ui;transition:background .1s,box-shadow .1s}
+#emoWheel .ewB span{font-size:26px;line-height:1}
+#emoWheel .ewB i{position:absolute;top:2px;right:6px;font-style:normal;opacity:.55;font-size:9px}
+#emoWheel .ewB.on{background:linear-gradient(135deg,#ff4fa3,#ffb020);border-color:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.35),0 0 24px rgba(255,79,163,.8)}
