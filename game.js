@@ -652,7 +652,7 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt)
  // go revive a downed teammate when no enemy is in sight
  if(isTeamMode(H.mode)){const dn=plist().filter(q=>q.down&&q.alive&&q.team===b.team&&q.id!==b.id);if(dn.length){let best=null,bd=1e9;for(const q of dn){const d=Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z);if(d<bd){bd=d;best=q}}
   if(best&&bd<60){b.revT=best.id;b.goal=[best.p[0],best.p[2],best.p[1]];b.via=null}else b.revT=null}else b.revT=null}b.blind=Math.max(0,(b.blind||0)-dt);const w=W[b.gun]||W.ar;
- if(b.blind<=0&&!H.noFight&&!b.far)for(const q of plist()){if(!q.alive||q.id===b.id||q.air||(H.mode!=='ffa'&&q.team===b.team))continue;const dx=q.p[0]-e.pos.x,dz=q.p[2]-e.pos.z,dy=q.p[1]-e.pos.y,dd=Math.hypot(dx,dy,dz);if(dd>55||dd>=td||((b.flag||b.drive!=null)&&dd>9))continue;if(dd>4.5&&hides.length&&inVol(hides,{x:q.p[0],y:q.p[1]+.5,z:q.p[2]})&&!(q.shotT>H.t-1.5))continue;
+ if(b.blind<=0&&!H.noFight&&!b.far)for(const q of plist()){if(!q.alive||q.id===b.id||q.air||(H.mode!=='ffa'&&q.team===b.team))continue;const dx=q.p[0]-e.pos.x,dz=q.p[2]-e.pos.z,dy=q.p[1]-e.pos.y,dd=Math.hypot(dx,dy,dz);if(dd>55||dd>=td||((b.flag||b.drive!=null)&&dd>9)||(b.inv&&(b.gun==='fists'||H.t<(b.calm||0))&&dd>9&&!(q.shotT>H.t-2)))continue;if(dd>4.5&&hides.length&&inVol(hides,{x:q.p[0],y:q.p[1]+.5,z:q.p[2]})&&!(q.shotT>H.t-1.5))continue;
   _o.set(e.pos.x,e.pos.y+1.5,e.pos.z);if(!rayClearHost(_o,_d.set(q.p[0],q.p[1]+(q.down?.4:1.4),q.p[2])))continue;const sc=dd+(q.down?12:0);if(sc>=td)continue;td=sc;tgt=q}
  let wx=0,wz=0;b.st-=dt;if(b.st<=0){b.st=.5+Math.random()*1.2;b.strafe=Math.random()<.5?-1:1}
  if(tgt){const dx=tgt.p[0]-e.pos.x,dz=tgt.p[2]-e.pos.z;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*DIFF[H.diff||'normal'].turn);
@@ -1860,7 +1860,7 @@ function brAirTick(b,dt){const e=b.e,E=H.br;
   const dd=Math.hypot(hp[0]-b.tgt[0],hp[1]-b.tgt[1]);if(H.t-E.t0>=BRC.busDur-1||(H.t-E.t0>=b.jumpT&&dd<b.glide)||dd<b.glide*.55){b.air='fall'}return}
  const tx=b.tgt[0],tz=b.tgt[1];const dx=tx-e.pos.x,dz=tz-e.pos.z,dd=Math.hypot(dx,dz);const sp=b.air==='fall'?24:14;if(dd>.8){const k=Math.min(sp*dt,dd)/dd;e.pos.x+=dx*k;e.pos.z+=dz*k;b.yaw=Math.atan2(-dx,-dz)}
  if(b.air==='fall'){e.pos.y-=BRC.ft*dt;if(e.pos.y<=BRC.chuteY)b.air='chute'}else e.pos.y-=8*dt;
- if(e.pos.y<=.05){e.pos.y=0;b.air=null;e.ground=true;e.vel.set(0,0,0);b.goal=null;b.lootT=null;b.pickT=H.t}
+ if(e.pos.y<=.05){e.pos.y=0;b.air=null;e.ground=true;e.vel.set(0,0,0);b.goal=null;b.lootT=null;b.pickT=H.t;b.calm=H.t+12}
  b.p=[e.pos.x,e.pos.y,e.pos.z,b.yaw,0,WIDX.fists,b.air==='fall'?16:b.air==='chute'?8:0]}
 function brRoam(b,E){const s=E.storm;const cx=s.state==='shrink'||s.state==='final'?s.tcx:s.tcx,cz=s.state==='shrink'||s.state==='final'?s.tcz:s.tcz;const tr=Math.max(s.state==='wait'?s.tr:s.tr,3);const a=Math.random()*6.283,d=Math.random()*Math.max(2,tr*.7);return[cx+Math.cos(a)*d,cz+Math.sin(a)*d,0]}
 function botBR(b,dt){const E=H.br,e=b.e,s=E.storm;if(!b.inv)b.inv=newInv();const px=e.pos.x,pz=e.pos.z;
