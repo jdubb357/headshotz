@@ -1,0 +1,49 @@
+== glitch53
+SUMMARY 6/6
+== shop54
+SUMMARY 19/19
+== shop54_entry
+SUMMARY 10/10
+== br44_solo
+SUMMARY 28/28
+== br44_iphone
+SUMMARY 4/4
+== tp45_cam
+SUMMARY 14/14
+== roy47_lobby
+SUMMARY 12/12
+== roy47_online
+SUMMARY 6/6
+== emo49
+SUMMARY 12/12
+== emo49_online
+FAIL clients see host spinning [{"eo":null,"ek":0,"pe":0},{"eo":"spin","ek":1,"pe":0.99}]
+SUMMARY 6/7
+== air47
+SUMMARY 5/5
+== roy49_gun
+SUMMARY 7/7
+== perf52
+SUMMARY 7/7
+== chest41
+SUMMARY 14/14
+== hubsolo
+13/13 errors []
+== rematch42
+SUMMARY 36/36
+== ctf42
+SUMMARY 43/43
+== pobsetup42
+SUMMARY 13/13
+== ext42
+SUMMARY 51/51
+== iphone glitch
+FAIL remote eyes stay put through blinks ["RexBot@229:0.08","MoxieBot@229:0.08","JunoBot@229:0.07","KitBot@229:0.07"]
+SUMMARY 5/6
+== iphone shop
+SUMMARY 19/19
+== online ctf
+SUMMARY 9/9
+== online br
+SUMMARY 9/9
+DONE
