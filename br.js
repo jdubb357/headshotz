@@ -7,8 +7,8 @@ export function brDef({G,rng,_c}){
  const R=rng(4242);const rr=(a,b)=>a+R()*(b-a),pick=a=>a[R()*a.length|0];
  const PAL=[0xe8dcc8,0xd9c9a8,0xcfd8dc,0xe6c9b8,0xc8d9c1,0xdcd0e0,0xe3d7a3];const ROOF=[0x8a3b32,0x4a5a68,0x2f6f6a,0x6d4c41,0x555b66];
  const NS={solid:false,shadow:false};
- return {name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',br:true,noDress:true,size:[400,400],ground:['grass',0x8fbf6a,.18],grade:[1.02,1.02,1,1.08,1.04],horizon:'city',wallH:6,
- sky:[0x3d78c8,0x9ccaf0,0xcfe6f5],fog:[0xbcd8ee,110,330],hemi:[0xe8f2ff,0x6f8a55,1.35],sun:[0xfff0d0,1.8,[-.45,.7,-.35]],
+ return {name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',br:true,noDress:true,size:[400,400],ground:['grass',0x8fbf6a,.18],grade:[1.04,1.02,.97,1.3,1.1,.8],horizon:'city',wallH:6,
+ sky:[0x2a68dc,0x86cbff,0xfff1dc],fog:[0xbcd8ee,110,330],hemi:[0xe8f2ff,0x6f8a55,1.35],sun:[0xfff0d0,1.8,[-.45,.7,-.35]],
  spawnsA:[[0,10],[6,10],[-6,10],[0,16]],spawnsB:[[0,-10],[6,-10],[-6,-10],[0,-16]],spawnsM:[[10,0],[-10,0]],zones:BR_ZONES,
  build(B){B.brLoot=[];B.brChests=[];B.brDoors=[];let bid=0;const taken=[];const lootAt=(x,y,z,b)=>B.brLoot.push([+x.toFixed(1),y,+z.toFixed(1),b]);
   const block=(x,z,w,d,pad=2)=>taken.push([x-w/2-pad,z-d/2-pad,x+w/2+pad,z+d/2+pad]);const isFree=(x,z,m=1.5)=>!taken.some(t=>x>t[0]-m&&x<t[2]+m&&z>t[1]-m&&z<t[3]+m);

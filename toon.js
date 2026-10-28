@@ -13,7 +13,11 @@ export const OUTFITS=[
  {id:6,name:'Golden Glimmer',top:0xffd23f,acc:0xffffff,pants:0xf2f2f2,shoes:0xb8860b,glove:0xffffff,skin:0xa86b45,hair:0x2b1d14,hs:4,hat:'crown',hatc:0xffd23f,iris:0x5b3a1e,pack:'cape',packc:0xffffff,sleeve:1,rar:3},
  {id:7,name:'Night Owl',top:0x3a3f52,acc:0xffd23f,pants:0x20232e,shoes:0xffd23f,glove:0x20232e,skin:0xf1c27d,hair:0x20232e,hs:0,hat:'hood',hatc:0x3a3f52,iris:0xffd23f,pack:'wings2',packc:0x2a2d3a,sleeve:1,rar:4}];
 const RARN=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY'];export {RARN};
-let MAT=null;const mat=()=>MAT||(MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.58,metalness:.02}));
+let MAT=null;const mat=()=>{if(MAT)return MAT;MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5,metalness:.02});
+ // stylized look: warm fresnel rim light + soft sky-bounce tint on downward normals (cheap toon-ish shading, no extra passes)
+ MAT.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
+  {float fr=pow(1.0-saturate(dot(normalize(normal),normalize(vViewPosition))),2.4);totalEmissiveRadiance+=vec3(1.0,.93,.8)*fr*.42;totalEmissiveRadiance+=vec3(.07,.1,.16)*saturate(-normal.y)*.35;}`)};
+ return MAT};
 const GC={};const cap=(r,l,s=1)=>{const k='c'+r+'|'+l+'|'+GQ.level;return GC[k]||(GC[k]=new THREE.CapsuleGeometry(r,l,GQ.level==='low'?3:4,GQ.level==='low'?8:12))};
 const sph=(r=1)=>{const k='s'+GQ.level;return GC[k]||(GC[k]=new THREE.SphereGeometry(1,GQ.level==='low'?10:16,GQ.level==='low'?8:12))};
 const sphLo=()=>GC.sl||(GC.sl=new THREE.SphereGeometry(1,8,6));

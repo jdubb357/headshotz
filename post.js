@@ -22,7 +22,7 @@ export class Post{
   this.mB=mk(BRIGHT,{t:{value:null},thr:{value:1.05}});this.mBl=mk(BLUR,{t:{value:null},dir:{value:new THREE.Vector2()}});
   this.mC=mk(COMP,{tS:{value:this.rt.texture},tB1:{value:this.b.texture},tB2:{value:this.d.texture},exposure:{value:1},bloom:{value:.55},sat:{value:1.1},con:{value:1.05},vig:{value:.32},tint:{value:new THREE.Vector3(1,1,1)},time:{value:0}});
   this.q=new THREE.Mesh(new THREE.PlaneGeometry(2,2),this.mC);this.q.frustumCulled=false;this.sc=new THREE.Scene();this.sc.add(this.q);this.cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);this.v=new THREE.Vector2();this.w=0;this.h=0}
- grade(g,exposure){if(!g)g=[1,1,1,1.1,1.05];this.mC.uniforms.tint.value.set(g[0],g[1],g[2]);this.mC.uniforms.sat.value=g[3];this.mC.uniforms.con.value=g[4];this.mC.uniforms.exposure.value=exposure}
+ grade(g,exposure){if(!g)g=[1,1,1,1.1,1.05];this.mC.uniforms.tint.value.set(g[0],g[1],g[2]);this.mC.uniforms.sat.value=g[3];this.mC.uniforms.con.value=g[4];this.mC.uniforms.exposure.value=exposure;this.mC.uniforms.bloom.value=g[5]!=null?g[5]:.55}
  size(){this.r.getDrawingBufferSize(this.v);const w=this.v.x|0,h=this.v.y|0;if(w===this.w&&h===this.h)return;this.w=w;this.h=h;this.rt.setSize(w,h);
   const w4=Math.max(1,w>>2),h4=Math.max(1,h>>2),w8=Math.max(1,w>>3),h8=Math.max(1,h>>3);this.a.setSize(w4,h4);this.b.setSize(w4,h4);this.c.setSize(w8,h8);this.d.setSize(w8,h8);this.s4=[w4,h4];this.s8=[w8,h8]}
  begin(){this.size();this.r.setRenderTarget(this.rt);this.r.clear()}
