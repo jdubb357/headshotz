@@ -5,6 +5,7 @@
 // skin tint and rim light. Each section = 1 main mesh + 1 detail mesh (detail hidden beyond ~28 m), geometry cached per look.
 import {THREE,G,mergeParts,texMat,MATHOOK,GQ} from './gfx.js';
 import {HUM,makeHuman,animateHuman,setRbox} from './humans.js';
+import {makeToon} from './toon.js';
 const SKINS=[0xf1c27d,0xe0ac69,0xc68642,0x8d5524,0xffdbac,0xd4a373,0xa86b45,0x6b4226];
 const HAIR=[0x2b1d14,0x5a3825,0xb5813f,0x111111,0x8b4513,0xd8c08a,0x7a3b1d];
 const IRIS=[0x4a6fa5,0x5b3a1e,0x3e7d4a,0x2a1a10,0x6f8a9c];
@@ -80,7 +81,7 @@ export const LOOKS={
  medic:{head:'cap',vest:0xe9ecef,pants:0x5a6470,cross:1,pack:1,camo:2},
  scout:{head:'boonie',vest:0x6b5b3e,pants:0x7a6c4c,light:1,goggles:1,rolled:1,camo:3},
  engineer:{head:'hardhat',vest:0xe67e22,pants:0x34495e,tools:1,pack:1,rolled:1,camo:0}};
-export function makeCharacter(teamCol,name,id,tagCol,outfit,cls){let m=null;if(HUM.ready&&!window.__procChars){try{m=makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS)}catch(e){console.warn('human',e&&e.message)}}if(!m)m=makeProc(teamCol,name,id,tagCol,outfit,cls);m.userData.args=[teamCol,name,id,tagCol,outfit,cls];return m}
+export function makeCharacter(teamCol,name,id,tagCol,outfit,cls){let m=null;if(window.__toonOn&&window.__toonOn(id))return makeToon(teamCol,name,id,tagCol,window.__toonFit?window.__toonFit(id):null);if(HUM.ready&&!window.__procChars){try{m=makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS)}catch(e){console.warn('human',e&&e.message)}}if(!m)m=makeProc(teamCol,name,id,tagCol,outfit,cls);m.userData.args=[teamCol,name,id,tagCol,outfit,cls];return m}
 export {HUM};
 function makeProc(teamCol,name,id,tagCol,outfit,cls){const h=hash(id);const skin=SKINS[h%SKINS.length],hair=HAIR[(h>>3)%HAIR.length],iris=IRIS[(h>>5)%IRIS.length];
  const hs=(h>>7)%4,fh=(h>>9)%4;// hair style, facial hair
@@ -184,7 +185,7 @@ function makeProc(teamCol,name,id,tagCol,outfit,cls){const h=hash(id);const skin
  root.userData={rig,head,aim,gunMount,legs,torso,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod,lodOn:true,cls:cls||'soldier',crouch:0,climb:0,down:0,lean:0};return root}
 const lerp=(a,b,k)=>a+(b-a)*k;
 // st: {speed, air, slide, pitch, crouch, climb, down, dist}
-export function animate(m,st,dt){const u=m.userData;if(u.kind==='hum')return animateHuman(m,st,dt);const sp=Math.min(st.speed,10);
+export function animate(m,st,dt){const u=m.userData;if(u.anim)return u.anim(m,st,dt);if(u.kind==='hum')return animateHuman(m,st,dt);const sp=Math.min(st.speed,10);
  if(st.dist!=null){const on=st.dist<28;if(on!==u.lodOn){u.lodOn=on;for(const o of u.lod)o.visible=on}}
  const k8=Math.min(1,dt*8),k14=Math.min(1,dt*14);
  u.crouch=lerp(u.crouch,st.crouch?1:0,k8);u.climb=lerp(u.climb,st.climb?1:0,k8);u.down=lerp(u.down,st.down?1:0,Math.min(1,dt*5));

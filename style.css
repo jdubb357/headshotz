@@ -337,3 +337,6 @@ body.brAirOn #slots,body.brAirOn #bZoom,body.brAirOn #bNade,body.brAirOn #bSlide
 #partyBar .pMem,#partyBar .pInv{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:rgba(10,14,35,.88);border:2px solid #7ff3ff;border-radius:14px;padding:6px 10px;font:700 12px system-ui;color:#fff}
 #partyBar .pMem span{background:rgba(255,255,255,.12);border-radius:99px;padding:2px 8px}#partyBar .pMem span.lead{background:rgba(255,210,63,.3)}
 #partyBar button{pointer-events:auto}
+/* v45 camera toggle */
+#camBtn{position:fixed;right:72px;top:12px;z-index:60;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(10,14,35,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer}
+#camBtn.hidden{display:none}

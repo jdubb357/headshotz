@@ -354,7 +354,7 @@ function setViewModel(id){if(vmCur)vmRoot.remove(vmCur);vmCur=getVM(id);vmRoot.a
  const Gp=vmCur.userData.G;for(const k in Gp){Gp[k].position.copy(Gp[k].userData.base);Gp[k].rotation.set(0,0,0);Gp[k].visible=true}
  Object.assign(VA,{cyc:0,cycD:0,slide:0,glRot:0,inspect:0,shellN:0,ejected:false,emptyRl:false,boltF:0});}
 const _v=new THREE.Vector3(),_v2=new THREE.Vector3(),_q=new THREE.Quaternion();
-function vmToWorld(local,out){vmRoot.updateMatrixWorld(true);out.set(...local);vmCur.localToWorld(out);return camera.localToWorld(out)}
+function vmToWorld(local,out){if(TPV.on&&me.model&&me.model.userData.gunMount&&me.model.visible){const gm=me.model.userData.gunMount;gm.updateMatrixWorld(true);out.set(local[0]*.5,local[1]*.5,-.42+local[2]*.5);return gm.localToWorld(out)}vmRoot.updateMatrixWorld(true);out.set(...local);vmCur.localToWorld(out);return camera.localToWorld(out)}
 // ---------------- tracers ----------------
 const TR=48,trPos=new Float32Array(TR*6),trCol=new Float32Array(TR*6),trLife=new Float32Array(TR);let trI=0;
 const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3));trGeo.setAttribute('color',new THREE.BufferAttribute(trCol,3));
@@ -737,7 +737,7 @@ function addRemote(id,info){if(C.players[id]?.model)scene.remove(C.players[id].m
  const q={id,cl:clOf(info.cl),ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,raider:info.raider||info.rd,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
  if(id!==me.id){q.model=makeCharacter(q.color,info.name,id,undefined,(SKINS[info.sk]||[])[2]||undefined,info.cl);q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
 function startGame(m){hideEnd();setTimeout(renderParty,50);remWait=false;{const rt=$('roomTag');if(rt){const online=!(H&&H.offline)&&roomCode&&roomCode!=='OFFLINE'&&!C.hub;rt.classList.toggle('hidden',!online);if(online){const pub=lastLobby?!!lastLobby.pub:!!H.pub;rt.textContent=(pub?'🌐 PUBLIC · ':'🔒 PRIVATE · ')+roomCode+' · tap to invite'}}}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
- loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);missionClientInit(m.ms||null);if(m.br)brClientInit(m.br);else brClear();
+ loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);missionClientInit(m.ms||null);if(m.br)brClientInit(m.br);else brClear();tpSetup();
  for(const s of['menu','lobby','arsenal','settings'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
  inGame=true;resize();me.alive=false;me.frozen=true;feed(`${MI(m.map).icon} ${MI(m.map).name} · ${MODES[m.mode][0]}`);center(MI(m.map).name.toUpperCase(),1500);renderSB();buildSlots();
  goFS()}
@@ -1041,10 +1041,11 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];if(BC&&me.air){brAirMe(dt
  const wantZoom=!!me.zoomOn&&!!zf&&me.alive&&me.reloadT<=0&&me.switchT<=0;const isSn=w.cls==='sniper';
  me.zoomT+=((wantZoom?1:0)-me.zoomT)*Math.min(1,dt*(wantZoom?(isSn?9:13):16));if(me.zoomT<.002)me.zoomT=0;
  const tf=75+((zf||75)-75)*me.zoomT;if(Math.abs(camera.fov-tf)>.02){camera.fov=tf;camera.updateProjectionMatrix()}
- const scopeOn=isSn&&me.zoomT>.85;$('scope').classList.toggle('hidden',!scopeOn);$('cross').style.opacity=scopeOn?0:me.zoomT>.6?(vmCur&&vmCur.userData.optic?0:.55):1;$('cross').classList.toggle('ads',me.zoomT>.6&&!scopeOn);
+ const scopeOn=isSn&&me.zoomT>.85;$('scope').classList.toggle('hidden',!scopeOn);$('cross').style.opacity=scopeOn?0:me.zoomT>.6?(vmCur&&vmCur.userData.optic&&!TPV.on?0:.55):1;$('cross').classList.toggle('ads',me.zoomT>.6&&!scopeOn);
  // scope sway (breathing figure-8), smaller for marksman optics; applied to the camera so the shot follows the reticle
  if(me.zoomT>.6&&(isSn||w.cls==='marksman')){swayT+=dt;const mv=Math.min(1,Math.hypot(me.vel.x,me.vel.z)/5);const a=(isSn?.0042:.002)*(1+mv*2.5)*Math.min(1,me.zoomT);
   camera.rotation.y+=Math.sin(swayT*1.05)*a;camera.rotation.x+=Math.sin(swayT*2.1)*a*.55;camera.updateMatrixWorld()}
+ if(TPV.on&&me.alive)tpCam(dt,w,scopeOn);
  // weapon timers / reload stages
  me.cool-=dt;if(me.switchT>0)me.switchT-=dt;throwT=Math.max(0,throwT-dt);updThrow(dt);updSpoons(dt);meleeT=Math.max(0,meleeT-dt*3);muzzleT-=dt;if(muzzleT<=0)muzzle.visible=false;
  if(me.reloadT>0){const k=1-me.reloadT/reloadOf(id);const cs=VA.cues||[];while(VA.cue<cs.length&&k>=cs[VA.cue][0]){const[,snd,x]=cs[VA.cue++];SFX[snd]&&SFX[snd]();
@@ -1141,7 +1142,7 @@ function updViewModel(dt,w,hs,sprint){if(!vmCur)return;const I=vmInfo,Gp=vmCur.u
   tz=hip[2]*A+adsP[2]*ads+RS.p*.032*(w.pellets?1.4:1)*(1-ads*.4);
  vmRoot.position.set(tx,ty,tz);
  vmRoot.rotation.set(RS.r*.032*(1-ads*.45)+rx-sp*(I.pistol?.5:.28)+meleeT*-.9+throwT*-1.5-dr*1.1+ix,swayX*1.5+A*.05+sp*(I.pistol?.2:.62)+meleeT*.6+RS.y*.01-dr*.3+iy,rz+(me.slideT>0?.25:0)+meleeT*.4+VA.roll*A+sp*.15+iz);
- vmRoot.visible=me.alive&&!me.down&&!TH&&!(w.cls==='sniper'&&me.zoomT>.8);vmCam.fov=54;}
+ vmRoot.visible=me.alive&&!me.down&&!TH&&!(w.cls==='sniper'&&me.zoomT>.8)&&!TPV.on;vmCam.fov=54;}
 function deathCam(dt){if(BC&&brSpec(dt))return;const q=me.killer&&C.players[me.killer];// spectate teammate in team modes, else look at killer
  const mates=Object.values(C.players).filter(p=>p.alive&&p.id!==me.id&&!isEnemy(p));
  if(C.mode!=='ffa'&&mates.length&&C.phase==='play'){const t=mates[0];const back=_v.set(Math.sin(t.yaw),0,Math.cos(t.yaw)).multiplyScalar(3.2);camera.position.lerp(_v2.copy(t.rp).add(back).setY(t.rp.y+2.2),Math.min(1,dt*6));camera.lookAt(t.rp.x,t.rp.y+1.4,t.rp.z);return}
@@ -1160,7 +1161,7 @@ let lastHostTick=performance.now();function hostStep(){const n=performance.now()
 setInterval(()=>{if(performance.now()-lastHostTick>120)hostStep()},50);
 let slowWin=0;function loop(now){requestAnimationFrame(loop);const el=now-last;if(el<15.2)return;last=now;const dt=Math.min(.05,el/1000);tickSkins(now/1000);
  hostStep();
- if(inGame){updateMe(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
+ if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
   if(sun.castShadow){const c=camera.position,sd=cur.sunDir;const s=68/2048;const tx=Math.round(c.x/s)*s,tz=Math.round(c.z/s)*s;sun.target.position.set(tx,0,tz);sun.position.set(tx+sd.x*90,sd.y*90,tz+sd.z*90);sun.target.updateMatrixWorld()}
   if(cur&&cur.sky)cur.sky.position.copy(camera.position);
   if(vmCam.aspect!==camera.aspect){vmCam.aspect=camera.aspect;vmCam.updateProjectionMatrix()}
@@ -2102,7 +2103,7 @@ function brHostMsg(from,m,p){if(!H.br||!p)return false;const E=H.br;
 
 function brReloadDone(id){const have=me.ammo[me.cur],need=magOf(id)-have,t=ammoOf(id),take=Math.max(0,Math.min(need,BC.res[t]));BC.res[t]-=take;send({t:'rs',r:BC.res});return have+take}
 
-window.__hsz.BR=()=>BC;window.__hsz.ME=()=>me;window.__hsz.CC=()=>C;window.__hsz.brx={brLand,brScale,brJump,brOpen,brTake,brGive,brElim,brCheck,stormState,RAR,W,WIDX,WIDS,gunScore,damage,brApplyInv,brUse,brMap,rollItem,gunItem,fixItem,brItem,bcast,send,brAct,BRC,STORM,newInv};
+window.__hsz.toonMod=()=>import('./toon.js');window.__hsz.BR=()=>BC;window.__hsz.ME=()=>me;window.__hsz.CC=()=>C;window.__hsz.brx={brLand,brScale,brJump,brOpen,brTake,brGive,brElim,brCheck,stormState,RAR,W,WIDX,WIDS,gunScore,damage,brApplyInv,brUse,brMap,rollItem,gunItem,fixItem,brItem,bcast,send,brAct,BRC,STORM,newInv};
 
 // ================= v44 PARTY (clan) =================
 // A party is up to 4 friends. The leader (creator) owns the roster and pushes it to everyone; everyone in it joins the leader's room together,
@@ -2132,3 +2133,44 @@ let partyKey='';function renderParty(){const b=$('partyBar');if(!b)return;const 
 document.addEventListener('pointerdown',e=>{const b=e.target.closest&&e.target.closest('#partyBar [data-p]');if(!b)return;e.stopPropagation();const a=b.dataset.p;if(a==='acc')partyAccept();else if(a==='dec'){PINV=null;renderParty()}else if(a==='lv')partyLeave();else if(a==='inv')openFriends()},true);
 setInterval(renderParty,1200);
 window.__hsz.PARTY=()=>PARTY;window.__hsz.partyInvite=partyInvite;window.__hsz.partyAccept=partyAccept;window.__hsz.partyLeave=partyLeave;
+
+// ================= v45 THIRD-PERSON CAMERA =================
+// Royale defaults to over-the-shoulder; the main game defaults to first person (V / button toggles, remembered per game).
+// The camera orbits the player's head, is pushed in by world collision, pulls in + zooms when aiming, and shots start at the camera
+// (so the crosshair is always where bullets go) while tracers leave the character's gun.
+const TPV={on:false,d:3.2,side:.62,up:.18,sh:1,dist:3.2,k:1};
+const royaleMode=()=>BRM(C.mode)||(!!BC);
+const camPref=()=>royaleMode()?(LS('camR')!=='1'):(LS('cam3')==='1');
+window.__toonOn=id=>royaleMode()||(id==='me'&&!!window.__toonMe);
+window.__toonFit=id=>id==='me'?curFit():null;
+function curFit(){const f=parseInt(LS('fit')||'0');return isNaN(f)?0:f}
+function tpSetup(){TPV.on=camPref();TPV.dist=TPV.d;if(TPV.on)tpEnsure();else if(me.model)me.model.visible=false;updCamBtn()}
+function tpEnsure(){const roy=royaleMode();const m=me.model;const kind=roy?'toon':'hum';const fit=curFit();if(m&&m.userData.mk===kind&&(!roy||m.userData.fitIdx===fit)&&m.parent===scene)return m;if(m)scene.remove(m);
+ window.__toonMe=roy;const nm=(me.name||'You');const mm=makeCharacter(0xffffff,nm,'me',undefined,roy?undefined:(SKINS[PROG.skin]||[])[2]||undefined,PROG.pc);window.__toonMe=false;mm.userData.mk=kind;mm.userData.fitIdx=fit;mm.userData.noTagMe=true;mm.visible=false;scene.add(mm);me.model=mm;me.gunKey='';return mm}
+const _tp1=new THREE.Vector3(),_tp2=new THREE.Vector3(),_tp3=new THREE.Vector3(),_tp4=new THREE.Vector3();
+function tpCam(dt,w,scopeOn){const eye=_tp1.copy(camera.position);const f=_tp2.set(0,0,-1).applyQuaternion(camera.quaternion);const r=_tp3.set(1,0,0).applyQuaternion(camera.quaternion);r.y=0;r.normalize();
+ const ads=me.zoomT;const wantD=TPV.d+(1.55-TPV.d)*ads,wantS=TPV.side*(1-ads*.1)*TPV.sh,wantU=TPV.up*(1-ads*.4)+ (me.slideT>0?-.35:0);
+ // sideways shoulder offset first (walls beside you), then back along the view direction
+ const piv=_tp4.copy(eye);piv.y+=wantU;let sd=wantS;{const dr=r.clone().multiplyScalar(Math.sign(sd)||1);const t=rayWorld(piv,dr,Math.abs(sd)+.3);if(t<Math.abs(sd)+.3)sd=Math.sign(sd)*Math.max(0,t-.28)}
+ piv.addScaledVector(r,sd);
+ const back=f.clone().multiplyScalar(-1);let t=rayWorld(piv,back,wantD+.35);const limit=Math.max(.12,Math.min(wantD,t-.32));
+ // snap in instantly when blocked, ease out when free
+ if(limit<TPV.dist)TPV.dist=limit;else TPV.dist+=(limit-TPV.dist)*Math.min(1,dt*5);
+ const sc=scopeOn?1:0;const dd=TPV.dist*(1-sc);TPV.cd=dd;
+ camera.position.copy(piv).addScaledVector(back,dd);if(scopeOn)camera.position.copy(eye);camera.updateMatrixWorld();TPV.hide=dd<.85}
+const _tv=new THREE.Vector3();
+let _cbk='';function tpBody(dt){{const k=inGame+'|'+C.hub+'|'+TPV.on;if(k!==_cbk){_cbk=k;updCamBtn()}}const m=me.model;if(!m)return;if(!TPV.on||!inGame||(BC&&me.air)||paused&&false){m.visible=false;return}
+ const u=m.userData;const alive=me.alive;if(m.parent!==scene)scene.add(m);
+ if(!alive){if(!u.dead)u.dead=.001}else if(u.dead){u.dead=0}
+ m.visible=!(TPV.hide&&alive)&&!C.hub;if(!m.visible)return;
+ const id=me.load[me.cur];const key=id+'|'+(me.ws&&me.ws[id]||'');if(me.gunKey!==key&&u.gunMount){me.gunKey=key;u.gunMount.clear();const g=tpGun(id,'');u.gunMount.add(g)}
+ m.position.set(me.pos.x,me.pos.y,me.pos.z);m.rotation.y=me.yaw;
+ const vx=me.vel.x,vz=me.vel.z,hs=Math.hypot(vx,vz);const fx=-Math.sin(me.yaw),fz=-Math.cos(me.yaw),rx=Math.cos(me.yaw),rz=-Math.sin(me.yaw);
+ const lx=hs>.1?(vx*rx+vz*rz)/hs:0,lz=hs>.1?-((vx*fx+vz*fz)/hs):-1;
+ animate(m,{speed:hs,air:!me.ground&&!me.lad,slide:me.slideT>0,pitch:me.pitch+recoilP,climb:!!me.lad,down:!!me.down,lx,lz,hold:true,noTag:true,dist:5,crouch:false},dt);m.rotation.x=0;
+ u.tag.visible=false}
+function updCamBtn(){const b=$('camBtn');if(!b)return;b.classList.toggle('hidden',!inGame||C.hub);b.textContent=TPV.on?'👤':'👁️';b.title=TPV.on?'Third person (V)':'First person (V)'}
+function camToggle(){if(!inGame||C.hub)return;TPV.on=!TPV.on;if(royaleMode())LSS('camR',TPV.on?'3':'1');else LSS('cam3',TPV.on?'1':'0');if(TPV.on)tpEnsure();else{if(me.model)me.model.visible=false;camera.fov=75;camera.updateProjectionMatrix()}updCamBtn();center(TPV.on?'Third person':'First person',700)}
+(function(){const b=document.createElement('button');b.id='camBtn';b.className='hidden';b.textContent='👁️';document.body.appendChild(b);b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();camToggle()});
+ addEventListener('keydown',e=>{if(e.code==='KeyV'&&!e.repeat&&inGame&&!paused&&e.target.tagName!=='INPUT')camToggle();if(e.code==='KeyT'&&TPV.on&&!e.repeat&&inGame&&!paused&&e.target.tagName!=='INPUT'){TPV.sh=-TPV.sh;center(TPV.sh>0?'Camera: right shoulder':'Camera: left shoulder',600)}})})();
+window.__hsz.TPV=TPV;window.__hsz.camera=camera;window.__hsz.vmRoot=vmRoot;window.__hsz.camToggle=camToggle;

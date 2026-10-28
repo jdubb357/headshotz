@@ -1,0 +1,16 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#111"><canvas id=c></canvas>
+<script type=module>
+import {THREE,GQ} from './gfx.js';import {makeToon,animToon,OUTFITS} from './toon.js';
+const q=new URLSearchParams(location.search);const W=+q.get('w')||1280,H=+q.get('h')||640;GQ.level=q.get('q')||'medium';
+const r=new THREE.WebGLRenderer({canvas:c,antialias:true});r.setSize(W,H);r.setPixelRatio(1);r.outputColorSpace=THREE.SRGBColorSpace;r.toneMapping=THREE.ACESFilmicToneMapping;
+const sc=new THREE.Scene();sc.background=new THREE.Color(0x9fd4ff);sc.fog=new THREE.Fog(0x9fd4ff,20,80);
+sc.add(new THREE.HemisphereLight(0xdff2ff,0x6b8f5a,1.1));const d=new THREE.DirectionalLight(0xfff0d0,2.2);d.position.set(3,6,4);sc.add(d);
+const ground=new THREE.Mesh(new THREE.CircleGeometry(30,32),new THREE.MeshStandardMaterial({color:0x6bbf59,roughness:1}));ground.rotation.x=-Math.PI/2;sc.add(ground);
+const cam=new THREE.PerspectiveCamera(+q.get('fov')||32,W/H,.1,200);
+const ms=[];const n=OUTFITS.length;const which=q.get('o');
+const list=which==null?OUTFITS.map((o,i)=>i):[+which];
+list.forEach((i,k)=>{const m=makeToon(0xffffff,OUTFITS[i].name,'p'+i,undefined,i,{outline:q.get('ol')==='1'});m.position.set((k-(list.length-1)/2)*(which==null?1.05:0),0,0);m.rotation.y=which==null?0:+(q.get('ry')||.5);sc.add(m);ms.push(m)});
+const pose=q.get('pose');const st={speed:+q.get('sp')||0,hold:q.get('hold')==='1',pitch:0,pose:pose||null,emote:q.get('emote')||null,air:q.get('air')==='1',lz:-1,lx:0};
+if(which==null)cam.position.set(0,1.1,-9);else cam.position.set(+q.get('cx')||0,+q.get('cy')||1.1,+q.get('cz')||-5);cam.lookAt(0,+q.get('ly')||1,0);
+let t=0;const tick=()=>{t+=1/60;for(const m of ms)animToon(m,st,1/60);r.render(sc,cam);window.__f=(window.__f||0)+1;requestAnimationFrame(tick)};tick();window.__ready=true;
+</script>
