@@ -163,7 +163,7 @@ export function animToon(m,st,dt){const u=m.userData;const sp=Math.min(st.speed|
  // strafing: legs cross over
  if(sideAmt>.3){thL=s*amp*.9*(fwd>=0?1:-1)*(.4+(1-sideAmt)*.6);thR=-thL}
  let tX=-run*.16*(fwd>=0?1:-.3),tZ=-lx*run*.06+c*.025*walk,tY=0;
- let armPose='hold',hx=0;
+ let armPose=st.relax?'idle':'hold',hx=0;
  if(u.crouch>.01){const k=u.crouch;hipsY=lerp(hipsY,-.32,k);thL=lerp(thL,.95+thL*.4,k);thR=lerp(thR,.95+thR*.4,k);shL=lerp(shL,-1.5,k);shR=lerp(shR,-1.5,k);tX=lerp(tX,.2,k)}
  if(air){thL=.5;thR=-.2;shL=-.9;shR=-.3;hipsY=0}
  if(st.slide){hipsY=-.5;tX=.5;thL=1.3;thR=1.1;shL=-.1;shR=-.5}
