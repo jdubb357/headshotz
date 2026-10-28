@@ -174,7 +174,7 @@ export function animToon(m,st,dt){const u=m.userData;const sp=Math.min(st.speed|
  let rigRoll=0,rigPitch=0,rigY=0;
  // freefall (belly-down spread eagle), glide (arms up on the handle, legs trailing), chute, bus (sit-ready)
  const pz=u.pz;
- if(pz.fall>.01){const k=pz.fall,w1=Math.sin(u.it*13)*.05;rigPitch=lerp(rigPitch,-1.35,k);tX=lerp(tX,0,k);thL=lerp(thL,-.5+w1,k);thR=lerp(thR,-.5-w1,k);shL=lerp(shL,.5,k);shR=lerp(shR,.5,k);armPose=k>.5?'fall':armPose;rigY=lerp(rigY,0,k);hipsY=lerp(hipsY,0,k)}
+ if(pz.fall>.01){const k=pz.fall,w1=Math.sin(u.it*13)*.05;rigRoll=lerp(rigRoll,-(st.bank||0)*.45,k);rigPitch=lerp(rigPitch,-1.35,k);tX=lerp(tX,0,k);thL=lerp(thL,-.5+w1,k);thR=lerp(thR,-.5-w1,k);shL=lerp(shL,.5,k);shR=lerp(shR,.5,k);armPose=k>.5?'fall':armPose;rigY=lerp(rigY,0,k);hipsY=lerp(hipsY,0,k)}
  if(pz.glide>.01){const k=pz.glide;rigPitch=lerp(rigPitch,-.18+(st.bank||0)*0,k);rigRoll=lerp(rigRoll,-(st.bank||0)*.5,k);thL=lerp(thL,.15,k);thR=lerp(thR,.05,k);shL=lerp(shL,-.5,k);shR=lerp(shR,-.4,k);armPose=k>.5?'glide':armPose}
  if(pz.chute>.01){const k=pz.chute;thL=lerp(thL,.1+Math.sin(u.it*1.7)*.05,k);thR=lerp(thR,-.05,k);shL=lerp(shL,-.25,k);shR=lerp(shR,-.2,k);armPose=k>.5?'glide':armPose;rigRoll=lerp(rigRoll,Math.sin(u.it*1.3)*.05,k)}
  if(pz.bus>.01){armPose=pz.bus>.5?'bus':armPose}
