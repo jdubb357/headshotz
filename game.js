@@ -1631,7 +1631,7 @@ function ctfReturn(T,by){const F=H.ctf.f[T];F.st='home';F.pos=F.home.slice();F.c
 function ctfCapture(T,c){const F=H.ctf.f[T];c.flag=null;F.st='home';F.pos=F.home.slice();F.car=null;H.ctf.caps[c.team]++;H.score[c.team]=H.ctf.caps[c.team];c.pts+=200;c.caps=(c.caps||0)+1;mEv('cap',{team:c.team,by:c.id,caps:H.ctf.caps});mSync();sendSB();
  if(H.ctf.caps[c.team]>=CTF.goal)endMission(c.team,'FLAG CAPTURED ×'+CTF.goal,H.ctf.caps.A+' – '+H.ctf.caps.B)}
 function ctfTick(dt){for(const T of['A','B']){const F=H.ctf.f[T],O=T==='A'?'B':'A';
-  if(F.st==='carried'){const c=H.players[F.car];if(!c||!c.alive||c.down||c.team===T){ctfDrop(T,'death');continue}F.pos=[c.p[0],c.p[1],c.p[2]];const OF=H.ctf.f[O];if(OF.st==='home'&&hd2(c.p,OF.home)<CTF.cap&&Math.abs(c.p[1]-OF.home[1])<2.5)ctfCapture(T,c)}
+  if(F.st==='carried'){const c=H.players[F.car];if(!c||!c.alive||c.down||c.team===T){ctfDrop(T,'death');continue}F.pos=[c.p[0],c.p[1],c.p[2]];const OF=H.ctf.f[O];if(OF.st==='home'&&hd2(c.p,OF.home)<(c.bot?4.6:CTF.cap)&&Math.abs(c.p[1]-OF.home[1])<(c.bot?3.6:2.5))ctfCapture(T,c)}
   else{for(const p of plist()){if(!p.alive||p.down||p.hp<=0)continue;if(hd2(p.p,F.pos)>CTF.pick||Math.abs(p.p[1]-F.pos[1])>(p.bot?3.4:2.4))continue;if(p.team===T){if(F.st==='dropped'){ctfReturn(T,p);break}}else{ctfTake(T,p);break}}
    if(F.st==='dropped'&&H.t-F.t>CTF.ret)ctfReturn(T,null)}}}
 function ctfTimeUp(){const c=H.ctf.caps;if(c.A!==c.B)endMission(c.A>c.B?'A':'B','TIME UP',c.A+' – '+c.B);else if(!H.ctf.sd){H.ctf.sd=1;H.roundEnd=H.t+60;mEv('sd')}else endMission('draw','DRAW',c.A+' – '+c.B)}
@@ -1671,7 +1671,7 @@ function botMission(b){if(H.mode==='ctf'){const T=b.team,O=T==='A'?'B':'A',mine=
   if(en.st==='dropped'&&hd2(b.e.pos.toArray(),en.pos)<60)return[en.pos[0],en.pos[2],en.pos[1]];
   if(en.st==='carried'){const c=H.players[en.car];if(c&&c.id!==b.id){if(c.team===T)return[(c.p[0]+mine.home[0])/2*.5+c.p[0]*.5,(c.p[2]+mine.home[2])/2*.5+c.p[2]*.5,c.p[1]];return[c.p[0],c.p[2],c.p[1]]}}
   const i=botIdx(b);if(i%4===1&&plist().filter(q=>q.team===T).length>=5){const L=H.ctf.defPts[T];if(L&&L.length){const n=L[(i*7)%L.length];return[n[0],n[2],0]}return[mine.home[0],mine.home[2],0]}
-  b.rush=en.st==='home'?(hd2(b.e.pos.toArray(),en.home)<24?2:1):0;return[en.home[0],en.home[2],0]}
+  b.rush=en.st==='home'?((hd2(b.e.pos.toArray(),en.home)<24||botIdx(b)%2===0)?2:1):0;return[en.home[0],en.home[2],0]}
  const E=H.ext;if(!E)return null;const me_=b.e.pos.toArray();
  if(b.raider){if(b.hunt||E.ph==='called'||E.ph==='extract'){const ops=plist().filter(q=>q.team==='A'&&q.alive);let best=null,bd=1e9;for(const q of ops){const d=Math.hypot(q.p[0]-b.e.pos.x,q.p[2]-b.e.pos.z);if(d<bd){bd=d;best=q}}if(E.ph==='extract'&&(!best||bd>40))return[E.lz[0],E.lz[2],0];if(best)return[best.p[0],best.p[2],best.p[1]];return[E.lz[0],E.lz[2],0]}
   const d=E.d[b.post];if(!d)return null;if(!b.postPt)b.postPt=raiderSpot(b);return[b.postPt[0],b.postPt[1],0]}
