@@ -38,7 +38,8 @@
    </div>
    <div class="side">
     <button class="card nav" id="openShop"><span class="ico">🛒</span><span><b>WEAPON SHOP</b><small>Unlock weapons with 💎 earned by playing</small></span></button>
-    <button class="card nav" id="openSkinShop"><span class="ico">👕</span><span><b>SKIN SHOP</b><small>36 outfits · colors · 💎 only</small></span></button>
+    <button class="card nav" id="openPets"><span class="ico">🐾</span><span><b>SIDEKICK BOOTH</b><small>15 buddies · each with a power · 💎</small></span></button>
+    <button class="card nav" id="openSkinShop"><span class="ico">👕</span><span><b>SKIN SHOP</b><small>40 characters · colors · 💎 only</small></span></button>
     <button class="card nav" id="openUpg"><span class="ico">⭐</span><span><b>UPGRADES</b><small>Camos · outfits · mag &amp; reload tiers</small></span></button>
     <button class="card nav" id="openArsenal"><span class="ico">🔫</span><span><b>ARSENAL</b><small>Equip your loadout</small></span></button>
     <button class="card nav" id="openChests"><span class="ico">🎁</span><span><b>CHEST SHOP</b><small>300 💎 · weapons, skins, classes</small></span></button>
@@ -160,7 +161,7 @@
 </div>
 
 <!-- HUD -->
-<div id="hud" class="hidden"><div id="roomTag" class="hidden"></div><div id="wkHud" class="wkBan hidden">💎 2X DIAMOND WEEKEND</div>
+<div id="hud" class="hidden"><button id="bPet" class="hidden" aria-label="Sidekick ability"></button><div id="roomTag" class="hidden"></div><div id="wkHud" class="wkBan hidden">💎 2X DIAMOND WEEKEND</div>
   <div id="markers"></div><div id="msHud" class="hidden"></div><div id="brief" class="hidden"></div><button id="briefBtn" class="hidden">?</button>
   <div id="sbar"></div>
   <div id="timer"></div>
@@ -206,6 +207,16 @@
    <div class="ssAct"><button id="ssBuy" class="btnBig yellow">BUY</button><button id="ssDef" class="pill">DEFAULT</button></div></div>
  </div>
  <div id="ssToast"></div>
+</div>
+<!-- v57 SIDEKICK BOOTH -->
+<div id="pkShop" class="screen hidden">
+ <div class="ssTop"><button id="pkClose" class="pill">◀ BACK</button><div class="ssTitle">🐾 SIDEKICK BOOTH <small id="pkCount"></small></div><div class="ssDiaBox">💎 <b id="pkDia">0</b></div></div>
+ <div class="ssBody">
+  <div id="pkStage"><canvas id="pkCv"></canvas><div class="ssInfo"><b id="pkName"></b><i id="pkRar"></i></div><div id="pkAbil"></div><div id="pkSay"></div><p class="ssHint">drag to rotate</p></div>
+  <div class="ssSide"><div id="pkFil" class="ssFil"></div><div id="pkGrid" class="ssGrid"></div>
+   <div class="ssAct"><button id="pkBuy" class="btnBig yellow">BUY</button><button id="pkNone" class="pill">REST</button></div></div>
+ </div>
+ <div id="pkToast"></div>
 </div>
 <div id="rotate">📱↻<br>Rotate your phone sideways to play</div>
 

@@ -413,3 +413,12 @@ body.brAirOn #slots,body.brAirOn #bZoom,body.brAirOn #bNade,body.brAirOn #bSlide
 .royShopBtn{width:100%;margin:10px 0 4px;padding:10px;font-size:14px}
 .fxTag{font:800 9px system-ui;text-decoration:none;color:#fff;background:linear-gradient(90deg,#7a3bff,#ff4fd8);border-radius:5px;padding:1px 6px;margin-top:1px}
 .ssCard .ph:after{content:none}
+
+#pkShop{z-index:60;background:radial-gradient(120% 90% at 50% 0%,#2a2060 0%,#14122e 60%,#0b0a1c 100%);padding:calc(8px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));gap:8px}
+#pkStage{position:relative;border-radius:16px;background:radial-gradient(90% 70% at 50% 40%,#3b2f86 0%,#1a1640 70%);overflow:hidden;touch-action:none;min-height:0}
+#pkCv{position:absolute;inset:0;width:100%;height:100%;display:block}
+#pkToast{position:fixed;left:50%;top:14%;transform:translate(-50%,-10px);background:#19e0c8;color:#06241f;font:900 15px system-ui;border-radius:999px;padding:9px 18px;opacity:0;pointer-events:none;transition:.25s;z-index:70}#pkToast.show{opacity:1;transform:translate(-50%,0)}
+#pkAbil{position:absolute;left:10px;right:10px;bottom:46px;background:#0009;border:1px solid #ffffff22;border-radius:12px;padding:7px 11px;color:#fff;font:600 12px system-ui;pointer-events:none}#pkAbil b{font:900 14px system-ui;color:#ffd23f}#pkAbil span{font:800 10px system-ui;background:#19e0c8;color:#06241f;border-radius:5px;padding:1px 6px;margin-left:6px}#pkAbil p{margin:3px 0 0;line-height:1.3}
+#pkSay{position:absolute;left:10px;right:10px;top:46px;font:700 12px system-ui;color:#fff;background:#ff8a3acc;border-radius:12px;padding:6px 11px;pointer-events:none;text-shadow:0 1px 2px #0007}
+#bPet{position:absolute;pointer-events:auto;left:16px;bottom:150px;min-width:54px;height:54px;border-radius:27px;font-size:26px;color:#fff;padding:0 14px;border:2px solid rgba(255,255,255,.6);--cd:100;background:conic-gradient(rgba(25,224,200,.8) calc(var(--cd)*1%),rgba(0,0,0,.45) 0);display:flex;align-items:center;justify-content:center;gap:6px;z-index:5}#bPet.hidden{display:none}#bPet:after{content:"X";font:900 12px system-ui;opacity:.8}#bPet.cool{opacity:.7}#bPet.down{transform:scale(.94)}#bPet .pi{filter:drop-shadow(0 1px 2px #000a)}
+#hud.touch #bPet{left:auto;right:112px;bottom:210px;width:62px;height:62px;border-radius:50%;padding:0}#hud.touch #bPet:after{content:none}body.hub #bPet{display:none!important}

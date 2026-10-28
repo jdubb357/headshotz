@@ -219,7 +219,7 @@ export const HUB_PADS=[
  {k:'duel',n:1,x:-15,z:-15},{k:'team',n:2,x:0,z:-15},{k:'t3',n:3,x:15,z:-15},
  {k:'t4',n:4,x:-13,z:13},{k:'t5',n:5,x:3,z:13},{k:'ffa',n:8,x:18.5,z:13,single:1},{k:'ctf',n:4,x:-9,z:-2},{k:'ext',n:4,q:1,x:9,z:-2},{k:'br',n:8,q:1,x:21,z:-2},{k:'brs',n:4,q:1,x:9,z:6}];
 export function padCircles(p){const h=p.single||p.q?3.2:Math.min(3.1,.95+.45*p.n);const r=h;if(p.single||p.q)return[{side:'F',x:p.x,z:p.z,r,h}];const off=h+.45;return[{side:'A',x:p.x-off,z:p.z,r,h},{side:'B',x:p.x+off,z:p.z,r,h}]}// square pads: h = half side
-export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3,col:0xffb020,npc:'Gus',cls:'soldier'},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5,col:0xb06bff,npc:'Ivy',cls:'engineer'},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'classes',name:'🎭 CLASS BOOTH',x:-27,z:-11,col:0x3fa9ff,npc:'Kai',cls:'ninja'},{k:'skins',name:'🎨 SKIN STUDIO',x:-27,z:13,col:0xff4fa3,npc:'Remy',cls:'scout'}].concat([{k:'chest',name:'🎁 CHEST SHOP',x:-27,z:-19,col:0xff3b3b,npc:'Lola',cls:'medic'},{k:'pskins',name:'👕 SKIN SHOP',x:-27,z:21,col:0x19e0c8,npc:'Sage',cls:'soldier'}]);
+export const HUB_ST=[{k:'shop',name:'🛒 WEAPON SHOP',x:-27,z:-3,col:0xffb020,npc:'Gus',cls:'soldier'},{k:'upgrade',name:'⭐ UPGRADES',x:-27,z:5,col:0xb06bff,npc:'Ivy',cls:'engineer'},{k:'practice',name:'🤖 PRACTICE VS BOTS',x:28,z:-4},{k:'classes',name:'🎭 CLASS BOOTH',x:-27,z:-11,col:0x3fa9ff,npc:'Kai',cls:'ninja'},{k:'skins',name:'🎨 SKIN STUDIO',x:-27,z:13,col:0xff4fa3,npc:'Remy',cls:'scout'}].concat([{k:'chest',name:'🎁 CHEST SHOP',x:-27,z:-19,col:0xff3b3b,npc:'Lola',cls:'medic'},{k:'pskins',name:'👕 SKIN SHOP',x:-27,z:21,col:0x19e0c8,npc:'Sage',cls:'soldier'},{k:'pets',name:'🐾 SIDEKICK BOOTH',x:26.6,z:11,col:0xff8a3a,npc:'Penny',cls:'scout',sg:-1}]);
 DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,48],ground:['tiles',0x9aa3b5,.22],grade:[1,1,1.04,1.15,1.06],horizon:'city',
  sky:[0x24306e,0xff8fa3,0xffc59a],fog:[0xd99aa8,60,160],hemi:[0xe8e4ff,0x6a5a7a,1.35],sun:[0xffd6b0,1.7,[-.4,.55,-.6]],
  build(B){// perimeter: glassy towers + low walls
@@ -231,20 +231,22 @@ DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,
   for(const p of HUB_PADS){for(const c of padCircles(p)){B.box(c.x,0,c.z,c.h*2+.5,.08,c.h*2+.5,0x232838,'metal',{solid:false,shadow:false});B.box(c.x,.08,c.z,c.h*2-.1,.012,c.h*2-.1,0x1a1e2b,'tiles',{solid:false,shadow:false})}}
   // stations: kiosks with glowing screens
   // storefronts: back wall, side walls, counter, striped awning, lit sign, shelves with displayed goods, ceiling light
-  const store=(st)=>{const{x,z,col,k}=st;const W=6.2,bx=x-2.2,fx=x+1.1;const dk=0x2b2f3a,wd=0x6b4a33;
-   B.box(bx,0,z,.3,4,W,0x3a3f4f,'brick');for(const s of[-1,1])B.box(x-.6,0,z+s*(W/2-.15),3.4,4,.3,0x3a3f4f,'brick');B.box(x-.6,4,z,3.6,.25,W+.2,dk,'metal',{solid:false});
-   B.box(fx,0,z,.7,1.1,W-1.6,wd,'planks');B.box(fx+.05,1.1,z,.85,.07,W-1.4,0xd9d2c0,'tiles',{solid:false});B.glow(fx+.38,.15,z,.02,.08,W-1.7,col);// counter + top + kick light
-   for(let i=0;i<7;i++)B.box(x+1.2,3.25-i*.012,z-W/2+.45+i*(W-.9)/7+(W-.9)/14,1.6,.06,(W-.9)/7,i%2?0xffffff:col,'plain',{solid:false,shadow:false});// awning stripes (slanted via step)
-   B.box(x+1.95,2.9,z,.06,.35,W-.6,col,'plain',{solid:false,shadow:false});
-   B.box(x+.5,4.25,z,.18,.9,W-1.2,dk,'metal',{solid:false,shadow:false});B.glow(x+.6,4.35,z,.02,.7,W-1.5,col);// sign board
-   for(const y of[1.2,2.0,2.8]){B.box(bx+.4,y,z,.5,.05,W-.9,wd,'planks',{solid:false,shadow:false});B.glow(bx+.62,y-.04,z,.02,.02,W-1,0xfff1d6)}// shelves + strip lights
-   B.glow(x-.6,3.95,z,1.6,.03,1.2,0xfff1d6);
-   for(let si=0;si<3;si++){const y=1.25+si*.8;for(let i=0;i<5;i++){const zz=z-W/2+1+i*(W-2)/4;if(k==='shop'){B.box(bx+.45,y,zz,.08,.12,.7,0x8a9099,'metal',{solid:false,shadow:false});B.box(bx+.45,y+.12,zz+.15,.08,.18,.08,0x8a9099,'metal',{solid:false,shadow:false});B.glow(bx+.5,y-.01,zz,.02,.02,.7,0xffb020)}
-    else if(k==='skins'){const cs=[0xff4fa3,0x2fd5ff,0xffd23f,0x9b59ff,0x4cff7a];B.box(bx+.45,y,zz,.06,.1,.6,cs[(i+si)%5],'metal',{solid:false,shadow:false});if((i+si)%2)B.glow(bx+.49,y+.02,zz,.01,.06,.5,cs[(i+si+2)%5])}
-    else if(k==='pskins'){const cs=[0x19e0c8,0xff7a45,0xb36bff,0xffd23f,0x4fb3ff];B.box(bx+.45,y,zz,.1,.3,.22,cs[(i+si)%5],'metal',{solid:false,shadow:false});B.part('metal',{g:G('sph',.1,8,6),p:[bx+.45,y+.4,zz],c:cs[(i+si+2)%5]});B.glow(bx+.5,y-.01,zz,.02,.02,.5,0xfff1d6)}
-    else if(k==='classes'){B.part('metal',{g:G('sph',.13,10,8),p:[bx+.45,y+.13,zz],s:[1,.8,1.1],c:[0x4b5344,0x15161a,0x2f3338,0xe9ecef,0x6b5b3e][i]})}
-    else{B.glow(bx+.45,y+.02,zz,.04,.22,.22,[0xffd23f,0xb06bff,0x2fd5ff][(i+si)%3])}}}
-   if(!B.lo)B.box(x+1.8,0,z+W/2-.3,.5,.9,.5,0x9c7a4b,'crate',{local:true})};
+  const mirB=(B0,cx)=>({lo:B0.lo,box:(x,y,z,w,h,d,...r)=>B0.box(2*cx-x,y,z,w,h,d,...r),glow:(x,y,z,w,h,d,...r)=>B0.glow(2*cx-x,y,z,w,h,d,...r),part:(tex,pt,s)=>B0.part(tex,pt.p?{...pt,p:[2*cx-pt.p[0],pt.p[1],pt.p[2]]}:pt,s)});
+  const store=(st)=>{const{x,z,col,k}=st;const BB=st.sg<0?mirB(B,x):B;const W=6.2,bx=x-2.2,fx=x+1.1;const dk=0x2b2f3a,wd=0x6b4a33;
+   BB.box(bx,0,z,.3,4,W,0x3a3f4f,'brick');for(const s of[-1,1])BB.box(x-.6,0,z+s*(W/2-.15),3.4,4,.3,0x3a3f4f,'brick');BB.box(x-.6,4,z,3.6,.25,W+.2,dk,'metal',{solid:false});
+   BB.box(fx,0,z,.7,1.1,W-1.6,wd,'planks');BB.box(fx+.05,1.1,z,.85,.07,W-1.4,0xd9d2c0,'tiles',{solid:false});BB.glow(fx+.38,.15,z,.02,.08,W-1.7,col);// counter + top + kick light
+   for(let i=0;i<7;i++)BB.box(x+1.2,3.25-i*.012,z-W/2+.45+i*(W-.9)/7+(W-.9)/14,1.6,.06,(W-.9)/7,i%2?0xffffff:col,'plain',{solid:false,shadow:false});// awning stripes (slanted via step)
+   BB.box(x+1.95,2.9,z,.06,.35,W-.6,col,'plain',{solid:false,shadow:false});
+   BB.box(x+.5,4.25,z,.18,.9,W-1.2,dk,'metal',{solid:false,shadow:false});BB.glow(x+.6,4.35,z,.02,.7,W-1.5,col);// sign board
+   for(const y of[1.2,2.0,2.8]){BB.box(bx+.4,y,z,.5,.05,W-.9,wd,'planks',{solid:false,shadow:false});BB.glow(bx+.62,y-.04,z,.02,.02,W-1,0xfff1d6)}// shelves + strip lights
+   BB.glow(x-.6,3.95,z,1.6,.03,1.2,0xfff1d6);
+   for(let si=0;si<3;si++){const y=1.25+si*.8;for(let i=0;i<5;i++){const zz=z-W/2+1+i*(W-2)/4;if(k==='shop'){BB.box(bx+.45,y,zz,.08,.12,.7,0x8a9099,'metal',{solid:false,shadow:false});BB.box(bx+.45,y+.12,zz+.15,.08,.18,.08,0x8a9099,'metal',{solid:false,shadow:false});BB.glow(bx+.5,y-.01,zz,.02,.02,.7,0xffb020)}
+    else if(k==='skins'){const cs=[0xff4fa3,0x2fd5ff,0xffd23f,0x9b59ff,0x4cff7a];BB.box(bx+.45,y,zz,.06,.1,.6,cs[(i+si)%5],'metal',{solid:false,shadow:false});if((i+si)%2)BB.glow(bx+.49,y+.02,zz,.01,.06,.5,cs[(i+si+2)%5])}
+    else if(k==='pskins'){const cs=[0x19e0c8,0xff7a45,0xb36bff,0xffd23f,0x4fb3ff];BB.box(bx+.45,y,zz,.1,.3,.22,cs[(i+si)%5],'metal',{solid:false,shadow:false});BB.part('metal',{g:G('sph',.1,8,6),p:[bx+.45,y+.4,zz],c:cs[(i+si+2)%5]});BB.glow(bx+.5,y-.01,zz,.02,.02,.5,0xfff1d6)}
+    else if(k==='pets'){const cs=[0xff8a3a,0x4fb3ff,0xffd23f,0x9b59ff,0x4cff7a];BB.part('metal',{g:G('sph',.15,10,8),p:[bx+.45,y+.15,zz],s:[1,.85,1.1],c:cs[(i+si)%5]});BB.part('metal',{g:G('sph',.09,8,6),p:[bx+.45,y+.32,zz+.05],c:cs[(i+si+2)%5]});BB.glow(bx+.5,y-.01,zz,.02,.02,.5,cs[(i+si+1)%5])}
+    else if(k==='classes'){BB.part('metal',{g:G('sph',.13,10,8),p:[bx+.45,y+.13,zz],s:[1,.8,1.1],c:[0x4b5344,0x15161a,0x2f3338,0xe9ecef,0x6b5b3e][i]})}
+    else{BB.glow(bx+.45,y+.02,zz,.04,.22,.22,[0xffd23f,0xb06bff,0x2fd5ff][(i+si)%3])}}}
+   if(!BB.lo)BB.box(x+1.8,0,z+W/2-.3,.5,.9,.5,0x9c7a4b,'crate',{local:true})};
   for(const st of HUB_ST)if(st.col)store(st);
   // practice portal arch
   B.box(28,0,-6,.8,4.2,.8,0x2b2f3a,'metal');B.box(28,0,-2,.8,4.2,.8,0x2b2f3a,'metal');B.box(28,4.2,-4,.8,.7,4.8,0x2b2f3a,'metal');B.glow(28,.05,-4,.1,4.1,3.2,0x2ee59d);
