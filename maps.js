@@ -275,9 +275,12 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  if(B.shadows.length){const planes=B.shadows.map(([x,z,w,dd])=>{const p=new THREE.PlaneGeometry(w,dd).toNonIndexed();p.rotateX(-Math.PI/2);p.translate(x,.014,z);return p});
   let n=0;for(const p of planes)n+=p.attributes.position.count;const P=new Float32Array(n*3),U=new Float32Array(n*2);let o=0;for(const p of planes){P.set(p.attributes.position.array,o*3);U.set(p.attributes.uv.array,o*2);o+=p.attributes.position.count;p.dispose()}
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(P,3));geo.setAttribute('uv',new THREE.BufferAttribute(U,2));
-  const sm=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:TX.shadow,transparent:true,opacity:d.indoor?.35:.5,depthWrite:false,color:0x000000}));sm.renderOrder=1;group.add(sm)}
+  const sm=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:TX.shadow,transparent:true,opacity:d.indoor?.35:.5,depthWrite:false,color:0x000000}));sm.renderOrder=1;group.add(sm);
+  // v51 AO: a second, wider/softer cool-tinted layer under every prop (cheap ambient-occlusion look)
+  {const g2=geo.clone();const pa=g2.attributes.position.array;let i=0;for(const[x,z,w,dd]of B.shadows){for(let k=0;k<6;k++){const j=(i+k)*3;pa[j]=x+(pa[j]-x)*1.7;pa[j+2]=z+(pa[j+2]-z)*1.7;pa[j+1]=.011}i+=6}
+   const s2=new THREE.Mesh(g2,new THREE.MeshBasicMaterial({map:TX.shadow,transparent:true,opacity:d.indoor?.14:.2,depthWrite:false,color:0x101830}));s2.renderOrder=0;group.add(s2)}}
  let water=null;if(d.water){const wm=new THREE.MeshLambertMaterial({color:d.water,map:makeWaterTex(),transparent:true,opacity:.92});
-  water=new THREE.Mesh(new THREE.PlaneGeometry(500,500),wm);water.rotation.x=-Math.PI/2;water.position.y=-.9;water.receiveShadow=true;group.add(water)}
+  water=new THREE.Mesh(new THREE.PlaneGeometry(500,500),wm);water.rotation.x=-Math.PI/2;water.position.y=-.9;water.receiveShadow=true;water.onBeforeRender=()=>{const t=WT.value;wm.map.offset.set(t*.012,t*.007)};group.add(water)}
  const sunDir=new THREE.Vector3(...d.sun[2]).normalize();
  if(water){water.userData.lo=water.material;water.userData.hi=makeWater(d.water,d.sky[0],d.sky[2],sunDir,d.sun[0])}
  const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0],d.br?{cloudN:34}:{});

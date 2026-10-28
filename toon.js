@@ -16,7 +16,7 @@ const RARN=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY'];export {RARN};
 let MAT=null;const mat=()=>{if(MAT)return MAT;MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.5,metalness:.02});
  // stylized look: warm fresnel rim light + soft sky-bounce tint on downward normals (cheap toon-ish shading, no extra passes)
  MAT.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
-  {float fr=pow(1.0-saturate(dot(normalize(normal),normalize(vViewPosition))),2.4);totalEmissiveRadiance+=vec3(1.0,.93,.8)*fr*.42;totalEmissiveRadiance+=vec3(.07,.1,.16)*saturate(-normal.y)*.35;}`)};
+  {float fr=pow(1.0-saturate(dot(normalize(normal),normalize(vViewPosition))),3.2);totalEmissiveRadiance+=vec3(1.0,.93,.8)*fr*.3;totalEmissiveRadiance+=vec3(.07,.1,.16)*saturate(-normal.y)*.35;}`)};
  return MAT};
 const GC={};const cap=(r,l,s=1)=>{const k='c'+r+'|'+l+'|'+GQ.level;return GC[k]||(GC[k]=new THREE.CapsuleGeometry(r,l,GQ.level==='low'?3:4,GQ.level==='low'?8:12))};
 const sph=(r=1)=>{const k='s'+GQ.level;return GC[k]||(GC[k]=new THREE.SphereGeometry(1,GQ.level==='low'?10:16,GQ.level==='low'?8:12))};

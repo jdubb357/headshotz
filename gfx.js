@@ -86,7 +86,14 @@ const camoCache={};export function camoTex(hex){if(camoCache[hex])return camoCac
 const matCache={lo:{},hi:{}};
 let _gunLo=null;export function setGunLo(m){_gunLo=m}
 export const MATHOOK={};
-export function texMat(name){if(MATHOOK[name]){const r=MATHOOK[name](GQ.level);if(r)return r}const lvl=GQ.level==='low'?'lo':'hi';const C=matCache[GQ.level==='high'?'hh':lvl]||(matCache[GQ.level==='high'?'hh':lvl]={});if(C[name])return C[name];
+// v51: wind sway on foliage (all quality levels): canopy/bush vertices drift with height, phase from world x/z; trunks stay put
+function windify(m){if(m.userData.wind)return m;m.userData.wind=1;const ob=m.onBeforeCompile;m.onBeforeCompile=s=>{if(ob)ob(s);s.uniforms.gT=GRASS_T;s.vertexShader='uniform float gT;\n'+s.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+ {float hk=smoothstep(.9,5.5,transformed.y);float ph=transformed.x*.37+transformed.z*.29;transformed.x+=(sin(gT*1.5+ph)+.45*sin(gT*3.1+ph*2.3))*.075*hk;transformed.z+=(cos(gT*1.2+ph*1.3)+.35*sin(gT*2.7+ph))*.055*hk;transformed.y+=sin(gT*1.9+ph)*.012*hk;}`).replace('#include <color_vertex>',`#include <color_vertex>
+ #ifdef USE_COLOR
+ vColor.rgb*=mix(.74,1.14,smoothstep(1.4,5.2,position.y))*(.9+.2*fract(sin(dot(floor(position.xz*.9),vec2(12.9,78.2)))*43758.5));
+ #endif`)};m.customProgramCacheKey=()=>'wind'+(ob?'x':'');m.needsUpdate=true;return m}
+export function texMat(name){const m=texMat0(name);return name==='leaves'?windify(m):m}
+function texMat0(name){if(MATHOOK[name]){const r=MATHOOK[name](GQ.level);if(r)return r}const lvl=GQ.level==='low'?'lo':'hi';const C=matCache[GQ.level==='high'?'hh':lvl]||(matCache[GQ.level==='high'?'hh':lvl]={});if(C[name])return C[name];
  const noMap=name==='char'||name==='gunMetal'||name==='gunMatte'||name==='gunTP'||name==='gunTrans';
  if(name==='gunGlass')return C[name]=GLASS;
  if(lvl==='lo'){if(name==='gunMetal'||name==='gunMetalP'||name==='gunAlu'||name==='gunBrass'||name==='gunChrome')return C[name]=MC.metal;if(name.startsWith('gun'))return C[name]=MC.matte;return C[name]=new THREE.MeshLambertMaterial({map:noMap?null:getTex(name),vertexColors:true})}
@@ -131,7 +138,7 @@ export function mergeParts(parts,opt={}){let total=0;const geos=[];
   _c.set(pt.c??0xffffff);const us=pt.us||.25;let bb=null;if(pt.uv==='local'){g.computeBoundingBox();bb=g.boundingBox}
   const gy=pt.gy??0;
   for(let i=0;i<cnt;i++){const x=pa[i*3],y=pa[i*3+1],z=pa[i*3+2],nx=na[i*3],ny=na[i*3+1],nz=na[i*3+2];
-   let f=1;if(pt.ao!==false&&opt.ao){const h=y-gy;f=.58+.42*Math.min(1,Math.max(0,h/1.4));if(ny<-.5)f*=.75;if(ny>.5)f=Math.max(f,.95)}
+   let f=1;if(pt.ao!==false&&opt.ao){const h=y-gy;f=.5+.5*Math.min(1,Math.max(0,h/1.7));if(ny<-.5)f*=.75;if(ny>.5)f=Math.max(f,.95)}
    if(pt.top&&ny>.5){C[(o+i)*3]=pt.top[0];C[(o+i)*3+1]=pt.top[1];C[(o+i)*3+2]=pt.top[2]}else{C[(o+i)*3]=_c.r*f;C[(o+i)*3+1]=_c.g*f;C[(o+i)*3+2]=_c.b*f}
    if(U){const ax=Math.abs(nx),ay=Math.abs(ny),az=Math.abs(nz);let u,v;
     if(bb){const sx=bb.max.x-bb.min.x||1,sy=bb.max.y-bb.min.y||1,sz=bb.max.z-bb.min.z||1;if(ay>=ax&&ay>=az){u=(x-bb.min.x)/sx;v=(z-bb.min.z)/sz}else if(ax>=az){u=(z-bb.min.z)/sz;v=(y-bb.min.y)/sy}else{u=(x-bb.min.x)/sx;v=(y-bb.min.y)/sy}}
@@ -192,7 +199,9 @@ float hh(vec2 p){float t=time;return sin(p.x*.31+t*1.1)*.5+sin(p.y*.37-t*.8)*.5+
 void main(){vec2 p=vW.xz;float e=.15;float h0=hh(p);vec3 n=normalize(vec3(-(hh(p+vec2(e,0.))-h0)/e*.28,1.,-(hh(p+vec2(0.,e))-h0)/e*.28));
  vec3 v=normalize(cameraPosition-vW);float fr=.03+.97*pow(1.-max(dot(n,v),0.),5.);vec3 rf=reflect(-v,n);vec3 sky=mix(skyM,skyT,pow(clamp(rf.y,0.,1.),.5));
  vec3 base=mix(deep,shal,clamp(h0*.35+.4,0.,1.)*.5);vec3 c=mix(base,sky,clamp(fr,0.,1.));float sp=pow(max(dot(reflect(-sunDir,n),v),0.),220.);c+=sunCol*sp*7.;
- c+=vec3(.9)*smoothstep(.82,1.,h0*.5+.5)*.08;gl_FragColor=vec4(c,.94);
+ float crest=smoothstep(.74,1.,h0*.5+.5);float fn=fract(sin(dot(floor(p*3.2),vec2(12.9898,78.233)))*43758.5453);float fm=crest*(.55+.45*sin(p.x*1.9+p.y*1.3+time*2.3+fn*6.));c=mix(c,vec3(.93,.98,1.),clamp(fm*.5,0.,.55));
+ float tw=step(.965,fract(sin(dot(floor(p*5.5+time*.6),vec2(7.3,31.7)))*9421.3));c+=sunCol*tw*pow(max(dot(reflect(-sunDir,n),v),0.),24.)*1.6;
+ c=mix(c,deep*.55,clamp((1.-max(dot(n,v),0.))*.15,0.,.2));gl_FragColor=vec4(c,.94);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 #include <fog_fragment>
