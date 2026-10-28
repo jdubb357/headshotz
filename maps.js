@@ -4,7 +4,7 @@ import {dress} from './mapdress.js';
 import {HQP} from './assets.js';
 import {brDef,BR_ZONES} from './br.js';
 const useHQ=k=>HQP.ready&&HQP.models[k]&&GQ.level!=='low';
-import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng} from './gfx.js';
+import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng,WT} from './gfx.js';
 const _c=new THREE.Color();
 function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],links=[],nav=[];
  const add=(tex,pt)=>{(T[tex]=T[tex]||[]).push(pt)};

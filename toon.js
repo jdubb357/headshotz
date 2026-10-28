@@ -167,7 +167,7 @@ export function animToon(m,st,dt){const u=m.userData;const sp=Math.min(st.speed|
  if(u.crouch>.01){const k=u.crouch;hipsY=lerp(hipsY,-.32,k);thL=lerp(thL,.95+thL*.4,k);thR=lerp(thR,.95+thR*.4,k);shL=lerp(shL,-1.5,k);shR=lerp(shR,-1.5,k);tX=lerp(tX,.2,k)}
  if(air){thL=.5;thR=-.2;shL=-.9;shR=-.3;hipsY=0}
  if(st.slide){hipsY=-.5;tX=.5;thL=1.3;thR=1.1;shL=-.1;shR=-.5}
- if(u.climb>.01){const k=u.climb,cs=Math.sin(u.ph);thL=lerp(thL,.6+cs*.5,k);thR=lerp(thR,.6-cs*.5,k);shL=lerp(shL,-1.1+cs*.3,k);shR=lerp(shR,-1.1-cs*.3,k);armPose='climb'}
+ if(u.climb>.01){const k=u.climb,cs=Math.sin(u.ph);thL=lerp(thL,.6+cs*.5,k);thR=lerp(thR,.6-cs*.5,k);shL=lerp(shL,-1.1+cs*.3,k);shR=lerp(shR,-1.1-cs*.3,k);armPose=k>.5?'climb':armPose}
  // idle breathing
  const idle=(1-walk)*(1-u.crouch)*(air||st.slide?0:1);u.it=(u.it||0)+dt;const br=Math.sin(u.it*1.9)*.012*idle;
  u.flinch=Math.max(0,u.flinch-dt*4);
@@ -191,7 +191,7 @@ export function animToon(m,st,dt){const u=m.userData;const sp=Math.min(st.speed|
  const pitch=u.dead?0:(st.pitch||0);u.aim.rotation.x+=(pitch*(pz.fall>.5||pz.glide>.5?0:1)-u.aim.rotation.x)*Math.min(1,dt*15);
  u.headG.rotation.x=sm('hx',(pz.fall>.5?.9:pitch*.5)-u.rig.rotation.x*.2-u.torso.rotation.x*.5);u.headG.rotation.y=sm('hy2',emo&&emo.head?emo.head(u.et):0);
  // blink
- u.blinkT-=dt;let bl=1;if(u.blinkT<0){const t=-u.blinkT;bl=t<.12?1-Math.sin(t/.12*Math.PI)*.92:1;if(t>.12)u.blinkT=2+Math.random()*3.5}u.eyes.scale.y=bl;
+ u.blinkT-=dt;let bl=1;if(u.blinkT<0){const t=-u.blinkT;bl=t<.12?1-Math.sin(t/.12*Math.PI)*.92:1;if(t>.12)u.blinkT=2+Math.random()*3.5}u.eyes.scale.y=bl;u.eyes.position.y=-1.38+1.555*(1-bl);
  // arms
  const hold=st.hold!==false&&armPose==='hold';
  const gp=(armPose==='hold'&&!emo)?solveGun(u,st,dt,run,0):null;
