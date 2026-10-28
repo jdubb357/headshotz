@@ -158,8 +158,8 @@ export function initSidekicks(A){
   const sh=Math.sin(f.home),ch=Math.cos(f.home);const tx=O.x-sh*1.5+ch*1.05,tz=O.z-ch*1.5-sh*1.05;
   if(o.ground){f.gy+=(O.y-f.gy)*Math.min(1,dt*6)}if(Math.abs(O.y-f.gy)>5)f.gy=O.y;
   let dx=tx-f.pos.x,dz=tz-f.pos.z,dist=Math.hypot(dx,dz);
-  if(dist>10){f.pos.set(tx,f.gy,tz);f.age=0;dx=dz=dist=0;f.vel.set(0,0,0)}
-  const want=dist<.18?0:Math.min(9.5,.6+dist*3.6);const a=1-Math.exp(-9*dt);const wx=dist>.01?dx/dist*want:0,wz=dist>.01?dz/dist*want:0;f.vel.x+=(wx-f.vel.x)*a;f.vel.z+=(wz-f.vel.z)*a;f.pos.x+=f.vel.x*dt;f.pos.z+=f.vel.z*dt;pushOut(f,cols);
+  f.far=dist>5?(f.far||0)+dt:0;if(dist>12||f.far>1.6){f.pos.set(tx,f.gy,tz);f.age=0;f.far=0;dx=dz=dist=0;f.vel.set(0,0,0)}
+  const want=dist<.18?0:Math.min(12.5,.6+dist*3.6);const a=1-Math.exp(-9*dt);const wx=dist>.01?dx/dist*want:0,wz=dist>.01?dz/dist*want:0;f.vel.x+=(wx-f.vel.x)*a;f.vel.z+=(wz-f.vel.z)*a;f.pos.x+=f.vel.x*dt;f.pos.z+=f.vel.z*dt;pushOut(f,cols);
   const sp=Math.hypot(f.vel.x,f.vel.z);f.mv+=((sp>.35?Math.min(1.4,sp/2.2):0)-f.mv)*Math.min(1,dt*10);
   let ty=sp>.5?Math.atan2(f.vel.x,f.vel.z):Math.atan2(O.x-f.pos.x,O.z-f.pos.z);let dy=ty-f.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));f.yaw+=dy*Math.min(1,dt*(sp>.5?10:3.5));
   const g=f.g;g.position.set(f.pos.x,f.gy,f.pos.z);g.rotation.y=f.yaw;const sc=Math.min(1,f.age/.4);const pop=sc<1?(1-Math.pow(1-sc,3))*(1+Math.sin(sc*3.14)*.12):1;g.scale.setScalar(Math.max(.01,pop));
@@ -183,7 +183,7 @@ export function initSidekicks(A){
 // ---------------------------------------------------------------- host side (passive abilities, resolved for every human with a sidekick)
 export function luck(p){const d=SK_BY[p&&p.ws&&p.ws.pet];return d&&d.ab==='lucky'?.18*d.pw:0}
 export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;const t=H.t;
- for(const p of X.plist()){if(p.bot||!p.alive||p.down||p.air||p.elim)continue;const id=p.ws&&p.ws.pet;const d=SK_BY[id];if(!d)continue;const S=(p._pk&&p._pk.id===id)?p._pk:(p._pk={id,a:t+6,fl:[],dc:0});const pw=d.pw;
+ for(const p of X.plist()){if(p.bot||!p.alive||p.down||p.air||p.elim)continue;const id=p.ws&&p.ws.pet;const d=SK_BY[id];if(!d)continue;const S=(p._pk&&p._pk.id===id)?p._pk:(p._pk={id,a:t+(d.ab==='magnet'||d.ab==='guard'?1:6),fl:[],dc:0});const pw=d.pw;
   if(d.ab==='guard'){if(t<S.a||H.noFight)continue;const R=5+pw;let best=null,bd=1e9;for(const q of X.plist()){if(q.id===p.id||!q.alive||q.down||q.air||(q.prot&&t<q.prot)||!X.enemy(p,q))continue;const dd=Math.hypot(q.p[0]-p.p[0],q.p[1]-p.p[1],q.p[2]-p.p[2]);if(dd>R||dd>=bd||!X.los(p,q))continue;bd=dd;best=q}
    if(best){S.a=t+5.4-pw*1.2;X.bcast({t:'pfx',k:'zap',id:p.id,v:best.id});X.damage(best,Math.round(6+4*pw),p.id,false,'fists')}else S.a=t+.4}
   else if(d.ab==='medic'){if(p.hp<100&&t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+1.4*pw*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
