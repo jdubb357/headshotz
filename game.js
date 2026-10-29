@@ -5,7 +5,7 @@ import {SKIN_DEFS,SKIN_BY,SKIN_IDS,humanOutfit,splitSkin,joinSkin} from './skins
 import {BASE_N} from './toon.js';
 import {initSkinShop} from './skinshop.js';import {initSidekicks,hostPets,hostAbility,luck as petLuck,SK_BY,SK_DEFS} from './sidekicks.js';import {initSidekickShop} from './sidekickshop.js';
 import {Post} from './post.js';
-import {loadAssets,HQP} from './assets.js';import {photoItems,clearPhotoCache} from './photoguns.js';import {initRoyale} from './royale.js';import {chestKit,TIERC,CHEST_HINGE} from './chests.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
+import {loadAssets,HQP} from './assets.js';import {photoItems,clearPhotoCache,PHOTO} from './photoguns.js';import {initRoyale} from './royale.js';import {chestKit,TIERC,CHEST_HINGE} from './chests.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO,updateCells} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
@@ -295,8 +295,8 @@ function addMarkings(g,id,info){if(!info.trigP||info.melee||info.util||GQ.level=
  const met=texMat('gunMetalP'),dk=texMat('gunPoly');const pin=new THREE.CylinderGeometry(.0026,.0026,.0024,12);pin.rotateZ(Math.PI/2);const scr=new THREE.BoxGeometry(.0006,.0045,.0009);
  for(const sd of[1,-1])for(const dz of[-.05,.032]){const m=new THREE.Mesh(pin,met);m.position.set(sd*(mx+.0005),Y-.012,Z+dz);m.userData.fx=1;g.add(m);const sl=new THREE.Mesh(scr,dk);sl.position.set(sd*(mx+.0018),Y-.012,Z+dz);sl.rotation.x=.6;sl.userData.fx=1;g.add(sl)}
  const sel=new THREE.Mesh(new THREE.CylinderGeometry(.0055,.0055,.002,16).rotateZ(Math.PI/2),met);sel.position.set(-(mx+.0008),Y-.004,Z+.045);sel.userData.fx=1;g.add(sel);const lv=new THREE.Mesh(new THREE.BoxGeometry(.0022,.003,.013),met);lv.position.set(-(mx+.0018),Y-.004,Z+.04);lv.rotation.x=-.5;lv.userData.fx=1;g.add(lv)}
-function gunGroup(id,o={}){if(o===true)o={hands:true};const{hands=false,sleeve,lod=0,lit=false,nofa=false,glove}=o;const{parts,info}=gunParts(id,lod);const g=new THREE.Group();const Gp={};
- const PH=!o.noPhoto&&GQ.level!=='low'?photoItems(id,lod,HQP):null;const all0=hands?parts.concat(handParts(info,sleeve,glove==null?undefined:glove,undefined,nofa)):parts;const all=PH?all0.filter(pt=>pt.mat==='glove'||pt.mat==='sleeve'):all0;const wr=hands&&nofa?{R:wristOut.R,L:wristOut.L}:null;const B={};for(const pt of all){const k=(pt.grp||'')+'|'+pt.mat;(B[k]||(B[k]=[])).push(pt)}
+function gunGroup(id,o={}){if(o===true)o={hands:true};const{hands=false,sleeve,lod=0,lit=false,nofa=false,glove}=o;const{parts,info:info0}=gunParts(id,lod);const g=new THREE.Group();const Gp={};
+ const PH=!o.noPhoto&&GQ.level!=='low'?photoItems(id,lod,HQP):null;const info=PH&&PHOTO[id].info?Object.assign({},info0,PHOTO[id].info):info0;const all0=hands?parts.concat(handParts(info,sleeve,glove==null?undefined:glove,undefined,nofa)):parts;const all=PH?all0.filter(pt=>pt.mat==='glove'||pt.mat==='sleeve'):all0;const wr=hands&&nofa?{R:wristOut.R,L:wristOut.L}:null;const B={};for(const pt of all){const k=(pt.grp||'')+'|'+pt.mat;(B[k]||(B[k]=[])).push(pt)}
  for(const k in B){const[grp,mat]=k.split('|');let holder=g;
   if(grp){if(!Gp[grp]){const pv=new THREE.Group();pv.position.set(...((info.piv&&info.piv[grp])||[0,0,0]));pv.name='G_'+grp;pv.userData.base=pv.position.clone();g.add(pv);Gp[grp]=pv}holder=Gp[grp]}
   const off=holder===g?null:holder.position;

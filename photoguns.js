@@ -8,6 +8,12 @@ export const PHOTO={
   {nodes:['pistol_a','hammer_a','trigger_a']},{nodes:['slide_a'],grp:'slide'},{nodes:['magazine_loaded'],grp:'mag',loose:1}]},
  sniper:{hi:'rifle_hi',lo:'rifle_lo',rot:[0,Math.PI/2,0],s:.9,off:[0,.004,-.19],parts:[
   {nodes:['rifle_7_62','trigger','wrap','scope']},{nodes:['bolt_a','bolt_b'],grp:'bolt'}]},
+ ar:{hi:'m4a1_hi',lo:'m4a1_lo',rot:[0,0,0],s:.94,off:[0,0,-.028],info:{sight:[0,.072,.02]},parts:[
+  {nodes:['Magazine'],grp:'mag'},{nodes:['Charging_Handle'],grp:'bolt'},{nodes:['*']}]},
+ smg:{hi:'grease_hi',lo:'grease_lo',rot:[0,0,0],s:.85,off:[0,0,-.118],info:{muzzle:[0,.027,-.41],grip:{c:[0,-.088,.05],a:.12,w:.032},lh:[0,-.05,-.2],sight:[0,.072,.3]},parts:[
+  {nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
+ shotgun:{hi:'shotgun_hi',lo:'shotgun_lo',rot:[0,0,0],s:.85,off:[0,.025,-.327],info:{muzzle:[0,.05,-.67],lh:[0,0,-.38],sight:[0,.08,.1]},parts:[
+  {nodes:['Fore_Stock'],grp:'pump'},{nodes:['*']}]},
  katana:{hi:'katana_hi',lo:'katana_hi',rot:[-Math.PI/2,Math.PI/2,0],s:1,off:[0,0,-.04],parts:[{nodes:['antique_katana_01']}]},
  axe:{hi:'axe_hi',lo:'axe_hi',rot:[-Math.PI/2,0,0],s:1,off:[0,0,0],parts:[{nodes:['wooden_axe']}]},
 };
@@ -21,13 +27,14 @@ function merge(gs){let n=0,ni=0;for(const g of gs){n+=g.attributes.position.coun
  for(const g of gs){const c=g.attributes.position.count;P.set(g.attributes.position.array,o*3);if(g.attributes.normal)N.set(g.attributes.normal.array,o*3);if(g.attributes.uv)U.set(g.attributes.uv.array,o*2);
   if(g.index){for(let i=0;i<g.index.count;i++)I[oi+i]=g.index.array[i]+o;oi+=g.index.count}else{for(let i=0;i<c;i++)I[oi+i]=o+i;oi+=c}o+=c}
  const r=new THREE.BufferGeometry();r.setAttribute('position',new THREE.BufferAttribute(P,3));r.setAttribute('normal',new THREE.BufferAttribute(N,3));r.setAttribute('uv',new THREE.BufferAttribute(U,2));r.setIndex(new THREE.BufferAttribute(ni>65000?I:new Uint16Array(I),1));return r}
+function claimed(sp,o,root){for(const pt of sp.parts){if(pt.nodes[0]==='*')continue;let nd=o;while(nd&&nd!==root.parent){if(pt.nodes.some(s=>nd.name&&nd.name.endsWith(s)))return true;nd=nd.parent}}return false}
 const CACHE={};
 // -> [{grp,geo,mat}] in gun space (pivot subtraction is done by the caller), or null when the scan is not loaded
 export function photoItems(id,lod,HQP){const sp=PHOTO[id];if(!sp||!HQP||!HQP.guns)return null;const key=lod?sp.lo:sp.hi;const root=HQP.guns[key];if(!root)return null;const ck=id+'|'+(lod?1:0);if(CACHE[ck])return CACHE[ck];
  _e.set(...sp.rot);_q.setFromEuler(_e);_f.compose(new THREE.Vector3(...sp.off),_q,new THREE.Vector3(sp.s,sp.s,sp.s));
  root.updateMatrixWorld(true);const out=[];
  for(const part of sp.parts){const by=new Map();
-  root.traverse(o=>{if(!o.isMesh)return;let nd=o;let hit=false;while(nd&&nd!==root.parent){if(part.nodes.some(s=>nd.name&&nd.name.endsWith(s))){hit=true;break}nd=nd.parent}if(!hit)return;
+  root.traverse(o=>{if(!o.isMesh)return;let nd=o;let hit=false;while(nd&&nd!==root.parent){if(part.nodes.some(s=>nd.name&&nd.name.endsWith(s))){hit=true;break}nd=nd.parent}if(part.nodes[0]==='*'){hit=!claimed(sp,o,root);nd=o}if(!hit)return;
    _m.copy(o.matrixWorld);if(part.loose){const e=_m.elements;const nw=nd.matrixWorld.elements;e[12]-=nw[12];e[13]-=nw[13];e[14]-=nw[14]}
    _m.premultiply(_f);const g=bakeGeo(o.geometry,_m);const mat=o.material;if(!by.has(mat))by.set(mat,[]);by.get(mat).push(g)});
   for(const[mat,gs]of by)out.push({grp:part.grp||null,geo:merge(gs),mat})}

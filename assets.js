@@ -3,7 +3,7 @@ import {THREE,GQ,hqSwap} from './gfx.js';
 export const HQP={ready:false,models:{},guns:{}};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
 const MODELS={crate:'assets/models/wooden_crate_02.glb',barrel:'assets/models/barrel_03.glb',chest:'assets/models/treasure_chest.glb'};
-const GUNS=['pistol_hi','pistol_lo','rifle_hi','rifle_lo','katana_hi','axe_hi'];
+const GUNS=['pistol_hi','pistol_lo','rifle_hi','rifle_lo','m4a1_hi','m4a1_lo','grease_hi','grease_lo','shotgun_hi','shotgun_lo','katana_hi','axe_hi'];
 const img=u=>new Promise((res,rej)=>{const i=new Image();i.decoding='async';i.onload=()=>res(i);i.onerror=rej;i.src=u});
 export let skyTex=null;
 export async function loadAssets(onProg=()=>{}){if(GQ.level==='low'){onProg(1,'skipped');return false}

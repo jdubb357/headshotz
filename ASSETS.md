@@ -26,6 +26,7 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Model: Pistol weapon (v60) | Service Pistol | Mateusz Sadek | https://polyhaven.com/a/service_pistol | CC0 |
 | Model: Sniper rifle weapon (v60) | Bolt Action Rifle 7.62 | Mateusz Sadek | https://polyhaven.com/a/bolt_action_rifle_7_62 | CC0 |
 | Model: Katana weapon (v60) | Antique Katana 01 | Tal Swicegood | https://polyhaven.com/a/antique_katana_01 | CC0 |
+| Models: Assault rifle (M4A1), SMG (Grease Gun) and Shotgun weapons (v60) | Guns & Explosives pack (M4A1, Grease Gun, Shotgun) | 3dmodelscc0 | https://3dmodelscc0.itch.io/free-cc0-guns-explosives-pack | CC0 |
 | Model: Axe weapon (v60) | Wooden Axe | Ulan Cabanilla | https://polyhaven.com/a/wooden_axe | CC0 |
 | Texture: gun wood grain (v60) | Black Walnut Veneer 02 | Jenelle van Heerden | https://polyhaven.com/a/black_walnut_veneer_02 | CC0 |
 
