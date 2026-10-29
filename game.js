@@ -56,7 +56,7 @@ function envFor(i){if(envCache[i])return envCache[i];if(!pmrem)pmrem=new THREE.P
 const fx=new FX(scene);
 fx.onShellHit=(p,h)=>SFX.shellHit(p,h);
 let inGame=false;
-function resize(){document.body.classList.toggle('playing',inGame);const vv=window.visualViewport;const w=Math.round(vv?vv.width:innerWidth)||innerWidth,h=Math.round(vv?vv.height:innerHeight)||innerHeight;
+function resize(){document.body.classList.toggle('playing',inGame);try{updCamBtn()}catch(e){}const vv=window.visualViewport;const w=Math.round(vv?vv.width:innerWidth)||innerWidth,h=Math.round(vv?vv.height:innerHeight)||innerHeight;
  renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();$('rotate').classList.toggle('need',isTouch&&inGame)}
 addEventListener('resize',resize);addEventListener('orientationchange',()=>{resize();setTimeout(resize,300);setTimeout(resize,900)});
 if(window.visualViewport)visualViewport.addEventListener('resize',resize);
@@ -2297,7 +2297,7 @@ let _cbk='';function tpBody(dt){{const k=inGame+'|'+C.hub+'|'+TPV.on;if(k!==_cbk
  u.tag.visible=false}
 function gliderOf(m,open,dt){const u=m.userData;if(u.kind!=='toon')return;if(!u.glider){const o=u.outfit||{};u.glider=makeGlider(o.top??0xff4fa3,o.acc??0xffd23f);u.glider.visible=false;u.gs=0;m.add(u.glider)}
  const tgt=open?1:0;u.gs+=(tgt-u.gs)*Math.min(1,dt*(open?9:12));const s=u.gs>.98?1:u.gs;u.glider.visible=u.gs>.02;const pop=open?1+Math.sin(Math.min(1,u.gs)*Math.PI)*.12:1;u.glider.scale.setScalar(Math.max(.01,s*pop));u.glider.userData.flex(BC?BC.bank:0,0,performance.now()/1000)}
-setInterval(()=>{try{updCamBtn()}catch(e){}},500);
+setInterval(()=>{try{updCamBtn()}catch(e){}},250);
 function updCamBtn(){document.body.classList.toggle('playing',!!inGame);const b=$('camBtn');if(!b)return;b.classList.toggle('hidden',!inGame||C.hub);b.textContent=TPV.on?'👤':'👁️';b.title=TPV.on?'Third person (V)':'First person (V)'}
 function camToggle(){if(!inGame||C.hub)return;TPV.on=!TPV.on;if(royaleMode())LSS('camR',TPV.on?'3':'1');else LSS('cam3',TPV.on?'1':'0');if(TPV.on)tpEnsure();else{if(me.model)me.model.visible=false;camera.fov=75;camera.updateProjectionMatrix()}updCamBtn();center(TPV.on?'Third person':'First person',700)}
 (function(){const b=document.createElement('button');b.id='camBtn';b.className='hidden';b.textContent='👁️';document.body.appendChild(b);b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();camToggle()});
