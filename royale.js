@@ -63,7 +63,7 @@ export function initRoyale(A){
   if(S.tab==='lobby'){$('royLobby').innerHTML=`<div class="royMode"><button data-m="br" class="${!sq?'sel':''}">🧍 SOLO</button><button data-m="brs" class="${sq?'sel':''}">👥 SQUAD</button></div>
    <div class="royInfo">🏝️ Skyline Island · 24 players · loot · storm</div>${party()}
    <div class="royDiff"><span>BOTS</span>${['easy','normal','hard'].map(d=>`<button data-d="${d}" class="${S.diff===d?'sel':''}">${d.toUpperCase()}</button>`).join('')}</div>
-   <button id="royPlay" class="btnBig yellow royPlay" ${canPlay?'':'disabled'}>▶ PLAY</button>`}
+   ${(()=>{const q=A.lastSquad&&A.lastSquad();return q?`<button id="royAgain" class="btnBig royAgain" ${canPlay?'':'disabled'}>🔁 PLAY AGAIN · SAME SQUAD<small>${q.mode==='brs'?'Squad':'Solo'} · ${String(q.diff||'normal').toUpperCase()} bots${P&&P.m&&P.m.length>1?' · '+P.m.length+' friends':''}</small></button>`:''})()}<button id="royPlay" class="btnBig yellow royPlay" ${canPlay?'':'disabled'}>▶ PLAY</button>`}
   else renderLocker();
   $('royName').textContent=OUTFITS[S.fit].name;$('royRar').innerHTML=rarTag(OUTFITS[S.fit])}
  function setFit(i){const o=OUTFITS[i];if(i>=BASE_N&&A.equipSkin){const same=S.fit===i;const t=same?S.tint:((A.PROG&&A.PROG.stint&&A.PROG.stint[o.skinId])||0);S.fit=i;S.tint=t;A.equipSkin(o.skinId,t)}else{S.fit=i;S.tint=0;A.LSS('fit',String(i))}mkHero();playEmote('cheer');render()}
@@ -78,7 +78,7 @@ export function initRoyale(A){
   else if(b.dataset.o!=null)setFit(+b.dataset.o);
   else if(b.dataset.g)setGun(b.dataset.g);
   else if(b.dataset.e)playEmote(b.dataset.e);
-  else if(b.id==='royShop'){if(A.shop)A.shop.open('royale')}else if(b.id==='royPets'){if(A.pets)A.pets.open('royale')}else if(b.id==='royPlay')play();else if(b.id==='royBack')close();else if(b.id==='royInvite')A.openFriends();else if(b.id==='royLeave'){A.partyLeave();render();mkMates()}});
+  else if(b.id==='royShop'){if(A.shop)A.shop.open('royale')}else if(b.id==='royPets'){if(A.pets)A.pets.open('royale')}else if(b.id==='royAgain'){const q=A.lastSquad&&A.lastSquad();if(q){S.mode=q.mode==='brs'?'brs':'br';S.diff=q.diff||S.diff}play()}else if(b.id==='royPlay')play();else if(b.id==='royBack')close();else if(b.id==='royInvite')A.openFriends();else if(b.id==='royLeave'){A.partyLeave();render();mkMates()}});
  // drag to spin, tap hero to emote
  cvHost.addEventListener('pointerdown',e=>{S.drag={x:e.clientX,t:performance.now(),m:0};S.vry=0;try{cvHost.setPointerCapture(e.pointerId)}catch(x){}});
  cvHost.addEventListener('pointermove',e=>{if(!S.drag)return;const dx=e.clientX-S.drag.x;S.drag.x=e.clientX;S.drag.m+=Math.abs(dx);S.ry+=dx*.012;S.vry=dx*.012*60*.5});
