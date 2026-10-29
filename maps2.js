@@ -4,8 +4,8 @@ export function newDefs({G,rng,_c,facade}){
 const slab=(B,x,top,z,w,d,c,tex='concrete')=>B.box(x,top-.3,z,w,.3,d,c,tex,{gy:top-.3});
 // hollow room: walls .3 thick, door gaps (1.8 wide) on sides listed in doors ('n'=+z,'s'=-z,'e'=+x,'w'=-x); optional roof slab
 function room(B,x,z,w,d,h,c,tex,doors='',roof=true,y=0,rc){const t=.3,dg=1.8;
- const wallX=(zz,side)=>{if(doors.includes(side)){const s=(w-dg)/2;B.box(x-w/2+s/2,y,zz,s,h,t,c,tex,{gy:y});B.box(x+w/2-s/2,y,zz,s,h,t,c,tex,{gy:y});B.box(x,y+2.3,zz,dg,h-2.3,t,c,tex,{gy:y})}else B.box(x,y,zz,w,h,t,c,tex,{gy:y})};
- const wallZ=(xx,side)=>{if(doors.includes(side)){const s=(d-dg)/2;B.box(xx,y,z-d/2+s/2,t,h,s,c,tex,{gy:y});B.box(xx,y,z+d/2-s/2,t,h,s,c,tex,{gy:y});B.box(xx,y+2.3,z,t,h-2.3,dg,c,tex,{gy:y})}else B.box(xx,y,z,t,h,d,c,tex,{gy:y})};
+ const wallX=(zz,side)=>{if(doors.includes(side)){B.door(x,zz,y,dg,2.3,'x',side==='n'?1:-1);const s=(w-dg)/2;B.box(x-w/2+s/2,y,zz,s,h,t,c,tex,{gy:y});B.box(x+w/2-s/2,y,zz,s,h,t,c,tex,{gy:y});B.box(x,y+2.3,zz,dg,h-2.3,t,c,tex,{gy:y})}else B.box(x,y,zz,w,h,t,c,tex,{gy:y})};
+ const wallZ=(xx,side)=>{if(doors.includes(side)){B.door(xx,z,y,dg,2.3,'z',side==='e'?1:-1);const s=(d-dg)/2;B.box(xx,y,z-d/2+s/2,t,h,s,c,tex,{gy:y});B.box(xx,y,z+d/2-s/2,t,h,s,c,tex,{gy:y});B.box(xx,y+2.3,z,t,h-2.3,dg,c,tex,{gy:y})}else B.box(xx,y,z,t,h,d,c,tex,{gy:y})};
  wallX(z+d/2-t/2,'n');wallX(z-d/2+t/2,'s');wallZ(x+w/2-t/2,'e');wallZ(x-w/2+t/2,'w');
  // framed window strips + door frames + base trim (decor, non-solid, <=.1 m proud)
  const ns={solid:false,shadow:false},fr=_c.set(c).lerp(_c.clone().set(0xffffff),.45).getHex(),dk=_c.set(c).multiplyScalar(.6).getHex();

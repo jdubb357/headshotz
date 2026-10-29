@@ -8,7 +8,9 @@ import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,ge
 const _c=new THREE.Color();
 function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],links=[],nav=[];
  const add=(tex,pt)=>{(T[tex]=T[tex]||[]).push(pt)};
- const B={T,cols,shadows,glows,ladders,hides,links,nav,fxs:[],props:[],
+ const dl=[];const B={T,cols,shadows,glows,ladders,hides,links,nav,fxs:[],props:[],dl,
+  // v58b swinging door: x,z = centre of the gap in the wall, y = floor, w = gap width, h = door height, ax = 'x' (wall runs along X) or 'z', out = sign of the outside direction on the other axis
+  door(x,z,y,w,h,ax,out){const c=ax==='x'?{x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-.07,z1:z+.07,s:'planks'}:{x0:x-.07,x1:x+.07,y0:y,y1:y+h,z0:z-w/2,z1:z+w/2,s:'planks'};c.door=dl.length;cols.push(c);dl.push({id:dl.length,x,z,y,w,h,ax,out,col:c,o:0,a:0,oy0:c.y0,oy1:c.y1});return B},
   // axis aligned box, y = bottom
   box(x,y,z,w,h,d,c,tex='concrete',o={}){if(!o.novis)add(tex,{g:G('box',w,h,d),p:[x,y+h/2,z],c,uv:o.local?'local':undefined,us:o.us,gy:o.gy??0,ao:o.ao});
    if(o.solid!==false)cols.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2,s:tex});if(o.shadow!==false&&y<.06&&w*d>.2)shadows.push([x,z,w+.55,d+.55]);return B},
@@ -260,6 +262,15 @@ DEFS.push(brDef({G,rng,_c}));export const BR_I=DEFS.length-1;export const BR_INF
 function clear(cols,x,z,r=.6){for(const c of cols)if(x+r>c.x0&&x-r<c.x1&&z+r>c.z0&&z-r<c.z1&&c.y0<1.8&&c.y1>.05)return false;return true}
 function fixSpawn(cols,s,lim){if(clear(cols,s[0],s[1]))return s;for(let rad=.5;rad<6;rad+=.5)for(let a=0;a<16;a++){const x=s[0]+Math.cos(a/16*6.283)*rad,z=s[1]+Math.sin(a/16*6.283)*rad;if(Math.abs(x)<lim[0]-1&&Math.abs(z)<lim[1]-1&&clear(cols,x,z))return[+x.toFixed(2),+z.toFixed(2)]}return s}
 const cache={};
+// v58b door visuals: double leaves, planks PBR + metal fittings, hinge pivots swing inward (angles driven by the game: d.a)
+const DLG={};function doorLeafGeo(lw,h,dir){const k=lw.toFixed(2)+'|'+h+'|'+dir;if(DLG[k])return DLG[k];const t=.07,P=[];
+ P.push({g:new THREE.BoxGeometry(lw-.02,h-.04,t),p:[dir*(lw/2),h/2,0],c:0x8a5a32,uv:true,us:.5});
+ P.push({g:new THREE.BoxGeometry(lw-.02,.08,t+.02),p:[dir*(lw/2),h*.18,0],c:0x3a3d42,uv:true});P.push({g:new THREE.BoxGeometry(lw-.02,.08,t+.02),p:[dir*(lw/2),h*.78,0],c:0x3a3d42,uv:true});
+ P.push({g:new THREE.BoxGeometry(.05,.16,.1),p:[dir*(lw-.12),h*.48,0],c:0xd8b04a,uv:true});
+ return DLG[k]=mergeParts(P,{uv:true})}
+function doorMeshes(list,group){for(const d of list){const lw=d.w/2,root=new THREE.Group();root.position.set(d.x,d.y,d.z);root.rotation.y=d.ax==='x'?0:-Math.PI/2;d.outL=d.out*(d.ax==='x'?1:-1);d.piv=[];
+  for(const dir of[1,-1]){const piv=new THREE.Group();piv.position.set(-dir*d.w/2,0,0);const wd=new THREE.Mesh(doorLeafGeo(lw,d.h,dir),texMat('planks'));wd.userData.tm='planks';wd.castShadow=true;wd.receiveShadow=true;piv.add(wd);root.add(piv);d.piv.push([piv,dir])}
+  group.add(root);d.root=root}}
 // drop cached map builds whose crate/barrel props were built before the HD models arrived
 export function rebuildForProps(){const out=[];for(const k in cache){const m=cache[k];if(m.def&&!m.def.hub&&!m.hqProps){delete cache[k];out.push(+k)}}return out}
 export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=Builder();
@@ -288,10 +299,11 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  if(water){water.userData.lo=water.material;water.userData.hi=makeWater(d.water,d.sky[0],d.sky[2],sunDir,d.sun[0])}
  const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0],d.br?{cloudN:34}:{});
  if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
+ doorMeshes(B.dl,group);
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
  if(B.props.length){const by={};for(const q of B.props)(by[q.k]=by[q.k]||[]).push(q);const o=new THREE.Object3D(),col=new THREE.Color();for(const k in by){const M=HQP.models[k],L=by[k];const im=new THREE.InstancedMesh(M.geo,M.mat,L.length);
   L.forEach((q,j)=>{o.position.set(q.x,q.y,q.z);o.rotation.set(0,q.ry,0);if(k==='crate')o.scale.set(q.s/M.size.x,q.s/M.size.y,q.s/M.size.z);else o.scale.setScalar(q.s/M.size.y);o.updateMatrix();im.setMatrixAt(j,o.matrix);im.setColorAt(j,col.set(0xffffff).lerp(col.clone().set(q.c),k==='barrel'?.55:.15))});im.castShadow=im.receiveShadow=true;im.userData.hqProp=1;group.add(im)}}
- return cache[i]={lootSpots:B.brLoot||[],chestSpots:B.brChests||[],doors:B.brDoors||[],zones:d.zones||null,hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ return cache[i]={lootSpots:B.brLoot||[],chestSpots:B.brChests||[],doors:B.brDoors||[],zones:d.zones||null,hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,doorsL:B.dl,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}

@@ -17,7 +17,7 @@ export function brDef({G,rng,_c}){
   // ---- generic building: 4 walls, one door (optionally windows), flat roof deck with parapet reachable by outside stairs, loot inside
   function bld(o){const{x,z,w,d,h=3.4,c=pick(PAL),tex='plaster',door='s',rc=pick(ROOF),stairs=1,dg=2.1,loot=3,chest=.3,win=1,windows,y:Y=0}=o;const id=bid++;const t=.3;const bx=(px,py,pz,a,b2,c2,col,tx,op)=>B.box(px,py+Y,pz,a,b2,c2,col,tx,op);
    const side=stairs?(door==='s'||door==='n'?(R()<.5?'e':'w'):(R()<.5?'n':'s')):null;
-   const wall=(wx,wz,len,isX,sd)=>{const span=len;if(door===sd){const s=(span-dg)/2;if(isX){bx(wx-span/2+s/2,0,wz,s,h,t,c,tex);bx(wx+span/2-s/2,0,wz,s,h,t,c,tex);bx(wx,2.4,wz,dg,h-2.4,t,c,tex)}else{bx(wx,0,wz-span/2+s/2,t,h,s,c,tex);bx(wx,0,wz+span/2-s/2,t,h,s,c,tex);bx(wx,2.4,wz,t,h-2.4,dg,c,tex)}return}
+   const wall=(wx,wz,len,isX,sd)=>{const span=len;if(door===sd){const s=(span-dg)/2;B.door(wx,wz,Y,dg,2.4,isX?'x':'z',isX?(sd==='n'?1:-1):(sd==='e'?1:-1));if(isX){bx(wx-span/2+s/2,0,wz,s,h,t,c,tex);bx(wx+span/2-s/2,0,wz,s,h,t,c,tex);bx(wx,2.4,wz,dg,h-2.4,t,c,tex)}else{bx(wx,0,wz-span/2+s/2,t,h,s,c,tex);bx(wx,0,wz+span/2-s/2,t,h,s,c,tex);bx(wx,2.4,wz,t,h-2.4,dg,c,tex)}return}
     if(win&&span>5&&(windows??R()<.55)){const ww=1.5,s=(span-ww)/2;if(isX){bx(wx-span/2+s/2,0,wz,s,h,t,c,tex);bx(wx+span/2-s/2,0,wz,s,h,t,c,tex);bx(wx,0,wz,ww,1.0,t,c,tex);bx(wx,2.1,wz,ww,h-2.1,t,c,tex);bx(wx,1.0,wz,ww,1.1,.05,0xffffff,'window',{...NS,local:true})}
      else{bx(wx,0,wz-span/2+s/2,t,h,s,c,tex);bx(wx,0,wz+span/2-s/2,t,h,s,c,tex);bx(wx,0,wz,t,1.0,ww,c,tex);bx(wx,2.1,wz,t,h-2.1,ww,c,tex);bx(wx,1.0,wz,.05,1.1,ww,0xffffff,'window',{...NS,local:true})}return}
     isX?bx(wx,0,wz,span,h,t,c,tex):bx(wx,0,wz,t,h,span,c,tex)};
