@@ -338,7 +338,7 @@ body.brAirOn #slots,body.brAirOn #bZoom,body.brAirOn #bNade,body.brAirOn #bSlide
 #partyBar .pMem span{background:rgba(255,255,255,.12);border-radius:99px;padding:2px 8px}#partyBar .pMem span.lead{background:rgba(255,210,63,.3)}
 #partyBar button{pointer-events:auto}
 /* v45 camera toggle */
-#camBtn{position:fixed;right:72px;top:12px;z-index:60;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(10,14,35,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer}
+#camBtn{position:fixed;right:calc(72px + env(safe-area-inset-right));top:calc(12px + env(safe-area-inset-top));z-index:60;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(10,14,35,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer}
 #camBtn.hidden{display:none}
 
 /* ===== HeadShotz Royale menu entry + lobby (v47) ===== */
@@ -377,7 +377,7 @@ body.brAirOn #slots,body.brAirOn #bZoom,body.brAirOn #bNade,body.brAirOn #bSlide
 @media (max-width:560px) and (orientation:portrait){#royStage{inset:0 0 46% 0}.royPanel{left:8px;right:8px;top:auto;height:46%;width:auto}.royNameBox{bottom:calc(46% + 8px)}}
 .royMode{display:flex;gap:6px}
 
-#emoBtn{position:fixed;right:124px;top:12px;z-index:60;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(10,14,35,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer}
+#emoBtn{position:fixed;right:calc(124px + env(safe-area-inset-right));top:calc(12px + env(safe-area-inset-top));z-index:60;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(10,14,35,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer}
 #emoBtn.hidden{display:none}
 #emoWheel{position:fixed;left:50%;top:50%;width:0;height:0;z-index:70}
 #emoWheel.hidden{display:none}
@@ -446,3 +446,6 @@ body.brAirOn #slots,body.brAirOn #bZoom,body.brAirOn #bNade,body.brAirOn #bSlide
 #bagGhost{position:absolute;width:60px;height:48px;border:2px solid #fff;border-radius:8px;background:rgba(10,14,35,.9);pointer-events:none;z-index:40;display:flex;align-items:center;justify-content:center}#bagGhost.hidden{display:none}#bagGhost img{width:52px;height:38px;object-fit:contain;filter:brightness(1.6)}
 @media (max-height:420px){#brBag .bagBox{padding:6px 10px}#brBag .bq,#brBag .bb{height:62px}#brBag .bq img,#brBag .bb img{height:26px}#brBag .bagS{margin:4px 0 2px}#brBag .bagAct{margin-top:6px;min-height:32px}#brBag #bagDrop{margin-top:5px;padding:5px}}
 #brBag img{-webkit-user-drag:none;user-drag:none;pointer-events:none}#brBag{-webkit-user-select:none;user-select:none}
+#brNear .nb.chest.secret{border-color:#ff2b2b;background:rgba(80,0,0,.88);box-shadow:0 0 16px rgba(255,40,40,.7);animation:swPulse 1s ease-in-out infinite}
+#brNear .nb.chest.secret b{color:#ff9a9a}
+body:not(.playing) #camBtn,body:not(.playing) #emoBtn{display:none!important}
