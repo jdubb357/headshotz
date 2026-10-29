@@ -30,6 +30,10 @@ export const PHOTO={
  barrett:{hi:'snip_hi',lo:'snip_lo',rot:[0,0,0],s:1.235,off:[0,-.095,-.29],parts:[{nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
  dmr:{hi:'snip_hi',lo:'snip_lo',rot:[0,0,0],s:0.894,off:[0,-.072,-.211],parts:[{nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
  burst:{hi:'luger_hi',lo:'luger_lo',rot:[0,Math.PI,0],s:1,off:[0,-.005,-.012],info:{muzzle:[0,.04,-.186]},parts:[{nodes:['Slide'],grp:'slide'},{nodes:['Clip'],grp:'mag',loose:1},{nodes:['*']}]},
+ grenade:{hi:'frag_hi',lo:'frag_hi',fpOnly:1,rot:[0,0,0],s:1,off:[0,-.035,0],parts:[{nodes:['Pin'],grp:'pin'},{nodes:['*']}]},
+ smoke:{hi:'smokeg_hi',lo:'smokeg_hi',fpOnly:1,rot:[0,0,0],s:1,off:[0,.054,0],parts:[{nodes:['Pin'],grp:'pin'},{nodes:['*']}]},
+ flash:{hi:'flashb_hi',lo:'flashb_hi',fpOnly:1,rot:[0,0,0],s:1,off:[0,.03,0],parts:[{nodes:['Pin'],grp:'pin'},{nodes:['*']}]},
+ molotov:{hi:'molo_hi',lo:'molo_hi',fpOnly:1,rot:[0,0,0],s:1.3,off:[0,.131,0],parts:[{nodes:['*']}]},
  katana:{hi:'katana_hi',lo:'katana_hi',rot:[-Math.PI/2,Math.PI/2,0],s:1,off:[0,0,-.04],parts:[{nodes:['antique_katana_01']}]},
  axe:{hi:'axe_hi',lo:'axe_hi',rot:[-Math.PI/2,0,0],s:1,off:[0,0,0],parts:[{nodes:['wooden_axe']}]},
 };
@@ -46,7 +50,7 @@ function merge(gs){let n=0,ni=0;for(const g of gs){n+=g.attributes.position.coun
 function claimed(sp,o,root){for(const pt of sp.parts){if(pt.nodes[0]==='*')continue;let nd=o;while(nd&&nd!==root.parent){if(pt.nodes.some(s=>nd.name&&nd.name.endsWith(s)))return true;nd=nd.parent}}return false}
 const CACHE={};
 // -> [{grp,geo,mat}] in gun space (pivot subtraction is done by the caller), or null when the scan is not loaded
-export function photoItems(id,lod,HQP){const sp=PHOTO[id];if(!sp||!HQP||!HQP.guns)return null;const key=lod?sp.lo:sp.hi;const root=HQP.guns[key];if(!root)return null;const ck=id+'|'+(lod?1:0);if(CACHE[ck])return CACHE[ck];
+export function photoItems(id,lod,HQP){const sp=PHOTO[id];if(!sp||!HQP||!HQP.guns||(lod&&sp.fpOnly))return null;const key=lod?sp.lo:sp.hi;const root=HQP.guns[key];if(!root)return null;const ck=id+'|'+(lod?1:0);if(CACHE[ck])return CACHE[ck];
  _e.set(...sp.rot);_q.setFromEuler(_e);_f.compose(new THREE.Vector3(...sp.off),_q,new THREE.Vector3(sp.s,sp.s,sp.s));
  root.updateMatrixWorld(true);const out=[];
  for(const part of sp.parts){const by=new Map();
