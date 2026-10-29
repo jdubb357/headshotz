@@ -55,7 +55,7 @@ fire:`void main(){${SHADE}float t=uT;vec3 p=vP*14.;vec3 q=p+vec3(0.,-t*2.6,0.);f
 // ---------- v55 animated GALAXY: ONE shader function shared by weapons, Royale heroes and realistic soldiers ----------
 // nebula swirls (domain-warped fbm scrolling over time) + two layers of twinkling parallax stars (view-dependent) + rim glow (+ rare shooting star on HQ).
 // Stars fade with their pixel footprint (fwidth) so nothing shimmers/flickers at range. Palette is 4 uniforms, so every colourway shares one program.
-export const GX_PAL={purple:[[.05,.02,.14],[.5,.1,.85],[1,.35,.75],[.25,.6,1]],blue:[[.01,.04,.15],[.1,.35,.95],[.2,.85,1],[.6,.4,1]],red:[[.13,.01,.03],[.85,.08,.15],[1,.5,.2],[1,.2,.6]],gold:[[.1,.06,.01],[.85,.55,.08],[1,.85,.35],[1,.4,.15]]};
+export const GX_PAL={purple:[[.04,.02,.15],[.3,.12,.82],[1,.35,.75],[.25,.6,1]],blue:[[.01,.04,.15],[.1,.35,.95],[.2,.85,1],[.6,.4,1]],red:[[.13,.01,.03],[.85,.08,.15],[1,.5,.2],[1,.2,.6]],gold:[[.1,.06,.01],[.85,.55,.08],[1,.85,.35],[1,.4,.15]]};
 export const GX_GLSL=`uniform float uT;uniform vec3 uC0;uniform vec3 uC1;uniform vec3 uC2;uniform vec3 uC3;
 float gh(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float gn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(gh(i),gh(i+vec3(1,0,0)),f.x),mix(gh(i+vec3(0,1,0)),gh(i+vec3(1,1,0)),f.x),f.y),mix(mix(gh(i+vec3(0,0,1)),gh(i+vec3(1,0,1)),f.x),mix(gh(i+vec3(0,1,1)),gh(i+vec3(1,1,1)),f.x),f.y),f.z);}
@@ -67,20 +67,29 @@ vec3 gxCol(vec3 vp,vec3 V,float dif,float rim){float t=uT;vp*=GXS;vec3 p=vp*8.;
 #else
  float n2=clamp((gf(p*2.6-vec3(0.,t*.05,0.)+n*1.5)-.5)*2.6+.5,0.,1.);
 #endif
- vec3 c=uC0;c=mix(c,uC1,smoothstep(.42,.62,n));c=mix(c,uC2,smoothstep(.55,.7,n2)*.85);c=mix(c,uC0*.35,smoothstep(.45,.3,n2)*.7);c=mix(c,uC3,smoothstep(.5,.8,n*n2*2.)*.6);
+ vec3 c=uC0;c=mix(c,uC1,smoothstep(.42,.62,n));c=mix(c,uC2,smoothstep(.55,.7,n2)*.4);c=mix(c,uC0*.35,smoothstep(.45,.3,n2)*.7);c=mix(c,uC3,smoothstep(.5,.8,n*n2*2.)*.45);
 #ifdef GXHQ
- float n3v=clamp((gf(p*4.+V*1.2+vec3(0.,0.,t*.08))-.5)*3.+.5,0.,1.);c=mix(c,mix(uC3,uC2,.5)*1.1,smoothstep(.6,.85,n3v)*.35);c+=uC2*pow(n*n2,3.)*.6;
+ float n3v=clamp((gf(p*4.+V*1.2+vec3(0.,0.,t*.08))-.5)*3.+.5,0.,1.);c=mix(c,mix(uC3,uC2,.5)*1.1,smoothstep(.6,.85,n3v)*.35);c+=uC2*pow(n*n2,3.)*.35;
 #endif
  c*=.5+.35*dif;
- vec3 sp=vp*28.*GXSM+V*.35;float fw=fwidth(sp.x)+fwidth(sp.y)+fwidth(sp.z);float aa=1.-smoothstep(.22,.65,fw);
- float r=gh(floor(sp));float st=step(.8,r)*(1.-smoothstep(.0,.46,length(fract(sp)-.5)));float tw=.4+.6*sin(t*(2.+r*5.)+r*40.);c+=vec3(1.,.97,.9)*st*max(tw,0.)*2.3*GXSTARS*aa;
- vec3 sp2=vp*70.*GXSM+V*.9;float aa2=1.-smoothstep(.22,.65,fw*2.5);float r2=gh(floor(sp2)+7.);float st2=step(.82,r2)*(1.-smoothstep(0.,.25,length(fract(sp2)-.5)));c+=vec3(.85,.9,1.)*st2*(.5+.5*sin(t*3.+r2*30.))*GXSTARS*aa2;
- c+=vec3(1.,.97,.9)*.05*(1.-aa)*GXSTARS;
+ // screen-space cosmos: stars are pinned to the VIEW (angle from the camera), so they stay put while the model moves/turns and the suit reads as a window onto deep space
+ vec2 sc=V.xy/max(V.z,.05);float dn=GXSM>1.2?1.35:1.;
+ vec2 s1=sc*92.*dn;float fw1=fwidth(s1.x)+fwidth(s1.y);float aa=1.-smoothstep(.45,1.1,fw1);
+ vec2 i1=floor(s1);vec2 f1=fract(s1)-.5;float r1=gh(vec3(i1,3.));vec2 j1=(vec2(gh(vec3(i1,9.)),gh(vec3(i1,5.)))-.5)*.5;float d1=length(f1-j1);
+ float tw1=.3+.7*(.5+.5*sin(t*(1.6+r1*5.)+r1*50.));float st1=step(.74,r1)*(1.-smoothstep(.02,.2+.1*step(.94,r1),d1));
+ vec3 scol=mix(vec3(1.,.97,.9),mix(uC3,vec3(1.),.45),step(.55,fract(r1*7.3)));c+=scol*st1*tw1*1.9*GXSTARS*aa;
+#ifdef GXHQ
+ vec2 s2=sc*150.*dn;float fw2=fwidth(s2.x)+fwidth(s2.y);float aa2=1.-smoothstep(.5,1.2,fw2);vec2 i2=floor(s2);vec2 f2=fract(s2)-.5;float r2=gh(vec3(i2,17.));float st2=step(.8,r2)*(1.-smoothstep(0.,.26,length(f2)));c+=vec3(.8,.88,1.)*st2*(.35+.65*(.5+.5*sin(t*3.+r2*30.)))*aa2*.9;
+#endif
+ vec2 s3=sc*26.*dn;float fw3=fwidth(s3.x)+fwidth(s3.y);float aa3=1.-smoothstep(.2,.6,fw3);vec2 i3=floor(s3);float r3=gh(vec3(i3,41.));vec2 d3=fract(s3)-.5-(vec2(gh(vec3(i3,43.)),gh(vec3(i3,47.)))-.5)*.5;
+ float pl=pow(.5+.5*sin(t*(1.1+r3*2.)+r3*60.),5.);float core3=exp(-length(d3)*26.);float fl3=exp(-abs(d3.x)*34.)*exp(-abs(d3.y)*6.)+exp(-abs(d3.y)*34.)*exp(-abs(d3.x)*6.);
+ c+=vec3(1.,.96,.9)*(core3*1.1+fl3*.8)*pl*step(.955,r3)*3.*GXSTARS*aa3;
+ c+=vec3(1.,.97,.9)*.04*(1.-aa)*GXSTARS;
 #ifdef GXHQ
  float ph=floor(t/1.8);float pt=fract(t/1.8);vec3 dir=normalize(vec3(gh(vec3(ph,1.,2.))-.5,gh(vec3(ph,3.,1.))-.5,gh(vec3(2.,ph,5.))-.5));vec3 up=normalize(cross(dir,vec3(.3,1.,.2)));
  float u=dot(vp,dir)*10.,v=dot(vp,up)*10.-(gh(vec3(ph,9.,9.))-.5)*2.;float head=(pt*3.-1.5);float tail=clamp((head-u)/.6,0.,1.);float ss=step(0.,head-u)*(1.-tail)*exp(-abs(v)*90.)*smoothstep(1.,.6,pt);c+=vec3(1.,.95,.85)*ss*2.5*aa;
 #endif
- c=mix(c,c*vec3(.7,.8,1.3),smoothstep(.5,.2,n)*.6);c+=mix(uC1,vec3(1.),.35)*rim*.6;return c;}`;
+ c=mix(c,c*vec3(.7,.8,1.3),smoothstep(.5,.2,n)*.6);vec3 rc=mix(uC3,uC2,smoothstep(-.35,.35,sc.x+sc.y*.4));c+=rc*(rim*.55+rim*rim*.9);return c;}`;
 export const gxDefs=(scale,lo,sm=1)=>`#define GXSM ${sm.toFixed(2)}\n#define GXK ${lo?'1.5':'2.6'}\n#define GXOCT ${lo?1:2}\n#define GXS ${scale.toFixed(2)}\n#define GXSTARS ${lo?'0.6':'1.0'}\n${lo?'#define GXLO\n':'#define GXHQ\n'}`;
 const GXM={};
 // mode 'gun' (weapons, plain), 'toon' (Royale hero suit: modulated by the part's vertex colours so belts/emblems keep their shape)
