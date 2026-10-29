@@ -10,10 +10,20 @@ export const PHOTO={
   {nodes:['rifle_7_62','trigger','wrap','scope']},{nodes:['bolt_a','bolt_b'],grp:'bolt'}]},
  ar:{hi:'m4a1_hi',lo:'m4a1_lo',rot:[0,0,0],s:.94,off:[0,0,-.028],info:{sight:[0,.072,.02]},parts:[
   {nodes:['Magazine'],grp:'mag'},{nodes:['Charging_Handle'],grp:'bolt'},{nodes:['*']}]},
- smg:{hi:'grease_hi',lo:'grease_lo',rot:[0,0,0],s:.85,off:[0,0,-.118],info:{muzzle:[0,.027,-.41],grip:{c:[0,-.088,.05],a:.12,w:.032},lh:[0,-.05,-.2],sight:[0,.072,.3]},parts:[
+ smg:{hi:'grease_hi',lo:'grease_lo',rot:[0,0,0],s:.85,off:[0,0,-.118],info:{muzzle:[0,.027,-.41],grip:{c:[0,-.088,.05],a:.12,w:.032},lh:[0,-.05,-.2],sight:[0,.135,.3]},parts:[
   {nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
  shotgun:{hi:'shotgun_hi',lo:'shotgun_lo',rot:[0,0,0],s:.85,off:[0,.025,-.327],info:{muzzle:[0,.05,-.67],lh:[0,0,-.38],sight:[0,.08,.1]},parts:[
   {nodes:['Fore_Stock'],grp:'pump'},{nodes:['*']}]},
+ ak47:{hi:'ak47_hi',lo:'ak47_lo',rot:[0,0,0],s:1.08,off:[0,.046,-.258],parts:[
+  {nodes:['Magazine'],grp:'mag'},{nodes:['*']}]},
+ m4:{hi:'m4a1_hi',lo:'m4a1_lo',rot:[0,0,0],s:.909,off:[0,.021,-.028],parts:[
+  {nodes:['Magazine'],grp:'mag'},{nodes:['Charging_Handle'],grp:'bolt'},{nodes:['*']}]},
+ m16:{hi:'m4a1_hi',lo:'m4a1_lo',rot:[0,0,0],s:1.05,off:[0,.018,-.031],info:{muzzle:[0,.04,-.594],lh:[0,.04,-.24]},parts:[
+  {nodes:['Magazine'],grp:'mag'},{nodes:['Charging_Handle'],grp:'bolt'},{nodes:['*']}]},
+ mk18:{hi:'m4a1_hi',lo:'m4a1_lo',rot:[0,0,0],s:.85,off:[0,.022,-.026],info:{muzzle:[0,.04,-.482],lh:[0,.04,-.19]},parts:[
+  {nodes:['Magazine'],grp:'mag'},{nodes:['Charging_Handle'],grp:'bolt'},{nodes:['*']}]},
+ tommy:{hi:'suomi_hi',lo:'suomi_lo',rot:[0,0,0],s:.805,off:[0,.016,-.058],info:{sight:[0,.13,.22]},parts:[
+  {nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
  katana:{hi:'katana_hi',lo:'katana_hi',rot:[-Math.PI/2,Math.PI/2,0],s:1,off:[0,0,-.04],parts:[{nodes:['antique_katana_01']}]},
  axe:{hi:'axe_hi',lo:'axe_hi',rot:[-Math.PI/2,0,0],s:1,off:[0,0,0],parts:[{nodes:['wooden_axe']}]},
 };
