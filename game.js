@@ -1209,13 +1209,13 @@ function updRemotes(dt){const a=Math.min(1,dt*14);for(const id in C.players){con
 // ================= LOOP =================
 renderer.autoClear=false;renderer.info.autoReset=false;
 let last=performance.now(),acc=0,frames=0,fpsShown=0;const fpsLog=[];
-const brHalf=()=>{const d=cur&&cur.def;return d&&d.br?d.size[0]/2:200};function floorAt(p){return 0}
+const brHalf=()=>{let h=0;try{h=(H&&H.br&&H.br.half)||(BC&&BC.half)||0}catch(e){}if(h)return h;const d=cur&&cur.def;return d&&d.br?d.size[0]/2:200};function floorAt(p){return 0}
 let lastHostTick=performance.now();function hostStep(){const n=performance.now();const dt=Math.min(.1,(n-lastHostTick)/1000);lastHostTick=n;if(isHost)hostTick(dt)}
 // keep host simulation alive even when its tab/frame loop is throttled
 setInterval(()=>{if(performance.now()-lastHostTick>120)hostStep()},50);
 let slowWin=0,cellT=0;function loop(now){requestAnimationFrame(loop);const el=now-last;if(el<15.2)return;last=now;const dt=Math.min(.05,el/1000);tickSkins(now/1000);
  hostStep();if(PETS)PETS.update(dt,now);
- if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updDoors(dt);doorScan();cellT-=dt;if(cellT<=0){cellT=.15;const cg=cur&&cur.group;if(cg&&cg.userData.cells&&cg.userData.cells.length)updateCells(cg,window.__camOv?window.__camOv.p[0]:camera.position.x,window.__camOv?window.__camOv.p[2]:camera.position.z,(scene.fog?scene.fog.far:340)+8,window.__lodD||120)}updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
+ if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updDoors(dt);doorScan();cellT-=dt;if(cellT<=0){cellT=.15;const cg=cur&&cur.group;if(cg&&cg.userData.cells&&cg.userData.cells.length)updateCells(cg,window.__camOv?window.__camOv.p[0]:camera.position.x,window.__camOv?window.__camOv.p[2]:camera.position.z,(scene.fog?Math.min(scene.fog.far,320):320)+4,window.__lodD||85)}updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
   if(sun.castShadow){const c=camera.position,sd=cur.sunDir;const s=68/2048;const tx=Math.round(c.x/s)*s,tz=Math.round(c.z/s)*s;sun.target.position.set(tx,0,tz);sun.position.set(tx+sd.x*90,sd.y*90,tz+sd.z*90);sun.target.updateMatrixWorld()}
   if(cur&&cur.sky)cur.sky.position.copy(camera.position);
   if(vmCam.aspect!==camera.aspect){vmCam.aspect=camera.aspect;vmCam.updateProjectionMatrix()}
@@ -1857,7 +1857,7 @@ function brPickPlan(inv,it,bot){const k=it[1],a=it[2],b=it[3];const bpRoom=!bot&
  if(k===4){const old=inv.m;if(old[0]===WIDX.fists)return{act:'equip'};if(b>old[1])return{act:'swap',old};if(old[0]===a&&old[1]>=b)return{act:'none',why:'dup'};return bpRoom?{act:'stash'}:{act:'none',why:bot?'worse':'full'}}
  return{act:'take'}}
 function brItem(k,a,b,x,y,z,bd){const E=H.br;const id=E.nid++;const it=[id,k,a,b,+(+x).toFixed(1),+(+y).toFixed(2),+(+z).toFixed(1)];it.bd=bd;E.items[id]=it;return it}
-function brPrep(){const m=buildMap(H.map);const E=H.br={ph:'bus',items:{},chests:[],nid:1,t0:0,y:BRC.heliY,spd:1,over:0,kills:{},placed:0,doors:m.doors||[],zones:m.zones||[],lastBru:0,stTick:0,farT:0,fightT:0};
+function brPrep(){const m=buildMap(H.map);const E=H.br={half:m.size[0]/2,ph:'bus',items:{},chests:[],nid:1,t0:0,y:BRC.heliY,spd:1,over:0,kills:{},placed:0,doors:m.doors||[],zones:m.zones||[],lastBru:0,stTick:0,farT:0,fightT:0};
  // teams
  const ps=plist();if(H.mode==='br'){let i=0;for(const p of ps){p.team=p.id;p.color=FFACOL[i++%10]}}
  else{const hum=ps.filter(p=>!p.bot),bots=ps.filter(p=>p.bot);const par={};for(const p of hum){const k=p.party||('~'+p.id);(par[k]=par[k]||[]).push(p)}
@@ -1873,7 +1873,7 @@ function brPrep(){const m=buildMap(H.map);const E=H.br={ph:'bus',items:{},chests
  const ang=Math.random()*Math.PI*2,off=rrand(-80,80),len=brHalf()*1.5;const dx=Math.cos(ang),dz=Math.sin(ang),px=-dz*off,pz=dx*off;E.heli={a:[+(px-dx*len).toFixed(1),+(pz-dz*len).toFixed(1)],b:[+(px+dx*len).toFixed(1),+(pz+dz*len).toFixed(1)],dur:BRC.busDur};
  E.storm=stormInit();H.score={}}
 const heliAt=t=>{const h=H.br.heli,k=Math.max(0,Math.min(1,t/h.dur));return[h.a[0]+(h.b[0]-h.a[0])*k,h.a[1]+(h.b[1]-h.a[1])*k]};
-function brInfo(){const E=H.br;return{y:E.y,heli:E.heli,items:Object.values(E.items).map(i=>i.slice(0,7)),chests:E.chests.map(c=>[c.id,c.x,c.y,c.z,c.ry,c.open,c.sec?1:0,c.tier|0]),zones:E.zones}}
+function brInfo(){const E=H.br;return{half:E.half,y:E.y,heli:E.heli,items:Object.values(E.items).map(i=>i.slice(0,7)),chests:E.chests.map(c=>[c.id,c.x,c.y,c.z,c.ry,c.open,c.sec?1:0,c.tier|0]),zones:E.zones}}
 function stormInit(){const R0=Math.round(brHalf()*1.5),s={ph:-1,state:'wait',cx:0,cz:0,r:R0,tcx:0,tcz:0,tr:R0,fcx:0,fcz:0,fr:R0,t:0,tEnd:0,dmg:0,tick:0};stormNext(s,true);return s}
 function stormNext(s,first){const n=s.ph+1;const P=STORM[Math.min(n,STORM.length-1)];s.ph=n;s.state='wait';s.fcx=s.cx;s.fcz=s.cz;s.fr=s.r;const rr_=Math.max(0,s.r-P.r)*.8;const a=Math.random()*6.283,d=Math.random()*rr_;s.tcx=s.cx+Math.cos(a)*d;s.tcz=s.cz+Math.sin(a)*d;s.tr=P.r;s.dmg=P.dmg;s.t=0;s.waitT=P.wait+(first?BRC.busDur+BRC.cd:0);s.shrinkT=P.shrink;s.tEnd=s.waitT}
 function stormTick(dt){const E=H.br,s=E.storm,sdt=dt*E.spd;s.t+=sdt;
@@ -2119,7 +2119,7 @@ function brBagRender(){const B=BC,w=$('brBag');if(!B||!w||!B.bagOn)return;const 
 function brBag(on){const B=BC;if(!B)return;const w=$('brBag');if(!w)return;B.bagOn=!!on;w.classList.toggle('hidden',!on);if(on){if(document.pointerLockElement)document.exitPointerLock();B.bagSel=null;brBagRender()}}
 function brMap(on){const w=$('brMapWrap');if(!w)return;w.classList.toggle('hidden',!on);if(on){brDrawMap($('brMapCv'),true);if(document.pointerLockElement)document.exitPointerLock()}BC.mapOn=on}
 function brClear(){if(!BC)return;try{BC.bagOn=false}catch(e){}try{scene.remove(BC.g)}catch(e){}if(BC.saved)me.load=BC.saved;for(const k of['air'])me[k]=null;BC=null;const h=$('brHud');if(h)h.className='hidden';vmRoot.visible=true}
-function brClientInit(info){brClear();BC={bank:0,y:info.y,heli:info.heli,zones:info.zones||[],items:new Map(),chests:info.chests.map(c=>({id:c[0],x:c[1],y:c[2],z:c[3],ry:c[4],open:!!c[5],sec:!!c[6],tier:c[6]?4:(c[7]|0)})),bt0:-3,btAt:performance.now(),btNow:-3,storm:null,sdisp:{cx:0,cz:0,r:300},
+function brClientInit(info){brClear();BC={bank:0,half:info.half,y:info.y,heli:info.heli,zones:info.zones||[],items:new Map(),chests:info.chests.map(c=>({id:c[0],x:c[1],y:c[2],z:c[3],ry:c[4],open:!!c[5],sec:!!c[6],tier:c[6]?4:(c[7]|0)})),bt0:-3,btAt:performance.now(),btNow:-3,storm:null,sdisp:{cx:0,cz:0,r:300},
   inv:{g:[null,null,null,null],bp:[],m:[WIDX.fists,0],u:null,n:null,c:[0,0,0,0]},res:[0,0,0,0],sh:0,air:null,kills:0,al:0,sq:0,cast:null,paid:0,saved:me.load.slice(0,4),gk:['','','',''],bagOn:false,bagSel:null,near:[],nearK:'',pkT:{},dirty:1,placed:0,spec:null,scan:0,mapT:0,chT:0,hT:0,wT:0,stT:0,mapOn:false};
  for(const it of info.items)BC.items.set(it[0],it);me.load=['fists','fists','fists','grenade','fists','fists'];me.ammo=[0,0,0,0,0,0];me.utilN=0;brBuild();brHudInit();brApplyInv(true)}
 function brRoundStart(){const B=BC;B.air='bus';me.air='bus';B.inv={g:[null,null,null,null],bp:[],m:[WIDX.fists,0],u:null,n:null,c:[0,0,0,0]};B.res=[0,0,0,0];B.sh=0;B.gk=['','','',''];brBag(false);B.cast=null;B.placed=0;B.paid=0;B.kills=0;B.spec=null;me.cur=2;brApplyInv(true);
@@ -2167,8 +2167,8 @@ function brAirCam(dt){const B=BC,a=B.air,cy=Math.cos(me.pitch);_bd.set(-Math.sin
  if(!B.cp)B.cp=new THREE.Vector3().copy(B.camGoal);B.cp.lerp(B.camGoal,k);camera.position.copy(B.cp);
  _bl.copy(_bc).addScaledVector(_bd,ahead);camera.lookAt(_bl);if(a==='chute')camera.rotateZ(-B.bank*.1);
  if(Math.abs(camera.fov-fov)>.05){camera.fov+=(fov-camera.fov)*Math.min(1,dt*4);camera.updateProjectionMatrix()}}
-function brRefresh(){const B=BC;if(!B)return;B.dirty=0;const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),sv=new THREE.Vector3(),pv=new THREE.Vector3(),col=new THREE.Color();let n=0,nb=0;const CAP=1400;
- for(const it of B.items.values()){if(n>=CAP)break;const k=it[1];e.set(0,hash1(it[0])*6.28,0);q.setFromEuler(e);
+function brRefresh(){const B=BC;if(!B)return;B.dirty=0;const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),sv=new THREE.Vector3(),pv=new THREE.Vector3(),col=new THREE.Color();let n=0,nb=0;const CAP=1400;const cx0=camera.position.x,cz0=camera.position.z;B.rfx=cx0;B.rfz=cz0;
+ for(const it of B.items.values()){if(n>=CAP)break;const k=it[1];const r0=(k===0||k===4)?(it[3]|0):0;if(r0<1&&(it[4]-cx0)*(it[4]-cx0)+(it[6]-cz0)*(it[6]-cz0)>12100)continue;e.set(0,hash1(it[0])*6.28,0);q.setFromEuler(e);
   if(k===0)sv.set(.95,.12,.3);else if(k===4)sv.set(.7,.08,.16);else if(k===1)sv.set(.34,.24,.34);else sv.set(.3,.3,.3);
   pv.set(it[4],it[5]+sv.y/2+.06,it[6]);m4.compose(pv,q,sv);B.imItem.setMatrixAt(n,m4);col.set(itemCol(it));B.imItem.setColorAt(n,col);
   sv.set(1.1,1,1.1);pv.set(it[4],it[5]+.04,it[6]);q.identity();m4.compose(pv,q,sv);B.imRing.setMatrixAt(n,m4);B.imRing.setColorAt(n,col);n++;
@@ -2177,8 +2177,8 @@ function brRefresh(){const B=BC;if(!B)return;B.dirty=0;const m4=new THREE.Matrix
  brChestMats()}
 const lidAng=t=>1.95*(1-Math.pow(1-Math.min(1,t),3))+(t<1?.16*Math.sin(Math.min(1,t)*Math.PI):0);
 const _chM=new THREE.Matrix4(),_chH=new THREE.Matrix4(),_chR=new THREE.Matrix4(),_chL=new THREE.Matrix4(),_chS=new THREE.Vector3(1,1,1),_chP=new THREE.Vector3(),_chC=new THREE.Color();
-function brChestMats(){const B=BC;if(!B||!B.chBW)return;let n=0,ni=0,nb=0;
- for(const c of B.chests){if(c.sec||!c.nq)continue;_chP.set(c.x,c.fy,c.z);_chM.compose(_chP,c.nq,_chS);B.chBW.setMatrixAt(n,_chM);B.chBM.setMatrixAt(n,_chM);
+function brChestMats(){const B=BC;if(!B||!B.chBW)return;let n=0,ni=0,nb=0;const cx0=camera.position.x,cz0=camera.position.z;
+ for(const c of B.chests){if(c.sec||!c.nq)continue;if((c.x-cx0)*(c.x-cx0)+(c.z-cz0)*(c.z-cz0)>8100){if(!c.open){_chP.set(c.x,c.fy,c.z);_chS.set(1,16,1);_chL.compose(_chP,B.qId||(B.qId=new THREE.Quaternion()),_chS);_chS.set(1,1,1);B.imCBeam.setMatrixAt(nb,_chL);_chC.setHex(TIERC[c.tier|0]);B.imCBeam.setColorAt(nb,_chC);nb++}continue}_chP.set(c.x,c.fy,c.z);_chM.compose(_chP,c.nq,_chS);B.chBW.setMatrixAt(n,_chM);B.chBM.setMatrixAt(n,_chM);
   _chH.makeTranslation(CHEST_HINGE[0],CHEST_HINGE[1],CHEST_HINGE[2]);_chR.makeRotationX(-lidAng(c.lidT||0));_chL.copy(_chM).multiply(_chH).multiply(_chR);B.chLW.setMatrixAt(n,_chL);B.chLM.setMatrixAt(n,_chL);
   _chC.setHex(TIERC[c.tier|0]);_chC.multiplyScalar(c.open?.5:1.6);B.chG.setMatrixAt(n,_chM);B.chG.setColorAt(n,_chC);
   if(c.open&&(c.lidT||0)>.1){B.chI.setMatrixAt(ni,_chM);_chC.setHex(TIERC[c.tier|0]);B.chI.setColorAt(ni,_chC);ni++}
@@ -2220,7 +2220,8 @@ function brFrame(dt,now){const B=BC;if(!B)return;B.btNow=B.bt0+(now-B.btAt)/1000
   const key=B.near.map(n=>n[1]+(n[1]==='i'?n[2][0]:n[2].id)).join(',')+'|'+B.inv.g.map(g=>g?g[0]+g[1]:'').join()+'|'+B.inv.m.join()+'|'+(B.inv.bp||[]).length;if(key!==B.nearK){B.nearK=key;const h=B.near.map((n,i)=>n[1]==='c'?`<button data-k="c" data-i="${n[2].id}" class="nb chest${n[2].sec?' secret':''}"><b>${n[2].sec?'🔴 OPEN SECRET CRATE':'📦 OPEN CHEST'}</b>${i===0&&!isTouch?'<kbd>E</kbd>':''}</button>`:brNearBtn(n,i)).join('');$('brNear').innerHTML=h}}
  else if(me.alive===false||B.air){if(B.nearK!==''){B.nearK='';$('brNear').innerHTML=''}}
  // secret crates: pulse + distinct alarm sound when close
- {let mv=false;for(const c of B.chests){const tg=c.open?1:0;if(c.lidT!==tg){const d=Math.sign(tg-c.lidT)*dt*1.8;c.lidT=Math.abs(tg-c.lidT)<=Math.abs(d)?tg:c.lidT+d;mv=true}}if(mv)brChestMats();if(B.sec)for(const o of B.sec){o.pivot.rotation.x=-lidAng(o.c.lidT||0);o.inner.material.opacity=.85*(o.c.lidT||0);o.beam.visible=o.ring.visible=o.gem.visible=!o.c.open}}
+ B.rfT=(B.rfT||0)-dt;if(B.rfT<=0){B.rfT=.5;if(Math.hypot(camera.position.x-(B.rfx??1e9),camera.position.z-(B.rfz??1e9))>8)brRefresh()}
+  {let mv=false;for(const c of B.chests){const tg=c.open?1:0;if(c.lidT!==tg){const d=Math.sign(tg-c.lidT)*dt*1.8;c.lidT=Math.abs(tg-c.lidT)<=Math.abs(d)?tg:c.lidT+d;mv=true}}if(mv)brChestMats();if(B.sec)for(const o of B.sec){o.pivot.rotation.x=-lidAng(o.c.lidT||0);o.inner.material.opacity=.85*(o.c.lidT||0);o.beam.visible=o.ring.visible=o.gem.visible=!o.c.open}}
  if(B.sec){const tt=now/1000;for(const o of B.sec){if(o.c.open)continue;o.beam.material.opacity=.38+.16*Math.sin(tt*3+o.c.id);o.ring.scale.setScalar(1+.25*((tt*1.2+o.c.id*.3)%1));o.ring.material.opacity=.8*(1-((tt*1.2+o.c.id*.3)%1));o.gem.rotation.y=tt*2;o.gem.position.y=1.15+Math.sin(tt*2.4)*.08}
   B.sT=(B.sT||0)-dt;if(B.sT<=0&&me.alive&&AC&&!B.air){B.sT=1.05;let bd=1e9;for(const o of B.sec){if(o.c.open)continue;const d=Math.hypot(o.c.x-me.pos.x,o.c.z-me.pos.z);if(d<bd)bd=d}if(bd<45){const v=Math.max(.03,(1-bd/45))*.22;tone(196,.5,v,'sawtooth',98,out());setTimeout(()=>{tone(311,.35,v*.7,'square',0,out());tone(466,.5,v*.5,'triangle',233,out())},170)}}}
  // chest chimes

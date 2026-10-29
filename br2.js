@@ -29,7 +29,7 @@ export function brExtra(X){const{B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp
    const ix=-a,iz=-b;B.ladder(tx+ix*3.55,tz+iz*1.8,0,th,ix>0?'x+':'x-');lootAt(tx,th+.4,tz,-1);if(R()<.5)B.brChests.push([tx,th+.4,tz+1,0,-1]);B.spot(tx,th+.4,tz);
    B.box(tx+a*.2,th-4,tz+b*3.6,.12,2.4,1.1,[0xc0392b,0x2c3e90][(a+b)&1?0:1],'plain',{solid:false,shadow:false})}
   // wall walks: stairs inside the north wall to the wall top, loot up there
-  B.stairs(cx-S+3,0,cz-S+T/2+1.1,'x+',24,H/24,.55,2,0x9aa0a6,'concrete');B.stairs(cx+S-3,0,cz-S+T/2+1.1+0,'x-',24,H/24,.55,2,0x9aa0a6,'concrete');
+  B.stairs(cx-S+7.5,0,cz-S+T/2+1.1,'x+',24,H/24,.55,2,0x9aa0a6,'concrete');B.stairs(cx+S-7.5,0,cz-S+T/2+1.1+0,'x-',24,H/24,.55,2,0x9aa0a6,'concrete');
   lootAt(cx-10,H,cz-S,-1);lootAt(cx+10,H,cz-S,-1);B.brChests.push([cx,H,cz-S,0,-1]);B.spot(cx,H,cz-S);
   // keep, hall and courtyard clutter
   bld({x:cx,z:cz-4,w:16,d:13,h:7.5,c:0xb9a58c,tex:'brick',door:'s',loot:6,chest:1,win:0,rc:0x5a3b30,dg:3.2});
@@ -81,7 +81,7 @@ export function brExtra(X){const{B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp
   L.forEach(([w,d,hh],i)=>{const n=Math.round(hh/.34),sh=hh/n,run=.5,len=run*n;if(i%2===0)B.stairs(cx+w/2+len,ys[i],cz+(i===2?4:-4),'x-',n,sh,run,2.4,0x9a9ea5,'rock');else B.stairs(cx+(i===3?-3:3),ys[i],cz+d/2+len,'z-',n,sh,run,2.4,0x9a9ea5,'rock')});
   const top=y;bld({x:cx,z:cz,w:9,d:8,h:3,c:0x6f757d,tex:'concrete',door:'s',stairs:0,loot:5,chest:1,rc:0x3f444a,win:0,y:top});
   bld({x:cx-36,z:cz+26,w:12,d:9,h:3.6,c:0x8a6a45,tex:'planks',door:'e',loot:4,chest:.9,rc:0xeeeeee});bld({x:cx+44,z:cz+22,w:9,d:8,h:3.2,c:0x8a6a45,tex:'planks',door:'w',loot:3,chest:.7,rc:0xeeeeee});
-  lootAt(cx-18,5,cz+6,-1);lootAt(cx+14,10,cz+4,-1);lootAt(cx,15,cz+6,-1);B.brChests.push([cx-14,5,cz+4,0,-1],[cx+11,10,cz-5,0,-1],[cx+5,15,cz-5,0,-1]);B.spot(cx,top,cz);
+  lootAt(cx-20,5,cz+6,-1);lootAt(cx+14,10,cz+4,-1);lootAt(cx,15,cz+6,-1);B.brChests.push([cx-21,5,cz-6,0,-1],[cx+15,10,cz-5,0,-1],[cx+8,15,cz-5,0,-1]);B.spot(cx,top,cz);
   for(let i=0;i<18;i++){const a=R()*6.28,r=rr(34,60);const x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r;if(isFree(x,z,3))rock(x,z,rr(1.2,2.6))}
   for(let i=0;i<60;i++){const x=cx+rr(-66,66),z=cz+rr(-62,62);if(isFree(x,z,3)&&Math.hypot(x-cx,z-cz)>38){const s=rr(1,1.7);pine(x,z,s);B.part('plain',{g:G('cone',.85*s,1.1*s,8),p:[x,(1.7+2*1.15+.55)*s,z],c:0xf0f4f8,ao:false})}}
   road(-100,-120,-100,-215,4,'dirt');road(-100,-215,cx+36,-215,4,'dirt');block(cx,cz,70,64,0)}

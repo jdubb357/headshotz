@@ -105,7 +105,7 @@ export function brDef({G,rng,_c}){
    L.forEach(([w,d,hh],i)=>{const n=Math.round(hh/.34),sh=hh/n,run=.5,len=run*n;if(i%2===0)B.stairs(cx+w/2+len,ys[i],cz+(i===2?3:-3),'x-',n,sh,run,2.2,0x9a9ea5,'rock');else B.stairs(cx+(i===3?-2:2),ys[i],cz+d/2+len,'z-',n,sh,run,2.2,0x9a9ea5,'rock')});
    const top=y;bld({x:cx,z:cz,w:8,d:7,h:3,c:0x6f757d,tex:'concrete',door:'s',stairs:0,loot:4,chest:1,rc:0x3f444a,win:0,y:top});
    for(let i=0;i<10;i++){const a=R()*6.28,r=rr(30,44);const x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r;if(isFree(x,z,3))rock(x,z,rr(1,2.2))}for(let i=0;i<16;i++){const x=cx+rr(-64,64),z=cz+rr(-52,56);if(isFree(x,z,3)&&Math.hypot(x-cx,z-cz)>30)pine(x,z,rr(.9,1.4))}
-   lootAt(cx-9,3,cz+6,-1);lootAt(cx+8,6,cz+4,-1);lootAt(cx,9,cz+7,-1);B.brChests.push([cx-7,3,cz+4,0,-1],[cx+9,6,cz-4,0,-1]);B.spot(cx,top,cz);block(cx,cz,60,56,0)}
+   lootAt(cx-19,3,cz+6,-1);lootAt(cx+13,6,cz+4,-1);lootAt(cx,9,cz+7,-1);B.brChests.push([cx-20,3,cz-5,0,-1],[cx+14,6,cz-4,0,-1]);B.spot(cx,top,cz);block(cx,cz,60,56,0)}
   // ============ 7. DUSTY QUARRY (SW) ============
   {const cx=-128,cz=118;for(const[x,z,w,d]of[[-14,-10,18,4],[14,6,4,18],[0,16,20,3]]){const ww=w,dd=d;B.box(cx+x,0,cz+z,ww,4.2,dd,0xb99a6a,'rock',{gy:0,us:.15});B.box(cx+x,4.2,cz+z,ww*.7,2.4,dd*.8,0xa38559,'rock',{gy:4.2,us:.15})}
    B.stairs(cx-10,0,cz-12-6.6,'z+',12,.35,.55,2,0x9a8a6a,'rock');B.stairs(cx+16+6.6,0,cz+6,'x-',12,.35,.55,2,0x9a8a6a,'rock');
@@ -137,4 +137,11 @@ export function brDef({G,rng,_c}){
   for(let i=0;i<22;i++){const x=rr(-250,250),z=rr(-250,250);if(isFree(x,z,4)&&!zones.some(([a,b,r])=>Math.hypot(x-a,z-b)<r*.8)){B.car(x,z,i%4,pick([0xc0392b,0x2980b9,0x7f8c8d,0xf1c40f]))}}
   // ground loot sprinkled in the open (small crates & barrels)
   for(let i=0;i<100;i++){const x=rr(-255,255),z=rr(-255,255);if(isFree(x,z,2.5)){B.brLoot.push([+x.toFixed(1),0,+z.toFixed(1),-1])}}
+  // v59: nudge any chest / loot spot that ended up inside a wall, container or prop out onto free, supported floor
+  {const solid=k=>k.y1-k.y0>1.2&&!k.door&&k.door!==0;const inside=(x,z,y,h)=>B.cols.some(k=>solid(k)&&x>k.x0+.05&&x<k.x1-.05&&z>k.z0+.05&&z<k.z1-.05&&y>=k.y0-.01&&y+h<k.y1-.05);
+   const near=(x,z,y,h,m)=>B.cols.some(k=>solid(k)&&x>k.x0-m&&x<k.x1+m&&z>k.z0-m&&z<k.z1+m&&y>=k.y0-.01&&y+h<k.y1-.05);
+   const sup=(x,z,y)=>y<.1||B.cols.some(k=>x>k.x0&&x<k.x1&&z>k.z0&&z<k.z1&&Math.abs(k.y1-y)<.12);
+   const fix=(a,h,m)=>{if(!inside(a[0],a[2],a[1],h))return;for(let r=.7;r<9;r+=.7)for(let q=0;q<14;q++){const ang=q/14*6.283,x=a[0]+Math.cos(ang)*r,z=a[2]+Math.sin(ang)*r;if(!near(x,z,a[1],h,m)&&sup(x,z,a[1])&&Math.abs(x)<HB&&Math.abs(z)<HB){const ox=a[0],oz=a[2];a[0]=+x.toFixed(1);a[2]=+z.toFixed(1);return[ox,oz]}}};
+   for(const c of B.brChests){const o=fix(c,.5,.6);if(o){const k=B.cols.find(k=>Math.abs(k.x0-(o[0]-.55))<.02&&Math.abs(k.z0-(o[1]-.55))<.02&&k.y1-k.y0<.8);if(k){k.x0=c[0]-.55;k.x1=c[0]+.55;k.z0=c[2]-.55;k.z1=c[2]+.55}}}
+   for(const l of B.brLoot)fix(l,.4,.4)}
  }}}

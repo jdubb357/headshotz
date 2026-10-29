@@ -272,7 +272,7 @@ function doorMeshes(list,group){for(const d of list){const lw=d.w/2,root=new THR
   for(const dir of[1,-1]){const piv=new THREE.Group();piv.position.set(-dir*d.w/2,0,0);const wd=new THREE.Mesh(doorLeafGeo(lw,d.h,dir),texMat('planks'));wd.userData.tm='planks';wd.castShadow=true;wd.receiveShadow=true;piv.add(wd);root.add(piv);d.piv.push([piv,dir])}
   group.add(root);d.root=root}}
 // v59: per-chunk distance culling + tree LOD. Call a few times per second with the camera position and fog far.
-export function updateCells(group,x,z,far,lodD=120){const L=group&&group.userData.cells;if(!L)return;for(const c of L){const d=Math.hypot(c.c.x-x,c.c.z-z)-c.r;const vis=d<far;if(c.lo){const near=d<lodD;c.m.visible=vis&&near;c.lo.visible=vis&&!near}else c.m.visible=vis}}
+export function updateCells(group,x,z,far,lodD=85,farD=190){const L=group&&group.userData.cells;if(!L)return;for(const c of L){const d=Math.hypot(c.c.x-x,c.c.z-z)-c.r;const vis=d<far;if(c.lo){const a=d<lodD,b=!a&&d<farD;c.m.visible=vis&&a;c.lo.visible=vis&&b;c.far.visible=vis&&!a&&!b}else c.m.visible=vis}}
 // drop cached map builds whose crate/barrel props were built before the HD models arrived
 export function rebuildForProps(){const out=[];for(const k in cache){const m=cache[k];if(m.def&&!m.def.hub&&!m.hqProps){delete cache[k];out.push(+k)}}return out}
 export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=Builder();
@@ -288,7 +288,9 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
    m.geometry.computeBoundingSphere();const cell={m,lo:null,c:m.geometry.boundingSphere.center,r:m.geometry.boundingSphere.radius};
    // v59 LOD: trees (leaves) get a 4x cheaper far version (icosahedra detail 0, 5-sided cones)
    if(t==='leaves'){const lp=cells[k].map(pt=>{const g=pt.g;if(g.type==='IcosahedronGeometry')return{...pt,g:new THREE.IcosahedronGeometry(g.parameters.radius,0)};if(g.type==='ConeGeometry')return{...pt,g:new THREE.ConeGeometry(g.parameters.radius,g.parameters.height,5)};return pt});
-    const lo=new THREE.Mesh(mergeParts(lp,{uv:true,ao:true}),texMat(t));lo.userData.tm=t;lo.castShadow=false;lo.receiveShadow=true;lo.matrixAutoUpdate=false;lo.visible=false;group.add(lo);cell.lo=lo}
+    const lo=new THREE.Mesh(mergeParts(lp,{uv:true,ao:true}),texMat(t));lo.userData.tm=t;lo.castShadow=false;lo.receiveShadow=true;lo.matrixAutoUpdate=false;lo.visible=false;group.add(lo);cell.lo=lo;
+    const fp=cells[k].map(pt=>{const g=pt.g;if(g.type==='IcosahedronGeometry')return{...pt,g:new THREE.OctahedronGeometry(g.parameters.radius,0)};if(g.type==='ConeGeometry')return{...pt,g:new THREE.ConeGeometry(g.parameters.radius,g.parameters.height,3)};return pt});
+    const fr=new THREE.Mesh(mergeParts(fp,{uv:true,ao:false}),texMat(t));fr.userData.tm=t;fr.castShadow=false;fr.matrixAutoUpdate=false;fr.visible=false;group.add(fr);cell.far=fr}
    (cells_.push(cell))}continue}
   const m=new THREE.Mesh(mergeParts(B.T[t],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}
  if(B.glows.length)group.add(new THREE.Mesh(mergeParts(B.glows),glowMat));
