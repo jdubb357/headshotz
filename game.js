@@ -7,7 +7,7 @@ import {initSkinShop} from './skinshop.js';import {initSidekicks,hostPets,hostAb
 import {Post} from './post.js';
 import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import {chestKit,TIERC,CHEST_HINGE} from './chests.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
-import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
+import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO,updateCells} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
 import {makeCharacter,animate,LOOKS,HUM} from './chars.js';import {loadHumans} from './humans.js';
 // player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
@@ -228,7 +228,7 @@ const PR=.35,PH=1.8;
 function overlaps(p,c,h){return p.x+PR>c.x0&&p.x-PR<c.x1&&p.z+PR>c.z0&&p.z-PR<c.z1&&p.y+h>c.y0&&p.y<c.y1}
 // ---- v44 spatial grid for big maps (Battle Royale): near-collider lookups + grid-walked rays; small maps keep the plain array ----
 let CG=null;const _cbA=[],_cbB=[],_cbC=[];
-function buildGrid(){CG=null;if(cols.length<450)return;const cs=10,ox=-240,oz=-240,nx=48,nz=48;const g={cs,ox,oz,nx,nz,cells:Array.from({length:nx*nz},()=>[]),stamp:1};
+function buildGrid(){CG=null;if(cols.length<450)return;const hf=Math.ceil(((cur&&cur.def&&cur.def.size?Math.max(cur.def.size[0],cur.def.size[1]):480)/2+10)/10)*10,cs=10,ox=-hf,oz=-hf,nx=hf/5,nz=hf/5;const g={cs,ox,oz,nx,nz,cells:Array.from({length:nx*nz},()=>[]),stamp:1};
  for(const c of cols){const i0=Math.max(0,Math.floor((c.x0-ox)/cs)),i1=Math.min(nx-1,Math.floor((c.x1-ox)/cs)),j0=Math.max(0,Math.floor((c.z0-oz)/cs)),j1=Math.min(nz-1,Math.floor((c.z1-oz)/cs));for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++)g.cells[i+j*nx].push(c);c._s=0}CG=g}
 function CN(x,z,r,buf){if(!CG)return cols;buf.length=0;const g=CG,st=++g.stamp;const i0=Math.max(0,Math.floor((x-r-g.ox)/g.cs)),i1=Math.min(g.nx-1,Math.floor((x+r-g.ox)/g.cs)),j0=Math.max(0,Math.floor((z-r-g.oz)/g.cs)),j1=Math.min(g.nz-1,Math.floor((z+r-g.oz)/g.cs));
  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const L=g.cells[i+j*g.nx];for(let k=0;k<L.length;k++){const c=L[k];if(c._s!==st){c._s=st;buf.push(c)}}}return buf}
@@ -1209,13 +1209,13 @@ function updRemotes(dt){const a=Math.min(1,dt*14);for(const id in C.players){con
 // ================= LOOP =================
 renderer.autoClear=false;renderer.info.autoReset=false;
 let last=performance.now(),acc=0,frames=0,fpsShown=0;const fpsLog=[];
-function floorAt(p){return 0}
+const brHalf=()=>{const d=cur&&cur.def;return d&&d.br?d.size[0]/2:200};function floorAt(p){return 0}
 let lastHostTick=performance.now();function hostStep(){const n=performance.now();const dt=Math.min(.1,(n-lastHostTick)/1000);lastHostTick=n;if(isHost)hostTick(dt)}
 // keep host simulation alive even when its tab/frame loop is throttled
 setInterval(()=>{if(performance.now()-lastHostTick>120)hostStep()},50);
-let slowWin=0;function loop(now){requestAnimationFrame(loop);const el=now-last;if(el<15.2)return;last=now;const dt=Math.min(.05,el/1000);tickSkins(now/1000);
+let slowWin=0,cellT=0;function loop(now){requestAnimationFrame(loop);const el=now-last;if(el<15.2)return;last=now;const dt=Math.min(.05,el/1000);tickSkins(now/1000);
  hostStep();if(PETS)PETS.update(dt,now);
- if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updDoors(dt);doorScan();updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
+ if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updDoors(dt);doorScan();cellT-=dt;if(cellT<=0){cellT=.15;const cg=cur&&cur.group;if(cg&&cg.userData.cells&&cg.userData.cells.length)updateCells(cg,window.__camOv?window.__camOv.p[0]:camera.position.x,window.__camOv?window.__camOv.p[2]:camera.position.z,(scene.fog?scene.fog.far:340)+8,window.__lodD||120)}updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
   if(sun.castShadow){const c=camera.position,sd=cur.sunDir;const s=68/2048;const tx=Math.round(c.x/s)*s,tz=Math.round(c.z/s)*s;sun.target.position.set(tx,0,tz);sun.position.set(tx+sd.x*90,sd.y*90,tz+sd.z*90);sun.target.updateMatrixWorld()}
   if(cur&&cur.sky)cur.sky.position.copy(camera.position);
   if(vmCam.aspect!==camera.aspect){vmCam.aspect=camera.aspect;vmCam.updateProjectionMatrix()}
@@ -1519,7 +1519,7 @@ $('friends').addEventListener('click',e=>{const b=e.target.closest('[data-fr]');
 for(const id of['openFriends','lobFriends','pFriends','hubFriends'])if($(id))$(id).onclick=openFriends;
 addEventListener('storage',e=>{if(e.key===LSP+FRK)frReload()});
 setTimeout(()=>{frServe();frSchedule();updFrBadge();if(FR.list.length||FR.out.length)setTimeout(frPoll,1500)},800);
-window.__hsz={SFXT:SFX,PCL,openClasses,vmSkin:()=>{let k=null;if(vmCur)vmCur.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.skin)k=o.material.userData.skin});return k},vmId:()=>me.load[me.cur],FRIENDS:()=>({frPeerOpen:!!(frPeer&&frPeer.open),FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid,hy)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+(hy||1.3))-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
+window.__hsz={SFXT:SFX,scene,curDef:()=>cur&&cur.def,curSky:()=>cur&&cur.sky,PCL,openClasses,vmSkin:()=>{let k=null;if(vmCur)vmCur.traverse(o=>{if(o.material&&o.material.userData&&o.material.userData.skin)k=o.material.userData.skin});return k},vmId:()=>me.load[me.cur],FRIENDS:()=>({frPeerOpen:!!(frPeer&&frPeer.open),FR,frStat,myStatus:myStatus(),frPoll,frAdd,frAccept,frRemove,frJoin}),inp,PROG,shootAt:(pid,hy)=>{const q=(H&&H.players[pid])||C.players[pid];if(!q||!me.alive)return 'na';let p=(q.e&&q.e.pos)||q.pos;if(Array.isArray(p))p={x:p[0],y:p[1],z:p[2]};if(!p&&q.p)p={x:q.p[0],y:q.p[1],z:q.p[2]};if(!p||!isFinite(p.x))return 'nopos';const e=new THREE.Vector3(me.pos.x,me.pos.y+1.62,me.pos.z);const dx=p.x-e.x,dy=(p.y+(hy||1.3))-e.y,dz=p.z-e.z;me.yaw=Math.atan2(-dx,-dz);me.pitch=Math.atan2(dy,Math.hypot(dx,dz));camera.position.copy(e);camera.rotation.set(me.pitch,me.yaw,0,'YXZ');camera.updateMatrixWorld();me.cool=0;fire();return 'ok'},gunGroup,THREE,endGo:(a)=>endGo(a),damage:(...a)=>damage(...a),VA,reload,setViewModel,get vmCur(){return vmCur},fireTest:(id)=>{const o=window.__spy;const realSend=send;setViewModel(id);camera.position.set(me.pos.x,me.pos.y+1.62,me.pos.z);camera.rotation.set(me.pitch,me.yaw,0);camera.updateMatrixWorld();__spyOn=o;try{fire()}finally{__spyOn=null}},C,H,me,send,W,MAPS,buildMap,fpsLog,renderer,get isHost(){return isHost},get cols(){return cols},setCols:(c)=>{cols=c},roundSpawns,respawnPoint,switchTo,fire,useUtil,setLoad:(l)=>{me.load=l},toggleZoom,camera,get paused(){return paused},get qLevel(){return qLevel()},S,applyQuality,get cur(){return cur}};
 window.__hsz.useUtil=useUtil;window.__hsz.damage=(v,d,by,h,w)=>damage(v,d,by,h,w);window.__hsz.scene=scene;window.__hsz.ffaLeft=()=>ffaLeft();window.__hsz.FXT={SFX,VOX:()=>VOX,AC:()=>AC&&AC.state,explosionFX,utilFX,impact,funFX,nearMiss,fire:()=>fire(),muzzle,fires:()=>fires.length,smokes:()=>smokes.length,flash:()=>flashAmt,setVerb,outdoor:()=>outdoor,vol:()=>mVol&&mVol.gain.value,FL:()=>FL.length,spawnNade};window.__hsz.throwSt=()=>({th:!!TH,t:TH&&TH.t,nades:nades.length,spoons:spoons.length,pin:!!(TH&&TH.G.pin),throws:window.__throws||0});
 
 // ---- fullscreen: Fullscreen API where it exists (Android Chrome, iPad Safari, desktop); iPhone Safari gets an Add-to-Home-Screen guide
@@ -1826,14 +1826,14 @@ $('briefBtn')&&($('briefBtn').onclick=()=>{const m=MS&&MS.info.m;if(m)showBrief(
 Object.assign(window.__hsz,{MSX:()=>({MS,H,CTF,EXT}),damage:(...a)=>damage(...a),extCall,missionTick,endMission,addRaider});
 // ================= v44 BATTLE ROYALE (host side) =================
 const RAR=[{n:'COMMON',c:0xb8bcc4,d:1,m:1,rl:1,sp:1,fr:1},{n:'UNCOMMON',c:0x4cd964,d:1.1,m:1.06,rl:.95,sp:.95,fr:.98},{n:'RARE',c:0x3b9cff,d:1.2,m:1.12,rl:.9,sp:.9,fr:.96},{n:'EPIC',c:0xb35cff,d:1.32,m:1.2,rl:.85,sp:.84,fr:.94},{n:'LEGENDARY',c:0xffb81c,d:1.45,m:1.3,rl:.8,sp:.78,fr:.92},{n:'SECRET',c:0xff2b2b,d:1.6,m:1.4,rl:.75,sp:.7,fr:.9}];
-const BRC={secret:4,pop:24,sq:4,heliY:230,busDur:40,chuteY:70,ft:48,cd:3};
+const BRC={secret:4,pop:24,sq:4,heliY:230,busDur:52,chuteY:70,ft:48,cd:3};
 const AMN=['Light','Medium','Shells','Heavy'],AMV=[36,30,8,6];
 const CONS=['band','med','shd','mini'],CONN=['Bandage','Medkit','Shield Potion','Mini Shield'],CONMAX=[15,3,3,6],CONT=[2.5,6,4,2],CONI=['🩹','🧰','🧪','🧃'];
 const GUNW=[['ar',24],['smg',18],['shotgun',14],['pistol',14],['marksman',10],['sniper',8],['heavy',3]];
 const POOLS={ar:['ar','bullpup','battle','m4','ak47','scar','m16','mk18'],smg:['smg','vector','pdw','mp5','mp7','kriss','p90','ump45','tommy'],shotgun:['shotgun','autoshot','double','aa12','saiga','ksg'],pistol:['handgun','revolver','burst','cannon','glock18','deagle'],marksman:['dmr','lever','mini14','crossbow'],sniper:['sniper','heavy','light','barrett','awp'],heavy:['lmg','gl','rpg','minigun']};
 const MELEES=['knife','katana','axe','bat','pan'];
 const SQCOL=[0x3fa9ff,0xff5a6b,0x2ee59d,0xffd23f,0xb06bff,0xff9f43,0x1dd1a1,0xff79c6];
-const STORM=[{wait:42,shrink:50,r:150,dmg:1},{wait:45,shrink:40,r:100,dmg:2},{wait:40,shrink:35,r:60,dmg:3},{wait:35,shrink:30,r:32,dmg:5},{wait:30,shrink:25,r:14,dmg:8},{wait:25,shrink:25,r:3,dmg:10}];
+const STORM=[{wait:42,shrink:55,r:210,dmg:1},{wait:45,shrink:45,r:140,dmg:2},{wait:40,shrink:38,r:80,dmg:3},{wait:35,shrink:30,r:36,dmg:5},{wait:30,shrink:25,r:14,dmg:8},{wait:25,shrink:25,r:3,dmg:10}];
 const rrand=(a,b)=>a+Math.random()*(b-a);
 const wrand=a=>{let t=0;for(const x of a)t+=x[1];let r=Math.random()*t;for(const x of a){r-=x[1];if(r<=0)return x[0]}return a[0][0]};
 const ammoOf=id=>{const c=W[id].cls;return c==='smg'||c==='pistol'||c==='fun'?0:c==='ar'||c==='marksman'?1:c==='shotgun'?2:3};
@@ -1868,13 +1868,13 @@ function brPrep(){const m=buildMap(H.map);const E=H.br={ph:'bus',items:{},chests
  // loot
  const sp=m.lootSpots||[];for(const s of sp){const n=Math.random()<.5?2:1;for(let k=0;k<n;k++){const it=fixItem(rollItem(false),false);brItem(it[0],it[1],it[2],s[0]+(k?rrand(-.8,.8):0),s[1],s[2]+(k?rrand(-.8,.8):0),s[3])}}
  (m.chestSpots||[]).forEach((c,i)=>E.chests.push({id:i,x:c[0],y:c[1],z:c[2],ry:c[3],bd:c[4],open:0,tier:wrand([[0,52],[1,29],[2,14],[3,5]])}));
- {const pool=E.chests.slice().sort(()=>Math.random()-.5),pick=[];for(const c of pool){if(pick.length>=BRC.secret)break;if(Math.hypot(c.x,c.z)>175)continue;if(pick.every(q=>Math.hypot(q.x-c.x,q.z-c.z)>85)){c.sec=1;pick.push(c)}}}
+ {const pool=E.chests.slice().sort(()=>Math.random()-.5),pick=[];for(const c of pool){if(pick.length>=BRC.secret)break;if(Math.hypot(c.x,c.z)>brHalf()*.88)continue;if(pick.every(q=>Math.hypot(q.x-c.x,q.z-c.z)>brHalf()*.45)){c.sec=1;pick.push(c)}}}
  // helicopter flight path: random edge-to-edge line near the middle
- const ang=Math.random()*Math.PI*2,off=rrand(-55,55),len=300;const dx=Math.cos(ang),dz=Math.sin(ang),px=-dz*off,pz=dx*off;E.heli={a:[+(px-dx*len).toFixed(1),+(pz-dz*len).toFixed(1)],b:[+(px+dx*len).toFixed(1),+(pz+dz*len).toFixed(1)],dur:BRC.busDur};
+ const ang=Math.random()*Math.PI*2,off=rrand(-80,80),len=brHalf()*1.5;const dx=Math.cos(ang),dz=Math.sin(ang),px=-dz*off,pz=dx*off;E.heli={a:[+(px-dx*len).toFixed(1),+(pz-dz*len).toFixed(1)],b:[+(px+dx*len).toFixed(1),+(pz+dz*len).toFixed(1)],dur:BRC.busDur};
  E.storm=stormInit();H.score={}}
 const heliAt=t=>{const h=H.br.heli,k=Math.max(0,Math.min(1,t/h.dur));return[h.a[0]+(h.b[0]-h.a[0])*k,h.a[1]+(h.b[1]-h.a[1])*k]};
 function brInfo(){const E=H.br;return{y:E.y,heli:E.heli,items:Object.values(E.items).map(i=>i.slice(0,7)),chests:E.chests.map(c=>[c.id,c.x,c.y,c.z,c.ry,c.open,c.sec?1:0,c.tier|0]),zones:E.zones}}
-function stormInit(){const s={ph:-1,state:'wait',cx:0,cz:0,r:300,tcx:0,tcz:0,tr:300,fcx:0,fcz:0,fr:300,t:0,tEnd:0,dmg:0,tick:0};stormNext(s,true);return s}
+function stormInit(){const R0=Math.round(brHalf()*1.5),s={ph:-1,state:'wait',cx:0,cz:0,r:R0,tcx:0,tcz:0,tr:R0,fcx:0,fcz:0,fr:R0,t:0,tEnd:0,dmg:0,tick:0};stormNext(s,true);return s}
 function stormNext(s,first){const n=s.ph+1;const P=STORM[Math.min(n,STORM.length-1)];s.ph=n;s.state='wait';s.fcx=s.cx;s.fcz=s.cz;s.fr=s.r;const rr_=Math.max(0,s.r-P.r)*.8;const a=Math.random()*6.283,d=Math.random()*rr_;s.tcx=s.cx+Math.cos(a)*d;s.tcz=s.cz+Math.sin(a)*d;s.tr=P.r;s.dmg=P.dmg;s.t=0;s.waitT=P.wait+(first?BRC.busDur+BRC.cd:0);s.shrinkT=P.shrink;s.tEnd=s.waitT}
 function stormTick(dt){const E=H.br,s=E.storm,sdt=dt*E.spd;s.t+=sdt;
  if(s.state==='wait'){if(s.t>=s.waitT){s.state='shrink';s.t=0}}
@@ -2046,17 +2046,17 @@ function brBuild(){const B=BC;const g=B.g=new THREE.Group();g.name='brFx';scene.
  // my parachute canopy
  const cm=new THREE.Mesh(new THREE.SphereGeometry(2.6,14,8,0,Math.PI*2,0,Math.PI/2),new THREE.MeshLambertMaterial({color:0xff6a2a,side:THREE.DoubleSide,emissive:0x3a1000}));cm.scale.set(1,.7,1);cm.visible=false;g.add(cm);B.canopy=cm;
  brBaseMap();brRefresh()}
-function brBaseMap(){const S=400,N=256,cv=document.createElement('canvas');cv.width=cv.height=N;const x=cv.getContext('2d');const k=N/S;
+function brBaseMap(){const S=brHalf()*2,N=320,HF=S/2,cv=document.createElement('canvas');cv.width=cv.height=N;const x=cv.getContext('2d');const k=N/S;
  x.fillStyle='#2d5a7a';x.fillRect(0,0,N,N);x.fillStyle='#d9c88f';x.fillRect(3,3,N-6,N-6);x.fillStyle='#6b9a52';x.fillRect(9,9,N-18,N-18);
- for(const z of BC.zones){const g=x.createRadialGradient((z.x+200)*k,(z.z+200)*k,2,(z.x+200)*k,(z.z+200)*k,z.r*k);g.addColorStop(0,'rgba(120,120,110,.55)');g.addColorStop(1,'rgba(120,120,110,0)');x.fillStyle=g;x.beginPath();x.arc((z.x+200)*k,(z.z+200)*k,z.r*k,0,6.3);x.fill()}
- x.fillStyle='#8a8176';for(const c of cols){if(c.y1-c.y0<2.2||c.y0>1||c.x1-c.x0<2.4)continue;x.fillRect((c.x0+200)*k,(c.z0+200)*k,Math.max(1,(c.x1-c.x0)*k),Math.max(1,(c.z1-c.z0)*k))}
+ for(const z of BC.zones){const g=x.createRadialGradient((z.x+HF)*k,(z.z+HF)*k,2,(z.x+HF)*k,(z.z+HF)*k,z.r*k);g.addColorStop(0,'rgba(120,120,110,.55)');g.addColorStop(1,'rgba(120,120,110,0)');x.fillStyle=g;x.beginPath();x.arc((z.x+HF)*k,(z.z+HF)*k,z.r*k,0,6.3);x.fill()}
+ x.fillStyle='#8a8176';for(const c of cols){if(c.y1-c.y0<2.2||c.y0>1||c.x1-c.x0<2.4)continue;x.fillRect((c.x0+HF)*k,(c.z0+HF)*k,Math.max(1,(c.x1-c.x0)*k),Math.max(1,(c.z1-c.z0)*k))}
  BC.base=cv}
 const MAP_ZC={};
 function brDrawMap(cv,full){const B=BC;if(!B||!B.base)return;const x=cv.getContext('2d'),W_=cv.width,Hh=cv.height;x.clearRect(0,0,W_,Hh);
- let view,cx=0,cz=0;if(full){view=420;}else view=210;const px=me.pos.x,pz=me.pos.z;if(!full){cx=px;cz=pz}const sc=W_/view;
+ let view,cx=0,cz=0;const BH=brHalf();if(full){view=BH*2+20;}else view=240;const px=me.pos.x,pz=me.pos.z;if(!full){cx=px;cz=pz}const sc=W_/view;
  const T=(wx,wz)=>[(wx-cx)*sc+W_/2,(wz-cz)*sc+Hh/2];
  x.save();if(!full){x.beginPath();x.arc(W_/2,Hh/2,W_/2-1,0,6.3);x.clip()}
- x.fillStyle='#2d5a7a';x.fillRect(0,0,W_,Hh);const o=T(-200,-200);x.imageSmoothingEnabled=true;x.drawImage(B.base,o[0],o[1],400*sc,400*sc);
+ x.fillStyle='#2d5a7a';x.fillRect(0,0,W_,Hh);const o=T(-BH,-BH);x.imageSmoothingEnabled=true;x.drawImage(B.base,o[0],o[1],BH*2*sc,BH*2*sc);
  if(full){x.font='bold 13px sans-serif';x.textAlign='center';x.textBaseline='middle';for(const z of B.zones){const p=T(z.x,z.z);x.lineWidth=3;x.strokeStyle='rgba(0,0,0,.7)';x.strokeText(z.name,p[0],p[1]);x.fillStyle='#fff';x.fillText(z.name,p[0],p[1])}}
  const s=B.sdisp;if(B.storm){x.fillStyle='rgba(122,44,255,.38)';x.beginPath();x.rect(0,0,W_,Hh);const p=T(s.cx,s.cz);x.moveTo(p[0]+s.r*sc,p[1]);x.arc(p[0],p[1],Math.max(1,s.r*sc),0,6.2832,true);x.fill('evenodd');
   const n=T(B.storm.tcx,B.storm.tcz);x.strokeStyle='#fff';x.lineWidth=full?2:1.5;x.beginPath();x.arc(n[0],n[1],Math.max(1,B.storm.tr*sc),0,6.2832);x.stroke()}

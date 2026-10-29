@@ -271,6 +271,8 @@ const DLG={};function doorLeafGeo(lw,h,dir){const k=lw.toFixed(2)+'|'+h+'|'+dir;
 function doorMeshes(list,group){for(const d of list){const lw=d.w/2,root=new THREE.Group();root.position.set(d.x,d.y,d.z);root.rotation.y=d.ax==='x'?0:-Math.PI/2;d.outL=d.out*(d.ax==='x'?1:-1);d.piv=[];
   for(const dir of[1,-1]){const piv=new THREE.Group();piv.position.set(-dir*d.w/2,0,0);const wd=new THREE.Mesh(doorLeafGeo(lw,d.h,dir),texMat('planks'));wd.userData.tm='planks';wd.castShadow=true;wd.receiveShadow=true;piv.add(wd);root.add(piv);d.piv.push([piv,dir])}
   group.add(root);d.root=root}}
+// v59: per-chunk distance culling + tree LOD. Call a few times per second with the camera position and fog far.
+export function updateCells(group,x,z,far,lodD=120){const L=group&&group.userData.cells;if(!L)return;for(const c of L){const d=Math.hypot(c.c.x-x,c.c.z-z)-c.r;const vis=d<far;if(c.lo){const near=d<lodD;c.m.visible=vis&&near;c.lo.visible=vis&&!near}else c.m.visible=vis}}
 // drop cached map builds whose crate/barrel props were built before the HD models arrived
 export function rebuildForProps(){const out=[];for(const k in cache){const m=cache[k];if(m.def&&!m.def.hub&&!m.hqProps){delete cache[k];out.push(+k)}}return out}
 export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=Builder();
@@ -279,10 +281,15 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  d.build(B);
  if(!d.hub&&!d.noDress)try{dress(B,d,GQ.level==='low'?0:GQ.level==='high'?2:1)}catch(e){console.warn('dress',e)}
  if(!d.pier&&!d.indoor){for(const s of[-1,1]){const wh=d.wallH||4;B.box(0,0,s*(sz/2+.5),sx+2,wh,1,0x000000,'plain',{shadow:false});B.box(s*(sx/2+.5),0,0,1,wh,sz,0x000000,'plain',{shadow:false})}for(let k=0;k<4;k++)B.T.plain.pop()}
- const group=new THREE.Group();
+ const group=new THREE.Group();const cells_=[];group.userData.cells=cells_;
  for(const t in B.T){if(!B.T[t].length)continue;if(d.br){// big map: split into 56 m cells so the GPU/frustum can cull far chunks (iPhone)
   const cells={};for(const pt of B.T[t]){const k=Math.floor((pt.p[0]+250)/56)+'_'+Math.floor((pt.p[2]+250)/56);(cells[k]=cells[k]||[]).push(pt)}
-  for(const k in cells){const m=new THREE.Mesh(mergeParts(cells[k],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}continue}
+  for(const k in cells){const m=new THREE.Mesh(mergeParts(cells[k],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m);
+   m.geometry.computeBoundingSphere();const cell={m,lo:null,c:m.geometry.boundingSphere.center,r:m.geometry.boundingSphere.radius};
+   // v59 LOD: trees (leaves) get a 4x cheaper far version (icosahedra detail 0, 5-sided cones)
+   if(t==='leaves'){const lp=cells[k].map(pt=>{const g=pt.g;if(g.type==='IcosahedronGeometry')return{...pt,g:new THREE.IcosahedronGeometry(g.parameters.radius,0)};if(g.type==='ConeGeometry')return{...pt,g:new THREE.ConeGeometry(g.parameters.radius,g.parameters.height,5)};return pt});
+    const lo=new THREE.Mesh(mergeParts(lp,{uv:true,ao:true}),texMat(t));lo.userData.tm=t;lo.castShadow=false;lo.receiveShadow=true;lo.matrixAutoUpdate=false;lo.visible=false;group.add(lo);cell.lo=lo}
+   (cells_.push(cell))}continue}
   const m=new THREE.Mesh(mergeParts(B.T[t],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m)}
  if(B.glows.length)group.add(new THREE.Mesh(mergeParts(B.glows),glowMat));
  // contact shadows
@@ -294,7 +301,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
   {const g2=geo.clone();const pa=g2.attributes.position.array;let i=0;for(const[x,z,w,dd]of B.shadows){for(let k=0;k<6;k++){const j=(i+k)*3;pa[j]=x+(pa[j]-x)*1.7;pa[j+2]=z+(pa[j+2]-z)*1.7;pa[j+1]=.011}i+=6}
    const s2=new THREE.Mesh(g2,new THREE.MeshBasicMaterial({map:TX.shadow,transparent:true,opacity:d.indoor?.14:.2,depthWrite:false,color:0x101830}));s2.renderOrder=0;group.add(s2)}}
  let water=null;if(d.water){const wm=new THREE.MeshLambertMaterial({color:d.water,map:makeWaterTex(),transparent:true,opacity:.92});
-  water=new THREE.Mesh(new THREE.PlaneGeometry(500,500),wm);water.rotation.x=-Math.PI/2;water.position.y=-.9;water.receiveShadow=true;water.onBeforeRender=()=>{const t=WT.value;wm.map.offset.set(t*.012,t*.007)};group.add(water)}
+  water=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(500,sx+140),Math.max(500,sz+140)),wm);water.rotation.x=-Math.PI/2;water.position.y=-.9;water.receiveShadow=true;water.onBeforeRender=()=>{const t=WT.value;wm.map.offset.set(t*.012,t*.007)};group.add(water)}
  const sunDir=new THREE.Vector3(...d.sun[2]).normalize();
  if(water){water.userData.lo=water.material;water.userData.hi=makeWater(d.water,d.sky[0],d.sky[2],sunDir,d.sun[0])}
  const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0],d.br?{cloudN:34}:{});

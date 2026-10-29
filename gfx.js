@@ -21,6 +21,10 @@ const TEXGEN={
  brick(x,n,r){x.fillStyle='#bdb3a8';x.fillRect(0,0,n,n);const bh=n/8,bw=n/4;for(let j=0;j<8;j++)for(let i=-1;i<5;i++){const v=215+r()*40|0;x.fillStyle=`rgb(${v},${v*.93|0},${v*.88|0})`;x.fillRect(i*bw+(j%2)*bw/2+1.5,j*bh+1.5,bw-3,bh-3)}noise(x,n,r,150,255,600,1.5)},
  grass(x,n,r){x.fillStyle='#e8f0e0';x.fillRect(0,0,n,n);for(let i=0;i<2600;i++){const v=180+r()*75|0;x.fillStyle=`rgba(${v*.85|0},${v},${v*.75|0},.5)`;x.fillRect(r()*n,r()*n,1,2+r()*3)}},
  sand(x,n,r){x.fillStyle='#f4ece0';x.fillRect(0,0,n,n);noise(x,n,r,190,255,2400,1.4);x.strokeStyle='rgba(150,120,80,.12)';x.lineWidth=2;for(let i=0;i<6;i++){x.beginPath();const y=r()*n;x.moveTo(0,y);x.quadraticCurveTo(n/2,y+(r()-.5)*20,n,y);x.stroke()}},
+ forest(x,n,r){x.fillStyle='#d9dccb';x.fillRect(0,0,n,n);noise(x,n,r,150,240,2400,1.6);for(let i=0;i<120;i++){const v=140+r()*90|0;x.fillStyle=`rgba(${v},${v*.9|0},${v*.7|0},.55)`;x.beginPath();x.ellipse(r()*n,r()*n,1+r()*4,.8+r()*2,r()*3,0,7);x.fill()}},
+ dirt(x,n,r){x.fillStyle='#e6dccd';x.fillRect(0,0,n,n);noise(x,n,r,160,250,3000,1.8);x.fillStyle='rgba(90,70,50,.2)';for(let i=0;i<40;i++){x.beginPath();x.arc(r()*n,r()*n,1+r()*3,0,7);x.fill()}},
+ gravel(x,n,r){x.fillStyle='#ddd';x.fillRect(0,0,n,n);for(let i=0;i<420;i++){const v=150+r()*100|0;x.fillStyle=`rgba(${v},${v},${v},.8)`;x.beginPath();x.ellipse(r()*n,r()*n,1+r()*2.6,1+r()*2,r()*3,0,7);x.fill()}},
+ cobble(x,n,r){x.fillStyle='#8f8f8f';x.fillRect(0,0,n,n);const k=6,s=n/k;for(let j=0;j<k;j++)for(let i=-1;i<k;i++){const v=190+r()*60|0;x.fillStyle=`rgb(${v},${v},${v-6})`;x.beginPath();x.ellipse(i*s+(j%2)*s/2+s/2,j*s+s/2,s*.46,s*.44,0,0,7);x.fill()}noise(x,n,r,150,255,500,1.4)},
  rock(x,n,r){x.fillStyle='#ddd';x.fillRect(0,0,n,n);for(let i=0;i<60;i++){const v=170+r()*80|0;x.fillStyle=`rgba(${v},${v},${v},.5)`;x.beginPath();x.ellipse(r()*n,r()*n,4+r()*18,2+r()*8,r()*3,0,7);x.fill()}
   x.fillStyle='rgba(80,60,40,.18)';for(let i=0;i<5;i++)x.fillRect(0,r()*n,n,1+r()*2);noise(x,n,r,120,255,800,2)},
  carpet(x,n,r){x.fillStyle='#eee';x.fillRect(0,0,n,n);noise(x,n,r,175,255,4000,1);x.fillStyle='rgba(0,0,0,.06)';for(let i=0;i<n;i+=8)x.fillRect(0,i,n,1)},
@@ -58,8 +62,10 @@ function normalTex(name,str){if(nrmCache[name])return nrmCache[name];const src=g
  for(let j=0;j<n;j++)for(let i=0;i<n;i++){const dx=(h(i+1,j-1)+2*h(i+1,j)+h(i+1,j+1))-(h(i-1,j-1)+2*h(i-1,j)+h(i-1,j+1));const dy=(h(i-1,j+1)+2*h(i,j+1)+h(i+1,j+1))-(h(i-1,j-1)+2*h(i,j-1)+h(i+1,j-1));
   let X=-dx*str,Y=dy*str,Z=1;const l=Math.hypot(X,Y,Z);const k=(j*n+i)*4;out.data[k]=(X/l*.5+.5)*255;out.data[k+1]=(Y/l*.5+.5)*255;out.data[k+2]=(Z/l*.5+.5)*255;out.data[k+3]=255}
  x.putImageData(out,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.NoColorSpace;t.anisotropy=2;return nrmCache[name]=t}
+// v59: flat ground decals (roads, patches) win the depth test against the ground at distance
+const DECAL={forest:-2,dirt:-2,gravel:-2,cobble:-2,asphalt:-4};
 // [roughness, metalness, normal strength]
-const PBR={concrete:[.9,0,1.4],tiles:[.42,0,2.2],planks:[.78,0,1.3],metal:[.45,.45,.7],brick:[.88,0,2.4],grass:[.95,0,1],sand:[.97,0,1.4],rock:[.86,0,2.6],carpet:[1,0,.8],asphalt:[.85,0,1.2],plaster:[.85,0,.6],crate:[.78,0,1.4],hazard:[.55,.25,.4],leaves:[.8,0,.6],window:[.06,.5,0],plain:[.75,0,0],
+const PBR={concrete:[.9,0,1.4],tiles:[.42,0,2.2],planks:[.78,0,1.3],metal:[.45,.45,.7],brick:[.88,0,2.4],grass:[.95,0,1],forest:[.97,0,1.6],dirt:[.96,0,1.5],gravel:[.95,0,1.8],cobble:[.85,0,2.2],sand:[.97,0,1.4],rock:[.86,0,2.6],carpet:[1,0,.8],asphalt:[.85,0,1.2],plaster:[.85,0,.6],crate:[.78,0,1.4],hazard:[.55,.25,.4],leaves:[.8,0,.6],window:[.06,.5,0],plain:[.75,0,0],
  char:[.72,0,0],gunMetal:[.36,.6,0],gunMatte:[.62,.05,0],
  gunMetalP:[.5,.78,.5],gunAlu:[.42,.6,.35],gunPoly:[.66,0,1.1],gunWood:[.5,0,.6],gunRubber:[.88,0,1.8],gunBrass:[.32,1,.25],gunChrome:[.2,1,.2],gunTrans:[.25,0,0],gunGlove:[.9,0,1],gunSleeve:[.95,0,.9],gunTP:[.55,.3,0]};
 // which canvas texture each gun material samples
@@ -96,11 +102,11 @@ export function texMat(name){const m=texMat0(name);return name==='leaves'?windif
 function texMat0(name){if(MATHOOK[name]){const r=MATHOOK[name](GQ.level);if(r)return r}const lvl=GQ.level==='low'?'lo':'hi';const C=matCache[GQ.level==='high'?'hh':lvl]||(matCache[GQ.level==='high'?'hh':lvl]={});if(C[name])return C[name];
  const noMap=name==='char'||name==='gunMetal'||name==='gunMatte'||name==='gunTP'||name==='gunTrans';
  if(name==='gunGlass')return C[name]=GLASS;
- if(lvl==='lo'){if(name==='gunMetal'||name==='gunMetalP'||name==='gunAlu'||name==='gunBrass'||name==='gunChrome')return C[name]=MC.metal;if(name.startsWith('gun'))return C[name]=MC.matte;return C[name]=new THREE.MeshLambertMaterial({map:noMap?null:getTex(name),vertexColors:true})}
+ if(lvl==='lo'){if(name==='gunMetal'||name==='gunMetalP'||name==='gunAlu'||name==='gunBrass'||name==='gunChrome')return C[name]=MC.metal;if(name.startsWith('gun'))return C[name]=MC.matte;{const lm=new THREE.MeshLambertMaterial({map:noMap?null:getTex(name),vertexColors:true});if(DECAL[name]){lm.polygonOffset=true;lm.polygonOffsetFactor=lm.polygonOffsetUnits=DECAL[name]}return C[name]=lm}}
  const[r,m,ns]=PBR[name]||[.8,0,1];const o={vertexColors:true,roughness:r,metalness:m,envMapIntensity:name==='window'?1.4:.7};
  const tn=GTEX[name]||name;if(!noMap){o.map=getTex(tn);if(ns>0){o.normalMap=normalTex(tn,ns);o.normalScale=new THREE.Vector2(1,1)}if(GTEX[name])o.roughnessMap=o.map}
  if(name==='gunTrans'){o.transparent=true;o.opacity=.82}
- const mat=new THREE.MeshStandardMaterial(o);if(GSCALE[name])mat.color.setScalar(GSCALE[name]);if(name.startsWith('gun')&&name!=='gunTP')mat.envMapIntensity=1.4;
+ const mat=new THREE.MeshStandardMaterial(o);if(DECAL[name]){mat.polygonOffset=true;mat.polygonOffsetFactor=mat.polygonOffsetUnits=DECAL[name]}if(GSCALE[name])mat.color.setScalar(GSCALE[name]);if(name.startsWith('gun')&&name!=='gunTP')mat.envMapIntensity=1.4;
  if(lvl==='hi'&&(name==='gunMetalP'||name==='gunAlu'||name==='gunChrome'))edgeWear(mat,true);else if(lvl==='hi'&&(name==='gunPoly'||name==='gunWood'))edgeWear(mat,false);if(name==='gunRubber'&&mat.normalScale)mat.normalScale.set(1.6,1.6);if(name==='gunMetal')mat.color.setScalar(2.4);if(name==='gunMatte')mat.color.setScalar(2.2);if(name==='char')mat.envMapIntensity=.45;return C[name]=mat}
 // swap every tagged mesh under root to the material for the current level
 export function swapMats(root){root.traverse(o=>{if(o.isMesh&&o.userData.tm){o.material=texMat(o.userData.tm);o.material.needsUpdate=true}else if(o.material&&o.material.needsUpdate!==undefined&&!o.isSprite){o.material.needsUpdate=true}})}

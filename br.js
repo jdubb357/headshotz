@@ -1,19 +1,22 @@
-// HeadShotz v44: Battle Royale island "Skyline Island" (400 x 400 m). Procedural, original. Named zones, climbable roofs/towers, lots of cover & loot spots.
-export const BR_ZONES=[
+// HeadShotz v44: Battle Royale island "Skyline Island" (v59: 540 x 540 m). Procedural, original. Named zones, climbable roofs/towers, lots of cover & loot spots.
+import {brExtra,BR_ZONES2} from './br2.js';
+export const BR_ZONES0=[
  {n:'Tilted Town',x:0,z:0,r:62,c:'#ffd23f'},{n:'Industrial Works',x:112,z:-104,r:46,c:'#ff8a3d'},{n:'Farmstead',x:108,z:108,r:50,c:'#9be15d'},
  {n:'Pine Woods',x:-122,z:-12,r:50,c:'#3fbf6a'},{n:'Harbor Docks',x:-18,z:150,r:46,c:'#4de3ff'},{n:'Mount Summit',x:-18,z:-142,r:42,c:'#c9d3e0'},
  {n:'Dusty Quarry',x:-128,z:118,r:42,c:'#e0b070'},{n:'Signal Hill',x:158,z:2,r:34,c:'#ff5a8a'},{n:'Lakeside Cabins',x:-132,z:-128,r:40,c:'#7fb6ff'}];
+export const BR_ZONES=[...BR_ZONES0,...BR_ZONES2];
 export function brDef({G,rng,_c}){
  const R=rng(4242);const rr=(a,b)=>a+R()*(b-a),pick=a=>a[R()*a.length|0];
  const PAL=[0xe8dcc8,0xd9c9a8,0xcfd8dc,0xe6c9b8,0xc8d9c1,0xdcd0e0,0xe3d7a3];const ROOF=[0x8a3b32,0x4a5a68,0x2f6f6a,0x6d4c41,0x555b66];
  const NS={solid:false,shadow:false};
- return {name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',br:true,noDress:true,size:[400,400],ground:['grass',0x8fbf6a,.18],grade:[1.04,1.02,.97,1.3,1.1,.8],horizon:'city',wallH:6,
+ return {name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',br:true,noDress:true,size:[540,540],ground:['grass',0x8fbf6a,.18],grade:[1.04,1.02,.97,1.3,1.1,.8],horizon:'city',wallH:6,
  sky:[0x2a68dc,0x86cbff,0xfff1dc],fog:[0xbcd8ee,110,330],hemi:[0xe8f2ff,0x6f8a55,1.35],sun:[0xfff0d0,1.8,[-.45,.7,-.35]],
  spawnsA:[[0,10],[6,10],[-6,10],[0,16]],spawnsB:[[0,-10],[6,-10],[-6,-10],[0,-16]],spawnsM:[[10,0],[-10,0]],zones:BR_ZONES,
  build(B){B.brLoot=[];B.brChests=[];B.brDoors=[];let bid=0;const taken=[];const lootAt=(x,y,z,b)=>B.brLoot.push([+x.toFixed(1),y,+z.toFixed(1),b]);
-  const block=(x,z,w,d,pad=2)=>taken.push([x-w/2-pad,z-d/2-pad,x+w/2+pad,z+d/2+pad]);const isFree=(x,z,m=1.5)=>!taken.some(t=>x>t[0]-m&&x<t[2]+m&&z>t[1]-m&&z<t[3]+m);
-  const road=(x0,z0,x1,z1,w=6)=>{const horiz=Math.abs(x1-x0)>=Math.abs(z1-z0);const cx=(x0+x1)/2,cz=(z0+z1)/2,len=horiz?Math.abs(x1-x0):Math.abs(z1-z0);B.box(cx,0,cz,horiz?len:w,.04,horiz?w:len,0x4a4d52,'asphalt',{solid:false,shadow:false,us:.2});
-   for(let k=-len/2+4;k<len/2-4;k+=9)B.box(horiz?cx+k:cx,.04,horiz?cz:cz+k,horiz?4:.3,.015,horiz?.3:4,0xe8e0a8,'plain',NS);taken.push(horiz?[Math.min(x0,x1),cz-w/2-1,Math.max(x0,x1),cz+w/2+1]:[cx-w/2-1,Math.min(z0,z1),cx+w/2+1,Math.max(z0,z1)])};
+  const block=(x,z,w,d,pad=2)=>taken.push([x-w/2-pad,z-d/2-pad,x+w/2+pad,z+d/2+pad]);const HB=263;const isFree=(x,z,m=1.5)=>Math.abs(x)<HB&&Math.abs(z)<HB&&!taken.some(t=>x>t[0]-m&&x<t[2]+m&&z>t[1]-m&&z<t[3]+m);
+  const patch=(x,z,w,d,tex,col,hh=1,us)=>B.box(x,0,z,w,.03*hh,d,col,tex,{solid:false,shadow:false,us});
+  const road=(x0,z0,x1,z1,w=6,kind)=>{const horiz=Math.abs(x1-x0)>=Math.abs(z1-z0);const cx=(x0+x1)/2,cz=(z0+z1)/2,len=horiz?Math.abs(x1-x0):Math.abs(z1-z0);B.box(cx,0,cz,horiz?len:w,.04,horiz?w:len,kind==='dirt'?0x9a7a55:0x4a4d52,kind==='dirt'?'dirt':'asphalt',{solid:false,shadow:false,us:kind==='dirt'?.25:.2});
+   if(kind!=='dirt')for(let k=-len/2+4;k<len/2-4;k+=9)B.box(horiz?cx+k:cx,.04,horiz?cz:cz+k,horiz?4:.3,.015,horiz?.3:4,0xe8e0a8,'plain',NS);taken.push(horiz?[Math.min(x0,x1),cz-w/2-1,Math.max(x0,x1),cz+w/2+1]:[cx-w/2-1,Math.min(z0,z1),cx+w/2+1,Math.max(z0,z1)])};
   // ---- generic building: 4 walls, one door (optionally windows), flat roof deck with parapet reachable by outside stairs, loot inside
   function bld(o){const{x,z,w,d,h=3.4,c=pick(PAL),tex='plaster',door='s',rc=pick(ROOF),stairs=1,dg=2.1,loot=3,chest=.3,win=1,windows,y:Y=0}=o;const id=bid++;const t=.3;const bx=(px,py,pz,a,b2,c2,col,tx,op)=>B.box(px,py+Y,pz,a,b2,c2,col,tx,op);
    const side=stairs?(door==='s'||door==='n'?(R()<.5?'e':'w'):(R()<.5?'n':'s')):null;
@@ -43,7 +46,9 @@ export function brDef({G,rng,_c}){
   const rock=(x,z,s=1)=>{B.part('rock',{g:G('dode',1.2*s),p:[x,.6*s,z],s:[1.3,.8,1.1],r:[R(),R()*3,R()],c:_c.set(0x8a8c90).multiplyScalar(.85+R()*.3).getHex()});B.cols.push({x0:x-1.1*s,x1:x+1.1*s,y0:0,y1:1.1*s,z0:z-1*s,z1:z+1*s});B.shadows.push([x,z,3*s,3*s])};
   const fence=(x,z,len,ax,c=0x8a6a45)=>{const n=Math.floor(len/2);for(let i=0;i<n;i++){const o=-len/2+1+i*2;if(ax==='x'){B.box(x+o,0,z,.12,1.1,.12,c,'planks',{shadow:false,solid:false});B.box(x+o+1,.7,z,2,.09,.07,c,'planks',{...NS})}else{B.box(x,0,z+o,.12,1.1,.12,c,'planks',{shadow:false,solid:false});B.box(x,.7,z+o+1,.07,.09,2,c,'planks',{...NS})}}};
   const lamp=(x,z,q=0)=>B.lamp(x,z,4.4,q);
-  for(const s of[-1,1]){B.box(0,0,s*193,400,.05,14,0xe2d3a0,'sand',NS);B.box(s*193,0,0,14,.05,400,0xe2d3a0,'sand',NS)}
+  for(const s of[-1,1]){B.box(0,0,s*263,540,.05,14,0xe2d3a0,'sand',NS);B.box(s*263,0,0,14,.05,540,0xe2d3a0,'sand',NS)}
+  // richer ground (CC0 Poly Haven): cobbled plaza, forest floors, dirt farm yards, gravel works/quarry
+  B.cyl(0,0,0,14,.03,0xb8b0a4,'cobble',{seg:28,solid:false,shadow:false});patch(-122,-12,110,108,'forest',0xa09062,1);patch(108,100,64,50,'dirt',0xa07850,1);patch(108+4,108+48,50,30,'dirt',0x8a6a40,1);patch(112,-104,96,70,'gravel',0xb0aca4,1);patch(-128,118,92,80,'dirt',0xb89a6a,1);patch(-18,141,100,20,'gravel',0xaaa59a,1);
   // ============ 1. TILTED TOWN (centre) ============
   road(-70,0,70,0,7);road(0,-70,0,70,7);road(-52,-34,52,-34,5);road(-52,34,52,34,5);road(-34,-52,-34,52,5);road(34,-52,34,52,5);
   B.cyl(0,0,0,4.6,.5,0xd9dde6,'concrete',{seg:24,shadow:false});B.cyl(0,.5,0,3.8,.2,0x4a90c8,'plain',{seg:24,solid:false,shadow:false});B.cyl(0,.5,0,.7,2.4,0xe8e8f0,'concrete',{seg:10});B.part('metal',{g:G('ico',.8,1),p:[0,3.4,0],c:0xffd23f});block(0,0,10,10,2);
@@ -122,13 +127,14 @@ export function brDef({G,rng,_c}){
    for(let i=0;i<46;i++){const x=cx+rr(-56,56),z=cz+rr(-52,56);if(isFree(x,z,2.2)&&!(x>cx-16&&x<cx+28&&z>cz-8&&z<cz+30)){if(i%3)pine(x,z,rr(.9,1.4));else B.tree(x,z,rr(.9,1.3))}}
    lamp(cx-14,cz-4,1);block(cx+6,cz+10,46,38,0)}
   // ============ connecting roads + wilderness ============
+  brExtra({B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp,road,block,isFree,lootAt,patch,NS,PAL});
   road(0,70,0,108,5);road(-70,0,-70,-12,4);road(70,-34,112,-60,4);road(0,-70,0,-110,5);road(-100,-12,-100,-120,4);
-  const zones=[[0,0,66],[112,-104,52],[108,108,56],[-122,-12,56],[-18,150,50],[-18,-142,48],[-128,118,48],[158,2,36],[-132,-128,44]];
-  for(let i=0;i<220;i++){const x=rr(-190,190),z=rr(-190,190);if(zones.some(([a,b,r])=>Math.hypot(x-a,z-b)<r))continue;if(!isFree(x,z,2.2))continue;const k=R();if(k<.5)B.tree(x,z,rr(.9,1.5));else if(k<.72)pine(x,z,rr(.9,1.5));else if(k<.88)rock(x,z,rr(.7,1.6));else B.bush(x,z,rr(.8,1.4))}
+  const zones=[[0,0,66],[112,-104,52],[108,108,56],[-122,-12,56],[-18,150,50],[-18,-142,48],[-128,118,48],[158,2,36],[-132,-128,44],...BR_ZONES2.map(z=>[z.x,z.z,z.r+6])];
+  for(let i=0;i<460;i++){const x=rr(-262,262),z=rr(-262,262);if(zones.some(([a,b,r])=>Math.hypot(x-a,z-b)<r))continue;if(!isFree(x,z,2.2))continue;const k=R();if(k<.5)B.tree(x,z,rr(.9,1.5));else if(k<.72)pine(x,z,rr(.9,1.5));else if(k<.88)rock(x,z,rr(.7,1.6));else B.bush(x,z,rr(.8,1.4))}
   // lone roadside lodges / watch posts (extra loot between zones)
-  for(const[x,z,door]of[[-70,60,'e'],[70,-60,'w'],[60,48,'n'],[-60,-60,'s'],[-165,40,'e'],[170,-60,'w'],[40,-168,'s'],[-40,176,'n']])if(isFree(x,z,6)){bld({x,z,w:8,d:7,h:3.2,c:pick(PAL),door,loot:3,chest:.7});}
-  for(const[x,z]of[[-90,-80],[85,-30],[-30,-80],[30,85],[-85,45],[170,60]])if(isFree(x,z,5))tower(x,z,8);
-  for(let i=0;i<10;i++){const x=rr(-150,150),z=rr(-150,150);if(isFree(x,z,4)&&!zones.some(([a,b,r])=>Math.hypot(x-a,z-b)<r*.8)){B.car(x,z,i%4,pick([0xc0392b,0x2980b9,0x7f8c8d,0xf1c40f]))}}
+  for(const[x,z,door]of[[-70,60,'e'],[70,-60,'w'],[60,48,'n'],[-60,-60,'s'],[-165,40,'e'],[170,-60,'w'],[40,-168,'s'],[-40,176,'s'],[-60,-215,'s'],[60,-200,'w'],[-170,-150,'e'],[175,170,'n'],[-175,-40,'e'],[190,90,'w'],[-60,230,'n'],[20,-250,'s'],[-250,-120,'e'],[250,-150,'w'],[160,-150,'s'],[-130,235,'e']])if(isFree(x,z,6)){bld({x,z,w:8,d:7,h:3.2,c:pick(PAL),door,loot:3,chest:.7});}
+  for(const[x,z]of[[-90,-80],[85,-30],[-30,-80],[30,85],[-85,45],[170,60],[-180,-200],[200,-190],[-250,-60],[250,60],[-120,250],[60,-250],[200,130],[-60,200]])if(isFree(x,z,5))tower(x,z,8);
+  for(let i=0;i<22;i++){const x=rr(-250,250),z=rr(-250,250);if(isFree(x,z,4)&&!zones.some(([a,b,r])=>Math.hypot(x-a,z-b)<r*.8)){B.car(x,z,i%4,pick([0xc0392b,0x2980b9,0x7f8c8d,0xf1c40f]))}}
   // ground loot sprinkled in the open (small crates & barrels)
-  for(let i=0;i<40;i++){const x=rr(-180,180),z=rr(-180,180);if(isFree(x,z,2.5)){B.brLoot.push([+x.toFixed(1),0,+z.toFixed(1),-1])}}
+  for(let i=0;i<100;i++){const x=rr(-255,255),z=rr(-255,255);if(isFree(x,z,2.5)){B.brLoot.push([+x.toFixed(1),0,+z.toFixed(1),-1])}}
  }}}
