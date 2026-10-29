@@ -71,6 +71,9 @@ export const W={
  decoy:{name:'Decoy',cls:'util',count:1,desc:'Non-lethal. Fakes gunfire from where it lands for 8s.'},
  medkit:{name:'Med Kit',cls:'util',count:1,heal:50,desc:'Instantly heal 50 HP.'},
 };
+// v62 GODLY weapons: gold-finished versions of existing models, 1.8x damage (Secret rarity is 1.6x). Not sold anywhere: only from Godly/Secret chests. price keeps them out of the 'owned by default' set.
+export const GODLY_BASE={gk_ak47:['ak47','Godly AK-47','Midas-plated AK. Hits 1.8x harder than stock.'],gk_deagle:['deagle','Godly Desert Eagle','Solid-gold .50. 1.8x damage.'],gk_katana:['katana','Godly Katana','Sun-forged blade. 1.8x damage.'],gk_awp:['awp','Godly Arctic Magnum','Gilded one-shot sniper. 1.8x damage.'],gk_aa12:['aa12','Godly AA-12','Golden auto-shotgun. 1.8x damage.']};
+for(const g in GODLY_BASE){const[b,n,d]=GODLY_BASE[g];const w=W[b];W[g]={...w,name:n,desc:d,godly:1,price:99999,body:Math.round(w.body*1.8),head:Math.round(w.head*1.8)}}
 for(const k in W){const w=W[k];w.id=k;w.slot=CLASSES.find(c=>c.id===w.cls).slot}
 export const STARTER=Object.keys(W).filter(k=>!W[k].price);
 export const LIMB=.85;
@@ -942,6 +945,7 @@ const EXTRA={
 function SNX(i){const[,yb,zm]=i.muzzle;const sy=i.sight[1],sz=i.sight[2];metal();rbox(.012,.008,.02,.024,sy-.022,sz-.17,C.blk,.002);GLW('ggreen',.006,.004,.024,sy-.017,sz-.159);
  SWIVEL(0,yb-.028,zm*.55);SWIVEL(0,yb-.05,.3);mat('rubber');rbox(.03,.01,.06,0,yb-.02,.42,C.rub,.003)}
 function SMX(i){const[,yb,zm]=i.muzzle;SWIVEL(-.022,yb,i.grip.c[2]+.06,.007);metal();rbox(.004,.012,.03,.022,yb+.01,i.grip.c[2]-.06,C.steel,.001)}
+for(const g in GODLY_BASE){const b=GODLY_BASE[g][0];BUILD[g]=BUILD[b];if(EXTRA[b])EXTRA[g]=EXTRA[b]}
 export function gunParts(id,lod=0){const k=id+'|'+lod;if(!PC[k]){parts.length=0;LOD=lod;XF=null;MAT='metal';GRP=null;TRG=null;const info=(BUILD[id]||BUILD.ar)();if(!info.sight)info.sight=[0,info.sightY||.06,.15];if(!lod&&EXTRA[id]){const M=MAT,G=GRP;GRP=null;XF=null;MAT='metal';EXTRA[id](info);MAT=M;GRP=G}info.trigP=info.trigP||TRG;LOD=0;
   if(!info.sight)info.sight=[0,info.sightY||.06,.15];info.sightY=info.sight[1];PC[k]={parts:parts.splice(0),info}}
  return{parts:PC[k].parts,info:PC[k].info}}

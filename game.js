@@ -4,7 +4,7 @@ import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './
 import {SKIN_DEFS,SKIN_BY,SKIN_IDS,humanOutfit,splitSkin,joinSkin} from './skins.js';
 import {BASE_N} from './toon.js';
 import {initSkinShop} from './skinshop.js';import {initSidekicks,hostPets,hostAbility,luck as petLuck,SK_BY,SK_DEFS} from './sidekicks.js';import {initSidekickShop} from './sidekickshop.js';
-import {Post} from './post.js';
+import {Post} from './post.js';import {initAdminAbuse,AA_DIA,AA_CHESTS} from './adminabuse.js';
 import {loadAssets,HQP} from './assets.js';import {photoItems,clearPhotoCache,PHOTO} from './photoguns.js';import {initRoyale} from './royale.js';import {chestKit,TIERC,CHEST_HINGE} from './chests.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO,updateCells} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
@@ -306,7 +306,7 @@ function gunGroup(id,o={}){if(o===true)o={hands:true};const{hands=false,sleeve,l
  if(PH){for(const it of PH){let holder=g;if(it.grp){if(!Gp[it.grp]){const pv=new THREE.Group();pv.position.set(...((info.piv&&info.piv[it.grp])||[0,0,0]));pv.name='G_'+it.grp;pv.userData.base=pv.position.clone();g.add(pv);Gp[it.grp]=pv}holder=Gp[it.grp]}
   const geo=it.geo.clone();if(holder!==g){const off=holder.position;geo.translate(-off.x,-off.y,-off.z)}const mesh=new THREE.Mesh(geo,it.mat);mesh.userData.mk='photo';mesh.userData.photo=1;holder.add(mesh);if(it.mat.transparent)mesh.renderOrder=2}g.userData.photo=1}
  if(Gp.mag){const bb=new THREE.Box3();Gp.mag.updateMatrixWorld(true);for(const c of Gp.mag.children)if(c.geometry){c.geometry.computeBoundingBox();bb.union(c.geometry.boundingBox)}Gp.mag.userData.c=bb.isEmpty()?new THREE.Vector3():bb.getCenter(new THREE.Vector3()).add(Gp.mag.position)}
- if(lit&&!lod&&!PH)addMarkings(g,id,info);g.userData.info=info;g.userData.wr=wr;g.userData.G=Gp;g.userData.optic=parts.some(p=>p.mat==='ret');return g}
+ if(lit&&!lod&&!PH)addMarkings(g,id,info);g.userData.info=info;g.userData.wr=wr;g.userData.G=Gp;g.userData.optic=parts.some(p=>p.mat==='ret');if(W[id]&&W[id].godly)applySkin(g,'gold');return g}
 const ICON={};
 function fitCam(obj,cam,side=true,pad=1.15){const bb=new THREE.Box3().setFromObject(obj);const c=bb.getCenter(new THREE.Vector3()),s=bb.getSize(new THREE.Vector3());
  const r=Math.max(s.z/cam.aspect,s.y,s.x*.6)*pad;const dist=r/(2*Math.tan(cam.fov*Math.PI/360));if(side){cam.position.set(c.x+dist,c.y+dist*.12,c.z+dist*.06)}else cam.position.set(c.x+dist*.85,c.y+dist*.35,c.z+dist*.5);cam.lookAt(c)}
@@ -855,13 +855,13 @@ function renderArsenal(){const cls=CLASSES.filter(c=>arsMode!=='upgrade'||c.id!=
   const[n,p]=SKINS[skinSel];const own=PROG.skins.includes(skinSel);$('arsName').textContent=n+' outfit';$('arsDesc').textContent='Cosmetic only. Other players see it in matches and the hub.';$('arsStats').innerHTML='';$('arsUpg').innerHTML='';
   const b=$('arsEquip');b.dataset.act=own?'wear':'buyskin';b.textContent=PROG.skin===skinSel?'✓ WEARING':own?'WEAR':PROG.dia>=p?`BUY 💎 ${p}`:`NEED 💎 ${p-PROG.dia} MORE`;b.classList.toggle('poor',!own&&PROG.dia<p);stopPreview();$('arsPrev').innerHTML='<div class="skinPrev">🧍</div>';return}
  if(arsCls==='skins'){renderSkins();return}
- let list=Object.values(W).filter(w=>w.cls===arsCls);if(arsMode!=='shop')list=list.filter(w=>owns(w.id));else list.sort((a,b)=>(a.price||0)-(b.price||0));
+ let list=Object.values(W).filter(w=>w.cls===arsCls);if(arsMode!=='shop')list=list.filter(w=>owns(w.id));else list=list.filter(w=>!w.godly).sort((a,b)=>(a.price||0)-(b.price||0));
  if(!list.length){$('arsGrid').innerHTML=`<div class="empty">No ${CLASSES.find(c=>c.id===arsCls).name} owned yet.<br><button class="pill yellow" data-act="goshop">🛒 OPEN SHOP</button></div>`;$('arsDetail').classList.add('hidden');stopPreview();return}
  $('arsDetail').classList.remove('hidden');
  if(!arsSel||!list.some(w=>w.id===arsSel))arsSel=(list.find(w=>me.load.includes(w.id))||list[0]).id;
  const badge=w=>arsMode==='shop'?(owns(w.id)?'<span class="eq own">OWNED</span>':`<span class="eq price">💎 ${w.price}</span>`):me.load.includes(w.id)?'<span class="eq">EQUIPPED</span>':'';
- $('arsGrid').innerHTML=list.map(w=>`<button class="wc${w.id===arsSel?' sel':''}${owns(w.id)?'':' locked'}" data-w="${w.id}"><img src="${ICON[w.id]||''}">${w.name}${badge(w)}</button>`).join('');
- const w=W[arsSel];$('arsName').textContent=w.name;$('arsDesc').textContent=w.desc+(w.slot===0?' · Primary':w.slot===1?' · Secondary':w.slot===2?' · Melee':' · Utility');
+ $('arsGrid').innerHTML=list.map(w=>`<button class="wc${w.id===arsSel?' sel':''}${owns(w.id)?'':' locked'}${w.godly?' godly':''}" data-w="${w.id}"><img src="${ICON[w.id]||''}">${w.godly?'<span class="godlyTxt">'+w.name+'</span>':w.name}${badge(w)}</button>`).join('');
+ const w=W[arsSel];$('arsName').textContent=w.name;$('arsName').classList.toggle('godlyTxt',!!w.godly);$('arsDesc').textContent=w.desc+(w.slot===0?' · Primary':w.slot===1?' · Secondary':w.slot===2?' · Melee':' · Utility');
  const st=stats(w);const up=(n,v,t)=>`<div class="st"><span>${n}</span><div class="bar"><i style="width:${Math.round(Math.max(.04,Math.min(1,v))*100)}%"></i></div><span>${t}</span></div>`;
  $('arsStats').innerHTML=st?st.map(([n,v,t])=>n==='Magazine'&&tier(w.id,'mag')?up(n,v,magOf(w.id)+' ⬆'):n==='Reload'&&tier(w.id,'reload')?up(n,v,reloadOf(w.id)+'s ⬆'):up(n,v,t)).join(''):up('Count',w.count*.4,'×'+w.count);
  let u='';
@@ -1611,14 +1611,17 @@ function swapCharModels(){for(const id in C.players){const q=C.players[id];if(!q
 window.__hsz.HUM=HUM;
 addEventListener('blur',()=>{inp.slideHold=false});
 // ---------------- v41 CHEST SHOP (diamonds only) ----------------
-const CHEST={price:300,tiers:[['common','Common','#9aa3ad',45],['rare','Rare','#3b8bff',27],['epic','Epic','#a64dff',15],['legendary','Legendary','#ffc21a',8],['secret','Secret','#ff2b2b',5]],
+const CHEST={price:300,tiers:[['common','Common','#9aa3ad',45],['rare','Rare','#3b8bff',27],['epic','Epic','#a64dff',15],['legendary','Legendary','#ffc21a',8],['secret','Secret','#ff2b2b',5],['godly','Godly','#ffd700',0]],
  // loot: [type,id|amount,weight]; higher tiers hold rarer items. Duplicates convert to diamonds (DUPE per tier).
  loot:{common:[['pet','dog',1.3],['pet','cat',1.3],['pet','bunny',1.2],['dia',80,4],['dia',120,3],['wsk','carbon',2],['wsk','tiger',2],['wpn','water',1],['wpn','bat',1],['skin','sky',1.5],['skin','sunset',1.5],['skin','lemon',1.5],['skin','forest',1.2],['skin','ocean',1.2]],
   rare:[['pet','bat',1.3],['pet','fox',1.3],['pet','penguin',1.3],['dia',200,3],['wsk','ice',2],['wsk','toxic',2],['wsk','neon',2],['wpn','m4',1],['wpn','mp5',1],['wpn','ump45',1],['wpn','pan',1],['cls','scout',1],['skin','rose',1.5],['skin','steel',1.5],['skin','jungle',1.3],['skin','tiger',1.3],['skin','ranger',1.2],['skin','cherry',1.2]],
   epic:[['pet','bear',1.4],['pet','tiger',1.4],['pet','hedgehog',1.4],['dia',350,2],['wsk','gold',2],['wsk','lightning',1],['wpn','ak47',1],['wpn','scar',1],['wpn','kriss',1],['wpn','p90',1],['wpn','deagle',1],['cls','engineer',1],['cls','ninja',1],['skin','moonmage',1.4],['skin','viking',1.4],['skin','samurai',1.4],['skin','pirate',1.2],['skin','cyber',1.2],['skin','ronin',1.2]],
   legendary:[['pet','lion',1.4],['pet','superdog',1.4],['pet','twohead',1.3],['pet','robot',1.3],['dia',600,2],['wsk','lightning',2],['wsk','fire',2],['wpn','aa12',1],['wpn','lmg',1],['wpn','freeze',1],['wpn','laser',1],['wpn','barrett',1],['wpn','chainsaw',1],['cls','medic',2],['wsk','galaxy_blue',1.3],['wsk','galaxy_red',1.3],['skin','gxv',1.3],['skin','gxb',1.3],['skin','galaxy',1.6],['skin','gladiator',1.6],['skin','inferno',1.4],['skin','candy',1.4],['skin','starpilot',1.2]],
   secret:[['pet','ghost',2.2],['pet','dragon',2.2],['pet','superdog',1.4],['dia',1200,1],['wsk','galaxy',3],['wsk','galaxy_blue',2.2],['wsk','galaxy_red',2.2],['wsk','galaxy_gold',1.8],['skin','gxv',2.2],['skin','gxb',2.2],['skin','gxr',2.2],['skin','gxg',1.6],['wsk','fire',2],['wsk','lightning',2],['cls','juggernaut',3],['skin','dragon',2.5],['skin','aurora',2.5],['skin','void',2],['skin','solar',2],['wpn','minigun',1.5],['wpn','awp',1.5],['wpn','rpg',1.5],['wpn','gl',1.5]]},
- dupe:{common:40,rare:90,epic:160,legendary:280,secret:500}};
+ dupe:{common:40,rare:90,epic:160,legendary:280,secret:500,godly:1000}};
+CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['dia',3000,2],['wsk','galaxy_gold',1.5],['skin','gxg',1.5]];
+const GODLY_CHEST_P=.04,GODLY_AA_P=.06;// Godly upgrade chance: 4% of Secret chests, 6% of Admin Abuse Secret chests (Godly itself has 0% base weight)
+const upGodly=(t,p,r)=>t==='secret'&&(r!=null?r:Math.random())<p?'godly':t;
 function chestTier(r=Math.random()){let a=0;for(const t of CHEST.tiers){a+=t[3]/100;if(r<a)return t[0]}return 'common'}
 function chestPick(tier,r=Math.random()){const L=CHEST.loot[tier];const tot=L.reduce((s,x)=>s+x[2],0);let a=0;for(const x of L){a+=x[2]/tot;if(r<a)return x}return L[L.length-1]}
 const ownedWeapons=()=>Object.keys(W).filter(id=>W[id].cls!=='util'&&owns(id));
@@ -1634,29 +1637,32 @@ function chestGrant(tier,it){const [ty,v]=it;let dup=false,name='',icon='💎',d
  if(dup)dia=CHEST.dupe[tier];PROG.dia+=dia;(PROG.chestLog=PROG.chestLog||[]).push([tier,ty,v,dup?1:0,Date.now()]);if(PROG.chestLog.length>50)PROG.chestLog.shift();saveProg();
  return {tier,ty,v,name,icon,dup,dia}}
 window.__hsz.chestGrant=chestGrant;window.__hsz.CHEST=CHEST;
-function chestBuy(r1,r2){if(PROG.dia<CHEST.price)return null;PROG.dia-=CHEST.price;const t=chestTier(r1);return chestGrant(t,chestPick(t,r2))}
+function chestBuy(r1,r2,r3){if(PROG.dia<CHEST.price)return null;PROG.dia-=CHEST.price;const t=upGodly(chestTier(r1),GODLY_CHEST_P,r3);return chestGrant(t,chestPick(t,r2))}
+function chestFree(r2,r3){if(!(PROG.free&&PROG.free.secret>0))return null;PROG.free.secret--;const t=upGodly('secret',GODLY_AA_P,r3);const r=chestGrant(t,chestPick(t,r2));r.free=1;saveProg();return r}
 // sounds per tier (Web Audio, same synth as the rest)
-const chestSFX=(tier)=>{const d=out();if(!d)return;const i=['common','rare','epic','legendary','secret'].indexOf(tier);const base=[523,587,659,698,440][i];
- if(tier==='secret'){tone(55,1.6,.35,'sawtooth',38,d,.05);noise('lowpass',300,.7,1.4,.4,d,.4,.2);setTimeout(()=>{noise('highpass',2500,.7,.25,.6,d,.6,.001);tone(110,.9,.3,'square',55,d,.001)},900);
+const chestSFX=(tier)=>{const d=out();if(!d)return;const i=['common','rare','epic','legendary','secret','godly'].indexOf(tier);const base=[523,587,659,698,440,440][i];
+ if(tier==='secret'||tier==='godly'){tone(55,1.6,.35,'sawtooth',38,d,.05);noise('lowpass',300,.7,1.4,.4,d,.4,.2);setTimeout(()=>{noise('highpass',2500,.7,.25,.6,d,.6,.001);tone(110,.9,.3,'square',55,d,.001)},900);
   [0,4,7,12,16,19].forEach((s,k)=>setTimeout(()=>tone(220*Math.pow(2,s/12),1.2,.12,'sawtooth',0,d,.02),1100+k*90));setTimeout(()=>tone(1760,1.1,.12,'sine',0,d,.01),1700)}
  else{const n=2+i;for(let k=0;k<n;k++)setTimeout(()=>tone(base*Math.pow(2,[0,4,7,12,16][k]/12),.25+.08*i,.16,'triangle',0,d,.005),k*(110-i*10));if(i>=2)setTimeout(()=>noise('highpass',4000,.7,.4,.25,d,.3,.01),n*90);if(i>=3)setTimeout(()=>tone(base*4,.9,.1,'sine',0,d,.01),n*100)}};
 function chestRollSFX(){const d=out();if(!d)return;for(let k=0;k<8;k++)setTimeout(()=>noise('bandpass',700+k*120,4,.05,.18,d,0,.001),k*120)}
 let chestBusy=false;
+function freeBtn(){let f=$('chFree');if(!f){f=document.createElement('button');f.id='chFree';f.className='btnBig gold';$('chBuy').after(f);f.onclick=()=>{if(chestBusy)return;const r=chestFree(window.__chestR2,window.__chestR3);window.__chestR2=window.__chestR3=undefined;if(!r){SFX.beep&&SFX.beep();return}window.__lastChest=r;chestAnim(r)}}const n=(PROG.free&&PROG.free.secret)|0;f.style.display=n>0?'':'none';f.disabled=chestBusy;f.textContent=`⚡ OPEN FREE SECRET CHEST · ${n} left`}
 function openChests(){audioInit&&audioInit();$('chests').classList.remove('hidden');renderChests()}
 function renderChests(){$('chDia').textContent=PROG.dia;const tot=CHEST.tiers.reduce((s,t)=>s+t[3],0);
- $('chOdds').innerHTML=CHEST.tiers.map(t=>`<div class="odd" style="--c:${t[2]}"><i></i><b>${t[1]}</b><span>${t[3]}%</span><small>${CHEST.loot[t[0]].filter(x=>x[0]!=='dia').slice(0,4).map(x=>x[0]==='wpn'?W[x[1]]?.name:x[0]==='cls'?PCL[x[1]].n:x[0]==='skin'?(SKIN_BY[x[1]]||{name:x[1]}).name:(WSKINS[x[1]]||[x[1]])[0]).join(' · ')}…</small></div>`).join('')+`<p class="msg">Odds total ${tot}%. Duplicates turn into diamonds. Diamonds only — no real money.</p>`;
- const b=$('chBuy');b.disabled=chestBusy||PROG.dia<CHEST.price;b.textContent=PROG.dia<CHEST.price?`NEED 💎 ${CHEST.price}`:`OPEN CHEST · 💎 ${CHEST.price}`}
+ $('chOdds').innerHTML=CHEST.tiers.filter(t=>t[3]>0).map(t=>`<div class="odd" style="--c:${t[2]}"><i></i><b>${t[1]}</b><span>${t[3]}%</span><small>${CHEST.loot[t[0]].filter(x=>x[0]!=='dia').slice(0,4).map(x=>x[0]==='wpn'?W[x[1]]?.name:x[0]==='cls'?PCL[x[1]].n:x[0]==='skin'?(SKIN_BY[x[1]]||{name:x[1]}).name:(WSKINS[x[1]]||[x[1]])[0]).join(' · ')}…</small></div>`).join('')+`<div class="odd" style="--c:#ffd700"><i></i><b>Godly</b><span>⚡ ${Math.round(GODLY_CHEST_P*100)}% of Secret</span><small>Gold 1.8× weapons: ${CHEST.loot.godly.filter(x=>x[0]==='wpn').map(x=>W[x[1]]?.name).join(' · ')}</small></div><p class="msg">Odds total ${tot}%. Duplicates turn into diamonds. Diamonds only — no real money.</p>`;
+ freeBtn();const b=$('chBuy');b.disabled=chestBusy||PROG.dia<CHEST.price;b.textContent=PROG.dia<CHEST.price?`NEED 💎 ${CHEST.price}`:`OPEN CHEST · 💎 ${CHEST.price}`}
 function chestAnim(res){const st=$('chStage'),c=CHEST.tiers.find(t=>t[0]===res.tier);chestBusy=true;renderChests();st.className='go';st.style.setProperty('--c',c[2]);st.innerHTML=`<div class="rays"></div><div class="box"><div class="lid"></div><div class="body"></div></div><div class="res hidden"></div>`;
- chestRollSFX();const secret=res.tier==='secret',dl=secret?2300:1150;st.classList.add('t-'+res.tier);if(secret)document.body.classList.add('chSecret');
- setTimeout(()=>{st.classList.add('open');chestSFX(res.tier);const r=st.querySelector('.res');r.classList.remove('hidden');r.innerHTML=`<em>${c[1].toUpperCase()}${secret?' !!!':''}</em><div class="it">${res.icon}</div><b>${res.name}</b>${res.dup?`<small>Duplicate → +${res.dia} 💎</small>`:res.ty==='dia'?'':'<small>NEW! Added to your collection</small>'}`;
+ chestRollSFX();const secret=res.tier==='secret'||res.tier==='godly',dl=secret?2300:1150;st.classList.add('t-'+res.tier);if(secret)document.body.classList.add('chSecret');
+ setTimeout(()=>{st.classList.add('open');chestSFX(res.tier);const r=st.querySelector('.res');r.classList.remove('hidden');r.innerHTML=`<em>${c[1].toUpperCase()}${secret?' !!!':''}${res.free?' · ADMIN ABUSE':''}</em><div class="it">${res.icon}</div><b>${res.name}</b>${res.dup?`<small>Duplicate → +${res.dia} 💎</small>`:res.ty==='dia'?'':'<small>NEW! Added to your collection</small>'}`;
   setTimeout(()=>{chestBusy=false;document.body.classList.remove('chSecret');renderChests()},secret?1400:600)},dl)}
-$('chBuy').onclick=()=>{if(chestBusy)return;const r=chestBuy(window.__chestR1,window.__chestR2);window.__chestR1=window.__chestR2=undefined;if(!r){SFX.beep&&SFX.beep();return}window.__lastChest=r;chestAnim(r)};
+$('chBuy').onclick=()=>{if(chestBusy)return;const r=chestBuy(window.__chestR1,window.__chestR2,window.__chestR3);window.__chestR1=window.__chestR2=window.__chestR3=undefined;if(!r){SFX.beep&&SFX.beep();return}window.__lastChest=r;chestAnim(r)};
 if($('openChests'))$('openChests').onclick=openChests;
 $('chClose').onclick=()=>$('chests').classList.add('hidden');
+const AA=initAdminAbuse({PROG,save:saveProg,toast,openChests,inGame:()=>inGame&&!(cur&&cur.def&&cur.def.hub),onClaim:()=>{if(!$('chests').classList.contains('hidden'))renderChests()}});// v62 Admin Abuse banner + claim
 // weekend banners: menu, hub HUD and end screen
 function updWknd(){const on=isWknd();for(const e of document.querySelectorAll('.wkBan'))e.classList.toggle('hidden',!on||(e.id==='wkHud'&&!(cur&&cur.def&&cur.def.hub)))}
 setInterval(updWknd,1000);updWknd();
-Object.assign(window.__hsz,{CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,endMatchTest:(win)=>{if(!isHost)return false;H.score[win]=WIN_ROUNDS-1;H.phase='play';endRound(win);return true},hostDecide,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
+Object.assign(window.__hsz,{aa:AA,chestFree,CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,endMatchTest:(win)=>{if(!isHost)return false;H.score[win]=WIN_ROUNDS-1;H.phase='play';endRound(win);return true},hostDecide,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
 
 // ================= v42 MISSION MODES: Capture the Flag + Extraction (host side) =================
 const MISSION=m=>m==='ctf'||m==='ext';
@@ -1830,7 +1836,7 @@ SFX.ann=function(kind){const d=out();if(!d)return;const T=(f,t,v,ty='triangle')=
 $('briefBtn')&&($('briefBtn').onclick=()=>{const m=MS&&MS.info.m;if(m)showBrief(m)});
 Object.assign(window.__hsz,{MSX:()=>({MS,H,CTF,EXT}),damage:(...a)=>damage(...a),extCall,missionTick,endMission,addRaider});
 // ================= v44 BATTLE ROYALE (host side) =================
-const RAR=[{n:'COMMON',c:0xb8bcc4,d:1,m:1,rl:1,sp:1,fr:1},{n:'UNCOMMON',c:0x4cd964,d:1.1,m:1.06,rl:.95,sp:.95,fr:.98},{n:'RARE',c:0x3b9cff,d:1.2,m:1.12,rl:.9,sp:.9,fr:.96},{n:'EPIC',c:0xb35cff,d:1.32,m:1.2,rl:.85,sp:.84,fr:.94},{n:'LEGENDARY',c:0xffb81c,d:1.45,m:1.3,rl:.8,sp:.78,fr:.92},{n:'SECRET',c:0xff2b2b,d:1.6,m:1.4,rl:.75,sp:.7,fr:.9}];
+const RAR=[{n:'COMMON',c:0xb8bcc4,d:1,m:1,rl:1,sp:1,fr:1},{n:'UNCOMMON',c:0x4cd964,d:1.1,m:1.06,rl:.95,sp:.95,fr:.98},{n:'RARE',c:0x3b9cff,d:1.2,m:1.12,rl:.9,sp:.9,fr:.96},{n:'EPIC',c:0xb35cff,d:1.32,m:1.2,rl:.85,sp:.84,fr:.94},{n:'LEGENDARY',c:0xffb81c,d:1.45,m:1.3,rl:.8,sp:.78,fr:.92},{n:'SECRET',c:0xff2b2b,d:1.6,m:1.4,rl:.75,sp:.7,fr:.9},{n:'GODLY',c:0xffd700,d:1.8,m:1.5,rl:.7,sp:.65,fr:.88}];
 const BRC={secret:4,pop:24,sq:4,heliY:230,busDur:52,chuteY:70,ft:48,cd:3};
 const AMN=['Light','Medium','Shells','Heavy'],AMV=[36,30,8,6];
 const CONS=['band','med','shd','mini'],CONN=['Bandage','Medkit','Shield Potion','Mini Shield'],CONMAX=[15,3,3,6],CONT=[2.5,6,4,2],CONI=['🩹','🧰','🧪','🧃'];
@@ -1924,8 +1930,9 @@ function brOpen(p,cid){const E=H.br;const c=E.chests[cid];if(!c||c.open||!p||!p.
  const items=out.map((o,i)=>{fixItem(o,true);const a=i/out.length*6.283+c.ry,r=1.1+Math.random()*.5;return brItem(o[0],o[1],o[2],c.x+Math.cos(a)*r,c.y,c.z+Math.sin(a)*r,-1).slice(0,7)});
  bcast({t:'cop',c:cid,it:items,by:p.id});return true}
 const SECW=[['ar',24],['smg',18],['shotgun',14],['marksman',10],['sniper',10]];
+const GODLY_BR_P=.04;// v62: 4% of red secret crates hold a GODLY (1.8x, gold) gun instead of a Secret one
 function brOpenSecret(p,c,cid){const E=H.br;const out=[];const slotOf=c=>c==='smg'?1:c==='shotgun'?2:c==='sniper'||c==='marksman'?3:0;const c1=wrand(SECW),c2=wrand(SECW.filter(x=>slotOf(x[0])!==slotOf(c1)));
- for(const cl of [c1,c2]){const id=POOLS[cl][Math.random()*POOLS[cl].length|0];out.push([0,WIDX[id],5]);out.push([1,ammoOf(id),Math.round(AMV[ammoOf(id)]*2)])}
+ const godlyCrate=Math.random()<(window.__godlyP!=null?window.__godlyP:GODLY_BR_P);for(const cl of [c1,c2]){const id=POOLS[cl][Math.random()*POOLS[cl].length|0];out.push([0,WIDX[id],godlyCrate&&cl===c1?6:5]);out.push([1,ammoOf(id),Math.round(AMV[ammoOf(id)]*2)])}
  out.push([2,2,1]);out.push([2,3,2]);out.push([2,1,1]);
  const items=out.map((o,i)=>{const a=i/out.length*6.283+c.ry,r=1.2+Math.random()*.5;return brItem(o[0],o[1],o[2],c.x+Math.cos(a)*r,c.y,c.z+Math.sin(a)*r,-1).slice(0,7)});
  bcast({t:'cop',c:cid,it:items,by:p.id,sec:1});return true}
@@ -2006,7 +2013,7 @@ function brTick(dt){const E=H.br;if(!E)return;
 function brScale(p,m){const wi=WIDX[m.w];let r=1;if(p.inv){const g=p.inv.g.find(g=>g&&g[0]===wi);if(g)r=RAR[g[1]].d;else if(p.inv.m[0]===wi)r=RAR[p.inv.m[1]].d}return(m.dmg|0)*r}
 
 // ================= v44 BATTLE ROYALE (client side) =================
-const RARC=['#b8bcc4','#4cd964','#3b9cff','#b35cff','#ffb81c','#ff2b2b'],RARH=[0xb8bcc4,0x4cd964,0x3b9cff,0xb35cff,0xffb81c,0xff2b2b];
+const RARC=['#b8bcc4','#4cd964','#3b9cff','#b35cff','#ffb81c','#ff2b2b','#ffd700'],RARH=[0xb8bcc4,0x4cd964,0x3b9cff,0xb35cff,0xffb81c,0xff2b2b,0xffd700];
 const AMC=[0xf0b040,0x4cc07a,0xe0503a,0xa070e0];
 const itemName=it=>{const k=it[1],a=it[2],b=it[3];if(k===0||k===4)return`${RAR[b|0].n[0]+RAR[b|0].n.slice(1).toLowerCase()} ${W[WIDS[a]].name}`;if(k===1)return`${b} ${AMN[a]} ammo`;if(k===2)return`${b}× ${CONN[a]}`;return`${W[WIDS[a]].name} ×${b}`};
 const itemIcon=it=>{const k=it[1];return k===0||k===4?(ICON[WIDS[it[2]]]||''):k===1?'':k===2?'':(ICON[WIDS[it[2]]]||'')};
