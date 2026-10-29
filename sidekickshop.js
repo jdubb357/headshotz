@@ -9,7 +9,8 @@ export function initSidekickShop(A){
  const own=id=>P.pets.includes(id);const eq=()=>P.pet||'';
  const toast=m=>{const t=$('pkToast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),1800)};
  let R=null,scene=null,cam=null,model=null,raf=0,last=0,cv=null,clock=0;
- function build(){if(R)return;cv=$('pkCv');R=new THREE.WebGLRenderer({canvas:cv,antialias:false,alpha:true,powerPreference:'low-power'});R.outputColorSpace=THREE.SRGBColorSpace;R.toneMapping=THREE.ACESFilmicToneMapping;R.setClearColor(0,0);
+ function freshCanvas(){const o=$('pkCv');if(!o)return null;const n=o.cloneNode(false);o.replaceWith(n);return n}
+ function build(){if(R)return;cv=$('pkCv');try{R=new THREE.WebGLRenderer({canvas:cv,antialias:false,alpha:true,powerPreference:'low-power'})}catch(e){cv=freshCanvas();R=new THREE.WebGLRenderer({canvas:cv,antialias:false,alpha:true,powerPreference:'low-power'})}R.outputColorSpace=THREE.SRGBColorSpace;R.toneMapping=THREE.ACESFilmicToneMapping;R.setClearColor(0,0);
   scene=new THREE.Scene();cam=new THREE.PerspectiveCamera(30,1,.05,30);scene.add(new THREE.HemisphereLight(0xdff2ff,0x7a6aa8,1.4));const k=new THREE.DirectionalLight(0xfff0d8,2.6);k.position.set(-2,3,3);scene.add(k);const r=new THREE.DirectionalLight(0x9fd0ff,1.4);r.position.set(3,2,-3);scene.add(r);
   const top=new THREE.Mesh(new THREE.CylinderGeometry(.55,.6,.07,36),new THREE.MeshStandardMaterial({color:0xfdf3ff,roughness:.25,metalness:.15}));top.position.y=-.035;scene.add(top);
   const base=new THREE.Mesh(new THREE.CylinderGeometry(.66,.75,.1,36),new THREE.MeshStandardMaterial({color:0xff8a3a,roughness:.4,metalness:.2}));base.position.y=-.12;scene.add(base);
@@ -42,9 +43,9 @@ export function initSidekickShop(A){
  function select(id){S.sel=id;S.say=null;mkModel();render()}
  function buy(){const d=SK_BY[S.sel];if(own(d.id)||P.dia<d.price){A.denied&&A.denied();return}P.dia-=d.price;P.pets.push(d.id);A.SFX&&A.SFX.kill&&A.SFX.kill();S.say='Yay! '+d.name+' is yours. Take good care of them!';toast(`✨ ${d.name} joined your team!`);equip()}
  function equip(){const d=SK_BY[S.sel];if(!own(d.id))return;A.equip(d.id);render();toast(`${d.name} is following you`)}
- function open(from){A.audioInit&&A.audioInit();try{document.exitPointerLock&&document.exitPointerLock()}catch(e){}S.from=from||'menu';build();el.classList.remove('hidden');S.on=true;S.say=KEEPER[S.ki++%KEEPER.length];
+ function open(from){A.audioInit&&A.audioInit();try{document.exitPointerLock&&document.exitPointerLock()}catch(e){}S.from=from||'menu';el.classList.remove('hidden');if(S.on){cancelAnimationFrame(raf);disposeModel();if(R){try{R.dispose();R.forceContextLoss&&R.forceContextLoss()}catch(e){}R=null;scene=null;cam=null;freshCanvas()}}try{build()}catch(e){console.error('sidekick preview unavailable',e)}S.on=true;S.say=KEEPER[S.ki++%KEEPER.length];
   const cur=eq();S.sel=SK_BY[cur]?cur:(SK_BY[S.sel]?S.sel:SK_DEFS[0].id);render();requestAnimationFrame(()=>{resize();mkModel();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);setTimeout(makeThumbs,120)})}
- function close(){S.on=false;cancelAnimationFrame(raf);el.classList.add('hidden');disposeModel();if(R){try{R.dispose();R.forceContextLoss&&R.forceContextLoss()}catch(e){}R=null;scene=null;cam=null}A.onClose&&A.onClose(S.from)}
+ function close(){S.on=false;cancelAnimationFrame(raf);el.classList.add('hidden');disposeModel();if(R){try{R.dispose();R.forceContextLoss&&R.forceContextLoss()}catch(e){}R=null;scene=null;cam=null}freshCanvas();A.onClose&&A.onClose(S.from)}
  el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   if(b.id==='pkClose')close();else if(b.dataset.id)select(b.dataset.id);else if(b.dataset.f!=null){S.fil=b.dataset.f;render()}
   else if(b.id==='pkBuy'){const a=b.dataset.act;if(a==='buy')buy();else if(a==='equip')equip();else if(a==='poor'){S.say='Come back with a few more diamonds!';renderSide();A.denied&&A.denied()}}
