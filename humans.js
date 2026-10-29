@@ -30,12 +30,12 @@ function prepTpl(sc){sc.updateMatrixWorld(true);const v=new THREE.Vector3();
 const NOISE=`float h3(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float vn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}`;
 function clothMat(shirt,pants,camo,fx,K){K=K||{};const cut=K.cut||[9,-9,9],sty=K.sty||0,c2=K.c2??0x888888,ck=(K.cut?'c':'')+sty;const gxp=fx&&GX_PAL[fx]?GX_PAL[fx]:null,glo=GQ.level==='low';const m=new THREE.MeshStandardMaterial({map:HUM.tex.cloth,normalMap:HUM.tex.clothn||null,roughness:.92,metalness:0,envMapIntensity:.4});
- m.userData.u={uShirt:{value:new THREE.Color(shirt)},uPants:{value:new THREE.Color(pants)},uCamo:{value:camo},uCut:{value:new THREE.Vector3(...cut)},uSty:{value:sty},uC2:{value:new THREE.Color(c2)}};
+ m.userData.u={uShirt:{value:new THREE.Color(shirt)},uPants:{value:new THREE.Color(pants)},uCamo:{value:camo},uCut:{value:new THREE.Vector3(...cut)},uSty:{value:sty},uSC2:{value:new THREE.Color(c2)}};
  if(K.rough!=null)m.roughness=K.rough;
  if(gxp)Object.assign(m.userData.u,{uT:skinU.uT,uC0:{value:new THREE.Vector3(...gxp[0])},uC1:{value:new THREE.Vector3(...gxp[1])},uC2:{value:new THREE.Vector3(...gxp[2])},uC3:{value:new THREE.Vector3(...gxp[3])}});
  m.onBeforeCompile=s=>{Object.assign(s.uniforms,m.userData.u);
   s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float pants;attribute vec3 bpos;varying float vP;varying vec3 vOP;varying vec3 vB;').replace('#include <begin_vertex>','#include <begin_vertex>\nvP=pants;vOP=position;vB=bpos;');
-  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uShirt;uniform vec3 uPants;uniform float uCamo;uniform vec3 uCut;uniform float uSty;uniform vec3 uC2;varying float vP;varying vec3 vOP;varying vec3 vB;\n'+NOISE+(gxp?'\n'+gxDefs(1.25,glo)+GX_GLSL+'\n':''))
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uShirt;uniform vec3 uPants;uniform float uCamo;uniform vec3 uCut;uniform float uSty;uniform vec3 uSC2;varying float vP;varying vec3 vOP;varying vec3 vB;\n'+NOISE+(gxp?'\n'+gxDefs(1.25,glo)+GX_GLSL+'\n':''))
    
    .replace('#include <map_fragment>',`
    {float ax=abs(vB.x);if((ax>uCut.x&&vB.y>.8)||vB.y<uCut.y||(uCut.z<8.&&vB.y>uCut.z&&vB.y<1.5&&ax<.215&&!(ax>.17&&vB.y>1.38)))discard;
@@ -46,10 +46,10 @@ function clothMat(shirt,pants,camo,fx,K){K=K||{};const cut=K.cut||[9,-9,9],sty=K
      if(uCamo<1.5)c=n<.62?c*.6:n<.98?c:mix(c,vec3(.22,.2,.14),.5);else if(uCamo<2.5){float e=h3(floor(vOP*vec3(26.)))+.4*h3(floor(vOP*vec3(9.)));c=e<.5?c*.7:e<1.05?c:c*1.22;}
      else if(uCamo<3.5){float t=sin(vOP.y*30.+vn(q*.7)*5.);c=t>.55?c*.5:c;}else c*=(.85+.25*vn(q*3.));}
     diffuseColor.rgb=c*d;${gxp?'diffuseColor.rgb*=.22;':''}
-    if(uSty>.5&&uSty<1.5){float bt=vB.y*34.+sin(vB.x*21.+vB.z*17.)*.9+vn(vB*40.)*1.4;float f=fract(bt);float edge=smoothstep(.0,.12,f)*smoothstep(1.,.88,f);vec3 w=mix(uShirt,uC2,.5+.5*vn(vB*60.));diffuseColor.rgb=w*(.55+.6*edge)*(.9+.2*vn(vB*180.));}
-    else if(uSty>1.5&&uSty<2.5){float st=smoothstep(.55,.8,vn(vB*vec3(7.,5.,7.)+3.));diffuseColor.rgb=mix(diffuseColor.rgb*(.8+.3*vn(vB*40.)),uC2*.5,st);}
-    else if(uSty>2.5&&uSty<3.5){float sp=step(abs(vB.x),.035)*step(vB.y,1.45)*step(.9,vB.y)+step(abs(abs(vB.x)-.2),.012)*step(.9,vB.y)*step(vB.y,1.42)+step(abs(vB.y-1.0),.02)*step(.8,vB.y);diffuseColor.rgb=mix(diffuseColor.rgb,uC2,clamp(sp,0.,1.));}
-    else if(uSty>3.5&&uSty<4.5){float s2=step(.5,fract(vB.y*22.+vB.x*8.));diffuseColor.rgb=mix(diffuseColor.rgb,uC2*d,.9*s2*step(.9,vB.y)*step(vB.y,1.0)+0.);}
+    if(uSty>.5&&uSty<1.5){float bt=vB.y*34.+sin(vB.x*21.+vB.z*17.)*.9+vn(vB*40.)*1.4;float f=fract(bt);float edge=smoothstep(.0,.12,f)*smoothstep(1.,.88,f);vec3 w=mix(uShirt,uSC2,.5+.5*vn(vB*60.));diffuseColor.rgb=w*(.55+.6*edge)*(.9+.2*vn(vB*180.));}
+    else if(uSty>1.5&&uSty<2.5){float st=smoothstep(.55,.8,vn(vB*vec3(7.,5.,7.)+3.));diffuseColor.rgb=mix(diffuseColor.rgb*(.8+.3*vn(vB*40.)),uSC2*.5,st);}
+    else if(uSty>2.5&&uSty<3.5){float sp=step(abs(vB.x),.035)*step(vB.y,1.45)*step(.9,vB.y)+step(abs(abs(vB.x)-.2),.012)*step(.9,vB.y)*step(vB.y,1.42)+step(abs(vB.y-1.0),.02)*step(.8,vB.y);diffuseColor.rgb=mix(diffuseColor.rgb,uSC2,clamp(sp,0.,1.));}
+    else if(uSty>3.5&&uSty<4.5){float s2=step(.5,fract(vB.y*22.+vB.x*8.));diffuseColor.rgb=mix(diffuseColor.rgb,uSC2*d,.9*s2*step(.9,vB.y)*step(vB.y,1.0)+0.);}
    }`)
    .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=diffuseColor.rgb*pow(1.-saturate(dot(normalize(normal),normalize(vViewPosition))),3.)*.14;'+(gxp?'{vec3 gv=normalize(vViewPosition);float gr=pow(1.-saturate(dot(normalize(normal),gv)),2.5);totalEmissiveRadiance+=gxCol(vOP,gv,.8,gr)*.85;}':''))};
  m.customProgramCacheKey=()=>'humcloth3'+(HUM.tex.clothn?1:0)+(gxp?'gx'+(glo?'L':'H'):'');return m}
