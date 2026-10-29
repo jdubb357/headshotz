@@ -55,3 +55,7 @@ The 40 shop skins are **original procedural geometry written in code** (`kits.js
 ## Sidekicks (v57)
 
 The 15 sidekick buddies (dog, cat, bunny, bat, fox, penguin, bear, tiger, speedy hedgehog, lion cub, caped hero pup, two-headed cat-dog, robot, ghost, baby dragon) are **original low-poly models written in code** (`sidekicks.js`): shared primitive geometry, cached materials, procedural animation. The hedgehog, hero pup, cat-dog, robot, ghost and dragon are original designs (not based on any existing franchise character). No third-party models, textures or sounds were added.
+
+## Royale inventory & Secret crates (v58)
+
+No new third-party assets. The typed quick slots, backpack, swap prompts, red **Secret** rarity tier, secret crates (red glow, beam, alarm sound, minimap ping) and their sounds are **original code and procedural geometry/WebAudio** in `game.js` / `style.css`.
