@@ -116,7 +116,7 @@ export function brDef({G,rng,_c}){
   // ============ 8. SIGNAL HILL (E) ============
   {const cx=158,cz=2;B.box(cx,0,cz,26,2.4,26,0x8a8c90,'rock',{gy:0,us:.12});B.box(cx,2.4,cz,16,2.4,16,0x7e8086,'rock',{gy:2.4,us:.12});B.stairs(cx+13+4.2,0,cz,'x-',7,.34,.6,2.4,0x9a9ea5,'rock');B.stairs(cx+8+4.2,2.4,cz+4,'x-',7,.34,.6,2.4,0x9a9ea5,'rock');
    // radio mast
-   {const h=34;for(const a of[-1,1])for(const b of[-1,1])B.box(cx+4+a*1.2,4.8,cz+b*1.2,.25,h-4.8,.25,0xd0452a,'metal',{gy:4.8,solid:false,shadow:false});B.cols.push({x0:cx+2.6,x1:cx+5.4,y0:4.8,y1:h,z0:cz-1.4,z1:cz+1.4});B.ladder(cx+5.4,cz,4.8,28,'x+');B.box(cx+4,28,cz,3.2,.3,3.2,0x666d75,'metal',{gy:28});lootAt(cx+4,28.3,cz,-1);B.brChests.push([cx+4,28.3,cz+1,0,-1])}
+   {const h=34;for(const a of[-1,1])for(const b of[-1,1])B.box(cx+4+a*1.2,4.8,cz+b*1.2,.25,h-4.8,.25,0xd0452a,'metal',{gy:4.8,solid:false,shadow:false});B.cols.push({x0:cx+2.6,x1:cx+5.4,y0:4.8,y1:28,z0:cz-1.4,z1:cz+1.4});B.ladder(cx+5.4,cz,4.8,28,'x+');B.box(cx+4,28,cz,3.2,.3,3.2,0x666d75,'metal',{gy:28});lootAt(cx+4,28.3,cz,-1);B.brChests.push([cx+4,28.3,cz+1,0,-1])}
    bld({x:cx+30,z:cz-12,w:10,d:8,h:3.2,c:0x6f757d,tex:'concrete',door:'w',loot:4,chest:1,rc:0x3f444a,win:0});bld({x:cx+30,z:cz+14,w:9,d:8,h:3.2,c:0x6f757d,tex:'concrete',door:'w',loot:3,chest:.8,rc:0x3f444a,win:0});
    for(let i=0;i<6;i++){const a=i/6*6.283;sandbagsAt(cx+Math.cos(a)*18,cz+Math.sin(a)*18,i)}lootAt(cx,4.8,cz+3,-1);lootAt(cx-4,4.8,cz-3,-1);road(70,2,140,2,5);block(cx,cz,0,0,0)}
   function sandbagsAt(x,z,i){const L=B.at(x,z,i%2);L.box(0,0,0,3.2,.9,.6,0xb8a57a,'sand',{us:.5,shadow:false})}

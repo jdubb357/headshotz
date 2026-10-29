@@ -23,6 +23,13 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Model: barrels | Barrel 03 | Serhii Khromov | https://polyhaven.com/a/barrel_03 | CC0 |
 | Model: Royale loot chest (v46) | Treasure Chest | Rico Cilliers | https://polyhaven.com/a/treasure_chest | CC0 |
 | Model: crates | Wooden Crate 02 | James Ray Cock, Jurita Burger | https://polyhaven.com/a/wooden_crate_02 | CC0 |
+| Model: Pistol weapon (v60) | Service Pistol | Mateusz Sadek | https://polyhaven.com/a/service_pistol | CC0 |
+| Model: Sniper rifle weapon (v60) | Bolt Action Rifle 7.62 | Mateusz Sadek | https://polyhaven.com/a/bolt_action_rifle_7_62 | CC0 |
+| Model: Katana weapon (v60) | Antique Katana 01 | Tal Swicegood | https://polyhaven.com/a/antique_katana_01 | CC0 |
+| Model: Axe weapon (v60) | Wooden Axe | Ulan Cabanilla | https://polyhaven.com/a/wooden_axe | CC0 |
+| Texture: gun wood grain (v60) | Black Walnut Veneer 02 | Jenelle van Heerden | https://polyhaven.com/a/black_walnut_veneer_02 | CC0 |
+
+Processing (v60 weapons): scanned meshes simplified with meshoptimizer to a ~8k-triangle first-person version and a ~3-4k-triangle third-person version, textures resized to 1024/256px WebP, original node names kept so slides, bolts and magazines still animate.
 
 Processing: textures downscaled to 512px (colour maps converted to greyscale detail so map tints still apply); models optimised with gltf-transform (meshopt geometry, 512px WebP textures, simplified). Libraries: three.js r160 GLTFLoader + meshopt decoder (MIT).
 

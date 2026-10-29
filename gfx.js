@@ -70,7 +70,7 @@ const PBR={concrete:[.9,0,1.4],tiles:[.42,0,2.2],planks:[.78,0,1.3],metal:[.45,.
  gunMetalP:[.5,.78,.5],gunAlu:[.42,.6,.35],gunPoly:[.66,0,1.1],gunWood:[.5,0,.6],gunRubber:[.88,0,1.8],gunBrass:[.32,1,.25],gunChrome:[.2,1,.2],gunTrans:[.25,0,0],gunGlove:[.9,0,1],gunSleeve:[.95,0,.9],gunTP:[.55,.3,0]};
 // which canvas texture each gun material samples
 const GTEX={gunMetalP:'gunMetal',gunAlu:'gunAlu',gunPoly:'gunPoly',gunWood:'gunWood',gunRubber:'gunRubber',gunBrass:'gunAlu',gunChrome:'gunChrome',gunGlove:'gunCloth',gunSleeve:'gunCloth'};
-const GSCALE={gunMetalP:2.3,gunAlu:2.3,gunPoly:2.1,gunWood:1.05,gunRubber:2,gunBrass:1.25,gunChrome:1.1,gunTrans:1.4,gunGlove:1.7,gunSleeve:1.25,gunTP:2};
+const GSCALE={gunMetalP:2.3,gunAlu:2.3,gunPoly:2.1,gunWood:.82,gunRubber:2,gunBrass:1.25,gunChrome:1.1,gunTrans:1.4,gunGlove:1.7,gunSleeve:1.25,gunTP:2};
 // edge wear: curvature from screen-space normal derivatives brightens + polishes bevels (cheap, no extra textures)
 function edgeWear(mat,metalWear){mat.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
  float ewv=clamp(length(fwidth(vNormal))*2.2-.18,0.,1.);ewv*=ewv;
@@ -119,6 +119,14 @@ export const TX={
  fire:(()=>{const[c,x]=cvs(64);for(let i=0;i<7;i++){const cx=32+(Math.random()-.5)*16,cy=36+(Math.random()-.5)*14,r=12+Math.random()*12;const g=x.createRadialGradient(cx,cy,0,cx,cy,r);g.addColorStop(0,'rgba(255,240,200,.55)');g.addColorStop(.4,'rgba(255,170,60,.35)');g.addColorStop(1,'rgba(255,80,0,0)');x.fillStyle=g;x.fillRect(0,0,64,64)}const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t})(),
  flash:(()=>{const[c,x]=cvs(64);const g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,230,1)');g.addColorStop(.25,'rgba(255,220,120,.9)');g.addColorStop(1,'rgba(255,140,0,0)');x.fillStyle=g;x.fillRect(0,0,64,64);
   x.globalCompositeOperation='lighter';x.strokeStyle='rgba(255,240,180,.9)';for(let i=0;i<6;i++){const a=i/6*Math.PI*2;x.lineWidth=3;x.beginPath();x.moveTo(32,32);x.lineTo(32+Math.cos(a)*31,32+Math.sin(a)*31);x.stroke()}return new THREE.CanvasTexture(c)})(),
+ muzz:(()=>{const[c,x]=cvs(128);c.width=c.height=128;x.clearRect(0,0,128,128);const r=rng(11);
+  let g=x.createRadialGradient(64,64,0,64,64,60);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.12,'rgba(255,248,205,.98)');g.addColorStop(.3,'rgba(255,196,96,.62)');g.addColorStop(.6,'rgba(255,120,30,.2)');g.addColorStop(1,'rgba(255,80,0,0)');x.fillStyle=g;x.fillRect(0,0,128,128);
+  x.globalCompositeOperation='lighter';for(let i=0;i<9;i++){const a=i/9*Math.PI*2+r()*.5,L=26+r()*34,w=3+r()*5;x.save();x.translate(64,64);x.rotate(a);const gg=x.createLinearGradient(0,0,L,0);gg.addColorStop(0,'rgba(255,240,190,.9)');gg.addColorStop(.6,'rgba(255,160,50,.45)');gg.addColorStop(1,'rgba(255,100,0,0)');x.fillStyle=gg;x.beginPath();x.moveTo(0,-w);x.quadraticCurveTo(L*.55,-w*.5,L,0);x.quadraticCurveTo(L*.55,w*.5,0,w);x.fill();x.restore()}
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t})(),
+ jet:(()=>{const[c,x]=cvs(64);c.height=128;x.clearRect(0,0,64,128);const gr=x.createLinearGradient(0,128,0,0);gr.addColorStop(0,'rgba(255,255,235,1)');gr.addColorStop(.25,'rgba(255,225,140,.95)');gr.addColorStop(.6,'rgba(255,150,40,.6)');gr.addColorStop(1,'rgba(255,90,0,0)');
+  x.fillStyle=gr;x.beginPath();x.moveTo(32,0);x.bezierCurveTo(44,34,62,70,54,112);x.quadraticCurveTo(32,128,10,112);x.bezierCurveTo(2,70,20,34,32,0);x.fill();
+  x.globalCompositeOperation='lighter';const g2=x.createLinearGradient(0,120,0,10);g2.addColorStop(0,'rgba(255,255,255,.9)');g2.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g2;x.beginPath();x.moveTo(32,24);x.bezierCurveTo(38,50,46,80,40,112);x.lineTo(24,112);x.bezierCurveTo(18,80,26,50,32,24);x.fill();
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t})(),
  hole:(()=>{const[c,x]=cvs(32);const g=x.createRadialGradient(16,16,0,16,16,16);g.addColorStop(0,'rgba(10,10,10,1)');g.addColorStop(.3,'rgba(20,20,20,.9)');g.addColorStop(.45,'rgba(60,50,40,.5)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,32,32);return new THREE.CanvasTexture(c)})(),
  shadow:(()=>{const[c,x]=cvs(64);x.filter='blur(6px)';x.fillStyle='rgba(0,0,0,.9)';x.beginPath();x.roundRect?x.roundRect(10,10,44,44,10):x.rect(10,10,44,44);x.fill();return new THREE.CanvasTexture(c)})(),
  scorch:radial([[0,'rgba(0,0,0,.8)'],[.6,'rgba(20,10,0,.5)'],[1,'rgba(0,0,0,0)']]),
