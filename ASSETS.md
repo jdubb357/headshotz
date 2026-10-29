@@ -15,6 +15,10 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Texture: sand surface | Coast Sand 01 | Rob Tuytel | https://polyhaven.com/a/coast_sand_01 | CC0 |
 | Texture: plaster surface | Painted Plaster Wall | Amal Kumar | https://polyhaven.com/a/painted_plaster_wall | CC0 |
 | Texture: crate surface | Plywood | Rob Tuytel | https://polyhaven.com/a/plywood | CC0 |
+| Texture: forest floor surface (v59) | Forrest Ground 01 | Rob Tuytel | https://polyhaven.com/a/forrest_ground_01 | CC0 |
+| Texture: dirt surface (v59) | Brown Mud Dry | Rob Tuytel | https://polyhaven.com/a/brown_mud_dry | CC0 |
+| Texture: gravel surface (v59) | Gravel Ground 01 | Rob Tuytel | https://polyhaven.com/a/gravel_ground_01 | CC0 |
+| Texture: cobble surface (v59) | Cobblestone Floor 04 | Rob Tuytel | https://polyhaven.com/a/cobblestone_floor_04 | CC0 |
 | HDRI sky (environment reflections) | Kloofendal 48d Partly Cloudy (Pure Sky) | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
 | Model: barrels | Barrel 03 | Serhii Khromov | https://polyhaven.com/a/barrel_03 | CC0 |
 | Model: Royale loot chest (v46) | Treasure Chest | Rico Cilliers | https://polyhaven.com/a/treasure_chest | CC0 |
