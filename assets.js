@@ -3,6 +3,9 @@ import {THREE,GQ,hqSwap} from './gfx.js';
 export const HQP={ready:false,models:{},guns:{}};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
 const MODELS={crate:'assets/models/wooden_crate_02.glb',barrel:'assets/models/barrel_03.glb',chest:'assets/models/treasure_chest.glb'};
+const TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+// phones: halve the gun textures (1024 -> 512) to save ~140 MB of GPU memory
+function shrinkTex(t,max){const im=t.image;if(!im||!im.width||im.width<=max)return;try{const c=document.createElement('canvas');c.width=c.height=max;c.getContext('2d').drawImage(im,0,0,max,max);if(im.close)im.close();t.image=c;t.needsUpdate=true}catch(e){}}
 const GUNS=['pistol_hi','pistol_lo','rifle_hi','rifle_lo','m4a1_hi','m4a1_lo','grease_hi','grease_lo','shotgun_hi','shotgun_lo','ak47_hi','ak47_lo','suomi_hi','suomi_lo','snip_hi','snip_lo','luger_hi','luger_lo','frag_hi','smokeg_hi','flashb_hi','molo_hi','katana_hi','axe_hi'];
 const img=u=>new Promise((res,rej)=>{const i=new Image();i.decoding='async';i.onload=()=>res(i);i.onerror=rej;i.src=u});
 export let skyTex=null;
@@ -14,6 +17,6 @@ export async function loadAssets(onProg=()=>{}){if(GQ.level==='low'){onProg(1,'s
  for(const k in MODELS)jobs.push(async()=>{while(!L)await new Promise(r=>setTimeout(r,30));const g=await L.loadAsync(MODELS[k]);let mesh=null;g.scene.traverse(o=>{if(o.isMesh&&!mesh)mesh=o});if(!mesh)return;
   mesh.updateWorldMatrix(true,false);const geo=mesh.geometry.clone();geo.applyMatrix4(mesh.matrixWorld);geo.computeBoundingBox();const bb=geo.boundingBox,sz=bb.getSize(new THREE.Vector3());
   geo.translate(-(bb.min.x+bb.max.x)/2,-bb.min.y,-(bb.min.z+bb.max.z)/2);const m=mesh.material;m.envMapIntensity=.8;HQP.models[k]={geo,mat:m,size:sz}});
- for(const k of GUNS)jobs.push(async()=>{while(!L)await new Promise(r=>setTimeout(r,30));const g=await L.loadAsync(`assets/models/guns/${k}.glb`);g.scene.traverse(o=>{if(o.isMesh&&o.material){o.material.envMapIntensity=1.1;if(o.material.map)o.material.map.anisotropy=4}});HQP.guns[k]=g.scene});
+ for(const k of GUNS)jobs.push(async()=>{while(!L)await new Promise(r=>setTimeout(r,30));const g=await L.loadAsync(`assets/models/guns/${k}.glb`);const seen=new Set();g.scene.traverse(o=>{if(o.isMesh&&o.material){const m=o.material;m.envMapIntensity=1.1;if(m.map)m.map.anisotropy=4;if(TOUCH)for(const t of[m.map,m.normalMap,m.metalnessMap,m.roughnessMap,m.aoMap])if(t&&!seen.has(t)){seen.add(t);shrinkTex(t,512)}}});HQP.guns[k]=g.scene});
  const total=jobs.length;let ok=true;for(const j of jobs){try{await j()}catch(e){ok=false;console.warn('asset',e&&e.message)}tick()}
  HQP.ready=Object.keys(HQP.models).length>0;return ok}
