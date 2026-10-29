@@ -893,7 +893,7 @@ const EXTRA={
  handgun:i=>{PSIGHTS(i,.045);LANYARD(i)},burst:i=>{PSIGHTS(i,.045);LANYARD(i);matte();rbox(.03,.012,.03,0,i.muzzle[1]-.03,-.12,C.blk,.003)},
  glock18:i=>{PSIGHTS(i,.04);LANYARD(i);metal();rbox(.004,.005,.012,.0135,i.muzzle[1]+.008,-.01,0x8d939b,.001)},
  deagle:i=>{PSIGHTS(i,.06);LANYARD(i);metal();for(let k=0;k<5;k++)rbox(.0365,.003,.004,0,i.muzzle[1]+.004,.03+k*.006,0x55595e,.001)},
- cannon:i=>{PSIGHTS(i,.05);LANYARD(i)},revolver:i=>{PSIGHTS(i,.06);LANYARD(i)},
+ cannon:i=>{PSIGHTS(i,.05)},revolver:i=>{PSIGHTS(i,.06)},
  shotgun:i=>{metal();mat('brass');sph(.0032,0,i.muzzle[1]+.016,i.muzzle[2]+.01,C.brass,[1,1,1],10);SHELLS(-.024,.035,.0,4);SWIVEL(0,i.muzzle[1]-.03,i.muzzle[2]+.12)},
  autoshot:i=>{metal();mat('brass');sph(.0032,0,i.muzzle[1]+.016,i.muzzle[2]+.01,C.brass,[1,1,1],10);SHELLS(-.024,.035,.0,4);SWIVEL(0,i.muzzle[1]-.03,i.muzzle[2]+.12)},
  saiga:i=>{SHELLS(-.024,.03,.15,3);SWIVEL(-.02,.0,.25)},
