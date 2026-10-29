@@ -68,6 +68,7 @@ export const W={
  molotov:{name:'Molotov',cls:'util',count:1,desc:'Bursts into flames on impact. Burns over time.'},
  smoke:{name:'Smoke',cls:'util',count:2,desc:'Thick cloud that blocks vision for 12s.'},
  flash:{name:'Flashbang',cls:'util',count:2,desc:'Blinds anyone looking at it.'},
+ decoy:{name:'Decoy',cls:'util',count:1,desc:'Non-lethal. Fakes gunfire from where it lands for 8s.'},
  medkit:{name:'Med Kit',cls:'util',count:1,heal:50,desc:'Instantly heal 50 HP.'},
 };
 for(const k in W){const w=W[k];w.id=k;w.slot=CLASSES.find(c=>c.id===w.cls).slot}
@@ -622,6 +623,9 @@ function SMOKEC(){const D=det();metal();cyl(.031,.11,0,0,0,C.grey,{ax:'y',seg:18
 function FLASHC(){const D=det();metal();cyl(.026,.1,0,0,0,C.blk,{ax:'y',seg:18});if(D){for(let i=0;i<4;i++)for(let k=0;k<6;k++){const a=k/6*Math.PI*2;cyl(.0045,.004,Math.cos(a)*.026,-.03+i*.02,Math.sin(a)*.026,C.dark,{ax:Math.abs(Math.cos(a))>.7?'x':'z',seg:8})}
   for(const y of[-.048,.042])cyl(.0275,.006,0,y,0,0x55595e,{ax:'y',seg:18});cyl(.0268,.004,0,-.04,0,0xc8c8c8,{ax:'y',seg:18});}
  const pv=FUZE(.05);return{util:1,piv:pv,nade:1}}
+function DECOY(){const D=det();metal();cyl(.03,.085,0,0,0,0x2a3a4a,{ax:'y',seg:18});cyl(.0315,.012,0,-.036,0,0xff5a2a,{ax:'y',seg:18});cyl(.0315,.012,0,.03,0,0xff5a2a,{ax:'y',seg:18});
+ if(D){for(let k=0;k<8;k++){const a=k/8*Math.PI*2;cyl(.0035,.004,Math.cos(a)*.03,0,Math.sin(a)*.03,C.dark,{ax:Math.abs(Math.cos(a))>.7?'x':'z',seg:8})}cyl(.002,.07,.016,.075,0,C.steel,{ax:'y',seg:6});sph(.004,.016,.112,0,0xff3030)}
+ const pv=FUZE(.048);return{util:1,piv:pv,nade:1}}
 function MEDKIT(){const D=det();matte();rbox(.12,.08,.045,0,0,0,0xf2f2f2,.01);rbox(.122,.06,.016,0,0,0,C.red,.003);rbox(.122,.016,.047,0,0,0,C.red,.003);rbox(.05,.012,.01,0,.046,0,C.blk,.004);
  if(D){for(const s of[1,-1]){rbox(.124,.004,.004,0,.038,s*.0215,0x777777,.001);}metal();rbox(.008,.012,.006,.045,.038,.023,C.steel,.002);
   matte();for(const x of[-.045,.045])rbox(.012,.084,.049,x,0,0,0x3a3d42,.003);metal();for(const x of[-.045,.045])rbox(.014,.012,.05,x,-.02,0,C.blk,.002);
@@ -778,7 +782,7 @@ const BUILD={
  paintball:PAINTBALL,laser:LASERR,freeze:FREEZER,water:WATERG,taser:TASER,flare:FLAREG,bat:BAT,pan:PAN,scythe:SCYTHE,trident:TRIDENT,chainsaw:CHAINSAW,
  proj_flare:()=>{metal();cyl(.016,.07,0,0,0,0xff3b1a,{seg:12});sph(.016,0,0,-.035,0xffd23f);return{util:1}},
  knife:KNIFE,katana:KATANA,axe:AXE,fists:()=>({sight:[0,0,0],hold:'fists',melee:1,fists:1}),
- grenade:NADE,molotov:MOLO,smoke:SMOKEC,flash:FLASHC,medkit:MEDKIT,
+ grenade:NADE,molotov:MOLO,smoke:SMOKEC,flash:FLASHC,decoy:DECOY,medkit:MEDKIT,
 };
 // ======================= HANDS =======================
 // Gloved hands built from finger arcs that wrap the actual grip / handguard axis, so each weapon type gets a believable grip pose.
