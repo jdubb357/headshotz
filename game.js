@@ -5,7 +5,7 @@ import {SKIN_DEFS,SKIN_BY,SKIN_IDS,humanOutfit,splitSkin,joinSkin} from './skins
 import {BASE_N} from './toon.js';
 import {initSkinShop} from './skinshop.js';import {initSidekicks,hostPets,hostAbility,luck as petLuck,SK_BY,SK_DEFS} from './sidekicks.js';import {initSidekickShop} from './sidekickshop.js';
 import {Post} from './post.js';
-import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
+import {loadAssets,HQP} from './assets.js';import {initRoyale} from './royale.js';import {chestKit,TIERC,CHEST_HINGE} from './chests.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
@@ -1851,13 +1851,13 @@ function brPrep(){const m=buildMap(H.map);const E=H.br={ph:'bus',items:{},chests
   sq.forEach((s,i)=>s.forEach(p=>{p.team='S'+(i+1);p.color=SQCOL[i%SQCOL.length]}));}
  // loot
  const sp=m.lootSpots||[];for(const s of sp){const n=Math.random()<.5?2:1;for(let k=0;k<n;k++){const it=fixItem(rollItem(false),false);brItem(it[0],it[1],it[2],s[0]+(k?rrand(-.8,.8):0),s[1],s[2]+(k?rrand(-.8,.8):0),s[3])}}
- (m.chestSpots||[]).forEach((c,i)=>E.chests.push({id:i,x:c[0],y:c[1],z:c[2],ry:c[3],bd:c[4],open:0}));
+ (m.chestSpots||[]).forEach((c,i)=>E.chests.push({id:i,x:c[0],y:c[1],z:c[2],ry:c[3],bd:c[4],open:0,tier:wrand([[0,52],[1,29],[2,14],[3,5]])}));
  {const pool=E.chests.slice().sort(()=>Math.random()-.5),pick=[];for(const c of pool){if(pick.length>=BRC.secret)break;if(Math.hypot(c.x,c.z)>175)continue;if(pick.every(q=>Math.hypot(q.x-c.x,q.z-c.z)>85)){c.sec=1;pick.push(c)}}}
  // helicopter flight path: random edge-to-edge line near the middle
  const ang=Math.random()*Math.PI*2,off=rrand(-55,55),len=300;const dx=Math.cos(ang),dz=Math.sin(ang),px=-dz*off,pz=dx*off;E.heli={a:[+(px-dx*len).toFixed(1),+(pz-dz*len).toFixed(1)],b:[+(px+dx*len).toFixed(1),+(pz+dz*len).toFixed(1)],dur:BRC.busDur};
  E.storm=stormInit();H.score={}}
 const heliAt=t=>{const h=H.br.heli,k=Math.max(0,Math.min(1,t/h.dur));return[h.a[0]+(h.b[0]-h.a[0])*k,h.a[1]+(h.b[1]-h.a[1])*k]};
-function brInfo(){const E=H.br;return{y:E.y,heli:E.heli,items:Object.values(E.items).map(i=>i.slice(0,7)),chests:E.chests.map(c=>[c.id,c.x,c.y,c.z,c.ry,c.open,c.sec?1:0]),zones:E.zones}}
+function brInfo(){const E=H.br;return{y:E.y,heli:E.heli,items:Object.values(E.items).map(i=>i.slice(0,7)),chests:E.chests.map(c=>[c.id,c.x,c.y,c.z,c.ry,c.open,c.sec?1:0,c.tier|0]),zones:E.zones}}
 function stormInit(){const s={ph:-1,state:'wait',cx:0,cz:0,r:300,tcx:0,tcz:0,tr:300,fcx:0,fcz:0,fr:300,t:0,tEnd:0,dmg:0,tick:0};stormNext(s,true);return s}
 function stormNext(s,first){const n=s.ph+1;const P=STORM[Math.min(n,STORM.length-1)];s.ph=n;s.state='wait';s.fcx=s.cx;s.fcz=s.cz;s.fr=s.r;const rr_=Math.max(0,s.r-P.r)*.8;const a=Math.random()*6.283,d=Math.random()*rr_;s.tcx=s.cx+Math.cos(a)*d;s.tcz=s.cz+Math.sin(a)*d;s.tr=P.r;s.dmg=P.dmg;s.t=0;s.waitT=P.wait+(first?BRC.busDur+BRC.cd:0);s.shrinkT=P.shrink;s.tEnd=s.waitT}
 function stormTick(dt){const E=H.br,s=E.storm,sdt=dt*E.spd;s.t+=sdt;
@@ -1899,7 +1899,7 @@ function brTake(p,iid,sl){const E=H.br;const it=E.items[iid];if(!it||!p||!p.aliv
  if(r.dropped){const d=brItem(r.dropped[0],r.dropped[1],r.dropped[2],p.p[0]+rrand(-.6,.6),p.p[1],p.p[2]+rrand(-.6,.6),-1);bcast({t:'ld',it:d.slice(0,7)})}
  if(!p.bot)sendTo(p.id,{...invOut(p),it:it.slice(0,4)});return true}
 function brOpen(p,cid){const E=H.br;const c=E.chests[cid];if(!c||c.open||!p||!p.alive||p.elim)return false;if(Math.hypot(p.p[0]-c.x,p.p[2]-c.z)>3.8||Math.abs(p.p[1]-c.y)>3)return false;
- c.open=1;if(c.sec)return brOpenSecret(p,c,cid);const out=[];const gi=gunItem(true);{const lk=petLuck(p);if(lk&&gi[2]<4&&Math.random()<lk*1.3)gi[2]++}out.push(gi);const ai=[1,ammoOf(WIDS[gi[1]]),0];out.push(ai);out.push(Math.random()<.5?[2,wrand([[0,35],[3,25],[1,20],[2,20]]),0]:[3,WIDX[wrand([['grenade',32],['smoke',22],['molotov',20],['flash',14],['decoy',12]])],0]);if(Math.random()<.4)out.push(gunItem(true));if(Math.random()<.5)out.push([2,wrand([[2,40],[3,60]]),0]);
+ c.open=1;if(c.sec)return brOpenSecret(p,c,cid);const out=[];const gi=gunItem(true);{const lk=petLuck(p);if(lk&&gi[2]<4&&Math.random()<lk*1.3)gi[2]++}{const mr=[0,2,3,4][c.tier|0]||0;if(gi[2]<mr)gi[2]=mr}out.push(gi);const ai=[1,ammoOf(WIDS[gi[1]]),0];out.push(ai);out.push(Math.random()<.5?[2,wrand([[0,35],[3,25],[1,20],[2,20]]),0]:[3,WIDX[wrand([['grenade',32],['smoke',22],['molotov',20],['flash',14],['decoy',12]])],0]);if(Math.random()<.4)out.push(gunItem(true));if(Math.random()<.5)out.push([2,wrand([[2,40],[3,60]]),0]);
  const items=out.map((o,i)=>{fixItem(o,true);const a=i/out.length*6.283+c.ry,r=1.1+Math.random()*.5;return brItem(o[0],o[1],o[2],c.x+Math.cos(a)*r,c.y,c.z+Math.sin(a)*r,-1).slice(0,7)});
  bcast({t:'cop',c:cid,it:items,by:p.id});return true}
 const SECW=[['ar',24],['smg',18],['shotgun',14],['marksman',10],['sniper',10]];
@@ -2000,18 +2000,25 @@ function brBuild(){const B=BC;const g=B.g=new THREE.Group();g.name='brFx';scene.
  const beamG=new THREE.CylinderGeometry(.09,.16,1,6,1,true);beamG.translate(0,.5,0);
  B.imBeam=mkIM(beamG,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.42,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),CAP);
  const nC=B.chests.length;
- B.imCB=mkIM(new THREE.BoxGeometry(1.1,.55,.72),new THREE.MeshLambertMaterial({color:0x8a5a24}),nC+4);
- B.imCL=mkIM(new THREE.BoxGeometry(1.12,.2,.74),new THREE.MeshLambertMaterial({color:0xf0b030,emissive:0x5a3a00}),nC+4);
+ {const K=chestKit(),n_=nC+4;const mk2=(geo,tm,mat)=>{const im=new THREE.InstancedMesh(geo,texMat(tm),n_);im.userData.tm=tm;im.count=0;im.frustumCulled=false;im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);g.add(im);return im};
+  B.chBW=mk2(K.bodyW,'planks');B.chBM=mk2(K.bodyM,'metal');B.chLW=mk2(K.lidW,'planks');B.chLM=mk2(K.lidM,'metal');
+  const gm=new THREE.MeshBasicMaterial({color:0xffffff,fog:false,toneMapped:false});B.chG=new THREE.InstancedMesh(K.glow,gm,n_);B.chG.count=0;B.chG.frustumCulled=false;B.chG.instanceMatrix.setUsage(THREE.DynamicDrawUsage);g.add(B.chG);
+  const im2=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.75,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,side:THREE.DoubleSide});B.chI=new THREE.InstancedMesh(K.inner,im2,n_);B.chI.count=0;B.chI.frustumCulled=false;B.chI.instanceMatrix.setUsage(THREE.DynamicDrawUsage);g.add(B.chI);
+}
+  for(const c of B.chests){brChestGround(c);c.lidT=c.open?1:0}
  const cbm=new THREE.CylinderGeometry(.3,.5,1,8,1,true);cbm.translate(0,.5,0);
- B.imCBeam=mkIM(cbm,new THREE.MeshBasicMaterial({color:0xffc23a,transparent:true,opacity:.34,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),nC+4);
+ B.imCBeam=mkIM(cbm,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.34,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),nC+4);
  // v58 secret weapon crates: glowing red, red beam
- B.sec=[];for(const c of B.chests)if(c.sec){const gr=new THREE.Group();const M=new THREE.MeshStandardMaterial({color:0x2a0606,metalness:.65,roughness:.35,emissive:0xff1010,emissiveIntensity:.45});
-  const body=new THREE.Mesh(new THREE.BoxGeometry(1.3,.62,.88),M);body.position.y=.31;gr.add(body);const lid=new THREE.Mesh(new THREE.BoxGeometry(1.34,.26,.92),new THREE.MeshStandardMaterial({color:0x4a0808,metalness:.7,roughness:.3,emissive:0xff2020,emissiveIntensity:.6}));lid.position.y=.75;gr.add(lid);
-  const strap=new THREE.MeshBasicMaterial({color:0xff3a3a});for(const x of[-.42,.42]){const sb=new THREE.Mesh(new THREE.BoxGeometry(.1,.9,.95),strap);sb.position.set(x,.45,0);gr.add(sb)}
-  const gem=new THREE.Mesh(new THREE.OctahedronGeometry(.17),new THREE.MeshBasicMaterial({color:0xff6a6a}));gem.position.y=1.15;gr.add(gem);
+ B.sec=[];for(const c of B.chests)if(c.sec){const gr=new THREE.Group();const K=chestKit();
+  const rm=(col,em,ei,met,rou)=>new THREE.MeshStandardMaterial({color:col,metalness:met,roughness:rou,emissive:em,emissiveIntensity:ei});const mb=rm(0x3a0a0a,0xff1010,.35,.55,.4),mm=rm(0x1a0404,0xff2020,.6,.8,.3);
+  const sc=1.25;const root=new THREE.Group();root.scale.setScalar(sc);gr.add(root);
+  root.add(new THREE.Mesh(K.bodyW,mb),new THREE.Mesh(K.bodyM,mm));const pivot=new THREE.Group();pivot.position.set(...CHEST_HINGE);root.add(pivot);pivot.add(new THREE.Mesh(K.lidW,mb),new THREE.Mesh(K.lidM,mm));
+  const gl=new THREE.Mesh(K.glow,new THREE.MeshBasicMaterial({color:0xff4040,fog:false}));root.add(gl);
+  const inner=new THREE.Mesh(K.inner,new THREE.MeshBasicMaterial({color:0xff3030,transparent:true,opacity:.0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,side:THREE.DoubleSide}));root.add(inner);
+  const gem=new THREE.Mesh(new THREE.OctahedronGeometry(.17),new THREE.MeshBasicMaterial({color:0xff6a6a}));gem.position.y=1.45;gr.add(gem);
   const beamG2=new THREE.CylinderGeometry(.22,.55,70,10,1,true);beamG2.translate(0,35,0);const beam=new THREE.Mesh(beamG2,new THREE.MeshBasicMaterial({color:0xff1f1f,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));gr.add(beam);
   const rg=new THREE.RingGeometry(.9,1.15,28);rg.rotateX(-Math.PI/2);const ring=new THREE.Mesh(rg,new THREE.MeshBasicMaterial({color:0xff2a2a,transparent:true,opacity:.7,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));ring.position.y=.04;gr.add(ring);
-  gr.position.set(c.x,c.y,c.z);gr.rotation.y=c.ry;g.add(gr);B.sec.push({c,gr,beam,ring,gem})}
+  gr.position.set(c.x,c.fy,c.z);root.quaternion.copy(c.nq);gr.rotation.y=0;g.add(gr);B.sec.push({c,gr,root,pivot,beam,ring,gem,inner})}
  // storm wall + next safe-zone marker
  B.stormM=new THREE.Mesh(new THREE.CylinderGeometry(1,1,300,56,1,true),new THREE.MeshBasicMaterial({color:0x7a2cff,transparent:true,opacity:.2,side:THREE.DoubleSide,depthWrite:false,fog:false}));B.stormM.position.y=140;B.stormM.frustumCulled=false;g.add(B.stormM);
  const rp=[];for(let i=0;i<=64;i++){const a=i/64*6.2832;rp.push(new THREE.Vector3(Math.cos(a),0,Math.sin(a)))}
@@ -2096,7 +2103,7 @@ function brBagRender(){const B=BC,w=$('brBag');if(!B||!w||!B.bagOn)return;const 
 function brBag(on){const B=BC;if(!B)return;const w=$('brBag');if(!w)return;B.bagOn=!!on;w.classList.toggle('hidden',!on);if(on){if(document.pointerLockElement)document.exitPointerLock();B.bagSel=null;brBagRender()}}
 function brMap(on){const w=$('brMapWrap');if(!w)return;w.classList.toggle('hidden',!on);if(on){brDrawMap($('brMapCv'),true);if(document.pointerLockElement)document.exitPointerLock()}BC.mapOn=on}
 function brClear(){if(!BC)return;try{BC.bagOn=false}catch(e){}try{scene.remove(BC.g)}catch(e){}if(BC.saved)me.load=BC.saved;for(const k of['air'])me[k]=null;BC=null;const h=$('brHud');if(h)h.className='hidden';vmRoot.visible=true}
-function brClientInit(info){brClear();BC={bank:0,y:info.y,heli:info.heli,zones:info.zones||[],items:new Map(),chests:info.chests.map(c=>({id:c[0],x:c[1],y:c[2],z:c[3],ry:c[4],open:!!c[5],sec:!!c[6]})),bt0:-3,btAt:performance.now(),btNow:-3,storm:null,sdisp:{cx:0,cz:0,r:300},
+function brClientInit(info){brClear();BC={bank:0,y:info.y,heli:info.heli,zones:info.zones||[],items:new Map(),chests:info.chests.map(c=>({id:c[0],x:c[1],y:c[2],z:c[3],ry:c[4],open:!!c[5],sec:!!c[6],tier:c[6]?4:(c[7]|0)})),bt0:-3,btAt:performance.now(),btNow:-3,storm:null,sdisp:{cx:0,cz:0,r:300},
   inv:{g:[null,null,null,null],bp:[],m:[WIDX.fists,0],u:null,n:null,c:[0,0,0,0]},res:[0,0,0,0],sh:0,air:null,kills:0,al:0,sq:0,cast:null,paid:0,saved:me.load.slice(0,4),gk:['','','',''],bagOn:false,bagSel:null,near:[],nearK:'',pkT:{},dirty:1,placed:0,spec:null,scan:0,mapT:0,chT:0,hT:0,wT:0,stT:0,mapOn:false};
  for(const it of info.items)BC.items.set(it[0],it);me.load=['fists','fists','fists','grenade','fists','fists'];me.ammo=[0,0,0,0,0,0];me.utilN=0;brBuild();brHudInit();brApplyInv(true)}
 function brRoundStart(){const B=BC;B.air='bus';me.air='bus';B.inv={g:[null,null,null,null],bp:[],m:[WIDX.fists,0],u:null,n:null,c:[0,0,0,0]};B.res=[0,0,0,0];B.sh=0;B.gk=['','','',''];brBag(false);B.cast=null;B.placed=0;B.paid=0;B.kills=0;B.spec=null;me.cur=2;brApplyInv(true);
@@ -2151,15 +2158,25 @@ function brRefresh(){const B=BC;if(!B)return;B.dirty=0;const m4=new THREE.Matrix
   sv.set(1.1,1,1.1);pv.set(it[4],it[5]+.04,it[6]);q.identity();m4.compose(pv,q,sv);B.imRing.setMatrixAt(n,m4);B.imRing.setColorAt(n,col);n++;
   const r=(k===0||k===4)?(it[3]|0):0;if(r>=1&&nb<CAP){sv.set(1,2.5+r*1.6,1);pv.set(it[4],it[5],it[6]);m4.compose(pv,q,sv);B.imBeam.setMatrixAt(nb,m4);B.imBeam.setColorAt(nb,col);nb++}}
  B.imItem.count=n;B.imRing.count=n;B.imBeam.count=nb;for(const im of[B.imItem,B.imRing,B.imBeam]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true}
- let c1=0,c2=0,c3=0;const HC=HQP.models.chest;if(HC&&!B.imCT){B.imCT=new THREE.InstancedMesh(HC.geo,HC.mat,B.chests.length+4);B.imCT.count=0;B.imCT.frustumCulled=false;B.imCT.instanceMatrix.setUsage(THREE.DynamicDrawUsage);B.imCT.parent||B.imCB.parent.add(B.imCT);B.imCT.userData.s=1.15/Math.max(HC.size.x,HC.size.z)}
- for(const c of B.chests){if(c.sec)continue;e.set(0,c.ry,0);q.setFromEuler(e);
-  if(B.imCT&&!c.open){const k=B.imCT.userData.s;pv.set(c.x,c.y,c.z);sv.set(k,k,k);m4.compose(pv,q,sv);B.imCT.setMatrixAt(c3++,m4);sv.set(1,1,1);continue}
-  pv.set(c.x,c.y+.275,c.z);sv.set(1,1,1);m4.compose(pv,q,sv);B.imCB.setMatrixAt(c1++,m4);
-  if(c.open){const qq=new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.05,c.ry,0,'YXZ'));const off=new THREE.Vector3(0,.12,-.36).applyQuaternion(new THREE.Quaternion().setFromEuler(e));pv.set(c.x+off.x,c.y+.62,c.z+off.z);m4.compose(pv,qq,sv)}
-  else{pv.set(c.x,c.y+.65,c.z);m4.compose(pv,q,sv)}B.imCL.setMatrixAt(c2,m4);c2++;}
- // chest beams (rebuild compactly)
- let cb=0;for(const c of B.chests){if(c.open||c.sec)continue;pv.set(c.x,c.y,c.z);sv.set(1,16,1);m4.compose(pv,new THREE.Quaternion(),sv);B.imCBeam.setMatrixAt(cb++,m4)}
- B.imCB.count=c1;B.imCL.count=c2;B.imCBeam.count=cb;if(B.imCT){B.imCT.count=c3;B.imCT.instanceMatrix.needsUpdate=true}for(const im of[B.imCB,B.imCL,B.imCBeam])im.instanceMatrix.needsUpdate=true}
+ brChestMats()}
+const lidAng=t=>1.95*(1-Math.pow(1-Math.min(1,t),3))+(t<1?.16*Math.sin(Math.min(1,t)*Math.PI):0);
+const _chM=new THREE.Matrix4(),_chH=new THREE.Matrix4(),_chR=new THREE.Matrix4(),_chL=new THREE.Matrix4(),_chS=new THREE.Vector3(1,1,1),_chP=new THREE.Vector3(),_chC=new THREE.Color();
+function brChestMats(){const B=BC;if(!B||!B.chBW)return;let n=0,ni=0,nb=0;
+ for(const c of B.chests){if(c.sec||!c.nq)continue;_chP.set(c.x,c.fy,c.z);_chM.compose(_chP,c.nq,_chS);B.chBW.setMatrixAt(n,_chM);B.chBM.setMatrixAt(n,_chM);
+  _chH.makeTranslation(CHEST_HINGE[0],CHEST_HINGE[1],CHEST_HINGE[2]);_chR.makeRotationX(-lidAng(c.lidT||0));_chL.copy(_chM).multiply(_chH).multiply(_chR);B.chLW.setMatrixAt(n,_chL);B.chLM.setMatrixAt(n,_chL);
+  _chC.setHex(TIERC[c.tier|0]);_chC.multiplyScalar(c.open?.5:1.6);B.chG.setMatrixAt(n,_chM);B.chG.setColorAt(n,_chC);
+  if(c.open&&(c.lidT||0)>.1){B.chI.setMatrixAt(ni,_chM);_chC.setHex(TIERC[c.tier|0]);B.chI.setColorAt(ni,_chC);ni++}
+  if(!c.open){_chP.set(c.x,c.fy,c.z);_chS.set(1,16,1);_chL.compose(_chP,B.qId||(B.qId=new THREE.Quaternion()),_chS);_chS.set(1,1,1);B.imCBeam.setMatrixAt(nb,_chL);_chC.setHex(TIERC[c.tier|0]);B.imCBeam.setColorAt(nb,_chC);nb++}
+  n++}
+ B.chBW.count=B.chBM.count=B.chLW.count=B.chLM.count=B.chG.count=n;B.chI.count=ni;B.imCBeam.count=nb;
+ for(const im of[B.chBW,B.chBM,B.chLW,B.chLM,B.chG,B.chI,B.imCBeam]){im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true}}
+// flush placement: ray down from above onto the surface at the centre and four corners of the chest footprint, then tilt to the fitted plane
+function chestH(x,z,y0){const o=new THREE.Vector3(x,y0+1.6,z);const t=rayWorld(o,new THREE.Vector3(0,-1,0),3.4);if(t<3.3)return o.y-t;return gndAt(x,z,y0)}
+function brChestGround(c){const hx=.5,hz=.32,cs=Math.cos(c.ry),sn=Math.sin(c.ry);const P=[[0,0],[hx,hz],[-hx,hz],[hx,-hz],[-hx,-hz]];
+ const h=P.map(([a,b])=>chestH(c.x+a*cs+b*sn,c.z-a*sn+b*cs,c.y));const lo=Math.min(...h),hi=Math.max(...h);const qy=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),c.ry);
+ if(hi-lo<.45&&hi-lo>.01){const dA=((h[1]+h[3])-(h[2]+h[4]))/(4*hx),dB=((h[1]+h[2])-(h[3]+h[4]))/(4*hz),yc=(h[1]+h[2]+h[3]+h[4])/4;let lift=0;for(let i=0;i<5;i++)lift=Math.max(lift,h[i]-(yc+dA*P[i][0]+dB*P[i][1]));
+  const nl=new THREE.Vector3(-dA,1,-dB).normalize();const qt=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),nl);c.fy=yc+lift;c.nq=qy.clone().multiply(qt)}
+ else{c.fy=hi;c.nq=qy}c.gy=c.fy}
 function brAct(k,i){if(!BC||!me.alive||BC.air)return;if(k==='c'){send({t:'co',c:i});BC.chT=-1}else{BC.pkT[i]=performance.now();send({t:'pk',i,s:k==='s'?9:0});SFX.swap&&SFX.swap()}}
 function brUse(k){const B=BC;if(!B||!me.alive||me.down||B.air||B.cast||B.inv.c[k]<=0)return;if(k===0&&me.hp>=75)return center('Health is above 75',700);if(k===1&&me.hp>=100)return center('Health is full',700);if(k===2&&B.sh>=100)return center('Shield is full',700);if(k===3&&B.sh>=50)return center('Shield is above 50 (mini)',700);
  B.cast={k,t:0,d:CONT[k]};$('brCast').classList.remove('hidden');$('brCast').querySelector('span').textContent='Using '+CONN[k]+'…';SFX.swap&&SFX.swap()}
@@ -2187,7 +2204,8 @@ function brFrame(dt,now){const B=BC;if(!B)return;B.btNow=B.bt0+(now-B.btAt)/1000
   const key=B.near.map(n=>n[1]+(n[1]==='i'?n[2][0]:n[2].id)).join(',')+'|'+B.inv.g.map(g=>g?g[0]+g[1]:'').join()+'|'+B.inv.m.join()+'|'+(B.inv.bp||[]).length;if(key!==B.nearK){B.nearK=key;const h=B.near.map((n,i)=>n[1]==='c'?`<button data-k="c" data-i="${n[2].id}" class="nb chest${n[2].sec?' secret':''}"><b>${n[2].sec?'🔴 OPEN SECRET CRATE':'📦 OPEN CHEST'}</b>${i===0&&!isTouch?'<kbd>E</kbd>':''}</button>`:brNearBtn(n,i)).join('');$('brNear').innerHTML=h}}
  else if(me.alive===false||B.air){if(B.nearK!==''){B.nearK='';$('brNear').innerHTML=''}}
  // secret crates: pulse + distinct alarm sound when close
- if(B.sec){const tt=now/1000;for(const o of B.sec){o.gr.visible=!o.c.open;if(o.c.open)continue;o.beam.material.opacity=.38+.16*Math.sin(tt*3+o.c.id);o.ring.scale.setScalar(1+.25*((tt*1.2+o.c.id*.3)%1));o.ring.material.opacity=.8*(1-((tt*1.2+o.c.id*.3)%1));o.gem.rotation.y=tt*2;o.gem.position.y=1.15+Math.sin(tt*2.4)*.08}
+ {let mv=false;for(const c of B.chests){const tg=c.open?1:0;if(c.lidT!==tg){const d=Math.sign(tg-c.lidT)*dt*1.8;c.lidT=Math.abs(tg-c.lidT)<=Math.abs(d)?tg:c.lidT+d;mv=true}}if(mv)brChestMats();if(B.sec)for(const o of B.sec){o.pivot.rotation.x=-lidAng(o.c.lidT||0);o.inner.material.opacity=.85*(o.c.lidT||0);o.beam.visible=o.ring.visible=o.gem.visible=!o.c.open}}
+ if(B.sec){const tt=now/1000;for(const o of B.sec){if(o.c.open)continue;o.beam.material.opacity=.38+.16*Math.sin(tt*3+o.c.id);o.ring.scale.setScalar(1+.25*((tt*1.2+o.c.id*.3)%1));o.ring.material.opacity=.8*(1-((tt*1.2+o.c.id*.3)%1));o.gem.rotation.y=tt*2;o.gem.position.y=1.15+Math.sin(tt*2.4)*.08}
   B.sT=(B.sT||0)-dt;if(B.sT<=0&&me.alive&&AC&&!B.air){B.sT=1.05;let bd=1e9;for(const o of B.sec){if(o.c.open)continue;const d=Math.hypot(o.c.x-me.pos.x,o.c.z-me.pos.z);if(d<bd)bd=d}if(bd<45){const v=Math.max(.03,(1-bd/45))*.22;tone(196,.5,v,'sawtooth',98,out());setTimeout(()=>{tone(311,.35,v*.7,'square',0,out());tone(466,.5,v*.5,'triangle',233,out())},170)}}}
  // chest chimes
  B.chT-=dt;if(B.chT<=0&&me.alive&&AC&&!B.air){B.chT=1.3;let bd=1e9;for(const c of B.chests){if(c.open)continue;const d=Math.hypot(c.x-me.pos.x,c.z-me.pos.z);if(d<bd)bd=d}if(bd<26){const v=Math.max(.02,(1-bd/26))*.16;tone(1568,.12,v,'sine',0,out());setTimeout(()=>tone(2093,.16,v*.8,'sine',0,out()),110)}}
@@ -2243,7 +2261,7 @@ function brHostMsg(from,m,p){if(!H.br||!p)return false;const E=H.br;
 
 function brReloadDone(id){const have=me.ammo[me.cur],need=magOf(id)-have,t=ammoOf(id),take=Math.max(0,Math.min(need,BC.res[t]));BC.res[t]-=take;send({t:'rs',r:BC.res});return have+take}
 
-window.__hsz.toonMod=()=>import('./toon.js');window.__hsz.gx={tpGun,gunGroup,W,THREE};window.__hsz.BR=()=>BC;window.__hsz.ME=()=>me;window.__hsz.CC=()=>C;window.__hsz.brx={send,brBag,brBagRender,brBp,brPickPlan,brNearBtn,S2T,BRORD,typeOfW,TS,brLand,brScale,brJump,brOpen,brTake,brGive,brElim,brCheck,stormState,RAR,W,WIDX,WIDS,gunScore,damage,brApplyInv,brUse,brMap,rollItem,gunItem,fixItem,brItem,bcast,send,brAct,BRC,STORM,newInv};
+window.__hsz.toonMod=()=>import('./toon.js');window.__hsz.gx={tpGun,gunGroup,W,THREE};window.__hsz.BR=()=>BC;window.__hsz.ME=()=>me;window.__hsz.CC=()=>C;window.__hsz.brx={send,brBag,brBagRender,brBp,brPickPlan,brNearBtn,S2T,BRORD,typeOfW,TS,brLand,brScale,brJump,brOpen,brTake,brGive,brElim,brCheck,stormState,RAR,W,WIDX,WIDS,gunScore,damage,brApplyInv,brUse,brMap,rollItem,gunItem,fixItem,brItem,bcast,send,brAct,BRC,STORM,newInv,chestH,brChestGround,brChestMats,lidAng,rayWorld,nlList,nlUse};
 
 // ================= v44 PARTY (clan) =================
 // A party is up to 4 friends. The leader (creator) owns the roster and pushes it to everyone; everyone in it joins the leader's room together,
