@@ -59,3 +59,6 @@ The 15 sidekick buddies (dog, cat, bunny, bat, fox, penguin, bear, tiger, speedy
 ## Royale inventory & Secret crates (v58)
 
 No new third-party assets. The typed quick slots, backpack, swap prompts, red **Secret** rarity tier, secret crates (red glow, beam, alarm sound, minimap ping) and their sounds are **original code and procedural geometry/WebAudio** in `game.js` / `style.css`.
+
+## v58b: chests, doors, crouch, non-lethal slot
+No new third-party assets. The PBR chest kit (`chests.js`: wood planks, iron bands, lock, lid hinge, rarity glow), the swinging doors, the new door/crouch sound effects and the decoy model are all procedural (generated in code, existing CC0 Poly Haven wood/metal textures reused).
