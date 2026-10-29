@@ -116,7 +116,7 @@ function profF(pts,len,z0,c,o={}){const sh=shapeOf(pts);if(o.holes)for(const h o
 // top profile (x,z) extruded along y (height h, centred at y0)
 function profT(pts,h,y0,c,o={}){const sh=shapeOf(pts.map(([x,z,r])=>[x,-z,r]));const[g,depth]=extr(sh,h,o.b??.0012,o.cs);g.applyMatrix4(_M.set(1,0,0,0,0,0,1,y0-depth/2,0,-1,0,0,0,0,0,1));return push(g,o.p,o.r,c,o.ex)}
 // rounded box
-function rbox(w,h,d,x,y,z,c,r=.002,rx=0,ry=0,rz=0,b){r=Math.min(r,h*.45,d*.45);return prof([[-d/2,-h/2,r],[d/2,-h/2,r],[d/2,h/2,r],[-d/2,h/2,r]],w,0,c,{p:[x,y,z],r:[rx,ry,rz],b:b??Math.min(.0012,w*.2)})}
+function rbox(w,h,d,x,y,z,c,r=.002,rx=0,ry=0,rz=0,b){r=Math.min(r,h*.45,d*.45);if(r<.0016){r=0;b=0}return prof([[-d/2,-h/2,r],[d/2,-h/2,r],[d/2,h/2,r],[-d/2,h/2,r]],w,0,c,{p:[x,y,z],r:[rx,ry,rz],b:b??Math.min(.0012,w*.2)})}
 const box=(w,h,d,x,y,z,c,rx=0,ry=0,rz=0)=>push(new THREE.BoxGeometry(w,h,d),[x,y,z],[rx,ry,rz],c);
 const SEG=n=>LOD?Math.max(5,Math.round(n/3)):n;
 // cylinder along z (default), x or y
@@ -229,6 +229,35 @@ function AR(o){const R=o.rc??C.alu,F=o.fc??C.poly,big=o.big?1.12:1,yb=.04,hgL=o.
  if(!eye){const ry=buis(.062,.06);eye=[0,ry-.004,.15]}
  if(o.bipod&&det()){for(const s of[-1,1])rbox(.008,.008,.13,s*.01,yb-.03,zh+.07,C.blk,.002)}
  return{muzzle:[0,yb,zm-.05],eject:[.013,.036,-.03],sight:eye,grip:g,lh:[0,yb,zr-hgL*.55],lhT:'under',lhR:o.hg==='quad'?.024:.026,len:.8,rl:'mag',hold:'rifle',piv:{mag:[0,-.01,mz+.03]},boltBack:.045,shellT:'rifle'}}
+// ---------- Ruger Mini-14 Ranch Rifle (v61): blued receiver, one-piece walnut stock, ventilated forend, ghost-ring rear sight ----------
+function MINI14(){const yb=.04,S=0x23282f,Wd=C.wood;metal();
+ // receiver (open top ejection port, bolt, operating-rod slot)
+ prof([[.1,.058,.004],[-.115,.058,.004],[-.115,.014],[.1,.014]],.024,0,S,{b:.0016});
+ rbox(.026,.006,.2,0,.06,-.008,S,.002);
+ box(.002,.014,.05,.0122,.04,-.026,C.dark);grp('bolt');rbox(.004,.012,.044,.0108,.04,-.03,C.steel,.0015);if(det())cyl(.006,.012,.016,.04,.006,C.steel,{ax:'x',seg:10});grp(null);
+ if(det()){pin(.0125,.02,.075);pin(.0125,.02,-.1);pin(-.0125,.02,.075);pin(-.0125,.02,-.1);for(let k=0;k<4;k++)rbox(.0245,.003,.004,0,.062,.07+k*.008,0x2f343c,.0008)}
+ // ghost-ring rear sight + dovetail
+ rbox(.02,.01,.026,0,.064,.058,S,.002);if(det()){lathe([[.0062,0],[.0062,.004],[.0032,.004],[.0032,0]],0,.078,.058,C.dark,{seg:14});rbox(.003,.014,.003,.0085,.07,.058,S,.0008);rbox(.003,.014,.003,-.0085,.07,.058,S,.0008)}
+ // trigger group, guard, mag well
+ prof([[.05,.016],[.05,-.006,.004],[-.04,-.006,.004],[-.045,.016]],.018,0,S,{b:.0014});trig(-.034,.034,-.004,S);
+ // walnut stock: comb, wrist, toe, plus pistol-grip-style swell
+ mat('wood');prof([[.1,.056],[.2,.058,.004],[.3,.066,.006],[.36,.06,.006],[.368,-.064,.008],[.34,-.07,.006],[.26,-.05,.008],[.18,-.028,.012],[.1,-.008],[.06,-.005],[.06,.014]],.036,0,Wd,{b:.0035});
+ if(det()){for(let i=0;i<5;i++){rbox(.0364,.0035,.004,0,.0,.0,Wd,.0006)}}
+ mat('rubber');buttPad(.372,-.066,.062,.04,0x1a1412);matte();
+ // checkered wrist panel (fine lines)
+ if(det()){mat('wood');for(let i=0;i<8;i++)rbox(.0372,.0022,.034,0,.014-i*.0034,.02+i*.0016,0x3a2210,.0008,.35)}
+ // forend: walnut, metal heat shield, forend cap
+ mat('wood');prof([[-.1,.024,.003],[-.3,.024,.004],[-.32,.014,.006],[-.32,-.012,.004],[-.28,-.016],[-.1,-.016]],.036,0,Wd,{b:.003});metal();
+ rbox(.024,.006,.2,0,yb+.015,-.2,S,.0025);if(det())for(let k=0;k<12;k++)rbox(.0242,.002,.007,0,yb+.0185,-.11-k*.016,0x0d0f12,.0008);
+ rbox(.032,.022,.012,0,.002,-.325,S,.0035);
+ // barrel, gas block, ejection rod, front sight, muzzle
+ lathe([[.0098,.0],[.0096,-.2],[.0088,-.35],[.0086,-.46],[.0105,-.485]],0,yb,-.12,C.park,{seg:18});
+ rbox(.022,.026,.034,0,yb,-.215,S,.004);rbox(.006,.024,.04,.0,yb+.022,-.225,S,.0015);rbox(.003,.012,.003,0,yb+.034,-.228,C.steel,.0008);
+ if(det()){lathe([[.0076,0],[.0092,-.004],[.0092,-.02],[.0072,-.022]],0,yb,-.595,C.dark,{seg:14});for(const s of[-1,1])rbox(.0015,.016,.016,s*.0066,yb+.0075,-.58,S,.0006)}
+ // magazine
+ grp('mag');boxMag(-.03,-.006,.06,.14,.019,S,.02);grp(null);
+ const g=gripAR(.02,.058,Wd,.35,.05);
+ return{muzzle:[0,yb,-.605],eject:[.013,.04,-.026],sight:[0,.076,.15],grip:{c:[0,-.047,.068],a:.38,w:.03},lh:[0,yb,-.21],lhT:'under',lhR:.026,len:.98,rl:'mag',hold:'rifle',piv:{mag:[0,-.01,.0]},boltBack:.04,shellT:'rifle'}}
 // ---------- AK-47 ----------
 function AK(o={}){metal();const R=C.park,W=o.wood??C.wood,yb=.034;
  prof([[.095,.004],[.095,.046,.004],[.086,.054,.006],[-.155,.054],[-.155,.004]],.03,0,R,{b:.0014});// receiver
@@ -765,12 +794,12 @@ const BUILD={
  bullpup:AUG,battle:G3,ak47:()=>AK(),scar:SCAR,
  smg:UZI,vector:EVO,pdw:BIZON,mp5:MP5,mp7:MP7,kriss:VECTOR,p90:P90,
  sniper:()=>BOLTGUN({kind:'r700',sc:C.wood,br:.012,zm:-.64}),
- heavy:()=>BOLTGUN({kind:'awm',sc:C.od,br:.014,zm:-.66,brake:1,fluted:1,bipod:1,ob:.03,sl:.36}),
+ heavy:()=>BOLTGUN({kind:'awm',sc:0x9b8760,br:.014,zm:-.66,brake:1,fluted:1,bipod:1,ob:.03,sl:.36}),
  light:()=>BOLTGUN({kind:'scout',sc:C.grey,br:.011,zm:-.5,brake:1,ob:.022,sl:.28}),
  lever:LEVER,
  m16:()=>AR({hgL:.3,bl:.5,fsb:true,stock:'a2'}),mk18:()=>AR({hg:'quad',hgL:.18,bl:.26,optic:'holo',stock:'m4',muz:'supp'}),
- mini14:()=>AR({wood:1,stock:'a2',fsb:true,hgL:.22,bl:.45,fc:C.wood}),saiga:()=>{const i=AK({wood:C.poly});i.shellT='shot';return i},
- awp:()=>BOLTGUN({kind:'awm',sc:0x55613f,br:.015,zm:-.72,brake:1,fluted:1,ob:.032,sl:.38}),
+ mini14:MINI14,saiga:()=>{const i=AK({wood:C.poly});i.shellT='shot';return i},
+ awp:()=>BOLTGUN({kind:'awm',sc:0xe2e7ec,br:.015,zm:-.72,brake:1,fluted:1,ob:.032,sl:.38}),
  ump45:UMP,tommy:TOMMY,ksg:KSG,barrett:BARRETT,minigun:MINIGUN,
  shotgun:()=>SHOTGUN({pump:1,wood:1,fc:C.wood,zm:-.62,rib:1,rc:C.blk}),
  autoshot:()=>SHOTGUN({fc:C.poly,zm:-.56,optic:1}),
@@ -871,7 +900,7 @@ const EXTRA={
  aa12:i=>{metal();mat('brass');sph(.0032,0,i.muzzle[1]+.018,i.muzzle[2]+.01,C.brass,[1,1,1],10);SHELLS(-.03,.03,.02,3)},
  double:i=>{metal();mat('brass');sph(.003,0,i.muzzle[1]+.016,i.muzzle[2]+.01,C.brass,[1,1,1],10);mat('rubber');rbox(.04,.03,.07,-.0,i.grip.c[1]+.02,.3,0x3a2a1a,.006);SHELLS(-.024,i.grip.c[1]+.02,.3,3,.018)},
  ksg:i=>{metal();for(let k=0;k<6;k++)rbox(.05,.004,.004,0,-.05-.0,-.17-k*.012,C.blk,.001)},
- sniper:i=>SNX(i),heavy:i=>SNX(i),light:i=>SNX(i),awp:i=>SNX(i),barrett:i=>SNX(i),lever:i=>{SWIVEL(0,i.muzzle[1]-.025,i.muzzle[2]+.15);mat('brass');metal();sph(.003,0,i.muzzle[1]+.014,i.muzzle[2]+.012,C.brass,[1,1,1],8)},
+ sniper:i=>SNX(i),heavy:i=>{SNX(i);const[,yb,zm]=i.muzzle;metal();for(let k=0;k<3;k++)tor(.0158,.0022,0,yb,zm+.1+k*.012,0x3b3f2a,Math.PI*2,0,0,0,[3,16]);for(const s of[-1,1])rbox(.003,.014,.2,s*.0125,yb+.012,-.3,0x6a5a3c,.0015)},light:i=>SNX(i),awp:i=>{SNX(i);const[,yb,zm]=i.muzzle;metal();for(let k=0;k<4;k++)tor(.0172,.0028,0,yb,zm+.2+k*.014,0x3a8fc0,Math.PI*2,0,0,0,[3,16]);for(const s of[-1,1])rbox(.003,.016,.22,s*.0185,.04,.28,0x3a8fc0,.0015)},barrett:i=>SNX(i),lever:i=>{SWIVEL(0,i.muzzle[1]-.025,i.muzzle[2]+.15);mat('brass');metal();sph(.003,0,i.muzzle[1]+.014,i.muzzle[2]+.012,C.brass,[1,1,1],8)},
  smg:i=>SMX(i),vector:i=>SMX(i),pdw:i=>SMX(i),mp5:i=>SMX(i),mp7:i=>SMX(i),kriss:i=>SMX(i),p90:i=>SMX(i),ump45:i=>SMX(i),tommy:i=>{SWIVEL(-.0,i.muzzle[1]-.03,i.muzzle[2]+.18);metal();for(let k=0;k<8;k++)rbox(.03,.003,.006,0,i.muzzle[1]+.012,i.muzzle[2]+.03+k*.01,C.steel,.001)},
  lmg:i=>{const[,yb,zm]=i.muzzle;metal();for(let k=0;k<6;k++)rbox(.028,.004,.012,0,yb+.02,zm*.62+k*.03,0x3a3c40,.001);rbox(.014,.04,.012,0,yb+.04,zm*.55,C.blk,.003);rbox(.012,.012,.1,0,yb+.062,zm*.55,C.poly,.005);
   for(const s of[-1,1])rbox(.006,.08,.006,s*.012,yb-.05,zm*.8,C.blk,.002,s*.0,0,s*.25)},

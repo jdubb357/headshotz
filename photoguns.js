@@ -25,10 +25,6 @@ export const PHOTO={
  tommy:{hi:'suomi_hi',lo:'suomi_lo',rot:[0,0,0],s:.805,off:[0,.016,-.058],info:{sight:[0,.13,.22]},parts:[
   {nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
  light:{hi:'snip_hi',lo:'snip_lo',rot:[0,0,0],s:0.758,off:[0,-.039,-.174],parts:[{nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
- awp:{hi:'snip_hi',lo:'snip_lo',rot:[0,0,0],s:1.054,off:[0,-.076,-.243],parts:[{nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
- heavy:{hi:'snip_hi',lo:'snip_lo',rot:[0,0,0],s:0.973,off:[0,-.066,-.224],parts:[{nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
- barrett:{hi:'snip_hi',lo:'snip_lo',rot:[0,0,0],s:1.235,off:[0,-.095,-.29],parts:[{nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
- dmr:{hi:'snip_hi',lo:'snip_lo',rot:[0,0,0],s:0.894,off:[0,-.072,-.211],parts:[{nodes:['Magazine'],grp:'mag'},{nodes:['Bolt'],grp:'bolt'},{nodes:['*']}]},
  burst:{hi:'luger_hi',lo:'luger_lo',rot:[0,Math.PI,0],s:1,off:[0,-.005,-.012],info:{muzzle:[0,.04,-.186]},parts:[{nodes:['Slide'],grp:'slide'},{nodes:['Clip'],grp:'mag',loose:1},{nodes:['*']}]},
  grenade:{hi:'frag_hi',lo:'frag_hi',fpOnly:1,rot:[0,0,0],s:1,off:[0,-.035,0],parts:[{nodes:['Pin'],grp:'pin'},{nodes:['*']}]},
  smoke:{hi:'smokeg_hi',lo:'smokeg_hi',fpOnly:1,rot:[0,0,0],s:1,off:[0,.054,0],parts:[{nodes:['Pin'],grp:'pin'},{nodes:['*']}]},

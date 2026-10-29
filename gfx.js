@@ -34,9 +34,10 @@ const TEXGEN={
   x.fillStyle='rgba(30,20,10,.6)';for(const[a,b]of[[.05,.05],[.95,.05],[.05,.95],[.95,.95]]){x.beginPath();x.arc(a*n,b*n,2.5,0,7);x.fill()}},
  hazard(x,n){x.fillStyle='#fff';x.fillRect(0,0,n,n);x.fillStyle='#333';for(let i=-n;i<n*2;i+=n/4){x.beginPath();x.moveTo(i,0);x.lineTo(i+n/8,0);x.lineTo(i+n/8-n,n);x.lineTo(i-n,n);x.fill()}},
  leaves(x,n,r){x.fillStyle='#ccc';x.fillRect(0,0,n,n);for(let i=0;i<500;i++){const v=170+r()*85|0;x.fillStyle=`rgb(${v},${v},${v})`;x.beginPath();x.ellipse(r()*n,r()*n,3+r()*4,1.5+r()*2,r()*3,0,7);x.fill()}},
- gunMetal(x,n,r){x.fillStyle='#d8d8d8';x.fillRect(0,0,n,n);noise(x,n,r,150,255,5200,1.2);x.strokeStyle='rgba(255,255,255,.35)';x.lineWidth=.6;for(let i=0;i<22;i++){x.beginPath();const px=r()*n,py=r()*n,a=r()*6.28,l=4+r()*18;x.moveTo(px,py);x.lineTo(px+Math.cos(a)*l,py+Math.sin(a)*l);x.stroke()}},
- gunAlu(x,n,r){x.fillStyle='#d2d2d2';x.fillRect(0,0,n,n);noise(x,n,r,175,255,3000,1);},
- gunPoly(x,n,r){x.fillStyle='#d0d0d0';x.fillRect(0,0,n,n);for(let i=0;i<5200;i++){const v=150+r()*105|0;x.fillStyle=`rgba(${v},${v},${v},.55)`;const s=1+r()*1.6;x.beginPath();x.arc(r()*n,r()*n,s,0,7);x.fill()}},
+ gunMetal(x,n,r){x.fillStyle='#d8d8d8';x.fillRect(0,0,n,n);noise(x,n,r,160,255,9500,.8);x.strokeStyle='rgba(255,255,255,.18)';x.lineWidth=.5;for(let i=0;i<n;i+=2){x.beginPath();x.moveTo(0,i+r());x.lineTo(n,i+r()*1.5);x.stroke()}x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=.6;for(let i=0;i<18;i++){x.beginPath();const px=r()*n,py=r()*n,a=r()*6.28,l=3+r()*14;x.moveTo(px,py);x.lineTo(px+Math.cos(a)*l,py+Math.sin(a)*l);x.stroke()}},
+ gunAlu(x,n,r){x.fillStyle='#d6d6d6';x.fillRect(0,0,n,n);noise(x,n,r,185,255,5200,.8);x.strokeStyle='rgba(255,255,255,.22)';x.lineWidth=.5;for(let i=0;i<n;i+=3){x.beginPath();x.moveTo(0,i);x.lineTo(n,i+r()*.8);x.stroke()}},
+ gunPoly(x,n,r){x.fillStyle='#d0d0d0';x.fillRect(0,0,n,n);const q=n/128;for(let i=0;i<5200*q*q*2.6;i++){const v=165+r()*90|0;x.fillStyle=`rgba(${v},${v},${v},.42)`;const s=(.45+r()*.7)*q*.9;x.beginPath();x.arc(r()*n,r()*n,s,0,7);x.fill()}
+  x.strokeStyle='rgba(255,255,255,.07)';x.lineWidth=1;for(let i=0;i<n;i+=3){x.beginPath();x.moveTo(0,i);x.lineTo(n,i+r()*2);x.stroke()}},
  gunWood(x,n,r){const g=x.createLinearGradient(0,0,0,n);g.addColorStop(0,'#d9c3a8');g.addColorStop(1,'#cdb293');x.fillStyle=g;x.fillRect(0,0,n,n);
   for(let i=0;i<70;i++){const y0=r()*n,amp=1+r()*4,f=1+r()*3,v=120+r()*80|0;x.strokeStyle=`rgba(${v*.75|0},${v*.5|0},${v*.3|0},${.25+r()*.35})`;x.lineWidth=.6+r()*1.8;x.beginPath();for(let k=0;k<=n;k+=4){const y=y0+Math.sin(k/n*Math.PI*2*f+i)*amp;k?x.lineTo(k,y):x.moveTo(k,y)}x.stroke()}
   x.fillStyle='rgba(70,40,20,.35)';for(let i=0;i<3;i++){x.beginPath();x.ellipse(r()*n,r()*n,6+r()*8,2+r()*3,0,0,7);x.fill()}},
@@ -47,7 +48,7 @@ const TEXGEN={
   x.fillStyle='#555';x.fillRect(0,0,n,6);x.fillRect(0,n-6,n,6);x.fillRect(0,0,6,n);x.fillRect(n-6,0,6,n);x.fillRect(n/2-3,0,6,n)},
 };
 const texCache={};
-export function getTex(name){if(texCache[name])return texCache[name];const[c,x]=cvs(name==='plain'?8:128);(TEXGEN[name]||TEXGEN.plain)(x,c.width,rng(name.length*977+name.charCodeAt(0)*31));return texCache[name]=tex(c)}
+export function getTex(name){if(texCache[name])return texCache[name];const[c,x]=cvs(name==='plain'?8:name==='gunPoly'?256:128);(TEXGEN[name]||TEXGEN.plain)(x,c.width,rng(name.length*977+name.charCodeAt(0)*31));return texCache[name]=tex(c)}
 // ---------- graphics quality + PBR ----------
 export const GQ={level:'medium'};
 // swap a procedural surface texture for a loaded photo-PBR one (in place, so existing materials update)
@@ -67,7 +68,7 @@ const DECAL={forest:-2,dirt:-2,gravel:-2,cobble:-2,asphalt:-4};
 // [roughness, metalness, normal strength]
 const PBR={concrete:[.9,0,1.4],tiles:[.42,0,2.2],planks:[.78,0,1.3],metal:[.45,.45,.7],brick:[.88,0,2.4],grass:[.95,0,1],forest:[.97,0,1.6],dirt:[.96,0,1.5],gravel:[.95,0,1.8],cobble:[.85,0,2.2],sand:[.97,0,1.4],rock:[.86,0,2.6],carpet:[1,0,.8],asphalt:[.85,0,1.2],plaster:[.85,0,.6],crate:[.78,0,1.4],hazard:[.55,.25,.4],leaves:[.8,0,.6],window:[.06,.5,0],plain:[.75,0,0],
  char:[.72,0,0],gunMetal:[.36,.6,0],gunMatte:[.62,.05,0],
- gunMetalP:[.5,.78,.5],gunAlu:[.42,.6,.35],gunPoly:[.66,0,1.1],gunWood:[.5,0,.6],gunRubber:[.88,0,1.8],gunBrass:[.32,1,.25],gunChrome:[.2,1,.2],gunTrans:[.25,0,0],gunGlove:[.9,0,1],gunSleeve:[.95,0,.9],gunTP:[.55,.3,0]};
+ gunMetalP:[.5,.78,.5],gunAlu:[.42,.6,.35],gunPoly:[.62,0,.5],gunWood:[.5,0,.6],gunRubber:[.88,0,1.8],gunBrass:[.32,1,.25],gunChrome:[.2,1,.2],gunTrans:[.25,0,0],gunGlove:[.9,0,1],gunSleeve:[.95,0,.9],gunTP:[.55,.3,0]};
 // which canvas texture each gun material samples
 const GTEX={gunMetalP:'gunMetal',gunAlu:'gunAlu',gunPoly:'gunPoly',gunWood:'gunWood',gunRubber:'gunRubber',gunBrass:'gunAlu',gunChrome:'gunChrome',gunGlove:'gunCloth',gunSleeve:'gunCloth'};
 const GSCALE={gunMetalP:2.3,gunAlu:2.3,gunPoly:2.1,gunWood:.82,gunRubber:2,gunBrass:1.25,gunChrome:1.1,gunTrans:1.4,gunGlove:1.7,gunSleeve:1.25,gunTP:2};
