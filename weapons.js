@@ -899,7 +899,23 @@ const EXTRA={
  saiga:i=>{SHELLS(-.024,.03,.15,3);SWIVEL(-.02,.0,.25)},
  aa12:i=>{metal();mat('brass');sph(.0032,0,i.muzzle[1]+.018,i.muzzle[2]+.01,C.brass,[1,1,1],10);SHELLS(-.03,.03,.02,3)},
  double:i=>{metal();mat('brass');sph(.003,0,i.muzzle[1]+.016,i.muzzle[2]+.01,C.brass,[1,1,1],10);mat('rubber');rbox(.04,.03,.07,-.0,i.grip.c[1]+.02,.3,0x3a2a1a,.006);SHELLS(-.024,i.grip.c[1]+.02,.3,3,.018)},
- ksg:i=>{metal();for(let k=0;k<6;k++)rbox(.05,.004,.004,0,-.05-.0,-.17-k*.012,C.blk,.001)},
+ ksg:i=>{metal();for(let k=0;k<6;k++)rbox(.05,.004,.004,0,-.05-.0,-.17-k*.012,C.blk,.001);
+  for(const s of[-1,1]){for(let k=0;k<5;k++)rbox(.003,.012,.004,s*.0255,.02,-.075-k*.012,C.blk,.001);rbox(.003,.02,.045,s*.0256,.045,.05,C.dark,.002);cyl(.004,.004,s*.0262,.0,.2,C.steel,{ax:'x',seg:8})}// receiver side vents, ejection port, sling stud
+  for(const z of[-.15,-.3])for(const s of[-1,1])tor(.0042,.0012,s*.0,.0,z,C.steel,Math.PI*2,0,0,0,[3,10]);rbox(.012,.006,.02,0,.087,-.05,C.dark,.002);// barrel tube clamps + rear sight base
+  matte();for(let k=0;k<4;k++)rbox(.052,.003,.006,0,.002,-.17-k*.018,C.blk,.001);// pump forend ribs
+ },
+ lever:i=>{metal();const yb=.045;
+  for(const z of[-.2,-.37])for(const r of[[.0125,.0035]])tor(r[0],r[1],0,.034,z,C.park,Math.PI*2,0,0,0,[3,12]);// barrel/mag-tube bands
+  rbox(.012,.012,.03,0,.056,-.25,C.park,.002);rbox(.006,.014,.004,0,.067,-.25,C.park,.001);rbox(.004,.008,.004,-.005,.071,-.25,C.park,.001);rbox(.004,.008,.004,.005,.071,-.25,C.park,.001);// buckhorn rear sight
+  rbox(.012,.016,.012,0,.057,-.55,C.park,.002);cyl(.0022,.004,0,.066,-.55,C.brass,{ax:'x',seg:8});// front sight hood + bead post
+  mat('brass');rbox(.003,.03,.04,.0165,.01,.0,C.brass,.002);for(const z of[-.014,.014])cyl(.002,.003,.0185,.02,z,C.steel,{ax:'x',seg:8});// loading gate
+  metal();tor(.012,.0022,-.0165,.012,.09,C.steel,Math.PI*2,0,Math.PI/2,0,[3,12]);rbox(.004,.012,.02,-.0155,.012,.09,C.steel,.001);// saddle ring
+  rbox(.008,.016,.06,0,.055,.06,C.park,.002);rbox(.005,.012,.05,0,.045,.2,C.park,.002);// tang + wrist screw
+ },
+ scythe:i=>{metal();prof([[-1.1,.045],[-1.0,.35],[-.82,.52],[-.835,.5],[-.99,.34],[-1.095,.05]],.012,0,0xaab0b8,{b:.001,cs:6});// blade spine rib
+  for(const z of[-1.0,-.92,-.84])rbox(.006,.03,.014,0,.014,z,0x2b2d31,.002);// tang rivets
+  mat('wood');for(const y of[.02,-.0])cyl(.0075,.1,0,y-0,-.62,0x6b4a2b,{ax:'x',seg:8});tor(.0195,.0035,0,0,-1.1,0x3a3c40,Math.PI*2,0,0,0,[3,12]);// snath grip peg + ferrule
+ },
  sniper:i=>SNX(i),heavy:i=>{SNX(i);const[,yb,zm]=i.muzzle;metal();for(let k=0;k<3;k++)tor(.0158,.0022,0,yb,zm+.1+k*.012,0x3b3f2a,Math.PI*2,0,0,0,[3,16]);for(const s of[-1,1])rbox(.003,.014,.2,s*.0125,yb+.012,-.3,0x6a5a3c,.0015)},light:i=>SNX(i),awp:i=>{SNX(i);const[,yb,zm]=i.muzzle;metal();for(let k=0;k<4;k++)tor(.0172,.0028,0,yb,zm+.2+k*.014,0x3a8fc0,Math.PI*2,0,0,0,[3,16]);for(const s of[-1,1])rbox(.003,.016,.22,s*.0185,.04,.28,0x3a8fc0,.0015)},barrett:i=>SNX(i),lever:i=>{SWIVEL(0,i.muzzle[1]-.025,i.muzzle[2]+.15);mat('brass');metal();sph(.003,0,i.muzzle[1]+.014,i.muzzle[2]+.012,C.brass,[1,1,1],8)},
  smg:i=>SMX(i),vector:i=>SMX(i),pdw:i=>SMX(i),mp5:i=>SMX(i),mp7:i=>SMX(i),kriss:i=>SMX(i),p90:i=>SMX(i),ump45:i=>SMX(i),tommy:i=>{SWIVEL(-.0,i.muzzle[1]-.03,i.muzzle[2]+.18);metal();for(let k=0;k<8;k++)rbox(.03,.003,.006,0,i.muzzle[1]+.012,i.muzzle[2]+.03+k*.01,C.steel,.001)},
  lmg:i=>{const[,yb,zm]=i.muzzle;metal();for(let k=0;k<6;k++)rbox(.028,.004,.012,0,yb+.02,zm*.62+k*.03,0x3a3c40,.001);rbox(.014,.04,.012,0,yb+.04,zm*.55,C.blk,.003);rbox(.012,.012,.1,0,yb+.062,zm*.55,C.poly,.005);
