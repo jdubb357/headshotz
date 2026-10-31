@@ -1,5 +1,62 @@
 # Ralph progress — Issue #1 Extraction Raids
 
+## Issue #2 (ISSUES LIST) — acceptance criteria recorded before implementation
+
+Work item: fix all 8 problems listed in jdubb357/headshotz issue #2. Branch stays `cypert/dev`; no push/PR requested.
+
+1. Battle Royale mid-match friend joins: joining a friend's live match is accepted (except after the result screen), the joiner is placed in the friend's squad (Squad Royale) or the same match (solo), and the squad drops in together from the air.
+2. Joining a live Battle Royale match removes a bot to make room for the online player while keeping the match size; if no bot/slot is available at the match size, the join is refused rather than silently blocking.
+3. Emotes animate with arms on the correct side of the body and forward poses (wave, flex, cheer, dance, salute, spin, clap, sit).
+4. Battle Royale HUD/inventory has a dedicated pistol slot separate from SMG (quick bar and backpack mapping).
+5. Chest shop prices: Legendary / "godly" chest = 5,000 diamonds, Secret chest = 3,000 diamonds, selectable per tier.
+6. Battle Royale beeping removed: helicopter/battle-bus engine uses a realistic synthesized rotor/engine sound, no repetitive square-wave beep; bus sound effect is improved.
+7. A Battle Royale victory awards +30 diamonds in addition to placement rewards.
+8. Skin shop opens and works from the menu card (and header button) on click, with no console errors.
+
+Verification: headless Chrome 156 (CDP 9337) against local server 8010, offline/hosted BR round, screenshots, console-error check, and focused browser probes for each criterion. Status recorded after each iteration.
+
+### Current status — October 31, 2026
+
+The three reproduced gaps are fixed and covered by focused browser regressions; all 8 issue #2 criteria have current browser-runtime evidence. No known blocker remains for issue #2. Changes are uncommitted on `cypert/dev`.
+
+Criterion checks against the actual implementation:
+
+1. Friend join / drop together: live mid-match join accepted (post-result still refused); joiner lands in the friend’s squad and shares the bus/air drop state.
+2. Bot replacement: every live join removes a bot and keeps the 24-player match size; solo and same-squad paths pass.
+3. Emotes: all 8 poses animate forward with mirrored arm sides.
+4. Pistol slot: a dedicated BR pistol slot distinct from SMG is present in the quick bar and backpack mapping.
+5. Pricing: chests Legendary/”godly” 5,000 and Secret 3,000; chest-tier Legendary weapons 5,000 and Secret weapons 3,000 in the shop.
+6. Audio: battle-bus engine uses low sawtooth rotors, a 4.2 Hz sine warble and lowpass filtering, with no square-wave beep in the engine band.
+7. Victory reward: +30 victory bonus pays once per match and resets for the next match; placement reward remains correct.
+8. Skin shop: opens from the menu card, lists skins, buys with diamonds and closes cleanly.
+
+- **Fix 1 — full party squad join**: when a party squad already has 4 humans and bots remain in other squads, the friend is moved into another squad with a bot slot (bot replaced, roster stays 24, squad cap stays 4). The ordinary same-squad join path still kicks a bot in the assigned squad.
+- **Fix 2 — duplicate victory bonus**: BR `roundEnd` now uses `C.brWinPaid`, reset by `startGame`, so the +30 victory bonus is paid once per match; placement rewards retain their existing `B.paid` guard.
+- **Fix 3 — weapon pricing**: chest prices are Legendary 5,000 / Secret 3,000. The project has **no GODLY rarity** anywhere; its chest tiers are Common, Rare, Epic, Legendary, Secret. The issue’s “godly chests” is implemented as the existing Legendary 5,000 tier, not by inventing a new label. Weapons in the chest tiers now carry `rar` (LEGENDARY/SECRET) and a shop-only `shop` price (5,000/3,000); base `price` is retained so raid valuation and trading are unchanged.
+
+Exact current browser/CDP results (`node tests/issue2-regressions.mjs`, Chrome 156 CDP 9337, server 8010, four cases):
+
+- **full party squad**: fixture roster 24 (20 bots, 4 humans in S1); a separate party client joined as **S2**; afterward 24 total / 19 bots / 5 humans and every squad `[4,4,4,4,4,4]`; zero console errors.
+- **solo mid-match join**: 24/23 bots before; client entered `br` in play, own team id, `air=bus`; afterward 24/22 bots/2 humans; zero console errors.
+- **victory guard**: first duplicated `roundEnd` paid exactly one `[60,"royale victory bonus ×2 weekend"]` and duplicated `brp` paid exactly one `[100,"placement #1 ×2 weekend"]`; host rematch reset the guard and the second duplicated `roundEnd` added exactly one more bonus (2 total entries, no double-payment); zero console errors.
+- **pricing**: chest `legendary=5000`, `secret=3000`, `common=300`; `aa12`/`barrett` LEGENDARY shop 5000, `awp`/`minigun` SECRET shop 3000, base prices unchanged; shop badge “LEGENDARY · 💎 5000”; buying AA-12 with 5,100 diamonds left 100; buying AWP with 3,100 left 100; zero console errors.
+
+Other existing browser probes rerun:
+
+- `SCENE=bus node /tmp/hsz-join-scene.mjs`: pass — 23→22 bots, joiner in S1, `air=bus`, roster 24, pistol slots `[0,1,6,4,5,2,3]`; zero errors.
+- `SCENE=ground node /tmp/hsz-join-scene.mjs`: pass — joiner dropped 2.37 m from the grounded squad host, 23→22 bots, S1, `air=fall`; zero errors.
+- `SCENE=reject node /tmp/hsz-join-scene.mjs`: pass — post-result join refused with “Room is full”; roster unchanged.
+- `node /tmp/hsz-victory.mjs`: pass — placement #1 100 + victory 60 (weekend ×2), diamonds 0→160; zero errors.
+- `node /tmp/hsz-bus-audio.mjs`: pass on rerun — 9 sawtooth 44.55–46.94 Hz, 9 sine 4.2 Hz LFOs, 0 square-wave oscillators in the 40–60 Hz band, 18 lowpass filters; zero errors. A prior run timed out waiting for the host to enter play (test-order/background-tab timing); the rerun completed the same probe.
+- `node /tmp/hsz-menu-probes.mjs`: pass — chest thresholds and tier selection, all 8 emote poses with mirrored forward arms, pistol slot mapping, skin shop opens/buys/closes (1000→960), zero errors.
+- `node --test tests/raid-regressions.test.cjs`: **14 pass, 0 fail** (isolated handler suite; raid party rules untouched).
+- `node --test tests/release.test.mjs`: **9 pass, 0 fail** (release inventory/packaging still includes the modified static game files).
+- `node --check game.js weapons.js toon.js tests/issue2-regressions.mjs`: syntax OK.
+
+Evidence distinction: the new full-party and victory cases are **browser/CDP runtime with separate clients and production handlers**, using one injected full-human party fixture and duplicated `roundEnd`/`brp` messages via `window.__hsz.brx.bcast`; the pricing and emote cases are browser runtime but single-page probes; `raid-regressions.test.cjs` is an **isolated handler suite**, not a browser flow. The current regression run completed with exit 0 after the harness was tightened to close target sockets, close targets and keep pages active; an earlier combined run hit a CDP command timeout caused by stale background tabs, not by product behavior. Limitations: headless Chrome only, not internet transport or physical devices; the four-human party fixture is injected host state rather than four sequential client joins; emote arms are verified through the production `animToon` module rather than a full live camera/emote-wheel playthrough. No commit, push, PR, or GitHub write was performed.
+
+
+
 ## GitHub handoff — October 30, 2026
 
 Austin requested a push-ready branch rather than further validation expansion. The current idle-world follow-up is terminal: 900.38 seconds, 134,188 actions, 64 extractions/175 deaths and all declared gates. No simulation/navigation stalls; 134 failures, including one unclassified throw rejection, are retained. The current 15-minute sample peaks at 303.58 MiB RSS; no multi-hour memory plateau is claimed. Source files match the loaded run.
