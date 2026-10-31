@@ -2,7 +2,7 @@
 
 ## Issue #2 (ISSUES LIST) — acceptance criteria recorded before implementation
 
-Work item: fix all 8 problems listed in jdubb357/headshotz issue #2. Branch stays `cypert/dev`; no push/PR requested.
+Work item: fix all 8 problems listed in jdubb357/headshotz issue #2. Branch stays `cypert/dev`; commit and push to PR #4 was requested on October 31, 2026.
 
 1. Battle Royale mid-match friend joins: joining a friend's live match is accepted (except after the result screen), the joiner is placed in the friend's squad (Squad Royale) or the same match (solo), and the squad drops in together from the air.
 2. Joining a live Battle Royale match removes a bot to make room for the online player while keeping the match size; if no bot/slot is available at the match size, the join is refused rather than silently blocking.
@@ -17,7 +17,7 @@ Verification: headless Chrome 156 (CDP 9337) against local server 8010, offline/
 
 ### Current status — October 31, 2026
 
-The three reproduced gaps are fixed and covered by focused browser regressions; all 8 issue #2 criteria have current browser-runtime evidence. No known blocker remains for issue #2. Changes are uncommitted on `cypert/dev`.
+The three reproduced gaps are fixed and covered by focused browser regressions; all 8 issue #2 criteria have current browser-runtime evidence. No known blocker remains for issue #2. Changes are committed as `71a5733` on `cypert/dev` and pushed to PR #4: https://github.com/jdubb357/headshotz/pull/4.
 
 Criterion checks against the actual implementation:
 
@@ -53,7 +53,7 @@ Other existing browser probes rerun:
 - `node --test tests/release.test.mjs`: **9 pass, 0 fail** (release inventory/packaging still includes the modified static game files).
 - `node --check game.js weapons.js toon.js tests/issue2-regressions.mjs`: syntax OK.
 
-Evidence distinction: the new full-party and victory cases are **browser/CDP runtime with separate clients and production handlers**, using one injected full-human party fixture and duplicated `roundEnd`/`brp` messages via `window.__hsz.brx.bcast`; the pricing and emote cases are browser runtime but single-page probes; `raid-regressions.test.cjs` is an **isolated handler suite**, not a browser flow. The current regression run completed with exit 0 after the harness was tightened to close target sockets, close targets and keep pages active; an earlier combined run hit a CDP command timeout caused by stale background tabs, not by product behavior. Limitations: headless Chrome only, not internet transport or physical devices; the four-human party fixture is injected host state rather than four sequential client joins; emote arms are verified through the production `animToon` module rather than a full live camera/emote-wheel playthrough. No commit, push, PR, or GitHub write was performed.
+Evidence distinction: the new full-party and victory cases are **browser/CDP runtime with separate clients and production handlers**, using one injected full-human party fixture and duplicated `roundEnd`/`brp` messages via `window.__hsz.brx.bcast`; the pricing and emote cases are browser runtime but single-page probes; `raid-regressions.test.cjs` is an **isolated handler suite**, not a browser flow. The current regression run completed with exit 0 after the harness was tightened to close target sockets, close targets and keep pages active; an earlier combined run hit a CDP command timeout caused by stale background tabs, not by product behavior. Limitations: headless Chrome only, not internet transport or physical devices; the four-human party fixture is injected host state rather than four sequential client joins; emote arms are verified through the production `animToon` module rather than a full live camera/emote-wheel playthrough. Commit `71a5733` was pushed to `cypert/dev` and PR #4 (https://github.com/jdubb357/headshotz/pull/4) was opened on October 31, 2026; no merge, force-push, branch deletion, or repository settings change was performed.
 
 
 
