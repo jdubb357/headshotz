@@ -1,0 +1,882 @@
+{
+  "date": "2026-10-30",
+  "candidate": {
+    "id": "d6aa05cbf961d50a135d9b3ef9775e6046a5ea5bbde9d074a865e146a0dcb783",
+    "label": "recycling-candidate",
+    "path": "/private/tmp/headshotz-extraction-recycling-candidate",
+    "files": 188,
+    "bytes": 11476634,
+    "schema": 10,
+    "protocol": 7
+  },
+  "source": {
+    "candidate": "d6aa05cbf961d50a135d9b3ef9775e6046a5ea5bbde9d074a865e146a0dcb783",
+    "sourceMatchesCandidate": true,
+    "at": "2026-10-30T19:18:53.734Z"
+  },
+  "testSha256": {
+    "tests/raid-recycling.test.mjs": "aa67437727eb9840f8e91a64e24c2b4ac750d73bb9fea52c801cbbc55eff5cf0",
+    "tests/raid-browser-recycling.mjs": "f556a98b308e31bf0506a1b07b275175b7b523bf66118414d5ef69514be138e8",
+    "scripts/economy-audit.mjs": "fa9702b2c2672956c2e66e328c171a5289c7526df9dd7dd6958dede27d0ecd19"
+  },
+  "priorCandidateExploit": {
+    "candidate": "49430847d1f902dfd690312856bd16b1cf27b4f817514cba3bf7d21fce398daf",
+    "startCredits": 250,
+    "ammunitionCost": 12,
+    "rounds": 30,
+    "afterSplitRecycleSellCredits": 298,
+    "netProfit": 48,
+    "scope": "Reproduced using the immutable prior candidate modules and a disposable in-memory account. No real saves altered."
+  },
+  "verification": {
+    "automated": {
+      "passed": 867,
+      "failed": 0,
+      "log": "/tmp/hs-recycling-all.log"
+    },
+    "browserScenarios": [
+      {
+        "file": "raid-browser-accessibility.mjs",
+        "code": 0,
+        "output": "{\"remapping\":true,\"persistentSettings\":true,\"nativeDialogFocus\":true,\"keyboardAim\":true,\"statusAnnouncement\":true,\"itemInspection\":true,\"keyboardSearchTakeSecure\":true,\"touchBoarding\":true,\"modalStopsMovement\":true,\"backgroundStopsMovement\":true,\"reducedMotionRender\":true,\"touchTargets\":true,\"mobileAim\":true,\"mobileOverflow\":false,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-account.mjs",
+        "code": 0,
+        "output": "{\"sessionList\":true,\"passwordRotation\":true,\"recoveryCodesHidden\":true,\"lateCodeDisplayCanceled\":true,\"remoteSignout\":true,\"microphoneReleased\":true,\"codeRecovery\":true,\"activeBodyPreserved\":true,\"ownedItemsPreserved\":true,\"reconnectedAfterRecovery\":true,\"staleResponseAccountIsolation\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-audio.mjs",
+        "code": 0,
+        "output": "{\"distinctMachineCues\":5,\"utilityCuesRendered\":4,\"realWebAudioRendering\":true,\"directionalStereo\":true,\"muteSilent\":true,\"boundedVoices\":true,\"nodesReleased\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-comms.mjs",
+        "code": 0,
+        "output": "{\"optIn\":true,\"pushToTalk\":true,\"audioRtpReceived\":true,\"muteDisconnect\":true,\"unmuteReconnect\":true,\"squadPing\":true,\"reportSaved\":true,\"blockSuppressesPing\":true,\"microphoneReleased\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-entry.mjs",
+        "code": 0,
+        "output": "{\"mainGameEntry\":true,\"persistentRaidNavigation\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-exits.mjs",
+        "code": 0,
+        "output": "{\"costsBeforeDeploy\":true,\"ownedFuelDeployed\":true,\"resourceCostConsumedOnce\":true,\"seatReservation\":true,\"rivalRejectedAtCapacity\":true,\"damageFreesSeat\":true,\"independentExtraction\":true,\"fullExitDisplayed\":true,\"reportIncludesAccessCost\":true,\"ownedWeaponReturned\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-loss-report.mjs",
+        "code": 0,
+        "output": "{\"leftScreenWithoutEscape\":true,\"realOperatorSettlement\":true,\"automaticBaseRefresh\":true,\"ownedWeaponLost\":true,\"itemizedReport\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-matchmaking.mjs",
+        "code": 0,
+        "output": "{\"transparentRegionAndPopulationPolicy\":true,\"serverTimedLimit\":true,\"highLatencyPreservesOwnedGear\":true,\"explicitHigherLimitDeploys\":true,\"strictSoloPool\":true,\"leaderPreferenceChange\":true,\"allMembersReadyAgain\":true,\"memberPreferencesReadOnly\":true,\"completeDistinctSquadSpawn\":true,\"proofNotPersistedInBrowserStorage\":true,\"browserErrors\":[],\"scope\":\"Server clock fixture verifies policy/UI; not a WAN latency measurement.\"}\n"
+      },
+      {
+        "file": "raid-browser-medical.mjs",
+        "code": 0,
+        "output": "{\"ownedArmorAndMedicine\":true,\"exactInsuranceQuote\":true,\"armorAbsorptionHud\":true,\"bleedTreatment\":true,\"traumaTreatsBoth\":true,\"splintDoesNotHeal\":true,\"medicalCooldownUi\":true,\"armorRemoveReequip\":true,\"conditionBanks\":true,\"damageReport\":true,\"browserErrors\":[],\"scope\":\"Server damage/departure fixtures; not human combat or route balance acceptance.\"}\n"
+      },
+      {
+        "file": "raid-browser-network.mjs",
+        "code": 0,
+        "output": "{\"immediateVisualMovement\":true,\"authorityUnchangedBeforeDelivery\":true,\"reconciled\":true,\"lostShotResponseRetried\":true,\"ammunitionConsumedOnce\":true,\"sameDeploymentAfterReload\":true,\"shortInputDeliveredWithoutPolling\":true,\"releaseStopsWithoutPolling\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-offline.mjs",
+        "code": 0,
+        "output": "{\"legacyPrivateCachePurged\":true,\"privateApiNotCached\":true,\"healthNeverStale\":true,\"offlineJsonError\":true,\"onlineAccountRecovered\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-party.mjs",
+        "code": 0,
+        "output": "{\"partyInvite\":true,\"separateAccounts\":true,\"readyChecks\":true,\"groupDeployment\":true,\"sameRaid\":true,\"sameTeam\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-progression.mjs",
+        "code": 0,
+        "output": "{\"threeTraders\":true,\"inventoryCrafting\":true,\"workbenchUpgrade\":true,\"attachmentInstall\":true,\"stashSearch\":true,\"loadoutPreset\":true,\"insuranceQuote\":true,\"insuredDeployment\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-recycling.mjs",
+        "code": 0,
+        "output": "{\"quotedBatchYield\":true,\"mergedPurchasedAmmo\":true,\"partialBatchKeepsOriginalItem\":true,\"insufficientBatchDisabled\":true,\"serverRejectsBypass\":true,\"favoriteGuard\":true,\"medicalStackYield\":true,\"noSalvageTransmutation\":true,\"browserErrors\":[],\"scope\":\"Actual isolated shop/stash controls; does not establish long-term progression or account-farming resistance.\"}\n"
+      },
+      {
+        "file": "raid-browser-sectors.mjs",
+        "code": 0,
+        "output": "{\"sectorBriefing\":true,\"dayNightRendered\":true,\"moonAndStars\":true,\"unsecuredArtifactRecovered\":true,\"ownedItemExtracted\":true,\"saleAndLoadoutProtection\":true,\"contractFilter\":true,\"deliveryConsumesOnce\":true,\"rewardReplayRejected\":true,\"crossSessionProgress\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-smoke.mjs",
+        "code": 0,
+        "output": "{\"account\":true,\"recoveryDeployment\":true,\"rendered\":true,\"serverMovement\":true,\"reconnect\":true,\"browserExceptions\":[]}\n"
+      },
+      {
+        "file": "raid-browser-transfers.mjs",
+        "code": 0,
+        "output": "{\"stashSplitMerge\":true,\"zeroCreditAmmoQuote\":true,\"quantityDialogKeyboard\":true,\"cancelPreservesInventory\":true,\"focusSurvivesStackChange\":true,\"carriedAmmoSplit\":true,\"protectedMedicineWithdrawal\":true,\"partialContainerPickup\":true,\"equippedWeaponDrop\":true,\"unarmedFirstPerson\":true,\"remoteWeaponModelUpdates\":true,\"sameWeaponReequipped\":true,\"transferAudit\":true,\"browserErrors\":[],\"scope\":\"Server-arranged loot/observer positions; not human route or WAN acceptance.\"}\n"
+      },
+      {
+        "file": "raid-browser-utilities.mjs",
+        "code": 0,
+        "output": "{\"purchasedOwnedUtilities\":3,\"paidLoadout\":true,\"keyboardThrow\":true,\"backpackSelection\":true,\"touchButtonThrow\":true,\"smokeRendered\":true,\"lureRendered\":true,\"blastWarningRendered\":true,\"consumedOnce\":true,\"reconnectEffects\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-worlds.mjs",
+        "code": 0,
+        "output": "{\"maps\":3,\"jump\":true,\"touchAim\":true,\"rendered\":true,\"browserErrors\":[]}\n"
+      }
+    ],
+    "packagedRecycling": {
+      "code": 0,
+      "output": "{\"quotedBatchYield\":true,\"mergedPurchasedAmmo\":true,\"partialBatchKeepsOriginalItem\":true,\"insufficientBatchDisabled\":true,\"serverRejectsBypass\":true,\"favoriteGuard\":true,\"medicalStackYield\":true,\"noSalvageTransmutation\":true,\"browserErrors\":[],\"scope\":\"Actual isolated shop/stash controls; does not establish long-term progression or account-farming resistance.\"}\n",
+      "scope": "Same scenario, copied server modules and copied static root; source browser harness only."
+    },
+    "economy": {
+      "trades": [
+        {
+          "sku": "ar",
+          "buyAtMaximumDiscount": 80,
+          "resale": 30,
+          "profit": -50
+        },
+        {
+          "sku": "smg",
+          "buyAtMaximumDiscount": 96,
+          "resale": 36,
+          "profit": -60
+        },
+        {
+          "sku": "pistol",
+          "buyAtMaximumDiscount": 48,
+          "resale": 18,
+          "profit": -30
+        },
+        {
+          "sku": "shotgun",
+          "buyAtMaximumDiscount": 112,
+          "resale": 42,
+          "profit": -70
+        },
+        {
+          "sku": "sniper",
+          "buyAtMaximumDiscount": 176,
+          "resale": 66,
+          "profit": -110
+        },
+        {
+          "sku": "lmg",
+          "buyAtMaximumDiscount": 200,
+          "resale": 75,
+          "profit": -125
+        },
+        {
+          "sku": "armor",
+          "buyAtMaximumDiscount": 56,
+          "resale": 21,
+          "profit": -35
+        },
+        {
+          "sku": "armor_light",
+          "buyAtMaximumDiscount": 44,
+          "resale": 16,
+          "profit": -28
+        },
+        {
+          "sku": "armor_heavy",
+          "buyAtMaximumDiscount": 104,
+          "resale": 39,
+          "profit": -65
+        },
+        {
+          "sku": "ammo_light",
+          "buyAtMaximumDiscount": 10,
+          "resale": 3,
+          "profit": -7
+        },
+        {
+          "sku": "ammo_medium",
+          "buyAtMaximumDiscount": 10,
+          "resale": 3,
+          "profit": -7
+        },
+        {
+          "sku": "ammo_heavy",
+          "buyAtMaximumDiscount": 15,
+          "resale": 1,
+          "profit": -14
+        },
+        {
+          "sku": "ammo_shell",
+          "buyAtMaximumDiscount": 10,
+          "resale": 1,
+          "profit": -9
+        },
+        {
+          "sku": "med",
+          "buyAtMaximumDiscount": 20,
+          "resale": 5,
+          "profit": -15
+        },
+        {
+          "sku": "bandage",
+          "buyAtMaximumDiscount": 10,
+          "resale": 2,
+          "profit": -8
+        },
+        {
+          "sku": "splint",
+          "buyAtMaximumDiscount": 15,
+          "resale": 3,
+          "profit": -12
+        },
+        {
+          "sku": "trauma",
+          "buyAtMaximumDiscount": 40,
+          "resale": 10,
+          "profit": -30
+        },
+        {
+          "sku": "chem",
+          "buyAtMaximumDiscount": 15,
+          "resale": 6,
+          "profit": -9
+        },
+        {
+          "sku": "wire",
+          "buyAtMaximumDiscount": 15,
+          "resale": 6,
+          "profit": -9
+        },
+        {
+          "sku": "steel",
+          "buyAtMaximumDiscount": 15,
+          "resale": 6,
+          "profit": -9
+        },
+        {
+          "sku": "fuel",
+          "buyAtMaximumDiscount": 15,
+          "resale": 6,
+          "profit": -9
+        },
+        {
+          "sku": "key",
+          "buyAtMaximumDiscount": 72,
+          "resale": 5,
+          "profit": -67
+        },
+        {
+          "sku": "scope",
+          "buyAtMaximumDiscount": 52,
+          "resale": 19,
+          "profit": -33
+        },
+        {
+          "sku": "suppressor",
+          "buyAtMaximumDiscount": 64,
+          "resale": 24,
+          "profit": -40
+        },
+        {
+          "sku": "magazine",
+          "buyAtMaximumDiscount": 60,
+          "resale": 22,
+          "profit": -38
+        },
+        {
+          "sku": "smoke",
+          "buyAtMaximumDiscount": 36,
+          "resale": 13,
+          "profit": -23
+        },
+        {
+          "sku": "decoy",
+          "buyAtMaximumDiscount": 28,
+          "resale": 10,
+          "profit": -18
+        },
+        {
+          "sku": "frag",
+          "buyAtMaximumDiscount": 52,
+          "resale": 19,
+          "profit": -33
+        }
+      ],
+      "recipes": [
+        {
+          "id": "armor_light",
+          "creditCost": 12,
+          "salvageResale": 6,
+          "outputResale": 16,
+          "profit": -2
+        },
+        {
+          "id": "armor_heavy",
+          "creditCost": 25,
+          "salvageResale": 20,
+          "outputResale": 39,
+          "profit": -6
+        },
+        {
+          "id": "bandage",
+          "creditCost": 2,
+          "salvageResale": 2,
+          "outputResale": 2,
+          "profit": -2
+        },
+        {
+          "id": "splint",
+          "creditCost": 3,
+          "salvageResale": 4,
+          "outputResale": 3,
+          "profit": -4
+        },
+        {
+          "id": "trauma",
+          "creditCost": 10,
+          "salvageResale": 8,
+          "outputResale": 10,
+          "profit": -8
+        },
+        {
+          "id": "smoke",
+          "creditCost": 8,
+          "salvageResale": 6,
+          "outputResale": 13,
+          "profit": -1
+        },
+        {
+          "id": "decoy",
+          "creditCost": 8,
+          "salvageResale": 6,
+          "outputResale": 10,
+          "profit": -4
+        },
+        {
+          "id": "frag",
+          "creditCost": 15,
+          "salvageResale": 6,
+          "outputResale": 19,
+          "profit": -2
+        },
+        {
+          "id": "med",
+          "creditCost": 5,
+          "salvageResale": 4,
+          "outputResale": 5,
+          "profit": -4
+        },
+        {
+          "id": "ammo_medium",
+          "creditCost": 5,
+          "salvageResale": 4,
+          "outputResale": 3,
+          "profit": -6
+        },
+        {
+          "id": "ammo_light",
+          "creditCost": 5,
+          "salvageResale": 2,
+          "outputResale": 4,
+          "profit": -3
+        },
+        {
+          "id": "ammo_heavy",
+          "creditCost": 8,
+          "salvageResale": 6,
+          "outputResale": 1,
+          "profit": -13
+        },
+        {
+          "id": "ammo_shell",
+          "creditCost": 5,
+          "salvageResale": 4,
+          "outputResale": 1,
+          "profit": -8
+        },
+        {
+          "id": "armor",
+          "creditCost": 20,
+          "salvageResale": 10,
+          "outputResale": 21,
+          "profit": -9
+        },
+        {
+          "id": "scope",
+          "creditCost": 15,
+          "salvageResale": 8,
+          "outputResale": 19,
+          "profit": -4
+        },
+        {
+          "id": "suppressor",
+          "creditCost": 20,
+          "salvageResale": 10,
+          "outputResale": 24,
+          "profit": -6
+        },
+        {
+          "id": "magazine",
+          "creditCost": 15,
+          "salvageResale": 8,
+          "outputResale": 22,
+          "profit": -1
+        }
+      ],
+      "splits": [
+        {
+          "sku": "ammo_light",
+          "profit": 0,
+          "cases": 19900
+        },
+        {
+          "sku": "ammo_medium",
+          "profit": 0,
+          "cases": 19900
+        },
+        {
+          "sku": "ammo_heavy",
+          "profit": 0,
+          "cases": 19900
+        },
+        {
+          "sku": "ammo_shell",
+          "profit": 0,
+          "cases": 19900
+        },
+        {
+          "sku": "med",
+          "profit": 0,
+          "cases": 10
+        },
+        {
+          "sku": "bandage",
+          "profit": 0,
+          "cases": 10
+        },
+        {
+          "sku": "splint",
+          "profit": 0,
+          "cases": 10
+        },
+        {
+          "sku": "trauma",
+          "profit": 0,
+          "cases": 10
+        },
+        {
+          "sku": "chem",
+          "profit": 0,
+          "cases": 190
+        },
+        {
+          "sku": "wire",
+          "profit": 0,
+          "cases": 190
+        },
+        {
+          "sku": "steel",
+          "profit": 0,
+          "cases": 190
+        },
+        {
+          "sku": "fuel",
+          "profit": 0,
+          "cases": 190
+        },
+        {
+          "sku": "smoke",
+          "profit": 0,
+          "cases": 3
+        },
+        {
+          "sku": "decoy",
+          "profit": 0,
+          "cases": 3
+        },
+        {
+          "sku": "frag",
+          "profit": 0,
+          "cases": 3
+        }
+      ],
+      "recyclingTrades": [
+        {
+          "sku": "ar",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 80,
+          "resale": 6,
+          "profit": -74
+        },
+        {
+          "sku": "smg",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 96,
+          "resale": 6,
+          "profit": -90
+        },
+        {
+          "sku": "pistol",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 48,
+          "resale": 6,
+          "profit": -42
+        },
+        {
+          "sku": "shotgun",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 112,
+          "resale": 6,
+          "profit": -106
+        },
+        {
+          "sku": "sniper",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 176,
+          "resale": 6,
+          "profit": -170
+        },
+        {
+          "sku": "lmg",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 200,
+          "resale": 6,
+          "profit": -194
+        },
+        {
+          "sku": "armor",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 56,
+          "resale": 6,
+          "profit": -50
+        },
+        {
+          "sku": "armor_light",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 44,
+          "resale": 6,
+          "profit": -38
+        },
+        {
+          "sku": "armor_heavy",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 104,
+          "resale": 6,
+          "profit": -98
+        },
+        {
+          "sku": "ammo_light",
+          "purchases": 2,
+          "quantity": 60,
+          "cost": 20,
+          "resale": 4,
+          "profit": -16
+        },
+        {
+          "sku": "ammo_medium",
+          "purchases": 1,
+          "quantity": 30,
+          "cost": 10,
+          "resale": 2,
+          "profit": -8
+        },
+        {
+          "sku": "ammo_heavy",
+          "purchases": 1,
+          "quantity": 10,
+          "cost": 15,
+          "resale": 2,
+          "profit": -13
+        },
+        {
+          "sku": "ammo_shell",
+          "purchases": 1,
+          "quantity": 12,
+          "cost": 10,
+          "resale": 2,
+          "profit": -8
+        },
+        {
+          "sku": "med",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 20,
+          "resale": 2,
+          "profit": -18
+        },
+        {
+          "sku": "bandage",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 10,
+          "resale": 2,
+          "profit": -8
+        },
+        {
+          "sku": "splint",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 15,
+          "resale": 2,
+          "profit": -13
+        },
+        {
+          "sku": "trauma",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 40,
+          "resale": 2,
+          "profit": -38
+        },
+        {
+          "sku": "key",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 72,
+          "resale": 2,
+          "profit": -70
+        },
+        {
+          "sku": "scope",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 52,
+          "resale": 2,
+          "profit": -50
+        },
+        {
+          "sku": "suppressor",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 64,
+          "resale": 2,
+          "profit": -62
+        },
+        {
+          "sku": "magazine",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 60,
+          "resale": 2,
+          "profit": -58
+        },
+        {
+          "sku": "smoke",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 36,
+          "resale": 2,
+          "profit": -34
+        },
+        {
+          "sku": "decoy",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 28,
+          "resale": 2,
+          "profit": -26
+        },
+        {
+          "sku": "frag",
+          "purchases": 1,
+          "quantity": 1,
+          "cost": 52,
+          "resale": 2,
+          "profit": -50
+        }
+      ],
+      "recyclingRecipes": [
+        {
+          "id": "armor_light",
+          "cost": 18,
+          "resale": 6,
+          "profit": -12
+        },
+        {
+          "id": "armor_heavy",
+          "cost": 45,
+          "resale": 6,
+          "profit": -39
+        },
+        {
+          "id": "bandage",
+          "cost": 4,
+          "resale": 2,
+          "profit": -2
+        },
+        {
+          "id": "splint",
+          "cost": 7,
+          "resale": 2,
+          "profit": -5
+        },
+        {
+          "id": "trauma",
+          "cost": 18,
+          "resale": 2,
+          "profit": -16
+        },
+        {
+          "id": "smoke",
+          "cost": 14,
+          "resale": 2,
+          "profit": -12
+        },
+        {
+          "id": "decoy",
+          "cost": 14,
+          "resale": 2,
+          "profit": -12
+        },
+        {
+          "id": "frag",
+          "cost": 21,
+          "resale": 2,
+          "profit": -19
+        },
+        {
+          "id": "med",
+          "cost": 9,
+          "resale": 2,
+          "profit": -7
+        },
+        {
+          "id": "ammo_medium",
+          "cost": 9,
+          "resale": 2,
+          "profit": -7
+        },
+        {
+          "id": "ammo_light",
+          "cost": 7,
+          "resale": 2,
+          "profit": -5
+        },
+        {
+          "id": "ammo_heavy",
+          "cost": 14,
+          "resale": 2,
+          "profit": -12
+        },
+        {
+          "id": "ammo_shell",
+          "cost": 9,
+          "resale": 2,
+          "profit": -7
+        },
+        {
+          "id": "armor",
+          "cost": 30,
+          "resale": 6,
+          "profit": -24
+        },
+        {
+          "id": "scope",
+          "cost": 23,
+          "resale": 2,
+          "profit": -21
+        },
+        {
+          "id": "suppressor",
+          "cost": 30,
+          "resale": 2,
+          "profit": -28
+        },
+        {
+          "id": "magazine",
+          "cost": 23,
+          "resale": 2,
+          "profit": -21
+        }
+      ],
+      "recyclingSplits": [
+        {
+          "sku": "ammo_light",
+          "profit": 0,
+          "cases": 19900
+        },
+        {
+          "sku": "ammo_medium",
+          "profit": 0,
+          "cases": 19900
+        },
+        {
+          "sku": "ammo_heavy",
+          "profit": 0,
+          "cases": 19900
+        },
+        {
+          "sku": "ammo_shell",
+          "profit": 0,
+          "cases": 19900
+        },
+        {
+          "sku": "med",
+          "profit": 0,
+          "cases": 10
+        },
+        {
+          "sku": "bandage",
+          "profit": 0,
+          "cases": 10
+        },
+        {
+          "sku": "splint",
+          "profit": 0,
+          "cases": 10
+        },
+        {
+          "sku": "trauma",
+          "profit": 0,
+          "cases": 10
+        },
+        {
+          "sku": "smoke",
+          "profit": 0,
+          "cases": 3
+        },
+        {
+          "sku": "decoy",
+          "profit": 0,
+          "cases": 3
+        },
+        {
+          "sku": "frag",
+          "profit": 0,
+          "cases": 3
+        }
+      ],
+      "profitableLoops": [],
+      "scope": "Static buy/craft/sell and buy/craft/recycle/sell at maximum discounts, including merged purchases and every legal binary stack split. Raid reward rates, new-account grants and player behavior require separate audits/playtests."
+    }
+  },
+  "retainedTestFailure": {
+    "log": "/tmp/hs-recycling-target.log",
+    "cause": "Initial audit assertion expected more than 80,000 recycling splits; actual 79,649 excludes materials that are no longer recyclable. Assertion corrected to require all four ammunition families and more than 79,000 cases; all tests pass. No product fix attributed to changing the test threshold."
+  },
+  "limits": [
+    "Static exchange audits do not prove long-term balance, new-account grant protection or all multi-step farming strategies.",
+    "Browser scenarios use isolated accounts/loopback and several arranged gameplay fixtures. Human/WAN/device/full content acceptance remains open.",
+    "The two-hour soak still running in another process loaded older matching source; it does not validate this release.",
+    "Full feature completion remains unproven; see RELEASE_ACCEPTANCE.md."
+  ],
+  "supersededBy": {
+    "candidate": "1a0fc2ef20ad9b6a62dc69acf950d5238e114e8f7b945db2e121ba133cabb596",
+    "evidence": "2026-10-30-starter.json",
+    "reason": "Adds source-preserving new-account support after reproducing starter-funded gear donation. Historical recycling pass remains valid only for its stated checks."
+  }
+}

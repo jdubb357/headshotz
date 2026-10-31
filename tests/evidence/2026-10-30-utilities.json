@@ -1,0 +1,396 @@
+{
+  "note": "Private isolated Chrome contexts, fake microphone and disposable services/accounts. Fifteen focused browser scenarios pass on protocol 4/schema 7. Final targeted reruns cover real touch, utility filtering/soft-cloud rendering and four utility audio cues. The later nearby-strike-through-smoke snapshot correction is verified by its authoritative regression/full unit suite; do not infer a full human/WAN/device acceptance pass. Screenshots inspected locally before/after soft smoke improvement.",
+  "automatedChecks": 816,
+  "browserScenarios": [
+    {
+      "account": true,
+      "recoveryDeployment": true,
+      "rendered": true,
+      "serverMovement": true,
+      "reconnect": true,
+      "browserExceptions": []
+    },
+    {
+      "maps": 3,
+      "jump": true,
+      "touchAim": true,
+      "rendered": true,
+      "browserErrors": []
+    },
+    {
+      "partyInvite": true,
+      "separateAccounts": true,
+      "readyChecks": true,
+      "groupDeployment": true,
+      "sameRaid": true,
+      "sameTeam": true,
+      "browserErrors": []
+    },
+    {
+      "threeTraders": true,
+      "inventoryCrafting": true,
+      "workbenchUpgrade": true,
+      "attachmentInstall": true,
+      "stashSearch": true,
+      "loadoutPreset": true,
+      "insuranceQuote": true,
+      "insuredDeployment": true,
+      "browserErrors": []
+    },
+    {
+      "mainGameEntry": true,
+      "persistentRaidNavigation": true,
+      "browserErrors": []
+    },
+    {
+      "optIn": true,
+      "pushToTalk": true,
+      "audioRtpReceived": true,
+      "muteDisconnect": true,
+      "unmuteReconnect": true,
+      "squadPing": true,
+      "reportSaved": true,
+      "blockSuppressesPing": true,
+      "microphoneReleased": true,
+      "browserErrors": []
+    },
+    {
+      "remapping": true,
+      "persistentSettings": true,
+      "nativeDialogFocus": true,
+      "keyboardAim": true,
+      "statusAnnouncement": true,
+      "itemInspection": true,
+      "keyboardSearchTakeSecure": true,
+      "touchBoarding": true,
+      "modalStopsMovement": true,
+      "backgroundStopsMovement": true,
+      "reducedMotionRender": true,
+      "touchTargets": true,
+      "mobileAim": true,
+      "mobileOverflow": false,
+      "browserErrors": []
+    },
+    {
+      "legacyPrivateCachePurged": true,
+      "privateApiNotCached": true,
+      "healthNeverStale": true,
+      "offlineJsonError": true,
+      "onlineAccountRecovered": true,
+      "browserErrors": []
+    },
+    {
+      "sessionList": true,
+      "passwordRotation": true,
+      "recoveryCodesHidden": true,
+      "lateCodeDisplayCanceled": true,
+      "remoteSignout": true,
+      "microphoneReleased": true,
+      "codeRecovery": true,
+      "activeBodyPreserved": true,
+      "ownedItemsPreserved": true,
+      "reconnectedAfterRecovery": true,
+      "staleResponseAccountIsolation": true,
+      "browserErrors": []
+    },
+    {
+      "immediateVisualMovement": true,
+      "authorityUnchangedBeforeDelivery": true,
+      "reconciled": true,
+      "lostShotResponseRetried": true,
+      "ammunitionConsumedOnce": true,
+      "sameDeploymentAfterReload": true,
+      "shortInputDeliveredWithoutPolling": true,
+      "releaseStopsWithoutPolling": true,
+      "browserErrors": []
+    },
+    {
+      "costsBeforeDeploy": true,
+      "ownedFuelDeployed": true,
+      "resourceCostConsumedOnce": true,
+      "seatReservation": true,
+      "rivalRejectedAtCapacity": true,
+      "damageFreesSeat": true,
+      "independentExtraction": true,
+      "fullExitDisplayed": true,
+      "reportIncludesAccessCost": true,
+      "ownedWeaponReturned": true,
+      "browserErrors": []
+    },
+    {
+      "sectorBriefing": true,
+      "dayNightRendered": true,
+      "moonAndStars": true,
+      "unsecuredArtifactRecovered": true,
+      "ownedItemExtracted": true,
+      "saleAndLoadoutProtection": true,
+      "contractFilter": true,
+      "deliveryConsumesOnce": true,
+      "rewardReplayRejected": true,
+      "crossSessionProgress": true,
+      "browserErrors": []
+    },
+    {
+      "distinctMachineCues": 5,
+      "utilityCuesRendered": 4,
+      "realWebAudioRendering": true,
+      "directionalStereo": true,
+      "muteSilent": true,
+      "boundedVoices": true,
+      "nodesReleased": true,
+      "browserErrors": []
+    },
+    {
+      "purchasedOwnedUtilities": 3,
+      "paidLoadout": true,
+      "keyboardThrow": true,
+      "backpackSelection": true,
+      "touchButtonThrow": true,
+      "smokeRendered": true,
+      "lureRendered": true,
+      "blastWarningRendered": true,
+      "consumedOnce": true,
+      "reconnectEffects": true,
+      "browserErrors": []
+    },
+    {
+      "leftScreenWithoutEscape": true,
+      "realOperatorSettlement": true,
+      "automaticBaseRefresh": true,
+      "ownedWeaponLost": true,
+      "itemizedReport": true,
+      "browserErrors": []
+    }
+  ],
+  "economyAudit": {
+    "trades": [
+      {
+        "sku": "ar",
+        "buyAtMaximumDiscount": 80,
+        "resale": 30,
+        "profit": -50
+      },
+      {
+        "sku": "smg",
+        "buyAtMaximumDiscount": 96,
+        "resale": 36,
+        "profit": -60
+      },
+      {
+        "sku": "pistol",
+        "buyAtMaximumDiscount": 48,
+        "resale": 18,
+        "profit": -30
+      },
+      {
+        "sku": "shotgun",
+        "buyAtMaximumDiscount": 112,
+        "resale": 42,
+        "profit": -70
+      },
+      {
+        "sku": "sniper",
+        "buyAtMaximumDiscount": 176,
+        "resale": 66,
+        "profit": -110
+      },
+      {
+        "sku": "lmg",
+        "buyAtMaximumDiscount": 200,
+        "resale": 75,
+        "profit": -125
+      },
+      {
+        "sku": "armor",
+        "buyAtMaximumDiscount": 56,
+        "resale": 20,
+        "profit": -36
+      },
+      {
+        "sku": "ammo_light",
+        "buyAtMaximumDiscount": 10,
+        "resale": 3,
+        "profit": -7
+      },
+      {
+        "sku": "ammo_medium",
+        "buyAtMaximumDiscount": 10,
+        "resale": 3,
+        "profit": -7
+      },
+      {
+        "sku": "ammo_heavy",
+        "buyAtMaximumDiscount": 15,
+        "resale": 1,
+        "profit": -14
+      },
+      {
+        "sku": "ammo_shell",
+        "buyAtMaximumDiscount": 10,
+        "resale": 1,
+        "profit": -9
+      },
+      {
+        "sku": "med",
+        "buyAtMaximumDiscount": 20,
+        "resale": 5,
+        "profit": -15
+      },
+      {
+        "sku": "chem",
+        "buyAtMaximumDiscount": 15,
+        "resale": 6,
+        "profit": -9
+      },
+      {
+        "sku": "wire",
+        "buyAtMaximumDiscount": 15,
+        "resale": 6,
+        "profit": -9
+      },
+      {
+        "sku": "steel",
+        "buyAtMaximumDiscount": 15,
+        "resale": 6,
+        "profit": -9
+      },
+      {
+        "sku": "fuel",
+        "buyAtMaximumDiscount": 15,
+        "resale": 6,
+        "profit": -9
+      },
+      {
+        "sku": "key",
+        "buyAtMaximumDiscount": 72,
+        "resale": 5,
+        "profit": -67
+      },
+      {
+        "sku": "scope",
+        "buyAtMaximumDiscount": 52,
+        "resale": 19,
+        "profit": -33
+      },
+      {
+        "sku": "suppressor",
+        "buyAtMaximumDiscount": 64,
+        "resale": 24,
+        "profit": -40
+      },
+      {
+        "sku": "magazine",
+        "buyAtMaximumDiscount": 60,
+        "resale": 22,
+        "profit": -38
+      },
+      {
+        "sku": "smoke",
+        "buyAtMaximumDiscount": 36,
+        "resale": 13,
+        "profit": -23
+      },
+      {
+        "sku": "decoy",
+        "buyAtMaximumDiscount": 28,
+        "resale": 10,
+        "profit": -18
+      },
+      {
+        "sku": "frag",
+        "buyAtMaximumDiscount": 52,
+        "resale": 19,
+        "profit": -33
+      }
+    ],
+    "recipes": [
+      {
+        "id": "smoke",
+        "creditCost": 8,
+        "salvageResale": 6,
+        "outputResale": 13,
+        "profit": -1
+      },
+      {
+        "id": "decoy",
+        "creditCost": 8,
+        "salvageResale": 6,
+        "outputResale": 10,
+        "profit": -4
+      },
+      {
+        "id": "frag",
+        "creditCost": 15,
+        "salvageResale": 6,
+        "outputResale": 19,
+        "profit": -2
+      },
+      {
+        "id": "med",
+        "creditCost": 5,
+        "salvageResale": 4,
+        "outputResale": 5,
+        "profit": -4
+      },
+      {
+        "id": "ammo_medium",
+        "creditCost": 5,
+        "salvageResale": 4,
+        "outputResale": 3,
+        "profit": -6
+      },
+      {
+        "id": "ammo_light",
+        "creditCost": 5,
+        "salvageResale": 2,
+        "outputResale": 4,
+        "profit": -3
+      },
+      {
+        "id": "ammo_heavy",
+        "creditCost": 8,
+        "salvageResale": 6,
+        "outputResale": 1,
+        "profit": -13
+      },
+      {
+        "id": "ammo_shell",
+        "creditCost": 5,
+        "salvageResale": 4,
+        "outputResale": 1,
+        "profit": -8
+      },
+      {
+        "id": "armor",
+        "creditCost": 20,
+        "salvageResale": 10,
+        "outputResale": 20,
+        "profit": -10
+      },
+      {
+        "id": "scope",
+        "creditCost": 15,
+        "salvageResale": 8,
+        "outputResale": 19,
+        "profit": -4
+      },
+      {
+        "id": "suppressor",
+        "creditCost": 20,
+        "salvageResale": 10,
+        "outputResale": 24,
+        "profit": -6
+      },
+      {
+        "id": "magazine",
+        "creditCost": 15,
+        "salvageResale": 8,
+        "outputResale": 22,
+        "profit": -1
+      }
+    ],
+    "profitableLoops": [],
+    "scope": "Static buy/sell and craft/sell arbitrage at maximum discounts. Raid reward rates and player behavior require separate playtests."
+  },
+  "gameplayEvidence": "2026-10-30-gameplay-load.json: last run, utility-aware nine-client/180-second scenario; no physical-network/device claim"
+}

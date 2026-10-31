@@ -1,0 +1,172 @@
+{
+  "recordedAt": "2026-10-30T21:37:04.965389+00:00",
+  "scope": "Server ray/pellet ballistics and owned-optic aiming; full extraction feature and release acceptance remain open",
+  "release": {
+    "id": "87da7eb925bdf3f997628ee6e2fc3e7458ce18fc4712aa53204188017af37740",
+    "label": "extraction-ballistics",
+    "path": "/private/tmp/headshotz-extraction-ballistics-candidate",
+    "files": 196,
+    "bytes": 11536824,
+    "schema": 12,
+    "protocol": 9
+  },
+  "manifestVerified": true,
+  "sourceHashes": {
+    "server/raid-ballistics.mjs": "ecaab0ccc8c228673755d9a77f27d880e3ec3726020eca23272352446754884b",
+    "shared/raid-ballistics.mjs": "d975308b9a17cbc592f86e434505d87569e8aa3e1289fe4ded259e980ae51d8e",
+    "server/raids.mjs": "3f72f7748298fd12662072729590a2d342938c2d8216a14da8c0826bd492bc51",
+    "server/store.mjs": "1c32a85ea5730d48a7af90fdc8ffc9238687c3f3e9b5d7f05648ef9e1cd01f60",
+    "server/schema.mjs": "90ea5d36b9382de9844406fc6d6fab4a9e8378756825efa77f56673100038691",
+    "shared/raid-catalog.mjs": "1f6b99462f08ab7396baeb98e63da872113e2f663b29d8e4e297fe365621a1a3",
+    "shared/raid-protocol.mjs": "a563c87895c45402adedaddc6aa9651951a2c3ecf9412e38aaaabad319a28edf",
+    "shared/raid-settings.mjs": "371886774256aecf96503a76a385b2eb0c9a2ae0184c1b9197b2c894f048022a",
+    "raid-online.mjs": "6bee39a1404b4038e2773a3e54799dde96e5f0ffca670e808964fcbe57fcc00b",
+    "raid-online.html": "bea568878b5f6f1f86b5e7cb1384a1027643d1e5ebd498a286d2f01905c99335",
+    "raid-input.mjs": "781c99554061deac367b356ea4104bc417492674acd4327630047653220f0db8",
+    "raid-view.mjs": "5a91844784a3829817cba72965d28fd6db68438a4f39d34c31669b741b229969",
+    "sw.js": "46d2eb6aaabe15feddc52b2f646f3ed20f7169f98f02ebb6d18c3beba4206990",
+    "tests/raid-ballistics.test.mjs": "2b2ec9a44f8bad799684e585b3efbe29ace679d1601a98225fad4c00c64428c6",
+    "tests/raid-browser-ballistics.mjs": "4dab5b024d05b18fa84f7e88ac9c6d64cac55ca9364d3b958e8dafb8c40af8a0"
+  },
+  "automated": {
+    "command": "node --test tests/*.test.mjs",
+    "passed": 945,
+    "failed": 0,
+    "ballisticsTests": 16,
+    "logSha256": "18e57de006cf490b2c882f032f3522e9d201d8e78c7eafddb0b6a85b8ce9d2fb"
+  },
+  "browser": {
+    "ballistics": {
+      "legacyRemappingPreserved": true,
+      "ownedOpticMagnification": true,
+      "keyboardAim": true,
+      "centeredWeapon": true,
+      "cameraMatchesShotOrigin": true,
+      "modalClearsAim": true,
+      "mouseAim": true,
+      "aimDoesNotFire": true,
+      "shotgunPellets": true,
+      "oneShellConsumed": true,
+      "boundedDamage": true,
+      "touchAimToggle": true,
+      "mobileTargetSize": true,
+      "mobileOverflow": false,
+      "browserErrors": [],
+      "scope": "Isolated service with arranged player positions, empty cover and machines removed. Does not prove human combat balance or remote/device acceptance."
+    },
+    "trigger": {
+      "keyboardAutomatic": true,
+      "releaseStops": true,
+      "modalClearsTrigger": true,
+      "noResumeAfterModal": true,
+      "semiAutomatic": true,
+      "osRepeatIgnored": true,
+      "touchAutomatic": true,
+      "capturedMouseAutomatic": true,
+      "captureClickDoesNotFire": true,
+      "backgroundClearsTrigger": true,
+      "noSyntheticDoubleShot": true,
+      "authoritativeAmmo": true,
+      "reloadInterruptsTrigger": true,
+      "browserErrors": [],
+      "scope": "Local isolated service with machines removed; not human combat or WAN cadence acceptance."
+    },
+    "accessibility": {
+      "remapping": true,
+      "persistentSettings": true,
+      "nativeDialogFocus": true,
+      "keyboardAim": true,
+      "statusAnnouncement": true,
+      "itemInspection": true,
+      "keyboardSearchTakeSecure": true,
+      "touchBoarding": true,
+      "modalStopsMovement": true,
+      "backgroundStopsMovement": true,
+      "reducedMotionRender": true,
+      "touchTargets": true,
+      "mobileAim": true,
+      "mobileOverflow": false,
+      "browserErrors": []
+    },
+    "network": {
+      "immediateVisualMovement": true,
+      "authorityUnchangedBeforeDelivery": true,
+      "reconciled": true,
+      "lostShotResponseRetried": true,
+      "ammunitionConsumedOnce": true,
+      "sameDeploymentAfterReload": true,
+      "shortInputDeliveredWithoutPolling": true,
+      "releaseStopsWithoutPolling": true,
+      "browserErrors": []
+    },
+    "medical": {
+      "ownedArmorAndMedicine": true,
+      "exactInsuranceQuote": true,
+      "armorAbsorptionHud": true,
+      "bleedTreatment": true,
+      "traumaTreatsBoth": true,
+      "splintDoesNotHeal": true,
+      "medicalCooldownUi": true,
+      "armorRemoveReequip": true,
+      "conditionBanks": true,
+      "damageReport": true,
+      "browserErrors": [],
+      "scope": "Server damage/departure fixtures; not human combat or route balance acceptance."
+    }
+  },
+  "gameplay": {
+    "reference": "tests/evidence/2026-10-30-gameplay-load.json",
+    "source": "b6036e9a28146dde055c95ff878a124ba426ce95b7c1300199759ebd69993343",
+    "loadedServerSharedSourceMatchesCurrent": true,
+    "scenario": {
+      "players": 9,
+      "seconds": 300,
+      "latencyMs": 150,
+      "loss": 0.05,
+      "seed": 20261030,
+      "profile": "raid",
+      "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+    },
+    "actions": 14773,
+    "failedActions": 17,
+    "outcomes": {
+      "death": 8,
+      "extract": 6
+    },
+    "checks": {
+      "noProlongedAirborneStalls": true,
+      "observedEconomyConserved": true,
+      "gameplayLoopCovered": true,
+      "gameplayRejectionRateWithinBudget": true,
+      "allClientsCompleted": true,
+      "noSimulationErrors": true,
+      "actionFailureRateWithinBudget": true,
+      "tickP95Within50ms": true,
+      "tickIntervalP95Within75ms": true
+    },
+    "simulationErrors": 0,
+    "gameplayRejections": {},
+    "navigationStalls": 0,
+    "unreachable": 0,
+    "timingScope": "Development run on a workstation also running unit/browser verification; not isolated capacity or WAN performance."
+  },
+  "visualReview": {
+    "artifact": "/tmp/headshotz-ballistics-mobile.png",
+    "sha256": "36c1aeda400b311fba6fee09b855b202dea36811250d0bd37359b613e6f30cd5",
+    "scope": "390x844 isolated Chrome touch/aim fixture inspected; physical-device and human presentation acceptance remains open."
+  },
+  "compatibility": [
+    "Schema12/protocol9 reject incompatible code/clients before valuable state changes.",
+    "Schema11 checkpoint migration preserves profiles, items and active raids.",
+    "Legacy active raids retain single-hit rules and their camera height, with new admissions in separate ballistics-version1 raids.",
+    "Unknown ballistics versions reject restore before replacing live state.",
+    "Previous complete keymaps survive adding Aim; conflicts allocate unused keys."
+  ],
+  "limitations": [
+    "The active-raids source fingerprint does not cover a browser/device performance certification.",
+    "AI sight/utility cover use their existing rules; exact analytic clipping here describes player weapon bullets.",
+    "No new production provider, devices, human balance acceptance or full arsenal integration is established.",
+    "The manifest was verified and browser tests served checkout runtime through private isolated services; no packaged-browser claim is made.",
+    "Complete remaining requirements are retained in RELEASE_ACCEPTANCE.md and IMPLEMENTATION_CHECKLIST.md."
+  ]
+}

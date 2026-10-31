@@ -1,0 +1,2544 @@
+{
+  "format": 1,
+  "source": {
+    "sha256": "15b0b1df8ffc1abfa1958ad22f9d5d5c6d48e89b1378db9ef0ddad293920f364",
+    "files": [
+      {
+        "path": "raid-transport.mjs",
+        "sha256": "61818b888db59e8d463206710aee35fba03f5c00bab26732c2cb40d489cff0cc"
+      },
+      {
+        "path": "scripts/lib/isolated-raid-service.mjs",
+        "sha256": "fc5a0b2e95d066b188f00e0bdc20ed771d42aaf62f0c996a0cc9b960a9b3defc"
+      },
+      {
+        "path": "scripts/lib/raid-economy-observer.mjs",
+        "sha256": "a8e0307bfd5bc72a9e1e761fa6056a25b588e650157ab9f0925d0bd664a1cc34"
+      },
+      {
+        "path": "scripts/lib/raid-pilot.mjs",
+        "sha256": "ddad27d898f1bab16dcaa6e6a080963640cfca9cbb7bf7421469e60452672cb0"
+      },
+      {
+        "path": "scripts/raid-strategy-load.mjs",
+        "sha256": "9a93acbfd3ccd90940548f2e037d11b57d12eec73509d9699de90214f51f8b0b"
+      },
+      {
+        "path": "server/account-security.mjs",
+        "sha256": "d50e557d9a054aad2ba4003e0a9e3a71f768e6803f51b218445078b6a7a21062"
+      },
+      {
+        "path": "server/backup.mjs",
+        "sha256": "f4691c18103094d1fc5e737d6543b383d8b6fbbfffc5db31697d81655c13432d"
+      },
+      {
+        "path": "server/comms.mjs",
+        "sha256": "0d87897acb50e63ce57468268c73160fb3b9e2cfbe7b2ab39c98bb17cb65471a"
+      },
+      {
+        "path": "server/control.mjs",
+        "sha256": "10c84a343b15e1ee24c97d83421a2a9a880a3b1c992307048e6570df80270756"
+      },
+      {
+        "path": "server/credentials.mjs",
+        "sha256": "83ddf4df5d9fba94ea872ccd5d9a33885b3dca5ce9d3f54b8379adcdf5d8ad0f"
+      },
+      {
+        "path": "server/main.mjs",
+        "sha256": "c7b915f99dcdc39af96f9836fa0d40dbe886baac4cbb6c945e4e722f8800b3c7"
+      },
+      {
+        "path": "server/matchmaking.mjs",
+        "sha256": "25e49d3bb695c636b4363035d4b6ad078bac0ec57b26f35b1270df0a5b02d222"
+      },
+      {
+        "path": "server/operations.mjs",
+        "sha256": "1b541eb876d6f44193542a299db2a072b364ac5dca2fd04795beeabd4bc39d7a"
+      },
+      {
+        "path": "server/raid-ai.mjs",
+        "sha256": "f11ceaff0c18751c2e19c32c85ea57a185f52a1348e0f93a8c534625d7129e5f"
+      },
+      {
+        "path": "server/raid-ballistics.mjs",
+        "sha256": "ecaab0ccc8c228673755d9a77f27d880e3ec3726020eca23272352446754884b"
+      },
+      {
+        "path": "server/raid-cover.mjs",
+        "sha256": "07d3f75c97a2d23cc345846a75f2e2e3c74a992846e012a778f24be104f5f5a7"
+      },
+      {
+        "path": "server/raid-inventory.mjs",
+        "sha256": "d15f7a61d1b161c83d94c1135888f3827e023af696f4fa71cf32f7abadefa684"
+      },
+      {
+        "path": "server/raid-loot.mjs",
+        "sha256": "3413f0b9971704d6aa2208d7c8a028878bbb115f17b5d311c4d2012a44e9a593"
+      },
+      {
+        "path": "server/raid-medical.mjs",
+        "sha256": "ac9bf9fe342431cac89cd03898b948a268c176056dc8ed5ef47ea2e3c9facb49"
+      },
+      {
+        "path": "server/raid-utilities.mjs",
+        "sha256": "e2f541e2c81f8b99b795444ec7d6fd0e5109a2fe84d366a510b90fcc77dd289e"
+      },
+      {
+        "path": "server/raids.mjs",
+        "sha256": "eb849cd4243ec19eabda6c5994323c8c034a1299516002b5c3c45517f5fcee0b"
+      },
+      {
+        "path": "server/rate-limit.mjs",
+        "sha256": "9e0c1646f97dd71ee4c8c7b8348c2113cdbf5ce27c96464a97e2ff94885875e8"
+      },
+      {
+        "path": "server/rules.mjs",
+        "sha256": "5c13f331e8340847c4cc39cd9c803260edd08a5922594b06ecfc7edae1fe50ca"
+      },
+      {
+        "path": "server/schema.mjs",
+        "sha256": "90ea5d36b9382de9844406fc6d6fab4a9e8378756825efa77f56673100038691"
+      },
+      {
+        "path": "server/store.mjs",
+        "sha256": "5a293b6514d95e3be248d7d4e60194b6939d0fae58586a5026a667d2994f8704"
+      },
+      {
+        "path": "shared/raid-ballistics.mjs",
+        "sha256": "d975308b9a17cbc592f86e434505d87569e8aa3e1289fe4ded259e980ae51d8e"
+      },
+      {
+        "path": "shared/raid-catalog.mjs",
+        "sha256": "09cbfc6a9736e77a647e5d384bab67a3033717b78374bd2f7da09c0b8e153c3b"
+      },
+      {
+        "path": "shared/raid-combat.mjs",
+        "sha256": "f4c3873f2fb28a69566cd5c3c34d773a81694285e1db573c1f91cb49f21941a9"
+      },
+      {
+        "path": "shared/raid-comms.mjs",
+        "sha256": "42936ec99bbb695f7853a0339c3ecee9a49ead9176d660b47293526dfe63833c"
+      },
+      {
+        "path": "shared/raid-conditions.mjs",
+        "sha256": "673f04980a0fbda69c1ffd6805a356743ad432cf485b8e6f1191400e998125af"
+      },
+      {
+        "path": "shared/raid-enemies.mjs",
+        "sha256": "fe0da374d7e030ec9d5891c9994b580fa6603e0ae72c4241e04454a4262cd918"
+      },
+      {
+        "path": "shared/raid-exits.mjs",
+        "sha256": "e01155d431c1483de68d1392455744cf061a2d1b19aa6cc9a0631d6cf5d77a29"
+      },
+      {
+        "path": "shared/raid-grants.mjs",
+        "sha256": "d5c2117c2a28ea6ff2319cf472ef901714af0892a03041a890921eb824983268"
+      },
+      {
+        "path": "shared/raid-inventory.mjs",
+        "sha256": "46f1bb2d5b1f45147365215bd588cdb8e49791fc51e4395c1c0acbbf718c0a49"
+      },
+      {
+        "path": "shared/raid-loadout.mjs",
+        "sha256": "7ae3ec9dea998f9756bade82bc5a8c67280f25617081bbc2ac752fedc8aa12d7"
+      },
+      {
+        "path": "shared/raid-matchmaking.mjs",
+        "sha256": "899e7a66c82c2d4fdfb29320f5428aecc76b5faa69d1385790b418a94b54a913"
+      },
+      {
+        "path": "shared/raid-motion.mjs",
+        "sha256": "60a9d2ce3f94d21f35a5e09d3df19c288ddd3b6992d1b6e376039f04fdd687bd"
+      },
+      {
+        "path": "shared/raid-navigation.mjs",
+        "sha256": "4e7b1116d54afda173080c463199753abe18be34c5e9e4c730acfe70d2e678c5"
+      },
+      {
+        "path": "shared/raid-progression.mjs",
+        "sha256": "38dca84f2be99fcabbc026b03f3f40e042303066c75462c66b4e15914ba8e98a"
+      },
+      {
+        "path": "shared/raid-protocol.mjs",
+        "sha256": "a563c87895c45402adedaddc6aa9651951a2c3ecf9412e38aaaabad319a28edf"
+      },
+      {
+        "path": "shared/raid-report.mjs",
+        "sha256": "dcce2c9e9f558f7a1a3f2d3b019b4a88d5db9f4498ebce56c39d4f1c63dc3145"
+      },
+      {
+        "path": "shared/raid-sectors.mjs",
+        "sha256": "75ff316d38d9bf8c8ad76ba653b2ec76114da2a95e5173c53a7f814f119ae530"
+      },
+      {
+        "path": "shared/raid-settings.mjs",
+        "sha256": "371886774256aecf96503a76a385b2eb0c9a2ae0184c1b9197b2c894f048022a"
+      },
+      {
+        "path": "shared/raid-utilities.mjs",
+        "sha256": "082854cc8899cb4c582aa2be9ecd48f319fa8465ded03299fbd349e9a0437c9d"
+      },
+      {
+        "path": "shared/raid-worlds.mjs",
+        "sha256": "d07da399c76e49d22a7e7f10cafe43643fa8e94bbd815b90a1557cca228fec58"
+      }
+    ]
+  },
+  "requestedSeconds": 900,
+  "elapsedSeconds": 945.2224042089999,
+  "drainSeconds": 45.22240420899993,
+  "players": [
+    {
+      "index": 0,
+      "map": "relay",
+      "strategy": "protected_disconnect",
+      "actions": 1873,
+      "deployments": 14,
+      "secureReached": 14,
+      "voluntaryDisconnects": 14,
+      "attempts": [
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 64.85800004005432,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 19.811770375000002
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 65.71300005912781,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 20.667316874999997
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 64.81000018119812,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 19.77408720800001
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.7720000743866,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 21.718889208000007
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 64.80299997329712,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 19.76992733400001
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 68.10099983215332,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 23.084105792000017
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 68.71599984169006,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 15.848538000000001
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 65.86899995803833,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 20.830598
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.49500012397766,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 21.43730462499999
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 65.3840000629425,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 20.35469762500003
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 60.8270001411438,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 15.686453541000024
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.33899998664856,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 21.285248499999987
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.75600004196167,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 21.700043041000026
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 65.74399995803833,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 20.68613129099994
+        }
+      ],
+      "acceptedBytes": 10843107,
+      "rejections": {},
+      "failures": [],
+      "navigation": [
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 33.68937500000004,
+          "maxPathMs": 33.68937500000004,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 2.3774990000019898,
+          "maxPathMs": 1.7678329999980633,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.3731669999979204,
+          "maxPathMs": 1.3731669999979204,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.5200000000186265,
+          "maxPathMs": 1.5200000000186265,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.4928749999962747,
+          "maxPathMs": 1.4928749999962747,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.943582999985665,
+          "maxPathMs": 1.4827919999952428,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 0.6982089999946766,
+          "maxPathMs": 0.6982089999946766,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.3446660000481643,
+          "maxPathMs": 1.3446660000481643,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.3063749999855645,
+          "maxPathMs": 1.3063749999855645,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 2.1081660001073033,
+          "maxPathMs": 1.5853750000242144,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.460374999907799,
+          "maxPathMs": 1.460374999907799,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.7458750000223517,
+          "maxPathMs": 1.7458750000223517,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 3,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 2.5759989998769015,
+          "maxPathMs": 1.5281660000327975,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 2.2694159999955446,
+          "maxPathMs": 1.8321659999201074,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        }
+      ],
+      "activeAtEnd": false,
+      "earnedCreditsDelta": 171,
+      "starterCreditsDelta": 0,
+      "xpDelta": 112,
+      "earnedCreditsPerHour": 651.2752948499552
+    },
+    {
+      "index": 1,
+      "map": "reservoir",
+      "strategy": "protected_disconnect",
+      "actions": 2175,
+      "deployments": 13,
+      "secureReached": 13,
+      "voluntaryDisconnects": 13,
+      "attempts": [
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 71.0239999294281,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 26.008421124999998
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 70.8140001296997,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 25.802475166000004
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 70.21900010108948,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 25.202812167000026
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 70.99899983406067,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 25.94825745799998
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 70.06199979782104,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 25.039018125000002
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 72.14299988746643,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 27.13601749999996
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 69.4850001335144,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 24.442125709000045
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 69.62899994850159,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 24.581089249999962
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 69.79200005531311,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 24.738362875000107
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 69.30800008773804,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 24.284923875000096
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 70.08200001716614,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 25.052852833999903
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 70.40199995040894,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 25.348268584000063
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 69.6010000705719,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 24.576158667000012
+        }
+      ],
+      "acceptedBytes": 12097919,
+      "rejections": {},
+      "failures": [],
+      "navigation": [
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 18.752875000002007,
+          "maxPathMs": 18.360040999999967,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.4581249999901047,
+          "maxPathMs": 1.4581249999901047,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.400666999979876,
+          "maxPathMs": 1.400666999979876,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.841459000017494,
+          "maxPathMs": 1.5222090000170283,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.6048749999608845,
+          "maxPathMs": 1.6048749999608845,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.324332999996841,
+          "maxPathMs": 1.324332999996841,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.7026659999974072,
+          "maxPathMs": 1.387791000015568,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.3096669999649748,
+          "maxPathMs": 1.3096669999649748,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.928749999962747,
+          "maxPathMs": 1.928749999962747,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.8576659999089316,
+          "maxPathMs": 1.4694579999195412,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.3432920000050217,
+          "maxPathMs": 1.3432920000050217,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.5084579999092966,
+          "maxPathMs": 1.5084579999092966,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.9330420000478625,
+          "maxPathMs": 1.9330420000478625,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        }
+      ],
+      "activeAtEnd": false,
+      "earnedCreditsDelta": 65,
+      "starterCreditsDelta": 0,
+      "xpDelta": 104,
+      "earnedCreditsPerHour": 247.56078459208825
+    },
+    {
+      "index": 2,
+      "map": "switchyard",
+      "strategy": "protected_disconnect",
+      "actions": 2037,
+      "deployments": 14,
+      "secureReached": 14,
+      "voluntaryDisconnects": 14,
+      "attempts": [
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 68.94000005722046,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 23.877289666999996
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.73499989509583,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 21.698663166
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.46199989318848,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 21.432751584000012
+        },
+        {
+          "outcome": "death",
+          "durationSeconds": 39.092000007629395,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 11,
+          "securedBeforeQuit": true,
+          "secureSeconds": 22.189527499999997
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 67.51799988746643,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 22.464817374999985
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 68.53499984741211,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 23.51848333299998
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 67.19400000572205,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 22.17607604200003
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 67.71900010108948,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 22.634590749999973
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.46600008010864,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 21.413470333000006
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.47300004959106,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 21.422154125000002
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 67.84500002861023,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 22.798060666000005
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 68.4300000667572,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 23.37010800000001
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 66.71300005912781,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 11,
+          "securedBeforeQuit": true,
+          "secureSeconds": 16.00131725000008
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 67.38499999046326,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 8,
+          "securedBeforeQuit": true,
+          "secureSeconds": 22.32722450000001
+        }
+      ],
+      "acceptedBytes": 11549103,
+      "rejections": {},
+      "failures": [],
+      "navigation": [
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 20.652376000000572,
+          "maxPathMs": 19.956084000000033,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.5432499999878928,
+          "maxPathMs": 1.5432499999878928,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.1802500000048894,
+          "maxPathMs": 1.1802500000048894,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 4,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 5.005498999991687,
+          "maxPathMs": 3.6457919999957085,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.2753329999977723,
+          "maxPathMs": 1.2753329999977723,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.7136249999748543,
+          "maxPathMs": 1.243917000014335,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.2829580000252463,
+          "maxPathMs": 0.9333329999935813,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.116582999995444,
+          "maxPathMs": 1.116582999995444,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.1702079999959096,
+          "maxPathMs": 1.1702079999959096,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.4094579999800771,
+          "maxPathMs": 1.4094579999800771,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.2897910000756383,
+          "maxPathMs": 1.2897910000756383,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 1.5662500000325963,
+          "maxPathMs": 1.5662500000325963,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 1,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 0.5947910000104457,
+          "maxPathMs": 0.5947910000104457,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 2.055458000046201,
+          "maxPathMs": 1.6322919999947771,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        }
+      ],
+      "activeAtEnd": false,
+      "earnedCreditsDelta": 167,
+      "starterCreditsDelta": 0,
+      "xpDelta": 118,
+      "earnedCreditsPerHour": 636.0407850289037
+    },
+    {
+      "index": 3,
+      "map": "relay",
+      "strategy": "extract",
+      "actions": 5958,
+      "deployments": 10,
+      "secureReached": 10,
+      "voluntaryDisconnects": 0,
+      "attempts": [
+        {
+          "outcome": "extract",
+          "durationSeconds": 92.96800017356873,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.842917083
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 125.49399995803833,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 14.935091125000007
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 160.67700004577637,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 15.678425959000014
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 125.2039999961853,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 15.364886375000001
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 76.59699988365173,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 20.363555249999976
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 103.99000000953674,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.29682266600005
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 131.97300004959106,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 15.379844500000006
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 78.11600017547607,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 20.80856495800009
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 116.5939998626709,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.14263533399999
+        },
+        {
+          "outcome": "death",
+          "durationSeconds": 155.7279999256134,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 18,
+          "securedBeforeQuit": false,
+          "secureSeconds": 19.12840770900005
+        }
+      ],
+      "acceptedBytes": 35291884,
+      "rejections": {
+        "terminal_race": 9
+      },
+      "failures": [],
+      "navigation": [
+        {
+          "paths": 4,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 30.564040999997587,
+          "maxPathMs": 17.714874999997846,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 5,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 14.269083000006503,
+          "maxPathMs": 5.720375000004424,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 4,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 5.08920900002704,
+          "maxPathMs": 1.845459000003757,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 11,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 13.923666000191588,
+          "maxPathMs": 3.755291000008583,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 3,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 10.991290999925695,
+          "maxPathMs": 9.12799999996787,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 6,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 7.779416999954265,
+          "maxPathMs": 1.695958000025712,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 3,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 4.682041000109166,
+          "maxPathMs": 2.2998330000555143,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 4,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 3.6900830001104623,
+          "maxPathMs": 1.4837090000510216,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 6,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 10.31608299992513,
+          "maxPathMs": 3.029416999896057,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 9,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 14.504667999804951,
+          "maxPathMs": 3.6396249999525025,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        }
+      ],
+      "activeAtEnd": false,
+      "earnedCreditsDelta": 613,
+      "starterCreditsDelta": 0,
+      "xpDelta": 375,
+      "earnedCreditsPerHour": 2334.6886300761553
+    },
+    {
+      "index": 4,
+      "map": "reservoir",
+      "strategy": "extract",
+      "actions": 5959,
+      "deployments": 9,
+      "secureReached": 9,
+      "voluntaryDisconnects": 0,
+      "attempts": [
+        {
+          "outcome": "extract",
+          "durationSeconds": 102.6029999256134,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.212172583
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 142.10700011253357,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 51,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.744503041000005
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 123.10199999809265,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 44,
+          "securedBeforeQuit": false,
+          "secureSeconds": 36.362820708000015
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 151.7389998435974,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.894305541999987
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 105.85300016403198,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 14.90813158300001
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 154.2759997844696,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 46,
+          "securedBeforeQuit": false,
+          "secureSeconds": 17.486047250000063
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 115.16800022125244,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 44,
+          "securedBeforeQuit": false,
+          "secureSeconds": 20.79858383300004
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 146.15399980545044,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 19.284671291999985
+        },
+        {
+          "outcome": "disconnect",
+          "durationSeconds": 99.8439998626709,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 21,
+          "securedBeforeQuit": false,
+          "secureSeconds": 15.834017832999933
+        }
+      ],
+      "acceptedBytes": 35952409,
+      "rejections": {
+        "terminal_race": 8
+      },
+      "failures": [],
+      "navigation": [
+        {
+          "paths": 6,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 52.16616699999952,
+          "maxPathMs": 24.514250000000175,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 13,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 21.847795000023325,
+          "maxPathMs": 5.698125000024447,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 9,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 18.07558100001188,
+          "maxPathMs": 4.495916000014404,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 6,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 10.021874999976717,
+          "maxPathMs": 2.6875,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 7,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 13.59983300010208,
+          "maxPathMs": 5.49329100002069,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 9,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 12.41724899993278,
+          "maxPathMs": 2.5738330000313,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 8,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 8.579375000088476,
+          "maxPathMs": 1.9800830000313,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 6,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 10.091624999884516,
+          "maxPathMs": 3.491249999962747,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 3,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 5.503499999991618,
+          "maxPathMs": 3.549624999985099,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        }
+      ],
+      "activeAtEnd": false,
+      "earnedCreditsDelta": 530,
+      "starterCreditsDelta": 0,
+      "xpDelta": 367,
+      "earnedCreditsPerHour": 2018.572551289335
+    },
+    {
+      "index": 5,
+      "map": "switchyard",
+      "strategy": "extract",
+      "actions": 5958,
+      "deployments": 10,
+      "secureReached": 10,
+      "voluntaryDisconnects": 0,
+      "attempts": [
+        {
+          "outcome": "extract",
+          "durationSeconds": 107.5680000782013,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 17.890516082999998
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 129.8659999370575,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 15.837070082999999
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 80.6819999217987,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 24.279579625000014
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 136.4800000190735,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 46,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.294479959000018
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 107.21200013160706,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 21.120036334000005
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 140.42499995231628,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 41,
+          "securedBeforeQuit": false,
+          "secureSeconds": 15.82203129199997
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 104.35699987411499,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 44,
+          "securedBeforeQuit": false,
+          "secureSeconds": 15.830568709000014
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 130.63699984550476,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.27348883300007
+        },
+        {
+          "outcome": "extract",
+          "durationSeconds": 79.12400007247925,
+          "returnedStacks": 1,
+          "credits": 20,
+          "xp": 38,
+          "securedBeforeQuit": false,
+          "secureSeconds": 22.59965083399997
+        },
+        {
+          "outcome": "death",
+          "durationSeconds": 69.0789999961853,
+          "returnedStacks": 1,
+          "credits": 0,
+          "xp": 26,
+          "securedBeforeQuit": false,
+          "secureSeconds": 16.582427832999965
+        }
+      ],
+      "acceptedBytes": 34778648,
+      "rejections": {
+        "terminal_race": 9
+      },
+      "failures": [],
+      "navigation": [
+        {
+          "paths": 10,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 44.41879199999073,
+          "maxPathMs": 23.493875000000116,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 3.867083000004641,
+          "maxPathMs": 2.909875000012107,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 4,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 10.318625999992946,
+          "maxPathMs": 8.261791999975685,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 4,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 4.758749999979045,
+          "maxPathMs": 1.8592080000089481,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 11,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 20.616540999908466,
+          "maxPathMs": 7.4524169999640435,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 8,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 10.066249999916181,
+          "maxPathMs": 1.8123330000089481,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 6,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 13.11020799994003,
+          "maxPathMs": 3.971125000040047,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 2,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 2.5470410000998527,
+          "maxPathMs": 1.8168330000480637,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 3,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 3.0361669999547303,
+          "maxPathMs": 1.324625000008382,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        },
+        {
+          "paths": 7,
+          "replans": 0,
+          "offRouteReplans": 0,
+          "pathMs": 10.777542000170797,
+          "maxPathMs": 2.927917000022717,
+          "stalls": 0,
+          "unreachable": 0,
+          "unreachableSamples": [],
+          "airborneDeferrals": 0,
+          "airborneStalls": 0
+        }
+      ],
+      "activeAtEnd": false,
+      "earnedCreditsDelta": 532,
+      "starterCreditsDelta": 0,
+      "xpDelta": 391,
+      "earnedCreditsPerHour": 2026.1898061998606
+    }
+  ],
+  "economy": {
+    "scope": "Client-observed wallet deltas and stash sale quotes from authenticated APIs. Final balances may include active raids; stash quotes exclude deployed/overflow equipment, attachments and future insurance. Returned bring-in items are not counted as newly recovered loot. Phase attribution is observational, not the server audit ledger. Conservation checks validate observer arithmetic, not fraud resistance.",
+    "initial": {
+      "credits": 1500,
+      "starterCredits": 1500,
+      "earnedCredits": 0,
+      "xp": 0,
+      "stashSlots": 24,
+      "overflowSlots": 0,
+      "starterStashResale": 366,
+      "ordinaryStashResale": 0
+    },
+    "final": {
+      "credits": 3578,
+      "starterCredits": 1500,
+      "earnedCredits": 2078,
+      "xp": 1467,
+      "stashSlots": 24,
+      "overflowSlots": 0,
+      "starterStashResale": 366,
+      "ordinaryStashResale": 0
+    },
+    "flows": {
+      "deployment": {
+        "observations": 70,
+        "credits": 0,
+        "starterCredits": 0,
+        "earnedCredits": 0,
+        "xp": 0,
+        "income": 0,
+        "spending": 0
+      },
+      "settlement": {
+        "observations": 70,
+        "credits": 520,
+        "starterCredits": 0,
+        "earnedCredits": 520,
+        "xp": 1467,
+        "income": 520,
+        "spending": 0
+      },
+      "recovered_loot_sale": {
+        "observations": 70,
+        "credits": 1558,
+        "starterCredits": 0,
+        "earnedCredits": 1558,
+        "xp": 0,
+        "income": 1558,
+        "spending": 0
+      },
+      "preparation": {
+        "observations": 64,
+        "credits": 0,
+        "starterCredits": 0,
+        "earnedCredits": 0,
+        "xp": 0,
+        "income": 0,
+        "spending": 0
+      },
+      "final": {
+        "observations": 6,
+        "credits": 0,
+        "starterCredits": 0,
+        "earnedCredits": 0,
+        "xp": 0,
+        "income": 0,
+        "spending": 0
+      }
+    },
+    "activeAtEnd": 0,
+    "totals": {
+      "paidDeployments": 0,
+      "recoveryDeployments": 70,
+      "settled": 70,
+      "extractions": 26,
+      "emptyExtractions": 0,
+      "broughtBackStacks": 0,
+      "recoveredStacks": 70,
+      "unclassifiedReturnedStacks": 0,
+      "quotedRecoveredResale": 1558,
+      "unquotedRecoveredStacks": 0
+    },
+    "players": [
+      {
+        "index": 0,
+        "initial": {
+          "credits": 250,
+          "starterCredits": 250,
+          "earnedCredits": 0,
+          "xp": 0,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "final": {
+          "credits": 421,
+          "starterCredits": 250,
+          "earnedCredits": 171,
+          "xp": 112,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "flows": {
+          "deployment": {
+            "observations": 14,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "settlement": {
+            "observations": 14,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 112,
+            "income": 0,
+            "spending": 0
+          },
+          "recovered_loot_sale": {
+            "observations": 14,
+            "credits": 171,
+            "starterCredits": 0,
+            "earnedCredits": 171,
+            "xp": 0,
+            "income": 171,
+            "spending": 0
+          },
+          "preparation": {
+            "observations": 13,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "final": {
+            "observations": 1,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          }
+        },
+        "paidDeployments": 0,
+        "recoveryDeployments": 14,
+        "settled": 14,
+        "extractions": 0,
+        "emptyExtractions": 0,
+        "broughtBackStacks": 0,
+        "recoveredStacks": 14,
+        "unclassifiedReturnedStacks": 0,
+        "quotedRecoveredResale": 171,
+        "unquotedRecoveredStacks": 0,
+        "checks": {
+          "observedBalanceConserved": true,
+          "starterBalanceConserved": true,
+          "earnedBalanceConserved": true
+        }
+      },
+      {
+        "index": 1,
+        "initial": {
+          "credits": 250,
+          "starterCredits": 250,
+          "earnedCredits": 0,
+          "xp": 0,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "final": {
+          "credits": 315,
+          "starterCredits": 250,
+          "earnedCredits": 65,
+          "xp": 104,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "flows": {
+          "deployment": {
+            "observations": 13,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "settlement": {
+            "observations": 13,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 104,
+            "income": 0,
+            "spending": 0
+          },
+          "recovered_loot_sale": {
+            "observations": 13,
+            "credits": 65,
+            "starterCredits": 0,
+            "earnedCredits": 65,
+            "xp": 0,
+            "income": 65,
+            "spending": 0
+          },
+          "preparation": {
+            "observations": 12,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "final": {
+            "observations": 1,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          }
+        },
+        "paidDeployments": 0,
+        "recoveryDeployments": 13,
+        "settled": 13,
+        "extractions": 0,
+        "emptyExtractions": 0,
+        "broughtBackStacks": 0,
+        "recoveredStacks": 13,
+        "unclassifiedReturnedStacks": 0,
+        "quotedRecoveredResale": 65,
+        "unquotedRecoveredStacks": 0,
+        "checks": {
+          "observedBalanceConserved": true,
+          "starterBalanceConserved": true,
+          "earnedBalanceConserved": true
+        }
+      },
+      {
+        "index": 2,
+        "initial": {
+          "credits": 250,
+          "starterCredits": 250,
+          "earnedCredits": 0,
+          "xp": 0,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "final": {
+          "credits": 417,
+          "starterCredits": 250,
+          "earnedCredits": 167,
+          "xp": 118,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "flows": {
+          "deployment": {
+            "observations": 14,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "settlement": {
+            "observations": 14,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 118,
+            "income": 0,
+            "spending": 0
+          },
+          "recovered_loot_sale": {
+            "observations": 14,
+            "credits": 167,
+            "starterCredits": 0,
+            "earnedCredits": 167,
+            "xp": 0,
+            "income": 167,
+            "spending": 0
+          },
+          "preparation": {
+            "observations": 13,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "final": {
+            "observations": 1,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          }
+        },
+        "paidDeployments": 0,
+        "recoveryDeployments": 14,
+        "settled": 14,
+        "extractions": 0,
+        "emptyExtractions": 0,
+        "broughtBackStacks": 0,
+        "recoveredStacks": 14,
+        "unclassifiedReturnedStacks": 0,
+        "quotedRecoveredResale": 167,
+        "unquotedRecoveredStacks": 0,
+        "checks": {
+          "observedBalanceConserved": true,
+          "starterBalanceConserved": true,
+          "earnedBalanceConserved": true
+        }
+      },
+      {
+        "index": 3,
+        "initial": {
+          "credits": 250,
+          "starterCredits": 250,
+          "earnedCredits": 0,
+          "xp": 0,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "final": {
+          "credits": 863,
+          "starterCredits": 250,
+          "earnedCredits": 613,
+          "xp": 375,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "flows": {
+          "deployment": {
+            "observations": 10,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "settlement": {
+            "observations": 10,
+            "credits": 180,
+            "starterCredits": 0,
+            "earnedCredits": 180,
+            "xp": 375,
+            "income": 180,
+            "spending": 0
+          },
+          "recovered_loot_sale": {
+            "observations": 10,
+            "credits": 433,
+            "starterCredits": 0,
+            "earnedCredits": 433,
+            "xp": 0,
+            "income": 433,
+            "spending": 0
+          },
+          "preparation": {
+            "observations": 9,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "final": {
+            "observations": 1,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          }
+        },
+        "paidDeployments": 0,
+        "recoveryDeployments": 10,
+        "settled": 10,
+        "extractions": 9,
+        "emptyExtractions": 0,
+        "broughtBackStacks": 0,
+        "recoveredStacks": 10,
+        "unclassifiedReturnedStacks": 0,
+        "quotedRecoveredResale": 433,
+        "unquotedRecoveredStacks": 0,
+        "checks": {
+          "observedBalanceConserved": true,
+          "starterBalanceConserved": true,
+          "earnedBalanceConserved": true
+        }
+      },
+      {
+        "index": 4,
+        "initial": {
+          "credits": 250,
+          "starterCredits": 250,
+          "earnedCredits": 0,
+          "xp": 0,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "final": {
+          "credits": 780,
+          "starterCredits": 250,
+          "earnedCredits": 530,
+          "xp": 367,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "flows": {
+          "deployment": {
+            "observations": 9,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "settlement": {
+            "observations": 9,
+            "credits": 160,
+            "starterCredits": 0,
+            "earnedCredits": 160,
+            "xp": 367,
+            "income": 160,
+            "spending": 0
+          },
+          "recovered_loot_sale": {
+            "observations": 9,
+            "credits": 370,
+            "starterCredits": 0,
+            "earnedCredits": 370,
+            "xp": 0,
+            "income": 370,
+            "spending": 0
+          },
+          "preparation": {
+            "observations": 8,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "final": {
+            "observations": 1,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          }
+        },
+        "paidDeployments": 0,
+        "recoveryDeployments": 9,
+        "settled": 9,
+        "extractions": 8,
+        "emptyExtractions": 0,
+        "broughtBackStacks": 0,
+        "recoveredStacks": 9,
+        "unclassifiedReturnedStacks": 0,
+        "quotedRecoveredResale": 370,
+        "unquotedRecoveredStacks": 0,
+        "checks": {
+          "observedBalanceConserved": true,
+          "starterBalanceConserved": true,
+          "earnedBalanceConserved": true
+        }
+      },
+      {
+        "index": 5,
+        "initial": {
+          "credits": 250,
+          "starterCredits": 250,
+          "earnedCredits": 0,
+          "xp": 0,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "final": {
+          "credits": 782,
+          "starterCredits": 250,
+          "earnedCredits": 532,
+          "xp": 391,
+          "stashSlots": 4,
+          "overflowSlots": 0,
+          "active": false,
+          "starterStashResale": 61,
+          "ordinaryStashResale": 0,
+          "upgrades": {
+            "stash": 0,
+            "bay": 0,
+            "bench": 0
+          },
+          "reputation": {
+            "outfitter": 0,
+            "medic": 0,
+            "engineer": 0
+          },
+          "completedContracts": 0
+        },
+        "flows": {
+          "deployment": {
+            "observations": 10,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "settlement": {
+            "observations": 10,
+            "credits": 180,
+            "starterCredits": 0,
+            "earnedCredits": 180,
+            "xp": 391,
+            "income": 180,
+            "spending": 0
+          },
+          "recovered_loot_sale": {
+            "observations": 10,
+            "credits": 352,
+            "starterCredits": 0,
+            "earnedCredits": 352,
+            "xp": 0,
+            "income": 352,
+            "spending": 0
+          },
+          "preparation": {
+            "observations": 9,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          },
+          "final": {
+            "observations": 1,
+            "credits": 0,
+            "starterCredits": 0,
+            "earnedCredits": 0,
+            "xp": 0,
+            "income": 0,
+            "spending": 0
+          }
+        },
+        "paidDeployments": 0,
+        "recoveryDeployments": 10,
+        "settled": 10,
+        "extractions": 9,
+        "emptyExtractions": 0,
+        "broughtBackStacks": 0,
+        "recoveredStacks": 10,
+        "unclassifiedReturnedStacks": 0,
+        "quotedRecoveredResale": 352,
+        "unquotedRecoveredStacks": 0,
+        "checks": {
+          "observedBalanceConserved": true,
+          "starterBalanceConserved": true,
+          "earnedBalanceConserved": true
+        }
+      }
+    ],
+    "checks": {
+      "allObservedBalancesConserved": true
+    }
+  },
+  "checks": {
+    "noUnexpectedFailures": true,
+    "allBodiesSettled": true,
+    "starterAllowanceUnspent": true,
+    "observedConservation": true
+  },
+  "scope": "Six synthetic persistent accounts: one per map/strategy. Normal public geometry, authenticated API actions, AI/PvP, loot/search/protection, 45-second disconnect exposure and real settlement/trading; no granted loot, movement, damage or outcomes. Recovery kits for both strategies. Loot is sold while original starter items remain untouched. No contracts, insurance, paid equipment or network impairment. Different unseeded raids/spawns and small cohort prevent human balance or universal strategy-dominance conclusions. Final drain time is included in hourly rates."
+}

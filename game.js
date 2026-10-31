@@ -16,8 +16,8 @@ const PCL_IDS=Object.keys(PCL);const clOf=k=>PCL[k]?k:'soldier';
 const $=id=>document.getElementById(id);
 const GAME='HeadShotz';
 const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
-const MODES={duel:['1v1 Duel','⚔️'],team:['2v2 Teams','👥'],t3:['3v3 Teams','🛡️'],t4:['4v4 Teams','🚩'],t5:['5v5 Teams','🏰'],ffa:['Free-For-All','💥'],ctf:['Capture the Flag','🏁'],ext:['Extraction','🚁'],br:['Battle Royale','🪂'],brs:['Squad Royale','🪂']};
-const MODEMAX={duel:2,team:4,t3:6,t4:8,t5:10,ffa:10,ctf:8,ext:4,br:24,brs:24},MAXP=10;const isTeamMode=m=>m!=='ffa'&&m!=='duel'&&m!=='br';
+const MODES={duel:['1v1 Duel','⚔️'],team:['2v2 Teams','👥'],t3:['3v3 Teams','🛡️'],t4:['4v4 Teams','🚩'],t5:['5v5 Teams','🏰'],ffa:['Free-For-All','💥'],ctf:['Capture the Flag','🏁'],ext:['Extraction','🚁'],raid:['Extraction Raid','🏴'],br:['Battle Royale','🪂'],brs:['Squad Royale','🪂']};
+const MODEMAX={duel:2,team:4,t3:6,t4:8,t5:10,ffa:10,ctf:8,ext:4,raid:9,br:24,brs:24},MAXP=10;const isTeamMode=m=>m!=='ffa'&&m!=='duel'&&m!=='br';
 // down-and-revive (team modes): bleed-out 20 s, downed HP pool 50, revive = stand within 1.5 m for 5 s (progress resets if the reviver leaves), revived with 30 HP
 const DOWN={bleed:20,hp:50,r:1.5,revive:5,revHp:30};
 const DIFF={easy:{hit:.22,react:.9,turn:3.5,head:.06},normal:{hit:.33,react:.72,turn:5,head:.11},hard:{hit:.58,react:.35,turn:9,head:.24}};
@@ -30,7 +30,8 @@ const hex=c=>'#'+new THREE.Color(c).getHexString();
 const PROF=(()=>{let p=new URLSearchParams(location.search).get('prof');try{if(p!=null)sessionStorage.setItem('hsz_prof',p);else p=sessionStorage.getItem('hsz_prof')}catch(e){}return(p||'').replace(/[^a-z0-9]/gi,'').slice(0,8)})();const LSP='hsz'+PROF+'_';
 const LS=k=>{try{return localStorage.getItem(LSP+k)}catch(e){return null}},LSS=(k,v)=>{try{localStorage.setItem(LSP+k,v)}catch(e){}};
 // ---------------- settings ----------------
-const S=Object.assign({sens:1,zsens:1,aimAssist:true,quality:'auto',vol:.85,sfx:1},JSON.parse(LS('settings')||'{}'));{const qq=new URLSearchParams(location.search).get('q');if(['low','medium','high'].includes(qq))S.quality=qq}
+const S=Object.assign({sens:1,zsens:1,aimAssist:true,quality:'auto',vol:.85,sfx:1,voice:true,reduceMotion:false},JSON.parse(LS('settings')||'{}'));{const qq=new URLSearchParams(location.search).get('q');if(['low','medium','high'].includes(qq))S.quality=qq}
+try{if(S.reduceMotion)document.body.classList.add('rm')}catch(e){}
 function saveS(){LSS('settings',JSON.stringify(S))}
 // ---------------- renderer ----------------
 const canvas=$('c');
@@ -533,7 +534,7 @@ const BOTNAMES=['Bolt','Ziggy','Rex','Nova','Pip','Tank','Moxie','Echo','Juno','
 function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].fit=curFit();H.players[me.id].ws=cleanWS(wsOut());H.players[me.id].cl=clOf(PROG.pc);H.players[me.id].hid=hubSelfId;H.players[me.id].party=PARTY?PARTY.id:null;sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
 function newP(id,name,bot){return{id,name,team:'A',color:0xffffff,hp:100,alive:false,kills:0,deaths:0,pts:0,hs:0,rk:0,vote:-1,bot:!!bot,p:[0,-50,0,0,0,0,0],respawn:0,ord:H.order++,gun:bot?BOTGUNS[(Math.random()*BOTGUNS.length)|0]:null,cl:bot?PCL_IDS[Math.random()*PCL_IDS.length|0]:'soldier',ws:bot&&Math.random()<.35?{'*':WSKIN_IDS[1+(Math.random()*(WSKIN_IDS.length-1))|0]}:{}}}
 function plist(){return Object.values(H.players).sort((a,b)=>a.ord-b.ord)}
-function assignTeams(){let i=0;const AT=H.auto&&H.auto.teams;for(const p of plist()){if(AT&&p.hid&&AT[p.hid]&&H.mode!=='ffa'){p.team=AT[p.hid];p.color=TEAMCOL[p.team];i++;continue}if(H.mode==='ffa'){p.team=p.id;p.color=FFACOL[i%10]}else{p.team=i%2?'B':'A';p.color=TEAMCOL[p.team]}i++}}
+function assignTeams(){let i=0;const AT=H.auto&&H.auto.teams;if(RAIDM(H.mode)){raidAssignSquads();return}for(const p of plist()){if(AT&&p.hid&&AT[p.hid]&&H.mode!=='ffa'){p.team=AT[p.hid];p.color=TEAMCOL[p.team];i++;continue}if(H.mode==='ffa'){p.team=p.id;p.color=FFACOL[i%10]}else{p.team=i%2?'B':'A';p.color=TEAMCOL[p.team]}i++}}
 function lobbyData(){return{t:'lobby',mode:H.mode,phase:H.phase,hostId:me.id,diff:H.diff||'normal',fill:!!H.fill,pub:!!H.pub,offline:!!H.offline,players:plist().map(p=>({id:p.id,name:p.name,team:p.team,color:p.color,bot:p.bot,vote:p.vote}))}}
 function sendLobby(){if(H.phase==='lobby')assignTeams();bcast(lobbyData())}
 function sbData(){return{t:'sb',p:plist().map(p=>[p.id,p.kills,p.deaths,p.pts,p.alive?1:0,p.hs,p.as||0]),r:H.score}}
@@ -541,15 +542,67 @@ function sendSB(){bcast(sbData())}
 // a bot takes over a leaver's spot (fill-with-bots rooms) so teams stay even and the match keeps its size
 function botTakeover(team){if(!H.fill||H.phase==='lobby'||H.phase==='starting')return;const want=MODEMAX[H.mode]||4;if(plist().length>=want)return;const id='bot'+(++H.botN);const b=H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true);
  if(H.mode==='ffa'){b.team=id;b.color=FFACOL[plist().length%10]}else{b.team=team;b.color=TEAMCOL[team]}b.respawn=H.t+1.5;b.hp=100;bcast(lobbyData());bcast({t:'join',id,name:b.name,team:b.team,color:b.color,o:b.ord,sk:b.skin,ft:b.fit,ws:b.ws,cl:b.cl,bot:1});sendSB()}
-function hostLeave(id){const lp=H.players[id];if(!lp)return;if(H.br&&BRM(H.mode)&&H.phase==='play'&&!lp.elim&&!lp.bot){lp.alive=false;brElim(lp)}delete H.players[id];delete conns[id];bcast({t:'bye',id});if(H.phase==='lobby')sendLobby();else{if(!lp.bot&&H.phase!=='roundEnd'&&!BRM(H.mode))botTakeover(lp.team);sendSB();checkRound();remCheck()}}
+function hostLeave(id){const lp=H.players[id];if(!lp)return;if(H.br&&BRM(H.mode)&&H.phase==='play'&&!lp.elim&&!lp.bot){lp.alive=false;brElim(lp)}
+ if(RAIDM(H.mode)&&H.raid&&H.phase==='play'&&lp&&!lp.bot&&!lp.machine&&!lp.settled&&!lp.extracted){
+  if(!lp.raiGhost){lp.raiGhost=1;lp.raiGone=H.t;
+   bcast({t:'rghost',id,name:lp.name,left:RAID.reconnect});
+   bcast({t:'rfeed',msg:'OPERATOR DISCONNECTED: '+lp.name+' — reconnect window '+RAID.reconnect+'s'});}
+  delete conns[id];sendSB();sendRaidStat(H.raid);return;
+ }
+ delete H.players[id];delete conns[id];bcast({t:'bye',id});if(H.phase==='lobby')sendLobby();else{if(!lp.bot&&H.phase!=='roundEnd'&&!BRM(H.mode)&&!RAIDM(H.mode))botTakeover(lp.team);sendSB();checkRound();remCheck()}}
 function hostHandle(from,m){const p=H.players[from];
+ if(RAIDM(H.mode)&&p&&p.raiGhost&&m.t!=='hello'&&m.t!=='rsync'&&/^r/.test(m.t)){sendTo(from,{t:'rerr',msg:'Operator disconnected — reconnect within '+RAID.reconnect+'s to continue'});return}
  switch(m.t){
- case 'hello':{if(BRM(H.mode)&&H.phase!=='lobby'){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'full'});return}if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
-  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
-  if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=H.mode==='ext'?'A':teamForJoiner(from);np.color=TEAMCOL[np.team]}
-   {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
-   bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
-   sendTo(from,{t:'round',round:H.round,score:H.score,spawns:{},count:0});sendSB();if(H.phase==='play'||H.mode==='ffa')np.respawn=H.t+1}break}
+ case 'hello':{if(RAIDM(H.mode)&&H.phase!=='lobby'&&m.rv!==RAID.v){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'rerr',msg:'Raid protocol mismatch — reload the game to update.'});return}if(BRM(H.mode)&&H.phase!=='lobby'){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'full'});return}const humMax=RAIDM(H.mode)?RAID.maxP:MAXP;
+  const depId=RAIDM(H.mode)?String(m.deployId||'').slice(0,40):'';
+  const ghost=RAIDM(H.mode)&&depId?plist().find(q=>q.raiGhost&&q.raiDeploy===depId):null;
+  if(!ghost&&Object.values(H.players).filter(q=>!q.bot&&!q.machine&&!q.raiGhost).length>=humMax){conns[from]?.send({t:'full'});return}
+  if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
+  if(RAIDM(H.mode)&&H.phase!=='lobby'&&p&&!p.raiGhost){sendTo(from,{t:'rerr',msg:'Already joined this raid; request a state sync instead'});return}
+  if(RAIDM(H.mode)&&!ghost&&m.party&&plist().filter(q=>q.id!==from&&!q.bot&&!q.machine&&q.party===String(m.party).slice(0,12)).length>=RAID.perSquad){conns[from]?.send({t:'full'});return}
+  const oldRec=RAIDM(H.mode)&&H.raid?(H.raid.settle[depId]||H.raid.settle[from]):null;
+  let np;
+  if(oldRec&&!ghost){
+   np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));
+   np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
+   np.raiDeploy=depId;np.settled=1;np.alive=false;np.hp=0;
+  }else if(ghost){
+   const oldId=ghost.id;delete conns[oldId];
+   ghost.raiGhost=0;ghost.raiGone=0;ghost.id=from;
+   for(const it of Object.values(H.raid.items)){if(it.owner===oldId)it.owner=from}
+   delete H.players[oldId];H.players[from]=ghost;np=ghost;
+   bcast({t:'bye',id:oldId});
+  }else{
+   np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));
+   np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
+   np.raiDeploy=depId;
+  }
+  if(H.phase==='lobby')sendLobby();else{
+   if(!ghost){
+    if(RAIDM(H.mode)){if(!raidJoinTeam(np)){delete H.players[from];conns[from]?.send({t:'full'});return}}
+    else if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}
+    else{np.team=H.mode==='ext'?'A':teamForJoiner(from);np.color=TEAMCOL[np.team]}
+   }
+   {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive&&!q.machine)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
+   bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl,machine:np.machine?1:0},from);
+   let spawns={};let cnt=0;
+   if(RAIDM(H.mode)){
+    np.respawn=0;
+    if(!ghost){np.raiLoaded=0;np.raiPack=[];np.raiSecure=[];np.raiGear=null;np.raiArm=0;np.raiMax=100;np.raiContract='cores';np.raiRecovery=0;np.raiCap=RAID.cap;np.raiSecureCap=RAID.secure}
+    if(oldRec){np.alive=false}
+    else if(ghost){spawns[from]=[np.p[0],np.p[2]||0,np.p[3]||0];cnt=H.phase==='count'?Math.max(1,Math.ceil((H.next||0)-H.t)):0}
+    else if(H.phase==='play'||H.phase==='count'){const sp=raidJoinSpawn(np);np.alive=true;np.hp=100;np.p=[sp[0],0,sp[1],sp[2],0,0,0];spawns[from]=[sp[0],sp[1],sp[2]];cnt=H.phase==='count'?Math.max(1,Math.ceil((H.next||0)-H.t)):0}
+    else np.alive=false;
+   }else if(H.phase==='play'||H.mode==='ffa')np.respawn=H.t+1;
+   sendTo(from,{t:'round',round:H.round,score:H.score,spawns,count:cnt});sendSB();
+   if(RAIDM(H.mode)&&H.raid){
+    const I=raidInfo();
+    sendTo(from,{t:'rstart',run:I.run,t0:+H.raid.t0.toFixed(2),limit:Math.round(H.raid.limit),time:RAID.time,exits:I.exits,count:RAID.squads});
+    const srec=H.raid.settle[depId]||H.raid.settle[from];
+    if(srec)sendTo(from,{t:'rsettle',...srec});
+    if(ghost)sendRaidStat(H.raid);
+   }
+  }break}
  case 'mode':if(from===me.id&&H.phase==='lobby'&&MODES[m.mode]){H.mode=m.mode;sendLobby();regRoom()}break;
  case 'opt':if(from===me.id){if(DIFF[m.diff])H.diff=m.diff;if('fill' in m)H.fill=!!m.fill;if('pub' in m&&!H.offline){H.pub=!!m.pub;regRoom()}sendLobby()}break;
  case 'vote':if(p&&H.phase==='lobby'){p.vote=m.map|0;sendLobby()}break;
@@ -576,6 +629,17 @@ function hostHandle(from,m){const p=H.players[from];
  case 'heal':if(p&&p.alive){p.hp=Math.min(100,p.hp+50);bcast({t:'hp',id:from,hp:p.hp})}break;
  case 'bj':case 'bl':case 'pk':case 'co':case 'rs':case 'use':case 'bpm':brHostMsg(from,m,p);break;
  case 'fall':if(p&&p.alive&&H.phase==='play'&&!p.air)damage(p,999,from,false,'fall');break;
+ case 'rload':raidLoad(from,m,p);break;
+ case 'rsearch':raidSearch(from,m,p);break;
+ case 'rtake':raidTake(from,m,p);break;
+ case 'rlook':raidLook(from,m,p);break;
+ case 'ruse':raidUse(from,m,p);break;
+ case 'rsecure':raidSecure(from,m,p);break;
+ case 'rdrop':raidDrop(from,m,p);break;
+ case 'rcall':raidCall(from,m,p);break;
+ case 'rkey':raidKey(from,m,p);break;
+ case 'rext':raidExt(from,m,p);break;
+ case 'rsync':{const sk=H.raid&&(H.raid.settle[m.deployId||'']||H.raid.settle[from]);if(RAIDM(H.mode)&&sk)sendTo(from,{t:'rsettle',...sk});break}
  }}
 function rayClearHost(a,b){const d=b.clone().sub(a);const l=d.length();d.divideScalar(l);if(rayWorld(a,d,l)<l-.3)return false;for(const s of H.smokes){if(s.t<1.2)continue;const lx=s.p.x-a.x,ly=s.p.y-a.y,lz=s.p.z-a.z;const tc=lx*d.x+ly*d.y+lz*d.z;const d2=lx*lx+ly*ly+lz*lz-tc*tc;const r=s.r*.8;if(d2<r*r&&tc>-r&&tc<l+r)return false}return true}
 function teamForJoiner(id){const h={A:0,B:0},n={A:0,B:0};for(const p of plist()){if(p.id===id||!(p.team in n))continue;n[p.team]++;if(!p.bot)h[p.team]++}return h.A!==h.B?(h.A<h.B?'A':'B'):(n.A<=n.B?'A':'B')}
@@ -584,24 +648,24 @@ const AS_WIN=10,AS_MIN=25;
 function asRec(v,dmg,by,w){if(!by||by===v.id||w==='fall'||w==='bleed'||!H.players[by])return;const D=v.dmgBy||(v.dmgBy={});const e=D[by]||(D[by]={d:0,t:-99});if(H.t-e.t>AS_WIN)e.d=0;e.d+=v.down?dmg*.5:dmg;e.t=H.t}
 function asTake(v,k){const D=v.dmgBy||{};v.dmgBy={};const tm=isTeamMode(H.mode);const out=Object.entries(D).filter(([id,e])=>id!==k&&id!==v.id&&e.d>=AS_MIN&&H.t-e.t<=AS_WIN&&H.players[id]&&!(tm&&H.players[id].team===v.team)).sort((a,b)=>b[1].d-a[1].d).slice(0,2).map(x=>x[0]);
  for(const id of out){const a=H.players[id];a.as=(a.as||0)+1;a.pts+=50}return out}
-function damage(v,dmg,by,head,w){if(!v.alive)return;if(v.air&&w!=='storm'&&w!=='bleed')return;if(v.prot&&H.t<v.prot&&w!=='fall'&&w!=='bleed')return;asRec(v,dmg,by,w);{const pc=PCL[v.cl];if(pc&&pc.hp&&w!=='fall'&&w!=='bleed')dmg=Math.max(1,Math.round(dmg*100/pc.hp));v.hurtT=H.t;if(v.bot&&v.flag&&H.mode==='ctf'&&w!=='fall')dmg=Math.max(1,Math.round(dmg*.28))}{const ww=W[w];if(ww&&(ww.slow||ww.push)&&by!==v.id)hitFX(v,ww,by)}
+function damage(v,dmg,by,head,w){if(!v.alive)return;if(v.raiGhost)return;if(v.air&&w!=='storm'&&w!=='bleed')return;if(v.prot&&H.t<v.prot&&w!=='fall'&&w!=='bleed')return;asRec(v,dmg,by,w);{const pc=PCL[v.cl];if(pc&&pc.hp&&w!=='fall'&&w!=='bleed')dmg=Math.max(1,Math.round(dmg*100/pc.hp));v.hurtT=H.t;if(v.bot&&v.flag&&H.mode==='ctf'&&w!=='fall')dmg=Math.max(1,Math.round(dmg*.28))}{const ww=W[w];if(ww&&(ww.slow||ww.push)&&by!==v.id)hitFX(v,ww,by)}
  if(v.down){if(by===v.id&&w!=='fall'&&w!=='bleed')return;v.dhp-=dmg;bcast({t:'hp',id:v.id,hp:0,by,dmg,head,d:1});if(v.dhp>0&&w!=='fall'&&w!=='bleed')return;
-  v.down=false;v.rev=null;v.alive=false;const k=H.players[by];const fin=k&&by!==v.id;if(fin)k.pts+=25;v.dmgBy={};bcast({t:'kill',k:by,v:v.id,head,w,fin:fin?1:0,bleed:w==='bleed'?1:0});{const rd=respawnDelay(v);if(rd&&H.phase==='play')v.respawn=H.t+rd}sendSB();if(BRM(H.mode)&&H.br)brElim(v,by);checkRound();return}
+  v.down=false;v.rev=null;v.alive=false;const k=H.players[by];const fin=k&&by!==v.id;if(fin)k.pts+=25;v.dmgBy={};bcast({t:'kill',k:by,v:v.id,head,w,fin:fin?1:0,bleed:w==='bleed'?1:0});{const rd=respawnDelay(v);if(rd&&H.phase==='play')v.respawn=H.t+rd}sendSB();if(BRM(H.mode)&&H.br)brElim(v,by);if(RAIDM(H.mode))raidOnDeath(v,by);checkRound();return}
  if(v.sh>0&&w!=='storm'&&w!=='fall'&&w!=='bleed'){const a=Math.min(v.sh,dmg);v.sh-=a;dmg-=a;if(!v.bot)toPlayer(v.id,{t:'shd',sh:Math.round(v.sh)});if(dmg<=0){bcast({t:'hp',id:v.id,hp:Math.max(0,v.hp),by,dmg:0,head,sh:1});return}}
  v.hp-=dmg;bcast({t:'hp',id:v.id,hp:Math.max(0,v.hp),by,dmg,head});
- if(v.hp<=0&&isTeamMode(H.mode)&&!v.raider&&H.phase==='play'&&w!=='fall'&&by!==v.id&&plist().some(q=>q.team===v.team&&q.id!==v.id&&q.alive&&!q.down)){
+ if(v.hp<=0&&isTeamMode(H.mode)&&!v.raider&&!v.machine&&H.phase==='play'&&w!=='fall'&&by!==v.id&&plist().some(q=>q.team===v.team&&q.id!==v.id&&q.alive&&!q.down)){
   v.hp=0;v.down=true;v.dhp=DOWN.hp;v.downT=H.t+DOWN.bleed;v.rev=null;for(const q of plist())if(q.rev&&q.rev.by===v.id){q.rev=null;(window.__rvc=window.__rvc||[]).push(q.id)}v.deaths++;const k=H.players[by];if(k){k.kills++;k.rk++;k.pts+=100+(head?50:0);if(head)k.hs++}
   bcast({t:'kill',k:by,v:v.id,head,w,dn:1,as:asTake(v,by)});sendSB();checkRound();return}
  if(v.hp<=0){v.alive=false;v.deaths++;const k=H.players[by];const self=!k||by===v.id;if(!self){k.kills++;k.rk++;k.pts+=100+(head?50:0);if(head)k.hs++}
-  bcast({t:'kill',k:by,v:v.id,head,w,as:self?(v.dmgBy={},[]):asTake(v,by)});{const rd=respawnDelay(v);if(rd&&H.phase==='play')v.respawn=H.t+rd}sendSB();if(BRM(H.mode)&&H.br)brElim(v,by);checkRound()}}
+  bcast({t:'kill',k:by,v:v.id,head,w,as:self?(v.dmgBy={},[]):asTake(v,by)});{const rd=respawnDelay(v);if(rd&&H.phase==='play')v.respawn=H.t+rd}sendSB();if(BRM(H.mode)&&H.br)brElim(v,by);if(RAIDM(H.mode))raidOnDeath(v,by);checkRound()}}
 function toPlayer(id,msg){if(conns[id]&&conns[id].open)conns[id].send(msg);else if(id===me.id)clientHandle(msg)}
 function hitFX(v,w,by){const k=H.players[by];if(w.slow){if(v.bot){v.slowT=H.t+w.slow[1];v.slowF=w.slow[0]}else toPlayer(v.id,{t:'slow',f:w.slow[0],d:w.slow[1]})}
  if(w.push&&k){const dx=v.p[0]-k.p[0],dz=v.p[2]-k.p[2],l=Math.hypot(dx,dz)||1;const px=dx/l*w.push,pz=dz/l*w.push;if(v.bot&&v.e){v.e.vel.x+=px;v.e.vel.z+=pz;v.e.vel.y=Math.max(v.e.vel.y,1.2)}else toPlayer(v.id,{t:'push',v:[px,pz]})}}
-function startData(){return{t:'start',map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ft:p.fit==null?null:p.fit,ws:p.ws||{},cl:p.cl||'soldier',rd:p.raider?1:0}])),ms:MISSION(H.mode)?mInfo():null,br:BRM(H.mode)&&H.br?brInfo():null}}
-function startMatch(){for(const p of plist())if(p.raider){delete H.players[p.id];bcast({t:'bye',id:p.id})}{const mx=MODEMAX[H.mode]||10;const bots=plist().filter(p=>p.bot);while(plist().length>mx&&bots.length){const b=bots.pop();delete H.players[b.id];bcast({t:'bye',id:b.id})}}if(H.fill||BRM(H.mode)){const want=MODEMAX[H.mode]||4;while(Object.keys(H.players).length<want){const id='bot'+(++H.botN);H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true)}}if(!H.rematch)assignTeams();const votes=MAPS.map(()=>0);for(const p of plist())if(p.vote>=0)votes[p.vote]++;
- const mx=Math.max(...votes);const best=votes.map((v,i)=>v===mx?i:-1).filter(i=>i>=0);H.map=best[Math.random()*best.length|0];if(H.auto&&H.auto.map!=null)H.map=H.auto.map;if(H.rematch&&H.prevMap!=null)H.map=H.prevMap;H.rematch=0;if(BRM(H.mode))H.map=BR_I;
+function startData(){return{t:'start',map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ft:p.fit==null?null:p.fit,ws:p.ws||{},cl:p.cl||'soldier',rd:p.raider?1:0,mc:p.machine?1:0,arch:p.arch||null}])),ms:MISSION(H.mode)?mInfo():null,br:BRM(H.mode)&&H.br?brInfo():null,raid:RAIDM(H.mode)?raidInfo():null}}
+function startMatch(){for(const p of plist())if(p.raider){delete H.players[p.id];bcast({t:'bye',id:p.id})}{const mx=MODEMAX[H.mode]||10;const bots=plist().filter(p=>p.bot);while(plist().length>mx&&bots.length){const b=bots.pop();delete H.players[b.id];bcast({t:'bye',id:b.id})}}if(H.fill||BRM(H.mode)){const want=MODEMAX[H.mode]||4;while(Object.keys(H.players).filter(p=>!p.machine).length<want){const id='bot'+(++H.botN);H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true)}}if(!H.rematch)assignTeams();const votes=MAPS.map(()=>0);for(const p of plist())if(p.vote>=0)votes[p.vote]++;
+ const mx=Math.max(...votes);const best=votes.map((v,i)=>v===mx?i:-1).filter(i=>i>=0);H.map=best[Math.random()*best.length|0];if(H.auto&&H.auto.map!=null)H.map=H.auto.map;if(H.rematch&&H.prevMap!=null)H.map=H.prevMap;H.rematch=0;if(BRM(H.mode))H.map=BR_I;if(RAIDM(H.mode)&&H.raidMap!=null){H.map=H.raidMap;H.raidMap=null;H.map=Math.max(0,Math.min(MAPS.length-1,H.map|0))}
  H.score={};H.round=0;H.fires=[];H.smokes=[];for(const p of plist()){p.kills=p.deaths=p.pts=p.hs=p.as=0}const m=buildMap(H.map);doorReset(m);cols=m.cols;groundHalf=m.groundHalf;ladders=m.ladders||[];hides=m.hides||[];buildGrid();
- if(MISSION(H.mode))missionPrep();if(BRM(H.mode))brPrep();else H.br=null;H.phase='starting';bcast(lobbyData());bcast(startData());sendSB();setTimeout(startRound,900)}
+ if(MISSION(H.mode))missionPrep();else if(RAIDM(H.mode))raidPrep(m);else if(BRM(H.mode))brPrep();else H.br=null;H.phase='starting';bcast(lobbyData());bcast(startData());sendSB();setTimeout(startRound,900)}
 // ---- spawn selection ----
 function allSpawns(m){return[...m.spawnsA,...m.spawnsB,...m.spawnsM]}
 function faceCenter(s){return Math.atan2(s[0],s[1])}
@@ -617,11 +681,12 @@ function roundSpawns(){if(MISSION(H.mode))return missionSpawns();if(BRM(H.mode)&
   const order=ps.slice().sort(()=>Math.random()-.5);const used=[];for(const p of order){const s=used.length?farthest(all,used,used):all[Math.random()*all.length|0];used.push(s);out[p.id]=s}}
  for(const id in out){const s=out[id];out[id]=[s[0],s[1],faceCenter(s)]}return out}
 function respawnPoint(p){const m=buildMap(H.map);if(MISSION(H.mode))return missionRespawn(p,m);const enemies=plist().filter(q=>q.alive&&q.id!==p.id).map(q=>[q.p[0],q.p[2]]);const s=farthest(allSpawns(m),enemies);return[s[0],s[1],faceCenter(s)]}
-function startRound(){if(!Object.keys(H.players).length)return;H.round++;H.phase='count';H.fires=[];H.smokes=[];const spawns=roundSpawns();
- for(const p of plist()){p.dmgBy={};p.hp=100;p.alive=true;p.down=false;p.rev=null;p.rk=0;p.respawn=0;const s=spawns[p.id];p.p=[s[0],0,s[1],s[2],0,0,0];if(p.bot)botReset(p,s)}
- H.next=H.t+3;H.roundEnd=H.t+3+(H.mode==='ffa'?120:BRM(H.mode)?99999:H.mode==='ctf'?CTF.time:H.mode==='ext'?EXT.time:90);bcast({t:'round',round:H.round,score:H.score,spawns,count:3});sendSB();window.__lastSpawns=spawns;if(BRM(H.mode)&&H.br)brStartRound()}
+function startRound(){if(!Object.keys(H.players).length)return;H.round++;H.phase='count';H.fires=[];H.smokes=[];const spawns=RAIDM(H.mode)?raidSpawns():roundSpawns();
+ for(const p of plist()){p.dmgBy={};p.hp=p.machine?(p.raiMax||100):(RAIDM(H.mode)&&p.raiArm?130:100);p.alive=true;p.down=false;p.rev=null;p.rk=0;p.respawn=0;const s=spawns[p.id];p.p=[s[0],0,s[1],s[2],0,0,0];if(p.bot)botReset(p,s)}
+ if(RAIDM(H.mode)){H.raid.t0=H.t+0;raidStartServer()}else H.raid=null;
+ H.next=H.t+3;H.roundEnd=H.t+3+(RAIDM(H.mode)?RAID.time:H.mode==='ffa'?120:BRM(H.mode)?99999:H.mode==='ctf'?CTF.time:H.mode==='ext'?EXT.time:90);const hps={};for(const p of plist())hps[p.id]=Math.round(p.hp);bcast({t:'round',round:H.round,score:H.score,spawns,hp:hps,count:3});sendSB();window.__lastSpawns=spawns;if(BRM(H.mode)&&H.br)brStartRound()}
 function teamAlive(){const a={};for(const p of plist())if(p.alive&&!p.down)a[p.team]=(a[p.team]||0)+p.hp;return a}
-function checkRound(){if(H.phase!=='play')return;if(BRM(H.mode)){brCheck();return}if(MISSION(H.mode)){missionCheck();return}let win=null;
+function checkRound(){if(H.phase!=='play')return;if(RAIDM(H.mode))return;if(BRM(H.mode)){brCheck();return}if(MISSION(H.mode)){missionCheck();return}let win=null;
  if(H.mode==='ffa'){for(const p of plist())if(p.rk>=FFA_ROUND_KILLS)win=p.id}
  else{const a=teamAlive(),ks=Object.keys(a);const teams=new Set(plist().map(p=>p.team));if(teams.size<2){if(!ks.length)win='draw'}else if(ks.length<=1)win=ks[0]||'draw'}
  if(win)endRound(win)}
@@ -638,7 +703,7 @@ function hostDecide(){if(!isHost||!H.matchOver)return;clearTimeout(H.remT);if(re
  H.matchOver=false;if(C.fromHub||sessionStorage.getItem('hsz_fromHub')){sessionStorage.removeItem('hsz_fromHub');location.href=hubUrl();return}
  if(H.phase==='roundEnd'){H.phase='lobby';for(const p of plist())p.vote=-1;sendLobby()}}
 function remCheck(){if(!isHost||!H.matchOver)return;const hs=humansOther();bcast({t:'remv',y:remYes(),n:hs.length});clearTimeout(H.remT);if(hs.length&&remYes()===hs.length&&H.rem[me.id]!==0)H.remT=setTimeout(()=>{if(H.matchOver)hostRematch()},3000)}
-function hostTick(dt){H.t+=dt;if(H.phase==='play'||H.phase==='starting')botDoors(dt);if(H.phase==='play')hostPets(PETX,dt);if(H.phase==='play')for(const p of plist()){const pc=PCL[p.cl];if(pc&&pc.regen&&p.alive&&!p.down&&p.hp<100&&H.t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+pc.regen*dt);if(Math.floor(p.hp)!==o&&Math.floor(p.hp)%3===0||p.hp>=100)bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
+function hostTick(dt){H.t+=dt;if(H.phase==='play'||H.phase==='starting')botDoors(dt);if(H.phase==='play')hostPets(PETX,dt);if(H.phase==='play')for(const p of plist()){const pc=PCL[p.cl];const maxp=p.machine?(p.raiMax||100):(RAIDM(H.mode)&&p.raiMax?p.raiMax:100);if(pc&&pc.regen&&p.alive&&!p.down&&p.hp<maxp&&H.t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(maxp,p.hp+pc.regen*dt);if(Math.floor(p.hp)!==o&&Math.floor(p.hp)%3===0||p.hp>=maxp)bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
  if(H.auto&&H.phase==='lobby'&&H.autoAt){const humans=plist().filter(p=>!p.bot).length;if(humans>=H.auto.expect||H.t>H.autoAt){H.autoAt=0;startMatch()}}
  if(H.phase==='count'&&H.t>=H.next){H.phase='play';bcast({t:'go'})}
  if(H.phase==='play'){
@@ -647,7 +712,7 @@ function hostTick(dt){H.t+=dt;if(H.phase==='play'||H.phase==='starting')botDoors
    if(rv.length){if(!v.rev||!rv.some(q=>q.id===v.rev.by))v.rev={by:rv[0].id,t0:H.t};if(H.t-v.rev.t0>=((PCL[(H.players[v.rev.by]||{}).cl]||{}).rev||DOWN.revive)){(window.__rv=window.__rv||[]).push(+(H.t-v.rev.t0).toFixed(3));(window.__rvBy=window.__rvBy||[]).push({id:v.id,by:v.rev.by});v.down=false;v.hp=DOWN.revHp;v.dmgBy={};const by=v.rev.by;v.rev=null;bcast({t:'revive',id:v.id,by,hp:v.hp});bcast({t:'hp',id:v.id,hp:v.hp});sendSB();continue}}
    else v.rev=null;
    if((v.dsT=(v.dsT||0)+dt)>.15){v.dsT=0;bcast({t:'dst',id:v.id,left:Math.max(0,v.downT-H.t),rv:v.rev?Math.min(1,(H.t-v.rev.t0)/((PCL[(H.players[v.rev.by]||{}).cl]||{}).rev||DOWN.revive)):0,by:v.rev?v.rev.by:null})}}
-  if(MISSION(H.mode))missionTick(dt);else if(BRM(H.mode)&&H.br)brTick(dt);else if(H.t>=H.roundEnd){let win='draw';if(H.mode==='ffa'){let b=-1;for(const p of plist())if(p.rk>b){b=p.rk;win=p.id}}else{const a=teamAlive();win=(a.A||0)>(a.B||0)?'A':(a.B||0)>(a.A||0)?'B':'draw'}endRound(win)}
+  if(RAIDM(H.mode))raidTick(dt);else if(MISSION(H.mode))missionTick(dt);else if(BRM(H.mode)&&H.br)brTick(dt);else if(H.t>=H.roundEnd){let win='draw';if(H.mode==='ffa'){let b=-1;for(const p of plist())if(p.rk>b){b=p.rk;win=p.id}}else{const a=teamAlive();win=(a.A||0)>(a.B||0)?'A':(a.B||0)>(a.A||0)?'B':'draw'}endRound(win)}
   if(H.phase==='play')for(const p of plist()){if(!p.alive&&p.respawn&&H.t>=p.respawn){p.respawn=0;p.dmgBy={};p.alive=true;p.hp=100;p.prot=MISSION(H.mode)?H.t+CTF.prot:0;const s=respawnPoint(p);p.p=[s[0],0,s[1],s[2],0,0,0];if(p.bot)botReset(p,s);bcast({t:'spawn',id:p.id,s});sendSB()}}
   for(const p of plist())if(p.bot&&p.alive&&!(H.botFreeze&&H.botFreeze[p.id]))botTick(p,dt);
   // molotov damage over time
@@ -670,6 +735,7 @@ function navTarget(b,e,m){const g=b.goal,gy=g[2]||0,py=e.pos.y;const d2=(p)=>Mat
   if(best){b.via=up?{a:best.a,b:best.b}:{a:best.b,b:best.a,down:1};b.viaStage=0;b.viaT=0;return b.via.a}}
  return[g[0],gy,g[1]]}
 function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt);return}
+ if(b.machine&&b.flyer)return;
  if(b.down){// crawl toward the nearest standing teammate
   const mates=plist().filter(q=>q.team===b.team&&q.id!==b.id&&q.alive&&!q.down);let m=null,md=1e9;for(const q of mates){const d=Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z);if(d<md){md=d;m=q}}
   let wx=0,wz=0;if(m&&md>1){wx=(m.p[0]-e.pos.x)/md;wz=(m.p[2]-e.pos.z)/md;b.yaw=Math.atan2(-wx,-wz)}e.vel.x=wx*1.1;e.vel.z=wz*1.1;e.bump=0;physStep(e,dt);b.p=[e.pos.x,e.pos.y,e.pos.z,b.yaw,0,WIDX[b.gun]|0,0];return}
@@ -684,7 +750,7 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt)
   b.react-=dt;b.cool-=dt;if(b.react<=0&&b.cool<=0&&!(w.melee&&td>w.melee+.4)){b.cool=w.rate*1.25;const D=DIFF[H.diff||'normal'];const hit=Math.random()<Math.max(.08,D.hit-td/100);const BS=window.__botStat||(window.__botStat={s:0,h:0,hd:0});BS.s++;if(hit)BS.h++;_o.set(e.pos.x,e.pos.y+1.4,e.pos.z);
    const end=[tgt.p[0]+(hit?0:(Math.random()-.5)*2),tgt.p[1]+1.2+(hit?0:Math.random()),tgt.p[2]+(hit?0:(Math.random()-.5)*2)];
    bcast({t:'fx',id:b.id,a:[_o.x,_o.y,_o.z],b:end,w:b.gun});if(hit){const head=Math.random()<D.head;if(head)BS.hd++;damage(tgt,Math.round((head?w.head:w.body)*falloff(w,td)*(b.rarD||1)),b.id,head,b.gun)}}}
- else{b.react=DIFF[H.diff||'normal'].react;const m=buildMap(H.map);const og=MISSION(H.mode)&&!b.revT?botMission(b):(BRM(H.mode)&&H.br&&!b.revT?botBR(b,dt):null);if(og){const g=b.goal;if(!g||Math.hypot(g[0]-og[0],g[1]-og[1])>3||Math.abs((g[2]||0)-(og[2]||0))>1.5){b.goal=og;b.via=null;b.hold=0}}if(b.goal&&b.hold>0&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)b.hold-=dt;if(!og&&!b.revT&&!(b.hold>0&&b.goal&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2.5)&&(!b.goal||(Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)||(!H.noFight&&(Math.random()<dt*.05||(b.goalT=(b.goalT||0)+dt)>25)))){const all=allSpawns(m);const foes=plist().filter(q=>q.alive&&q.id!==b.id&&(H.mode==='ffa'||q.team!==b.team));const hi=m.nav?m.nav.filter(n=>(n[2]||0)>2):[];if(hi.length&&Math.random()<.4){b.goal=hi[Math.random()*hi.length|0].slice();b.hold=4+Math.random()*6}else if(foes.length&&Math.random()<.55){const f=foes[Math.random()*foes.length|0];b.goal=[f.p[0]+(Math.random()-.5)*3,f.p[2]+(Math.random()-.5)*3,f.p[1]]}else if(m.nav&&m.nav.length&&Math.random()<.5)b.goal=m.nav[Math.random()*m.nav.length|0].slice();else b.goal=all[Math.random()*all.length|0].slice();b.via=null;b.goalT=0}
+ else{b.react=DIFF[H.diff||'normal'].react;const m=buildMap(H.map);const og=MISSION(H.mode)&&!b.revT?botMission(b):(BRM(H.mode)&&H.br&&!b.revT?botBR(b,dt):(RAIDM(H.mode)?botRaid(b,dt):null));if(og){const g=b.goal;if(!g||Math.hypot(g[0]-og[0],g[1]-og[1])>3||Math.abs((g[2]||0)-(og[2]||0))>1.5){b.goal=og;b.via=null;b.hold=0}}if(b.goal&&b.hold>0&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)b.hold-=dt;if(!og&&!b.revT&&!(b.hold>0&&b.goal&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2.5)&&(!b.goal||(Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)||(!H.noFight&&(Math.random()<dt*.05||(b.goalT=(b.goalT||0)+dt)>25)))){const all=allSpawns(m);const foes=plist().filter(q=>q.alive&&q.id!==b.id&&(H.mode==='ffa'||q.team!==b.team));const hi=m.nav?m.nav.filter(n=>(n[2]||0)>2):[];if(hi.length&&Math.random()<.4){b.goal=hi[Math.random()*hi.length|0].slice();b.hold=4+Math.random()*6}else if(foes.length&&Math.random()<.55){const f=foes[Math.random()*foes.length|0];b.goal=[f.p[0]+(Math.random()-.5)*3,f.p[2]+(Math.random()-.5)*3,f.p[1]]}else if(m.nav&&m.nav.length&&Math.random()<.5)b.goal=m.nav[Math.random()*m.nav.length|0].slice();else b.goal=all[Math.random()*all.length|0].slice();b.via=null;b.goalT=0}
   const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z;b.climbY=nt[1];const l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*4)}
  if(tgt&&b.flag&&H.mode==='ctf'){const og=botMission(b),g=b.goal;if(og&&(!g||Math.hypot(g[0]-og[0],g[1]-og[1])>3)){b.goal=og;b.via=null}const m=buildMap(H.map);const nt=navTarget(b,e,m);const dx=nt[0]-e.pos.x,dz=nt[2]-e.pos.z,l=Math.hypot(dx,dz)||1;wx=dx/l;wz=dz/l;b.climbY=nt[1]}
  // revive takes priority over fighting unless an enemy is very close (<7 m): keep aiming/shooting, but walk to the downed mate and hold
@@ -709,8 +775,8 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt)
  b.p=[e.pos.x,e.pos.y,e.pos.z,b.yaw,0,WIDX[b.gun]|0,e.ground?0:2]}
 // ================= CLIENT =================
 let lastLobby=null;
-function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdia'){if(m.n>0){addDia(m.n|0,'sidekick');center('🐾 '+((SK_BY[PROG.pet]||{}).name||'Buddy')+' found '+(m.n|0)+'💎!',1400)}return}if(BC&&brMsg(m))return;switch(m.t){
- case 'lobby':lastLobby=m;C.hostId=m.hostId;C.mode=m.mode;if(m.phase==='lobby'){if(inGame)leaveToLobby();showLobby()}renderLobby();break;
+function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdia'){if(m.n>0){addDia(m.n|0,'sidekick');center('🐾 '+((SK_BY[PROG.pet]||{}).name||'Buddy')+' found '+(m.n|0)+'💎!',1400)}return}if(BC&&brMsg(m))return;if(RC&&raidMsg(m))return;switch(m.t){
+ case 'lobby':lastLobby=m;C.hostId=m.hostId;C.mode=m.mode;if(m.phase==='lobby'){if(RAIDM(m.mode)&&!inGame&&raidBaseVisible()){raidBaseSyncLobby(m);renderLobby();break}if(inGame)leaveToLobby();showLobby()}renderLobby();break;
  case 'full':menuMsg('Room is full (10 players max).');break;
  case 'start':startGame(m);break;
  case 'ms':if(MS){MS.s=m.s;MS.at=performance.now();updMsHud()}break;
@@ -721,12 +787,12 @@ function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdi
  case 'fit':{const q=C.players[m.id];if(q){q.fit=fitOf(m.ft);if(m.sk!=null&&m.id!==me.id&&q.sk!==m.sk){q.sk=m.sk;if(q.model&&q.model.userData.kind!=='toon'){const vis=q.model.visible;scene.remove(q.model);q.model=makeCharacter(q.color,q.name,m.id,undefined,skinOutfit(m.sk)||undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}}if(q.model&&m.id!==me.id&&q.model.userData.kind==='toon'){const vis=q.model.visible;scene.remove(q.model);window.__fitNext=q.fit;q.model=makeCharacter(q.color,q.name,m.id,undefined,undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}}break}
  case 'cl':{const q=C.players[m.id];if(q&&q.model&&m.id!==me.id){const vis=q.model.visible;scene.remove(q.model);q.cl=clOf(m.cl);q.model=makeCharacter(q.color,q.name,m.id,undefined,skinOutfit(q.sk)||undefined,q.cl);q.model.visible=vis;scene.add(q.model);q.gunId=null}else if(q)q.cl=clOf(m.cl);break}
  case 'ws':{const q=C.players[m.id];if(q){q.ws=m.ws||{};q.gunSk=null;if(q.gunId){const g=q.gunId;q.gunId=null;setRemoteGun(q,WIDX[g])}}break}
- case 'join':addRemote(m.id,{name:m.name,team:m.team,color:m.color,o:m.o,sk:m.sk,ws:m.ws,cl:m.cl,bot:m.bot,raider:m.raider});renderSB();feed(`${m.name} joined`);break;
+ case 'join':addRemote(m.id,{name:m.name,team:m.team,color:m.color,o:m.o,sk:m.sk,ws:m.ws,cl:m.cl,bot:m.bot,raider:m.raider,machine:m.machine,mc:m.machine,arch:m.arch});renderSB();feed(`${m.name} joined`);break;
  case 'bye':{const q=C.players[m.id];if(q){if(q.model)scene.remove(q.model);feed(q.name+' left');delete C.players[m.id];delete C.sb[m.id];renderSB()}break}
- case 'round':{C.round=m.round;for(const k in C.players){C.players[k].hp=100;C.players[k].down=false;C.players[k].dst=null}me.down=false;me.dst=null;updDown();hideEnd();C.score=m.score;C.phase=m.count?'count':'play';for(const n of nades)scene.remove(n.m);nades=[];smokes.length=0;fires.length=0;
-  for(const id in C.players){const q=C.players[id];const s=m.spawns[id];if(s){q.alive=true;q.hp=100;q.rp.set(s[0],0,s[1]);q.tp.copy(q.rp);q.yaw=q.tyaw=s[2];if(q.model){q.model.userData.dead=0;q.model.visible=true}}}
-  if(m.spawns[me.id])spawnMe(m.spawns[me.id]);else if(!m.count){me.alive=false;center('Joined mid-round\nYou spawn next round')}if(BC&&m.count){for(const id in C.players)C.players[id].flags=32;brRoundStart()}
-  if(m.count){me.frozen=true;let n=m.count;const tick=()=>{if(C.phase!=='count')return;center('ROUND '+C.round+'\n'+n);SFX.beep(600);n--;if(n>0)setTimeout(tick,1000)};tick()}renderSB();break}
+ case 'round':{C.round=m.round;const rh=m.hp||{};for(const k in C.players){C.players[k].hp=rh[k]!=null?rh[k]:100;C.players[k].down=false;C.players[k].dst=null}me.down=false;me.dst=null;updDown();hideEnd();C.score=m.score;C.phase=m.count?'count':'play';for(const n of nades)scene.remove(n.m);nades=[];smokes.length=0;fires.length=0;
+  for(const id in C.players){const q=C.players[id];const s=m.spawns[id];if(s){q.alive=true;q.hp=rh[id]!=null?rh[id]:100;q.rp.set(s[0],0,s[1]);q.tp.copy(q.rp);q.yaw=q.tyaw=s[2];if(q.model){q.model.userData.dead=0;q.model.visible=true}}}
+  if(m.spawns[me.id]){spawnMe(m.spawns[me.id]);if(rh[me.id]!=null){me.hp=rh[me.id];updHP()}}else if(!m.count){me.alive=false;center('Joined mid-round\nYou spawn next round')}if(BC&&m.count){for(const id in C.players)C.players[id].flags=32;brRoundStart()}
+  if(m.count){me.frozen=true;let n=m.count;const tick=()=>{if(C.phase!=='count')return;center((C.mode==='raid'?'RAID DEPLOYMENT':(BRM(C.mode)?'AIR DROP':'ROUND'))+' '+n);SFX.beep(600);n--;if(n>0)setTimeout(tick,1000)};tick()}renderSB();break}
  case 'go':C.phase='play';me.frozen=false;center(BC?'🚁 DROP! Press JUMP':'FIGHT!',BC?1600:800);SFX.beep(1200);showRL(false);break;
  case 'spawn':{const q=C.players[m.id];if(q){q.alive=true;q.hp=100;q.rp.set(m.s[0],0,m.s[1]);q.tp.copy(q.rp);if(q.model){q.model.userData.dead=0;q.model.visible=true}}if(m.id===me.id){spawnMe(m.s);me.frozen=false}break}
  case 'snap':C.roundT=m.rt;for(const a of m.p){const q=C.byOrd[a[0]];if(!q||q.id===me.id)continue;q.tp.set(a[1]/100,a[2]/100,a[3]/100);q.tyaw=a[4]/1000;q.tpitch=a[5]/100;q.flags=a[7]|0;q.wid=a[6]|0;
@@ -750,7 +816,7 @@ function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdi
   if(m.w==='fall'||m.w==='storm'||m.k===m.v)feed(`${v?.name||'?'} ${m.w==='fall'?'fell off':m.w==='storm'?'was caught in the storm ☣':'eliminated themselves'}`);else feed(`${KN} <span class="k">[${esc(wn)}${m.head?' 🎯':''}]</span> <b style="color:${hex(v?.color||0xffffff)}">${esc(v?.name||'?')}</b>`,true);
   if(m.v===me.id){me.alive=false;me.hp=0;updHP();me.killer=m.k;center('ELIMINATED'+(k&&m.k!==m.v?'\nby '+k.name:'')+(C.mode==='ffa'?'\nRespawning…':''),2200)}
   if(m.k===me.id&&m.v!==me.id){SFX.kill();center(m.head?'🎯 HEADSHOT!':'ELIMINATED '+(v?.name||''),1000)}break}
- case 'roundEnd':{C.phase='roundEnd';C.score=m.score;me.frozen=true;const mine=C.mode==='ffa'?m.win===me.id:m.win===C.players[me.id]?.team;
+ case 'roundEnd':{if(C.mode==='raid'){raidFinalResult(m);break}C.phase='roundEnd';C.score=m.score;me.frozen=true;const mine=C.mode==='ffa'?m.win===me.id:m.win===C.players[me.id]?.team;
   {if(!m.br){if(mine)addDia(Math.round(ECON.round*ECON.mul()),'round win');if(m.match)addDia(Math.round((mine?ECON.win+ECON.play:ECON.play)*ECON.mul()),mine?'match win':'match played')}}
   center(m.win==='draw'?'DRAW':(m.title?`${m.title}\n${m.sub}\n💎 +${C.matchDia||0} diamonds this match`:m.match?`${m.name}\nWINS THE MATCH!\n💎 +${C.matchDia||0} diamonds this match`:`${m.name} WINS THE ROUND`)+(mine?' 🏆':''),m.match?6000:3300);if(m.match)setTimeout(()=>showEnd(m,mine),2600);else showRL(true);if(mine)SFX.kill();renderSB();break}
  case 'fx':{{const sq=C.players[m.id];if(sq)sq.shotAt=performance.now()}const a=new THREE.Vector3(...m.a),b=new THREE.Vector3(...m.b);const fw=W[m.w];addTracer(a,b,fw&&fw.tracer);if(fw&&fw.paint)paintSplat(b,null,m.id);fx.sprite({p:a,tex:TX.flash,add:true,s0:.4,s1:.6,life:.05,op:1,color:0xffd080});
@@ -761,11 +827,11 @@ function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdi
  case 'sb':C.sb={};for(const r of m.p)C.sb[r[0]]={k:r[1],d:r[2],pts:r[3],alive:!!r[4],hs:r[5],as:r[6]||0};C.score=m.r||{};renderSB();if(!$('pause').classList.contains('hidden'))renderBoard();break;
  }}
 function addRemote(id,info){if(C.players[id]?.model)scene.remove(C.players[id].model);
- const q={id,cl:clOf(info.cl),ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,raider:info.raider||info.rd,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
+ const q={id,cl:clOf(info.cl),ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,raider:info.raider||info.rd,machine:info.machine||info.mc||false,arch:info.arch||null,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
  q.fit=fitOf(info.ft);if(id!==me.id){window.__fitNext=q.fit;q.model=makeCharacter(q.color,info.name,id,undefined,skinOutfit(info.sk)||undefined,info.cl);q.sk=info.sk;q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
 function startGame(m){hideEnd();setTimeout(renderParty,50);remWait=false;{const rt=$('roomTag');if(rt){const online=!(H&&H.offline)&&roomCode&&roomCode!=='OFFLINE'&&!C.hub;rt.classList.toggle('hidden',!online);if(online){const pub=lastLobby?!!lastLobby.pub:!!H.pub;rt.textContent=(pub?'🌐 PUBLIC · ':'🔒 PRIVATE · ')+roomCode+' · tap to invite'}}}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
- loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);missionClientInit(m.ms||null);if(m.br)brClientInit(m.br);else brClear();tpSetup();
- for(const s of['menu','lobby','arsenal','settings'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
+ loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);missionClientInit(m.ms||null);if(m.br)brClientInit(m.br);else brClear();if(m.raid)raidClientInit(m.raid);else raidClientClear();tpSetup();
+ for(const s of['menu','lobby','arsenal','settings','raid'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
  inGame=true;resize();me.alive=false;me.frozen=true;feed(`${MI(m.map).icon} ${MI(m.map).name} · ${MODES[m.mode][0]}`);center(MI(m.map).name.toUpperCase(),1500);renderSB();buildSlots();
  goFS()}
 // face the most open direction, biased toward the map centre (never stare at a wall)
@@ -774,23 +840,23 @@ function faceYaw(x,z){const o=new THREE.Vector3(x,1.6,z),d=new THREE.Vector3();c
  return Math.hypot(x,z)<1?best:best}
 function spawnMe(s){me.pos.set(s[0],0,s[1]);me.lad=null;me.mountT=0;me.vel.set(0,0,0);me.yaw=faceYaw(s[0],s[1]);me.pitch=0;me.hp=100;me.alive=true;me.slideT=0;me.crouch=false;me.reloadT=0;me.killer=null;recoilP=recoilY=0;
  me.ammo=me.load.slice(0,3).map(w=>magOf(w));{const lk=me.load[3];me.nl={smoke:1,flash:1,decoy:1,medkit:0};if(NLK.includes(lk)||lk==='medkit'){me.nl[lk]+=W[lk].count;me.utilN=1+((PCL[PROG.pc]||{}).util||0)}else me.utilN=W[lk].count+((PCL[PROG.pc]||{}).util||0)}me.cur=0;me.zoomT=0;me.zoomOn=false;updZoomBtn();setViewModel(me.load[0]);me.switchT=.35;updHP();buildSlots()}
-function leaveToLobby(){clearMission();hideEnd();inGame=false;paused=false;$('hud').classList.remove('paused');$('hud').classList.add('hidden');$('pause').classList.add('hidden');for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};
+function leaveToLobby(){clearMission();if(typeof RC!=='undefined'&&RC)raidClientClear();hideEnd();inGame=false;paused=false;$('hud').classList.remove('paused');$('hud').classList.add('hidden');$('pause').classList.add('hidden');for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};
  for(const n of nades)scene.remove(n.m);nades=[];if(document.pointerLockElement)document.exitPointerLock();resize()}
 // ---------------- HUD ----------------
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 let centerTO=null;function center(t,ms){$('center').textContent=t;clearTimeout(centerTO);if(ms)centerTO=setTimeout(()=>$('center').textContent='',ms)}
 function feed(t,html){const d=document.createElement('div');if(html)d.innerHTML=t;else d.textContent=t;$('feed').prepend(d);while($('feed').children.length>4)$('feed').lastChild.remove();setTimeout(()=>d.remove(),5000)}
-function updHP(){const h=Math.max(0,me.hp);$('hpFill').style.width=h+'%';$('hpFill').style.background=h>60?'#2ee59d':h>30?'#ffd23f':'#ff5a6b';$('hpTxt').textContent=Math.ceil(h)}
+function updHP(){const mx=(RC&&RC.maxhp)||100;const h=Math.max(0,Math.min(mx,me.hp));const r=h/Math.max(1,mx);$('hpFill').style.width=(r*100)+'%';$('hpFill').style.background=r>.6?'#2ee59d':r>.3?'#ffd23f':'#ff5a6b';$('hpTxt').textContent=Math.ceil(h)}
 function flashV(){const v=$('vign');v.style.transition='none';v.style.opacity=.75;requestAnimationFrame(()=>{v.style.transition='opacity .6s';v.style.opacity=0})}
 function chip(q){const s=C.sb[q.id]||{k:0,pts:0,alive:q.alive};const rw=C.mode==='ffa'&&C.score[q.id]?`<i>★${C.score[q.id]}</i>`:'';
  const hp=s.alive?Math.max(0,Math.min(100,q.id===me.id?me.hp:(q.hp??100))):0;
  const dn=(q.id===me.id?me.down:q.down)&&s.alive;
  return `<div class="chip${q.id===me.id?' me':''}${s.alive?'':' dead'}${dn?' down':''}" style="--c:${hex(q.color)}"><b>${dn?'🩸 ':''}${esc(q.name)}</b>${rw}<span>${s.pts}</span><u style="width:${hp}%"></u></div>`}
-function renderSB(){if(!inGame)return;if(BC){$('sbar').innerHTML='';brHudUpd();return}const ps=Object.values(C.players).filter(q=>!q.raider);let h='';
+function renderSB(){if(!inGame)return;if(BC){$('sbar').innerHTML='';brHudUpd();return}if(C.mode==='raid'){raidHudUpd();$('sbar').innerHTML='';return}const ps=Object.values(C.players).filter(q=>!q.raider);let h='';
  if(C.mode==='ffa'){ps.sort((a,b)=>(C.sb[b.id]?.pts||0)-(C.sb[a.id]?.pts||0));h=`<div class="rounds"><small>R${C.round||1}</small></div>`+ps.map(chip).join('')}
  else{const A=ps.filter(p=>p.team==='A'),B=ps.filter(p=>p.team==='B');h=A.map(chip).join('')+`<div class="rounds"><span class="a">${C.mode==='ext'?(MS?MS.s.sec:0):(C.score.A||0)}</span><small>${C.mode==='ctf'?'🏁<br>FT'+CTF.goal:C.mode==='ext'?'💾<br>'+EXT.need+' of '+EXT.n:'R'+(C.round||1)+'<br>FT'+WIN_ROUNDS}</small><span class="b">${C.mode==='ext'?(MS?MS.s.wave:0):(C.score.B||0)}</span></div>`+B.map(chip).join('')}
  $('sbar').innerHTML=h}
-function renderBoard(){const ps=Object.values(C.players).filter(q=>!q.raider).sort((a,b)=>(C.sb[b.id]?.pts||0)-(C.sb[a.id]?.pts||0));
+function renderBoard(){if(C.mode==='raid'){raidBoardRender();return}const ps=Object.values(C.players).filter(q=>!q.raider).sort((a,b)=>(C.sb[b.id]?.pts||0)-(C.sb[a.id]?.pts||0));
  $('board').innerHTML=`<div class="cardHead sm">${MODES[C.mode][0]} · ${MI(C.map).name} · ROOM ${roomCode}</div><table><tr style="opacity:.7;font-size:11px"><td>PLAYER</td><td>PTS</td><td>K</td><td>D</td><td>A</td><td>🎯</td>${C.mode==='ffa'?'<td>★</td>':''}</tr>`+
  ps.map(p=>{const s=C.sb[p.id]||{k:0,d:0,pts:0,hs:0,as:0};return`<tr class="${p.id===me.id?'me':''}"><td style="color:${hex(p.color)}">${esc(p.name)}${p.bot?' 🤖':''}</td><td>${s.pts}</td><td>${s.k}</td><td>${s.d}</td><td>${s.as||0}</td><td>${s.hs}</td>${C.mode==='ffa'?`<td>${C.score[p.id]||0}</td>`:''}</tr>`}).join('')+'</table>'}
 let paused=false;
@@ -801,7 +867,7 @@ function openPause(on){paused=!!on;$('pause').classList.toggle('hidden',!on);$('
  else if(!isTouch&&inGame&&canvas.requestPointerLock){try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}}
 $('menuBtn').onclick=()=>openPause(!paused);$('pResume').onclick=()=>openPause(false);
 // desktop: Esc releases pointer lock without a keydown, so treat an unexpected unlock as "pause"
-document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&inGame&&!paused&&!(BC&&(BC.bagOn||BC.mapOn))&&$('arsenal').classList.contains('hidden')&&$('settings').classList.contains('hidden'))openPause(true)});$('pLeave').onclick=()=>{try{if(BC||BRM(C.mode)){sessionStorage.setItem('hsz_royMenu','1');sessionStorage.setItem('hsz_squad',JSON.stringify({mode:BRM(C.mode)?C.mode:'br',diff:(H&&H.diff)||LS('royDiff')||'normal',n:PARTY?PARTY.m.length:1}))}}catch(e){}location.href=location.pathname+((BC||BRM(C.mode))&&/[?&]net=local/.test(location.search)?'?net=local':'')};
+document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&inGame&&!paused&&!(BC&&(BC.bagOn||BC.mapOn))&&!(RC&&RC.modal)&&$('arsenal').classList.contains('hidden')&&$('settings').classList.contains('hidden'))openPause(true)});$('pLeave').onclick=()=>{try{if(BC||BRM(C.mode)){sessionStorage.setItem('hsz_royMenu','1');sessionStorage.setItem('hsz_squad',JSON.stringify({mode:BRM(C.mode)?C.mode:'br',diff:(H&&H.diff)||LS('royDiff')||'normal',n:PARTY?PARTY.m.length:1}))}}catch(e){}location.href=location.pathname+((BC||BRM(C.mode))&&/[?&]net=local/.test(location.search)?'?net=local':'')};
 $('pArsenal').onclick=()=>openArsenal();$('pShop').onclick=()=>openArsenal(null,'shop');$('pSettings').onclick=()=>openSettings();
 let hudKey='';function updAmmo(){const k=me.cur+'|'+me.ammo.join(',')+'|'+(me.reloadT>0)+'|'+me.utilN+'|'+me.load.join()+'|'+(BC?JSON.stringify(BC.inv.n)+BC.inv.c.join():JSON.stringify(me.nl))+'|'+me.nlSel+(BC?'|'+BC.res.join()+BC.gk.join():'');if(k!==hudKey){hudKey=k;buildSlots()}}
 function buildSlots(){let h='';const bo=BC?BRORD:[0,1,2];$('slots').classList.toggle('br6',!!BC);
@@ -907,11 +973,13 @@ $('arsDetail').addEventListener('click',e=>{const b=e.target.closest('[data-act]
 $('arsClose').onclick=()=>{$('arsenal').classList.add('hidden');stopPreview()};
 $('openArsenal').onclick=()=>openArsenal();$('lobArsenal').onclick=()=>openArsenal();$('openShop').onclick=()=>openArsenal(null,'shop');$('openUpg').onclick=()=>openArsenal(null,'upgrade');$('lobShop').onclick=()=>openArsenal(null,'shop');
 // ---- settings ----
-function openSettings(){$('settings').classList.remove('hidden');$('sens').value=S.sens;$('sensVal').textContent=(+S.sens).toFixed(2);$('aimAssist').checked=S.aimAssist;$('vol').value=S.vol;$('volVal').textContent=Math.round(S.vol*100)+'%';$('sfxv').value=S.sfx;$('sfxVal').textContent=Math.round(S.sfx*100)+'%';
+function openSettings(){$('settings').classList.remove('hidden');$('sens').value=S.sens;$('sensVal').textContent=(+S.sens).toFixed(2);$('aimAssist').checked=S.aimAssist;const vm=$('voiceAnn');if(vm)vm.checked=S.voice!==false;const rm=$('reduceMotion');if(rm)rm.checked=!!S.reduceMotion;$('vol').value=S.vol;$('volVal').textContent=Math.round(S.vol*100)+'%';$('sfxv').value=S.sfx;$('sfxVal').textContent=Math.round(S.sfx*100)+'%';
  for(const b of $('qualBtns').children)b.classList.toggle('sel',b.dataset.q===S.quality);$('zsens').value=S.zsens;$('zsensVal').textContent=(+S.zsens).toFixed(2);$('qualNow').textContent=S.quality==='auto'?'(auto: '+qLevel()+')':''}
 $('vol').oninput=e=>{S.vol=+e.target.value;$('volVal').textContent=Math.round(S.vol*100)+'%';saveS();setVolumes()};$('sfxv').oninput=e=>{S.sfx=+e.target.value;$('sfxVal').textContent=Math.round(S.sfx*100)+'%';saveS();setVolumes();SFX.click()};
 $('zsens').oninput=e=>{S.zsens=+e.target.value;$('zsensVal').textContent=S.zsens.toFixed(2);saveS()};
 $('sens').oninput=e=>{S.sens=+e.target.value;$('sensVal').textContent=S.sens.toFixed(2);saveS()};$('aimAssist').onchange=e=>{S.aimAssist=e.target.checked;saveS()};
+$('voiceAnn')&&($('voiceAnn').onchange=e=>{S.voice=e.target.checked;saveS();if(!S.voice){try{speechSynthesis.cancel()}catch(_){}};if(e.target.checked&&window.speechSynthesis){try{const u=new SpeechSynthesisUtterance('Voice announcements on');u.volume=Math.min(1,S.sfx);speechSynthesis.speak(u)}catch(_){}}});
+$('reduceMotion')&&($('reduceMotion').onchange=e=>{S.reduceMotion=e.target.checked;document.body.classList.toggle('rm',S.reduceMotion);saveS()});
 $('qualBtns').onclick=e=>{const b=e.target.closest('[data-q]');if(!b)return;const wasLow=qLevel()==='low';S.quality=b.dataset.q;saveS();applyQuality();openSettings()};
 $('setClose').onclick=()=>$('settings').classList.add('hidden');$('openSettings').onclick=openSettings;$('lobSettings').onclick=openSettings;
 // ================= INPUT =================
@@ -920,11 +988,14 @@ let lookPX=0,lookPY=0;
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(!(inGame&&paused&&!['Escape','Tab','KeyP'].includes(e.code)))keys[e.code]=true;if(!inGame)return;if(paused&&!['Escape','Tab','KeyP'].includes(e.code))return;
  if(e.code==='Space'){inp.jump=true;e.preventDefault()}if(e.code==='KeyC'||e.code==='ControlLeft'){if(!e.repeat)inp.crouchP=true;inp.slideHold=true;e.preventDefault()}
  if(e.code==='KeyR')reload();if(e.code==='KeyQ')switchTo(nxtSlot());if(e.code.startsWith('Digit')){const n=+e.code.slice(5);if(BC){if(n>=1&&n<=5)switchTo(BRORD[n-1])}else{if(n>=1&&n<=3)switchTo(n-1);if(n===4)useUtil()}}
+ if(e.code==='Tab'&&RAIDM(C.mode)&&RC&&RC.modal)return;
  if(e.code==='KeyG'||e.code==='KeyF')useUtil();if(e.code==='KeyX'&&!e.repeat)nlUse();if(e.code==='KeyN'&&!e.repeat)nlCycle();if(e.code==='Tab'||e.code==='Escape'||e.code==='KeyP'){e.preventDefault();if(e.repeat)return;
+  if(RAIDM(C.mode)&&e.code==='Tab'){raidPackToggle();return}
+  if(RAIDM(C.mode)&&e.code==='Escape'&&RC&&RC.modal){raidCloseModal();return}
   if(!$('arsenal').classList.contains('hidden')){$('arsClose').click();return}if(!$('settings').classList.contains('hidden')){$('setClose').click();return}
   if(e.code==='Tab')openPause(true);else openPause(!paused)}
  if(e.code==='KeyZ'&&!e.repeat)toggleZoom()});
-addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='KeyC'||e.code==='ControlLeft')inp.slideHold=false;if(e.code==='Tab')openPause(false)});
+addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='KeyC'||e.code==='ControlLeft')inp.slideHold=false;if(e.code==='Tab'&&!RAIDM(C.mode))openPause(false)});
 canvas.addEventListener('mousedown',e=>{audioInit();if(!inGame||isTouch)return;if(document.pointerLockElement!==canvas){canvas.requestPointerLock?.();return}if(e.button===0)inp.fire=true;if(e.button===2)zoomPress()});
 addEventListener('mouseup',e=>{if(e.button===0)inp.fire=false;if(e.button===2)zoomRelease()});
 addEventListener('contextmenu',e=>{if(inGame)e.preventDefault()});
@@ -1061,8 +1132,9 @@ function ladderMe(dt,mx,mz){if(me.mountT>0)return;if(me.lad){const A=me.lad;if(M
    me.mountA=[me.pos.x,me.pos.y,me.pos.z];me.mountB=[bx,gy+.01,bz];me.mountD=me.mountT=.28;me.lad=null;me.onLadder=false;me.ladTop=null;inp.ladUp=false;return}}
 }
 function updateMe(dt){const id=me.load[me.cur],w=W[id];if(BC&&me.air){brAirMe(dt);return}
- if(isTouch)applyTouchLook(dt);
+ if(isTouch&&!(RC&&RC.modal))applyTouchLook(dt);
  let mx=inp.mx,mz=inp.mz;if(keys.KeyW||keys.ArrowUp)mz-=1;if(keys.KeyS||keys.ArrowDown)mz+=1;if(keys.KeyA||keys.ArrowLeft)mx-=1;if(keys.KeyD||keys.ArrowRight)mx+=1;
+ if(RC&&RC.modal){mx=mz=0;inp.fire=false;inp.jump=false;inp.slide=false}
  const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}
  const sprint=(keys.ShiftLeft||keys.ShiftRight||inp.sprint)&&mz<-.3&&me.zoomT<.3&&!paused;
  if(!me.alive||me.frozen){mx=mz=0}
@@ -1116,7 +1188,7 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];if(BC&&me.air){brAirMe(dt
  VA.slide=Math.max(0,VA.slide-dt*14);if(vmInfo.spin&&vmCur){const Gc=vmCur.userData.G.cyl;VA.spin=Math.max(0,(VA.spin||0)-dt*1.2);if(performance.now()-me.lastShot<150)VA.spin=1;VA.spinA=((VA.spinA||0)+dt*VA.spin*40)%(Math.PI*2)}if(VA.inspect>0)VA.inspect-=dt;
  // auto-fire when crosshair is on an enemy (primary mobile control)
  const range=w.melee?w.melee:(w.pellets?32:250);const tgt=(me.alive&&!me.frozen)?aimTarget(range):null;$('cross').classList.toggle('on',!!tgt);
- let trigger=(tgt||inp.fire)&&!paused&&me.alive&&!me.frozen&&C.phase==='play';
+ let trigger=(tgt||inp.fire)&&!paused&&me.alive&&!me.frozen&&C.phase==='play'&&!(RC&&RC.modal);
  if(me.burst>0){me.burstT-=dt;if(me.burstT<=0&&me.ammo[me.cur]>0&&me.reloadT<=0){me.burst--;me.burstT=.06;fire();me.cool=w.rate}}
  else if(trigger&&!C.hub&&me.cool<=0&&me.switchT<=0&&me.reloadT<=0&&throwT<=0&&(w.melee||me.ammo[me.cur]>0)){if(w.burst){me.burst=w.burst-1;me.burstT=.06}fire()}
  if(!w.melee&&me.ammo[me.cur]<=0&&me.reloadT<=0&&me.alive){if(trigger)SFX.dry();reload()}
@@ -1219,7 +1291,7 @@ let lastHostTick=performance.now();function hostStep(){const n=performance.now()
 setInterval(()=>{if(performance.now()-lastHostTick>120)hostStep()},50);
 let slowWin=0,cellT=0;function loop(now){requestAnimationFrame(loop);const el=now-last;if(el<15.2)return;last=now;const dt=Math.min(.05,el/1000);tickSkins(now/1000);
  hostStep();if(PETS)PETS.update(dt,now);
- if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updDoors(dt);doorScan();cellT-=dt;if(cellT<=0){cellT=.15;const cg=cur&&cur.group;if(cg&&cg.userData.cells&&cg.userData.cells.length)updateCells(cg,window.__camOv?window.__camOv.p[0]:camera.position.x,window.__camOv?window.__camOv.p[2]:camera.position.z,(scene.fog?Math.min(scene.fog.far,320):320)+4,window.__lodD||85)}updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
+ if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updDoors(dt);doorScan();cellT-=dt;if(cellT<=0){cellT=.15;const cg=cur&&cur.group;if(cg&&cg.userData.cells&&cg.userData.cells.length)updateCells(cg,window.__camOv?window.__camOv.p[0]:camera.position.x,window.__camOv?window.__camOv.p[2]:camera.position.z,(scene.fog?Math.min(scene.fog.far,320):320)+4,window.__lodD||85)}updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(RAIDM(C.mode))raidFrame(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
   if(sun.castShadow){const c=camera.position,sd=cur.sunDir;const s=68/2048;const tx=Math.round(c.x/s)*s,tz=Math.round(c.z/s)*s;sun.target.position.set(tx,0,tz);sun.position.set(tx+sd.x*90,sd.y*90,tz+sd.z*90);sun.target.updateMatrixWorld()}
   if(cur&&cur.sky)cur.sky.position.copy(camera.position);
   if(vmCam.aspect!==camera.aspect){vmCam.aspect=camera.aspect;vmCam.updateProjectionMatrix()}
@@ -1416,8 +1488,16 @@ $('hubBtn').onclick=()=>enterHub();$('quickBtn').onclick=()=>quickJoin();$('brow
 try{renderIcons()}catch(e){console.warn('icons',e)}
 renderLoadoutMini();resize();requestAnimationFrame(loop);
 addEventListener('keydown',e=>{if(e.code==='KeyF'&&inGame&&!paused&&me.alive&&me.reloadT<=0&&VA.inspect<=0&&me.zoomT<.1)VA.inspect=2.6});
-addEventListener('keydown',e=>{if(e.code==='KeyE'&&!BC&&inGame&&!paused&&doorNear&&e.target.tagName!=='INPUT')doorAct()});
+addEventListener('keydown',e=>{if(e.code==='KeyE'&&!BC&&!RAIDM(C.mode)&&inGame&&!paused&&doorNear&&e.target.tagName!=='INPUT')doorAct()});
 addEventListener('keydown',e=>{if(e.code==='KeyE'&&C.phase==='hub'&&!$('stationBtn').classList.contains('hidden'))useStation($('stationBtn').dataset.k)});
+addEventListener('keydown',e=>{if(!RAIDM(C.mode)||!inGame||paused||e.target.tagName==='INPUT')return;if(e.code==='KeyE'){e.preventDefault();if(!e.repeat)raidAction()}else if(e.code==='KeyI'){e.preventDefault();if(!e.repeat)raidPackToggle()}});
+// keep keyboard focus inside the active raid dialog
+addEventListener('keydown',e=>{if(e.code!=='Tab'||!RC||!RC.modal||RC.final)return;const box=RC.packOn?$('raidPack'):$('raidLoot');if(!box)return;
+ const f=[...box.querySelectorAll('button:not([disabled])')].filter(b=>b.offsetParent!==null);if(!f.length)return;
+ const i=f.indexOf(document.activeElement);
+ if(e.shiftKey&&(i<=0)){e.preventDefault();f[f.length-1].focus()}
+ else if(!e.shiftKey&&(i<0||i===f.length-1)){e.preventDefault();f[0].focus()}
+});
 {const q=new URLSearchParams(location.search);if(q.get('join')){const jc=q.get('join');setTimeout(()=>joinRoom(jc),300)}else if(q.get('hub'))setTimeout(enterHub,50);else if(q.get('offline'))setTimeout(()=>$('offlineBtn').click(),50)}
 
 // ---- Class Booth: buy a class with 💎 and pick one before a match ----
@@ -1688,7 +1768,7 @@ function mState(){if(H.mode==='ctf'){const f=H.ctf.f;const o=T=>[f[T].st,f[T].ca
 function mInfo(){const s=mState();if(H.mode==='ctf'){s.home={A:H.ctf.f.A.home,B:H.ctf.f.B.home}}else{s.home=H.ext.d.map(d=>d.home)}return s}
 function mEv(k,o){bcast(Object.assign({t:'mev',k},o||{}))}
 function mSync(){bcast({t:'ms',s:mState()})}
-function respawnDelay(v){if(BRM(H.mode))return 0;if(H.mode==='ffa')return 2.5;if(H.mode==='ctf')return CTF.resp;if(H.mode==='ext'){if(v.raider)return Math.max(10,22-H.ext.wave*2);if(H.ext.reinf>0){H.ext.reinf--;return 16}}return 0}
+function respawnDelay(v){if(RAIDM(H.mode))return 0;if(BRM(H.mode))return 0;if(H.mode==='ffa')return 2.5;if(H.mode==='ctf')return CTF.resp;if(H.mode==='ext'){if(v.raider)return Math.max(10,22-H.ext.wave*2);if(H.ext.reinf>0){H.ext.reinf--;return 16}}return 0}
 // --- CTF ---
 function ctfTake(T,p){const F=H.ctf.f[T];F.st='carried';F.car=p.id;p.flag=T;mEv('take',{team:T,by:p.id});mSync()}
 function ctfDrop(T,why){const F=H.ctf.f[T];const c=H.players[F.car];if(c)c.flag=null;F.st='dropped';F.car=null;F.t=H.t;mEv('drop',{team:T,by:c&&c.id,why});mSync()}
@@ -1791,7 +1871,7 @@ function updMsHud(){const h=$('msHud');if(!h||!MS){return}const s=MS.s;let t='';
  else{const taken=s.d.filter(d=>d[0]==='carried').length;const ph=s.ph;t=`💾 DRIVES  <b>${s.sec}/${EXT.need}</b> secured <small>(${taken} carried · need ${EXT.need} of ${EXT.n})</small><br>`+(ph==='search'?'🚁 Grab a drive to call the chopper':ph==='called'?`🚁 CHOPPER ETA <b class="warn">${s.cl}s</b>`:ph==='extract'?`🚁 LANDED — get in the zone! <b class="warn">${s.cl}s</b>`:'🚁 TAKING OFF…')+`<br><small>Reinforcements ${s.reinf} · Raider wave ${s.wave}</small>`}
  if(t!==msTxt){msTxt=t;h.innerHTML=t}h.classList.remove('hidden')}
 function ANN(txt,kind,col){center(txt.replace(/\n/g,' · '),1900);window.__ann=(window.__ann||[]);window.__ann.push([kind,txt]);try{SFX.ann(kind)}catch(e){}
- try{if(window.speechSynthesis&&S.sfx>0&&kind!=='tick'){const u=new SpeechSynthesisUtterance(txt.replace(/\n.*/,'').replace(/[^\w\s!?']/g,''));u.rate=1.1;u.pitch=.75;u.volume=Math.min(1,S.sfx);speechSynthesis.cancel();speechSynthesis.speak(u)}}catch(e){}}
+ try{if(window.speechSynthesis&&S.voice!==false&&S.sfx>0&&kind!=='tick'){const u=new SpeechSynthesisUtterance(txt.replace(/\n.*/,'').replace(/[^\w\s!?']/g,''));u.rate=1.1;u.pitch=.75;u.volume=Math.min(1,S.sfx);speechSynthesis.cancel();speechSynthesis.speak(u)}}catch(e){}}
 function missionEvent(m){if(!MS)return;const my=myTeam(),nm=id=>(id===me.id?'You':(C.players[id]?.name||'?'));
  if(MS.info.m==='ctf'){const mineF=m.team===my;
   if(m.k==='take'){if(m.by===me.id)ANN('YOU HAVE THE ENEMY FLAG!\nRun it home','take');else if(mineF)ANN('YOUR FLAG HAS BEEN TAKEN!','warn');else ANN('ENEMY FLAG TAKEN\n'+nm(m.by),'take');feed(`🚩 ${nm(m.by)} took the ${mineF?'your':'enemy'} flag`)}
@@ -2398,3 +2478,1414 @@ window.__hsz.equipPet=equipPet;
 SHOP=initSkinShop({$,PROG,saveProg,SFX,esc,audioInit,equip:equipSkin,gun:(id,gl)=>tpGun(id,skOf({ws:PROG.wskin},id),gl),denied:()=>{SFX.beep&&SFX.beep()},onClose:from=>{if(from==='royale'&&window.__hsz.royale)window.__hsz.royale.refresh()}});window.__hsz.shop=SHOP;if(SHOP&&$('openSkinShop'))$('openSkinShop').onclick=()=>SHOP.open('menu');
 PETSHOP=initSidekickShop({$,PROG,saveProg,SFX,esc,audioInit,equip:equipPet,denied:()=>{SFX.beep&&SFX.beep()},onClose:from=>{if(from==='royale'&&window.__hsz.royale)window.__hsz.royale.refresh()}});window.__hsz.petshop=PETSHOP;if(PETSHOP&&$('openPets'))$('openPets').onclick=()=>PETSHOP.open('menu');
 {const ROY=initRoyale({$,LS,LSS,audioInit,lastSquad:()=>{try{return JSON.parse(sessionStorage.getItem('hsz_squad')||'null')}catch(e){return null}},play:(m,o)=>playOnlineBots(m,o),party:()=>PARTY,partyLead,myCode:()=>FR.code,esc,openFriends,partyLeave,r2,gun:(id,gl)=>tpGun(id,skOf({ws:PROG.wskin},id),gl),W,shop:SHOP,pets:PETSHOP,equipSkin,PROG});window.__hsz.royale=ROY;if(ROY&&$('royaleBtn'))$('royaleBtn').onclick=()=>ROY.open();try{if(sessionStorage.getItem('hsz_royMenu')){sessionStorage.removeItem('hsz_royMenu');setTimeout(()=>{if(!inGame)ROY.open()},700)}}catch(e){}}
+
+// ================= v62 EXTRACTION RAID =================
+// PvPvE: safe base -> stash/contract/loadout -> one-life insertion -> shared hostile map ->
+// machine factions + rival squads, loot caches and named extraction exits -> settlement/stash.
+// Host-authoritative: the host generates loot ids, validates distance, owns all timers, exits,
+// deaths, bags and settlements. Clients only request actions and mirror host messages.
+const RAID={v:63,time:600,squads:3,perSquad:3,maxP:9,cost:15,insureCost:25,search:2.4,extR:5.5,board:2.2,wave:75,alarmWave:35,callEta:35,callWindow:30,timedAt:180,timedWindow:60,keyWindow:45,cap:18,secure:2,secureWeight:12,supplyAt:210,flyerY:7.5,reconnect:45,recCap:12,recSecure:1,test:false};
+{const q=new URLSearchParams(location.search);if(q.get('raidtest')){RAID.test=true;Object.assign(RAID,{time:180,wave:30,alarmWave:45,callEta:10,callWindow:25,timedAt:45,timedWindow:30,keyWindow:20,supplyAt:70,search:1.2,board:1.4,reconnect:12,recCap:8});}}
+const RAIDM=m=>m==='raid';
+const RSQN=['ALPHA','BRAVO','CHARLIE'];
+const RSQCOL=[0x3fa9ff,0xff5a6b,0x2ee59d];
+const raidSquadOf=p=>RSQN[['A','B','C'].indexOf(p&&p.team)]||'SQUAD';
+const RARCH={
+ scout:{n:'MACHINE SCOUT',cl:'scout',gun:'smg',hp:70,color:0x6fe3ff,d:32},
+ hunter:{n:'MACHINE HUNTER',cl:'ninja',gun:'dmr',hp:120,color:0xffb14a,d:58},
+ heavy:{n:'MACHINE HEAVY',cl:'juggernaut',gun:'lmg',hp:240,color:0xff6b6b,d:52},
+ flyer:{n:'MACHINE FLYER',cl:'scout',gun:'ar',hp:60,color:0xb79dff,d:60},
+ boss:{n:'MACHINE OVERLORD',cl:'juggernaut',gun:'minigun',hp:650,color:0xff2a2a,d:70}
+};
+const RMS=['wire','steel','chem','fuel'];
+const RMN={wire:'WIRE',steel:'STEEL',chem:'CHEMS',fuel:'FUEL'};
+const RAID_MAX_HIST=8, RAID_STASH_V=1;
+function raidClamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function raidPointOK(m,x,z){
+ const hx=m.size[0]/2,hz=m.size[1]/2;
+ if(Math.abs(x)>hx-2.5||Math.abs(z)>hz-2.5)return false;
+ for(const c of m.cols||[]){if(x>c.x0-1&&x<c.x1+1&&z>c.z0-1&&z<c.z1+1&&c.y0<1.8&&c.y1>.05)return false}
+ return true;
+}
+function raidSample(m,n,avoid){
+ const out=[],hx=m.size[0]/2-5,hz=m.size[1]/2-5,sp=Math.max(4,Math.min(8,Math.min(hx,hz)/5));let tries=0;
+ while(out.length<n&&tries<4000){tries++;const x=(Math.random()*2-1)*hx,z=(Math.random()*2-1)*hz;
+  if(!raidPointOK(m,x,z))continue;if(avoid&&avoid.some(a=>Math.hypot(a[0]-x,a[1]-z)<sp))continue;
+  if(out.some(a=>Math.hypot(a[0]-x,a[1]-z)<sp))continue;out.push([+x.toFixed(1),+z.toFixed(1)])}
+ if(out.length<n){const gw=Math.ceil(Math.sqrt(n)),gh=Math.ceil(n/gw);for(let j=0;j<gh&&out.length<n;j++)for(let i=0;i<gw&&out.length<n;i++){const x=-hx+(i+.5)*(2*hx/gw),z=-hz+(j+.5)*(2*hz/gh);if(raidPointOK(m,x,z)&&!(avoid&&avoid.some(a=>Math.hypot(a[0]-x,a[1]-z)<sp))&&!out.some(a=>Math.hypot(a[0]-x,a[1]-z)<sp))out.push([+x.toFixed(1),+z.toFixed(1)])}}
+ return out;
+}
+function raidOpenSpot(m,arr,off){
+ const cand=(arr||[]).filter(s=>raidPointOK(m,s[0],s[1]));if(cand.length)return cand[Math.floor(Math.random()*cand.length)].slice(0,2);
+ const pts=raidSample(m,1);if(pts.length)return pts[0];
+ return [off?off[0]:0,off?off[1]:0];
+}
+function raidNewItem(R,kind,opt){
+ const o=opt||{};const id=o.id||((R.run||'R')+'-'+(++R.nid));
+ const it={id,kind,rar:raidClamp(o.rar|0,0,4),qty:Math.max(1,o.qty|0),owner:o.owner||null,taken:0,gear:!!o.gear,insure:!!o.insure,recovery:!!o.recovery,bag:null,src:null,secure:0};
+ if(kind==='weapon'){it.w=W[o.w]?o.w:'ar';it.name=W[it.w].name}
+ else if(kind==='armor'){it.name=o.name||'Body Armor'}
+ else if(kind==='ammo'){it.a=raidClamp(o.a|0,0,3);it.name=AMN[it.a]+' Ammo'}
+ else if(kind==='med'){it.t=o.t|0;it.name=it.t?'Stim Pack':'Field Medkit'}
+ else if(kind==='mat'){it.m=RMN[o.m]?o.m:'wire';it.name=RMN[it.m]+' Salvage'}
+ else if(kind==='val'){it.val=Math.max(1,o.v|0);it.name='Trade Goods'}
+ else if(kind==='key'){it.name='Emergency Keycard'}
+ else if(kind==='core'){it.name='Reactor Core'}
+ R.items[id]=it;return it;
+}
+function raidItemPub(it){if(!it)return null;const o={id:it.id,k:it.kind,r:it.rar|0,q:it.qty||1,g:it.gear?1:0,sec:it.secure?1:0};
+ if(it.kind==='weapon')o.w=it.w;else if(it.kind==='armor')o.n=it.name;else if(it.kind==='ammo')o.a=it.a;else if(it.kind==='med')o.t=it.t;
+ else if(it.kind==='mat')o.m=it.m;else if(it.kind==='val')o.v=it.val;return o}
+function raidLootPubs(R,ids){return (ids||[]).map(id=>raidItemPub(R.items[id])).filter(Boolean)}
+function raidWeaponPool(){return WIDS.filter(id=>W[id]&&W[id].slot===0&&!W[id].util)}
+function raidRollItem(R,tier){
+ const t=raidClamp(tier|0,0,2),r=Math.random();let rar=t===0?1:t===1?2:2;
+ if(Math.random()<.3)rar=Math.min(4,rar+1);
+ const pool=raidWeaponPool();const pick=Math.random();
+ if(pick<[.2,.32,.45][t])return raidNewItem(R,'weapon',{w:pool[Math.floor(Math.random()*pool.length)],rar:Math.min(4,rar+1)});
+ if(pick<[.55,.62,.7][t])return raidNewItem(R,'ammo',{a:Math.random()*4|0,qty:8+t*4,rar});
+ if(pick<[.72,.78,.82][t])return raidNewItem(R,'med',{t:Math.random()<.6?0:1,qty:t===2?2:1,rar});
+ if(pick<[.92,.92,.92][t])return raidNewItem(R,'mat',{m:RMS[Math.random()*RMS.length|0],qty:1+t+(Math.random()*3|0),rar});
+ return raidNewItem(R,'val',{v:8+t*18+(Math.random()*22|0),rar});
+}
+function raidFillContainer(R,c){
+ const want=[2,3,4][c.tier]||2;
+ if(c.vault){if(!c.items||!c.items.length){c.items=[raidNewItem(R,'key',{rar:2,qty:1}).id,raidNewItem(R,'core',{rar:2,qty:1}).id]}}
+ while((c.items||[]).length<want){const it=raidRollItem(R,c.tier);c.items.push(it.id)}
+ c.gen=1;
+}
+function raidAssignSquads(){
+ const teams=['A','B','C'];const counts={A:0,B:0,C:0};
+ const humans=plist().filter(p=>!p.machine&&!p.bot);
+ const parties=new Map(),groups=[];
+ for(const p of humans){if(!p.party){groups.push([p]);continue}let g=parties.get(p.party);if(!g){g=[];parties.set(p.party,g);groups.push(g)}g.push(p)}
+ // Place complete parties first so singles cannot fragment the available squads.
+ groups.sort((a,b)=>b.length-a.length);
+ for(const g of groups){const t=teams.filter(t=>counts[t]+g.length<=RAID.perSquad).sort((a,b)=>counts[a]-counts[b]||teams.indexOf(a)-teams.indexOf(b))[0];
+  if(!t)throw new Error('Raid party exceeds available squad capacity');
+  for(const p of g){p.team=t;p.color=RSQCOL[teams.indexOf(t)];p.raidSq=t;counts[t]++}}
+ const bots=plist().filter(p=>!p.machine&&p.bot);
+ for(const b of bots){let t=teams.slice().sort((a,b)=>counts[a]-counts[b]||teams.indexOf(a)-teams.indexOf(b))[0];b.team=t;b.raidSq=t;b.color=RSQCOL[teams.indexOf(t)];counts[t]++}
+ for(const p of plist())if(p.machine){p.team='M';const def=RARCH[p.arch]||RARCH.scout;p.color=def.color}
+}
+function raidJoinTeam(np){
+ const teams=['A','B','C'],counts={A:0,B:0,C:0};let partyTeam=null;
+ // Bots can be replaced by human joiners; reserve human/ghost slots only.
+ for(const p of plist())if(p.id!==np.id&&!p.machine&&!p.bot){if(p.team in counts)counts[p.team]++;if(np.party&&p.party===np.party)partyTeam=p.team}
+ const t=partyTeam?(counts[partyTeam]<RAID.perSquad?partyTeam:null):teams.filter(t=>counts[t]<RAID.perSquad).sort((a,b)=>counts[a]-counts[b]||teams.indexOf(a)-teams.indexOf(b))[0];
+ if(!t)return null;
+ np.team=t;np.color=RSQCOL[['A','B','C'].indexOf(t)];np.raidSq=t;
+ return t;
+}
+function raidSpawnZones(m){
+ const ok=a=>(a||[]).filter(s=>raidPointOK(m,s[0],s[1]));
+ const zones=[];
+ for(const arr of[ok(m.spawnsA),ok(m.spawnsB)]){
+  if(!arr.length)continue;
+  const c=arr.reduce((a,b)=>a+b[0],0)/arr.length,z=arr.reduce((a,b)=>a+b[1],0)/arr.length;
+  zones.push([c,z]);
+ }
+ const far=ok(m.spawnsM).sort((a,b)=>Math.hypot(b[0],b[1])-Math.hypot(a[0],a[1]));
+ if(far.length)zones.push(far[0]);
+ if(!zones.length){const all=allSpawns(m).map(s=>[s[0],s[1]]);return all}
+ return zones;
+}
+function raidZoneFor(team,zones){const i=['A','B','C'].indexOf(team);return zones[Math.max(0,Math.min(zones.length-1,Math.round(zones.length*i/3)))]}
+function raidJoinSpawn(np){
+ const m=buildMap(H.map),zones=raidSpawnZones(m),base=raidZoneFor(np.team||'A',zones);
+ const a=(np.ord||0)*1.7,off=(np.slot=(np.slot||0)+1)%8;
+ return [raidClamp(base[0]+Math.cos(a+off)*2.5,-m.size[0]/2+2,m.size[0]/2-2),0,raidClamp(base[1]+Math.sin(a+off)*2.5,-m.size[1]/2+2,m.size[1]/2-2),faceCenter(base)];
+}
+function raidSpawns(){
+ const m=buildMap(H.map),zones=raidSpawnZones(m),out={},cn={};
+ for(const p of plist()){
+  if(p.machine){const s=p.raidSpawn||[0,0];out[p.id]=[s[0],0,s[1],faceCenter(s)];continue}
+  const base=raidZoneFor(p.team||'A',zones);const n=(cn[p.team]=(cn[p.team]||0)+1);
+  const a=(p.ord||0)*1.37;
+  out[p.id]=[raidClamp(base[0]+Math.cos(a)*2.2,-m.size[0]/2+2,m.size[0]/2-2),0,raidClamp(base[1]+Math.sin(a)*2.2,-m.size[1]/2+2,m.size[1]/2-2),faceCenter(base)];
+ }
+ return out;
+}
+function raidPrep(m){
+ const R=H.raid={run:'R'+Date.now().toString(36)+'_'+((Math.random()*1e6)|0),nid:0,sn:0,items:{},containers:[],exits:[],bags:[],settle:{},ph:'prep',t0:0,limit:0,waveAt:0,waveN:0,supplyAt:0,supplied:0,statT:0,alarmUntil:0,keyUsed:0,bossDead:0,board:[],machN:0,map:H.map,rep:null};
+ for(const p of plist()){p.raiPack=[];p.raiSecure=[];p.raiGear=null;p.raiArm=0;p.raiMax=100;p.raiLoaded=0;p.raiDeploy='';p.raiRisk=0;p.raiContract='cores';p.settled=0;p.extracted=0;p.raiLootT=0;delete p.raidSq}
+ const pts=raidSample(m,26);pts.sort((a,b)=>Math.hypot(a[0],a[1])-Math.hypot(b[0],b[1]));
+ pts.forEach((s,i)=>{
+  const tier=i<9?0:i<18?1:2;const c={id:'C'+i+1,x:s[0],z:s[1],tier,vault:0,st:'closed',items:[],gen:0,searchBy:null,searchAt:0,label:'CACHE '+String(i+1).padStart(2,'0')+' · '+['OUTER','MID','DEEP'][tier]};
+  R.containers.push(c);
+ });
+ const deep=R.containers.filter(c=>c.tier===2);deep.sort((a,b)=>Math.hypot(a.x,a.z)-Math.hypot(b.x,b.z));R.vault=deep[0]||R.containers[0];if(R.vault){R.vault.vault=1;R.vault.items=[raidNewItem(R,'key',{rar:2,qty:1}).id,raidNewItem(R,'core',{rar:2,qty:1}).id]}
+ const A=raidOpenSpot(m,m.spawnsA,[-m.size[0]/2+8,0]),B=raidOpenSpot(m,m.spawnsB,[m.size[0]/2-8,0]),M=raidOpenSpot(m,m.spawnsM,[0,m.size[1]/2-8]);
+ const off=(a,b)=>{if(Math.hypot(a[0]-b[0],a[1]-b[1])<8)return [b[0]+(b[0]>=0?-6:6),b[1]];return b};
+ const B2=off(A,B),M2=off(A,M);
+ R.exits=[
+  {id:'E1',kind:'call',x:A[0],z:A[1],st:'closed',openAt:0,closeAt:0,label:'CALL-IN LZ'},
+  {id:'E2',kind:'timed',x:B2[0],z:B2[1],st:'timed',openAt:0,closeAt:0,label:'TIMED TRANSPORT'},
+  {id:'E3',kind:'key',x:M2[0],z:M2[1],st:'closed',openAt:0,closeAt:0,label:'EMERGENCY PAD'}
+ ];
+ const spawnMach=(arch,x,z,guard)=>{
+  const def=RARCH[arch];const p=addRaidMachine(R,arch,x,z,guard,false);return p;
+ };
+ const vr=R.vault?[R.vault.x,R.vault.z]:[0,0];
+ spawnMach('boss',raidClamp(vr[0]+2,-m.size[0]/2+2,m.size[0]/2-2),raidClamp(vr[1]+2,-m.size[1]/2+2,m.size[1]/2-2),R.containers.indexOf(R.vault));
+ spawnMach('heavy',vr[0]-4,vr[1]+1,null);spawnMach('heavy',vr[0]+4,vr[1]-2,null);
+ const t1=R.containers.filter(c=>c.tier===1);
+ spawnMach('hunter',t1[0]?t1[0].x-3:vr[0],t1[0]?t1[0].z+3:vr[1],null);
+ spawnMach('hunter',t1[1]?t1[1].x+3:vr[0],t1[1]?t1[1].z-3:vr[1],null);
+ const t0=R.containers.filter(c=>c.tier===0);
+ spawnMach('scout',t0[0]?t0[0].x:vr[0]-10,t0[0]?t0[0].z:vr[1],null);
+ spawnMach('scout',t0[1]?t0[1].x:vr[0]+10,t0[1]?t0[1].z:vr[1],null);
+ spawnMach('flyer',vr[0]-8,vr[1]+6,null);spawnMach('flyer',vr[0]+8,vr[1]-6,null);
+ R.machN=plist().filter(p=>p.machine).length;
+}
+function raidExitPub(R,e){const eta=e&&e.openAt?Math.max(0,Math.round(e.openAt-H.t)):0;const cl=e&&e.closeAt?Math.max(0,Math.round(e.closeAt-H.t)):0;return{e:e.id,id:e.id,x:+e.x.toFixed(1),z:+e.z.toFixed(1),k:e.kind,st:e.st,label:e.label,eta,cl}}
+function raidInfo(){
+ const R=H.raid;
+ const e=R&&R.exits?R.exits.map(x=>raidExitPub(R,x)):[];
+ return{run:R&&R.run,v:RAID.v,time:RAID.time,cap:RAID.cap,secure:RAID.secure,boardT:RAID.board,extR:RAID.extR,containers:R?R.containers.map(c=>[c.id,+c.x.toFixed(1),+c.z.toFixed(1),c.tier,c.st,c.label,c.vault?1:0]):[],exits:e,bags:[],squads:RSQN};
+}
+function raidStartServer(){
+ const R=H.raid;if(!R)return;
+ R.ph='active';R.t0=R.t0||H.t;R.limit=R.t0+RAID.time;R.waveAt=R.t0+RAID.wave;R.supplyAt=R.t0+RAID.supplyAt;R.statT=R.t0+1;
+ const te=R.exits.find(e=>e.kind==='timed');if(te){te.openAt=R.t0+RAID.timedAt;te.closeAt=te.openAt+RAID.timedWindow}
+ for(const p of plist())if(p.machine&&p.flyer&&p.e){p.e.pos.y=RAID.flyerY;p.e.ground=false;if(p.p)p.p[1]=p.e.pos.y}
+ bcast({t:'rstart',run:R.run,t0:+R.t0.toFixed(2),limit:Math.round(R.limit),time:RAID.time,exits:R.exits.map(e=>raidExitPub(R,e)),count:RAID.squads});
+ for(const p of plist())if(!p.machine&&p.raiArm){p.raiMax=130;p.hp=p.raiMax;bcast({t:'hp',id:p.id,hp:p.hp})}
+ sendRaidStat(R);
+}
+function raidStatPub(R){
+ return{t:'rstat',left:Math.max(0,Math.round(R.limit-H.t)),ph:R.ph,alarm:R.alarmUntil?Math.max(0,Math.round(R.alarmUntil-H.t)):0,
+  c:R.containers.map(c=>[c.id,c.st,c.tier,c.searchBy?1:0]),
+  e:R.exits.map(e=>[e.id,e.kind,e.st,e.openAt?Math.max(0,Math.round(e.openAt-H.t)):0,e.closeAt?Math.max(0,Math.round(e.closeAt-H.t)):0]),
+  b:R.bags.map(b=>[b.id,+b.x.toFixed(1),+b.z.toFixed(1),b.items.reduce((n,id)=>n+(R.items[id]&&!R.items[id].taken?1:0),0)]),
+  machines:plist().filter(p=>p.machine&&p.alive).length,humans:plist().filter(p=>!p.machine&&!p.bot&&p.alive&&!p.extracted&&!p.settled).length,
+  boss:R.bossDead?1:0,open:R.containers.filter(c=>c.st==='open').length,extracted:plist().filter(p=>!p.machine&&!p.bot&&p.extracted).length};
+}
+function sendRaidStat(R){bcast(raidStatPub(R))}
+function raidIsOpen(R,e){if(!e)return false;if(e.st==='open')return !e.closeAt||H.t<e.closeAt;return false}
+function raidExitOpen(R,e,why){
+ if(e.st==='open')return;e.st='open';bcast({t:'rstate',e:raidExitPub(R,e),why:why||''});
+ bcast({t:'rfeed',msg:'EXIT OPEN: '+e.label+(e.closeAt?' · closes in '+Math.max(0,Math.round(e.closeAt-H.t))+'s':'')});
+ if(e.kind==='call'){R.alarmUntil=H.t+RAID.alarmWave+15;bcast({t:'ralarm',e:e.id,eta:Math.max(0,Math.round(e.closeAt?e.closeAt-H.t:0)),msg:'EXTRACTION CALLED — MACHINES CONVERGING ON THE LZ'});raidAlarmWave(R,e)}
+}
+function raidAlarmWave(R,e){
+ if(plist().filter(p=>p.machine&&p.alive).length>=17)return;
+ const m=buildMap(H.map);const arch=Math.random()<.5?'hunter':'heavy';
+ for(let i=0;i<2;i++){const s=raidOpenSpot(m,[[e.x+(i?6:-6),e.z+(i?3:-3)]],[e.x,e.z]);addRaidMachine(R,arch,s[0],s[1],null,true)}
+ bcast({t:'rwave',n:2,arch:'alarm',msg:'ALARM — machine response inbound'});
+}
+function raidSpawnWave(R){
+ if(plist().filter(p=>p.machine&&p.alive).length>=17)return;
+ const cs=R.containers.filter(c=>c.st==='open');const arch=['scout','hunter','heavy','flyer'][Math.random()*4|0];
+ const base=cs.length?cs[Math.random()*cs.length|0]:R.containers[Math.random()*R.containers.length|0];
+ const names=[];
+ for(let i=0;i<2;i++){const m=buildMap(H.map);const s={x:base.x+(i?4:-4)+((Math.random()-.5)*3),z:base.z+(i?-3:3)+((Math.random()-.5)*3)};const p=addRaidMachine(R,arch,s.x,s.z,null,true);names.push(p.name)}
+ R.waveN++;R.waveAt=H.t+RAID.wave;
+ bcast({t:'rwave',n:2,arch,msg:'MACHINE PATROL '+(arch.toUpperCase())+' — inbound'});
+}
+function addRaidMachine(R,arch,x,z,guard,announce){
+ const def=RARCH[arch]||RARCH.scout;const id='bot'+(++H.botN);
+ const b=H.players[id]=newP(id,def.n+' '+(++R.machN),true);
+ b.machine=1;b.arch=arch;b.team='M';b.color=def.color;b.cl=def.cl;b.gun=def.gun;b.hp=def.hp;b.raiMax=def.hp;b.alive=true;
+ b.raidSpawn=[+x.toFixed(1),+z.toFixed(1)];b.raidGuard=guard==null?null:guard;b.boss=arch==='boss'?1:0;b.flyer=arch==='flyer'?1:0;b.rarD=arch==='boss'?1.35:arch==='heavy'?1.15:1;
+ botReset(b,[x,0,z,faceCenter([x,z])]);if(arch==='flyer'){b.e.pos.y=RAID.flyerY;b.e.ground=false}
+ b.p=[b.e.pos.x,b.e.pos.y,b.e.pos.z,b.yaw,0,WIDX[b.gun]|0,arch==='flyer'?2:0];
+ if(announce){bcast({t:'join',id,name:b.name,team:'M',color:def.color,o:b.ord,sk:'',ws:{},cl:def.cl,bot:1,machine:1,mc:1,arch});bcast({t:'spawn',id,s:[b.e.pos.x,b.e.pos.z,b.yaw]})}
+ return b;
+}
+function raidTick(dt){
+ const R=H.raid;if(!R||R.ph!=='active'||H.phase!=='play')return;
+ if(H.t>=R.statT){R.statT=H.t+1;sendRaidStat(R)}
+ // caches: finish or cancel searches
+ for(const c of R.containers){
+  if(c.st!=='searching')continue;
+  const p=H.players[c.searchBy];
+  if(!p||!p.alive||p.down||p.extracted||p.settled||Math.hypot(p.p[0]-c.x,p.p[2]-c.z)>5.2){
+   const by=c.searchBy;c.st='closed';c.searchBy=null;c.searchAt=0;bcast({t:'rcstate',c:[c.id,'closed',c.tier]});if(by)sendTo(by,{t:'rerr',msg:'Search interrupted — stay beside the cache'});
+  }else if(H.t>=c.searchAt){
+   c.st='open';if(!c.gen)raidFillContainer(R,c);const items=raidLootPubs(R,c.items);sendTo(p.id,{t:'rfound',c:c.id,label:c.label,items});bcast({t:'rcstate',c:[c.id,'open',c.tier]});bcast({t:'rfeed',msg:'CACHE OPEN: '+c.label});
+  }
+ }
+ // exits: timed/called open windows, then close
+ for(const e of R.exits){
+  if((e.st==='timed'||e.st==='called')&&e.openAt&&H.t>=e.openAt){e.st='open';bcast({t:'rstate',e:raidExitPub(R,e),why:e.kind});
+   if(e.kind==='timed')bcast({t:'rfeed',msg:'TIMED TRANSPORT ARRIVED · '+e.label});}
+  if(e.st==='open'&&e.closeAt&&H.t>=e.closeAt){e.st='closed';bcast({t:'rstate',e:raidExitPub(R,e),why:'closed'});bcast({t:'rfeed',msg:'EXIT CLOSED: '+e.label})}
+ }
+ // boarding progress
+ for(let i=R.board.length-1;i>=0;i--){
+  const bd=R.board[i],p=H.players[bd.pid],e=R.exits.find(x=>x.id===bd.e);
+  if(!p||!e||!p.alive||p.down||p.extracted||p.settled||!raidIsOpen(R,e)||Math.hypot(p.p[0]-e.x,p.p[2]-e.z)>RAID.extR+.6){
+   R.board.splice(i,1);sendTo(bd.pid,{t:'rfail',msg:'Extraction interrupted — stay at the exit'});continue;
+  }
+  bd.t=(bd.t||0)+dt;
+  if((bd.t-(bd.sendT||0))>.12||bd.t>=RAID.board){bd.sendT=bd.t;sendTo(bd.pid,{t:'rboard',e:bd.e,p:Math.min(1,bd.t/RAID.board),left:Math.max(0,RAID.board-bd.t)})}
+  if(bd.t>=RAID.board){R.board.splice(i,1);raidExtract(R,p,e)}
+ }
+ // supply drop opens one cache
+ if(!R.supplied&&H.t>=R.supplyAt){
+  R.supplied=1;const cs=R.containers.filter(c=>c.st==='closed');
+  if(cs.length){const c=cs[Math.random()*cs.length|0];c.st='open';if(!c.gen)raidFillContainer(R,c);bcast({t:'rstate',e:null,c:[c.id,'open',c.tier]});bcast({t:'rcstate',c:[c.id,'open',c.tier]});bcast({t:'rsupply',c:c.id,label:c.label,msg:'SUPPLY CACHE OPENED: '+c.label})}
+ }
+ // machine waves
+ if(H.t>=R.waveAt&&H.t<R.limit-20)raidSpawnWave(R);
+ // airborne flyers
+ for(const b of plist())if(b.machine&&b.flyer&&b.alive&&!b.down)raidFlyerTick(b,dt);
+ // reconnect reservation: settle operators whose reconnect window expired
+ for(const p of plist().slice()){
+  if(!p.raiGhost||H.t-(p.raiGone||0)<RAID.reconnect)continue;
+  raidDropBag(p);const rec=raidSettle(p,'disconnect');
+  bcast({t:'rdead',id:p.id,by:'',name:p.name,why:'disconnect',dia:rec?rec.dia:0});
+  delete H.players[p.id];bcast({t:'bye',id:p.id});
+  sendSB();sendRaidStat(R);
+ }
+ // timer expiry: everyone still alive is killed/timed out (no respawn)
+ if(H.t>=R.limit)raidEnd(R,'timeout');
+ // no human operators left: the raid is over, bots stay for the outro
+ else if(!plist().some(p=>!p.machine&&!p.bot&&!p.extracted&&!p.settled))raidEnd(R,'complete');
+}
+function raidFlyerTick(b,dt){
+ const e=b.e;if(!e)return;const R=H.raid;const m=buildMap(H.map);
+ e.pos.y=RAID.flyerY+Math.sin((H.t+b.ord)*1.1)*.7;e.ground=false;e.vel.set(0,0,0);
+ let tgt=null,bd=1e9;
+ for(const q of plist()){if(q.machine||!q.alive||q.down||q.raiGhost||q.extracted||q.settled)continue;const dd=Math.hypot(q.p[0]-e.pos.x,q.p[2]-e.pos.z);if(dd<bd){bd=dd;tgt=q}}
+ let wx=0,wz=0;
+ if(tgt&&bd>4){wx=(tgt.p[0]-e.pos.x)/bd;wz=(tgt.p[2]-e.pos.z)/bd}
+ else if(tgt&&bd>18){wx=-(tgt.p[0]-e.pos.x);wz=-(tgt.p[2]-e.pos.z);const l=Math.hypot(wx,wz)||1;wx/=l;wz/=l}
+ else{const ex=R.exits.find(x=>x.st==='open')||R.containers[0];if(!ex)return;wx=(ex.x-e.pos.x);wz=(ex.z-e.pos.z);const l=Math.hypot(wx,wz)||1;wx/=l;wz/=l}
+ const sp=3.1+(b.boss?0:0);e.pos.x=raidClamp(e.pos.x+wx*sp*dt,-m.size[0]/2+2,m.size[0]/2-2);e.pos.z=raidClamp(e.pos.z+wz*sp*dt,-m.size[1]/2+2,m.size[1]/2-2);
+ b.yaw=Math.atan2(-wx,-wz);b.cool=(b.cool||0)-dt;
+ if(tgt&&bd>4&&bd<55&&b.cool<=0){const w=W[b.gun]||W.ar;b.cool=1.5+Math.random()*.7;const dd=Math.hypot(tgt.p[0]-e.pos.x,tgt.p[1]-e.pos.y,tgt.p[2]-e.pos.z);_o.set(e.pos.x,e.pos.y,e.pos.z);if(rayClearHost(_o,_d.set(tgt.p[0],tgt.p[1]+1.2,tgt.p[2]))){bcast({t:'fx',id:b.id,a:[e.pos.x,e.pos.y,e.pos.z],b:[tgt.p[0],tgt.p[1]+1.2,tgt.p[2]],w:b.gun});damage(tgt,Math.round((w.body||8)*falloff(w,dd)),b.id,false,b.gun)}}
+ b.p=[e.pos.x,e.pos.y,e.pos.z,b.yaw,0,WIDX[b.gun]|0,2];
+}
+function raidSearch(from,m,p){
+ const R=H.raid;if(!R||H.phase!=='play'||!p||!p.alive||p.down||p.extracted||p.settled)return;
+ const c=R.containers.find(x=>x.id===m.c);if(!c)return;
+ if(c.st==='open'){raidLook(from,m,p);return}
+ if(c.st==='searching'){sendTo(from,{t:'rerr',msg:'Another squadmate is searching this cache'});return}
+ if(Math.hypot(p.p[0]-c.x,p.p[2]-c.z)>5.2){sendTo(from,{t:'rerr',msg:'Move closer to the cache'});return}
+ if(!raidSeqOK(p,'search'+c.id,m.sq))return;
+ c.st='searching';c.searchBy=p.id;c.searchAt=H.t+RAID.search;
+ bcast({t:'rsearch',c:c.id,label:c.label,by:p.name,eta:RAID.search});
+}
+function raidSource(R,msg){
+ if(msg&&msg.b!=null){const b=R.bags.find(x=>x.id===msg.b&&!x.taken);return b?{type:'bag',id:b.id,x:b.x,z:b.z,label:b.label||'DEATH BAG',items:b.items,obj:b}:null}
+ if(msg&&msg.c!=null){const c=R.containers.find(x=>x.id===msg.c&&x.st==='open');return c?{type:'cache',id:c.id,x:c.x,z:c.z,label:c.label,items:c.items,obj:c}:null}
+ return null;
+}
+function raidLook(from,m,p){
+ const R=H.raid;if(!R||H.phase!=='play'||!p||!p.alive||p.down||p.extracted||p.settled)return;
+ const src=raidSource(R,m);if(!src){sendTo(from,{t:'rerr',msg:'That cache is not open'});return}
+ if(Math.hypot(p.p[0]-src.x,p.p[2]-src.z)>(src.type==='bag'?4:5.2)){sendTo(from,{t:'rerr',msg:'Move closer'});return}
+ const items=raidLootPubs(R,src.items.filter(id=>R.items[id]&&!R.items[id].taken));
+ sendTo(from,{t:'rfound',c:src.type==='cache'?src.id:null,b:src.type==='bag'?src.id:null,label:src.label,items,type:src.type,total:items.length});
+}
+function raidTake(from,m,p){
+ const R=H.raid;if(!R||H.phase!=='play'||!p||!p.alive||p.down||p.extracted||p.settled)return;
+ const src=raidSource(R,m);if(!src)return;
+ if(Math.hypot(p.p[0]-src.x,p.p[2]-src.z)>(src.type==='bag'?4:5.2)){sendTo(from,{t:'rerr',msg:'Move closer'});return}
+ const cap=p.raiCap||RAID.cap;if(p.raiPack.length>=cap){sendTo(from,{t:'rerr',msg:'Backpack full ('+cap+' items)'});return}
+ const it=R.items[m.i];if(!it||it.taken||src.items.indexOf(m.i)<0||it.owner!=null){sendTo(from,{t:'rerr',msg:'That item was already taken'});return}
+ if(!raidSeqOK(p,'take'+it.id,m.sq))return;
+ it.taken=1;it.owner=from;it.secure=0;p.raiPack.push(it.id);
+ const remain=raidLootPubs(R,src.items.filter(id=>R.items[id]&&!R.items[id].taken));
+ const rec={t:'rtook',i:it.id,item:raidItemPub(it),pack:p.raiPack.slice(),weight:p.raiPack.length,items:remain,total:remain.length,label:src.label};
+ sendTo(from,rec);
+ if(src.type==='bag'&&!remain.length){src.obj.taken=1;R.bags=R.bags.filter(x=>x!==src.obj);bcast({t:'rbaggone',b:src.id});bcast({t:'rfeed',msg:'DEATH BAG EMPTIED'})}
+}
+function raidSecure(from,m,p){
+ const R=H.raid;if(!R||H.phase!=='play'||!p||!p.alive||p.down||p.extracted||p.settled)return;
+ const id=m.i;const idx=p.raiPack.indexOf(id);const it=R.items[id];
+ if(idx<0||!it||it.kind==='weapon'||it.kind==='armor'){sendTo(from,{t:'rerr',msg:'Only loot items can be secured'});return}
+ const scap=p.raiSecureCap||RAID.secure;if(p.raiSecure.length>=scap){sendTo(from,{t:'rerr',msg:'Secure pocket full ('+scap+' items)'});return}
+ if(!raidSeqOK(p,'sec'+id,m.sq))return;
+ p.raiPack.splice(idx,1);it.secure=1;p.raiSecure.push(id);
+ sendTo(from,{t:'rsecureok',i:id,pack:p.raiPack.slice(),secure:p.raiSecure.slice(),items:raidLootPubs(R,id!=null?[id]:[])});
+ bcast({t:'rfeed',msg:p.name+' secured an item'});
+}
+function raidUse(from,m,p){
+ const R=H.raid;if(!R||H.phase!=='play'||!p||!p.alive||p.down||p.extracted||p.settled)return;
+ const id=m.i;const it=R.items[id];if(!it||it.kind!=='med'||it.owner!==from||p.raiPack.indexOf(id)<0)return;
+ if(!raidSeqOK(p,'use'+id+(m.sq||0),m.sq))return;
+ it.qty=(it.qty||1)-1;const mx=p.raiMax||(100+(p.raiArm?30:0));p.hp=Math.min(mx,p.hp+35);
+ sendTo(from,{t:'ruseok',i:id,qty:it.qty,hp:p.hp,max:mx,pack:it.qty>0?p.raiPack.slice():p.raiPack.filter(x=>x!==id)});
+ bcast({t:'hp',id:from,hp:Math.round(p.hp)});
+ if(it.qty<=0){it.taken=1;it.owner=null;const k=p.raiPack.indexOf(id);if(k>=0)p.raiPack.splice(k,1);bcast({t:'rfeed',msg:p.name+' used a medkit'})}
+}
+function raidCall(from,m,p){
+ const R=H.raid;if(!R||H.phase!=='play'||!p||!p.alive||p.down||p.extracted||p.settled)return;
+ const e=R.exits.find(x=>x.id===m.e&&x.kind==='call');if(!e)return;
+ if(e.st==='open'||e.st==='called'){sendTo(from,{t:'rerr',msg:'Extraction is already inbound'});return}
+ if(H.t<e.openAt)return;
+ if(Math.hypot(p.p[0]-e.x,p.p[2]-e.z)>RAID.extR+2.5){sendTo(from,{t:'rerr',msg:'Get to the call-in LZ first'});return}
+ e.st='called';e.openAt=H.t+RAID.callEta;e.closeAt=e.openAt+RAID.callWindow;
+ bcast({t:'rcall',e:raidExitPub(R,e),eta:RAID.callEta,window:RAID.callWindow,by:p.name});
+}
+function raidKey(from,m,p){
+ const R=H.raid;if(!R||H.phase!=='play'||!p||!p.alive||p.down||p.extracted||p.settled)return;
+ const e=R.exits.find(x=>x.id===m.e&&x.kind==='key');if(!e)return;
+ if(e.st==='open'){sendTo(from,{t:'rerr',msg:'The emergency pad is already open'});return}
+ if(Math.hypot(p.p[0]-e.x,p.p[2]-e.z)>RAID.extR+1.5){sendTo(from,{t:'rerr',msg:'Bring the key to the emergency pad'});return}
+ let id=null,where='';
+ let i=p.raiPack.findIndex(x=>R.items[x]&&R.items[x].kind==='key');
+ if(i>=0){id=p.raiPack[i];p.raiPack.splice(i,1);where='pack'}
+ else{i=p.raiSecure.findIndex(x=>R.items[x]&&R.items[x].kind==='key');if(i>=0){id=p.raiSecure[i];p.raiSecure.splice(i,1);where='secure'}}
+ if(!id){sendTo(from,{t:'rerr',msg:'No keycard in backpack or secure pocket'});return}
+ if(!raidSeqOK(p,'key'+e.id,m.sq))return;
+ const it=R.items[id];it.taken=1;it.owner=null;
+ e.st='open';e.closeAt=H.t+RAID.keyWindow;R.keyUsed=1;
+ bcast({t:'rkey',e:raidExitPub(R,e),i:id,where,closeAt:Math.max(0,Math.round(e.closeAt-H.t))});
+ bcast({t:'rfeed',msg:'EMERGENCY PAD OPENED by '+p.name});
+}
+function raidExt(from,m,p){
+ const R=H.raid;if(!R||H.phase!=='play'||!p||!p.alive||p.down||p.extracted||p.settled)return;
+ if(R.board.some(b=>b.pid===from))return;
+ const e=R.exits.find(x=>x.id===m.e);if(!e||!raidIsOpen(R,e)){sendTo(from,{t:'rerr',msg:'That exit is not open'});return}
+ if(Math.hypot(p.p[0]-e.x,p.p[2]-e.z)>RAID.extR){sendTo(from,{t:'rerr',msg:'Move onto the extraction pad'});return}
+ if(!raidSeqOK(p,'ext'+e.id,m.sq))return;
+ R.board.push({pid:from,e:e.id,t:0,sendT:0});sendTo(from,{t:'rboard',e:e.id,p:0,left:RAID.board});
+}
+function raidDropBag(p){
+ const R=H.raid;if(!R)return null;
+ const ids=[];const add=id=>{const it=R.items[id];if(it&&it.owner===p.id&&ids.indexOf(id)<0)ids.push(id)};
+ for(const id of p.raiPack||[])add(id);
+ if(p.raiGear&&!p.raiRecovery){const wi=p.raiGear.weapon,ai=p.raiGear.armor;const w=R.items[wi];if(w&&!w.insure)add(wi);add(ai)}
+ if(!ids.length)return null;
+ const bag={id:R.run+'-B'+(++R.sn),x:+p.p[0].toFixed(1),y:Math.max(.2,p.p[1]||0),z:+p.p[2].toFixed(1),items:ids,taken:0,label:(p.name||'OPERATOR')+' · DEATH BAG',t:H.t,byName:p.name};
+ for(const id of ids){const it=R.items[id];if(it){it.owner=null;it.bag=bag.id;it.taken=0}}
+ R.bags.push(bag);p.raiPack=[];
+ bcast({t:'rbagnew',b:bag.id,x:bag.x,z:bag.z,n:ids.length,label:bag.label});
+ bcast({t:'rfeed',msg:'DEATH BAG DROPPED: '+p.name+' · '+ids.length+' items'});
+ return bag;
+}
+function raidSettle(p,outcome){
+ const R=H.raid;if(!R)return null;
+ const opk=p.raiDeploy||p.id;
+ if(R.settle[opk]){const old=R.settle[opk];toPlayer(p.id,old);return old}
+ const items=[];
+ const add=id=>{const it=R.items[id];if(it&&it.owner===p.id&&it.kind!=='armor'){it.taken=1;it.owner=null;items.push(it)}else if(it&&it.owner===p.id&&it.kind==='armor'&&outcome==='extract'){it.taken=1;it.owner=null;items.push(it)}};
+ const secureN=(p.raiSecure||[]).length;
+ for(const id of p.raiSecure||[])add(id);
+ if(outcome==='extract')for(const id of p.raiPack||[])add(id);
+ if(p.raiGear&&!p.raiRecovery){const wi=R.items[p.raiGear.weapon],ai=R.items[p.raiGear.armor];if(wi&&(outcome==='extract'||wi.insure))add(wi.id);if(ai&&outcome==='extract')add(ai.id)}
+ p.raiPack=[];p.raiSecure=[];
+ let cores=0,base=0;
+ for(const it of items){if(it.kind==='core')cores+=it.qty||1;else if(it.kind==='val')base+=Math.max(1,Math.floor((it.val||0)/4))}
+ let bonus=0;
+ if(outcome==='extract'){
+  if(p.raiContract==='cores'&&cores>0)bonus=cores*60;
+  else if(p.raiContract==='boss'&&R.bossDead)bonus=120;
+  else if(p.raiContract==='extract')bonus=30;
+ }
+ if(p.raiRisk)bonus=Math.round(bonus*1.5);
+ const rec={t:'rsettle',id:p.id,name:p.name,outcome,token:R.run+'-S'+(++R.sn),map:MI(H.map).name,items:items.map(raidItemPub),dia:base+bonus,base,bonus,cores,contract:p.raiContract||'cores',risk:p.raiRisk?1:0,insured:!!(p.raiGear&&R.items[p.raiGear.weapon]&&R.items[p.raiGear.weapon].insure),secure:secureN,stash:outcome==='extract'?'EXTRACTED':'LOST'};
+ R.settle[opk]=rec;
+ p.settled=1;p.alive=false;if(outcome==='extract')p.extracted=1;
+ toPlayer(p.id,rec);
+ return rec;
+}
+function raidExtract(R,p,e){
+ if(p.extracted||p.settled)return;
+ p.alive=false;p.extracted=1;p.hp=0;p.down=false;p.rev=null;
+ const bag=null;
+ const rec=raidSettle(p,'extract');
+ bcast({t:'rextracted',id:p.id,name:p.name,e:e.id,label:e.label,items:(rec&&rec.items||[]).length,dia:rec?rec.dia:0});
+ bcast({t:'rfeed',msg:'EXTRACTED: '+p.name+' via '+e.label});
+ sendSB();
+}
+function raidOnDeath(v,by){
+ const R=H.raid;if(!R||!RAIDM(H.mode))return;
+ if(v.machine){
+  if(v.boss){R.bossDead=1;bcast({t:'rfeed',msg:'BOSS DESTROYED — reactor core contract secured'});sendRaidStat(R)}
+  return;
+ }
+ if(v.raider||v.bot||v.extracted||v.settled)return;
+ raidDropBag(v);
+ const rec=raidSettle(v,'death');
+ bcast({t:'rdead',id:v.id,by:by||'',name:v.name,why:'death',dia:rec?rec.dia:0});
+ sendSB();
+}
+function raidEnd(R,reason){
+ if(!R||R.ph==='over')return;
+ R.ph='over';H.phase='roundEnd';
+ for(const p of plist()){
+  if(p.machine||p.bot||p.extracted||p.settled||!p.alive)continue;
+  raidDropBag(p);const rec=raidSettle(p,'timeout');bcast({t:'rdead',id:p.id,by:'',name:p.name,why:reason, dia:rec?rec.dia:0});
+ }
+ bcast({t:'roundEnd',raid:1,reason,round:H.round,score:H.score,title:reason==='timeout'?'RAID TIMEOUT':'RAID COMPLETE',
+  sub:reason==='timeout'?'No extraction before the storm timer expired':'Squad extraction complete',left:0});
+ sendSB();
+}
+function raidSeqOK(p,key,seq){
+ if(!p)return false;const k=key+'|'+(seq|0);const seen=p.raidSeen||(p.raidSeen={});
+ if(seen[k])return false;seen[k]=1;return true;
+}
+function botRaid(b,dt){
+ const R=H.raid;if(!R)return null;
+ if(b.machine){
+  if(b.raidGuard!=null){const c=R.containers[b.raidGuard];if(c&&c.st!=='open')return [c.x,0,c.z]}
+  const m=buildMap(H.map);
+  let near=null,nd=1e9;
+  for(const q of plist()){if(q.machine||!q.alive||q.down||q.raiGhost||q.extracted||q.settled)continue;const d=Math.hypot(q.p[0]-b.e.pos.x,q.p[2]-b.e.pos.z);if(d<nd){nd=d;near=q}}
+  if(near&&nd<38)return [near.p[0],0,near.p[2]];
+  const e=R.exits.find(x=>x.st==='open');
+  if(e)return [e.x,0,e.z];
+  const c=R.containers[(b.ord*7)%R.containers.length];
+  return c?[c.x,0,c.z]:null;
+ }
+ if(b.bot){
+  const op=R.containers.filter(c=>c.st==='closed'&&c.tier>0);const c=op.length?op[(b.ord*3)%op.length]:null;
+  if(c)return [c.x,0,c.z];
+  const e=R.exits.find(x=>x.st==='open');
+  return e?[e.x,0,e.z]:null;
+ }
+ return null;
+}
+function raidLoad(from,m,p){
+ const R=H.raid;if(!R||!p||H.phase==='lobby'||H.phase==='roundEnd'||p.settled)return;
+ if(m.rv!=null&&m.rv!==RAID.v){sendTo(from,{t:'rerr',msg:'Raid protocol mismatch — reload the game'});return}
+ const g=m.gear||{};
+ const deploy=String(m.deployId||g.deployId||'').slice(0,40);
+ const opk=p.raiDeploy||deploy||p.id;
+ if(p.settled||(deploy&&R.settle[deploy])){const s=R.settle[deploy]||R.settle[p.raiDeploy||'']||R.settle[from];if(s)sendTo(from,{t:'rsettle',...s});return}
+ if((p.raiDeploy&&deploy&&p.raiDeploy!==deploy)||(p.raiLoaded&&deploy&&p.raiLoaded!==deploy)){sendTo(from,{t:'rerr',msg:'Loadout is locked to the original raid deployment'});return}
+ if(p.raiLoaded){
+  const gw=p.raiGear&&R.items[p.raiGear.weapon],aw=p.raiGear&&R.items[p.raiGear.armor];
+  sendTo(from,{t:'rloadok',hp:p.hp,max:p.raiMax||100,armored:!!p.raiArm,weapon:gw?gw.w:null,gear:raidLootPubs(R,(p.raiGear&&p.raiGear.items)||[]),pack:raidLootPubs(R,p.raiPack||[]),secure:raidLootPubs(R,p.raiSecure||[]),contract:p.raiContract,insure:!!(gw&&gw.insure),cap:p.raiCap||RAID.cap,secureCap:p.raiSecureCap||RAID.secure,recovery:!!p.raiRecovery});
+  return;
+ }
+ const rec=!!g.recovery;
+ let w=rec?'ar':g.weapon;
+ if(!W[w]||W[w].slot!==0)w='ar';
+ p.raiArm=rec?0:(g.armor?1:0);p.raiInsure=rec?0:(g.insure?1:0);
+ p.raiContract=rec?'cores':(['cores','boss','extract'].indexOf(m.contract||g.contract)>=0?(m.contract||g.contract):'cores');
+ p.raiRisk=rec?0:(g.risk?1:0);p.raiDeploy=deploy||p.raiDeploy||'';p.raiLoaded=p.raiDeploy||('L'+Date.now());
+ p.raiRecovery=rec?1:0;p.raiCap=rec?RAID.recCap:RAID.cap;p.raiSecureCap=rec?RAID.recSecure:RAID.secure;
+ p.raiPack=[];p.raiSecure=[];p.raiGear={items:[],weapon:null,armor:null};p.raiMax=rec?100:100+(p.raiArm?30:0);
+ const wi=raidNewItem(R,'weapon',{w,rar:1,gear:1,insure:!!(p.raiInsure&&!rec),owner:from,recovery:rec});p.raiGear.weapon=wi.id;p.raiGear.items.push(wi.id);
+ if(p.raiArm){const ai=raidNewItem(R,'armor',{rar:1,gear:1,owner:from});p.raiGear.armor=ai.id;p.raiGear.items.push(ai.id)}
+ const meds=rec?1:raidClamp(parseInt(g.meds)||0,0,3);
+ for(let i=0;i<meds;i++){const it=raidNewItem(R,'med',{t:0,qty:1,rar:1,owner:from});p.raiPack.push(it.id)}
+ if(g.key&&!rec){const ki=raidNewItem(R,'key',{rar:2,owner:from});p.raiPack.push(ki.id)}
+ p.hp=p.raiMax;
+ bcast({t:'hp',id:from,hp:p.hp});
+ sendTo(from,{t:'rloadok',hp:p.hp,max:p.raiMax,armored:!!p.raiArm,weapon:w,gear:raidLootPubs(R,p.raiGear.items),pack:raidLootPubs(R,p.raiPack),secure:[],contract:p.raiContract,insure:!!(g.insure&&!rec),cap:p.raiCap,secureCap:p.raiSecureCap,recovery:rec?1:0});
+ sendRaidStat(R);
+}
+window.__raid={RAID,RSQN,RSQCOL,RARCH,stopped:()=>H.raid};
+
+// ================= v62 EXTRACTION RAID CLIENT =================
+let RC=null, RAIDUI=false, RAO=null;
+const RAID_ICON={call:'📞',timed:'⏱️',key:'🔑'};
+const RAID_CCOL={call:0x38d6ff,timed:0xffa43a,key:0xcf8bff};
+const RAID_TIERCOL=[0x8794a3,0x37a6ff,0xffb14a];
+const RAID_STASH_V2=1;
+function raidClamp2(v,a,b){return Math.max(a,Math.min(b,v))}
+function raidStash(){
+ let s=null;try{s=JSON.parse(LS('raidstash')||'null')}catch(e){}
+ const base={v:RAID_STASH_V2,gear:{weapon:'ar',armor:false,meds:1,insure:false,contract:'cores',wcond:100,acond:100},mats:{wire:0,steel:0,chem:0,fuel:0},items:[],hist:[],map:0,recovery:false,base:{stash:0,bay:0},trader:{rep:0,stock:null}};
+ if(!s||typeof s!=='object')s=Object.assign({},base);
+ s.v=RAID_STASH_V2;s.gear=Object.assign({},base.gear,s.gear||{});s.mats=Object.assign({},base.mats,s.mats||{});
+ s.gear.weapon=W[s.gear.weapon]&&W[s.gear.weapon].slot===0?s.gear.weapon:'ar';
+ s.gear.meds=raidClamp2(parseInt(s.gear.meds)||0,0,3);s.gear.contract=['cores','boss','extract'].indexOf(s.gear.contract)>=0?s.gear.contract:'cores';
+ s.gear.wcond=raidClamp2(Math.round(+s.gear.wcond),0,100);if(!isFinite(s.gear.wcond))s.gear.wcond=100;
+ s.gear.acond=raidClamp2(Math.round(+s.gear.acond),0,100);if(!isFinite(s.gear.acond))s.gear.acond=100;
+ s.armor=!!s.gear.armor;s.insure=!!s.gear.insure;s.map=raidClamp2(parseInt(s.map)||0,0,MATHSafe());
+ s.base=Object.assign({},base.base,s.base||{});s.base.stash=raidClamp2(parseInt(s.base.stash)||0,0,3);s.base.bay=raidClamp2(parseInt(s.base.bay)||0,0,2);
+ s.trader=Object.assign({},base.trader,s.trader||{});s.trader.rep=raidClamp2(parseInt(s.trader.rep)||0,0,20);
+ if(!Array.isArray(s.trader.stock))s.trader.stock=raidTraderStock();
+ s.trader.stock=s.trader.stock.filter(x=>x&&x.id&&(x.qty|0)>0).slice(0,8);
+ s.items=Array.isArray(s.items)?s.items.filter(x=>x&&x.id):[];s.hist=Array.isArray(s.hist)?s.hist:[];s.recovery=!!s.recovery;return s;
+}
+function raidStashCap(st){return 20+8*(st.base.stash|0)}
+function raidTraderStock(){return[
+ {id:'stock_med',name:'Field Medkit',k:'med',q:1,qty:2,price:30},
+ {id:'stock_wire',name:'Wire Bundle · 3 salvage',k:'mat',m:'wire',q:3,qty:3,price:18},
+ {id:'stock_steel',name:'Steel Bundle · 3 salvage',k:'mat',m:'steel',q:3,qty:2,price:24},
+ {id:'stock_armor',name:'Body Armor Plate',k:'armor',q:1,qty:1,price:70}
+]}
+function raidTraderDiscount(st){return Math.min(.30,((st.trader.rep|0)*.02))}
+function raidTraderPrice(st,item){const p=Math.max(1,Math.round((item.price||0)*(1-raidTraderDiscount(st))));return p}
+function raidRepairQuote(st,slot){
+ const cond=slot==='w'?st.gear.wcond:st.gear.acond;
+ const miss=Math.max(0,100-(cond|0));
+ return{dia:Math.max(0,Math.round(Math.ceil(miss/10)*5*(1-Math.min(.30,.15*(st.base.bay|0))))),mat:slot==='w'?'steel':'wire',cond:cond|0};
+}
+function MATHSafe(){return Math.max(0,MAPS.length-1)}
+function raidSaveStash(s){s.v=RAID_STASH_V2;try{LSS('raidstash',JSON.stringify(s))}catch(e){}}
+function raidLocalId(){return 'st'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function raidPending(){
+ try{const p=JSON.parse(sessionStorage.getItem('hsz_raidgear')||'null');return p&&p.v===1&&p.gear?p:null}catch(e){return null}
+}
+function raidSavePending(gear,deployId,map){
+ try{sessionStorage.setItem('hsz_raidgear',JSON.stringify({v:1,gear,deployId,map,at:Date.now()}))}catch(e){}
+}
+function raidAppliedTokens(){
+ let a=[];try{a=JSON.parse(sessionStorage.getItem('hsz_raidApplied')||'[]')}catch(e){}
+ return Array.isArray(a)?a:[];
+}
+function raidAppliedAdd(tok){
+ if(!tok)return;const a=raidAppliedTokens();if(a.indexOf(tok)>=0)return; a.push(tok);if(a.length>40)a.splice(0,a.length-40);
+ try{sessionStorage.setItem('hsz_raidApplied',JSON.stringify(a))}catch(e){}
+}
+function raidMsgShow(t){const el=$('raidMsg');if(el)el.textContent=t||''}
+function raidMsg(m){
+ if(!RC||!m)return false;
+ switch(m.t){
+ case 'rstart':{
+  RC.baseT=+m.t0||0;RC.srvAt=performance.now();RC.left=Math.max(0,(m.time|0)||RAID.time);RC.alarm=0;RC.board=null;RC.hudHtml='';
+  for(const e of m.exits||[]){let q=RC.exits.find(x=>x.id===e.id);if(!q){q={id:e.id,x:+e.x,z:+e.z,k:e.k,st:e.st||'closed',label:e.label||'',eta:e.eta|0,cl:e.cl|0};RC.exits.push(q);try{raidMakeExit(q);RC.meshes.push(q.mesh)}catch(x){}}else{q.st=e.st||'closed';q.k=e.k||q.k;q.eta=e.eta|0;q.cl=e.cl|0;q.label=e.label||q.label;raidPaintExit(q)}}
+  RC.phase='active';raidHudUpd();raidPromptUpd();feed('🚁 RAID LIVE · '+RAID.time+'s storm window');SFX.beep(1200);return true;
+ }
+ case 'rstat':{
+  RC.stat=m;RC.left=Math.max(0,m.left|0);RC.alarm=Math.max(0,m.alarm|0);
+  if(m.c)for(const r of m.c){const c=RC.containers.find(x=>x.id===r[0]);if(c){c.st=r[1];c.tier=r[2]|0;raidPaintCache(c);if(RC.search&&RC.search.c===c.id&&c.st!=='searching')RC.search=null}}
+  if(m.e)for(const r of m.e){const e=RC.exits.find(x=>x.id===r[0]);if(e){e.k=r[1]||e.k;e.st=r[2]||e.st;e.eta=r[3]|0;e.cl=r[4]|0;raidPaintExit(e)}}
+  if(m.b){const live={};for(const r of m.b){live[r[0]]=1;let b=RC.bags.find(x=>x.id===r[0]);if(!b){b={id:r[0],x:+r[1],z:+r[2],n:r[3]|0,label:'DEATH BAG',taken:0};RC.bags.push(b);try{raidMakeBag(b);RC.meshes.push(b.mesh)}catch(e){}}else b.n=r[3]|0}}
+  for(const b of RC.bags.slice())if(m.b&&!m.b.some(r=>r[0]===b.id)){if(b.mesh){try{scene.remove(b.mesh)}catch(e){}const k=RC.meshes.indexOf(b.mesh);if(k>=0)RC.meshes.splice(k,1)}RC.bags=RC.bags.filter(x=>x!==b)}
+  RC.hudHtml='';raidHudUpd();return true;
+ }
+ case 'rsearch':{
+  const c=RC.containers.find(x=>x.id===m.c);if(c){c.st='searching';raidPaintCache(c);RC.search={c:c.id,label:m.label||c.label,eta:Math.max(.1,+m.eta||RAID.search),t0:performance.now()}}
+  feed('🔍 '+String(m.by||'Operator')+' is searching '+String(m.label||'a cache'));SFX.beep(800);return true;
+ }
+ case 'rcstate':{
+  const r=m.c;if(Array.isArray(r)){const c=RC.containers.find(x=>x.id===r[0]);if(c){c.st=r[1];c.tier=r[2]|0;raidPaintCache(c);if(RC.search&&RC.search.c===c.id&&c.st!=='searching')RC.search=null}}
+  return true;
+ }
+ case 'rfound':{
+  for(const it of m.items||[])raidItemDefAdd(it);
+  let src={type:m.b?'bag':'cache',c:m.c,b:m.b,label:m.label||'CACHE',items:m.items||[]};
+  if(src.type==='cache'){const c=RC.containers.find(x=>x.id===m.c);if(c)src.x=c.x,src.z=c.z}
+  else{const b=RC.bags.find(x=>x.id===m.b);if(b)src.x=b.x,src.z=b.z}
+  RC.search=null;
+  raidLootOpen(src);
+  feed('🎒 CACHE OPEN: '+String(m.label||'')+' · '+((m.items||[]).length)+' items');SFX.beep(880);return true;
+ }
+ case 'rtook':{
+  raidItemDefAdd(m.item);if(m.pack)RC.pack=m.pack.slice();
+  if(RC.loot){RC.loot.items=m.items||[];raidRenderLoot()}
+  raidHudUpd();feed('🎒 TOOK '+(m.item?raidItemName(m.item):'item')+' · backpack '+(m.weight||(RC.pack.length))+'/'+(RC.cap||RAID.cap));SFX.beep(980);return true;
+ }
+ case 'rsecureok':{
+  for(const it of m.items||[])raidItemDefAdd(it);
+  RC.pack=m.pack||[];RC.secure=m.secure||[];
+  if(RC.packOn)raidRenderPack();
+  raidHudUpd();feed('🔐 SECURED LOOT · pocket '+RC.secure.length+'/'+(RC.secureCap||RAID.secure));SFX.beep(1060);return true;
+ }
+ case 'ruseok':{
+  if(RC.items[m.i])RC.items[m.i].q=m.qty|0;
+  RC.pack=m.pack||[];RC.maxhp=m.max|RC.maxhp|0;me.hp=m.hp;updHP();
+  if(RC.packOn)raidRenderPack();
+  feed('✚ TREATMENT APPLIED · HP '+Math.round(m.hp)+'/'+Math.round(m.max||100));SFX.beep(540);return true;
+ }
+ case 'rloadok':{
+  for(const it of m.gear||[])raidItemDefAdd(it);for(const it of m.pack||[])raidItemDefAdd(it);for(const it of m.secure||[])raidItemDefAdd(it);
+  RC.loaded=1;if(RC.loadTO){clearTimeout(RC.loadTO);RC.loadTO=null}if(RC.loadTO2){clearTimeout(RC.loadTO2);RC.loadTO2=null}
+  RC.maxhp=m.max|0||100;RC.armored=!!m.armored;RC.gearArmor=!!m.armored;RC.gearInsure=!!m.insure;RC.contract=m.contract||RC.contract;
+  RC.recovery=!!m.recovery;RC.cap=m.cap||RAID.cap;RC.secureCap=m.secureCap||RAID.secure;
+  RC.pack=(m.pack||[]).map(it=>it.id);RC.secure=(m.secure||[]).map(it=>it.id);RC.gearIds=(m.gear||[]).map(it=>it.id);
+  if(m.weapon&&W[m.weapon]&&W[m.weapon].slot===0){RC.gearWeapon=m.weapon;me.load[0]=m.weapon;me.ammo[0]=magOf(m.weapon);setViewModel(m.weapon)}
+  me.hp=m.hp;updHP();buildSlots();raidHudUpd();
+  feed('🛡 GEAR ISSUED · '+(W[RC.gearWeapon]?W[RC.gearWeapon].name:RC.gearWeapon)+(RC.armored?' · +30 armor':'')+' · '+RC.pack.length+' supplies');SFX.beep(1000);return true;
+ }
+ case 'rbagnew':{
+  let b=RC.bags.find(x=>x.id===m.b);
+  if(!b){b={id:m.b,x:+m.x,z:+m.z,n:m.n|0,label:m.label||'DEATH BAG',taken:0};RC.bags.push(b);try{raidMakeBag(b);RC.meshes.push(b.mesh)}catch(e){}}
+  b.n=m.n|0;b.label=m.label||b.label;
+  feed('💀 '+String(m.label||'DEATH BAG')+' · '+(m.n|0)+' items');SFX.beep(420);return true;
+ }
+ case 'rbaggone':{
+  const b=RC.bags.find(x=>x.id===m.b);if(b){if(b.mesh){try{scene.remove(b.mesh)}catch(e){}const k=RC.meshes.indexOf(b.mesh);if(k>=0)RC.meshes.splice(k,1)}RC.bags=RC.bags.filter(x=>x!==b);feed('💀 DEATH BAG EMPTIED')}
+  if(RC.loot&&RC.loot.b===m.b)raidLootClose(true);
+  return true;
+ }
+ case 'rghost':{
+  feed('📡 '+String(m.name||'Operator')+' disconnected · reconnect window '+String(m.left||0)+'s');if(m.id===me.id)center('CONNECTION LOST — reconnecting…',1800);raidHudUpd();return true;
+ }
+ case 'rdead':{
+  const q=C.players[m.id];if(q){q.alive=false;q.down=false;q.hp=0;if(q.model&&!q.model.userData.dead)q.model.userData.dead=.001}
+  if(m.id===me.id){me.alive=false;me.down=false;me.frozen=true;me.hp=0;updHP();updDown();center('💀 '+(m.why==='disconnect'?'CONNECTION LOST':'OPERATOR DOWN')+' — no respawn',1600)}
+  raidHudUpd();feed('💀 '+String(m.name||'Operator')+' — '+String(m.why||'eliminated'));return true;
+ }
+ case 'rextracted':{
+  const q=C.players[m.id];if(q){q.alive=false;q.down=false;q.hp=0;if(q.model&&!q.model.userData.dead)q.model.userData.dead=.001}
+  if(m.id===me.id){me.alive=false;me.frozen=true;me.hp=0;updHP();RC.board=null}
+  raidHudUpd();feed('🚁 '+String(m.name||'Operator')+' EXTRACTED via '+String(m.label||m.e||'exit')+' · 💎'+(m.dia|0));SFX.beep(1200);return true;
+ }
+ case 'rsettle':{
+  raidApplySettle(m);return true;
+ }
+ case 'rboard':{
+  RC.board={e:m.e,p:Math.max(0,Math.min(1,+m.p||0)),left:Math.max(0,+m.left||0)};RC.modal=false;raidPromptUpd();raidHudUpd();return true;
+ }
+ case 'rfail':{
+  RC.board=null;feed('⚠️ '+String(m.msg||'Extraction interrupted'));SFX.beep(300);raidPromptUpd();return true;
+ }
+ case 'rcall':{
+  if(m.e){let e=RC.exits.find(x=>x.id===m.e.id);if(e){e.st=m.e.st;e.eta=m.e.eta|0;e.cl=m.e.cl|0;raidPaintExit(e)}}
+  RC.alarm=Math.max(0,+m.eta||0);
+  feed('📞 EXTRACTION CALLED by '+String(m.by||'Operator')+' · arrives in '+String(m.eta||0)+'s');center('📞 EXTRACT CALLED · '+(m.eta||0)+'s',1700);SFX.beep(1400);return true;
+ }
+ case 'ralarm':{
+  RC.alarm=Math.max(0,+m.eta||RC.alarm);
+  feed('⚠️ '+String(m.msg||'MACHINES CONVERGING'));SFX.beep(700);raidHudUpd();return true;
+ }
+ case 'rkey':{
+  if(m.e){let e=RC.exits.find(x=>x.id===m.e.id);if(e){e.st=m.e.st;e.eta=m.e.eta|0;e.cl=m.e.cl|0;raidPaintExit(e)}}
+  RC.pack=RC.pack.filter(x=>x!==m.i);RC.secure=RC.secure.filter(x=>x!==m.i);
+  if(RC.items[m.i])RC.items[m.i].q=0;
+  if(RC.packOn)raidRenderPack();
+  feed('🔑 EMERGENCY PAD OPENED · closes in '+String(m.closeAt||0)+'s');center('🔑 KEYCARD INSERTED',1200);SFX.beep(1300);raidHudUpd();return true;
+ }
+ case 'rstate':{
+  if(m.e){let e=RC.exits.find(x=>x.id===m.e.id);if(e){e.st=m.e.st;e.eta=m.e.eta|0;e.cl=m.e.cl|0;raidPaintExit(e)}}
+  if(m.c&&Array.isArray(m.c)){const c=RC.containers.find(x=>x.id===m.c[0]);if(c){c.st=m.c[1];c.tier=m.c[2]|0;raidPaintCache(c)}}
+  raidHudUpd();return true;
+ }
+ case 'rwave':{
+  feed('⚠️ MACHINE PATROL '+String(m.arch||'').toUpperCase()+' · '+String(m.msg||'inbound'));center('🤖 MACHINES INBOUND',1100);SFX.beep(680);return true;
+ }
+ case 'rsupply':{
+  feed('🎁 SUPPLY CACHE OPENED · '+String(m.label||''));SFX.beep(1050);return true;
+ }
+ case 'rfeed':{
+  feed('📻 '+String(m.msg||''));return true;
+ }
+ case 'rerr':{
+  feed('⚠️ '+String(m.msg||'Raid error'));SFX.beep(300);return true;
+ }
+ case 'roundEnd':{
+  raidFinalResult(m);return true;
+ }
+ default:return false;
+ }
+}
+function raidDebit(n){
+ n=Math.max(0,n|0);if(!n)return true;
+ if(PROG.dia<n){raidMsgShow('Need 💎 '+n+' — you have '+PROG.dia+'. Earn diamonds in matches or sell loot in the stash.');SFX.beep&&SFX.beep(300);return false}
+ return true;
+}
+function raidDebitNow(n){
+ n=Math.max(0,n|0);if(!raidDebit(n))return false;PROG.dia-=n;saveProg();updDiaUI();raidRenderBase();return true;
+}
+function raidItemName(it){
+ if(!it)return'Unknown item';const k=it.k;
+ if(k==='weapon')return W[it.w]?W[it.w].name:'Weapon';
+ if(k==='armor')return 'Body Armor';
+ if(k==='ammo')return (AMN[it.a]||'Ammo')+' Ammo';
+ if(k==='med')return it.t?'Stim Pack':'Field Medkit';
+ if(k==='mat')return RMN[it.m]||'Salvage';
+ if(k==='val')return 'Trade Goods';
+ if(k==='key')return 'Emergency Keycard';
+ if(k==='core')return 'Reactor Core';
+ return 'Loot';
+}
+function raidItemSub(it){
+ if(!it)return'';const r=RAR[raidClamp2(it.r|0,0,4)]||RAR[0];let x='';
+ if(it.k==='weapon'&&W[it.w])x=W[it.w].cls.toUpperCase();
+ else if(it.k==='ammo')x=AMN[it.a]||'';
+ else if(it.k==='med')x=(it.t?'STIM':'MEDKIT')+' ×'+(it.q||1);
+ else if(it.k==='mat')x='×'+(it.q||1);
+ else if(it.k==='val')x='💎'+(it.v||0);
+ else if(it.k==='key')x='sector gate';
+ else if(it.k==='core')x='contract item';
+ else if(it.k==='armor')x='+30 HP';
+ return r.n+(x?' · '+x:'');
+}
+function raidItemIcon(it){
+ if(!it)return'📦';const k=it.k;
+ if(k==='weapon')return ICON[it.w]?'<img src="'+ICON[it.w]+'" alt="">':'🔫';
+ if(k==='armor')return'🛡️';if(k==='ammo')return'📦';if(k==='med')return it.t?'💉':'🧰';if(k==='mat')return'⛙';
+ if(k==='val')return'💎';if(k==='key')return'🔑';if(k==='core')return'⚙️';return'📦';
+}
+function raidItemValue(it){
+ if(!it)return'';if(it.k==='val')return'💎'+(it.v||0);if(it.k==='core')return'⚙️';if(it.k==='key')return'🔑';if(it.k==='weapon')return W[it.w]&&W[it.w].price?'💎'+W[it.w].price:'LOOT';
+ if(it.k==='ammo')return'×'+(it.q||1);if(it.k==='med')return'×'+(it.q||1);if(it.k==='mat')return'×'+(it.q||1);return'';
+}
+function raidItemRow(it,btn){
+ if(!it)return'';const r=raidClamp2(it.r|0,0,4);
+ return `<div class="raidIt rar${r}"><span class="ri">${raidItemIcon(it)}</span><span class="rn"><b>${esc(raidItemName(it))}</b><small>${esc(raidItemSub(it))}</small></span><span class="rr">${raidItemValue(it)}</span>${btn||''}</div>`;
+}
+function raidPaintCache(c){
+ if(!c||!c.mesh)return;const col=c.st==='open'?0x2ee59d:c.st==='searching'?0xffd23f:RAID_TIERCOL[c.tier|0]||0x8794a3;
+ if(c.body&&c.body.material)c.body.material.color.setHex(col);
+ if(c.ring&&c.ring.material){c.ring.material.color.setHex(col);c.ring.material.opacity=c.st==='closed'?.2:c.st==='searching'?.7:.42}
+}
+function raidPaintExit(e){
+ if(!e||!e.mesh)return;const col=RAID_CCOL[e.k]||0x38d6ff;const open=e.st==='open';
+ if(e.body&&e.body.material){e.body.material.color.setHex(col);e.body.material.opacity=open?.82:e.st==='timed'||e.st==='called'?.52:.2}
+ if(e.ring&&e.ring.material){e.ring.material.color.setHex(col);e.ring.material.opacity=open?.9:e.st==='timed'||e.st==='called'?.5:.28}
+}
+function raidPaintBag(b){if(!b||!b.mesh)return;const g=b.mesh;g.traverse(o=>{if(o.material&&o.userData&&o.userData.bb)o.material.color.setHex(b.taken?0x555555:0xff7a30)})}
+function raidMakeCache(c){
+ const g=new THREE.Group();const col=RAID_TIERCOL[c.tier|0]||0x8794a3;
+ const body=new THREE.Mesh(new THREE.BoxGeometry(1.35,.75,1.15),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.95}));
+ body.position.y=.55;body.userData.bb=1;g.add(body);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.25,24),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false}));
+ ring.rotation.x=-Math.PI/2;ring.position.y=.05;g.add(ring);
+ g.position.set(c.x,.0,c.z);scene.add(g);c.mesh=g;c.body=body;c.ring=ring;raidPaintCache(c);
+}
+function raidMakeExit(e){
+ const g=new THREE.Group();const col=RAID_CCOL[e.k]||0x38d6ff;
+ const body=new THREE.Mesh(new THREE.CylinderGeometry(.1,.16,7,8),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false}));
+ body.position.y=3.5;body.userData.bb=1;g.add(body);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(1.1,1.55,28),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.5,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false}));
+ ring.rotation.x=-Math.PI/2;ring.position.y=.05;g.add(ring);
+ g.position.set(e.x,0,e.z);scene.add(g);e.mesh=g;e.body=body;e.ring=ring;raidPaintExit(e);
+}
+function raidMakeBag(b){
+ const g=new THREE.Group();
+ const body=new THREE.Mesh(new THREE.BoxGeometry(1,.55,.8),new THREE.MeshBasicMaterial({color:0xff7a30,transparent:true,opacity:.9}));
+ body.position.y=.35;body.userData.bb=1;g.add(body);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(.75,1.05,20),new THREE.MeshBasicMaterial({color:0xff7a30,transparent:true,opacity:.5,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false}));
+ ring.rotation.x=-Math.PI/2;ring.position.y=.05;g.add(ring);
+ g.position.set(b.x,0,b.z);scene.add(g);b.mesh=g;raidPaintBag(b);return g;
+}
+function raidClientInit(info){
+ raidClientClear();
+ info=info||{time:RAID.time,containers:[],exits:[]};
+ const stash=raidStash(),pend=raidPending();const g=(pend&&pend.gear)||stash.gear||{};
+ const rec=!!(g.recovery||stash.recovery);
+ const gear=rec?{weapon:'ar',armor:0,meds:1,insure:0,contract:'cores',risk:0,recovery:1}:g;
+ let w=gear.weapon;if(!W[w]||W[w].slot!==0)w=stash.gear.weapon||'ar';if(!W[w]||W[w].slot!==0)w='ar';
+ const deploy=(pend&&pend.deployId)||('D'+Date.now().toString(36)+Math.random().toString(36).slice(2,5));
+ RC={info,containers:[],exits:[],bags:[],items:{},pack:[],secure:[],gearIds:[],gearWeapon:w,gearArmor:rec?false:!!gear.armor,gearInsure:rec?false:!!gear.insure,armored:rec?false:!!gear.armor,maxhp:rec?100:100+(gear.armor?30:0),contract:rec?'cores':(gear.contract||stash.gear.contract||'cores'),risk:rec?false:!!gear.risk,meds:rec?1:raidClamp2(parseInt(gear.meds)||0,0,3),deployId:deploy,recovery:rec,cap:rec?RAID.recCap:RAID.cap,secureCap:rec?RAID.recSecure:RAID.secure,
+  sq:0,seq:0,modal:false,packOn:false,loot:null,left:info.time|0,baseT:0,srvAt:performance.now(),board:null,search:null,settled:0,settle:null,final:false,stat:null,hudHtml:'',promptT:0,mkT:0,lastToken:'',loaded:0,loadTO:null,loadTO2:null,meshes:[]};
+ RC.containers=(info.containers||[]).map(c=>({id:c[0],x:+c[1],z:+c[2],tier:c[3]|0,st:c[4],label:c[5]||('CACHE '+c[0]),vault:!!c[6]}));
+ RC.exits=(info.exits||[]).map(e=>({...e,e:e.e||e.id,id:e.id})).map(e=>({id:e.id,x:+e.x,z:+e.z,k:e.k,st:e.st||'closed',label:e.label||'',eta:e.eta|0,cl:e.cl|0}));
+ RC.containers.forEach(c=>{try{raidMakeCache(c)}catch(e){}});
+ RC.exits.forEach(e=>{try{raidMakeExit(e)}catch(e){}});
+ for(const c of RC.containers)if(c.mesh)RC.meshes.push(c.mesh);
+ for(const e of RC.exits)if(e.mesh)RC.meshes.push(e.mesh);
+ me.load=DEFAULT_LOAD.slice();me.load[0]=w;me.load[1]='handgun';me.load[2]='fists';me.load[3]='grenade';
+ me.hp=100+(RC.armor?30:0);me.alive=false;me.frozen=true;updHP();buildSlots();
+ try{sessionStorage.removeItem('hsz_raidjoin')}catch(e){}
+ const sendLoad=()=>{
+  if(!RC||RC.loaded||RC.settled||!inGame||C.mode!=='raid')return;
+  raidSend({t:'rload',gear:{weapon:RC.gearWeapon,armor:RC.gearArmor?1:0,meds:RC.meds,insure:RC.gearInsure?1:0,contract:RC.contract,risk:RC.risk?1:0,key:0,recovery:RC.recovery?1:0},deployId:RC.deployId});
+ };
+ RC.loadTO=setTimeout(sendLoad,300);RC.loadTO2=setTimeout(()=>{if(!RC||RC.loaded)return;sendLoad()},1800);
+ raidHudUpd();
+}
+function raidClientClear(){
+ if(!RC)return;
+ if(RC.loadTO)clearTimeout(RC.loadTO);if(RC.loadTO2)clearTimeout(RC.loadTO2);
+ for(const m of RC.meshes||[]){try{scene.remove(m)}catch(e){}}
+ for(const b of RC.bags||[])if(b.mesh){try{scene.remove(b.mesh)}catch(e){}}
+ RC=null;RAID_LOCK(false);
+ for(const id of['raidHud','raidPrompt','raidLoot','raidPack','raidResult']){const el=$(id);if(el)el.classList.add('hidden')}
+ const bx=$('bRaidE');if(bx)bx.classList.add('hidden');const bb=$('bRaidBag');if(bb)bb.classList.add('hidden');
+}
+let raidReConnecting=0,raidReT0=0,raidReN=0,raidReT=null;
+function raidConnLost(){
+ if(raidReConnecting)return;
+ if(C.mode==='raid'&&RC&&!RC.settled&&!RC.final&&!isHost&&!H.offline){raidReconnectStart();return}
+ hostGone();
+}
+function raidReconnectLater(ms){
+ if(raidReT)clearTimeout(raidReT);
+ raidReT=setTimeout(()=>{raidReT=null;if(raidReConnecting)raidReconnectTry()},ms||1200);
+}
+function raidReconnectStart(){
+ if(raidReConnecting||!RC||RC.settled||RC.final||isHost||H.offline)return;
+ raidReConnecting=1;raidReT0=Date.now();raidReN=0;
+ try{if(conn&&conn.open)conn.close()}catch(e){}
+ raidMsgShow('📡 Connection lost — reconnecting to raid '+roomCode+'…');
+ center('RECONNECTING…',1600);
+ raidReconnectTry();
+}
+function raidReconnectTry(){
+ if(!RC||RC.settled||RC.final){raidReConnecting=0;return}
+ if(Date.now()-raidReT0>RAID.reconnect*2000){raidReConnecting=0;raidMsgShow('📡 Reconnect window expired — the host settles this run as a disconnect. Return to base.');return}
+ raidReN++;
+ try{if(peer&&!peer.destroyed)peer.destroy()}catch(e){}
+ peer=null;
+ try{
+  peer=new Peer({config:ICE,debug:0});
+  peer.on('open',id=>{
+   if(!RAIDM(C.mode)||!RC||RC.settled||RC.final)return;
+   me.id=id;
+   const c2=peer.connect(PREFIX+roomCode,{reliable:true,serialization:'json'});
+   const to=setTimeout(()=>{if(!c2||!c2.open)raidReconnectLater(1000)},6000);
+   c2.on('open',()=>{clearTimeout(to);conn=c2;
+    conn.send({t:'hello',name:myName(),fit:curFit(),skin:PROG.skin,hid:hubSelfId,ws:wsOut(),cl:PROG.pc,party:PARTY?PARTY.id:null,rv:RAID.v,deployId:RC.deployId});
+    conn.on('data',clientHandle);conn.on('close',raidConnLost);
+    raidReConnecting=0;raidMsgShow('📡 RECONNECTED — raid resumed');center('RECONNECTED',1200);
+   });
+   c2.on('close',()=>{if(raidReConnecting)raidReconnectLater(400)});
+  });
+  peer.on('error',e=>{if(raidReConnecting){try{peer.destroy()}catch(x){}peer=null;raidReconnectLater(1200)}});
+ }catch(e){raidReconnectLater(1200)}
+}
+function raidSend(m){
+ if(!RC)return;m.rv=RAID.v;m.sq=++RC.seq;try{send(m)}catch(e){}
+}
+function raidSrvNow(){return RC?RC.baseT+(performance.now()-RC.srvAt)/1000:0}
+function raidFmtTime(s){s=Math.max(0,Math.round(s));const m=Math.floor(s/60);return m+':'+String(s%60).padStart(2,'0')}
+function raidExitStatus(e){
+ const ic=RAID_ICON[e.k]||'🚁';
+ if(e.st==='open')return `<span class="ok">${ic} OPEN${e.cl?' '+e.cl+'s':''}</span>`;
+ if(e.st==='called'||e.st==='timed')return `<span class="rt">${ic} ${e.eta||0}s</span>`;
+ return `<span class="bad">${ic} CLOSED</span>`;
+}
+function raidBoardRender(){
+ const b=$('board');if(!b||!RC)return;
+ const ch=RC.containers.filter(c=>c.st==='open').length;
+ const lines=RSQN.map((nm,i)=>{
+  const t=['A','B','C'][i];const ps=Object.values(C.players).filter(q=>!q.machine&&q.team===t);
+  const live=ps.filter(q=>q.alive&&!q.down).length,dn=ps.filter(q=>q.alive&&q.down).length,gone=ps.filter(q=>!q.alive).length;
+  return `<div class="raidHistRow"><b style="color:${hex(RSQCOL[i])}">${nm}</b><span>🧍 ${live} · 🩸 ${dn} · 💀 ${gone}</span><em>${ps.length} ops</em></div>`;
+ }).join('');
+ const ex=(RC.exits||[]).map(e=>`${RAID_ICON[e.k]||'🚁'} ${esc(e.label||'')} ${e.st==='open'?'<b class="ok">OPEN</b>':e.st==='closed'?'<b class="bad">CLOSED</b>':'<b class="rt">'+(e.eta||0)+'s</b>'}`).join('<br>');
+ b.innerHTML=`<div class="cardHead sm">🚁 EXTRACTION RAID · ${esc(MI(C.map).name)} · ⏱ ${raidFmtTime(RC.left)}</div>`+
+  `<div class="raidMini">🎒 ${RC.pack.length}/${RC.cap||RAID.cap} · 🔐 ${RC.secure.length}/${RC.secureCap||RAID.secure} · 📦 ${ch} caches open · 💀 ${RC.bags.length} bags</div>`+
+  `<div class="raidMini">📜 ${esc(raidContractTarget())}</div>`+lines+
+  `<div class="raidMini" style="margin-top:6px">EXITS</div><div class="raidMini">${ex}</div>`;
+}
+function raidContractTarget(){
+ if(!RC)return'';const c=RC.contract;
+ if(c==='cores'){const n=RC.pack.concat(RC.secure).filter(id=>RC.items[id]&&RC.items[id].k==='core').length;return 'CORES '+Math.min(1,n)+'/1'}
+ if(c==='boss')return RC.stat&&RC.stat.boss?'OVERLORD DOWN':'KILL THE OVERLORD';
+ return RC.settled?'EXTRACTED':'EXTRACT TO COLLECT';
+}
+function raidHudUpd(){
+ if(!RC||!inGame||C.mode!=='raid')return;
+ raidTouchButtons();
+ const t=$('raidHud');if(!t)return;
+ const stat=RC.stat||{};const mach=stat.machines!=null?stat.machines:0;
+ const pack=RC.pack.length,secure=RC.secure.length;
+ const ex=(RC.exits||[]).map(raidExitStatus).join(' ');
+ const alarm=RC.alarm||stat.alarm||0;
+ const html=`<div class="rt">⏱ <b>${raidFmtTime(RC.left)}</b> · 🧍 ${stat.humans!=null?stat.humans:1} ops · 🤖 ${mach}</div>`+
+  (alarm>0?`<div class="warn">⚠️ EXTRACTION ALARM · ${alarm}s — machines inbound</div>`:'')+
+  `<div class="rt">🎒 ${pack}/${RC.cap||RAID.cap} · 🔐 ${secure}/${RC.secureCap||RAID.secure} · 📜 ${esc(raidContractTarget())}</div>`+
+  `<div class="rt exits">${ex}</div>`;
+ if(html!==RC.hudHtml){RC.hudHtml=html;t.innerHTML=html}
+ t.classList.toggle('hidden',!!RC.final||!!RC.modal);
+}
+function raidNearest(){
+ if(!RC||!me.alive||RC.settled)return null;
+ let best=null,bd=7.2;
+ for(const c of RC.containers){const d=Math.hypot(me.pos.x-c.x,me.pos.z-c.z);if(d<bd){bd=d;best={type:'cache',c,d}}}
+ for(const b of RC.bags||[]){const d=Math.hypot(me.pos.x-b.x,me.pos.z-b.z);if(d<=Math.min(5,bd)){bd=d;best={type:'bag',b,d}}}
+ for(const e of RC.exits||[]){const d=Math.hypot(me.pos.x-e.x,me.pos.z-e.z);if(d<bd){bd=d;best={type:'exit',e,d}}}
+ return best;
+}
+function raidHasKey(){
+ if(!RC)return false;
+ for(const id of RC.pack.concat(RC.secure))if(RC.items[id]&&RC.items[id].k==='key')return true;
+ return false;
+}
+function raidTouchButtons(){
+ const be=$('bRaidE'),bb=$('bRaidBag');
+ const show=!!(isTouch&&RC&&!RC.modal&&!RC.final&&!RC.settled&&me.alive&&inGame&&C.mode==='raid');
+ if(be)be.classList.toggle('hidden',!show);
+ if(bb)bb.classList.toggle('hidden',!show);
+}
+function raidPromptUpd(){
+ const p=$('raidPrompt');if(!p)return;
+ raidTouchButtons();
+ if(!RC||!inGame||C.mode!=='raid'||RC.modal||RC.final||!me.alive||RC.settled){p.classList.add('hidden');return}
+ let html='';
+ if(RC.board){const k=RC.board.p||0;html=`🚁 EXTRACTING… ${Math.round(k*100)}%<div class="bar"><i style="width:${Math.round(k*100)}%"></i></div>`}
+ else if(RC.search){
+  const c=RC.containers.find(x=>x.id===RC.search.c);
+  if(c&&c.st==='searching'){const el=Math.max(0,(performance.now()-RC.search.t0)/1000),k=Math.min(1,el/Math.max(.1,RC.search.eta));html=`🔍 SEARCHING ${esc(c.label)}…<div class="bar"><i style="width:${Math.round(k*100)}%"></i></div>`}
+ }
+ if(!html){
+  const n=raidNearest();
+  if(n&&n.type==='cache')html=n.c.st==='open'?`🎒 LOOT CACHE ${esc(n.c.label)} — <b>E</b>`:n.c.st==='searching'?`🔍 CACHE BEING SEARCHED — hold position`: `🔍 SEARCH CACHE ${esc(n.c.label)} — <b>E</b>`;
+  else if(n&&n.type==='bag')html=`🎒 LOOT DEATH BAG — <b>E</b>`;
+  else if(n&&n.type==='exit'){
+   const e=n.e;
+   if(e.k==='call'&&e.st==='closed')html=`📞 CALL EXTRACTION — <b>E</b>`;
+   else if(e.k==='key'&&e.st!=='open')html=raidHasKey()?`🔑 INSERT KEYCARD — <b>E</b>`:`🔒 NEED KEYCARD — find one in a cache`;
+   else if(e.st==='timed'||e.st==='called')html=`⏱ EXTRACTION IN ${e.eta||0}s — hold the LZ`;
+   else if(e.st==='open')html=`🚁 HOLD <b>E</b> TO EXTRACT${e.cl?' · closes '+e.cl+'s':''}`;
+  }
+ }
+ if(!html){p.classList.add('hidden');return}
+ p.innerHTML=html;p.classList.remove('hidden');
+}
+function raidFrame(dt,now){
+ if(!RC||!inGame)return;
+ for(const b of RC.bags||[])if(b.mesh)b.mesh.visible=!RC.modal;
+ for(const c of RC.containers||[]){if(c.ring&&c.ring.material){const pu=1+Math.sin(now*.003+(c.tier||0))*.05;c.ring.scale.setScalar(pu)}}
+ for(const e of RC.exits||[]){if(e.ring&&e.ring.material){const pu=1+Math.sin(now*.004+(e.k.length||0))*.06;e.ring.scale.setScalar(pu)}}
+ if(now>RC.promptT+120){RC.promptT=now;raidPromptUpd();raidHudUpd()}
+ raidTouchButtons();
+}
+function raidFocusFirst(which){
+ const box=$(which);if(!box){return 0}
+ const b=box.querySelector('[data-take],[data-sec],[data-use]')||box.querySelector('.raidBoxFoot .pill');
+ if(b){try{b.focus({preventScroll:true})}catch(e){try{b.focus()}catch(_){}}return 1}
+ return 0;
+}
+function raidLootOpen(src){
+ if(!RC||!src)return;RC.loot=src;RC.packOn=false;const pk=$('raidPack');if(pk)pk.classList.add('hidden');
+ if(!RC.modal)RC.focusBack=document.activeElement&&document.activeElement!==document.body?document.activeElement:null;
+ RC.modal=true;RAID_LOCK(false);raidRenderLoot();
+ $('raidLoot').classList.remove('hidden');
+ raidFocusFirst('raidLoot');
+}
+function raidRenderLoot(){
+ const box=$('raidLoot'),head=$('raidLootHead'),list=$('raidLootList'),foot=$('raidLootW');if(!box||!RC||!RC.loot)return;
+ head.innerHTML=(RC.loot.type==='cache'?'📦 CACHE ':'💀 DEATH BAG ')+esc(RC.loot.label||'');
+ const items=(RC.loot.items||[]).filter(Boolean);
+ list.innerHTML=items.length?items.map(it=>raidItemRow(it,`<button class="pill sm" data-take="${esc(it.id)}" aria-label="Take ${esc(raidItemName(it))}">TAKE</button>`)).join(''):'<p class="raidMini">Empty — nothing left to take.</p>';
+ foot.textContent=`🎒 ${RC.pack.length}/${RC.cap||RAID.cap}`+(RC.loot.type==='bag'?' · lootable once':'');
+ raidFocusFirst('raidLoot');
+}
+function raidCloseModal(noLock){
+ if(!RC)return;RC.loot=null;RC.packOn=false;
+ for(const id of['raidLoot','raidPack','raidResult']){const el=$(id);if(el)el.classList.add('hidden')}
+ if(RC.modal&&!RC.final&&!noLock)RAID_LOCK(true);else{raidHudUpd();raidPromptUpd()}
+ const back=RC.focusBack;RC.focusBack=null;
+ if(!RC.final){const t=back&&back.isConnected&&back!==document.body?back:canvas;try{t.focus({preventScroll:true})}catch(e){try{t.focus()}catch(_){}}}
+}
+function raidLootClose(noLock){raidCloseModal(noLock)}
+function raidPackToggle(){
+ if(!RC||!inGame||C.mode!=='raid'||RC.final)return;
+ if(RC.loot)raidLootClose(true);
+ if(RC.packOn){raidCloseModal();return}
+ if(!RC.modal)RC.focusBack=document.activeElement&&document.activeElement!==document.body?document.activeElement:null;
+ RC.packOn=true;RC.modal=true;RAID_LOCK(false);
+ for(const id of['raidLoot']){const el=$(id);if(el)el.classList.add('hidden')}
+ raidRenderPack();$('raidPack').classList.remove('hidden');
+}
+function raidPackClose(){
+ if(!RC)return;RC.packOn=false;const el=$('raidPack');if(el)el.classList.add('hidden')}
+function raidRenderPack(){
+ if(!RC)return;const B=RC;const el=$('raidPackList');if(!el)return;
+ let h=`<div class="raidMini">🛡 PRIMARY: ${esc(W[B.gearWeapon]?W[B.gearWeapon].name:B.gearWeapon||'Weapon')} ${B.gearInsure?'· INSURED':''}</div>`;
+ h+=`<div class="raidMini">🎒 BACKPACK ${B.pack.length}/${B.cap||RAID.cap} · 🔐 SECURE ${B.secure.length}/${B.secureCap||RAID.secure}</div>`;
+ const guts=B.pack.map(id=>B.items[id]).filter(Boolean);
+ h+=`<div class="raidMini" style="margin-top:6px">CARRIED</div>`;
+ h+=guts.length?guts.map(it=>raidItemRow(it,
+   (it.k==='med'?`<button class="pill sm" data-use="${esc(it.id)}" aria-label="Use ${esc(raidItemName(it))}">USE</button>`:'')+
+   `<button class="pill sm" data-sec="${esc(it.id)}" aria-label="Secure ${esc(raidItemName(it))}">SECURE</button>`)).join(''):`<p class="raidMini">Backpack empty.</p>`;
+ const sec=B.secure.map(id=>B.items[id]).filter(Boolean);
+ h+=`<div class="raidMini" style="margin-top:6px">SECURE POCKET — survives death</div>`;
+ h+=sec.length?sec.map(it=>raidItemRow(it,'')).join(''):`<p class="raidMini">Secure pocket empty.</p>`;
+ el.innerHTML=h;
+ const w=$('raidPackW');if(w)w.textContent=`${B.pack.length}/${B.cap||RAID.cap}`;
+ const s=$('raidPackSec');if(s)s.textContent=`🔐 ${B.secure.length}/${B.secureCap||RAID.secure}`;
+ raidFocusFirst('raidPack');
+}
+function RAID_LOCK(on){
+ if(!RC)return;
+ if(on){
+  RC.modal=false;RC.packOn=false;RC.loot=null;
+  for(const id of['raidLoot','raidPack']){const el=$(id);if(el)el.classList.add('hidden')}
+  RC.promptT=0;
+  if(!isTouch&&me.alive&&inGame&&!RC.final&&document.pointerLockElement!==canvas){try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+ }else{
+  RC.modal=true;
+  try{if(document.pointerLockElement===canvas)document.exitPointerLock()}catch(e){}
+ }
+ raidHudUpd();raidPromptUpd();
+}
+function raidAction(){
+ if(!RC||!inGame||C.phase!=='play'||RC.modal||RC.final||!me.alive||RC.settled)return;
+ if(RC.board)return;
+ const n=raidNearest();if(!n){center('Nothing within reach',900);return}
+ if(n.type==='cache'){
+  const c=n.c;
+  if(c.st==='searching'){center('Cache already being searched',900);return}
+  if(c.st==='open'){raidSend({t:'rlook',c:c.id});return}
+  raidSend({t:'rsearch',c:c.id});
+ }else if(n.type==='bag'){raidSend({t:'rlook',b:n.b.id});return}
+ else if(n.type==='exit'){
+  const e=n.e;
+  if(e.k==='call'&&e.st==='closed')raidSend({t:'rcall',e:e.id});
+  else if(e.k==='key'&&e.st!=='open'){if(raidHasKey())raidSend({t:'rkey',e:e.id});else center('🔒 You need a keycard — find one in a cache',1400)}
+  else if(e.st==='open')raidSend({t:'rext',e:e.id});
+  else if(e.st==='timed'||e.st==='called')center(`⏱ Extraction arrives in ${e.eta||0}s — hold the exit`,1600);
+ }
+}
+function raidItemDefAdd(it){
+ if(!it||!it.id)return;RC.items[it.id]={id:it.id,k:it.k,r:it.r|0,q:it.q||1,w:it.w,a:it.a,t:it.t,m:it.m,v:it.v,g:it.g||0,sec:it.sec||0};
+}
+function raidApplySettle(m){
+ if(!RC||!m)return;
+ if(RC.lastToken===m.token){return}
+ RC.lastToken=m.token;RC.settle=m;RC.settled=1;RC.pack=[];RC.secure=[];RC.board=null;RC.search=null;RC.modal=false;
+ me.alive=false;me.down=false;me.frozen=true;me.hp=0;updHP();updDown();
+ for(const it of m.items||[])raidItemDefAdd(it);
+ const applied=raidAppliedTokens();
+ const dup=applied.indexOf(m.token)>=0;
+ if(!dup){
+  const stash=raidStash();
+  const overflow=[];
+  for(const it of m.items||[]){
+   if(it.k==='mat'){stash.mats[it.m]=(stash.mats[it.m]||0)+(it.q||1)}
+   else if(!raidAddStashItem(stash,it))overflow.push(it);
+  }
+  let overDia=0;
+  for(const it of overflow){const v=raidSellValue(it);if(v>0){overDia+=v;addDia(v,'trader stash overflow')}}
+  if(overflow.length){stash.trader.rep=raidClamp2((stash.trader.rep|0)+1,0,20);m.stashOverflow=overflow.length;m.stashOverflowDia=overDia}
+  if((m.dia|0)>0)addDia(m.dia,'raid '+m.outcome);
+  if(!RC.recovery){
+   const ww=m.outcome==='extract'?5:m.outcome==='death'?25:15,aw=m.outcome==='extract'?3:m.outcome==='death'?20:10;
+   stash.gear.wcond=raidClamp2((stash.gear.wcond|0)-ww,0,100);
+   if(stash.gear.armor)stash.gear.acond=raidClamp2((stash.gear.acond|0)-aw,0,100);
+   stash.trader.rep=raidClamp2((stash.trader.rep|0)+(m.outcome==='extract'?2:1),0,20);
+  }
+  stash.gear.armor=!!stash.gear.armor;raidSaveStash(stash);
+  raidAppliedAdd(m.token);
+  const rec={at:Date.now(),map:m.map||MI(C.map).name,outcome:m.outcome,dia:m.dia|0,bonus:m.bonus|0,items:(m.items||[]).length,contract:m.contract||'',token:m.token,insured:!!m.insured};
+  stash.hist.unshift(rec);if(stash.hist.length>RAID_MAX_HIST)stash.hist.length=RAID_MAX_HIST;raidSaveStash(stash);
+ }else{
+  const stash=raidStash();if(!stash.hist.some(h=>h.token===m.token)){stash.hist.unshift({at:Date.now(),map:m.map||MI(C.map).name,outcome:m.outcome,dia:m.dia|0,bonus:m.bonus||0,items:(m.items||[]).length,contract:m.contract||'',token:m.token,insured:!!m.insured});if(stash.hist.length>RAID_MAX_HIST)stash.hist.length=RAID_MAX_HIST;raidSaveStash(stash)}
+ }
+ RC.hudHtml='';raidHudUpd();
+ raidSettleModal(m);
+}
+function raidSettleModal(m){
+ if(!RC)return;
+ RC.modal=true;RC.final=false;
+ const head=$('raidResHead'),body=$('raidResBody'),box=$('raidResult');if(!head||!body||!box)return;
+ const ok=m.outcome==='extract';
+ head.innerHTML=(ok?'✅ EXTRACTED':'💀 '+String(m.outcome||'LOST').toUpperCase())+' · '+esc(m.map||'');
+ let h=`<div class="raidMini">📜 Contract: <b>${esc((m.contract||'cores').toUpperCase())}</b> ${m.bonus?'· bonus 💎'+m.bonus:''} ${m.insured?'· weapon insured':''}</div>`;
+ h+=`<div class="raidMini">💎 Settlement: <b>+${m.dia|0}</b> diamonds${ok?' · gear and backpack banked':' · insured gear and secure pocket returned'}</div>`;
+ h+=`<div class="raidMini">RECORDED BACK TO STASH</div>`;
+ if(m.stashOverflow)h+=`<div class="raidMini warn">Stash full — ${m.stashOverflow} overflow items sold to trader for 💎${m.stashOverflowDia|0}</div>`;
+ h+=m.items&&m.items.length?m.items.map(it=>raidItemRow(it,'')).join(''):'<p class="raidMini">No items recovered.</p>';
+ body.innerHTML=h;
+ $('raidResX').textContent=me.alive?'CONTINUE':'SPECTATE';
+ box.classList.remove('hidden');
+ try{if(document.pointerLockElement===canvas)document.exitPointerLock()}catch(e){}
+ const b=$('raidResX');if(b){try{b.focus({preventScroll:true})}catch(e){try{b.focus()}catch(_){}}}
+}
+function raidResClose(){
+ const el=$('raidResult');if(el)el.classList.add('hidden');if(RC&&!RC.final)RAID_LOCK(true);
+ try{canvas.focus({preventScroll:true})}catch(e){try{canvas.focus()}catch(_){}}
+}
+function raidFinalResult(m){
+ if(!RC)return;
+ RC.final=true;RC.modal=true;RC.board=null;RC.search=null;RC.settled=1;
+ if(C.mode==='raid')C.phase='roundEnd';me.frozen=true;
+ const rs=$('raidResult');if(rs)rs.classList.add('hidden');
+ const head=$('raidFinalT'),body=$('raidFinalBody'),box=$('raidFinal');if(!head||!body||!box)return;
+ const ok=m.reason!=='timeout';
+ head.textContent=ok?'🏴 RAID COMPLETE':'⛈️ RAID TIMEOUT';
+ const s=RC.settle;
+ let h='';
+ if(s)h+=`<p class="raidMini"><b>${esc((s.outcome||'LOST').toUpperCase())}</b> · ${esc(s.map||MI(C.map).name)} · 💎+${s.dia|0} · ${(s.items||[]).length} items banked</p>`;
+ else h+=`<p class="raidMini">No settlement for this operator — eliminated or still serving.</p>`;
+ h+=`<div class="raidFinalGrid"><div><b>🛡 SQUAD</b><br>${RSQN.map((n,i)=>`<span style="color:${hex(RSQCOL[i])}">${n}</span>`).join(' · ')}</div><div><b>🤖 MACHINES</b><br>${RC.stat&&RC.stat.machines!=null?RC.stat.machines:'?'} remaining</div><div><b>🚁 EXITS</b><br>${(RC.exits||[]).map(e=>RAID_ICON[e.k]||'🚁').join(' ')}</div></div>`;
+ h+=`<p class="raidMini">${ok?'Squad extraction recorded.':esc(m.sub||'The storm timer closed every extraction window.')}</p>`;
+ body.innerHTML=h;box.classList.remove('hidden');
+ $('raidHud').classList.add('hidden');$('raidPrompt').classList.add('hidden');
+ try{if(document.pointerLockElement===canvas)document.exitPointerLock()}catch(e){}
+ const b=$('raidFinalBase');if(b){try{b.focus({preventScroll:true})}catch(e){try{b.focus()}catch(_){}}}
+}
+let raidLootBtnT=null,raidPackBtnT=null,raidStashT=null,raidTraderT=null;
+function raidReturnBase(){
+ try{sessionStorage.setItem('hsz_raidOpen','1')}catch(e){}
+ location.href=location.pathname+'?raid=1'+(PROF?'&prof='+PROF:'');
+}
+function raidOpenBase(){
+ if(inGame)return;
+ if(document.querySelector('meta[name="headshotz-raid-service"]')){location.replace('raid-online.html');return}
+ audioInit();RAIDUI=true;
+ for(const id of['menu','lobby','arsenal','settings']){const el=$(id);if(el)el.classList.add('hidden')}
+ $('raid').classList.remove('hidden');
+ $('raidRisk')&&($('raidRisk').checked=false);
+ raidMsgShow('');
+ raidRenderBase();
+ try{history.replaceState(null,'',location.pathname+'?raid=1'+(PROF?'&prof='+PROF:''))}catch(e){}
+}
+function raidCloseBase(){
+ RAIDUI=false;
+ const el=$('raid');if(el)el.classList.add('hidden');
+ if(RAO&&!RAO.started){
+  for(const id in conns){try{conns[id].close()}catch(e){}delete conns[id]}
+  try{if(peer)peer.destroy()}catch(e){}peer=null;isHost=false;RAO=null;roomCode='';
+ }
+ if(!inGame){const m=$('menu');if(m)m.classList.remove('hidden');const m2=$('menu');if(m2&&$('lobby').classList.contains('hidden')){} }
+ try{history.replaceState(null,'',location.pathname+(PROF?'?prof='+PROF:''))}catch(e){}
+}
+function raidBaseVisible(){const el=$('raid');return !!el&&!el.classList.contains('hidden')}
+function raidBaseSyncLobby(m){
+ if(!raidBaseVisible())return;
+ if(m.hostId===me.id)raidMsgShow('ROOM '+roomCode+' · '+m.players.filter(p=>!p.bot).length+' sec ops connected. Share the code, then press START RAID.');
+ else raidMsgShow('ROOM '+roomCode+' CONNECTED · waiting for host deployment');
+}
+function raidCostTotal(online){
+ const rec=$('raidRecovery')&&$('raidRecovery').checked;
+ const ins=!rec&&$('raidInsure')&&$('raidInsure').checked;
+ return rec?0:(online?RAID.cost:0)+(ins?RAID.insureCost:0);
+}
+function raidCostText(){
+ const el=$('raidCost');if(!el)return;
+ const rec=$('raidRecovery')&&$('raidRecovery').checked;
+ const ins=!rec&&$('raidInsure')&&$('raidInsure').checked;
+ if(rec){el.innerHTML=`🎟️ FREE RECOVERY KIT · 💎0 entry · starter pistol · 1 medkit · no armor · ${RAID.recCap}-slot backpack`;return}
+ el.innerHTML=`ENTRY ONLINE 💎${RAID.cost} · OFFLINE FREE · INSURANCE 💎${ins?RAID.insureCost:0}`+(ins?' · total online 💎'+(RAID.cost+RAID.insureCost):'');
+}
+function raidBrokeFallback(cost){
+ if(cost>0&&PROG.dia<cost){
+  const r=$('raidRecovery');if(r&&!r.checked){
+   r.checked=true;const st=raidStash();st.recovery=true;raidSaveStash(st);raidRenderBase();
+   raidMsgShow('💎 balance too low for paid entry — FREE RECOVERY KIT applied: free starter rifle, 1 medkit, no armor, '+RAID.recCap+'-slot backpack.');
+   SFX.beep&&SFX.beep(420);
+  }
+  return true;
+ }
+ return false;
+}
+function raidFillSelects(){
+ const ws=$('raidWeapon');if(ws&&!ws.dataset.ready){
+  ws.innerHTML=WIDS.filter(id=>W[id]&&W[id].slot===0&&owns(id)).map(id=>`<option value="${id}">${esc(W[id].name)}${W[id].price?' · 💎'+W[id].price:''}</option>`).join('');ws.dataset.ready='1';
+ }
+ const ms=$('raidMap');if(ms&&!ms.dataset.ready){ms.innerHTML=MAPS.map((x,i)=>`<option value="${i}">${esc((MI(i)||{}).name||('Map '+(i+1)))}</option>`).join('');ms.dataset.ready='1'}
+ const cs=$('raidContract');if(cs&&!cs.dataset.ready){cs.innerHTML='<option value="cores">REACTOR CORES · 💎60 per core</option><option value="boss">OVERLORD · 💎120 bounty</option><option value="extract">EXTRACT · 💎30 completion</option>';cs.dataset.ready='1'}
+}
+function raidUiGear(){
+ const st=raidStash();
+ const rec=!!($('raidRecovery')&&$('raidRecovery').checked);
+ st.map=(parseInt($('raidMap')&&$('raidMap').value)||0);
+ if(rec){st.recovery=true;raidSaveStash(st);return{weapon:'ar',armor:0,meds:1,insure:0,contract:'cores',map:st.map|0,risk:0,recovery:1}}
+ const w=($('raidWeapon')&&$('raidWeapon').value)||st.gear.weapon;
+ const armor=!!($('raidArmor')&&$('raidArmor').checked);
+ const meds=raidClamp2(parseInt($('raidMeds')?$('raidMeds').value:0)||0,0,3);
+ const insure=!!($('raidInsure')&&$('raidInsure').checked);
+ const contract=($('raidContract')&&$('raidContract').value)||st.gear.contract;
+ st.recovery=false;st.gear={...st.gear,weapon:w,armor,meds,insure,contract};
+ raidSaveStash(st);
+ return{weapon:w,armor:armor?1:0,meds,insure:insure?1:0,contract,map:st.map|0,risk:!!($('raidRisk')&&$('raidRisk').checked),recovery:0};
+}
+function raidRenderBase(){
+ if(!raidBaseVisible())return;
+ const el=$('raidDia');if(el)el.textContent=PROG.dia;
+ const st=raidStash();raidFillSelects();
+ const rec=!!st.recovery;
+ const ws=$('raidWeapon');if(ws){ws.value=rec?'ar':st.gear.weapon;if(!ws.value)ws.value=ws.options[0]&&ws.options[0].value||'ar';ws.disabled=rec}
+ const ms=$('raidMap');if(ms)ms.value=String(st.map|0);
+ const cs=$('raidContract');if(cs){cs.value=rec?'cores':st.contract;cs.disabled=rec}
+ if($('raidArmor')){$('raidArmor').checked=rec?false:!!st.gear.armor;$('raidArmor').disabled=rec}
+ if($('raidMeds')){$('raidMeds').value=String(rec?1:st.gear.meds|0);$('raidMeds').disabled=rec}
+ if($('raidInsure')){$('raidInsure').checked=rec?false:!!st.gear.insure;$('raidInsure').disabled=rec}
+ if($('raidRecovery'))$('raidRecovery').checked=rec;
+ raidCostText();
+ const hint=$('raidLoadHint');if(hint){
+  if(rec){hint.textContent=`FREE RECOVERY KIT · Free starter rifle · 1 medkit · no armor · ${RAID.recCap}-slot backpack · 💎0 entry · earn diamonds with cores or extracting`;}
+  else{const wn=W[st.gear.weapon]?W[st.gear.weapon].name:st.gear.weapon;
+  hint.textContent=`PRIMARY ${wn} · ${st.gear.armor?'+30 HP armor':'no armor'} · ${st.gear.meds} medkits · ${st.insure?'insured':'uninsured'} · ${(st.gear.contract||'cores').toUpperCase()} contract`;}
+ }
+ const mats=st.mats;const matTxt=RMN.wire+':'+(mats.wire||0)+' · '+RMN.steel+':'+(mats.steel||0)+' · '+RMN.chem+':'+(mats.chem||0)+' · '+RMN.fuel+':'+(mats.fuel||0);
+ {const se=$('raidStash');if(se){let h=`<div class="raidStashRow"><b>PRIMARY</b><span>${esc(W[st.gear.weapon]?W[st.gear.weapon].name:st.gear.weapon)}</span><em>${st.gear.insure?'INSURED':'UNINSURED'} · COND ${st.gear.wcond}%</em></div>`;
+  h+=`<div class="raidStashRow"><b>ARMOR</b><span>${st.gear.armor?'Body armor · +30 HP':'No armor'}</span><em>${st.gear.armor?'COND '+st.gear.acond+'%':'AUTO'}</em></div>`;
+  h+=`<div class="raidStashRow"><b>MATERIALS</b><span>${esc(matTxt)}</span><em>${st.items.length}/${raidStashCap(st)} banked</em></div>`;
+  h+=`<div class="raidBtnRow raidToolRow"><button class="pill sm" data-repair="w" ${st.gear.wcond>=100?'disabled':''}>🛠️ REPAIR WEAPON · 💎${raidRepairQuote(st,'w').dia} +1 STEEL</button>`;
+  if(st.gear.armor)h+=`<button class="pill sm" data-repair="a" ${st.gear.acond>=100?'disabled':''}>🛠️ REPAIR ARMOR · 💎${raidRepairQuote(st,'a').dia} +1 WIRE</button>`;
+  h+=`</div>`;
+  h+=`<div class="raidStashRow"><b>STASH LVL ${st.base.stash}/3</b><span>${raidStashCap(st)} slots</span><button class="pill sm" data-upg="stash" ${st.base.stash>=3?'disabled':''}>🏗️ EXPAND · 💎${raidUpgradeCost('stash',st.base.stash)}</button></div>`;
+  h+=`<div class="raidStashRow"><b>REPAIR BAY LVL ${st.base.bay}/2</b><span>${15*(st.base.bay|0)}% discount</span><button class="pill sm" data-upg="bay" ${st.base.bay>=2?'disabled':''}>🏗️ UPGRADE · 💎${raidUpgradeCost('bay',st.base.bay)}</button></div>`;
+  const list=st.items.slice(0,12);
+  h+=list.length?list.map(it=>`<div class="raidIt rar${raidClamp2((it.r|0),0,4)}"><span class="ri">${raidItemIcon(it)}</span><span class="rn"><b>${esc(raidItemName(it))}</b><small>${esc((it.sec?'SECURE · ':'')+raidItemSub(it))}</small></span><span class="rr">${raidItemValue(it)}</span>${it.g?'':`<button class="pill sm" data-sell="${esc(it.id)}">SELL</button>`}</div>`).join(''):'<p class="raidMini">Stash empty — go find loot.</p>';
+  se.innerHTML=h}}
+ {const tr=$('raidTrader');if(tr){
+  let val=0,n=0;for(const it of st.items){if(it.g)continue;n++;val+=raidSellValue(it)}
+  const disc=Math.round(raidTraderDiscount(st)*100);
+  const stock=(st.trader.stock||[]).filter(x=>(x.qty|0)>0);
+  const shop=stock.length?stock.map(x=>{const price=raidTraderPrice(st,x);const nm=x.k==='mat'?(RMN[x.m]||'SALVAGE')+' bundle':x.name;return `<div class="raidTraderRow"><span>${esc(nm)} · ×${x.qty|0}</span><em>💎${price}</em><button class="pill sm" data-buy="${esc(x.id)}">BUY</button></div>`}).join(''):'<p class="raidMini">Stock sold out — sell loot or check back after repairs.</p>';
+  tr.innerHTML=`<div class="raidMini">🛒 TRADER · REPUTATION ${st.trader.rep|0}/20 · ${disc}% discount · ${n} sellable items (💎${val})</div>`+shop+`<div class="raidBtnRow"><button class="pill sm" data-sellall="1">SELL ALL</button></div>`;
+ }}
+ {const hl=$('raidHistList');if(hl){hl.innerHTML=st.hist.length?st.hist.map(h=>`<div class="raidHistRow"><b>${esc(h.map||'Raid')}</b><span class="${h.outcome==='extract'?'ok':'bad'}">${esc(String(h.outcome||'LOST').toUpperCase())}</span><em>💎${h.dia|0} · ${h.items|0} items</em></div>`).join(''):'<p class="raidMini">No raid reports yet.</p>'}}
+}
+function raidSellValue(it){
+ if(!it)return 0;const k=it.k,q=it.q||1;
+ if(k==='val')return Math.max(1,it.v||0);
+ if(k==='weapon')return Math.max(5,Math.round(((W[it.w]&&W[it.w].price)||120)*.4));
+ if(k==='core')return 50;if(k==='key')return 20;if(k==='med')return 8*q;if(k==='mat')return 3*q;if(k==='ammo')return 2*q;if(k==='armor')return 15;return 4;
+}
+function raidSellItem(id){
+ const st=raidStash();const i=st.items.findIndex(x=>x.id===id);if(i<0)return;
+ const it=st.items[i];if(it.g){raidMsgShow('Loaded gear cannot be sold.');return}
+ const v=raidSellValue(it);st.items.splice(i,1);st.trader.rep=raidClamp2((st.trader.rep|0)+1,0,20);raidSaveStash(st);
+ if(v>0)addDia(v,'traded '+raidItemName(it));raidRenderBase();SFX.beep&&SFX.beep(900);
+}
+function raidSellAll(){
+ const st=raidStash();let sum=0,n=0;
+ for(const it of st.items){if(it.g)continue;sum+=raidSellValue(it);n++}
+ st.items=st.items.filter(x=>x.g);if(n>0)st.trader.rep=raidClamp2((st.trader.rep|0)+Math.max(1,Math.ceil(n/5)),0,20);
+ raidSaveStash(st);if(sum>0)addDia(sum,'raid loot trader');
+ raidMsgShow('Traded '+n+' items for 💎'+sum+'. · trader reputation '+st.trader.rep+'/20');raidRenderBase();SFX.kill&&SFX.kill();
+}
+function raidAddStashItem(st,it){
+ if(!it||(!it.g&&st.items.length>=raidStashCap(st)))return false;
+ if(it.k==='mat'){st.mats[it.m]=(st.mats[it.m]||0)+(it.q||1);return true}
+ st.items.push({id:raidLocalId(),k:it.k,r:it.r|0,q:it.q||1,w:it.w,m:it.m,a:it.a,t:it.t,v:it.v,g:it.g||0,sec:it.sec||0,n:raidItemName(it)});
+ if(it.g&&it.k==='weapon'&&W[st.gear.weapon])st.gear.weapon=it.w||st.gear.weapon;
+ if(it.g&&it.k==='armor')st.gear.armor=true;
+ return true;
+}
+function raidTraderBuy(id){
+ const st=raidStash();const it=st.trader.stock.find(x=>x.id===id&&(x.qty|0)>0);
+ if(!it){raidMsgShow('That trader stock item is sold out.');SFX.beep&&SFX.beep(300);return}
+ if(st.items.length>=raidStashCap(st)&&it.k!=='mat'){raidMsgShow('Stash full ('+raidStashCap(st)+' slots) — expand storage first.');SFX.beep&&SFX.beep(300);return}
+ const price=raidTraderPrice(st,it);if(PROG.dia<price){raidMsgShow('Need 💎'+price+' for '+it.name+'.');SFX.beep&&SFX.beep(300);return}
+ PROG.dia-=price;saveProg();
+ it.qty=(it.qty|0)-1;
+ if(it.k==='mat')st.mats[it.m]=(st.mats[it.m]||0)+(it.q||1);
+ else if(it.k==='armor'){raidAddStashItem(st,{k:'armor',q:1,r:2,v:it.price||0,n:'Body Armor Plate'});st.gear.armor=true}
+ else raidAddStashItem(st,{k:'med',q:1,r:1,t:0,n:'Field Medkit'});
+ st.trader.stock=st.trader.stock.filter(x=>(x.qty|0)>0);
+ raidSaveStash(st);
+ raidMsgShow('🛒 Bought '+it.name+' for 💎'+price+(raidTraderDiscount(st)?' (rep discount '+Math.round(raidTraderDiscount(st)*100)+'%)':'')+'.');
+ raidRenderBase();SFX.beep&&SFX.beep(900);
+}
+function raidRepairGear(slot){
+ const st=raidStash();if(slot==='a'&&!st.gear.armor){raidMsgShow('No armor to repair.');return}
+ const q=raidRepairQuote(st,slot);if(q.cond>=100){raidMsgShow('Already at 100% condition.');SFX.beep&&SFX.beep(300);return}
+ if((st.mats[q.mat]||0)<1){raidMsgShow('Repair needs 1 '+RMN[q.mat]+' salvage.');SFX.beep&&SFX.beep(300);return}
+ if(PROG.dia<q.dia){raidMsgShow('Need 💎'+q.dia+' for the repair.');SFX.beep&&SFX.beep(300);return}
+ st.mats[q.mat]=(st.mats[q.mat]||0)-1;PROG.dia-=q.dia;saveProg();
+ if(slot==='w')st.gear.wcond=100;else st.gear.acond=100;
+ raidSaveStash(st);raidMsgShow('🛠️ '+RMN[q.mat]+' repair complete · condition 100%.');raidRenderBase();SFX.beep&&SFX.beep(1100);
+}
+function raidUpgradeCost(kind,lvl){return kind==='stash'?120+40*lvl:100+50*lvl}
+function raidUpgrade(kind){
+ const st=raidStash();
+ if(kind==='stash'){
+  const lvl=st.base.stash|0;if(lvl>=3){raidMsgShow('Stash expansion is already maxed.');return}
+  const cost=raidUpgradeCost(kind,lvl);if(PROG.dia<cost){raidMsgShow('Need 💎'+cost+' for stash expansion.');SFX.beep&&SFX.beep(300);return}
+  PROG.dia-=cost;saveProg();st.base.stash=lvl+1;raidSaveStash(st);
+  raidMsgShow('🏗️ STASH EXPANSION LVL '+(lvl+1)+' · capacity '+raidStashCap(st)+' slots.');raidRenderBase();SFX.beep&&SFX.beep(1200);
+ }else{
+  const lvl=st.base.bay|0;if(lvl>=2){raidMsgShow('Repair bay is already maxed.');return}
+  const cost=raidUpgradeCost(kind,lvl);if(PROG.dia<cost){raidMsgShow('Need 💎'+cost+' for repair bay upgrade.');SFX.beep&&SFX.beep(300);return}
+  PROG.dia-=cost;saveProg();st.base.bay=lvl+1;raidSaveStash(st);
+  raidMsgShow('🏗️ REPAIR BAY LVL '+(lvl+1)+' · repair discount '+15*(lvl+1)+'%.');raidRenderBase();SFX.beep&&SFX.beep(1200);
+ }
+}
+function raidBuyMed(){
+ const st=raidStash();
+ if(st.items.length>=raidStashCap(st)){raidMsgShow('Stash full ('+raidStashCap(st)+' slots) — expand storage first.');SFX.beep&&SFX.beep(300);return}
+ if(PROG.dia<30){raidMsgShow('Need 💎30 for a medkit.');SFX.beep&&SFX.beep(300);return}
+ PROG.dia-=30;saveProg();
+ raidAddStashItem(st,{k:'med',q:1,r:1,t:0,n:'Field Medkit'});
+ raidSaveStash(st);raidMsgShow('🧰 Field Medkit banked.');raidRenderBase();SFX.beep&&SFX.beep(1100);
+}
+function raidCraft(){
+ const st=raidStash();
+ if(st.items.length>=raidStashCap(st)){raidMsgShow('Stash full ('+raidStashCap(st)+' slots) — expand storage first.');SFX.beep&&SFX.beep(300);return}
+ if((st.mats.steel||0)<1||(st.mats.wire||0)<1){raidMsgShow('Crafting needs 1 STEEL + 1 WIRE salvage.');SFX.beep&&SFX.beep(300);return}
+ st.mats.steel--;st.mats.wire--;
+ raidAddStashItem(st,{k:'med',q:1,r:1,t:0,n:'Field Medkit'});
+ raidSaveStash(st);raidMsgShow('🛠️ Crafted a Field Medkit from salvage.');raidRenderBase();SFX.beep&&SFX.beep(1200);
+}
+function raidDeployOffline(){
+ if(inGame)return;
+ if(!($('raidRisk')&&$('raidRisk').checked)){raidMsgShow('Accept the risk brief before deploying.');SFX.beep&&SFX.beep(300);return}
+ raidBrokeFallback(raidCostTotal(false));
+ const gear=raidUiGear();
+ const cost=raidCostTotal(false);
+ if(cost>0&&!raidDebitNow(cost))return;
+ const deploy='D'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);raidSavePending(gear,deploy,gear.map);
+ audioInit();const name=myName();
+ roomCode='OFFLINE';isHost=true;peer=null;conn=null;H.offline=true;H.fill=true;H.diff=H.diff||'normal';H.matchOver=false;H.rem={};
+ H.players={};H.order=0;H.botN=0;H.raidMap=gear.map;H.mode='raid';H.phase='lobby';C.hostId=me.id='me-offline';C.mode='raid';C.map=gear.map;
+ const np=H.players[me.id]=newP(me.id,name);np.skin=PROG.skin;np.fit=curFit();np.ws=cleanWS(wsOut());np.cl=clOf(PROG.pc);np.hid=hubSelfId;
+ RAIDUI=false;
+ startMatch();
+}
+function raidHostCreate(){
+ if(inGame)return;
+ if(!($('raidRisk')&&$('raidRisk').checked)){raidMsgShow('Accept the risk brief before deploying.');SFX.beep&&SFX.beep(300);return}
+ if(RAO&&RAO.code&&!RAO.started){raidMsgShow('Raid room already open — press START RAID when ready.');return}
+ const gear=raidUiGear();
+ const code=genCode();RAO={code,started:0,gear};roomCode=code;
+ const name=myName();audioInit();
+ raidMsgShow('Creating raid room…');
+ const btn=$('raidOnline');if(btn)btn.textContent='⏳ CREATING ROOM…';
+ peer=new Peer(PREFIX+code,{config:ICE,debug:0});
+ peer.on('open',id=>{
+  isHost=true;me.id=id;H.offline=false;H.fill=true;H.diff=H.diff||'normal';H.matchOver=false;H.rem={};
+  H.players={};H.order=0;H.botN=0;H.mode='raid';H.raidMap=gear.map;H.phase='lobby';
+  C.hostId=id;C.mode='raid';C.map=gear.map;
+  const np=H.players[id]=newP(id,name);np.skin=PROG.skin;np.fit=curFit();np.ws=cleanWS(wsOut());np.cl=clOf(PROG.pc);np.hid=hubSelfId;np.party=PARTY?String(PARTY.id).slice(0,12):null;
+  roomCode=code;RAO.code=code;
+  raidMsgShow('ROOM '+code+' READY · share this code with your squad, then press START RAID.');
+  if(btn)btn.textContent='🚀 START RAID · '+code;
+ });
+ peer.on('connection',c=>{c.on('data',d=>hostHandle(c.peer,d));c.on('open',()=>{conns[c.peer]=c});c.on('close',()=>hostLeave(c.peer));c.on('error',()=>hostLeave(c.peer))});
+ peer.on('error',e=>{
+  if(e.type==='unavailable-id'){try{peer.destroy()}catch(x){}peer=null;isHost=false;RAO=null;roomCode='';raidMsgShow('That room code is busy — try again.');if(btn)btn.textContent='🌐 HOST ONLINE RAID'}
+  else raidMsgShow('Network error: '+e.type);
+ });
+ peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}});
+}
+function raidHostBegin(){
+ if(!RAO||!RAO.code||RAO.started||inGame)return;
+ if(!($('raidRisk')&&$('raidRisk').checked)){raidMsgShow('Accept the risk brief before deploying.');SFX.beep&&SFX.beep(300);return}
+ raidBrokeFallback(raidCostTotal(true));
+ const gear=raidUiGear();const cost=raidCostTotal(true);if(cost>0&&!raidDebitNow(cost))return;
+ const deploy='D'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+ raidSavePending(gear,deploy,gear.map);
+ RAO.started=1;RAO.gear=gear;
+ H.raidMap=gear.map;H.mode='raid';H.fill=true;
+ const btn=$('raidOnline');if(btn)btn.textContent='⏳ DEPLOYING…';
+ RAIDUI=false;
+ startMatch();
+}
+function raidJoinOnline(){
+ if(inGame)return;
+ if(!($('raidRisk')&&$('raidRisk').checked)){raidMsgShow('Accept the risk brief before deploying.');SFX.beep&&SFX.beep(300);return}
+ const code=($('raidJoinIn')&&$('raidJoinIn').value||'').toUpperCase().trim();
+ if(code.length<4){raidMsgShow('Enter the host’s 4-character raid code.');SFX.beep&&SFX.beep(300);return}
+ raidBrokeFallback(raidCostTotal(true));
+ const gear=raidUiGear();const cost=raidCostTotal(true);if(cost>0&&!raidDebitNow(cost))return;
+ const deploy='D'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);raidSavePending(gear,deploy,gear.map);
+ roomCode=code;const name=myName();audioInit();raidMsgShow('Joining raid room '+code+'…');
+ try{sessionStorage.setItem('hsz_raidjoin','1')}catch(e){}
+ peer=new Peer({config:ICE,debug:0});
+ peer.on('open',id=>{me.id=id;conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});const to=setTimeout(()=>{if(!conn||!conn.open)raidMsgShow('Could not reach room '+code+'. Check the code or ask the host.')},12000);
+  conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name,fit:curFit(),skin:PROG.skin,hid:hubSelfId,ws:wsOut(),cl:PROG.pc,party:PARTY?PARTY.id:null,rv:RAID.v,deployId:deploy})});conn.on('data',clientHandle);conn.on('close',raidConnLost)});
+ peer.on('error',e=>{if(e.type==='peer-unavailable'){raidMsgShow('Raid room '+code+' not found. Ask the host for the code.');try{peer.destroy()}catch(x){}peer=null} else raidMsgShow('Network error: '+e.type)});
+}
+function raidFinalGoBase(){raidReturnBase()}
+function raidFinalGoLobby(){location.href=location.pathname+(PROF?'?prof='+PROF:'')}
+function raidBindUI(){
+ $('raidBtn')&&($('raidBtn').onclick=()=>{if(document.querySelector('meta[name="headshotz-raid-service"]'))location.href='raid-online.html';else raidOpenBase()});
+ $('raidClose')&&($('raidClose').onclick=()=>raidCloseBase());
+ $('raidOffline')&&($('raidOffline').onclick=()=>raidDeployOffline());
+ $('raidOnline')&&($('raidOnline').onclick=()=>{if(RAO&&RAO.code&&!RAO.started)raidHostBegin();else raidHostCreate()});
+ $('raidJoinBtn')&&($('raidJoinBtn').onclick=()=>raidJoinOnline());
+ $('raidJoinIn')&&$('raidJoinIn').addEventListener('keydown',e=>{if(e.key==='Enter')raidJoinOnline()});
+ $('raidLootX')&&($('raidLootX').onclick=()=>{RC&&raidLootClose()});
+ $('raidPackX')&&($('raidPackX').onclick=()=>{RC&&raidCloseModal()});
+ $('raidResX')&&($('raidResX').onclick=()=>raidResClose());
+ $('raidFinalBase')&&($('raidFinalBase').onclick=()=>raidFinalGoBase());
+ $('raidFinalLobby')&&($('raidFinalLobby').onclick=()=>raidFinalGoLobby());
+ for(const id of['raidWeapon','raidArmor','raidMeds','raidInsure','raidContract','raidRecovery']){const el=$(id);if(el)el.addEventListener('change',()=>{raidUiGear();raidRenderBase()})}
+ $('raidMap')&&$('raidMap').addEventListener('change',()=>{raidUiGear();raidRenderBase()});
+ $('raidInsure')&&$('raidInsure').addEventListener('change',raidCostText);
+ $('raidBuyMed')&&($('raidBuyMed').onclick=()=>raidBuyMed());
+ $('raidCraft')&&($('raidCraft').onclick=()=>raidCraft());
+ $('raidLootList')&&$('raidLootList').addEventListener('click',e=>{
+  const b=e.target.closest('[data-take]');if(!b||!RC||RC.settled)return;e.preventDefault();e.stopPropagation();
+  raidSend({t:'rtake',c:RC.loot&&RC.loot.c,b:RC.loot&&RC.loot.b,i:b.dataset.take});
+ });
+ $('raidPackList')&&$('raidPackList').addEventListener('click',e=>{
+  if(!RC||RC.settled)return;
+  const u=e.target.closest('[data-use]');if(u){e.preventDefault();e.stopPropagation();raidSend({t:'ruse',i:u.dataset.use});return}
+  const s=e.target.closest('[data-sec]');if(s){e.preventDefault();e.stopPropagation();raidSend({t:'rsecure',i:s.dataset.sec});return}
+ });
+ $('bRaidE')&&$('bRaidE').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();raidAction()});
+ $('bRaidBag')&&$('bRaidBag').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();raidPackToggle()});
+ $('raidStash')&&$('raidStash').addEventListener('click',e=>{const b=e.target.closest('[data-sell]');if(b){e.preventDefault();raidSellItem(b.dataset.sell);return}
+  const r=e.target.closest('[data-repair]');if(r){e.preventDefault();raidRepairGear(r.dataset.repair);return}
+  const u=e.target.closest('[data-upg]');if(u){e.preventDefault();raidUpgrade(u.dataset.upg)}});
+ $('raidTrader')&&$('raidTrader').addEventListener('click',e=>{const b=e.target.closest('[data-sellall]');if(b){e.preventDefault();raidSellAll();return}
+  const q=e.target.closest('[data-buy]');if(q){e.preventDefault();raidTraderBuy(q.dataset.buy)}});
+ raidStashT=raidStash(); // force init
+}
+raidBindUI();
+setTimeout(()=>{try{if(sessionStorage.getItem('hsz_raidOpen')||/[?&]raid=1/.test(location.search)){sessionStorage.removeItem('hsz_raidOpen');if(!inGame)raidOpenBase()}}catch(e){}},450);
+window.__hsz.raid={open:raidOpenBase,close:raidCloseBase,state:()=>RC,base:()=>raidStash(),deployOffline:raidDeployOffline,host:raidHostCreate,action:raidAction,pack:()=>RC&&RC.pack,settle:()=>RC&&RC.settle,reconnect:raidReconnectStart,net:()=>({isHost,peer:!!peer,conn:!!(conn&&conn.open),roomCode,re:raidReConnecting})};
+if(RAID.test)window.__hsz.raid.testCut=()=>{raidReConnecting=0;try{if(conn&&conn.open)conn.close()}catch(e){};return true};
