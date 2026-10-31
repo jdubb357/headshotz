@@ -1,0 +1,95 @@
+{
+  "recordedAt": "2026-10-30T21:19:51.512019+00:00",
+  "scope": "Held-trigger combat controls and reliable weapon-action integration; full issue #1 remains open",
+  "release": {
+    "id": "5dced2fb2cb2a7a51cdca2bb33c44e9c0fe63d7aff57e2af3249221f36ec2fde",
+    "label": "extraction-trigger-final",
+    "path": "/private/tmp/headshotz-extraction-trigger-final-candidate",
+    "files": 194,
+    "bytes": 11523839,
+    "schema": 11,
+    "protocol": 8
+  },
+  "sourceHashes": {
+    "raid-trigger.mjs": "21e696a13de2df80f2edf3c87517abc7fbdb1b83e35cde0ab38c443435cfa216",
+    "raid-input.mjs": "2abfb50db6e4c991e0a211c12c17c63c55990844952611185586b9e419d3fbce",
+    "raid-online.mjs": "b26c2550cc6ef523faf651e6529031bd3cffc8758529864ceb774060eaf4107e",
+    "server/raids.mjs": "0b8c26e7014b74f0aa78b05024a8efa05964c3baf55b22353051ac04004e63de",
+    "shared/raid-catalog.mjs": "018238d8980abff1466bf37353eda9f5f24b309a9ef9c45185da2b2238e2a394",
+    "scripts/lib/release.mjs": "dac6a16f6a2d7706aaf137fef6bc2fa80ab3af7d9782aa2cc64d0dd7e3274581",
+    "raid-online.html": "f0fbadc7ab27eebf69dfa3af9183e3bba75a377592d88d13ca38a33ad4d91cc2",
+    "sw.js": "25ec4e006b2d3bca886313dc496ec2c6a1059f1e3f091c6659a6684e195a6ab6",
+    "tests/raid-trigger.test.mjs": "b71e8e54ff8702fa793303cc70e989e1c5be48c04da171e86d497c1e718ad3bd",
+    "tests/raid-browser-trigger.mjs": "1c9f0feed1535936aa9aa51df34b2477d0f55c2a4018c74ed1b6947b0c9e3f44"
+  },
+  "automated": {
+    "command": "node --test tests/*.test.mjs",
+    "passed": 928,
+    "failed": 0,
+    "triggerTests": 20,
+    "logSha256": "d42dced79b9acd05f2add913b4047fed0c76dff484f4363db628aa4b185f05dd"
+  },
+  "browser": {
+    "trigger": {
+      "keyboardAutomatic": true,
+      "releaseStops": true,
+      "modalClearsTrigger": true,
+      "noResumeAfterModal": true,
+      "semiAutomatic": true,
+      "osRepeatIgnored": true,
+      "touchAutomatic": true,
+      "capturedMouseAutomatic": true,
+      "captureClickDoesNotFire": true,
+      "backgroundClearsTrigger": true,
+      "noSyntheticDoubleShot": true,
+      "authoritativeAmmo": true,
+      "reloadInterruptsTrigger": true,
+      "browserErrors": [],
+      "scope": "Local isolated service with machines removed; not human combat or WAN cadence acceptance."
+    },
+    "lostResponseRegression": {
+      "immediateVisualMovement": true,
+      "authorityUnchangedBeforeDelivery": true,
+      "reconciled": true,
+      "lostShotResponseRetried": true,
+      "ammunitionConsumedOnce": true,
+      "sameDeploymentAfterReload": true,
+      "shortInputDeliveredWithoutPolling": true,
+      "releaseStopsWithoutPolling": true,
+      "browserErrors": []
+    },
+    "accessibilityRegression": {
+      "remapping": true,
+      "persistentSettings": true,
+      "nativeDialogFocus": true,
+      "keyboardAim": true,
+      "statusAnnouncement": true,
+      "itemInspection": true,
+      "keyboardSearchTakeSecure": true,
+      "touchBoarding": true,
+      "modalStopsMovement": true,
+      "backgroundStopsMovement": true,
+      "reducedMotionRender": true,
+      "touchTargets": true,
+      "mobileAim": true,
+      "mobileOverflow": false,
+      "browserErrors": []
+    }
+  },
+  "manifestVerified": true,
+  "fixedDuringVerification": [
+    "A second semi-automatic key press between animation frames was missed; keyup now releases its trigger source immediately.",
+    "Mouse firing in a captured view attempted setPointerCapture and threw; pointer-locked view events already route to the view, while the on-screen button retains explicit pointer capture.",
+    "Reload/equip now release the trigger and wait for existing reliable actions and the owned weapon recovery timer instead of racing sustained fire."
+  ],
+  "limitations": [
+    "One outstanding shot is conservative and can reduce automatic fire rate on slow networks.",
+    "Current-unit and trigger-browser checks cover the final source. The network/accessibility regressions preceded the final captured-mouse guard correction; their paths were unchanged by that correction.",
+    "The trigger browser uses a local isolated authority and removes machines for input assertions. It is not a human encounter, device or WAN acceptance test.",
+    "The release manifest was verified; browser scenarios served checkout runtime through their own isolated services, not the copied package.",
+    "Full arsenal/weapon mechanics, progression balance, integration and broader release acceptance remain open."
+  ],
+  "supersededCandidates": [
+    "8d120ea70c703233678fb187b07f185b2c34ee9a9322052200cccf9857cfec5f"
+  ]
+}

@@ -1,0 +1,6874 @@
+{
+  "note": "Development measurements on one local workstation. Runs 1-3 precede checkpoint optimization; run 4 adds scheduling metrics; run 5 adds classified failures and memory samples. Different durations/AI outcomes prevent a controlled capacity comparison. No WAN or physical-device claim. Run 6 is the 15-minute endurance baseline before limited-exit policies. Run 7 records the post-exit scheduling failure during concurrent browser activity. Run 8 is the repeat without the test browser/extra service; it also failed scheduling. Run 9 measures affected-raid rollback; declared development gates passed. Run 10 is the source-fingerprinted 15-minute limited-exit-era movement endurance pass; it predates sector content. Run 11 measures the sector/v6 build for 60 seconds; movement workload only.",
+  "runs": [
+    {
+      "format": 1,
+      "at": "2026-10-30T14:45:52.798Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 9,
+        "seconds": 10,
+        "latencyMs": 0,
+        "loss": 0,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "completedActions": 644,
+      "failedActions": 0,
+      "duplicateAcknowledgements": 0,
+      "simulatedDrops": 0,
+      "deployments": 9,
+      "responseBytes": 2541184,
+      "bytesPerClientSecond": 28235.37777777778,
+      "clientRoundTripMs": {
+        "count": 644,
+        "p50": 16.655667000000903,
+        "p95": 33.855125000000044,
+        "p99": 50.05012500000021,
+        "max": 61.07049999999981
+      },
+      "server": {
+        "activeOperators": 9,
+        "activeRaids": 3,
+        "tick": {
+          "count": 191,
+          "meanMs": 4.8773032146597,
+          "maxMs": 47.28900000000067,
+          "p50Ms": 5,
+          "p95Ms": 25,
+          "p99Ms": 50,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            100,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            150,
+            28,
+            8,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 24.206155874698794,
+          "p99Ms": 54.722559,
+          "maxMs": 73.400319
+        },
+        "memory": {
+          "rss": 159383552,
+          "heapTotal": 50675712,
+          "heapUsed": 17523968,
+          "external": 4203945,
+          "arrayBuffers": 277881
+        },
+        "cpuSeconds": 2.688173,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 31663,
+            "count": 9,
+            "meanMs": 2.8671112222222224,
+            "maxMs": 4.7791250000000005,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              100,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              9,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 2509521,
+            "count": 644,
+            "meanMs": 2.865294990683229,
+            "maxMs": 40.93249999999989,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 10,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              100,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              620,
+              20,
+              3,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "tickP95Within50ms": true
+      }
+    },
+    {
+      "format": 1,
+      "at": "2026-10-30T14:49:00.021Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 15,
+        "latencyMs": 0,
+        "loss": 0,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "completedActions": 2741,
+      "failedActions": 0,
+      "duplicateAcknowledgements": 0,
+      "simulatedDrops": 0,
+      "deployments": 27,
+      "responseBytes": 11977951,
+      "bytesPerClientSecond": 29575.187654320987,
+      "clientRoundTripMs": {
+        "count": 2741,
+        "p50": 47.25195799999983,
+        "p95": 93.88800000000083,
+        "p99": 135.0483750000003,
+        "max": 247.60437499999898
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 3,
+        "tick": {
+          "count": 193,
+          "meanMs": 3.7244151398963297,
+          "maxMs": 45.28654199999983,
+          "p50Ms": 5,
+          "p95Ms": 10,
+          "p99Ms": 50,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            100,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            181,
+            9,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 41.85060354820937,
+          "p99Ms": 135.921663,
+          "maxMs": 172.883967
+        },
+        "memory": {
+          "rss": 329875456,
+          "heapTotal": 153436160,
+          "heapUsed": 18317184,
+          "external": 4198448,
+          "arrayBuffers": 277884
+        },
+        "cpuSeconds": 9.808113,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 101098,
+            "count": 27,
+            "meanMs": 2.797058592592592,
+            "maxMs": 4.90625,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              100,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              27,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 11876853,
+            "count": 2741,
+            "meanMs": 3.3176554866836985,
+            "maxMs": 58.93720899999971,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 10,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              100,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              2662,
+              70,
+              1,
+              7,
+              1,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "tickP95Within50ms": true
+      }
+    },
+    {
+      "format": 1,
+      "at": "2026-10-30T14:49:29.760Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 9,
+        "seconds": 15,
+        "latencyMs": 150,
+        "loss": 0.05,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "completedActions": 734,
+      "failedActions": 1,
+      "duplicateAcknowledgements": 34,
+      "simulatedDrops": 82,
+      "deployments": 9,
+      "responseBytes": 3042269,
+      "bytesPerClientSecond": 22535.325925925925,
+      "clientRoundTripMs": {
+        "count": 734,
+        "p50": 156.9152079999999,
+        "p95": 363.7664169999998,
+        "p99": 604.5280000000002,
+        "max": 775.5306660000006
+      },
+      "server": {
+        "activeOperators": 9,
+        "activeRaids": 3,
+        "tick": {
+          "count": 292,
+          "meanMs": 3.859520267123294,
+          "maxMs": 44.93620800000008,
+          "p50Ms": 5,
+          "p95Ms": 10,
+          "p99Ms": 50,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            100,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            237,
+            52,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 22.189183073806078,
+          "p99Ms": 51.216383,
+          "maxMs": 81.068031
+        },
+        "memory": {
+          "rss": 146210816,
+          "heapTotal": 52510720,
+          "heapUsed": 22826992,
+          "external": 4204188,
+          "arrayBuffers": 278124
+        },
+        "cpuSeconds": 3.64753,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 31703,
+            "count": 9,
+            "meanMs": 2.7579767777777797,
+            "maxMs": 4.506582999999999,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              100,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              9,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 3010566,
+            "count": 769,
+            "meanMs": 3.411395010403125,
+            "maxMs": 63.14691700000003,
+            "p50Ms": 5,
+            "p95Ms": 10,
+            "p99Ms": 50,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              100,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              717,
+              43,
+              0,
+              7,
+              2,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "tickP95Within50ms": true
+      }
+    },
+    {
+      "format": 1,
+      "at": "2026-10-30T14:51:59.222Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 20,
+        "latencyMs": 0,
+        "loss": 0,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "completedActions": 3654,
+      "failedActions": 1,
+      "duplicateAcknowledgements": 0,
+      "simulatedDrops": 0,
+      "deployments": 28,
+      "responseBytes": 16183446,
+      "bytesPerClientSecond": 29969.344444444443,
+      "clientRoundTripMs": {
+        "count": 3654,
+        "p50": 18.937667000000147,
+        "p95": 36.81229100000019,
+        "p99": 43.64520799999809,
+        "max": 67.99337500000183
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 4,
+        "tick": {
+          "count": 377,
+          "meanMs": 3.367854777188356,
+          "maxMs": 49.22579200000109,
+          "p50Ms": 5,
+          "p95Ms": 10,
+          "p99Ms": 50,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            351,
+            13,
+            6,
+            7,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "tickInterval": {
+          "count": 377,
+          "meanMs": 53.32593876923077,
+          "maxMs": 91.16229200000089,
+          "p50Ms": 75,
+          "p95Ms": 75,
+          "p99Ms": 100,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            0,
+            0,
+            0,
+            23,
+            338,
+            16,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 25.29834043324937,
+          "p99Ms": 58.818559,
+          "maxMs": 70.451199
+        },
+        "memory": {
+          "rss": 223068160,
+          "heapTotal": 153436160,
+          "heapUsed": 19219960,
+          "external": 4199591,
+          "arrayBuffers": 279027
+        },
+        "cpuSeconds": 5.70939,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 104543,
+            "count": 28,
+            "meanMs": 1.6948646428572154,
+            "maxMs": 4.551208000000003,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              28,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 16075115,
+            "count": 3654,
+            "meanMs": 1.1899660900383127,
+            "maxMs": 3.71008399999846,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              3654,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "4xx",
+            "bytes": 3788,
+            "count": 1,
+            "meanMs": 1.4171249999999418,
+            "maxMs": 1.4171249999999418,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": false,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      }
+    },
+    {
+      "format": 1,
+      "at": "2026-10-30T14:54:41.203Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 60,
+        "latencyMs": 150,
+        "loss": 0.05,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "elapsedSeconds": 60.34681975,
+      "samples": [
+        {
+          "elapsedSeconds": 0.0010286670000000412,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 84901888,
+          "heapUsed": 11948744,
+          "cpuSeconds": 0.134561,
+          "ticks": 2,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 5.001695542,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 112427008,
+          "heapUsed": 28164976,
+          "cpuSeconds": 1.387939,
+          "ticks": 97,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 10.002620417000001,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 132890624,
+          "heapUsed": 14449424,
+          "cpuSeconds": 2.734543,
+          "ticks": 193,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 15.002504625000002,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 154468352,
+          "heapUsed": 41653072,
+          "cpuSeconds": 4.256733,
+          "ticks": 290,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 20.002782292,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 159449088,
+          "heapUsed": 36538288,
+          "cpuSeconds": 5.822463,
+          "ticks": 387,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 25.003001249999997,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 159793152,
+          "heapUsed": 22450680,
+          "cpuSeconds": 7.457828,
+          "ticks": 484,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 30.004003417,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 214794240,
+          "heapUsed": 53792552,
+          "cpuSeconds": 9.046481,
+          "ticks": 581,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 35.004149084,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 215842816,
+          "heapUsed": 48120616,
+          "cpuSeconds": 10.640685,
+          "ticks": 678,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 40.004481917,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 224837632,
+          "heapUsed": 15281616,
+          "cpuSeconds": 12.240627,
+          "ticks": 774,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 45.005979459,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 225148928,
+          "heapUsed": 65569576,
+          "cpuSeconds": 13.903646,
+          "ticks": 871,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 50.005534084,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 225935360,
+          "heapUsed": 16843296,
+          "cpuSeconds": 15.583789,
+          "ticks": 967,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 55.005257625,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227557376,
+          "heapUsed": 13476704,
+          "cpuSeconds": 17.263919,
+          "ticks": 1064,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.006899084,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227573760,
+          "heapUsed": 11122632,
+          "cpuSeconds": 18.918994,
+          "ticks": 1161,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.355694084,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227573760,
+          "heapUsed": 19491288,
+          "cpuSeconds": 18.996756,
+          "ticks": 1168,
+          "tickErrors": 0
+        }
+      ],
+      "completedActions": 8919,
+      "normalRaidEndRejections": 7,
+      "failedActions": 5,
+      "errorStatuses": {
+        "delivery": 5
+      },
+      "duplicateAcknowledgements": 484,
+      "simulatedDrops": 1010,
+      "deployments": 34,
+      "responseBytes": 43299122,
+      "bytesPerClientSecond": 26574.24520179765,
+      "clientRoundTripMs": {
+        "count": 8919,
+        "p50": 154.08670800000073,
+        "p95": 404.62387500000114,
+        "p99": 446.9982500000001,
+        "max": 789.0293339999989
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 6,
+        "tick": {
+          "count": 1168,
+          "meanMs": 3.3955821172945644,
+          "maxMs": 46.75766699999804,
+          "p50Ms": 5,
+          "p95Ms": 10,
+          "p99Ms": 10,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            1095,
+            67,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "tickInterval": {
+          "count": 1168,
+          "meanMs": 51.765802796232876,
+          "maxMs": 101.98816700000316,
+          "p50Ms": 75,
+          "p95Ms": 75,
+          "p99Ms": 75,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            0,
+            0,
+            0,
+            129,
+            1029,
+            9,
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 21.868428452802892,
+          "p99Ms": 55.312383,
+          "maxMs": 82.706431
+        },
+        "memory": {
+          "rss": 227573760,
+          "heapTotal": 153436160,
+          "heapUsed": 19491288,
+          "external": 4198516,
+          "arrayBuffers": 277912
+        },
+        "cpuSeconds": 18.996756,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 126581,
+            "count": 34,
+            "meanMs": 2.864329588235084,
+            "maxMs": 21.231874999999988,
+            "p50Ms": 5,
+            "p95Ms": 25,
+            "p99Ms": 25,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              32,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 43142765,
+            "count": 9407,
+            "meanMs": 1.7122896903370082,
+            "maxMs": 53.66712499999994,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              9354,
+              2,
+              10,
+              36,
+              5,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "4xx",
+            "bytes": 29776,
+            "count": 7,
+            "meanMs": 1.1110954285730779,
+            "maxMs": 1.4208750000034343,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              7,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      }
+    },
+    {
+      "format": 1,
+      "at": "2026-10-30T15:12:10.224Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 900,
+        "latencyMs": 150,
+        "loss": 0.05,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "elapsedSeconds": 900.2928041249999,
+      "samples": [
+        {
+          "elapsedSeconds": 0.0008720419999999649,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 85327872,
+          "heapUsed": 13965520,
+          "cpuSeconds": 0.12518,
+          "ticks": 1,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 5.0021408329999995,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 119111680,
+          "heapUsed": 14279288,
+          "cpuSeconds": 1.422827,
+          "ticks": 98,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 10.006348417,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 122748928,
+          "heapUsed": 29394696,
+          "cpuSeconds": 2.790338,
+          "ticks": 193,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 15.004974124999999,
+          "activeOperators": 27,
+          "activeRaids": 4,
+          "rss": 156286976,
+          "heapUsed": 15519880,
+          "cpuSeconds": 4.356509,
+          "ticks": 290,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 20.003533,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 156680192,
+          "heapUsed": 19999752,
+          "cpuSeconds": 5.910919,
+          "ticks": 387,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 25.002176167,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 157958144,
+          "heapUsed": 14939704,
+          "cpuSeconds": 7.492965,
+          "ticks": 484,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 30.002432375,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 209059840,
+          "heapUsed": 21218448,
+          "cpuSeconds": 9.071127,
+          "ticks": 580,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 35.050237417,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 216367104,
+          "heapUsed": 10722112,
+          "cpuSeconds": 10.68136,
+          "ticks": 678,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 40.00368925,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 218513408,
+          "heapUsed": 25037688,
+          "cpuSeconds": 12.302634,
+          "ticks": 773,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 45.005422958000004,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 219348992,
+          "heapUsed": 47298640,
+          "cpuSeconds": 13.92681,
+          "ticks": 870,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 50.005896,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 220200960,
+          "heapUsed": 15819096,
+          "cpuSeconds": 15.555187,
+          "ticks": 966,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 55.006771042,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 230326272,
+          "heapUsed": 34404520,
+          "cpuSeconds": 17.182269,
+          "ticks": 1063,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.0088675,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 230817792,
+          "heapUsed": 21779712,
+          "cpuSeconds": 18.799331,
+          "ticks": 1159,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 65.010947292,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 235159552,
+          "heapUsed": 44160752,
+          "cpuSeconds": 20.409899,
+          "ticks": 1256,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 70.04863808300001,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 235520000,
+          "heapUsed": 64780192,
+          "cpuSeconds": 22.050713,
+          "ticks": 1352,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 75.01260354200001,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 236109824,
+          "heapUsed": 28775392,
+          "cpuSeconds": 23.658129,
+          "ticks": 1449,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 80.010547583,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 236879872,
+          "heapUsed": 24331032,
+          "cpuSeconds": 25.321347,
+          "ticks": 1545,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 85.01119770800001,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 236879872,
+          "heapUsed": 41890224,
+          "cpuSeconds": 26.943758,
+          "ticks": 1642,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 90.010828875,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 237453312,
+          "heapUsed": 23360752,
+          "cpuSeconds": 28.622477,
+          "ticks": 1738,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 95.015164,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 237633536,
+          "heapUsed": 39786448,
+          "cpuSeconds": 30.280134,
+          "ticks": 1835,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 100.013012917,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 237633536,
+          "heapUsed": 44608624,
+          "cpuSeconds": 31.9455,
+          "ticks": 1931,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 105.01417791700001,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 237748224,
+          "heapUsed": 50216632,
+          "cpuSeconds": 33.625718,
+          "ticks": 2029,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 110.014034167,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237797376,
+          "heapUsed": 44888440,
+          "cpuSeconds": 35.287872,
+          "ticks": 2125,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 115.014523583,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238239744,
+          "heapUsed": 46750080,
+          "cpuSeconds": 37.015359,
+          "ticks": 2222,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 120.017264917,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238583808,
+          "heapUsed": 34185080,
+          "cpuSeconds": 38.735365,
+          "ticks": 2320,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 125.01866962500002,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238583808,
+          "heapUsed": 51378584,
+          "cpuSeconds": 40.469447,
+          "ticks": 2416,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 130.018773333,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238665728,
+          "heapUsed": 63280336,
+          "cpuSeconds": 42.205106,
+          "ticks": 2514,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 135.020956167,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238682112,
+          "heapUsed": 62827744,
+          "cpuSeconds": 43.936647,
+          "ticks": 2611,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 140.022261875,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238698496,
+          "heapUsed": 52092856,
+          "cpuSeconds": 45.649143,
+          "ticks": 2708,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 145.067497125,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238714880,
+          "heapUsed": 37949760,
+          "cpuSeconds": 47.404372,
+          "ticks": 2806,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 150.02971508299999,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238714880,
+          "heapUsed": 44124856,
+          "cpuSeconds": 49.127761,
+          "ticks": 2902,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 155.028340042,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238714880,
+          "heapUsed": 57795488,
+          "cpuSeconds": 50.864449,
+          "ticks": 2999,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 160.02378995799998,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238747648,
+          "heapUsed": 30061440,
+          "cpuSeconds": 52.601759,
+          "ticks": 3095,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 165.02398766699997,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 238829568,
+          "heapUsed": 15825920,
+          "cpuSeconds": 54.375876,
+          "ticks": 3192,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 170.02508129199998,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 239173632,
+          "heapUsed": 41999240,
+          "cpuSeconds": 56.135158,
+          "ticks": 3288,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 175.02682149999998,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239321088,
+          "heapUsed": 49669464,
+          "cpuSeconds": 57.893773,
+          "ticks": 3385,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 180.03450229199998,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 239435776,
+          "heapUsed": 45984912,
+          "cpuSeconds": 59.767004,
+          "ticks": 3481,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 185.03560995799998,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 239583232,
+          "heapUsed": 33811352,
+          "cpuSeconds": 61.68591,
+          "ticks": 3577,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 190.027723125,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 239648768,
+          "heapUsed": 33362896,
+          "cpuSeconds": 63.611695,
+          "ticks": 3674,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 195.029317125,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 239665152,
+          "heapUsed": 45398800,
+          "cpuSeconds": 65.539961,
+          "ticks": 3770,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 200.031151792,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 239681536,
+          "heapUsed": 15661560,
+          "cpuSeconds": 67.482784,
+          "ticks": 3867,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 205.03202391699998,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 239910912,
+          "heapUsed": 11643392,
+          "cpuSeconds": 69.412103,
+          "ticks": 3964,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 210.036111,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 239910912,
+          "heapUsed": 57361776,
+          "cpuSeconds": 71.320798,
+          "ticks": 4061,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 215.032169292,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 239910912,
+          "heapUsed": 31675264,
+          "cpuSeconds": 73.23974,
+          "ticks": 4157,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 220.033857875,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 239910912,
+          "heapUsed": 38603048,
+          "cpuSeconds": 75.167843,
+          "ticks": 4254,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 225.034079875,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 240189440,
+          "heapUsed": 65962128,
+          "cpuSeconds": 77.134935,
+          "ticks": 4350,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 230.038283917,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 240189440,
+          "heapUsed": 64482336,
+          "cpuSeconds": 79.075543,
+          "ticks": 4447,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 235.035612208,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 240205824,
+          "heapUsed": 17400728,
+          "cpuSeconds": 81.034358,
+          "ticks": 4543,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 240.038153208,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240091136,
+          "heapUsed": 13322856,
+          "cpuSeconds": 83.018578,
+          "ticks": 4639,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 245.04257354199999,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240107520,
+          "heapUsed": 42604336,
+          "cpuSeconds": 85.047164,
+          "ticks": 4736,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 250.038677125,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240123904,
+          "heapUsed": 53875800,
+          "cpuSeconds": 87.052932,
+          "ticks": 4833,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 255.039159625,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240140288,
+          "heapUsed": 50299048,
+          "cpuSeconds": 89.060295,
+          "ticks": 4928,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 260.0391925,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240140288,
+          "heapUsed": 40798912,
+          "cpuSeconds": 91.05759,
+          "ticks": 5025,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 265.03912208300005,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240140288,
+          "heapUsed": 34645104,
+          "cpuSeconds": 93.075221,
+          "ticks": 5121,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 270.040174583,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240140288,
+          "heapUsed": 28492400,
+          "cpuSeconds": 95.080625,
+          "ticks": 5218,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 275.04100275,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240140288,
+          "heapUsed": 34079128,
+          "cpuSeconds": 97.114262,
+          "ticks": 5314,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 280.042368042,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240156672,
+          "heapUsed": 57838872,
+          "cpuSeconds": 99.121395,
+          "ticks": 5411,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 285.04222875,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240173056,
+          "heapUsed": 55988744,
+          "cpuSeconds": 101.12714,
+          "ticks": 5507,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 290.04566666700003,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240484352,
+          "heapUsed": 53964120,
+          "cpuSeconds": 103.169327,
+          "ticks": 5604,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 295.041850875,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 240517120,
+          "heapUsed": 28879192,
+          "cpuSeconds": 105.194105,
+          "ticks": 5701,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 300.04155358300005,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240566272,
+          "heapUsed": 42663304,
+          "cpuSeconds": 107.276786,
+          "ticks": 5798,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 305.04275779200003,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240615424,
+          "heapUsed": 18051880,
+          "cpuSeconds": 109.368147,
+          "ticks": 5894,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 310.043930875,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240844800,
+          "heapUsed": 46257168,
+          "cpuSeconds": 111.48039,
+          "ticks": 5991,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 315.055396292,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240844800,
+          "heapUsed": 35389208,
+          "cpuSeconds": 113.542476,
+          "ticks": 6087,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 320.045260292,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240844800,
+          "heapUsed": 62018384,
+          "cpuSeconds": 115.61563,
+          "ticks": 6183,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 325.04280775,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240861184,
+          "heapUsed": 14547320,
+          "cpuSeconds": 117.702401,
+          "ticks": 6279,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 330.080550125,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240861184,
+          "heapUsed": 35014056,
+          "cpuSeconds": 119.808465,
+          "ticks": 6377,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 335.045413667,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240893952,
+          "heapUsed": 47272200,
+          "cpuSeconds": 121.906478,
+          "ticks": 6473,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 340.04623725,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240910336,
+          "heapUsed": 12147200,
+          "cpuSeconds": 124.045413,
+          "ticks": 6570,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 345.050576375,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240910336,
+          "heapUsed": 47829976,
+          "cpuSeconds": 126.143465,
+          "ticks": 6666,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 350.05153575,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 240910336,
+          "heapUsed": 15085920,
+          "cpuSeconds": 128.238511,
+          "ticks": 6763,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 355.04790625,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 241319936,
+          "heapUsed": 66548536,
+          "cpuSeconds": 130.366967,
+          "ticks": 6860,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 360.04975020800003,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244088832,
+          "heapUsed": 69802776,
+          "cpuSeconds": 132.458688,
+          "ticks": 6957,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 365.04996179200003,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244088832,
+          "heapUsed": 12658280,
+          "cpuSeconds": 134.576548,
+          "ticks": 7053,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 370.05495458300004,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244154368,
+          "heapUsed": 24181048,
+          "cpuSeconds": 136.715166,
+          "ticks": 7149,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 375.05173125,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244154368,
+          "heapUsed": 49199064,
+          "cpuSeconds": 138.842618,
+          "ticks": 7245,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 380.052626375,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244203520,
+          "heapUsed": 33375704,
+          "cpuSeconds": 140.941362,
+          "ticks": 7341,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 385.06731925,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244252672,
+          "heapUsed": 40264496,
+          "cpuSeconds": 143.062929,
+          "ticks": 7437,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 390.05298620800005,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244269056,
+          "heapUsed": 15920960,
+          "cpuSeconds": 145.142941,
+          "ticks": 7533,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 395.05292645800006,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244269056,
+          "heapUsed": 52136656,
+          "cpuSeconds": 147.270854,
+          "ticks": 7630,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 400.05261804200006,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244285440,
+          "heapUsed": 53509520,
+          "cpuSeconds": 149.359931,
+          "ticks": 7727,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 405.057839583,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244301824,
+          "heapUsed": 36714248,
+          "cpuSeconds": 151.502896,
+          "ticks": 7824,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 410.05447083300004,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244301824,
+          "heapUsed": 18085872,
+          "cpuSeconds": 153.627339,
+          "ticks": 7920,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 415.05811266700005,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244318208,
+          "heapUsed": 47182544,
+          "cpuSeconds": 155.74772,
+          "ticks": 8016,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 420.079934958,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244318208,
+          "heapUsed": 19130112,
+          "cpuSeconds": 157.863944,
+          "ticks": 8113,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 425.056462708,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244318208,
+          "heapUsed": 49633760,
+          "cpuSeconds": 159.972012,
+          "ticks": 8209,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 430.06256079200006,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244318208,
+          "heapUsed": 21013704,
+          "cpuSeconds": 162.093017,
+          "ticks": 8305,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 435.057830083,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244318208,
+          "heapUsed": 60821424,
+          "cpuSeconds": 164.237525,
+          "ticks": 8402,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 440.058622167,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244318208,
+          "heapUsed": 57417576,
+          "cpuSeconds": 166.416944,
+          "ticks": 8497,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 445.06829408300007,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244318208,
+          "heapUsed": 25240048,
+          "cpuSeconds": 168.580377,
+          "ticks": 8594,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 450.05840500000005,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244367360,
+          "heapUsed": 57082144,
+          "cpuSeconds": 170.686196,
+          "ticks": 8689,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 455.058315583,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244367360,
+          "heapUsed": 60132464,
+          "cpuSeconds": 172.809681,
+          "ticks": 8786,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 460.109047958,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244367360,
+          "heapUsed": 55605512,
+          "cpuSeconds": 174.977349,
+          "ticks": 8883,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 465.060475875,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244367360,
+          "heapUsed": 20869608,
+          "cpuSeconds": 177.084425,
+          "ticks": 8979,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 470.058439917,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244367360,
+          "heapUsed": 51124000,
+          "cpuSeconds": 179.233748,
+          "ticks": 9075,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 475.059654833,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244367360,
+          "heapUsed": 26054632,
+          "cpuSeconds": 181.378625,
+          "ticks": 9171,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 480.05843600000003,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244367360,
+          "heapUsed": 23156952,
+          "cpuSeconds": 183.519272,
+          "ticks": 9267,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 485.06051725000003,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244383744,
+          "heapUsed": 48428608,
+          "cpuSeconds": 185.67433,
+          "ticks": 9364,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 490.061456667,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244383744,
+          "heapUsed": 61743352,
+          "cpuSeconds": 187.838244,
+          "ticks": 9461,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 495.06933929200005,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244400128,
+          "heapUsed": 29466536,
+          "cpuSeconds": 190.035313,
+          "ticks": 9558,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 500.06984900000003,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244400128,
+          "heapUsed": 11164112,
+          "cpuSeconds": 192.220583,
+          "ticks": 9655,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 505.063471417,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244400128,
+          "heapUsed": 18019712,
+          "cpuSeconds": 194.359994,
+          "ticks": 9752,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 510.07120825000004,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244400128,
+          "heapUsed": 20000464,
+          "cpuSeconds": 196.559955,
+          "ticks": 9849,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 515.067484583,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244400128,
+          "heapUsed": 16922072,
+          "cpuSeconds": 198.750602,
+          "ticks": 9946,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 520.068134417,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244400128,
+          "heapUsed": 62963936,
+          "cpuSeconds": 200.900473,
+          "ticks": 10042,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 525.0700314579999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244400128,
+          "heapUsed": 37725648,
+          "cpuSeconds": 203.070707,
+          "ticks": 10138,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 530.077177042,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244400128,
+          "heapUsed": 37173048,
+          "cpuSeconds": 205.240675,
+          "ticks": 10235,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 535.071726042,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244432896,
+          "heapUsed": 24118328,
+          "cpuSeconds": 207.461293,
+          "ticks": 10331,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 540.0727373749999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 59051952,
+          "cpuSeconds": 209.644385,
+          "ticks": 10427,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 545.0768872079999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 64896032,
+          "cpuSeconds": 211.846032,
+          "ticks": 10524,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 550.074780542,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 21128504,
+          "cpuSeconds": 214.043272,
+          "ticks": 10620,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 555.0737173329999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 27532624,
+          "cpuSeconds": 216.174,
+          "ticks": 10716,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 560.0737476669999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 62481576,
+          "cpuSeconds": 218.380719,
+          "ticks": 10813,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 565.0745221669999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 31589016,
+          "cpuSeconds": 220.60331,
+          "ticks": 10909,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 570.0754970419999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 64308264,
+          "cpuSeconds": 222.79805,
+          "ticks": 11006,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 575.1029193749999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 47698296,
+          "cpuSeconds": 225.002187,
+          "ticks": 11103,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 580.0768183749999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 41163544,
+          "cpuSeconds": 227.142991,
+          "ticks": 11198,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 585.0766831669999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 27144688,
+          "cpuSeconds": 229.341945,
+          "ticks": 11293,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 590.0859463749999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244498432,
+          "heapUsed": 12205936,
+          "cpuSeconds": 231.511885,
+          "ticks": 11390,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 595.0832534169999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 244514816,
+          "heapUsed": 18790176,
+          "cpuSeconds": 233.678889,
+          "ticks": 11486,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 600.102932583,
+          "activeOperators": 15,
+          "activeRaids": 12,
+          "rss": 244957184,
+          "heapUsed": 28846128,
+          "cpuSeconds": 235.860958,
+          "ticks": 11583,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 605.081502125,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 250200064,
+          "heapUsed": 22250888,
+          "cpuSeconds": 238.263943,
+          "ticks": 11679,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 610.087657125,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 250265600,
+          "heapUsed": 62190160,
+          "cpuSeconds": 240.719437,
+          "ticks": 11775,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 615.081794583,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 252100608,
+          "heapUsed": 59303664,
+          "cpuSeconds": 243.330852,
+          "ticks": 11870,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 620.0814888749999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 253231104,
+          "heapUsed": 57117208,
+          "cpuSeconds": 246.028979,
+          "ticks": 11964,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 625.0825243329999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 253329408,
+          "heapUsed": 50430184,
+          "cpuSeconds": 248.703108,
+          "ticks": 12061,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 630.0837510829999,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 253411328,
+          "heapUsed": 26575264,
+          "cpuSeconds": 251.370104,
+          "ticks": 12157,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 635.0876985419999,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 253411328,
+          "heapUsed": 18449648,
+          "cpuSeconds": 254.026477,
+          "ticks": 12254,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 640.0852485419999,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 253870080,
+          "heapUsed": 51634704,
+          "cpuSeconds": 256.860754,
+          "ticks": 12350,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 645.0851124579999,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 253870080,
+          "heapUsed": 27951944,
+          "cpuSeconds": 259.521612,
+          "ticks": 12446,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 650.084410208,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 253870080,
+          "heapUsed": 41206616,
+          "cpuSeconds": 262.223764,
+          "ticks": 12542,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 655.0853009580001,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 253902848,
+          "heapUsed": 52147944,
+          "cpuSeconds": 264.949865,
+          "ticks": 12637,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 660.086002625,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 254984192,
+          "heapUsed": 15971568,
+          "cpuSeconds": 267.624737,
+          "ticks": 12733,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 665.098911125,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 272433152,
+          "heapUsed": 23585688,
+          "cpuSeconds": 270.349888,
+          "ticks": 12829,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 670.0877585,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 272564224,
+          "heapUsed": 62615968,
+          "cpuSeconds": 273.141053,
+          "ticks": 12924,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 675.0876165829999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 272744448,
+          "heapUsed": 18383432,
+          "cpuSeconds": 276.027812,
+          "ticks": 13020,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 680.0877455,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 272760832,
+          "heapUsed": 16541384,
+          "cpuSeconds": 278.888225,
+          "ticks": 13115,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 685.088300958,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 272777216,
+          "heapUsed": 63435152,
+          "cpuSeconds": 281.863099,
+          "ticks": 13211,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 690.0935421249999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 272777216,
+          "heapUsed": 27381048,
+          "cpuSeconds": 284.855968,
+          "ticks": 13307,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 695.091313875,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 272777216,
+          "heapUsed": 10491008,
+          "cpuSeconds": 287.805871,
+          "ticks": 13403,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 700.091981958,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 272793600,
+          "heapUsed": 47709776,
+          "cpuSeconds": 290.794159,
+          "ticks": 13499,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 705.0931446249999,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 272809984,
+          "heapUsed": 64756040,
+          "cpuSeconds": 293.851011,
+          "ticks": 13595,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 710.096240458,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 272809984,
+          "heapUsed": 51329968,
+          "cpuSeconds": 296.891305,
+          "ticks": 13690,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 715.0966644169999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 272908288,
+          "heapUsed": 69291448,
+          "cpuSeconds": 300.099268,
+          "ticks": 13781,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 720.095290417,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 272941056,
+          "heapUsed": 21918080,
+          "cpuSeconds": 303.256507,
+          "ticks": 13877,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 725.1020689579999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 272941056,
+          "heapUsed": 51997080,
+          "cpuSeconds": 305.6709,
+          "ticks": 13973,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 730.094715375,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 272957440,
+          "heapUsed": 35634880,
+          "cpuSeconds": 308.074648,
+          "ticks": 14069,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 735.0965142079999,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 272957440,
+          "heapUsed": 23516952,
+          "cpuSeconds": 310.451577,
+          "ticks": 14166,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 740.096706542,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 272973824,
+          "heapUsed": 26758568,
+          "cpuSeconds": 312.712544,
+          "ticks": 14262,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 745.0983335419999,
+          "activeOperators": 27,
+          "activeRaids": 14,
+          "rss": 272973824,
+          "heapUsed": 21310832,
+          "cpuSeconds": 315.035171,
+          "ticks": 14359,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 750.1048543329999,
+          "activeOperators": 27,
+          "activeRaids": 14,
+          "rss": 272973824,
+          "heapUsed": 60758840,
+          "cpuSeconds": 317.429578,
+          "ticks": 14455,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 755.1130378749999,
+          "activeOperators": 27,
+          "activeRaids": 14,
+          "rss": 272973824,
+          "heapUsed": 34655744,
+          "cpuSeconds": 319.877832,
+          "ticks": 14552,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 760.110205667,
+          "activeOperators": 27,
+          "activeRaids": 14,
+          "rss": 272973824,
+          "heapUsed": 25507952,
+          "cpuSeconds": 322.208114,
+          "ticks": 14649,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 765.1030117079999,
+          "activeOperators": 27,
+          "activeRaids": 14,
+          "rss": 272973824,
+          "heapUsed": 17407216,
+          "cpuSeconds": 324.577778,
+          "ticks": 14746,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 770.1079562079999,
+          "activeOperators": 27,
+          "activeRaids": 14,
+          "rss": 272990208,
+          "heapUsed": 26737360,
+          "cpuSeconds": 326.938124,
+          "ticks": 14842,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 775.1006129579999,
+          "activeOperators": 27,
+          "activeRaids": 13,
+          "rss": 272990208,
+          "heapUsed": 44215104,
+          "cpuSeconds": 329.245588,
+          "ticks": 14938,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 780.102311625,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 272990208,
+          "heapUsed": 35578984,
+          "cpuSeconds": 331.576402,
+          "ticks": 15034,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 785.116746333,
+          "activeOperators": 27,
+          "activeRaids": 12,
+          "rss": 272973824,
+          "heapUsed": 41278440,
+          "cpuSeconds": 333.947893,
+          "ticks": 15131,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 790.105410833,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 272973824,
+          "heapUsed": 47271264,
+          "cpuSeconds": 336.292979,
+          "ticks": 15226,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 795.1394042499999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 272990208,
+          "heapUsed": 55451656,
+          "cpuSeconds": 338.856443,
+          "ticks": 15323,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 800.107511667,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 18076392,
+          "cpuSeconds": 341.337757,
+          "ticks": 15419,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 805.1116506669999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 18785728,
+          "cpuSeconds": 343.755408,
+          "ticks": 15515,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 810.107200917,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 28074784,
+          "cpuSeconds": 346.178284,
+          "ticks": 15610,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 815.109670375,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 48057560,
+          "cpuSeconds": 348.540491,
+          "ticks": 15707,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 820.107821125,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 64078952,
+          "cpuSeconds": 350.895133,
+          "ticks": 15803,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 825.113493625,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 23610904,
+          "cpuSeconds": 353.305501,
+          "ticks": 15899,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 830.117917458,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 57823504,
+          "cpuSeconds": 355.721993,
+          "ticks": 15995,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 835.108004458,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 23377536,
+          "cpuSeconds": 358.129363,
+          "ticks": 16091,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 840.108952958,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 15247088,
+          "cpuSeconds": 360.518585,
+          "ticks": 16187,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 845.1096054999999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 42488832,
+          "cpuSeconds": 362.869609,
+          "ticks": 16283,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 850.1140532079999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273170432,
+          "heapUsed": 68833488,
+          "cpuSeconds": 365.358807,
+          "ticks": 16380,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 855.119294292,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273285120,
+          "heapUsed": 30230304,
+          "cpuSeconds": 367.747706,
+          "ticks": 16476,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 860.1396085829999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273285120,
+          "heapUsed": 68082088,
+          "cpuSeconds": 370.107091,
+          "ticks": 16573,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 865.111572833,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273285120,
+          "heapUsed": 22381984,
+          "cpuSeconds": 372.477875,
+          "ticks": 16668,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 870.1106461669999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273301504,
+          "heapUsed": 49454592,
+          "cpuSeconds": 374.883548,
+          "ticks": 16765,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 875.111278667,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273301504,
+          "heapUsed": 71675064,
+          "cpuSeconds": 377.214311,
+          "ticks": 16861,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 880.1143415419999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273301504,
+          "heapUsed": 35663304,
+          "cpuSeconds": 379.555236,
+          "ticks": 16958,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 885.112528583,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273301504,
+          "heapUsed": 18399752,
+          "cpuSeconds": 381.899783,
+          "ticks": 17054,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 890.1592681249999,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273301504,
+          "heapUsed": 63545880,
+          "cpuSeconds": 384.253279,
+          "ticks": 17151,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 895.124140542,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273301504,
+          "heapUsed": 58944840,
+          "cpuSeconds": 386.550443,
+          "ticks": 17247,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 900.119901917,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273301504,
+          "heapUsed": 65240960,
+          "cpuSeconds": 388.737354,
+          "ticks": 17344,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 900.293131167,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 273301504,
+          "heapUsed": 58264512,
+          "cpuSeconds": 388.762809,
+          "ticks": 17347,
+          "tickErrors": 0
+        }
+      ],
+      "completedActions": 134114,
+      "normalRaidEndRejections": 69,
+      "failedActions": 106,
+      "errorStatuses": {
+        "delivery": 106
+      },
+      "duplicateAcknowledgements": 6847,
+      "simulatedDrops": 14330,
+      "deployments": 104,
+      "responseBytes": 654516406,
+      "bytesPerClientSecond": 26926.07145064398,
+      "clientRoundTripMs": {
+        "count": 134114,
+        "p50": 154.27724999998463,
+        "p95": 404.14645899999596,
+        "p99": 448.3239580000518,
+        "max": 839.1436669999966
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 11,
+        "tick": {
+          "count": 17347,
+          "meanMs": 6.502329551910964,
+          "maxMs": 71.0413750000298,
+          "p50Ms": 10,
+          "p95Ms": 10,
+          "p99Ms": 25,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            4200,
+            12774,
+            219,
+            91,
+            63,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "tickInterval": {
+          "count": 17347,
+          "meanMs": 51.9020436938952,
+          "maxMs": 111.50383400000283,
+          "p50Ms": 75,
+          "p95Ms": 75,
+          "p99Ms": 100,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            0,
+            0,
+            0,
+            2095,
+            15054,
+            184,
+            14,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 22.327049909882206,
+          "p99Ms": 56.885247,
+          "maxMs": 111.214591
+        },
+        "memory": {
+          "rss": 273301504,
+          "heapTotal": 156057600,
+          "heapUsed": 58264512,
+          "external": 4198761,
+          "arrayBuffers": 278157
+        },
+        "cpuSeconds": 388.762809,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 410087,
+            "count": 104,
+            "meanMs": 3.536942346158189,
+            "maxMs": 5.753999999957159,
+            "p50Ms": 5,
+            "p95Ms": 10,
+            "p99Ms": 10,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              97,
+              7,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 653804734,
+            "count": 141052,
+            "meanMs": 2.1134829370585804,
+            "maxMs": 66.66012500005309,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              140385,
+              98,
+              40,
+              424,
+              105,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "4xx",
+            "bytes": 301585,
+            "count": 69,
+            "meanMs": 1.9573997826082368,
+            "maxMs": 2.8074999999953434,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      },
+      "sourceState": "Networking/checkpoint-optimization baseline before limited-exit policies; movement clients, no exit/combat workload"
+    },
+    {
+      "format": 1,
+      "at": "2026-10-30T15:16:18.424Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 20,
+        "latencyMs": 0,
+        "loss": 0,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "elapsedSeconds": 20.033836208,
+      "samples": [
+        {
+          "elapsedSeconds": 0.0009106249999999818,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 83738624,
+          "heapUsed": 10890880,
+          "cpuSeconds": 0.123856,
+          "ticks": 1,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 5.003517541,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 118145024,
+          "heapUsed": 28020256,
+          "cpuSeconds": 1.358238,
+          "ticks": 94,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 10.005278708000002,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 155975680,
+          "heapUsed": 19347872,
+          "cpuSeconds": 2.805573,
+          "ticks": 187,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 15.048116290999998,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 156909568,
+          "heapUsed": 14203920,
+          "cpuSeconds": 4.362279,
+          "ticks": 279,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 20.033833541,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 183386112,
+          "heapUsed": 9955328,
+          "cpuSeconds": 5.866756,
+          "ticks": 369,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 20.034029040999997,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 183386112,
+          "heapUsed": 9993976,
+          "cpuSeconds": 5.86699,
+          "ticks": 369,
+          "tickErrors": 0
+        }
+      ],
+      "completedActions": 3649,
+      "normalRaidEndRejections": 0,
+      "failedActions": 0,
+      "errorStatuses": {},
+      "duplicateAcknowledgements": 0,
+      "simulatedDrops": 0,
+      "deployments": 27,
+      "responseBytes": 19802250,
+      "bytesPerClientSecond": 36608.89801893236,
+      "clientRoundTripMs": {
+        "count": 3649,
+        "p50": 19.724082999997336,
+        "p95": 45.34983399999874,
+        "p99": 87.10254199999872,
+        "max": 105.97545799999898
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 3,
+        "tick": {
+          "count": 369,
+          "meanMs": 3.1604882439024573,
+          "maxMs": 51.223040999999284,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 50,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            353,
+            8,
+            1,
+            6,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "tickInterval": {
+          "count": 369,
+          "meanMs": 54.42110444986449,
+          "maxMs": 140.6683329999978,
+          "p50Ms": 75,
+          "p95Ms": 100,
+          "p99Ms": 100,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            0,
+            0,
+            0,
+            14,
+            333,
+            19,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 25.59847117452229,
+          "p99Ms": 72.876031,
+          "maxMs": 116.260863
+        },
+        "memory": {
+          "rss": 183386112,
+          "heapTotal": 149241856,
+          "heapUsed": 9993976,
+          "external": 4198293,
+          "arrayBuffers": 277689
+        },
+        "cpuSeconds": 5.86699,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 124194,
+            "count": 27,
+            "meanMs": 1.8530322592592587,
+            "maxMs": 4.969541000000007,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              27,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 19678056,
+            "count": 3649,
+            "meanMs": 1.3103873617429502,
+            "maxMs": 50.46004100000005,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              3642,
+              0,
+              2,
+              4,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": false
+      },
+      "sourceState": "After limited-exit rules; concurrent browser verification on same workstation; scheduling budget failed"
+    },
+    {
+      "format": 1,
+      "at": "2026-10-30T15:18:46.952Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 60,
+        "latencyMs": 0,
+        "loss": 0,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "elapsedSeconds": 60.044151041999996,
+      "samples": [
+        {
+          "elapsedSeconds": 0.0008842500000000654,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 83951616,
+          "heapUsed": 11418768,
+          "cpuSeconds": 0.118545,
+          "ticks": 1,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 5.006803124999999,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 120274944,
+          "heapUsed": 25128888,
+          "cpuSeconds": 1.361423,
+          "ticks": 96,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 10.007858667,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 157777920,
+          "heapUsed": 23981880,
+          "cpuSeconds": 2.802592,
+          "ticks": 189,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 15.045324417,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 158662656,
+          "heapUsed": 12368672,
+          "cpuSeconds": 4.34147,
+          "ticks": 280,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 20.007059584,
+          "activeOperators": 27,
+          "activeRaids": 4,
+          "rss": 158744576,
+          "heapUsed": 16802352,
+          "cpuSeconds": 5.843831,
+          "ticks": 373,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 25.007019833999998,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227393536,
+          "heapUsed": 38168120,
+          "cpuSeconds": 7.476492,
+          "ticks": 463,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 30.045013584,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227868672,
+          "heapUsed": 24167128,
+          "cpuSeconds": 9.237507,
+          "ticks": 553,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 35.00812195899999,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 228638720,
+          "heapUsed": 29963512,
+          "cpuSeconds": 10.999065,
+          "ticks": 639,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 40.011140667,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 229015552,
+          "heapUsed": 15220936,
+          "cpuSeconds": 12.762618,
+          "ticks": 728,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 45.053150084,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 237109248,
+          "heapUsed": 66519392,
+          "cpuSeconds": 14.624941,
+          "ticks": 816,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 50.021224000000004,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 237158400,
+          "heapUsed": 47653776,
+          "cpuSeconds": 16.385592,
+          "ticks": 904,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 55.015809292,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 237223936,
+          "heapUsed": 62293776,
+          "cpuSeconds": 18.189009,
+          "ticks": 991,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.044147834,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 237256704,
+          "heapUsed": 46213096,
+          "cpuSeconds": 20.150692,
+          "ticks": 1076,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.044335334,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 237256704,
+          "heapUsed": 46253368,
+          "cpuSeconds": 20.150895,
+          "ticks": 1076,
+          "tickErrors": 0
+        }
+      ],
+      "completedActions": 10885,
+      "normalRaidEndRejections": 10,
+      "failedActions": 0,
+      "errorStatuses": {},
+      "duplicateAcknowledgements": 0,
+      "simulatedDrops": 0,
+      "deployments": 37,
+      "responseBytes": 59760438,
+      "bytesPerClientSecond": 36862.03430551213,
+      "clientRoundTripMs": {
+        "count": 10885,
+        "p50": 23.126499999998487,
+        "p95": 49.03650000000198,
+        "p99": 86.03366700000333,
+        "max": 119.33049999999639
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 6,
+        "tick": {
+          "count": 1076,
+          "meanMs": 3.632408417286304,
+          "maxMs": 54.73654100000567,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 50,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            1035,
+            21,
+            6,
+            11,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "tickInterval": {
+          "count": 1076,
+          "meanMs": 55.84997235130112,
+          "maxMs": 134.64637499999662,
+          "p50Ms": 75,
+          "p95Ms": 100,
+          "p99Ms": 100,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            0,
+            0,
+            0,
+            59,
+            900,
+            109,
+            8,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 27.073492064864865,
+          "p99Ms": 83.296255,
+          "maxMs": 119.013375
+        },
+        "memory": {
+          "rss": 237256704,
+          "heapTotal": 154222592,
+          "heapUsed": 46253368,
+          "external": 4203661,
+          "arrayBuffers": 283057
+        },
+        "cpuSeconds": 20.150895,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 169116,
+            "count": 37,
+            "meanMs": 1.9017635945945706,
+            "maxMs": 4.488791999999997,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              37,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 59539106,
+            "count": 10885,
+            "meanMs": 1.5473130209462789,
+            "maxMs": 57.33458299999984,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              10861,
+              2,
+              3,
+              14,
+              5,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "4xx",
+            "bytes": 52216,
+            "count": 10,
+            "meanMs": 1.2122583000000304,
+            "maxMs": 1.763083000001643,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              10,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": false
+      },
+      "sourceState": "After limited-exit rules, test browser/extra service stopped, before scoped rollback optimization; scheduling budget failed again"
+    },
+    {
+      "format": 1,
+      "at": "2026-10-30T15:22:41.915Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 60,
+        "latencyMs": 0,
+        "loss": 0,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "elapsedSeconds": 60.021408208000004,
+      "samples": [
+        {
+          "elapsedSeconds": 0.000898290999999972,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 84279296,
+          "heapUsed": 10823952,
+          "cpuSeconds": 0.119069,
+          "ticks": 1,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 5.003115665999999,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 121307136,
+          "heapUsed": 16518984,
+          "cpuSeconds": 1.220036,
+          "ticks": 97,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 10.005589666,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 123109376,
+          "heapUsed": 19962368,
+          "cpuSeconds": 2.42931,
+          "ticks": 192,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 15.034466541000002,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 157564928,
+          "heapUsed": 38429920,
+          "cpuSeconds": 3.719271,
+          "ticks": 285,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 20.010662125000003,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 157827072,
+          "heapUsed": 14654112,
+          "cpuSeconds": 5.011142,
+          "ticks": 380,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 25.012192290999998,
+          "activeOperators": 27,
+          "activeRaids": 5,
+          "rss": 158171136,
+          "heapUsed": 13872616,
+          "cpuSeconds": 6.284622,
+          "ticks": 475,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 30.025479500000003,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 217350144,
+          "heapUsed": 40802712,
+          "cpuSeconds": 7.593909,
+          "ticks": 567,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 35.01155825,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227311616,
+          "heapUsed": 62192992,
+          "cpuSeconds": 8.883855,
+          "ticks": 663,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 40.012666541,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227557376,
+          "heapUsed": 53837856,
+          "cpuSeconds": 10.156485,
+          "ticks": 758,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 45.030421541,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227803136,
+          "heapUsed": 52046912,
+          "cpuSeconds": 11.505608,
+          "ticks": 852,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 50.015761250000004,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 227999744,
+          "heapUsed": 17605736,
+          "cpuSeconds": 12.762739,
+          "ticks": 948,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 55.017303541000004,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 236863488,
+          "heapUsed": 57201840,
+          "cpuSeconds": 14.053274,
+          "ticks": 1042,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.021405582999996,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 237371392,
+          "heapUsed": 17872304,
+          "cpuSeconds": 15.507141,
+          "ticks": 1138,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.021569041,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 237371392,
+          "heapUsed": 17916016,
+          "cpuSeconds": 15.50738,
+          "ticks": 1138,
+          "tickErrors": 0
+        }
+      ],
+      "completedActions": 10996,
+      "normalRaidEndRejections": 7,
+      "failedActions": 0,
+      "errorStatuses": {},
+      "duplicateAcknowledgements": 0,
+      "simulatedDrops": 0,
+      "deployments": 34,
+      "responseBytes": 60207300,
+      "bytesPerClientSecond": 37151.74412890209,
+      "clientRoundTripMs": {
+        "count": 10996,
+        "p50": 15.96087500000067,
+        "p95": 31.49554200000057,
+        "p99": 70.10020799999984,
+        "max": 84.97508300000118
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 6,
+        "tick": {
+          "count": 1138,
+          "meanMs": 4.82033820738136,
+          "maxMs": 49.44837499999994,
+          "p50Ms": 5,
+          "p95Ms": 10,
+          "p99Ms": 50,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            820,
+            289,
+            8,
+            21,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "tickInterval": {
+          "count": 1138,
+          "meanMs": 52.79661624956063,
+          "maxMs": 125.95791699999972,
+          "p50Ms": 75,
+          "p95Ms": 75,
+          "p99Ms": 100,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            0,
+            0,
+            0,
+            79,
+            1036,
+            20,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 24.288087265669226,
+          "p99Ms": 52.625407,
+          "maxMs": 101.974015
+        },
+        "memory": {
+          "rss": 237371392,
+          "heapTotal": 154484736,
+          "heapUsed": 17916016,
+          "external": 4198293,
+          "arrayBuffers": 277689
+        },
+        "cpuSeconds": 15.50738,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 154983,
+            "count": 34,
+            "meanMs": 1.7898689411766373,
+            "maxMs": 4.344374999999999,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              34,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 60016761,
+            "count": 10996,
+            "meanMs": 0.9407608540378504,
+            "maxMs": 50.802208999997674,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              10981,
+              2,
+              0,
+              12,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "4xx",
+            "bytes": 35556,
+            "count": 7,
+            "meanMs": 0.6018451428561613,
+            "maxMs": 1.0002499999973224,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              7,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      },
+      "sourceState": "After affected-raid rollback and durable identity selection; before no-repeat-raid admission fix"
+    },
+    {
+      "format": 1,
+      "source": {
+        "sha256": "e041bcd9b4f981cc2fb6d33f82b8c638bc16f9a2244b8f4b0d773a4721469b24",
+        "files": [
+          {
+            "path": "raid-transport.mjs",
+            "sha256": "61818b888db59e8d463206710aee35fba03f5c00bab26732c2cb40d489cff0cc"
+          },
+          {
+            "path": "scripts/lib/isolated-raid-service.mjs",
+            "sha256": "fc5a0b2e95d066b188f00e0bdc20ed771d42aaf62f0c996a0cc9b960a9b3defc"
+          },
+          {
+            "path": "scripts/raid-load.mjs",
+            "sha256": "c9906230c1cad26f2a222c62bb9c2975a3b2d33f97608aec0b973c6c42137cf7"
+          },
+          {
+            "path": "server/account-security.mjs",
+            "sha256": "d50e557d9a054aad2ba4003e0a9e3a71f768e6803f51b218445078b6a7a21062"
+          },
+          {
+            "path": "server/backup.mjs",
+            "sha256": "c2150ec8553bbc9a38e21fbdeb560dd5a867a5fc153376f86d3bd8cde02cdcc5"
+          },
+          {
+            "path": "server/comms.mjs",
+            "sha256": "0d87897acb50e63ce57468268c73160fb3b9e2cfbe7b2ab39c98bb17cb65471a"
+          },
+          {
+            "path": "server/control.mjs",
+            "sha256": "10c84a343b15e1ee24c97d83421a2a9a880a3b1c992307048e6570df80270756"
+          },
+          {
+            "path": "server/credentials.mjs",
+            "sha256": "83ddf4df5d9fba94ea872ccd5d9a33885b3dca5ce9d3f54b8379adcdf5d8ad0f"
+          },
+          {
+            "path": "server/main.mjs",
+            "sha256": "6a9af8cdef969dadce8927e2dfcf299108a2def4c3890ad69c3c14e74bb166f7"
+          },
+          {
+            "path": "server/operations.mjs",
+            "sha256": "1b541eb876d6f44193542a299db2a072b364ac5dca2fd04795beeabd4bc39d7a"
+          },
+          {
+            "path": "server/raid-ai.mjs",
+            "sha256": "72f94ca70a675d6e319064544fe95d8c590739b8f6f89b937975202e745ca06e"
+          },
+          {
+            "path": "server/raids.mjs",
+            "sha256": "7d6ff46862d4395f2ecc1e9b4df1d16c04ccf83417fc600d8e1e2465a5e77cd2"
+          },
+          {
+            "path": "server/rate-limit.mjs",
+            "sha256": "9e0c1646f97dd71ee4c8c7b8348c2113cdbf5ce27c96464a97e2ff94885875e8"
+          },
+          {
+            "path": "server/rules.mjs",
+            "sha256": "5c13f331e8340847c4cc39cd9c803260edd08a5922594b06ecfc7edae1fe50ca"
+          },
+          {
+            "path": "server/schema.mjs",
+            "sha256": "2d4af87219a52b5d95c2d065bafee8f3248dfaa58b478ed7bbc58ecbdac2ace1"
+          },
+          {
+            "path": "server/store.mjs",
+            "sha256": "33b7022273c377e6e7130289cd1cf8a8c639157e7b8fd3fa1e47aee7b56b9d7e"
+          },
+          {
+            "path": "shared/raid-catalog.mjs",
+            "sha256": "ca1cd9f31fe3cd1176e77cd4d484893900c3065424c0a8fb9c2a77166861da11"
+          },
+          {
+            "path": "shared/raid-comms.mjs",
+            "sha256": "42936ec99bbb695f7853a0339c3ecee9a49ead9176d660b47293526dfe63833c"
+          },
+          {
+            "path": "shared/raid-enemies.mjs",
+            "sha256": "fe0da374d7e030ec9d5891c9994b580fa6603e0ae72c4241e04454a4262cd918"
+          },
+          {
+            "path": "shared/raid-exits.mjs",
+            "sha256": "e01155d431c1483de68d1392455744cf061a2d1b19aa6cc9a0631d6cf5d77a29"
+          },
+          {
+            "path": "shared/raid-motion.mjs",
+            "sha256": "38ad6fcd30450f3a37229176d4bd0834c8049210da0ec54758358a244e782109"
+          },
+          {
+            "path": "shared/raid-navigation.mjs",
+            "sha256": "966faa6ad44d439e5e5195eb83a1aa9a94a58ae8fe2e28f4d4a46ff959a98ebd"
+          },
+          {
+            "path": "shared/raid-protocol.mjs",
+            "sha256": "205360fb810550b0243d02e428c4d6bc5f8acf0edd7eaa8ce12b78f9ae4a819c"
+          },
+          {
+            "path": "shared/raid-settings.mjs",
+            "sha256": "cc56b61beb86acc4eeda86faaa736521885377f114999a280cc4a1d6424e9e4c"
+          },
+          {
+            "path": "shared/raid-worlds.mjs",
+            "sha256": "d3c531bf07946e5cbcc1b0f99a5fbd81627977098b2dbfddd1754107147861e6"
+          }
+        ]
+      },
+      "at": "2026-10-30T15:43:06.225Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 900,
+        "latencyMs": 150,
+        "loss": 0.05,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "elapsedSeconds": 900.528837875,
+      "samples": [
+        {
+          "elapsedSeconds": 0.0008657909999999447,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 84508672,
+          "heapUsed": 12014920,
+          "cpuSeconds": 0.119636,
+          "ticks": 1,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 5.0030480410000004,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 121274368,
+          "heapUsed": 16927160,
+          "cpuSeconds": 1.294916,
+          "ticks": 97,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 10.003676625,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 122961920,
+          "heapUsed": 29619312,
+          "cpuSeconds": 2.57239,
+          "ticks": 195,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 15.00348775,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 150732800,
+          "heapUsed": 18744704,
+          "cpuSeconds": 3.966012,
+          "ticks": 292,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 20.003220625,
+          "activeOperators": 26,
+          "activeRaids": 4,
+          "rss": 154583040,
+          "heapUsed": 37337192,
+          "cpuSeconds": 5.361988,
+          "ticks": 388,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 25.012266375,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 157974528,
+          "heapUsed": 11052304,
+          "cpuSeconds": 6.761968,
+          "ticks": 484,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 30.005378666000002,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 159481856,
+          "heapUsed": 37525400,
+          "cpuSeconds": 8.165429,
+          "ticks": 581,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 35.008127916,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 216203264,
+          "heapUsed": 31398640,
+          "cpuSeconds": 9.582289,
+          "ticks": 677,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 40.006932332999995,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 218284032,
+          "heapUsed": 45736448,
+          "cpuSeconds": 11.026739,
+          "ticks": 774,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 45.009741999999996,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 220954624,
+          "heapUsed": 61339088,
+          "cpuSeconds": 12.338727,
+          "ticks": 870,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 50.00769762499999,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 221528064,
+          "heapUsed": 68779016,
+          "cpuSeconds": 13.685299,
+          "ticks": 967,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 55.008804,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 222789632,
+          "heapUsed": 13658960,
+          "cpuSeconds": 14.952823,
+          "ticks": 1062,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.009122,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 222806016,
+          "heapUsed": 19674616,
+          "cpuSeconds": 16.273532,
+          "ticks": 1158,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 65.03571125,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 222969856,
+          "heapUsed": 26804704,
+          "cpuSeconds": 17.729442,
+          "ticks": 1256,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 70.01494412500001,
+          "activeOperators": 27,
+          "activeRaids": 6,
+          "rss": 223051776,
+          "heapUsed": 35461112,
+          "cpuSeconds": 19.152766,
+          "ticks": 1353,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 75.014608166,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 223166464,
+          "heapUsed": 24005528,
+          "cpuSeconds": 20.566852,
+          "ticks": 1449,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 80.02100554100001,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 231227392,
+          "heapUsed": 10803408,
+          "cpuSeconds": 22.037429,
+          "ticks": 1547,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 85.01602062500001,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 231555072,
+          "heapUsed": 27809144,
+          "cpuSeconds": 23.418303,
+          "ticks": 1644,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 90.018004791,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233193472,
+          "heapUsed": 27194688,
+          "cpuSeconds": 24.851464,
+          "ticks": 1739,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 95.018498708,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233193472,
+          "heapUsed": 35448368,
+          "cpuSeconds": 26.318155,
+          "ticks": 1835,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 100.02020479100001,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233193472,
+          "heapUsed": 33230968,
+          "cpuSeconds": 27.725612,
+          "ticks": 1932,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 105.04239162500001,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233259008,
+          "heapUsed": 13575864,
+          "cpuSeconds": 29.109773,
+          "ticks": 2029,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 110.023430458,
+          "activeOperators": 26,
+          "activeRaids": 7,
+          "rss": 233259008,
+          "heapUsed": 65753472,
+          "cpuSeconds": 30.484829,
+          "ticks": 2125,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 115.025322958,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233259008,
+          "heapUsed": 31098976,
+          "cpuSeconds": 31.886237,
+          "ticks": 2222,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 120.026555333,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233275392,
+          "heapUsed": 55514928,
+          "cpuSeconds": 33.27859,
+          "ticks": 2319,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 125.033682416,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233603072,
+          "heapUsed": 24309432,
+          "cpuSeconds": 34.640582,
+          "ticks": 2417,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 130.029184541,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233619456,
+          "heapUsed": 56552024,
+          "cpuSeconds": 36.002407,
+          "ticks": 2513,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 135.02938604099998,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233619456,
+          "heapUsed": 28628856,
+          "cpuSeconds": 37.39463,
+          "ticks": 2609,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 140.031095083,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 233635840,
+          "heapUsed": 15445776,
+          "cpuSeconds": 38.794023,
+          "ticks": 2705,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 145.031623291,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 234029056,
+          "heapUsed": 69646168,
+          "cpuSeconds": 40.233254,
+          "ticks": 2802,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 150.04204299999998,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 234078208,
+          "heapUsed": 63082544,
+          "cpuSeconds": 41.60179,
+          "ticks": 2898,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 155.042466166,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 236781568,
+          "heapUsed": 18222448,
+          "cpuSeconds": 43.020874,
+          "ticks": 2995,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 160.064637375,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237551616,
+          "heapUsed": 60023152,
+          "cpuSeconds": 44.454831,
+          "ticks": 3093,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 165.035038458,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237568000,
+          "heapUsed": 40492816,
+          "cpuSeconds": 45.852009,
+          "ticks": 3189,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 170.03744487499998,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237568000,
+          "heapUsed": 16808920,
+          "cpuSeconds": 47.258285,
+          "ticks": 3286,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 175.037007083,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237584384,
+          "heapUsed": 12392792,
+          "cpuSeconds": 48.693014,
+          "ticks": 3383,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 180.03838070799998,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237584384,
+          "heapUsed": 41052408,
+          "cpuSeconds": 50.100048,
+          "ticks": 3480,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 185.04005129099997,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237715456,
+          "heapUsed": 70463360,
+          "cpuSeconds": 51.512493,
+          "ticks": 3577,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 190.0412225,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237846528,
+          "heapUsed": 42746160,
+          "cpuSeconds": 52.959467,
+          "ticks": 3673,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 195.043581458,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 237862912,
+          "heapUsed": 31765744,
+          "cpuSeconds": 54.344257,
+          "ticks": 3769,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 200.046613291,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 237928448,
+          "heapUsed": 51452192,
+          "cpuSeconds": 55.754906,
+          "ticks": 3865,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 205.046086375,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 237977600,
+          "heapUsed": 30081832,
+          "cpuSeconds": 57.184729,
+          "ticks": 3962,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 210.04913116599997,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239550464,
+          "heapUsed": 61929896,
+          "cpuSeconds": 58.647032,
+          "ticks": 4059,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 215.048321458,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239583232,
+          "heapUsed": 56555600,
+          "cpuSeconds": 60.061649,
+          "ticks": 4155,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 220.049075916,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239583232,
+          "heapUsed": 12185880,
+          "cpuSeconds": 61.498852,
+          "ticks": 4252,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 225.05039104099998,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239583232,
+          "heapUsed": 33132768,
+          "cpuSeconds": 62.885521,
+          "ticks": 4348,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 230.0506035,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239583232,
+          "heapUsed": 42918168,
+          "cpuSeconds": 64.321031,
+          "ticks": 4445,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 235.05140445799998,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239599616,
+          "heapUsed": 62931680,
+          "cpuSeconds": 65.74157,
+          "ticks": 4542,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 240.051613541,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239697920,
+          "heapUsed": 19159704,
+          "cpuSeconds": 67.168842,
+          "ticks": 4638,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 245.05433387499997,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239697920,
+          "heapUsed": 29295024,
+          "cpuSeconds": 68.595915,
+          "ticks": 4735,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 250.061695458,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239796224,
+          "heapUsed": 17002216,
+          "cpuSeconds": 70.021875,
+          "ticks": 4831,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 255.054919166,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239534080,
+          "heapUsed": 43154808,
+          "cpuSeconds": 71.443076,
+          "ticks": 4926,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 260.056895833,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239566848,
+          "heapUsed": 18145384,
+          "cpuSeconds": 72.873501,
+          "ticks": 5023,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 265.056832833,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239566848,
+          "heapUsed": 14437432,
+          "cpuSeconds": 74.252312,
+          "ticks": 5120,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 270.05884570800004,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239566848,
+          "heapUsed": 42935000,
+          "cpuSeconds": 75.690061,
+          "ticks": 5217,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 275.0605615,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239583232,
+          "heapUsed": 32630416,
+          "cpuSeconds": 77.114815,
+          "ticks": 5313,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 280.06023062500003,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239583232,
+          "heapUsed": 61030360,
+          "cpuSeconds": 78.517636,
+          "ticks": 5410,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 285.061441166,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239599616,
+          "heapUsed": 64605112,
+          "cpuSeconds": 79.99128,
+          "ticks": 5506,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 290.06137758299997,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239599616,
+          "heapUsed": 20909320,
+          "cpuSeconds": 81.380767,
+          "ticks": 5602,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 295.069256333,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239599616,
+          "heapUsed": 45402576,
+          "cpuSeconds": 82.805391,
+          "ticks": 5699,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 300.12802579099997,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239648768,
+          "heapUsed": 30015480,
+          "cpuSeconds": 84.247983,
+          "ticks": 5797,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 305.069865,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239648768,
+          "heapUsed": 62600464,
+          "cpuSeconds": 85.685046,
+          "ticks": 5893,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 310.06839983300006,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239845376,
+          "heapUsed": 60793872,
+          "cpuSeconds": 87.167436,
+          "ticks": 5988,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 315.065976958,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 239714304,
+          "heapUsed": 12375336,
+          "cpuSeconds": 88.621143,
+          "ticks": 6085,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 320.06569154100004,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240336896,
+          "heapUsed": 57337128,
+          "cpuSeconds": 90.076153,
+          "ticks": 6182,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 325.064966833,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240353280,
+          "heapUsed": 30197072,
+          "cpuSeconds": 91.560609,
+          "ticks": 6277,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 330.06766525,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240500736,
+          "heapUsed": 52582128,
+          "cpuSeconds": 92.988468,
+          "ticks": 6374,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 335.06884016600003,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240500736,
+          "heapUsed": 69706720,
+          "cpuSeconds": 94.46767,
+          "ticks": 6471,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 340.072955166,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240500736,
+          "heapUsed": 34126440,
+          "cpuSeconds": 95.905427,
+          "ticks": 6568,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 345.07532075,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240566272,
+          "heapUsed": 25696224,
+          "cpuSeconds": 97.387387,
+          "ticks": 6665,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 350.087210458,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240566272,
+          "heapUsed": 48187384,
+          "cpuSeconds": 98.822546,
+          "ticks": 6761,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 355.06965220800004,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240566272,
+          "heapUsed": 47719480,
+          "cpuSeconds": 100.253424,
+          "ticks": 6858,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 360.070633083,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240566272,
+          "heapUsed": 54287928,
+          "cpuSeconds": 101.695085,
+          "ticks": 6954,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 365.075554291,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240664576,
+          "heapUsed": 63692104,
+          "cpuSeconds": 103.092908,
+          "ticks": 7051,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 370.071213166,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240664576,
+          "heapUsed": 18912768,
+          "cpuSeconds": 104.545665,
+          "ticks": 7148,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 375.072888291,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240664576,
+          "heapUsed": 53288024,
+          "cpuSeconds": 106.005577,
+          "ticks": 7244,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 380.073092125,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240697344,
+          "heapUsed": 38370952,
+          "cpuSeconds": 107.548543,
+          "ticks": 7341,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 385.073918208,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240762880,
+          "heapUsed": 17581736,
+          "cpuSeconds": 108.961692,
+          "ticks": 7436,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 390.074995041,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240779264,
+          "heapUsed": 28642208,
+          "cpuSeconds": 110.3904,
+          "ticks": 7532,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 395.076089333,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240779264,
+          "heapUsed": 46371336,
+          "cpuSeconds": 111.818893,
+          "ticks": 7629,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 400.075964166,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240779264,
+          "heapUsed": 51255312,
+          "cpuSeconds": 113.267126,
+          "ticks": 7726,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 405.07674791600004,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240779264,
+          "heapUsed": 27989712,
+          "cpuSeconds": 114.672653,
+          "ticks": 7823,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 410.07678125,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240779264,
+          "heapUsed": 13964464,
+          "cpuSeconds": 116.113431,
+          "ticks": 7920,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 415.08721004100005,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240779264,
+          "heapUsed": 24175016,
+          "cpuSeconds": 117.502446,
+          "ticks": 8015,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 420.084641083,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240779264,
+          "heapUsed": 61204760,
+          "cpuSeconds": 118.861441,
+          "ticks": 8111,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 425.08238158300003,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240893952,
+          "heapUsed": 35439712,
+          "cpuSeconds": 120.177828,
+          "ticks": 8207,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 430.083940958,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 49230632,
+          "cpuSeconds": 121.602137,
+          "ticks": 8304,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 435.09903120800004,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 13013696,
+          "cpuSeconds": 123.034282,
+          "ticks": 8402,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 440.085977083,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 51460864,
+          "cpuSeconds": 124.473495,
+          "ticks": 8499,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 445.08590962500006,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 35664408,
+          "cpuSeconds": 125.908713,
+          "ticks": 8595,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 450.086819666,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 48965728,
+          "cpuSeconds": 127.34401,
+          "ticks": 8692,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 455.08880675000006,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 64905600,
+          "cpuSeconds": 128.684937,
+          "ticks": 8788,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 460.08939625,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 39613024,
+          "cpuSeconds": 130.015439,
+          "ticks": 8884,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 465.09222675,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 48803208,
+          "cpuSeconds": 131.46897,
+          "ticks": 8982,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 470.09068287499997,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 240910336,
+          "heapUsed": 65349296,
+          "cpuSeconds": 132.913698,
+          "ticks": 9078,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 475.09474625,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241057792,
+          "heapUsed": 18439552,
+          "cpuSeconds": 134.4224,
+          "ticks": 9175,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 480.090894333,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241074176,
+          "heapUsed": 47571424,
+          "cpuSeconds": 135.864707,
+          "ticks": 9271,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 485.094037375,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241074176,
+          "heapUsed": 60106432,
+          "cpuSeconds": 137.346657,
+          "ticks": 9368,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 490.09174370799997,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241074176,
+          "heapUsed": 26650496,
+          "cpuSeconds": 138.813351,
+          "ticks": 9465,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 495.09194208300005,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241090560,
+          "heapUsed": 16814160,
+          "cpuSeconds": 140.297268,
+          "ticks": 9562,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 500.100602416,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241090560,
+          "heapUsed": 33646528,
+          "cpuSeconds": 141.720238,
+          "ticks": 9658,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 505.094054958,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241565696,
+          "heapUsed": 12790808,
+          "cpuSeconds": 143.201166,
+          "ticks": 9755,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 510.095582625,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 12175552,
+          "cpuSeconds": 144.5805,
+          "ticks": 9851,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 515.095766375,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 50888712,
+          "cpuSeconds": 145.965211,
+          "ticks": 9947,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 520.119551083,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 49937720,
+          "cpuSeconds": 147.407754,
+          "ticks": 10044,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 525.1029685000001,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 11077944,
+          "cpuSeconds": 148.875046,
+          "ticks": 10141,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 530.097462208,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 40147192,
+          "cpuSeconds": 150.324811,
+          "ticks": 10238,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 535.098315541,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 17144784,
+          "cpuSeconds": 151.792598,
+          "ticks": 10335,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 540.100170208,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 62462400,
+          "cpuSeconds": 153.243378,
+          "ticks": 10432,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 545.10193625,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 32477160,
+          "cpuSeconds": 154.678866,
+          "ticks": 10528,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 550.109057166,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241614848,
+          "heapUsed": 58836576,
+          "cpuSeconds": 156.09577,
+          "ticks": 10626,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 555.1038517080001,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241647616,
+          "heapUsed": 57973712,
+          "cpuSeconds": 157.562663,
+          "ticks": 10723,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 560.105223708,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241647616,
+          "heapUsed": 32378736,
+          "cpuSeconds": 159.014356,
+          "ticks": 10821,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 565.105345458,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241647616,
+          "heapUsed": 28397592,
+          "cpuSeconds": 160.438665,
+          "ticks": 10917,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 570.10630575,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241647616,
+          "heapUsed": 54937368,
+          "cpuSeconds": 161.893698,
+          "ticks": 11014,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 575.107419291,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241696768,
+          "heapUsed": 56870544,
+          "cpuSeconds": 163.334102,
+          "ticks": 11109,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 580.1091029160001,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241696768,
+          "heapUsed": 15131000,
+          "cpuSeconds": 164.797274,
+          "ticks": 11205,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 585.10990625,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241696768,
+          "heapUsed": 56375344,
+          "cpuSeconds": 166.270364,
+          "ticks": 11303,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 590.11291125,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241696768,
+          "heapUsed": 12713928,
+          "cpuSeconds": 167.652418,
+          "ticks": 11399,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 595.109904458,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 241696768,
+          "heapUsed": 54481016,
+          "cpuSeconds": 168.982776,
+          "ticks": 11495,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 600.117456875,
+          "activeOperators": 18,
+          "activeRaids": 8,
+          "rss": 241975296,
+          "heapUsed": 68061264,
+          "cpuSeconds": 170.463909,
+          "ticks": 11592,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 605.1112174159999,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 242155520,
+          "heapUsed": 60012176,
+          "cpuSeconds": 171.92737,
+          "ticks": 11689,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 610.11377325,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 242237440,
+          "heapUsed": 58031512,
+          "cpuSeconds": 173.412714,
+          "ticks": 11786,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 615.1135742910001,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 242286592,
+          "heapUsed": 15626936,
+          "cpuSeconds": 174.859685,
+          "ticks": 11883,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 620.115223416,
+          "activeOperators": 22,
+          "activeRaids": 7,
+          "rss": 242286592,
+          "heapUsed": 67032160,
+          "cpuSeconds": 176.336452,
+          "ticks": 11980,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 625.117329,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 242794496,
+          "heapUsed": 37228168,
+          "cpuSeconds": 177.851412,
+          "ticks": 12077,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 630.1182005000001,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 242958336,
+          "heapUsed": 40553112,
+          "cpuSeconds": 179.385128,
+          "ticks": 12174,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 635.118188625,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 243073024,
+          "heapUsed": 68194760,
+          "cpuSeconds": 180.919084,
+          "ticks": 12271,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 640.1268402080001,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 243073024,
+          "heapUsed": 65125304,
+          "cpuSeconds": 182.424298,
+          "ticks": 12369,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 645.119452541,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 243089408,
+          "heapUsed": 37288944,
+          "cpuSeconds": 183.913297,
+          "ticks": 12465,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 650.120894708,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 243335168,
+          "heapUsed": 37726464,
+          "cpuSeconds": 185.450595,
+          "ticks": 12562,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 655.121910583,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 243335168,
+          "heapUsed": 46706384,
+          "cpuSeconds": 186.950557,
+          "ticks": 12659,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 660.1211429580001,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 244449280,
+          "heapUsed": 21400208,
+          "cpuSeconds": 188.445427,
+          "ticks": 12756,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 665.1215224160001,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 244449280,
+          "heapUsed": 19536024,
+          "cpuSeconds": 189.932108,
+          "ticks": 12853,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 670.123090541,
+          "activeOperators": 27,
+          "activeRaids": 8,
+          "rss": 244449280,
+          "heapUsed": 43770000,
+          "cpuSeconds": 191.433928,
+          "ticks": 12950,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 675.1237065830001,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 244449280,
+          "heapUsed": 19716192,
+          "cpuSeconds": 192.956865,
+          "ticks": 13047,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 680.12546325,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 244465664,
+          "heapUsed": 37744032,
+          "cpuSeconds": 194.472284,
+          "ticks": 13144,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 685.188288875,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 244482048,
+          "heapUsed": 13740144,
+          "cpuSeconds": 195.978842,
+          "ticks": 13242,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 690.1247949159999,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 244498432,
+          "heapUsed": 14747672,
+          "cpuSeconds": 197.467685,
+          "ticks": 13337,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 695.1268763749999,
+          "activeOperators": 27,
+          "activeRaids": 7,
+          "rss": 244514816,
+          "heapUsed": 42036312,
+          "cpuSeconds": 198.964015,
+          "ticks": 13433,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 700.1290537499999,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 244580352,
+          "heapUsed": 21921112,
+          "cpuSeconds": 200.506257,
+          "ticks": 13530,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 705.138587208,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 244580352,
+          "heapUsed": 43435328,
+          "cpuSeconds": 202.034814,
+          "ticks": 13627,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 710.1307555,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 244596736,
+          "heapUsed": 49841040,
+          "cpuSeconds": 203.574573,
+          "ticks": 13723,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 715.1299509160001,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 244645888,
+          "heapUsed": 16118824,
+          "cpuSeconds": 205.079322,
+          "ticks": 13818,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 720.1316006249999,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 244645888,
+          "heapUsed": 20811840,
+          "cpuSeconds": 206.622769,
+          "ticks": 13915,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 725.132035791,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 244645888,
+          "heapUsed": 62864632,
+          "cpuSeconds": 208.088562,
+          "ticks": 14012,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 730.139728708,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 244727808,
+          "heapUsed": 18125840,
+          "cpuSeconds": 209.518137,
+          "ticks": 14109,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 735.133991541,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 244727808,
+          "heapUsed": 29056248,
+          "cpuSeconds": 210.9411,
+          "ticks": 14205,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 740.1366391660001,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 249921536,
+          "heapUsed": 49873784,
+          "cpuSeconds": 212.425544,
+          "ticks": 14302,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 745.146692666,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 249921536,
+          "heapUsed": 49680336,
+          "cpuSeconds": 213.859129,
+          "ticks": 14399,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 750.140624666,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 249921536,
+          "heapUsed": 14548576,
+          "cpuSeconds": 215.278664,
+          "ticks": 14495,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 755.183833166,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 249921536,
+          "heapUsed": 17582504,
+          "cpuSeconds": 216.699236,
+          "ticks": 14592,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 760.140968791,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 249921536,
+          "heapUsed": 33025776,
+          "cpuSeconds": 218.084914,
+          "ticks": 14688,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 765.143456333,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 249921536,
+          "heapUsed": 29971216,
+          "cpuSeconds": 219.483793,
+          "ticks": 14785,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 770.143753625,
+          "activeOperators": 27,
+          "activeRaids": 9,
+          "rss": 249921536,
+          "heapUsed": 52261632,
+          "cpuSeconds": 220.88436,
+          "ticks": 14882,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 775.145222458,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 249921536,
+          "heapUsed": 58640864,
+          "cpuSeconds": 222.333198,
+          "ticks": 14978,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 780.145915583,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 249921536,
+          "heapUsed": 61601504,
+          "cpuSeconds": 223.7821,
+          "ticks": 15075,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 785.149026625,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 249921536,
+          "heapUsed": 31341512,
+          "cpuSeconds": 225.201795,
+          "ticks": 15170,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 790.164112416,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 249921536,
+          "heapUsed": 17780344,
+          "cpuSeconds": 226.638691,
+          "ticks": 15267,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 795.1577080410001,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 249921536,
+          "heapUsed": 55197904,
+          "cpuSeconds": 228.085407,
+          "ticks": 15364,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 800.152745333,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 249921536,
+          "heapUsed": 58080504,
+          "cpuSeconds": 229.526938,
+          "ticks": 15460,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 805.151855166,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 249954304,
+          "heapUsed": 55064104,
+          "cpuSeconds": 230.978885,
+          "ticks": 15557,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 810.155126,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 250019840,
+          "heapUsed": 47418400,
+          "cpuSeconds": 232.440255,
+          "ticks": 15653,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 815.155583625,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 250036224,
+          "heapUsed": 67532400,
+          "cpuSeconds": 233.886883,
+          "ticks": 15750,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 820.162519041,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 250036224,
+          "heapUsed": 31599000,
+          "cpuSeconds": 235.355581,
+          "ticks": 15848,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 825.157061416,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 250036224,
+          "heapUsed": 33875816,
+          "cpuSeconds": 236.820068,
+          "ticks": 15945,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 830.16603775,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 250036224,
+          "heapUsed": 30770808,
+          "cpuSeconds": 238.267009,
+          "ticks": 16042,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 835.159153083,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 250036224,
+          "heapUsed": 28577880,
+          "cpuSeconds": 239.690517,
+          "ticks": 16138,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 840.15989125,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 250036224,
+          "heapUsed": 28378760,
+          "cpuSeconds": 241.128544,
+          "ticks": 16235,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 845.192445083,
+          "activeOperators": 27,
+          "activeRaids": 10,
+          "rss": 250036224,
+          "heapUsed": 15741384,
+          "cpuSeconds": 242.518261,
+          "ticks": 16332,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 850.161439041,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 18548160,
+          "cpuSeconds": 243.948248,
+          "ticks": 16428,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 855.164010541,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 71448272,
+          "cpuSeconds": 245.416199,
+          "ticks": 16525,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 860.1646654580001,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 25665328,
+          "cpuSeconds": 246.879982,
+          "ticks": 16622,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 865.165789625,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 16203456,
+          "cpuSeconds": 248.333037,
+          "ticks": 16719,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 870.167011041,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 52246272,
+          "cpuSeconds": 249.747539,
+          "ticks": 16816,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 875.168407458,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 53554048,
+          "cpuSeconds": 251.18567,
+          "ticks": 16913,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 880.169282833,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 17557232,
+          "cpuSeconds": 252.63839,
+          "ticks": 17010,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 885.1815193330001,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 20829832,
+          "cpuSeconds": 254.069172,
+          "ticks": 17107,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 890.171150791,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 39675472,
+          "cpuSeconds": 255.419543,
+          "ticks": 17203,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 895.178896208,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 62722704,
+          "cpuSeconds": 256.864968,
+          "ticks": 17300,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 900.173012708,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 63862968,
+          "cpuSeconds": 258.249992,
+          "ticks": 17396,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 900.531332291,
+          "activeOperators": 27,
+          "activeRaids": 11,
+          "rss": 250036224,
+          "heapUsed": 58672384,
+          "cpuSeconds": 258.332121,
+          "ticks": 17403,
+          "tickErrors": 0
+        }
+      ],
+      "completedActions": 134873,
+      "normalRaidEndRejections": 53,
+      "failedActions": 106,
+      "errorStatuses": {
+        "delivery": 106
+      },
+      "duplicateAcknowledgements": 6879,
+      "simulatedDrops": 14407,
+      "deployments": 87,
+      "responseBytes": 786119297,
+      "bytesPerClientSecond": 32331.59038773611,
+      "clientRoundTripMs": {
+        "count": 134873,
+        "p50": 154.02624999999534,
+        "p95": 402.52237500000047,
+        "p99": 444.80375000002095,
+        "max": 828.1090839999961
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 11,
+        "tick": {
+          "count": 17403,
+          "meanMs": 8.163448684939894,
+          "maxMs": 69.15679199999431,
+          "p50Ms": 10,
+          "p95Ms": 25,
+          "p99Ms": 50,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            2370,
+            12909,
+            1781,
+            220,
+            123,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "tickInterval": {
+          "count": 17403,
+          "meanMs": 51.74973237137276,
+          "maxMs": 107.89979100000346,
+          "p50Ms": 75,
+          "p95Ms": 75,
+          "p99Ms": 75,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            0,
+            0,
+            0,
+            1749,
+            15520,
+            117,
+            17,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 22.37384341051376,
+          "p99Ms": 59.244543,
+          "maxMs": 89.718783
+        },
+        "memory": {
+          "rss": 250036224,
+          "heapTotal": 155271168,
+          "heapUsed": 58672384,
+          "external": 4198502,
+          "arrayBuffers": 277898
+        },
+        "cpuSeconds": 258.332121,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 397901,
+            "count": 87,
+            "meanMs": 3.8561552183877583,
+            "maxMs": 30.64075000002049,
+            "p50Ms": 5,
+            "p95Ms": 10,
+            "p99Ms": 50,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              72,
+              13,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 785444431,
+            "count": 141843,
+            "meanMs": 0.9571080977770624,
+            "maxMs": 64.060083999997,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              141403,
+              62,
+              40,
+              300,
+              38,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "4xx",
+            "bytes": 276965,
+            "count": 53,
+            "meanMs": 0.46080515094821883,
+            "maxMs": 1.6016249999993306,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              53,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      },
+      "sourceState": "Limited-exit/scoped-rollback/no-repeat-admission build; before sector loot/contracts/day-night content"
+    },
+    {
+      "format": 1,
+      "source": {
+        "sha256": "4bc9973a96f4e67d5ff51e9507c02d9883f57a030cd829fa3aeef140693eeebb",
+        "files": [
+          {
+            "path": "raid-transport.mjs",
+            "sha256": "61818b888db59e8d463206710aee35fba03f5c00bab26732c2cb40d489cff0cc"
+          },
+          {
+            "path": "scripts/lib/isolated-raid-service.mjs",
+            "sha256": "fc5a0b2e95d066b188f00e0bdc20ed771d42aaf62f0c996a0cc9b960a9b3defc"
+          },
+          {
+            "path": "scripts/raid-load.mjs",
+            "sha256": "c9906230c1cad26f2a222c62bb9c2975a3b2d33f97608aec0b973c6c42137cf7"
+          },
+          {
+            "path": "server/account-security.mjs",
+            "sha256": "d50e557d9a054aad2ba4003e0a9e3a71f768e6803f51b218445078b6a7a21062"
+          },
+          {
+            "path": "server/backup.mjs",
+            "sha256": "f4691c18103094d1fc5e737d6543b383d8b6fbbfffc5db31697d81655c13432d"
+          },
+          {
+            "path": "server/comms.mjs",
+            "sha256": "0d87897acb50e63ce57468268c73160fb3b9e2cfbe7b2ab39c98bb17cb65471a"
+          },
+          {
+            "path": "server/control.mjs",
+            "sha256": "10c84a343b15e1ee24c97d83421a2a9a880a3b1c992307048e6570df80270756"
+          },
+          {
+            "path": "server/credentials.mjs",
+            "sha256": "83ddf4df5d9fba94ea872ccd5d9a33885b3dca5ce9d3f54b8379adcdf5d8ad0f"
+          },
+          {
+            "path": "server/main.mjs",
+            "sha256": "6a9af8cdef969dadce8927e2dfcf299108a2def4c3890ad69c3c14e74bb166f7"
+          },
+          {
+            "path": "server/operations.mjs",
+            "sha256": "1b541eb876d6f44193542a299db2a072b364ac5dca2fd04795beeabd4bc39d7a"
+          },
+          {
+            "path": "server/raid-ai.mjs",
+            "sha256": "e22c8d41740c94312c9f05f6216c1cc5b83e31bd7154d8c1c4aaacec1732a3b3"
+          },
+          {
+            "path": "server/raid-loot.mjs",
+            "sha256": "747595c29d4febba49b65fc42414feba6c63a734006d86173937bbb50c6ebaba"
+          },
+          {
+            "path": "server/raids.mjs",
+            "sha256": "cb3c4eed3f9b1d374ec65e98d844ad0587412090ab9813d5ca4b0941e85e9597"
+          },
+          {
+            "path": "server/rate-limit.mjs",
+            "sha256": "9e0c1646f97dd71ee4c8c7b8348c2113cdbf5ce27c96464a97e2ff94885875e8"
+          },
+          {
+            "path": "server/rules.mjs",
+            "sha256": "5c13f331e8340847c4cc39cd9c803260edd08a5922594b06ecfc7edae1fe50ca"
+          },
+          {
+            "path": "server/schema.mjs",
+            "sha256": "3c29e57f2dd74d23a47dc1b1477ee63c8a1f2dc0d365586923672052d1800f37"
+          },
+          {
+            "path": "server/store.mjs",
+            "sha256": "0e2e52aa6ee138a17c1c4cd8b435fb3c538852ebc56b6728b81ba13648ca7ab4"
+          },
+          {
+            "path": "shared/raid-catalog.mjs",
+            "sha256": "21793a94cff3ce7574df3085e1c05f9b78cbc58bff3c1c623bccbd2b83d1bf9d"
+          },
+          {
+            "path": "shared/raid-comms.mjs",
+            "sha256": "42936ec99bbb695f7853a0339c3ecee9a49ead9176d660b47293526dfe63833c"
+          },
+          {
+            "path": "shared/raid-conditions.mjs",
+            "sha256": "673f04980a0fbda69c1ffd6805a356743ad432cf485b8e6f1191400e998125af"
+          },
+          {
+            "path": "shared/raid-enemies.mjs",
+            "sha256": "fe0da374d7e030ec9d5891c9994b580fa6603e0ae72c4241e04454a4262cd918"
+          },
+          {
+            "path": "shared/raid-exits.mjs",
+            "sha256": "e01155d431c1483de68d1392455744cf061a2d1b19aa6cc9a0631d6cf5d77a29"
+          },
+          {
+            "path": "shared/raid-motion.mjs",
+            "sha256": "38ad6fcd30450f3a37229176d4bd0834c8049210da0ec54758358a244e782109"
+          },
+          {
+            "path": "shared/raid-navigation.mjs",
+            "sha256": "966faa6ad44d439e5e5195eb83a1aa9a94a58ae8fe2e28f4d4a46ff959a98ebd"
+          },
+          {
+            "path": "shared/raid-protocol.mjs",
+            "sha256": "205360fb810550b0243d02e428c4d6bc5f8acf0edd7eaa8ce12b78f9ae4a819c"
+          },
+          {
+            "path": "shared/raid-sectors.mjs",
+            "sha256": "75ff316d38d9bf8c8ad76ba653b2ec76114da2a95e5173c53a7f814f119ae530"
+          },
+          {
+            "path": "shared/raid-settings.mjs",
+            "sha256": "cc56b61beb86acc4eeda86faaa736521885377f114999a280cc4a1d6424e9e4c"
+          },
+          {
+            "path": "shared/raid-worlds.mjs",
+            "sha256": "d1ab507a66cb304363c8f3f0c8ffc454d6f61273d3efbb7cf3df65368d2d23d0"
+          }
+        ]
+      },
+      "at": "2026-10-30T16:03:15.995Z",
+      "fixture": "private file-backed SQLite/WAL, preseeded accounts, separate server process",
+      "hardware": {
+        "platform": "darwin",
+        "release": "25.5.0",
+        "cpu": "Apple M5 Max",
+        "logicalCpus": 18,
+        "memoryBytes": 137438953472,
+        "node": "v24.21.0"
+      },
+      "scenario": {
+        "players": 27,
+        "seconds": 60,
+        "latencyMs": 0,
+        "loss": 0,
+        "seed": 1,
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "elapsedSeconds": 60.018696208,
+      "samples": [
+        {
+          "elapsedSeconds": 0.0008524999999999636,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 84115456,
+          "heapUsed": 14190320,
+          "cpuSeconds": 0.11603,
+          "ticks": 1,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 5.0036981670000005,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 121651200,
+          "heapUsed": 13430616,
+          "cpuSeconds": 1.217236,
+          "ticks": 96,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 10.005048083,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 123486208,
+          "heapUsed": 20512632,
+          "cpuSeconds": 2.374774,
+          "ticks": 191,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 15.035739583,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 157777920,
+          "heapUsed": 25947624,
+          "cpuSeconds": 3.552348,
+          "ticks": 285,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 20.019534916999998,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 158072832,
+          "heapUsed": 28516744,
+          "cpuSeconds": 4.703095,
+          "ticks": 378,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 25.005036291999996,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 158613504,
+          "heapUsed": 12177624,
+          "cpuSeconds": 5.871379,
+          "ticks": 472,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 30.024051625,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 213925888,
+          "heapUsed": 66373520,
+          "cpuSeconds": 7.086055,
+          "ticks": 567,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 35.008922167,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 217006080,
+          "heapUsed": 69327944,
+          "cpuSeconds": 8.282162,
+          "ticks": 662,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 40.010268417,
+          "activeOperators": 27,
+          "activeRaids": 3,
+          "rss": 227590144,
+          "heapUsed": 66060472,
+          "cpuSeconds": 9.452497,
+          "ticks": 755,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 45.0271595,
+          "activeOperators": 27,
+          "activeRaids": 4,
+          "rss": 227868672,
+          "heapUsed": 64583344,
+          "cpuSeconds": 10.701745,
+          "ticks": 850,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 50.011358875000006,
+          "activeOperators": 27,
+          "activeRaids": 4,
+          "rss": 228163584,
+          "heapUsed": 38780496,
+          "cpuSeconds": 11.892241,
+          "ticks": 943,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 55.012786875,
+          "activeOperators": 27,
+          "activeRaids": 4,
+          "rss": 228573184,
+          "heapUsed": 66233808,
+          "cpuSeconds": 13.091808,
+          "ticks": 1037,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.018693542,
+          "activeOperators": 27,
+          "activeRaids": 4,
+          "rss": 229343232,
+          "heapUsed": 32430456,
+          "cpuSeconds": 14.445119,
+          "ticks": 1131,
+          "tickErrors": 0
+        },
+        {
+          "elapsedSeconds": 60.018843917000005,
+          "activeOperators": 27,
+          "activeRaids": 4,
+          "rss": 229343232,
+          "heapUsed": 32469640,
+          "cpuSeconds": 14.445288,
+          "ticks": 1131,
+          "tickErrors": 0
+        }
+      ],
+      "completedActions": 11014,
+      "normalRaidEndRejections": 1,
+      "failedActions": 0,
+      "errorStatuses": {},
+      "duplicateAcknowledgements": 0,
+      "simulatedDrops": 0,
+      "deployments": 28,
+      "responseBytes": 53624762,
+      "bytesPerClientSecond": 33091.39354532605,
+      "clientRoundTripMs": {
+        "count": 11014,
+        "p50": 15.309916000005614,
+        "p95": 56.80145799999809,
+        "p99": 77.26049999999668,
+        "max": 91.39891699999862
+      },
+      "server": {
+        "activeOperators": 27,
+        "activeRaids": 4,
+        "tick": {
+          "count": 1131,
+          "meanMs": 4.1197146516356655,
+          "maxMs": 53.43183299999873,
+          "p50Ms": 5,
+          "p95Ms": 10,
+          "p99Ms": 25,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            856,
+            260,
+            5,
+            9,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "tickInterval": {
+          "count": 1131,
+          "meanMs": 53.13090727232537,
+          "maxMs": 121.68974999999773,
+          "p50Ms": 75,
+          "p95Ms": 75,
+          "p99Ms": 100,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            0,
+            0,
+            0,
+            71,
+            1033,
+            16,
+            11,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "eventLoop": {
+          "meanMs": 24.038383711884755,
+          "p99Ms": 73.334783,
+          "maxMs": 105.709567
+        },
+        "memory": {
+          "rss": 229343232,
+          "heapTotal": 154222592,
+          "heapUsed": 32469640,
+          "external": 4204264,
+          "arrayBuffers": 283660
+        },
+        "cpuSeconds": 14.445288,
+        "tickErrors": 0,
+        "http": [
+          {
+            "method": "POST",
+            "route": "/api/deploy",
+            "statusGroup": "2xx",
+            "bytes": 126499,
+            "count": 28,
+            "meanMs": 1.6222901428571286,
+            "maxMs": 4.854458000000001,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              28,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "2xx",
+            "bytes": 53493043,
+            "count": 11014,
+            "meanMs": 0.9711625163428435,
+            "maxMs": 60.774624999998196,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              10981,
+              2,
+              2,
+              21,
+              8,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "method": "POST",
+            "route": "/api/action",
+            "statusGroup": "4xx",
+            "bytes": 5220,
+            "count": 1,
+            "meanMs": 0.6291669999991427,
+            "maxMs": 0.6291669999991427,
+            "p50Ms": 5,
+            "p95Ms": 5,
+            "p99Ms": 5,
+            "boundsMs": [
+              5,
+              10,
+              25,
+              50,
+              75,
+              100,
+              150,
+              250,
+              500,
+              1000
+            ],
+            "buckets": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      "checks": {
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      },
+      "sourceState": "Sector loot/contracts/day-night and schema 6; before additive historical contract-progress report field"
+    }
+  ]
+}

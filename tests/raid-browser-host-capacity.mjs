@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {browserHarness} from './browser-harness.mjs';
+const root=process.env.RAID_TEST_ROOT?pathToFileURL(resolve(process.env.RAID_TEST_ROOT)+'/'):new URL('../',import.meta.url);
+const {RaidStore}=await import(new URL('server/store.mjs',root)),{createRaidServer}=await import(new URL('server/main.mjs',root));
+const store=new RaidStore(),runtime=createRaidServer(store,{maxOperators:1});runtime.server.listen(0,'127.0.0.1');await once(runtime.server,'listening');
+const prior=process.env.RAID_TEST_URL;process.env.RAID_TEST_URL='http://127.0.0.1:'+runtime.server.address().port;
+const h=await browserHarness();
+try{
+ const p=await h.page();await p.wait("document.getElementById('message')?.textContent.includes('Sign in')");
+ await p.evaluate("document.querySelector('[name=username]').value='capacity_ui_'+Date.now().toString(36);document.querySelector('[name=password]').value='a long browser capacity password';document.getElementById('register').click()");
+ await p.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
+ const profile=await p.evaluate("fetch('/api/profile').then(r=>r.json())"),gun=profile.items.find(i=>i.kind==='weapon'),other=store.register('occupied_host','a long occupied host password').id;
+ runtime.raids.deploy(other,{requestId:'occupied_host_deployment',mapId:'switchyard',recovery:true});
+ await p.evaluate(`document.querySelector('#stash [data-equip][value="${gun.id}"]').checked=true;document.querySelector('#stash [data-insure][value="${gun.id}"]').checked=true;document.getElementById('maxRtt').value='0';document.getElementById('maxRtt').dispatchEvent(new Event('change'));document.getElementById('deploy').click()`);
+ await p.wait("document.getElementById('message').textContent.includes('Raid server is full') && document.body.getAttribute('aria-busy')==='false'");
+ assert.deepEqual(store.profile(profile.id),profile,'rejected browser admission preserves gear, currency and insurance');
+ assert.equal(await p.evaluate(`document.querySelector('#stash [data-equip][value="${gun.id}"]').checked && document.querySelector('#stash [data-insure][value="${gun.id}"]').checked`),true);
+ assert.equal(await p.evaluate("document.getElementById('play').style.display==='block'"),false);
+ const blocker=runtime.raids.byAccount.get(other);runtime.raids.atomic(()=>runtime.raids.end(runtime.raids.raids.get(blocker.raidId),blocker,'death'));
+ await p.evaluate("document.getElementById('deploy').click()");await p.wait("document.getElementById('play').style.display==='block' && document.body.getAttribute('aria-busy')==='false'");
+ const actor=()=>runtime.raids.byAccount.get(profile.id),deployment=actor().deploymentId;runtime.raids.raids.get(actor().raidId).machines=[];
+ assert.equal(store.profile(profile.id).insurance.length,1);assert.equal(store.profile(profile.id).credits,profile.credits-20);
+ await p.evaluate("document.getElementById('leave').click()");await p.wait("document.getElementById('play').style.display==='none' && document.body.getAttribute('aria-busy')==='false'");
+ await p.evaluate("document.getElementById('resume').click()");await p.wait("document.getElementById('play').style.display==='block' && document.body.getAttribute('aria-busy')==='false'");assert.equal(actor().deploymentId,deployment);
+ await p.evaluate("document.getElementById('view').focus()");await p.command('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyF',key:'f'});await new Promise(r=>setTimeout(r,80));await p.command('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyF',key:'f'});
+ await p.wait("document.getElementById('hud').textContent.includes('Ammo 29')");assert.equal(store.db.prepare('SELECT count(*) n FROM deployments WHERE account=?').get(profile.id).n,1);assert.deepEqual(p.errors,[]);
+ console.log(JSON.stringify({runtimeRoot:root.href,fullMessageVisible:true,rejectedGearCurrencyInsuranceUnchanged:true,selectionPreserved:true,retryAfterSlotFrees:true,sameBodyResumeAtCapacity:true,existingFireAtCapacity:true,noDuplicateDeployment:true,browserErrors:p.errors,scope:'Isolated one-slot service with actual paid/insured UI deployment and native fire; blocker outcome is a controlled server fixture.'}));
+}finally{await h.close();runtime.server.close();await once(runtime.server,'close');store.close();if(prior===undefined)delete process.env.RAID_TEST_URL;else process.env.RAID_TEST_URL=prior}

@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-30",
+  "playwrightVersion": "1.64.1",
+  "report": {
+    "format": 1,
+    "at": "2026-10-31T01:41:15.891Z",
+    "runtimeRoot": "file:///private/tmp/headshotz-extraction-idle-world-candidate/",
+    "results": [
+      {
+        "engine": "chromium",
+        "mobile": false,
+        "runtimeRoot": "file:///private/tmp/headshotz-extraction-idle-world-candidate/",
+        "passed": true,
+        "errors": [],
+        "browserVersion": "156.0.8078.76",
+        "graphics": {
+          "lost": false,
+          "geometries": 15,
+          "drawCalls": 6
+        },
+        "nativeFireReload": true,
+        "searchTakeSecure": true,
+        "extraction": true,
+        "bankReturned": true,
+        "reloadPersistence": true,
+        "horizontalOverflow": false
+      },
+      {
+        "engine": "firefox",
+        "mobile": false,
+        "runtimeRoot": "file:///private/tmp/headshotz-extraction-idle-world-candidate/",
+        "passed": true,
+        "errors": [],
+        "browserVersion": "157.0",
+        "graphics": {
+          "lost": false,
+          "geometries": 15,
+          "drawCalls": 6
+        },
+        "nativeFireReload": true,
+        "searchTakeSecure": true,
+        "extraction": true,
+        "bankReturned": true,
+        "reloadPersistence": true,
+        "horizontalOverflow": false
+      },
+      {
+        "engine": "webkit",
+        "mobile": false,
+        "runtimeRoot": "file:///private/tmp/headshotz-extraction-idle-world-candidate/",
+        "passed": true,
+        "errors": [],
+        "browserVersion": "27.2",
+        "graphics": {
+          "lost": false,
+          "geometries": 15,
+          "drawCalls": 6
+        },
+        "nativeFireReload": true,
+        "searchTakeSecure": true,
+        "extraction": true,
+        "bankReturned": true,
+        "reloadPersistence": true,
+        "horizontalOverflow": false
+      },
+      {
+        "engine": "webkit",
+        "mobile": true,
+        "runtimeRoot": "file:///private/tmp/headshotz-extraction-idle-world-candidate/",
+        "passed": true,
+        "errors": [],
+        "browserVersion": "27.2",
+        "graphics": {
+          "lost": false,
+          "geometries": 13,
+          "drawCalls": 4
+        },
+        "nativeFireReload": true,
+        "searchTakeSecure": true,
+        "extraction": true,
+        "bankReturned": true,
+        "reloadPersistence": true,
+        "horizontalOverflow": false
+      }
+    ],
+    "checks": {
+      "allScenariosPass": true
+    },
+    "scope": "Pinned Playwright engines on this Mac: branded Chrome, Firefox and WebKit, plus a WebKit touch/mobile viewport. Real browser UI/API/WebGL/input and paid/insured raid loop, with controlled container/exit positions, no machines and shortened exit timers. WebKit engine is not branded Safari or physical iOS; no real WAN/microphone/human balance acceptance."
+  },
+  "retainedInitialFailure": {
+    "report": "/tmp/hs-browser-engine-matrix.json",
+    "reason": "Shortened test exit opened before the client received an open snapshot; corrected to wait for the actual client-confirmed state."
+  },
+  "testSha256": "79896d83782cc3aec94e795a14061932563a70caafbe8cdcde791c3362577aca",
+  "noRuntimeDependencyAdded": true,
+  "limits": [
+    "WebKit engine is not physical iOS/branded Safari validation.",
+    "No real WAN or microphone checks; user reports no server/devices available."
+  ]
+}

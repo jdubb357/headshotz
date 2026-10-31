@@ -1,0 +1,568 @@
+{
+  "date": "2026-10-30",
+  "candidate": {
+    "id": "49430847d1f902dfd690312856bd16b1cf27b4f817514cba3bf7d21fce398daf",
+    "label": "inventory-reviewed",
+    "path": "/private/tmp/headshotz-extraction-inventory-reviewed",
+    "files": 188,
+    "bytes": 11472997,
+    "schema": 10,
+    "protocol": 7
+  },
+  "sourceMatchesCandidate": true,
+  "testSha256": {
+    "tests/raid-transfers.test.mjs": "c302b62ad6b68489fec6b0eb727328e3376111e678290700dcaa654f7c041f66",
+    "tests/raid-content-migration.test.mjs": "91250f91912fb7aedbc8b0007e90f128cb87673bc3afbb082d0e8bee9038d281",
+    "tests/raid-browser-transfers.mjs": "07aba332b2db423c8d2a589932c35d3a9d8ea7f28c3e32115dc524814916b3cb",
+    "tests/browser-harness.mjs": "6a06ffd7014bb214c578451f8131eaed432320701790205ee58f090215bbc33f"
+  },
+  "verification": {
+    "broadAutomated": {
+      "passed": 859,
+      "failed": 0,
+      "log": "/tmp/hs-transfer-regression-all.log"
+    },
+    "additionalMigration": {
+      "passed": 4,
+      "failed": 0,
+      "newUniqueChecks": 1,
+      "log": "/tmp/hs-transfer-migration.log"
+    },
+    "releaseAfterDocumentation": {
+      "passed": 10,
+      "failed": 0,
+      "log": "/tmp/hs-transfer-release-final-tests.log"
+    },
+    "browserScenarios": [
+      {
+        "file": "raid-browser-accessibility.mjs",
+        "code": 0,
+        "elapsedMs": 9754,
+        "output": "{\"remapping\":true,\"persistentSettings\":true,\"nativeDialogFocus\":true,\"keyboardAim\":true,\"statusAnnouncement\":true,\"itemInspection\":true,\"keyboardSearchTakeSecure\":true,\"touchBoarding\":true,\"modalStopsMovement\":true,\"backgroundStopsMovement\":true,\"reducedMotionRender\":true,\"touchTargets\":true,\"mobileAim\":true,\"mobileOverflow\":false,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-account.mjs",
+        "code": 0,
+        "elapsedMs": 14203,
+        "output": "{\"sessionList\":true,\"passwordRotation\":true,\"recoveryCodesHidden\":true,\"lateCodeDisplayCanceled\":true,\"remoteSignout\":true,\"microphoneReleased\":true,\"codeRecovery\":true,\"activeBodyPreserved\":true,\"ownedItemsPreserved\":true,\"reconnectedAfterRecovery\":true,\"staleResponseAccountIsolation\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-audio.mjs",
+        "code": 0,
+        "elapsedMs": 231,
+        "output": "{\"distinctMachineCues\":5,\"utilityCuesRendered\":4,\"realWebAudioRendering\":true,\"directionalStereo\":true,\"muteSilent\":true,\"boundedVoices\":true,\"nodesReleased\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-comms.mjs",
+        "code": 0,
+        "elapsedMs": 5291,
+        "output": "{\"optIn\":true,\"pushToTalk\":true,\"audioRtpReceived\":true,\"muteDisconnect\":true,\"unmuteReconnect\":true,\"squadPing\":true,\"reportSaved\":true,\"blockSuppressesPing\":true,\"microphoneReleased\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-entry.mjs",
+        "code": 0,
+        "elapsedMs": 654,
+        "output": "{\"mainGameEntry\":true,\"persistentRaidNavigation\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-exits.mjs",
+        "code": 0,
+        "elapsedMs": 5272,
+        "output": "{\"costsBeforeDeploy\":true,\"ownedFuelDeployed\":true,\"resourceCostConsumedOnce\":true,\"seatReservation\":true,\"rivalRejectedAtCapacity\":true,\"damageFreesSeat\":true,\"independentExtraction\":true,\"fullExitDisplayed\":true,\"reportIncludesAccessCost\":true,\"ownedWeaponReturned\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-loss-report.mjs",
+        "code": 0,
+        "elapsedMs": 46332,
+        "output": "{\"leftScreenWithoutEscape\":true,\"realOperatorSettlement\":true,\"automaticBaseRefresh\":true,\"ownedWeaponLost\":true,\"itemizedReport\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-matchmaking.mjs",
+        "code": 0,
+        "elapsedMs": 5224,
+        "output": "{\"transparentRegionAndPopulationPolicy\":true,\"serverTimedLimit\":true,\"highLatencyPreservesOwnedGear\":true,\"explicitHigherLimitDeploys\":true,\"strictSoloPool\":true,\"leaderPreferenceChange\":true,\"allMembersReadyAgain\":true,\"memberPreferencesReadOnly\":true,\"completeDistinctSquadSpawn\":true,\"proofNotPersistedInBrowserStorage\":true,\"browserErrors\":[],\"scope\":\"Server clock fixture verifies policy/UI; not a WAN latency measurement.\"}\n"
+      },
+      {
+        "file": "raid-browser-medical.mjs",
+        "code": 0,
+        "elapsedMs": 12605,
+        "output": "{\"ownedArmorAndMedicine\":true,\"exactInsuranceQuote\":true,\"armorAbsorptionHud\":true,\"bleedTreatment\":true,\"traumaTreatsBoth\":true,\"splintDoesNotHeal\":true,\"medicalCooldownUi\":true,\"armorRemoveReequip\":true,\"conditionBanks\":true,\"damageReport\":true,\"browserErrors\":[],\"scope\":\"Server damage/departure fixtures; not human combat or route balance acceptance.\"}\n"
+      },
+      {
+        "file": "raid-browser-network.mjs",
+        "code": 0,
+        "elapsedMs": 3014,
+        "output": "{\"immediateVisualMovement\":true,\"authorityUnchangedBeforeDelivery\":true,\"reconciled\":true,\"lostShotResponseRetried\":true,\"ammunitionConsumedOnce\":true,\"sameDeploymentAfterReload\":true,\"shortInputDeliveredWithoutPolling\":true,\"releaseStopsWithoutPolling\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-offline.mjs",
+        "code": 0,
+        "elapsedMs": 532,
+        "output": "{\"legacyPrivateCachePurged\":true,\"privateApiNotCached\":true,\"healthNeverStale\":true,\"offlineJsonError\":true,\"onlineAccountRecovered\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-party.mjs",
+        "code": 0,
+        "elapsedMs": 2434,
+        "output": "{\"partyInvite\":true,\"separateAccounts\":true,\"readyChecks\":true,\"groupDeployment\":true,\"sameRaid\":true,\"sameTeam\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-progression.mjs",
+        "code": 0,
+        "elapsedMs": 1571,
+        "output": "{\"threeTraders\":true,\"inventoryCrafting\":true,\"workbenchUpgrade\":true,\"attachmentInstall\":true,\"stashSearch\":true,\"loadoutPreset\":true,\"insuranceQuote\":true,\"insuredDeployment\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-sectors.mjs",
+        "code": 0,
+        "elapsedMs": 8918,
+        "output": "{\"sectorBriefing\":true,\"dayNightRendered\":true,\"moonAndStars\":true,\"unsecuredArtifactRecovered\":true,\"ownedItemExtracted\":true,\"saleAndLoadoutProtection\":true,\"contractFilter\":true,\"deliveryConsumesOnce\":true,\"rewardReplayRejected\":true,\"crossSessionProgress\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-smoke.mjs",
+        "code": 0,
+        "elapsedMs": 1535,
+        "output": "{\"account\":true,\"recoveryDeployment\":true,\"rendered\":true,\"serverMovement\":true,\"reconnect\":true,\"browserExceptions\":[]}\n"
+      },
+      {
+        "file": "raid-browser-transfers.mjs",
+        "code": 0,
+        "elapsedMs": 2478,
+        "output": "{\"stashSplitMerge\":true,\"zeroCreditAmmoQuote\":true,\"quantityDialogKeyboard\":true,\"cancelPreservesInventory\":true,\"focusSurvivesStackChange\":true,\"carriedAmmoSplit\":true,\"protectedMedicineWithdrawal\":true,\"partialContainerPickup\":true,\"equippedWeaponDrop\":true,\"unarmedFirstPerson\":true,\"remoteWeaponModelUpdates\":true,\"sameWeaponReequipped\":true,\"transferAudit\":true,\"browserErrors\":[],\"scope\":\"Server-arranged loot/observer positions; not human route or WAN acceptance.\"}\n"
+      },
+      {
+        "file": "raid-browser-utilities.mjs",
+        "code": 0,
+        "elapsedMs": 5544,
+        "output": "{\"purchasedOwnedUtilities\":3,\"paidLoadout\":true,\"keyboardThrow\":true,\"backpackSelection\":true,\"touchButtonThrow\":true,\"smokeRendered\":true,\"lureRendered\":true,\"blastWarningRendered\":true,\"consumedOnce\":true,\"reconnectEffects\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-worlds.mjs",
+        "code": 0,
+        "elapsedMs": 2749,
+        "output": "{\"maps\":3,\"jump\":true,\"touchAim\":true,\"rendered\":true,\"browserErrors\":[]}\n"
+      }
+    ],
+    "packagedBrowserScenarios": [
+      {
+        "file": "raid-browser-entry.mjs",
+        "code": 0,
+        "output": "{\"mainGameEntry\":true,\"persistentRaidNavigation\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-smoke.mjs",
+        "code": 0,
+        "output": "{\"account\":true,\"recoveryDeployment\":true,\"rendered\":true,\"serverMovement\":true,\"reconnect\":true,\"browserExceptions\":[]}\n"
+      },
+      {
+        "file": "raid-browser-worlds.mjs",
+        "code": 0,
+        "output": "{\"maps\":3,\"jump\":true,\"touchAim\":true,\"rendered\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-party.mjs",
+        "code": 0,
+        "output": "{\"partyInvite\":true,\"separateAccounts\":true,\"readyChecks\":true,\"groupDeployment\":true,\"sameRaid\":true,\"sameTeam\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-progression.mjs",
+        "code": 0,
+        "output": "{\"threeTraders\":true,\"inventoryCrafting\":true,\"workbenchUpgrade\":true,\"attachmentInstall\":true,\"stashSearch\":true,\"loadoutPreset\":true,\"insuranceQuote\":true,\"insuredDeployment\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-transfers.mjs",
+        "code": 0,
+        "output": "{\"stashSplitMerge\":true,\"zeroCreditAmmoQuote\":true,\"quantityDialogKeyboard\":true,\"cancelPreservesInventory\":true,\"focusSurvivesStackChange\":true,\"carriedAmmoSplit\":true,\"protectedMedicineWithdrawal\":true,\"partialContainerPickup\":true,\"equippedWeaponDrop\":true,\"unarmedFirstPerson\":true,\"remoteWeaponModelUpdates\":true,\"sameWeaponReequipped\":true,\"transferAudit\":true,\"browserErrors\":[],\"scope\":\"Server-arranged loot/observer positions; not human route or WAN acceptance.\"}\n",
+        "scope": "Same scenario, imports use copied server modules; HTTP static root derives from copied module location."
+      }
+    ]
+  },
+  "economy": {
+    "trades": [
+      {
+        "sku": "ar",
+        "buyAtMaximumDiscount": 80,
+        "resale": 30,
+        "profit": -50
+      },
+      {
+        "sku": "smg",
+        "buyAtMaximumDiscount": 96,
+        "resale": 36,
+        "profit": -60
+      },
+      {
+        "sku": "pistol",
+        "buyAtMaximumDiscount": 48,
+        "resale": 18,
+        "profit": -30
+      },
+      {
+        "sku": "shotgun",
+        "buyAtMaximumDiscount": 112,
+        "resale": 42,
+        "profit": -70
+      },
+      {
+        "sku": "sniper",
+        "buyAtMaximumDiscount": 176,
+        "resale": 66,
+        "profit": -110
+      },
+      {
+        "sku": "lmg",
+        "buyAtMaximumDiscount": 200,
+        "resale": 75,
+        "profit": -125
+      },
+      {
+        "sku": "armor",
+        "buyAtMaximumDiscount": 56,
+        "resale": 21,
+        "profit": -35
+      },
+      {
+        "sku": "armor_light",
+        "buyAtMaximumDiscount": 44,
+        "resale": 16,
+        "profit": -28
+      },
+      {
+        "sku": "armor_heavy",
+        "buyAtMaximumDiscount": 104,
+        "resale": 39,
+        "profit": -65
+      },
+      {
+        "sku": "ammo_light",
+        "buyAtMaximumDiscount": 10,
+        "resale": 3,
+        "profit": -7
+      },
+      {
+        "sku": "ammo_medium",
+        "buyAtMaximumDiscount": 10,
+        "resale": 3,
+        "profit": -7
+      },
+      {
+        "sku": "ammo_heavy",
+        "buyAtMaximumDiscount": 15,
+        "resale": 1,
+        "profit": -14
+      },
+      {
+        "sku": "ammo_shell",
+        "buyAtMaximumDiscount": 10,
+        "resale": 1,
+        "profit": -9
+      },
+      {
+        "sku": "med",
+        "buyAtMaximumDiscount": 20,
+        "resale": 5,
+        "profit": -15
+      },
+      {
+        "sku": "bandage",
+        "buyAtMaximumDiscount": 10,
+        "resale": 2,
+        "profit": -8
+      },
+      {
+        "sku": "splint",
+        "buyAtMaximumDiscount": 15,
+        "resale": 3,
+        "profit": -12
+      },
+      {
+        "sku": "trauma",
+        "buyAtMaximumDiscount": 40,
+        "resale": 10,
+        "profit": -30
+      },
+      {
+        "sku": "chem",
+        "buyAtMaximumDiscount": 15,
+        "resale": 6,
+        "profit": -9
+      },
+      {
+        "sku": "wire",
+        "buyAtMaximumDiscount": 15,
+        "resale": 6,
+        "profit": -9
+      },
+      {
+        "sku": "steel",
+        "buyAtMaximumDiscount": 15,
+        "resale": 6,
+        "profit": -9
+      },
+      {
+        "sku": "fuel",
+        "buyAtMaximumDiscount": 15,
+        "resale": 6,
+        "profit": -9
+      },
+      {
+        "sku": "key",
+        "buyAtMaximumDiscount": 72,
+        "resale": 5,
+        "profit": -67
+      },
+      {
+        "sku": "scope",
+        "buyAtMaximumDiscount": 52,
+        "resale": 19,
+        "profit": -33
+      },
+      {
+        "sku": "suppressor",
+        "buyAtMaximumDiscount": 64,
+        "resale": 24,
+        "profit": -40
+      },
+      {
+        "sku": "magazine",
+        "buyAtMaximumDiscount": 60,
+        "resale": 22,
+        "profit": -38
+      },
+      {
+        "sku": "smoke",
+        "buyAtMaximumDiscount": 36,
+        "resale": 13,
+        "profit": -23
+      },
+      {
+        "sku": "decoy",
+        "buyAtMaximumDiscount": 28,
+        "resale": 10,
+        "profit": -18
+      },
+      {
+        "sku": "frag",
+        "buyAtMaximumDiscount": 52,
+        "resale": 19,
+        "profit": -33
+      }
+    ],
+    "recipes": [
+      {
+        "id": "armor_light",
+        "creditCost": 12,
+        "salvageResale": 6,
+        "outputResale": 16,
+        "profit": -2
+      },
+      {
+        "id": "armor_heavy",
+        "creditCost": 25,
+        "salvageResale": 20,
+        "outputResale": 39,
+        "profit": -6
+      },
+      {
+        "id": "bandage",
+        "creditCost": 2,
+        "salvageResale": 2,
+        "outputResale": 2,
+        "profit": -2
+      },
+      {
+        "id": "splint",
+        "creditCost": 3,
+        "salvageResale": 4,
+        "outputResale": 3,
+        "profit": -4
+      },
+      {
+        "id": "trauma",
+        "creditCost": 10,
+        "salvageResale": 8,
+        "outputResale": 10,
+        "profit": -8
+      },
+      {
+        "id": "smoke",
+        "creditCost": 8,
+        "salvageResale": 6,
+        "outputResale": 13,
+        "profit": -1
+      },
+      {
+        "id": "decoy",
+        "creditCost": 8,
+        "salvageResale": 6,
+        "outputResale": 10,
+        "profit": -4
+      },
+      {
+        "id": "frag",
+        "creditCost": 15,
+        "salvageResale": 6,
+        "outputResale": 19,
+        "profit": -2
+      },
+      {
+        "id": "med",
+        "creditCost": 5,
+        "salvageResale": 4,
+        "outputResale": 5,
+        "profit": -4
+      },
+      {
+        "id": "ammo_medium",
+        "creditCost": 5,
+        "salvageResale": 4,
+        "outputResale": 3,
+        "profit": -6
+      },
+      {
+        "id": "ammo_light",
+        "creditCost": 5,
+        "salvageResale": 2,
+        "outputResale": 4,
+        "profit": -3
+      },
+      {
+        "id": "ammo_heavy",
+        "creditCost": 8,
+        "salvageResale": 6,
+        "outputResale": 1,
+        "profit": -13
+      },
+      {
+        "id": "ammo_shell",
+        "creditCost": 5,
+        "salvageResale": 4,
+        "outputResale": 1,
+        "profit": -8
+      },
+      {
+        "id": "armor",
+        "creditCost": 20,
+        "salvageResale": 10,
+        "outputResale": 21,
+        "profit": -9
+      },
+      {
+        "id": "scope",
+        "creditCost": 15,
+        "salvageResale": 8,
+        "outputResale": 19,
+        "profit": -4
+      },
+      {
+        "id": "suppressor",
+        "creditCost": 20,
+        "salvageResale": 10,
+        "outputResale": 24,
+        "profit": -6
+      },
+      {
+        "id": "magazine",
+        "creditCost": 15,
+        "salvageResale": 8,
+        "outputResale": 22,
+        "profit": -1
+      }
+    ],
+    "splits": [
+      {
+        "sku": "ammo_light",
+        "profit": 0,
+        "cases": 19900
+      },
+      {
+        "sku": "ammo_medium",
+        "profit": 0,
+        "cases": 19900
+      },
+      {
+        "sku": "ammo_heavy",
+        "profit": 0,
+        "cases": 19900
+      },
+      {
+        "sku": "ammo_shell",
+        "profit": 0,
+        "cases": 19900
+      },
+      {
+        "sku": "med",
+        "profit": 0,
+        "cases": 10
+      },
+      {
+        "sku": "bandage",
+        "profit": 0,
+        "cases": 10
+      },
+      {
+        "sku": "splint",
+        "profit": 0,
+        "cases": 10
+      },
+      {
+        "sku": "trauma",
+        "profit": 0,
+        "cases": 10
+      },
+      {
+        "sku": "chem",
+        "profit": 0,
+        "cases": 190
+      },
+      {
+        "sku": "wire",
+        "profit": 0,
+        "cases": 190
+      },
+      {
+        "sku": "steel",
+        "profit": 0,
+        "cases": 190
+      },
+      {
+        "sku": "fuel",
+        "profit": 0,
+        "cases": 190
+      },
+      {
+        "sku": "smoke",
+        "profit": 0,
+        "cases": 3
+      },
+      {
+        "sku": "decoy",
+        "profit": 0,
+        "cases": 3
+      },
+      {
+        "sku": "frag",
+        "profit": 0,
+        "cases": 3
+      }
+    ],
+    "profitableLoops": [],
+    "scope": "Static buy/sell, craft/sell and every legal binary stack split at maximum discounts. Raid reward rates and player behavior require separate playtests."
+  },
+  "retainedFailure": {
+    "log": "/tmp/hs-transfer-browser.log",
+    "cause": "Initial keyboard driver omitted foreground activation and Enter carriage-return text; quantity dialog did not submit. Test driver fixed, full scenario and all browser regressions pass. No product fix attributed to that retry."
+  },
+  "limits": [
+    "Browser loot, damage, exit and observer positions are arranged fixtures; this is not human route/combat balance or WAN acceptance.",
+    "Copied-package browser service uses disposable saves and loopback. No public deployment/provider configuration or production operator signoff.",
+    "Static exchange/split auditing does not establish long-term progression or all farming strategies.",
+    "The still-running two-hour soak loaded schema 8/protocol 5 matching source before these changes; its eventual result is historical evidence only.",
+    "Full acceptance remains open in RELEASE_ACCEPTANCE.md."
+  ],
+  "supersededBy": {
+    "evidence": "2026-10-30-recycling.json",
+    "candidate": "d6aa05cbf961d50a135d9b3ef9775e6046a5ea5bbde9d074a865e146a0dcb783",
+    "reason": "Expanded audit reproduced a profitable single-round recycling loop in this prior candidate. Historical pass results cover narrower checks, not current economy safety."
+  }
+}

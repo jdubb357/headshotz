@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-30",
+  "state": "completed",
+  "scope": "Whole-client browser endurance. No completed long-run claim.",
+  "candidate": {
+    "id": "caa4ac87ae3a60689311943e95269310530c5723a31f20d878e04a0b7c6d3bef",
+    "label": "field-audio-caption",
+    "path": "/private/tmp/headshotz-extraction-field-audio-final-candidate",
+    "files": 201,
+    "bytes": 11587294,
+    "schema": 12,
+    "protocol": 9
+  },
+  "sessionId": 98089,
+  "pid": 19105,
+  "log": "/tmp/hs-client-endurance-current-30min.log",
+  "eventualReport": "/tmp/hs-client-endurance-current-30min.json",
+  "sourceManifest": "/tmp/hs-client-endurance-current-source.json",
+  "requestedSeconds": 1800,
+  "cycleSeconds": 60,
+  "startedAt": "2026-10-31T00:40:41.543Z",
+  "smoke": {
+    "report": "/tmp/hs-client-endurance-diagnostics-smoke.json",
+    "elapsedSeconds": 38.764727707999995,
+    "cycles": 5,
+    "checks": {
+      "completed": true,
+      "noBrowserErrors": true,
+      "noLostContexts": true,
+      "baseCleanup": true,
+      "retainedHeapBudget": true,
+      "domGrowthBudget": true,
+      "historyBound": true,
+      "noUnexpectedApiFailures": true,
+      "fieldFrameP95": true
+    },
+    "retainedHeapGrowthBytes": 143104,
+    "unexpectedApiFailures": [],
+    "terminalRaces": 5
+  },
+  "note": "Session 98089 exited 0; isolated contexts/service/data closed normally. It exercised immutable field-audio candidate caa4ac87. All browser runtime files are byte-identical in the newer host-admission candidate c484f317; the new admission/configuration/status changes have separate tests and load evidence. Do not restart this terminal browser run or call it exact-new-backend-build endurance.",
+  "latestProgress": {
+    "progress": {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 11469,
+      "statuses": {
+        "200": 11446,
+        "409": 23
+      },
+      "expectedTerminalRaces": 23,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 46,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1429.205756,
+      "jsHeapUsedBytes": 6662392,
+      "dom": {
+        "documents": 1,
+        "nodes": 2139,
+        "jsEventListeners": 268
+      }
+    }
+  },
+  "lastVerifiedAt": "2026-10-31T01:03:38.339Z",
+  "completedAt": "2026-10-31T01:09:53.882Z",
+  "elapsedSeconds": 1800.2236200000002,
+  "cycles": 29,
+  "checks": {
+    "completed": true,
+    "noBrowserErrors": true,
+    "allMapsCovered": true,
+    "reentryObserved": true,
+    "noLostContexts": true,
+    "baseCleanup": true,
+    "retainedHeapBudget": true,
+    "domGrowthBudget": true,
+    "historyBound": true,
+    "noUnexpectedApiFailures": true,
+    "fieldFrameP95": true
+  },
+  "retainedHeapGrowthBytes": 279644
+}

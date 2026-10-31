@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-30",
+  "scope": "Global host admission budget, whole-squad atomic rejection, retry/reconnect, operations/startup and copied browser behavior. Full issue remains incomplete.",
+  "candidate": {
+    "id": "c484f317844683e3d81be639981a40f9f3f0aa81b4bc30a14588b679d4d20d53",
+    "label": "host-admission",
+    "path": "/private/tmp/headshotz-extraction-host-capacity-candidate",
+    "files": 202,
+    "bytes": 11594998,
+    "schema": 12,
+    "protocol": 9
+  },
+  "sourceSha256": {
+    "server/admission.mjs": "12b76a9ff9a72a84930943cbdc2b2ecb1b0209525b774a63899647d3c719ec89",
+    "server/raids.mjs": "d3eb43c7634be5663c235c227b4497d8a464f33ef146bdefecc2c721deb58177",
+    "server/main.mjs": "4a726466c1159f4613f43657ddff5c5784ee624d4a42d11c071c8e921925e63f",
+    "server/operations.mjs": "5b5eab99d3dead583483a6ae3282af215301a3e4dcef54d87802d28c3ec2f131",
+    "scripts/lib/release.mjs": "59e275bbd1976780c5f1bee255dc503007063e8dd7fe15d9bae0e0e5b25f1495",
+    "tests/raid-host-capacity.test.mjs": "07df415c55e389c8402e00f874e1704697c1af0e0df0c44a64b8af3e749ece3d",
+    "tests/release.test.mjs": "8f592fda99d8a6f6466eebf702be95ebb4f307a21c72c3945d123098e45f757a",
+    "tests/release-runtime.test.mjs": "e61937e877de35b7d0ca4dda422838f4c76ce22373add8f24605c16820228b29",
+    "tests/raid-browser-host-capacity.mjs": "81ca6db1c9217ccc8e27edd37b175480ead719826bca0729552e9b57cb389c71"
+  },
+  "automatedTests": {
+    "pass": 1062,
+    "fail": 0,
+    "log": "/tmp/hs-host-capacity-full-suite.log"
+  },
+  "focusedPackagedProcess": {
+    "pass": 23,
+    "fail": 0,
+    "log": "/tmp/hs-host-capacity-packaged-process.log"
+  },
+  "browser": {
+    "runtimeRoot": "file:///private/tmp/headshotz-extraction-host-capacity-candidate/",
+    "fullMessageVisible": true,
+    "rejectedGearCurrencyInsuranceUnchanged": true,
+    "selectionPreserved": true,
+    "retryAfterSlotFrees": true,
+    "sameBodyResumeAtCapacity": true,
+    "existingFireAtCapacity": true,
+    "noDuplicateDeployment": true,
+    "browserErrors": [],
+    "scope": "Isolated one-slot service with actual paid/insured UI deployment and native fire; blocker outcome is a controlled server fixture."
+  },
+  "changeImpact": {
+    "priorRelease": "caa4ac87ae3a60689311943e95269310530c5723a31f20d878e04a0b7c6d3bef",
+    "currentRelease": "c484f317844683e3d81be639981a40f9f3f0aa81b4bc30a14588b679d4d20d53",
+    "changedFiles": [
+      "ECONOMY_MODEL.md",
+      "OPERATIONS.md",
+      "RELEASE.md",
+      "SERVER.md",
+      "scripts/lib/release.mjs",
+      "server/admission.mjs",
+      "server/main.mjs",
+      "server/operations.mjs",
+      "server/raids.mjs"
+    ],
+    "raidServiceChangedMethods": [
+      "constructor",
+      "capacity",
+      "deploy",
+      "deployPlayer"
+    ],
+    "allSharedFilesUnchanged": true,
+    "allBrowserRuntimeFilesUnchanged": true,
+    "note": "Method/source identity is change-impact evidence, not execution coverage. The old long run is not an exact-current-build certification. New admissions/configuration/private status have dedicated concurrency/retry/rollback/process tests and current impaired gameplay load."
+  },
+  "currentLoad": {
+    "report": "/tmp/hs-host-capacity-current-120sec.json",
+    "source": "71229f957dbe5a8043b4d92f044923258494fc3ed53ecc5115dd4121e8585371",
+    "seconds": 120.324510625,
+    "actions": 17859,
+    "outcomes": {
+      "death": 34,
+      "extract": 2
+    },
+    "failedActions": 22,
+    "errorStatuses": {
+      "delivery:move": 22
+    },
+    "gameplayRejections": {},
+    "stalls": 0,
+    "unreachable": 0,
+    "checks": {
+      "noProlongedAirborneStalls": true,
+      "observedEconomyConserved": true,
+      "allClientsCompleted": true,
+      "noSimulationErrors": true,
+      "actionFailureRateWithinBudget": true,
+      "tickP95Within50ms": true,
+      "tickIntervalP95Within75ms": true
+    }
+  },
+  "policy": {
+    "defaultLimit": 27,
+    "range": [
+      1,
+      1024
+    ],
+    "config": "RAID_MAX_OPERATORS",
+    "counts": "alive or pending settlement, across all raids",
+    "fullStatus": 503,
+    "preserves": [
+      "whole-squad readiness/gear/premiums on rejection",
+      "existing actions and reconnect",
+      "same-request deployment retry",
+      "restored bodies above a lower limit"
+    ]
+  },
+  "limits": [
+    "Host admissions are bounded; this is not a CPU/memory or historical-raid hard limit.",
+    "New limit does not establish cloud hardware, remote voice or human balance acceptance.",
+    "Pre-admission two-hour run remains a separate exact source; it is not a current-backend-build certification."
+  ]
+}

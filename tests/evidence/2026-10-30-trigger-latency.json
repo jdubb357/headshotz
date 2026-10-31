@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-30",
+  "scope": "Client held-fire latency, queued press identity and cleared-input OS repeat. Full issue remains incomplete.",
+  "candidate": {
+    "id": "1c0c13c7be3f0eec132c65e9835178808769d1a8f2e41db6c29a95bf04fd53e7",
+    "label": "trigger-input-timing",
+    "path": "/private/tmp/headshotz-extraction-trigger-responsive-final-candidate",
+    "files": 201,
+    "bytes": 11582969,
+    "schema": 12,
+    "protocol": 9
+  },
+  "automatedTests": {
+    "pass": 1039,
+    "fail": 0,
+    "log": "/tmp/hs-trigger-responsive-final-verified-suite.log"
+  },
+  "browserLatency": {
+    "runtimeRoot": "file:///private/tmp/headshotz-extraction-trigger-responsive-final-candidate/",
+    "latencyMs": 150,
+    "holdMs": 4000,
+    "stationaryRounds": 22,
+    "stationaryFireRequests": 22,
+    "stationaryMoveRequests": 6,
+    "maxInFlight": 1,
+    "rejections": [],
+    "movementDistance": 3.8397229150000385,
+    "stopped": true,
+    "ammoConserved": true,
+    "browserErrors": [],
+    "scope": "Real Chrome keyboard/HTTP/service with 75 ms request and response delays, machines removed, one paid rifle. This is application delay over loopback, not packet-level WAN or human weapon-feel acceptance."
+  },
+  "browserControls": {
+    "runtimeRoot": "file:///private/tmp/headshotz-extraction-trigger-responsive-final-candidate/",
+    "keyboardAutomatic": true,
+    "releaseStops": true,
+    "modalClearsTrigger": true,
+    "noResumeAfterModal": true,
+    "staleOsRepeatIgnoredAfterClear": true,
+    "semiAutomatic": true,
+    "osRepeatIgnored": true,
+    "touchAutomatic": true,
+    "capturedMouseAutomatic": true,
+    "captureClickDoesNotFire": true,
+    "backgroundClearsTrigger": true,
+    "noSyntheticDoubleShot": true,
+    "authoritativeAmmo": true,
+    "reloadInterruptsTrigger": true,
+    "browserErrors": [],
+    "scope": "Local isolated service with machines removed; not human combat or WAN cadence acceptance."
+  },
+  "accessibility": {
+    "remapping": true,
+    "persistentSettings": true,
+    "nativeDialogFocus": true,
+    "keyboardAim": true,
+    "statusAnnouncement": true,
+    "itemInspection": true,
+    "keyboardSearchTakeSecure": true,
+    "touchBoarding": true,
+    "modalStopsMovement": true,
+    "backgroundStopsMovement": true,
+    "reducedMotionRender": true,
+    "touchTargets": true,
+    "mobileAim": true,
+    "mobileOverflow": false,
+    "browserErrors": []
+  },
+  "before": {
+    "browserRoundsOverFourSeconds": 13,
+    "log": "/tmp/hs-trigger-browser-before.log"
+  },
+  "limits": [
+    "Controlled loopback application delay is not WAN testing.",
+    "Serialized actions still limit high RTT weapon cadence.",
+    "Human combat/balance, physical devices and production acceptance remain open."
+  ],
+  "serverBuildUnchanged": true
+}

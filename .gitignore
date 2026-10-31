@@ -1,2 +1,13 @@
 turn.json
 dev/
+.raid-data/
+
+.raid-backups/
+.DS_Store
+node_modules/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

@@ -1,0 +1,98 @@
+{
+  "automatedChecks": 826,
+  "standaloneProcessDrill": {
+    "servedIncludedAssets": true,
+    "paidEscrow": true,
+    "ammunitionPreserved": true,
+    "sameDeploymentAfterRestart": true,
+    "utilityConsumed": true,
+    "operationalBuildPinned": true,
+    "tamperRefusedBeforeSaveCreation": true,
+    "repeatedWholeGroupSIGINTClean": true,
+    "repeatedWholeGroupSIGTERMClean": true,
+    "terminalInterruptExitCode": 0
+  },
+  "deliveredCandidate": {
+    "id": "85380f6a9e927e22af551daae43e402b6329dd392019757d1774d5e71c949d93",
+    "files": 178,
+    "bytes": 11417979,
+    "schema": 7,
+    "protocol": 4
+  },
+  "browserScenarios": [
+    {
+      "account": true,
+      "recoveryDeployment": true,
+      "rendered": true,
+      "serverMovement": true,
+      "reconnect": true,
+      "browserExceptions": []
+    },
+    {
+      "maps": 3,
+      "jump": true,
+      "touchAim": true,
+      "rendered": true,
+      "browserErrors": []
+    },
+    {
+      "mainGameEntry": true,
+      "persistentRaidNavigation": true,
+      "browserErrors": []
+    },
+    {
+      "threeTraders": true,
+      "inventoryCrafting": true,
+      "workbenchUpgrade": true,
+      "attachmentInstall": true,
+      "stashSearch": true,
+      "loadoutPreset": true,
+      "insuranceQuote": true,
+      "insuredDeployment": true,
+      "browserErrors": []
+    },
+    {
+      "partyInvite": true,
+      "separateAccounts": true,
+      "readyChecks": true,
+      "groupDeployment": true,
+      "sameRaid": true,
+      "sameTeam": true,
+      "browserErrors": []
+    },
+    {
+      "optIn": true,
+      "pushToTalk": true,
+      "audioRtpReceived": true,
+      "muteDisconnect": true,
+      "unmuteReconnect": true,
+      "squadPing": true,
+      "reportSaved": true,
+      "blockSuppressesPing": true,
+      "microphoneReleased": true,
+      "browserErrors": []
+    }
+  ],
+  "supersededCandidates": [
+    {
+      "id": "5632ceaa8115da1a7cb08eff4e7ffe10fdb6609c1f5f6428e50f84a37fd9471f",
+      "files": 178,
+      "bytes": 11416207,
+      "status": "superseded: duplicate terminal/process-group forwarding could interrupt shutdown"
+    },
+    {
+      "id": "d664d1c36dbe2336126b4415d6545b551d0cd4a5975452d2bcae0048bb3dcd75",
+      "files": 178,
+      "bytes": 11417803,
+      "status": "superseded: same shutdown issue, not the delivered candidate"
+    }
+  ],
+  "retainedFailure": {
+    "beforeRepeatedSignalFix": {
+      "test": "standalone packaged service verifies, serves, escrows, checkpoints and resumes outside the checkout",
+      "failure": "terminal interrupts must not kill checkpoint cleanup through duplicate forwarding; process exited by signal instead of code 0"
+    },
+    "afterFix": "The full suite and both repeated process-group SIGINT/SIGTERM checks pass; terminal Ctrl-C also exited code 0."
+  },
+  "note": "Six isolated Chrome scenarios target the exact delivered copied package, using private disposable accounts and fake microphone. Runtime/process/startup checks are local; no hosting, physical-device, human acceptance or publisher-signature claim."
+}

@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-30",
+  "scope": "Interim measured payload normalization and hosted-validation cost proposal. Not production capacity or a purchased deployment.",
+  "measurement": {
+    "source": "/tmp/hs-current-two-hour-status-004.json",
+    "sourceUptimeSeconds": 4846.544,
+    "responseBytes": 4964101800,
+    "scheduledClients": 27,
+    "payloadGiBPerScheduledPlayerHour": 0.1271883654009766,
+    "planningOverheadMultiplier": 1.25,
+    "planningGiBPerScheduledPlayerHour": 0.15898545675122078,
+    "meanProcessCpuCores": 0.4885721045759618,
+    "rows": [
+      {
+        "averageConcurrent": 1,
+        "monthlyPlayerHours": 720,
+        "payloadGiB": 92,
+        "planningGiB": 114,
+        "overage4000GiB": 0
+      },
+      {
+        "averageConcurrent": 9,
+        "monthlyPlayerHours": 6480,
+        "payloadGiB": 824,
+        "planningGiB": 1030,
+        "overage4000GiB": 0
+      },
+      {
+        "averageConcurrent": 27,
+        "monthlyPlayerHours": 19440,
+        "payloadGiB": 2473,
+        "planningGiB": 3091,
+        "overage4000GiB": 0
+      },
+      {
+        "averageConcurrent": 50,
+        "monthlyPlayerHours": 36000,
+        "payloadGiB": 4579,
+        "planningGiB": 5723,
+        "overage4000GiB": 17.234764430439483
+      },
+      {
+        "averageConcurrent": 100,
+        "monthlyPlayerHours": 72000,
+        "payloadGiB": 9158,
+        "planningGiB": 11447,
+        "overage4000GiB": 74.46952886087897
+      }
+    ]
+  },
+  "prices": {
+    "currency": "USD",
+    "checkedOn": "2026-10-30",
+    "compute": [
+      {
+        "provider": "DigitalOcean",
+        "plan": "Basic Regular",
+        "vcpus": 2,
+        "memoryGiB": 4,
+        "transferGiB": 4000,
+        "monthly": 24
+      },
+      {
+        "provider": "DigitalOcean",
+        "plan": "CPU Optimized Regular",
+        "vcpus": 2,
+        "memoryGiB": 4,
+        "transferGiB": 4000,
+        "monthly": 42
+      },
+      {
+        "provider": "DigitalOcean",
+        "plan": "CPU Optimized Regular",
+        "vcpus": 4,
+        "memoryGiB": 8,
+        "transferGiB": 5000,
+        "monthly": 84
+      }
+    ],
+    "dropletAdditionalTransferPerGiB": 0.01,
+    "backup": {
+      "monthly": 5,
+      "includedStorageGiB": 250,
+      "includedEgressGiB": 1024,
+      "storagePerExtraGiB": 0.02,
+      "egressPerExtraGiB": 0.01
+    },
+    "turn": {
+      "perOutboundGB": 0.05,
+      "sharedFreeGB": 1000
+    }
+  },
+  "sources": [
+    "https://www.digitalocean.com/pricing/droplets",
+    "https://docs.digitalocean.com/products/droplets/details/pricing/",
+    "https://docs.digitalocean.com/products/spaces/details/pricing/",
+    "https://developers.cloudflare.com/realtime/turn/faq/"
+  ],
+  "unresolved": [
+    "Global active-operator admission budget is not enforced yet.",
+    "Cloud CPU/NIC/disk, registration and real-network/voice validation.",
+    "Provider/account/region/domain, authorized budget and operator/moderation ownership.",
+    "Off-host restore, alerts and disk/audit retention."
+  ],
+  "noPurchaseOrDeployment": true
+}

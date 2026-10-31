@@ -1,0 +1,2231 @@
+{
+  "format": 1,
+  "runtimeRoot": "file:///private/tmp/headshotz-extraction-field-audio-final-candidate/",
+  "requestedSeconds": 1800,
+  "elapsedSeconds": 1800.2236200000002,
+  "cycleSeconds": 60,
+  "cycles": [
+    {
+      "map": "relay",
+      "deploymentCount": 1,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 0,
+      "baseSample": 1
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 2,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 2,
+      "baseSample": 3
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 3,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 4,
+      "baseSample": 5
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 4,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 6,
+      "baseSample": 7
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 5,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 8,
+      "baseSample": 9
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 6,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 10,
+      "baseSample": 11
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 7,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 12,
+      "baseSample": 13
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 8,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 14,
+      "baseSample": 15
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 9,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 16,
+      "baseSample": 17
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 10,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 18,
+      "baseSample": 19
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 11,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 20,
+      "baseSample": 21
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 12,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 22,
+      "baseSample": 23
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 13,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 24,
+      "baseSample": 25
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 14,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 26,
+      "baseSample": 27
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 15,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 28,
+      "baseSample": 29
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 16,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 30,
+      "baseSample": 31
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 17,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 32,
+      "baseSample": 33
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 18,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 34,
+      "baseSample": 35
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 19,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 36,
+      "baseSample": 37
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 20,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 38,
+      "baseSample": 39
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 21,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 40,
+      "baseSample": 41
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 22,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 42,
+      "baseSample": 43
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 23,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 44,
+      "baseSample": 45
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 24,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 46,
+      "baseSample": 47
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 25,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 48,
+      "baseSample": 49
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 26,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 50,
+      "baseSample": 51
+    },
+    {
+      "map": "switchyard",
+      "deploymentCount": 27,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 52,
+      "baseSample": 53
+    },
+    {
+      "map": "relay",
+      "deploymentCount": 28,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 54,
+      "baseSample": 55
+    },
+    {
+      "map": "reservoir",
+      "deploymentCount": 29,
+      "outcome": "timeout",
+      "fixtureCutoff": true,
+      "resumed": true,
+      "fieldSample": 56,
+      "baseSample": 57
+    }
+  ],
+  "samples": [
+    {
+      "phase": "field",
+      "frames": 3715,
+      "frameP95Ms": 16.799999999995634,
+      "frameP99Ms": 16.80000000000291,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 493,
+      "statuses": {
+        "200": 492,
+        "409": 1
+      },
+      "expectedTerminalRaces": 1,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 0,
+      "recordNodes": 0,
+      "starts": 2,
+      "resources": {
+        "geometries": 15,
+        "textures": 13
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 62.096544792,
+      "jsHeapUsedBytes": 8398596,
+      "dom": {
+        "documents": 1,
+        "nodes": 2357,
+        "jsEventListeners": 311
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 3715,
+      "frameP95Ms": 16.799999999995634,
+      "frameP99Ms": 16.80000000000291,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 498,
+      "statuses": {
+        "200": 497,
+        "409": 1
+      },
+      "expectedTerminalRaces": 1,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 1,
+      "recordNodes": 28,
+      "starts": 2,
+      "resources": {
+        "geometries": 4,
+        "textures": 8
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 62.207558167,
+      "jsHeapUsedBytes": 6025984,
+      "dom": {
+        "documents": 1,
+        "nodes": 1453,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.79999999998836,
+      "frameP99Ms": 16.80000000000291,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 993,
+      "statuses": {
+        "200": 991,
+        "409": 2
+      },
+      "expectedTerminalRaces": 2,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 1,
+      "recordNodes": 28,
+      "starts": 4,
+      "resources": {
+        "geometries": 14,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 124.13664941699999,
+      "jsHeapUsedBytes": 8186304,
+      "dom": {
+        "documents": 1,
+        "nodes": 1972,
+        "jsEventListeners": 293
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.79999999998836,
+      "frameP99Ms": 16.80000000000291,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 998,
+      "statuses": {
+        "200": 996,
+        "409": 2
+      },
+      "expectedTerminalRaces": 2,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 2,
+      "recordNodes": 56,
+      "starts": 4,
+      "resources": {
+        "geometries": 4,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 124.24820133299998,
+      "jsHeapUsedBytes": 6285948,
+      "dom": {
+        "documents": 1,
+        "nodes": 1491,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.80000000000291,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 1492,
+      "statuses": {
+        "200": 1489,
+        "409": 3
+      },
+      "expectedTerminalRaces": 3,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 2,
+      "recordNodes": 56,
+      "starts": 6,
+      "resources": {
+        "geometries": 18,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 186.28093775000002,
+      "jsHeapUsedBytes": 8654920,
+      "dom": {
+        "documents": 1,
+        "nodes": 2456,
+        "jsEventListeners": 311
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.80000000000291,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 1497,
+      "statuses": {
+        "200": 1494,
+        "409": 3
+      },
+      "expectedTerminalRaces": 3,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 3,
+      "recordNodes": 84,
+      "starts": 6,
+      "resources": {
+        "geometries": 4,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 186.392280042,
+      "jsHeapUsedBytes": 6387820,
+      "dom": {
+        "documents": 1,
+        "nodes": 1527,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.800000000017462,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 1989,
+      "statuses": {
+        "200": 1985,
+        "409": 4
+      },
+      "expectedTerminalRaces": 4,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 3,
+      "recordNodes": 84,
+      "starts": 8,
+      "resources": {
+        "geometries": 18,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 248.40099333300003,
+      "jsHeapUsedBytes": 8012684,
+      "dom": {
+        "documents": 1,
+        "nodes": 2156,
+        "jsEventListeners": 299
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.800000000017462,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 1994,
+      "statuses": {
+        "200": 1990,
+        "409": 4
+      },
+      "expectedTerminalRaces": 4,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 4,
+      "recordNodes": 112,
+      "starts": 8,
+      "resources": {
+        "geometries": 4,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 248.51266,
+      "jsHeapUsedBytes": 6295244,
+      "dom": {
+        "documents": 1,
+        "nodes": 1563,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.800000000017462,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 2491,
+      "statuses": {
+        "200": 2486,
+        "409": 5
+      },
+      "expectedTerminalRaces": 5,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 4,
+      "recordNodes": 112,
+      "starts": 10,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 310.43256820799996,
+      "jsHeapUsedBytes": 8075740,
+      "dom": {
+        "documents": 1,
+        "nodes": 1952,
+        "jsEventListeners": 287
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.800000000017462,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 2496,
+      "statuses": {
+        "200": 2491,
+        "409": 5
+      },
+      "expectedTerminalRaces": 5,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 5,
+      "recordNodes": 140,
+      "starts": 10,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 310.544740875,
+      "jsHeapUsedBytes": 6433100,
+      "dom": {
+        "documents": 1,
+        "nodes": 1599,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.79999999998836,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 2990,
+      "statuses": {
+        "200": 2984,
+        "409": 6
+      },
+      "expectedTerminalRaces": 6,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 5,
+      "recordNodes": 140,
+      "starts": 12,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 372.598648917,
+      "jsHeapUsedBytes": 8068192,
+      "dom": {
+        "documents": 1,
+        "nodes": 1716,
+        "jsEventListeners": 276
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.79999999998836,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 2995,
+      "statuses": {
+        "200": 2989,
+        "409": 6
+      },
+      "expectedTerminalRaces": 6,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 6,
+      "recordNodes": 168,
+      "starts": 12,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 372.71047058299996,
+      "jsHeapUsedBytes": 6520424,
+      "dom": {
+        "documents": 1,
+        "nodes": 1635,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.79999999998836,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 3488,
+      "statuses": {
+        "200": 3481,
+        "409": 7
+      },
+      "expectedTerminalRaces": 7,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 6,
+      "recordNodes": 168,
+      "starts": 14,
+      "resources": {
+        "geometries": 19,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 434.70568454200003,
+      "jsHeapUsedBytes": 8511396,
+      "dom": {
+        "documents": 1,
+        "nodes": 2584,
+        "jsEventListeners": 311
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.79999999998836,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 3493,
+      "statuses": {
+        "200": 3486,
+        "409": 7
+      },
+      "expectedTerminalRaces": 7,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 7,
+      "recordNodes": 196,
+      "starts": 14,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 434.81550704200004,
+      "jsHeapUsedBytes": 6537180,
+      "dom": {
+        "documents": 1,
+        "nodes": 1671,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 3989,
+      "statuses": {
+        "200": 3981,
+        "409": 8
+      },
+      "expectedTerminalRaces": 8,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 7,
+      "recordNodes": 196,
+      "starts": 16,
+      "resources": {
+        "geometries": 15,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 496.97591312500003,
+      "jsHeapUsedBytes": 8266068,
+      "dom": {
+        "documents": 1,
+        "nodes": 1852,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000001164,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 3994,
+      "statuses": {
+        "200": 3986,
+        "409": 8
+      },
+      "expectedTerminalRaces": 8,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 8,
+      "recordNodes": 224,
+      "starts": 16,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 497.086980583,
+      "jsHeapUsedBytes": 6548100,
+      "dom": {
+        "documents": 1,
+        "nodes": 1707,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 4488,
+      "statuses": {
+        "200": 4479,
+        "409": 9
+      },
+      "expectedTerminalRaces": 9,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 8,
+      "recordNodes": 224,
+      "starts": 18,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 559.0094934580001,
+      "jsHeapUsedBytes": 10361208,
+      "dom": {
+        "documents": 1,
+        "nodes": 2032,
+        "jsEventListeners": 287
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 4493,
+      "statuses": {
+        "200": 4484,
+        "409": 9
+      },
+      "expectedTerminalRaces": 9,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 9,
+      "recordNodes": 252,
+      "starts": 18,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 559.12110725,
+      "jsHeapUsedBytes": 6553836,
+      "dom": {
+        "documents": 1,
+        "nodes": 1743,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 4988,
+      "statuses": {
+        "200": 4978,
+        "409": 10
+      },
+      "expectedTerminalRaces": 10,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 9,
+      "recordNodes": 252,
+      "starts": 20,
+      "resources": {
+        "geometries": 19,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 621.1376002080001,
+      "jsHeapUsedBytes": 8514276,
+      "dom": {
+        "documents": 1,
+        "nodes": 2660,
+        "jsEventListeners": 311
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 4993,
+      "statuses": {
+        "200": 4983,
+        "409": 10
+      },
+      "expectedTerminalRaces": 10,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 10,
+      "recordNodes": 280,
+      "starts": 20,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 621.2492670419999,
+      "jsHeapUsedBytes": 6554728,
+      "dom": {
+        "documents": 1,
+        "nodes": 1779,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 5484,
+      "statuses": {
+        "200": 5473,
+        "409": 11
+      },
+      "expectedTerminalRaces": 11,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 10,
+      "recordNodes": 280,
+      "starts": 22,
+      "resources": {
+        "geometries": 16,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 683.234362208,
+      "jsHeapUsedBytes": 10976140,
+      "dom": {
+        "documents": 1,
+        "nodes": 2152,
+        "jsEventListeners": 287
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 5489,
+      "statuses": {
+        "200": 5478,
+        "409": 11
+      },
+      "expectedTerminalRaces": 11,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 11,
+      "recordNodes": 308,
+      "starts": 22,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 683.34633175,
+      "jsHeapUsedBytes": 6564508,
+      "dom": {
+        "documents": 1,
+        "nodes": 1815,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 5980,
+      "statuses": {
+        "200": 5968,
+        "409": 12
+      },
+      "expectedTerminalRaces": 12,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 11,
+      "recordNodes": 308,
+      "starts": 24,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 745.296404208,
+      "jsHeapUsedBytes": 8428544,
+      "dom": {
+        "documents": 1,
+        "nodes": 2068,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 5985,
+      "statuses": {
+        "200": 5973,
+        "409": 12
+      },
+      "expectedTerminalRaces": 12,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 12,
+      "recordNodes": 336,
+      "starts": 24,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 745.405952208,
+      "jsHeapUsedBytes": 6573476,
+      "dom": {
+        "documents": 1,
+        "nodes": 1851,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 6478,
+      "statuses": {
+        "200": 6465,
+        "409": 13
+      },
+      "expectedTerminalRaces": 13,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 12,
+      "recordNodes": 336,
+      "starts": 26,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 807.466232875,
+      "jsHeapUsedBytes": 10156408,
+      "dom": {
+        "documents": 1,
+        "nodes": 2153,
+        "jsEventListeners": 287
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 6483,
+      "statuses": {
+        "200": 6470,
+        "409": 13
+      },
+      "expectedTerminalRaces": 13,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 13,
+      "recordNodes": 364,
+      "starts": 26,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 807.575818583,
+      "jsHeapUsedBytes": 6582972,
+      "dom": {
+        "documents": 1,
+        "nodes": 1888,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 6974,
+      "statuses": {
+        "200": 6960,
+        "409": 14
+      },
+      "expectedTerminalRaces": 14,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 13,
+      "recordNodes": 364,
+      "starts": 28,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 869.567971208,
+      "jsHeapUsedBytes": 8383344,
+      "dom": {
+        "documents": 1,
+        "nodes": 2308,
+        "jsEventListeners": 287
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 6979,
+      "statuses": {
+        "200": 6965,
+        "409": 14
+      },
+      "expectedTerminalRaces": 14,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 14,
+      "recordNodes": 392,
+      "starts": 28,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 869.726736708,
+      "jsHeapUsedBytes": 6635852,
+      "dom": {
+        "documents": 1,
+        "nodes": 1923,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 7476,
+      "statuses": {
+        "200": 7461,
+        "409": 15
+      },
+      "expectedTerminalRaces": 15,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 14,
+      "recordNodes": 392,
+      "starts": 30,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 931.9230783329999,
+      "jsHeapUsedBytes": 8481304,
+      "dom": {
+        "documents": 1,
+        "nodes": 2168,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 7481,
+      "statuses": {
+        "200": 7466,
+        "409": 15
+      },
+      "expectedTerminalRaces": 15,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 15,
+      "recordNodes": 420,
+      "starts": 30,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 932.0329726250001,
+      "jsHeapUsedBytes": 6603592,
+      "dom": {
+        "documents": 1,
+        "nodes": 1959,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 7976,
+      "statuses": {
+        "200": 7960,
+        "409": 16
+      },
+      "expectedTerminalRaces": 16,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 15,
+      "recordNodes": 420,
+      "starts": 32,
+      "resources": {
+        "geometries": 19,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 993.9774949580001,
+      "jsHeapUsedBytes": 9015496,
+      "dom": {
+        "documents": 1,
+        "nodes": 2988,
+        "jsEventListeners": 311
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.70000000006985,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 7981,
+      "statuses": {
+        "200": 7965,
+        "409": 16
+      },
+      "expectedTerminalRaces": 16,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 16,
+      "recordNodes": 448,
+      "starts": 32,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 994.088838375,
+      "jsHeapUsedBytes": 6637544,
+      "dom": {
+        "documents": 1,
+        "nodes": 1995,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 8476,
+      "statuses": {
+        "200": 8459,
+        "409": 17
+      },
+      "expectedTerminalRaces": 17,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 16,
+      "recordNodes": 448,
+      "starts": 34,
+      "resources": {
+        "geometries": 15,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1056.0880845000002,
+      "jsHeapUsedBytes": 11172744,
+      "dom": {
+        "documents": 1,
+        "nodes": 2384,
+        "jsEventListeners": 287
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 8481,
+      "statuses": {
+        "200": 8464,
+        "409": 17
+      },
+      "expectedTerminalRaces": 17,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 17,
+      "recordNodes": 476,
+      "starts": 34,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1056.201997417,
+      "jsHeapUsedBytes": 6633184,
+      "dom": {
+        "documents": 1,
+        "nodes": 2031,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 8974,
+      "statuses": {
+        "200": 8956,
+        "409": 18
+      },
+      "expectedTerminalRaces": 18,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 17,
+      "recordNodes": 476,
+      "starts": 36,
+      "resources": {
+        "geometries": 19,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1118.202294,
+      "jsHeapUsedBytes": 8500416,
+      "dom": {
+        "documents": 1,
+        "nodes": 2380,
+        "jsEventListeners": 287
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 8979,
+      "statuses": {
+        "200": 8961,
+        "409": 18
+      },
+      "expectedTerminalRaces": 18,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 18,
+      "recordNodes": 504,
+      "starts": 36,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1118.3151197500001,
+      "jsHeapUsedBytes": 6616832,
+      "dom": {
+        "documents": 1,
+        "nodes": 2067,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.799999999813735,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 9471,
+      "statuses": {
+        "200": 9452,
+        "409": 19
+      },
+      "expectedTerminalRaces": 19,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 18,
+      "recordNodes": 504,
+      "starts": 38,
+      "resources": {
+        "geometries": 19,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1180.338345125,
+      "jsHeapUsedBytes": 8401856,
+      "dom": {
+        "documents": 1,
+        "nodes": 2232,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.799999999813735,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 9476,
+      "statuses": {
+        "200": 9457,
+        "409": 19
+      },
+      "expectedTerminalRaces": 19,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 19,
+      "recordNodes": 532,
+      "starts": 38,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1180.4491397919999,
+      "jsHeapUsedBytes": 6632472,
+      "dom": {
+        "documents": 1,
+        "nodes": 2103,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.799999999813735,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 9968,
+      "statuses": {
+        "200": 9948,
+        "409": 20
+      },
+      "expectedTerminalRaces": 20,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 19,
+      "recordNodes": 532,
+      "starts": 40,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1242.449852167,
+      "jsHeapUsedBytes": 8124548,
+      "dom": {
+        "documents": 1,
+        "nodes": 2220,
+        "jsEventListeners": 276
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.799999999813735,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 9973,
+      "statuses": {
+        "200": 9953,
+        "409": 20
+      },
+      "expectedTerminalRaces": 20,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 40,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1242.56183925,
+      "jsHeapUsedBytes": 6646728,
+      "dom": {
+        "documents": 1,
+        "nodes": 2139,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 10467,
+      "statuses": {
+        "200": 10446,
+        "409": 21
+      },
+      "expectedTerminalRaces": 21,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 42,
+      "resources": {
+        "geometries": 18,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1304.6655097080002,
+      "jsHeapUsedBytes": 8440932,
+      "dom": {
+        "documents": 1,
+        "nodes": 2377,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 10472,
+      "statuses": {
+        "200": 10451,
+        "409": 21
+      },
+      "expectedTerminalRaces": 21,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 42,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1304.7774065,
+      "jsHeapUsedBytes": 6652256,
+      "dom": {
+        "documents": 1,
+        "nodes": 2140,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 10965,
+      "statuses": {
+        "200": 10943,
+        "409": 22
+      },
+      "expectedTerminalRaces": 22,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 44,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1366.930142125,
+      "jsHeapUsedBytes": 8673976,
+      "dom": {
+        "documents": 1,
+        "nodes": 2409,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 10970,
+      "statuses": {
+        "200": 10948,
+        "409": 22
+      },
+      "expectedTerminalRaces": 22,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 44,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1367.042603125,
+      "jsHeapUsedBytes": 6664576,
+      "dom": {
+        "documents": 1,
+        "nodes": 2140,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 11464,
+      "statuses": {
+        "200": 11441,
+        "409": 23
+      },
+      "expectedTerminalRaces": 23,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 46,
+      "resources": {
+        "geometries": 15,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1429.0351263329999,
+      "jsHeapUsedBytes": 8458592,
+      "dom": {
+        "documents": 1,
+        "nodes": 2328,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 11469,
+      "statuses": {
+        "200": 11446,
+        "409": 23
+      },
+      "expectedTerminalRaces": 23,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 46,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1429.205756,
+      "jsHeapUsedBytes": 6662392,
+      "dom": {
+        "documents": 1,
+        "nodes": 2139,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 11963,
+      "statuses": {
+        "200": 11939,
+        "409": 24
+      },
+      "expectedTerminalRaces": 24,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 48,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1491.2440719580002,
+      "jsHeapUsedBytes": 8759388,
+      "dom": {
+        "documents": 1,
+        "nodes": 2456,
+        "jsEventListeners": 287
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 11968,
+      "statuses": {
+        "200": 11944,
+        "409": 24
+      },
+      "expectedTerminalRaces": 24,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 48,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1491.3573322080001,
+      "jsHeapUsedBytes": 6651352,
+      "dom": {
+        "documents": 1,
+        "nodes": 2139,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 12463,
+      "statuses": {
+        "200": 12438,
+        "409": 25
+      },
+      "expectedTerminalRaces": 25,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 50,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1553.387773625,
+      "jsHeapUsedBytes": 8252128,
+      "dom": {
+        "documents": 1,
+        "nodes": 2305,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 12468,
+      "statuses": {
+        "200": 12443,
+        "409": 25
+      },
+      "expectedTerminalRaces": 25,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 50,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1553.4986390420001,
+      "jsHeapUsedBytes": 6665616,
+      "dom": {
+        "documents": 1,
+        "nodes": 2140,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 12959,
+      "statuses": {
+        "200": 12933,
+        "409": 26
+      },
+      "expectedTerminalRaces": 26,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 52,
+      "resources": {
+        "geometries": 15,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1615.524324375,
+      "jsHeapUsedBytes": 8352888,
+      "dom": {
+        "documents": 1,
+        "nodes": 2384,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.20000004768371582,
+      "contextsLost": 0,
+      "requests": 12964,
+      "statuses": {
+        "200": 12938,
+        "409": 26
+      },
+      "expectedTerminalRaces": 26,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 52,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1615.636212958,
+      "jsHeapUsedBytes": 6654056,
+      "dom": {
+        "documents": 1,
+        "nodes": 2139,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 13460,
+      "statuses": {
+        "200": 13433,
+        "409": 27
+      },
+      "expectedTerminalRaces": 27,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 54,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1677.748173833,
+      "jsHeapUsedBytes": 8460580,
+      "dom": {
+        "documents": 1,
+        "nodes": 2392,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 13467,
+      "statuses": {
+        "200": 13440,
+        "409": 27
+      },
+      "expectedTerminalRaces": 27,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 54,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1677.860324417,
+      "jsHeapUsedBytes": 6666024,
+      "dom": {
+        "documents": 1,
+        "nodes": 2139,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 13963,
+      "statuses": {
+        "200": 13935,
+        "409": 28
+      },
+      "expectedTerminalRaces": 28,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 56,
+      "resources": {
+        "geometries": 17,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1739.9899738749998,
+      "jsHeapUsedBytes": 9128432,
+      "dom": {
+        "documents": 1,
+        "nodes": 3056,
+        "jsEventListeners": 311
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 13968,
+      "statuses": {
+        "200": 13940,
+        "409": 28
+      },
+      "expectedTerminalRaces": 28,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 56,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1740.1028382920001,
+      "jsHeapUsedBytes": 6653644,
+      "dom": {
+        "documents": 1,
+        "nodes": 2139,
+        "jsEventListeners": 268
+      }
+    },
+    {
+      "phase": "field",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 14445,
+      "statuses": {
+        "200": 14416,
+        "409": 29
+      },
+      "expectedTerminalRaces": 29,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 58,
+      "resources": {
+        "geometries": 16,
+        "textures": 15
+      },
+      "actors": 16,
+      "audioActive": 1,
+      "audioState": "running",
+      "fieldCleared": false,
+      "elapsedSeconds": 1800.1102183330001,
+      "jsHeapUsedBytes": 8284180,
+      "dom": {
+        "documents": 1,
+        "nodes": 2304,
+        "jsEventListeners": 281
+      }
+    },
+    {
+      "phase": "base-after-explicit-gc",
+      "frames": 7200,
+      "frameP95Ms": 16.700000000186265,
+      "frameP99Ms": 16.800000000046566,
+      "renderCpuP95Ms": 0.2999999523162842,
+      "contextsLost": 0,
+      "requests": 14450,
+      "statuses": {
+        "200": 14421,
+        "409": 29
+      },
+      "expectedTerminalRaces": 29,
+      "cooldownRefusals": 0,
+      "otherFailures": [],
+      "recordCount": 20,
+      "recordNodes": 560,
+      "starts": 58,
+      "resources": {
+        "geometries": 5,
+        "textures": 10
+      },
+      "actors": 0,
+      "audioActive": 0,
+      "fieldCleared": true,
+      "elapsedSeconds": 1800.2233824169998,
+      "jsHeapUsedBytes": 6667464,
+      "dom": {
+        "documents": 1,
+        "nodes": 2139,
+        "jsEventListeners": 268
+      }
+    }
+  ],
+  "retainedHeapGrowthBytes": 279644,
+  "checks": {
+    "completed": true,
+    "noBrowserErrors": true,
+    "allMapsCovered": true,
+    "reentryObserved": true,
+    "noLostContexts": true,
+    "baseCleanup": true,
+    "retainedHeapBudget": true,
+    "domGrowthBudget": true,
+    "historyBound": true,
+    "noUnexpectedApiFailures": true,
+    "fieldFrameP95": true
+  },
+  "browserErrors": [],
+  "scope": "One real Chrome whole client, live file-backed loopback API/simulation, native movement/look/fire, all maps, recovery deployments and repeated field/base/resume. Authority fixture cutoffs force timeout for map cycling and are not successful extractions. Retained heap is sampled after explicit GC; raw field heap is also retained. DOM growth excludes visible result-history nodes and separately enforces its 20-record cap. Frame quantiles cover the last 7200 frames. Not human, physical mobile, WAN, voice or multi-client rendering acceptance."
+}

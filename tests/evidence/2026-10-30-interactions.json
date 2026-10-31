@@ -1,0 +1,239 @@
+{
+  "date": "2026-10-30",
+  "scope": "Sustained interactions, contested claims/transfers and regression verification; full issue #1 remains incomplete.",
+  "candidate": {
+    "id": "417ed7902621a5fbabb334d60399acd7738de277c501b7ea84650bda3b0a876d",
+    "label": "sustained-interactions",
+    "path": "/private/tmp/headshotz-extraction-interactions-candidate",
+    "files": 201,
+    "bytes": 11574668,
+    "schema": 12,
+    "protocol": 9
+  },
+  "schema": 12,
+  "protocol": 9,
+  "serviceWorker": "headshotz-v83",
+  "sourceSha256": {
+    "server/raids.mjs": "eb849cd4243ec19eabda6c5994323c8c034a1299516002b5c3c45517f5fcee0b",
+    "raid-online.mjs": "565503dfc7742c7b39674668438f548a1b3548f89c6a0b8065086225489ab75f",
+    "raid-online.html": "018148dd19eb16df7d043a603264c9bb513675f4d8b4eb96cf0f539d861d0635",
+    "sw.js": "b87bb7cc960e890ee3ac2d2a60b4850abf029051be994bf202f807f365373164",
+    "RAID_RULES.md": "d2ce986900943dfe62e8907d3b8038a312cfa01e487df921101a8a0b21fb12ad",
+    "INVENTORY.md": "c37df91e6d0ea86aa36758954450171c0ef76562b0d215ea048579ef38b18934",
+    "scripts/raid-load.mjs": "cce5de91328ef25abf52404f3d0b750e30820d9155271ce3b4b8c54692c09715",
+    "tests/raid-interactions.test.mjs": "4cf5502efede4e316042e5746dcca885fe29f8fd396948f9cecad4e7cec4fc0d",
+    "tests/raid-browser-interactions.mjs": "18c8211f5c981fe23e9ea378b5aa03d2fa5d509f8e05c6fc45c9e94b2200d81d",
+    "tests/raid-load.test.mjs": "c4aeb79fc026b66450d0fba7ab780f2b53095e3366b210c0d7d475b45efdd687"
+  },
+  "automatedTests": {
+    "command": "node --test tests/*.test.mjs",
+    "pass": 1019,
+    "fail": 0,
+    "durationMs": 10549.314167
+  },
+  "browserResults": {
+    "/tmp/hs-interactions-browser-first.log": {
+      "runtimeRoot": "file:///Users/a.cypert/Documents/Applications/headshotz/",
+      "oneSearchAtATime": true,
+      "contestedClaimRejected": true,
+      "keyboardMovementCancelsSearch": true,
+      "claimImmediatelyReusable": true,
+      "contestedItemHasOneOwner": true,
+      "damageCancelsSearch": true,
+      "firingCancelsSearch": true,
+      "keyboardMovementCancelsBoarding": true,
+      "boardingCanRestart": true,
+      "rivalContinuesAfterExtraction": true,
+      "browserErrors": [],
+      "scope": "Two isolated authenticated Chrome contexts. Positions, cache placement and time are server fixtures; not human balance or real WAN acceptance."
+    },
+    "/tmp/hs-interactions-packaged-browser.log": {
+      "runtimeRoot": "file:///private/tmp/headshotz-extraction-interactions-candidate/",
+      "oneSearchAtATime": true,
+      "contestedClaimRejected": true,
+      "keyboardMovementCancelsSearch": true,
+      "claimImmediatelyReusable": true,
+      "contestedItemHasOneOwner": true,
+      "damageCancelsSearch": true,
+      "firingCancelsSearch": true,
+      "keyboardMovementCancelsBoarding": true,
+      "boardingCanRestart": true,
+      "rivalContinuesAfterExtraction": true,
+      "browserErrors": [],
+      "scope": "Two isolated authenticated Chrome contexts. Positions, cache placement and time are server fixtures; not human balance or real WAN acceptance."
+    },
+    "/tmp/hs-interactions-rescue-browser.log": {
+      "runtimeRoot": "file:///Users/a.cypert/Documents/Applications/headshotz/",
+      "throughCoverControlsDisabled": true,
+      "clearAccessUpdatesWithoutInventoryChange": true,
+      "patientDamageInterrupts": true,
+      "fiveSecondRevive": true,
+      "carryDropLabel": true,
+      "rescueKeyboardFocusPreserved": true,
+      "downedCarrierReleases": true,
+      "noRecoveryTeleport": true,
+      "carriedPairExtracts": true,
+      "separateSettlements": true,
+      "browserErrors": [],
+      "scope": "Isolated Chrome trio; two support accounts, positions, cover and time are authoritative server fixtures. Not human rescue balance or physical-device acceptance."
+    },
+    "/tmp/hs-interactions-accessibility.log": {
+      "remapping": true,
+      "persistentSettings": true,
+      "nativeDialogFocus": true,
+      "keyboardAim": true,
+      "statusAnnouncement": true,
+      "itemInspection": true,
+      "keyboardSearchTakeSecure": true,
+      "touchBoarding": true,
+      "modalStopsMovement": true,
+      "backgroundStopsMovement": true,
+      "reducedMotionRender": true,
+      "touchTargets": true,
+      "mobileAim": true,
+      "mobileOverflow": false,
+      "browserErrors": []
+    },
+    "/tmp/hs-interactions-loadout.log": {
+      "sortPreservesPrimary": true,
+      "presetPreservesOrder": true,
+      "missingPresetWarning": true,
+      "ownedGunArmorPreview": true,
+      "previewRotation": true,
+      "boundedPreviewGeometry": true,
+      "baseItemInspection": true,
+      "readyReloadMismatch": true,
+      "readiedLoadoutRestore": true,
+      "primaryChangeUnreadies": true,
+      "staleCommitRejectedBeforeDebit": true,
+      "primaryDeploysAsPreviewed": true,
+      "exactInsuranceDebit": true,
+      "activeDeploymentExplained": true,
+      "logoutClearsGearUi": true,
+      "mobileOverflow": false,
+      "browserErrors": [],
+      "scope": "Isolated bought items, pistol condition/magazine and missing-preset fixture. Not human visual/device/remote multiplayer acceptance."
+    }
+  },
+  "logs": {
+    "/tmp/hs-interactions-final-paced-suite.log": "39e139d102415d222740fc002ee949abe682d6d04ae470189c3192b644925e25",
+    "/tmp/hs-interactions-browser-first.log": "e8f265ebb7747861f76b16faf87e02ec2a1a0f97ddb7d15f1da3cbfced088fae",
+    "/tmp/hs-interactions-packaged-browser.log": "855fc3c39d27eddc4f16019b855d4509499ecf92afd2f60b012b7a762e50519d",
+    "/tmp/hs-interactions-rescue-browser.log": "f743787ff50185007ce8f2fdd3f8ee631eea19c50ce8352066e3ba80557b3f18",
+    "/tmp/hs-interactions-accessibility.log": "71430b4e7e853e12627befbe1fa38379d80f20ed1bd34e08cbb27e621f8a810e",
+    "/tmp/hs-interactions-loadout.log": "59ac542afc998e6470f4dc7abd1d7d267f89186cb73f926dbc5c4ff525d8feaf"
+  },
+  "gameplayLoadBeforeRunnerCorrection": {
+    "scenario": {
+      "players": 9,
+      "seconds": 300,
+      "latencyMs": 150,
+      "loss": 0.05,
+      "seed": 20261030,
+      "profile": "raid",
+      "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+    },
+    "actions": 14776,
+    "outcomes": {
+      "death": 7,
+      "extract": 7
+    },
+    "failedActions": 17,
+    "errorStatuses": {
+      "delivery:move": 16,
+      "delivery:fire": 1
+    },
+    "gameplayRejections": {},
+    "checks": {
+      "noProlongedAirborneStalls": true,
+      "observedEconomyConserved": true,
+      "gameplayLoopCovered": true,
+      "gameplayRejectionRateWithinBudget": true,
+      "allClientsCompleted": true,
+      "noSimulationErrors": true,
+      "actionFailureRateWithinBudget": true,
+      "tickP95Within50ms": true,
+      "tickIntervalP95Within75ms": true
+    },
+    "sourceFingerprint": "e8d64e0763e8138a3c0c9972e43e9a98c07725d519cf71da4f2780618d7caf8e",
+    "navigation": {
+      "stalls": 0,
+      "unreachable": 0,
+      "airborneStalls": 0
+    },
+    "runtimeStillMatches": true,
+    "matchedCandidateFiles": 41,
+    "changedSourceFilesAfterRun": [
+      "scripts/raid-load.mjs"
+    ],
+    "note": "Game/service/shared sources match the candidate. This run used the pre-correction runner, which could burst requests in its trailing interval. Its raw counts and gate outcomes remain observations, not proof of the subsequent runner pacing."
+  },
+  "pacedMovementLoad": {
+    "scenario": {
+      "players": 9,
+      "seconds": 60,
+      "latencyMs": 150,
+      "loss": 0.05,
+      "seed": 20261030,
+      "profile": "movement",
+      "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+    },
+    "actions": 2979,
+    "outcomes": {
+      "death": 3
+    },
+    "failedActions": 3,
+    "errorStatuses": {
+      "delivery:move": 3
+    },
+    "gameplayRejections": {},
+    "checks": {
+      "noProlongedAirborneStalls": true,
+      "observedEconomyConserved": true,
+      "allClientsCompleted": true,
+      "noSimulationErrors": true,
+      "actionFailureRateWithinBudget": true,
+      "tickP95Within50ms": true,
+      "tickIntervalP95Within75ms": true
+    },
+    "sourceFingerprint": "f7827207f2ca296c21f7a1e46537479bc1390212a0c3e3547b17098b49a45110",
+    "navigation": {
+      "stalls": 0,
+      "unreachable": 0,
+      "airborneStalls": 0
+    },
+    "allFingerprintFilesStillMatch": true,
+    "note": "Separate 60-second movement verification of the corrected runner, not additional full-gameplay or multi-hour acceptance."
+  },
+  "retainedFailures": {
+    "interactionPreFix": {
+      "path": "/tmp/hs-interactions-before.log",
+      "pass": 3,
+      "fail": 9
+    },
+    "shortLoadAssumption": {
+      "path": "/tmp/hs-interactions-verified-suite.log",
+      "pass": 1018,
+      "fail": 1,
+      "assertion": "report.accepted.move >= 3 in a one-second gameplay smoke test",
+      "note": "The original failed sample did not retain its full command distribution, so its exact cause is not reconstructed. An unchanged-assertion diagnostic rerun passed; inspection separately found initial scheduling and terminal pacing defects in the runner."
+    },
+    "diagnosticRerun": "/tmp/hs-interactions-suite-diagnostic.log",
+    "runnerCorrection": "Every scheduled client attempts an initial command; the runner stops rather than bursting when the next paced slot reaches the deadline. Gameplay smoke checks accepted commands of any valid type and their aggregate count; a movement smoke bound detects terminal bursts."
+  },
+  "verified": [
+    "Only one search/revival/boarding interaction per operator.",
+    "Movement, damage, elimination and another gameplay action cancel and release claims/reservations immediately.",
+    "Looking, stationary keepalives, pings and repeating the current search preserve its timer.",
+    "Downed/historical parallel claims cannot open multiple containers.",
+    "Rejected requests, failed checkpoints and replayed older receipts preserve the correct current interaction.",
+    "Vault unlock payment rolls back with failed writes and remains spent exactly once across interrupted searches.",
+    "Two authenticated browser contexts verify rejected contested searches, immediate claim reuse, exactly one pickup owner, action interruption and restartable boarding while the rival raid continues."
+  ],
+  "limitations": [
+    "Loopback application-level delay/loss is not real WAN, physical-device or multi-hour testing.",
+    "Browser positions/cache placement/time are server fixtures, not human balance acceptance.",
+    "No commit, push, merge or public deployment performed.",
+    "Full remaining scope is retained in RELEASE_ACCEPTANCE.md."
+  ]
+}

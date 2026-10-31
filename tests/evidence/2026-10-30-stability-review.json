@@ -1,0 +1,3307 @@
+{
+  "date": "2026-10-30",
+  "candidate": {
+    "id": "202f41a60fd8be4ef223890cc0aea445fc998a9af467a23c3d0413653e6b5787",
+    "label": "stability-candidate",
+    "path": "/private/tmp/headshotz-extraction-stability-candidate",
+    "files": 192,
+    "bytes": 11508953,
+    "schema": 11,
+    "protocol": 8
+  },
+  "sourceMatchesCandidate": true,
+  "testSha256": {
+    "tests/raid-stall-replay.test.mjs": "623de6b5e746036b2ef4c474de02efd75419ea33c77d33bd54408c18476080b3",
+    "tests/raid-failure-diagnostics.test.mjs": "61b0187732b0dd2a7e6620c54c8b67d6a799d5970941a837bdabf532fcfdf944",
+    "tests/raid-browser-entry.mjs": "cab876c30d9655f9f0824ce280d1b0fcffecb1d860f8deefa35ec384e62ce905",
+    "tests/raid-browser-legacy.mjs": "9ec27c3219da824bd4bb1ff40ca38dbb7d545aacac34714571ca959112ed216e"
+  },
+  "scope": "Current navigation/controller/entry corrections and prospective failure diagnostics. Original unexplained historical outcomes remain retained, not retroactively relabeled.",
+  "replay": {
+    "scope": "Static current physics/navigation replay of recorded positions. Fresh replanning and the recorded immediate waypoint are tested independently. Original velocity, held input, complete path, combat, network timing and dynamic target locations were not recorded. Success does not establish the original cause.",
+    "recordedStalls": 42,
+    "recordedPoses": 42,
+    "results": [
+      {
+        "index": 0,
+        "sample": {
+          "map": "relay",
+          "x": -54.000576398239936,
+          "y": 0,
+          "z": -51.117041769120185,
+          "target": "cache0",
+          "waypoint": {
+            "x": -54,
+            "y": 0,
+            "z": -52
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 7.799999999992906,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 0,
+        "sample": {
+          "map": "relay",
+          "x": -54.000576398239936,
+          "y": 0,
+          "z": -51.117041769120185,
+          "target": "cache0",
+          "waypoint": {
+            "x": -54,
+            "y": 0,
+            "z": -52
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 12.449999999988677,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 1,
+        "sample": {
+          "map": "relay",
+          "x": -49.858474632440256,
+          "y": 0,
+          "z": 35.98462189999408,
+          "target": "cache5",
+          "waypoint": {
+            "x": -48,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 3.7499999999965894,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 1,
+        "sample": {
+          "map": "relay",
+          "x": -49.858474632440256,
+          "y": 0,
+          "z": 35.98462189999408,
+          "target": "cache5",
+          "waypoint": {
+            "x": -48,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.8499999999946795,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 2,
+        "sample": {
+          "map": "relay",
+          "x": 44.00047860708518,
+          "y": 0,
+          "z": -40.0299714301448,
+          "target": "cache4",
+          "waypoint": {
+            "x": 44,
+            "y": 0,
+            "z": -38
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 3.7499999999965894,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 2,
+        "sample": {
+          "map": "relay",
+          "x": 44.00047860708518,
+          "y": 0,
+          "z": -40.0299714301448,
+          "target": "cache4",
+          "waypoint": {
+            "x": 44,
+            "y": 0,
+            "z": -38
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.999999999994543,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 3,
+        "sample": {
+          "map": "reservoir",
+          "x": 31.300602925411674,
+          "y": 0,
+          "z": 59.36711650792032,
+          "target": "cache9",
+          "waypoint": {
+            "x": 30,
+            "y": 0,
+            "z": 60
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 4.349999999996044,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 3,
+        "sample": {
+          "map": "reservoir",
+          "x": 31.300602925411674,
+          "y": 0,
+          "z": 59.36711650792032,
+          "target": "cache9",
+          "waypoint": {
+            "x": 30,
+            "y": 0,
+            "z": 60
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 6.29999999999427,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 4,
+        "sample": {
+          "map": "switchyard",
+          "x": 34.02499388413777,
+          "y": 0,
+          "z": 56.014382038197255,
+          "target": "cache2",
+          "waypoint": {
+            "x": 34,
+            "y": 0,
+            "z": 54
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.399999999995089,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 4,
+        "sample": {
+          "map": "switchyard",
+          "x": 34.02499388413777,
+          "y": 0,
+          "z": 56.014382038197255,
+          "target": "cache2",
+          "waypoint": {
+            "x": 34,
+            "y": 0,
+            "z": 54
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 8.699999999992087,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 5,
+        "sample": {
+          "map": "relay",
+          "x": 33.208608041996655,
+          "y": 0,
+          "z": 36.011689021888536,
+          "target": "cache6",
+          "waypoint": {
+            "x": 34,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.099999999995362,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 5,
+        "sample": {
+          "map": "relay",
+          "x": 33.208608041996655,
+          "y": 0,
+          "z": 36.011689021888536,
+          "target": "cache6",
+          "waypoint": {
+            "x": 34,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 7.799999999992906,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 6,
+        "sample": {
+          "map": "relay",
+          "x": -22.36891017337436,
+          "y": 0,
+          "z": 7.940586748967425,
+          "target": "call",
+          "waypoint": {
+            "x": -24,
+            "y": 0,
+            "z": 8
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 12.299999999988813,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 6,
+        "sample": {
+          "map": "relay",
+          "x": -22.36891017337436,
+          "y": 0,
+          "z": 7.940586748967425,
+          "target": "call",
+          "waypoint": {
+            "x": -24,
+            "y": 0,
+            "z": 8
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 19.499999999982265,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 7,
+        "sample": {
+          "map": "reservoir",
+          "x": 24.72127324016903,
+          "y": 0,
+          "z": 48.348388016155624,
+          "target": "cache1",
+          "waypoint": {
+            "x": 24,
+            "y": 0,
+            "z": 48
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.549999999994952,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 7,
+        "sample": {
+          "map": "reservoir",
+          "x": 24.72127324016903,
+          "y": 0,
+          "z": 48.348388016155624,
+          "target": "cache1",
+          "waypoint": {
+            "x": 24,
+            "y": 0,
+            "z": 48
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 8.549999999992224,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 8,
+        "sample": {
+          "map": "switchyard",
+          "x": -17.978321665729723,
+          "y": 0,
+          "z": -5.688277978567581,
+          "target": "cache3",
+          "waypoint": {
+            "x": -18,
+            "y": 0,
+            "z": -4
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 29.249999999973397,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 8,
+        "sample": {
+          "map": "switchyard",
+          "x": -17.978321665729723,
+          "y": 0,
+          "z": -5.688277978567581,
+          "target": "cache3",
+          "waypoint": {
+            "x": -18,
+            "y": 0,
+            "z": -4
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 45.149999999958936,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 9,
+        "sample": {
+          "map": "switchyard",
+          "x": -53.21804773911384,
+          "y": 0,
+          "z": 26.14325045936715,
+          "target": "cache5",
+          "waypoint": {
+            "x": -54,
+            "y": 0,
+            "z": 26
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 1.9499999999982265,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 9,
+        "sample": {
+          "map": "switchyard",
+          "x": -53.21804773911384,
+          "y": 0,
+          "z": 26.14325045936715,
+          "target": "cache5",
+          "waypoint": {
+            "x": -54,
+            "y": 0,
+            "z": 26
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 2.9999999999972715,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 10,
+        "sample": {
+          "map": "relay",
+          "x": -51.205059143109914,
+          "y": 0,
+          "z": 36.01167070226084,
+          "target": "cache5",
+          "waypoint": {
+            "x": -50,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 4.349999999996044,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 10,
+        "sample": {
+          "map": "relay",
+          "x": -51.205059143109914,
+          "y": 0,
+          "z": 36.01167070226084,
+          "target": "cache5",
+          "waypoint": {
+            "x": -50,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 6.8999999999937245,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 11,
+        "sample": {
+          "map": "relay",
+          "x": 14.085631793299257,
+          "y": 0.4067853737716477,
+          "z": -6.457685786647781,
+          "target": "cache2",
+          "waypoint": {
+            "x": 14,
+            "y": 0.53,
+            "z": -6
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 7.199999999993452,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 11,
+        "sample": {
+          "map": "relay",
+          "x": 14.085631793299257,
+          "y": 0.4067853737716477,
+          "z": -6.457685786647781,
+          "target": "cache2",
+          "waypoint": {
+            "x": 14,
+            "y": 0.53,
+            "z": -6
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 10.799999999990177,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 12,
+        "sample": {
+          "map": "relay",
+          "x": 64.01753825213393,
+          "y": 0,
+          "z": 35.97823011059729,
+          "target": "cache3",
+          "waypoint": {
+            "x": 62,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 7.199999999993452,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 12,
+        "sample": {
+          "map": "relay",
+          "x": 64.01753825213393,
+          "y": 0,
+          "z": 35.97823011059729,
+          "target": "cache3",
+          "waypoint": {
+            "x": 62,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 11.699999999989359,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 13,
+        "sample": {
+          "map": "relay",
+          "x": 9.374429176473214,
+          "y": 4.22,
+          "z": 8.386185131053475,
+          "target": "cache1",
+          "waypoint": {
+            "x": 10,
+            "y": 4.22,
+            "z": 8
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 3.4499999999968622,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 13,
+        "sample": {
+          "map": "relay",
+          "x": 9.374429176473214,
+          "y": 4.22,
+          "z": 8.386185131053475,
+          "target": "cache1",
+          "waypoint": {
+            "x": 10,
+            "y": 4.22,
+            "z": 8
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.249999999995225,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 14,
+        "sample": {
+          "map": "reservoir",
+          "x": 22.01345957909787,
+          "y": 0,
+          "z": -40.012866917037826,
+          "target": "cache6",
+          "waypoint": {
+            "x": 22,
+            "y": 0,
+            "z": -38
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 1.049999999999045,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 14,
+        "sample": {
+          "map": "reservoir",
+          "x": 22.01345957909787,
+          "y": 0,
+          "z": -40.012866917037826,
+          "target": "cache6",
+          "waypoint": {
+            "x": 22,
+            "y": 0,
+            "z": -38
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 1.6499999999984993,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 15,
+        "sample": {
+          "map": "reservoir",
+          "x": 31.72951637296794,
+          "y": 0,
+          "z": 61.78548078810831,
+          "target": "cache9",
+          "waypoint": {
+            "x": 32,
+            "y": 0,
+            "z": 60
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 4.499999999995907,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 15,
+        "sample": {
+          "map": "reservoir",
+          "x": 31.72951637296794,
+          "y": 0,
+          "z": 61.78548078810831,
+          "target": "cache9",
+          "waypoint": {
+            "x": 32,
+            "y": 0,
+            "z": 60
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 7.049999999993588,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 16,
+        "sample": {
+          "map": "switchyard",
+          "x": -60.07035959292722,
+          "y": 0,
+          "z": 8.321652047556816,
+          "target": "call",
+          "waypoint": {
+            "x": -62,
+            "y": 0,
+            "z": 8
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 3.599999999996726,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 16,
+        "sample": {
+          "map": "switchyard",
+          "x": -60.07035959292722,
+          "y": 0,
+          "z": 8.321652047556816,
+          "target": "call",
+          "waypoint": {
+            "x": -62,
+            "y": 0,
+            "z": 8
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.399999999995089,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 17,
+        "sample": {
+          "map": "relay",
+          "x": -43.996102118264915,
+          "y": 0,
+          "z": 16.80293830070603,
+          "target": "cache7",
+          "waypoint": {
+            "x": -44,
+            "y": 0,
+            "z": 16
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 1.4999999999986358,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 17,
+        "sample": {
+          "map": "relay",
+          "x": -43.996102118264915,
+          "y": 0,
+          "z": 16.80293830070603,
+          "target": "cache7",
+          "waypoint": {
+            "x": -44,
+            "y": 0,
+            "z": 16
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 2.399999999997817,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 18,
+        "sample": {
+          "map": "relay",
+          "x": -29.986507664036246,
+          "y": 0,
+          "z": 53.99886998307625,
+          "target": "cache5",
+          "waypoint": {
+            "x": -30,
+            "y": 0,
+            "z": 52
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.399999999995089,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 18,
+        "sample": {
+          "map": "relay",
+          "x": -29.986507664036246,
+          "y": 0,
+          "z": 53.99886998307625,
+          "target": "cache5",
+          "waypoint": {
+            "x": -30,
+            "y": 0,
+            "z": 52
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 8.549999999992224,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 19,
+        "sample": {
+          "map": "relay",
+          "x": -0.000058736630386001796,
+          "y": 0,
+          "z": 3.9714241665879513,
+          "target": "cache2",
+          "waypoint": {
+            "x": 0,
+            "y": 0,
+            "z": 2
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 19,
+        "sample": {
+          "map": "relay",
+          "x": -0.000058736630386001796,
+          "y": 0,
+          "z": 3.9714241665879513,
+          "target": "cache2",
+          "waypoint": {
+            "x": 0,
+            "y": 0,
+            "z": 2
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 20,
+        "sample": {
+          "map": "switchyard",
+          "x": -46.515746072706335,
+          "y": 0,
+          "z": -2.0614795770941883,
+          "target": "call",
+          "waypoint": {
+            "x": -46,
+            "y": 0,
+            "z": -2
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.549999999994952,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 20,
+        "sample": {
+          "map": "switchyard",
+          "x": -46.515746072706335,
+          "y": 0,
+          "z": -2.0614795770941883,
+          "target": "call",
+          "waypoint": {
+            "x": -46,
+            "y": 0,
+            "z": -2
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 8.549999999992224,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 21,
+        "sample": {
+          "map": "relay",
+          "x": -50.03461378406092,
+          "y": 0,
+          "z": 35.99165429108408,
+          "target": "cache5",
+          "waypoint": {
+            "x": -48,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 3.7499999999965894,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 21,
+        "sample": {
+          "map": "relay",
+          "x": -50.03461378406092,
+          "y": 0,
+          "z": 35.99165429108408,
+          "target": "cache5",
+          "waypoint": {
+            "x": -48,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.8499999999946795,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 22,
+        "sample": {
+          "map": "reservoir",
+          "x": 28.408764448162163,
+          "y": 0,
+          "z": 60.11210782753661,
+          "target": "cache9",
+          "waypoint": {
+            "x": 28,
+            "y": 0,
+            "z": 60
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 3.2999999999969987,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 22,
+        "sample": {
+          "map": "reservoir",
+          "x": 28.408764448162163,
+          "y": 0,
+          "z": 60.11210782753661,
+          "target": "cache9",
+          "waypoint": {
+            "x": 28,
+            "y": 0,
+            "z": 60
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 4.949999999995498,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 23,
+        "sample": {
+          "map": "switchyard",
+          "x": 48.006646097701626,
+          "y": 1.1392062283866637,
+          "z": 26.123823451173443,
+          "target": "transport",
+          "waypoint": {
+            "x": 48,
+            "y": 0.55,
+            "z": 24
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 13.049999999988131,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 23,
+        "sample": {
+          "map": "switchyard",
+          "x": 48.006646097701626,
+          "y": 1.1392062283866637,
+          "z": 26.123823451173443,
+          "target": "transport",
+          "waypoint": {
+            "x": 48,
+            "y": 0.55,
+            "z": 24
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.7499999999993179
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.7499999999993179,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 20.9999999999809,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 24,
+        "sample": {
+          "map": "switchyard",
+          "x": 30.535219362098992,
+          "y": 0,
+          "z": 20.047609001063673,
+          "target": "cache3",
+          "waypoint": {
+            "x": 30,
+            "y": 0,
+            "z": 20
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 12.749999999988404,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 24,
+        "sample": {
+          "map": "switchyard",
+          "x": 30.535219362098992,
+          "y": 0,
+          "z": 20.047609001063673,
+          "target": "cache3",
+          "waypoint": {
+            "x": 30,
+            "y": 0,
+            "z": 20
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 19.949999999981856,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 25,
+        "sample": {
+          "map": "switchyard",
+          "x": 8.261808766078511,
+          "y": 0,
+          "z": -33.977458571692864,
+          "target": "cache6",
+          "waypoint": {
+            "x": 8,
+            "y": 0,
+            "z": -36
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 3.4499999999968622,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 25,
+        "sample": {
+          "map": "switchyard",
+          "x": 8.261808766078511,
+          "y": 0,
+          "z": -33.977458571692864,
+          "target": "cache6",
+          "waypoint": {
+            "x": 8,
+            "y": 0,
+            "z": -36
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.249999999995225,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 26,
+        "sample": {
+          "map": "switchyard",
+          "x": 36.15481463182689,
+          "y": 0,
+          "z": 55.940783193565956,
+          "target": "cache2",
+          "waypoint": {
+            "x": 34,
+            "y": 0,
+            "z": 56
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.8499999999946795,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 26,
+        "sample": {
+          "map": "switchyard",
+          "x": 36.15481463182689,
+          "y": 0,
+          "z": 55.940783193565956,
+          "target": "cache2",
+          "waypoint": {
+            "x": 34,
+            "y": 0,
+            "z": 56
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.7499999999993179
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.7499999999993179,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 9.449999999991405,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 27,
+        "sample": {
+          "map": "relay",
+          "x": 54.27389736103628,
+          "y": 0,
+          "z": 36.13115195601034,
+          "target": "cache3",
+          "waypoint": {
+            "x": 52,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 4.949999999995498,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 27,
+        "sample": {
+          "map": "relay",
+          "x": 54.27389736103628,
+          "y": 0,
+          "z": 36.13115195601034,
+          "target": "cache3",
+          "waypoint": {
+            "x": 52,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.7499999999993179
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.7499999999993179,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 8.099999999992633,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 28,
+        "sample": {
+          "map": "relay",
+          "x": -35.045430339048224,
+          "y": 0,
+          "z": 33.99986314304669,
+          "target": "machine_7_salvage",
+          "waypoint": {
+            "x": -36,
+            "y": 0,
+            "z": 34
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": false,
+          "reason": "Dynamic target position was not recorded"
+        }
+      },
+      {
+        "index": 28,
+        "sample": {
+          "map": "relay",
+          "x": -35.045430339048224,
+          "y": 0,
+          "z": 33.99986314304669,
+          "target": "machine_7_salvage",
+          "waypoint": {
+            "x": -36,
+            "y": 0,
+            "z": 34
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": false,
+          "reason": "Dynamic target position was not recorded"
+        }
+      },
+      {
+        "index": 29,
+        "sample": {
+          "map": "reservoir",
+          "x": -51.75808449496488,
+          "y": 0,
+          "z": -23.661400197844916,
+          "target": "call",
+          "waypoint": {
+            "x": -52,
+            "y": 0,
+            "z": -24
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 9.149999999991678,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 29,
+        "sample": {
+          "map": "reservoir",
+          "x": -51.75808449496488,
+          "y": 0,
+          "z": -23.661400197844916,
+          "target": "call",
+          "waypoint": {
+            "x": -52,
+            "y": 0,
+            "z": -24
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 13.649999999987585,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 30,
+        "sample": {
+          "map": "switchyard",
+          "x": 29.985267251835772,
+          "y": 0,
+          "z": 0.035058873235977894,
+          "target": "cache3",
+          "waypoint": {
+            "x": 32,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 16.79999999998472,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 30,
+        "sample": {
+          "map": "switchyard",
+          "x": 29.985267251835772,
+          "y": 0,
+          "z": 0.035058873235977894,
+          "target": "cache3",
+          "waypoint": {
+            "x": 32,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 26.699999999975716,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 31,
+        "sample": {
+          "map": "relay",
+          "x": 56.29020598180153,
+          "y": 0,
+          "z": 36.012105592116015,
+          "target": "cache3",
+          "waypoint": {
+            "x": 54,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.399999999995089,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 31,
+        "sample": {
+          "map": "relay",
+          "x": 56.29020598180153,
+          "y": 0,
+          "z": 36.012105592116015,
+          "target": "cache3",
+          "waypoint": {
+            "x": 54,
+            "y": 0,
+            "z": 36
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.7499999999993179
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.7499999999993179,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 8.849999999991951,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 32,
+        "sample": {
+          "map": "reservoir",
+          "x": 57.854097257777404,
+          "y": 0,
+          "z": 38,
+          "target": "cache1",
+          "waypoint": {
+            "x": 56,
+            "y": 0,
+            "z": 38
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 7.199999999993452,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 32,
+        "sample": {
+          "map": "reservoir",
+          "x": 57.854097257777404,
+          "y": 0,
+          "z": 38,
+          "target": "cache1",
+          "waypoint": {
+            "x": 56,
+            "y": 0,
+            "z": 38
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 11.699999999989359,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 33,
+        "sample": {
+          "map": "reservoir",
+          "x": 23.958110425373402,
+          "y": 0,
+          "z": 48.00034933045465,
+          "target": "cache1",
+          "waypoint": {
+            "x": 24,
+            "y": 0,
+            "z": 46
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.399999999995089,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 33,
+        "sample": {
+          "map": "reservoir",
+          "x": 23.958110425373402,
+          "y": 0,
+          "z": 48.00034933045465,
+          "target": "cache1",
+          "waypoint": {
+            "x": 24,
+            "y": 0,
+            "z": 46
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 8.249999999992497,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 34,
+        "sample": {
+          "map": "relay",
+          "x": -37.97921665130304,
+          "y": 0,
+          "z": -0.013823110368458638,
+          "target": "call",
+          "waypoint": {
+            "x": -40,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 6.749999999993861,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 34,
+        "sample": {
+          "map": "relay",
+          "x": -37.97921665130304,
+          "y": 0,
+          "z": -0.013823110368458638,
+          "target": "call",
+          "waypoint": {
+            "x": -40,
+            "y": 0,
+            "z": 0
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 10.949999999990041,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 35,
+        "sample": {
+          "map": "relay",
+          "x": -39.96898873251591,
+          "y": 0,
+          "z": 8.001511563500445,
+          "target": "cache7",
+          "waypoint": {
+            "x": -42,
+            "y": 0,
+            "z": 8
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 35,
+        "sample": {
+          "map": "relay",
+          "x": -39.96898873251591,
+          "y": 0,
+          "z": 8.001511563500445,
+          "target": "cache7",
+          "waypoint": {
+            "x": -42,
+            "y": 0,
+            "z": 8
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 36,
+        "sample": {
+          "map": "relay",
+          "x": -46.04485442676056,
+          "y": 0,
+          "z": 27.92766853968048,
+          "target": "call",
+          "waypoint": {
+            "x": -46,
+            "y": 0,
+            "z": 26
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 10.949999999990041,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 36,
+        "sample": {
+          "map": "relay",
+          "x": -46.04485442676056,
+          "y": 0,
+          "z": 27.92766853968048,
+          "target": "call",
+          "waypoint": {
+            "x": -46,
+            "y": 0,
+            "z": 26
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 16.949999999984584,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 37,
+        "sample": {
+          "map": "reservoir",
+          "x": -1.9030012312190945,
+          "y": 0,
+          "z": -31.694064155438756,
+          "target": "cache10",
+          "waypoint": {
+            "x": -2,
+            "y": 0,
+            "z": -30
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 2.849999999997408,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 37,
+        "sample": {
+          "map": "reservoir",
+          "x": -1.9030012312190945,
+          "y": 0,
+          "z": -31.694064155438756,
+          "target": "cache10",
+          "waypoint": {
+            "x": -2,
+            "y": 0,
+            "z": -30
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 4.19999999999618,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 38,
+        "sample": {
+          "map": "switchyard",
+          "x": 18.043427954738043,
+          "y": 0,
+          "z": -39.99995168367208,
+          "target": "call",
+          "waypoint": {
+            "x": 16,
+            "y": 0,
+            "z": -40
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.4499999999995907,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 28.349999999974216,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 38,
+        "sample": {
+          "map": "switchyard",
+          "x": 18.043427954738043,
+          "y": 0,
+          "z": -39.99995168367208,
+          "target": "call",
+          "waypoint": {
+            "x": 16,
+            "y": 0,
+            "z": -40
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 43.94999999996003,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 39,
+        "sample": {
+          "map": "relay",
+          "x": -37.77263969776833,
+          "y": 0,
+          "z": 19.71210804622343,
+          "target": "call",
+          "waypoint": {
+            "x": -38,
+            "y": 0,
+            "z": 20
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 11.399999999989632,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 39,
+        "sample": {
+          "map": "relay",
+          "x": -37.77263969776833,
+          "y": 0,
+          "z": 19.71210804622343,
+          "target": "call",
+          "waypoint": {
+            "x": -38,
+            "y": 0,
+            "z": 20
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.14999999999986358,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 17.54999999998404,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 40,
+        "sample": {
+          "map": "switchyard",
+          "x": -3.697417705224347,
+          "y": 0,
+          "z": -37.98059336628273,
+          "target": "cache1",
+          "waypoint": {
+            "x": -2,
+            "y": 0,
+            "z": -38
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.29999999999972715,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 3.149999999997135,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 40,
+        "sample": {
+          "map": "switchyard",
+          "x": -3.697417705224347,
+          "y": 0,
+          "z": -37.98059336628273,
+          "target": "cache1",
+          "waypoint": {
+            "x": -2,
+            "y": 0,
+            "z": -38
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 0.5999999999994543,
+          "stalls": 0,
+          "offRouteReplans": 0
+        },
+        "route": {
+          "available": true,
+          "reached": true,
+          "seconds": 5.249999999995225,
+          "stalls": 0
+        }
+      },
+      {
+        "index": 41,
+        "sample": {
+          "map": "switchyard",
+          "x": -44.01789856507634,
+          "y": 0,
+          "z": 27.40147147504409,
+          "target": "machine_4_salvage",
+          "waypoint": {
+            "x": -44,
+            "y": 0.68,
+            "z": 28
+          }
+        },
+        "profile": "legacy",
+        "waypoint": {
+          "available": true,
+          "reached": false,
+          "final": {
+            "x": -44.00000000000001,
+            "y": 0,
+            "z": 27.40147147504409
+          },
+          "distance": 0.9058898361202079
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 1.6499999999984993,
+          "stalls": 0,
+          "offRouteReplans": 1
+        },
+        "route": {
+          "available": false,
+          "reason": "Dynamic target position was not recorded"
+        }
+      },
+      {
+        "index": 41,
+        "sample": {
+          "map": "switchyard",
+          "x": -44.01789856507634,
+          "y": 0,
+          "z": 27.40147147504409,
+          "target": "machine_4_salvage",
+          "waypoint": {
+            "x": -44,
+            "y": 0.68,
+            "z": 28
+          }
+        },
+        "profile": "heavy_injured",
+        "waypoint": {
+          "available": true,
+          "reached": false,
+          "final": {
+            "x": -44.00000000000001,
+            "y": 0,
+            "z": 27.40147147504409
+          },
+          "distance": 0.9058898361202079
+        },
+        "recoveredWaypoint": {
+          "available": true,
+          "reached": true,
+          "seconds": 2.399999999997817,
+          "stalls": 0,
+          "offRouteReplans": 1
+        },
+        "route": {
+          "available": false,
+          "reason": "Dynamic target position was not recorded"
+        }
+      }
+    ],
+    "summary": {
+      "waypointReached": 82,
+      "waypointFailed": 2,
+      "routesReached": 80,
+      "routesFailed": 0,
+      "dynamicTargetsMissing": 4
+    },
+    "source": {
+      "sha256": "82ba4a461d4f80f4af168352fd44d8c4233434cf314254359b9c0c6fb437b52f",
+      "files": [
+        {
+          "path": "scripts/replay-raid-stalls.mjs",
+          "sha256": "4cb6d2e23b09dbb47c67d6c23b4878cac070cacf2afe2e9b7397ad2e380cea4b"
+        },
+        {
+          "path": "scripts/lib/raid-pilot.mjs",
+          "sha256": "ddad27d898f1bab16dcaa6e6a080963640cfca9cbb7bf7421469e60452672cb0"
+        },
+        {
+          "path": "shared/raid-worlds.mjs",
+          "sha256": "d07da399c76e49d22a7e7f10cafe43643fa8e94bbd815b90a1557cca228fec58"
+        },
+        {
+          "path": "shared/raid-motion.mjs",
+          "sha256": "60a9d2ce3f94d21f35a5e09d3df19c288ddd3b6992d1b6e376039f04fdd687bd"
+        },
+        {
+          "path": "shared/raid-combat.mjs",
+          "sha256": "f4c3873f2fb28a69566cd5c3c34d773a81694285e1db573c1f91cb49f21941a9"
+        },
+        {
+          "path": "shared/raid-navigation.mjs",
+          "sha256": "4e7b1116d54afda173080c463199753abe18be34c5e9e4c730acfe70d2e678c5"
+        }
+      ]
+    },
+    "recordedGeometryMatches": true
+  },
+  "verification": {
+    "broadAutomated": {
+      "passed": 904,
+      "failed": 0,
+      "log": "/tmp/hs-stability-final-current-tests.log"
+    },
+    "releaseAfterFinalChanges": {
+      "passed": 10,
+      "failed": 0,
+      "log": "/tmp/hs-stability-release-final-tests.log"
+    },
+    "browserScenarios": [
+      {
+        "file": "raid-browser-accessibility.mjs",
+        "code": 0,
+        "output": "{\"remapping\":true,\"persistentSettings\":true,\"nativeDialogFocus\":true,\"keyboardAim\":true,\"statusAnnouncement\":true,\"itemInspection\":true,\"keyboardSearchTakeSecure\":true,\"touchBoarding\":true,\"modalStopsMovement\":true,\"backgroundStopsMovement\":true,\"reducedMotionRender\":true,\"touchTargets\":true,\"mobileAim\":true,\"mobileOverflow\":false,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-account.mjs",
+        "code": 0,
+        "output": "{\"sessionList\":true,\"passwordRotation\":true,\"recoveryCodesHidden\":true,\"lateCodeDisplayCanceled\":true,\"remoteSignout\":true,\"microphoneReleased\":true,\"codeRecovery\":true,\"activeBodyPreserved\":true,\"ownedItemsPreserved\":true,\"reconnectedAfterRecovery\":true,\"staleResponseAccountIsolation\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-audio.mjs",
+        "code": 0,
+        "output": "{\"distinctMachineCues\":5,\"utilityCuesRendered\":4,\"realWebAudioRendering\":true,\"directionalStereo\":true,\"muteSilent\":true,\"boundedVoices\":true,\"nodesReleased\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-comms.mjs",
+        "code": 0,
+        "output": "{\"optIn\":true,\"pushToTalk\":true,\"audioRtpReceived\":true,\"muteDisconnect\":true,\"unmuteReconnect\":true,\"squadPing\":true,\"reportSaved\":true,\"blockSuppressesPing\":true,\"microphoneReleased\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-entry.mjs",
+        "code": 0,
+        "output": "{\"mainGameEntry\":true,\"persistentRaidNavigation\":true,\"savedQueryEntry\":true,\"savedSessionEntry\":true,\"localFallbackPreserved\":true,\"browserErrors\":[],\"scope\":\"Local fallback is checked by removing the server marker, matching a plain static page; not a full legacy multiplayer regression.\"}\n"
+      },
+      {
+        "file": "raid-browser-exits.mjs",
+        "code": 0,
+        "output": "{\"costsBeforeDeploy\":true,\"ownedFuelDeployed\":true,\"resourceCostConsumedOnce\":true,\"seatReservation\":true,\"rivalRejectedAtCapacity\":true,\"damageFreesSeat\":true,\"independentExtraction\":true,\"fullExitDisplayed\":true,\"reportIncludesAccessCost\":true,\"ownedWeaponReturned\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-grants.mjs",
+        "code": 0,
+        "output": "{\"starterBalanceVisible\":true,\"starterPurchaseLabel\":true,\"earnedCreditsSpentFirst\":true,\"staleShopQuoteRefreshesWithoutPurchase\":true,\"foreignStarterTakeDisabled\":true,\"inspectionExplainsRestriction\":true,\"serverRejectsBypass\":true,\"originalOwnerCanRecover\":true,\"earnedWeaponCanTransferAndBank\":true,\"browserErrors\":[],\"scope\":\"Two isolated accounts; earned-credit grant and meeting/extraction positions are server fixtures, not a complete human economy playtest.\"}\n"
+      },
+      {
+        "file": "raid-browser-loss-report.mjs",
+        "code": 0,
+        "output": "{\"leftScreenWithoutEscape\":true,\"realOperatorSettlement\":true,\"automaticBaseRefresh\":true,\"ownedWeaponLost\":true,\"itemizedReport\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-matchmaking.mjs",
+        "code": 0,
+        "output": "{\"transparentRegionAndPopulationPolicy\":true,\"serverTimedLimit\":true,\"highLatencyPreservesOwnedGear\":true,\"explicitHigherLimitDeploys\":true,\"strictSoloPool\":true,\"leaderPreferenceChange\":true,\"allMembersReadyAgain\":true,\"memberPreferencesReadOnly\":true,\"completeDistinctSquadSpawn\":true,\"proofNotPersistedInBrowserStorage\":true,\"browserErrors\":[],\"scope\":\"Server clock fixture verifies policy/UI; not a WAN latency measurement.\"}\n"
+      },
+      {
+        "file": "raid-browser-medical.mjs",
+        "code": 0,
+        "output": "{\"ownedArmorAndMedicine\":true,\"exactInsuranceQuote\":true,\"armorAbsorptionHud\":true,\"bleedTreatment\":true,\"traumaTreatsBoth\":true,\"splintDoesNotHeal\":true,\"medicalCooldownUi\":true,\"armorRemoveReequip\":true,\"conditionBanks\":true,\"damageReport\":true,\"browserErrors\":[],\"scope\":\"Server damage/departure fixtures; not human combat or route balance acceptance.\"}\n"
+      },
+      {
+        "file": "raid-browser-network.mjs",
+        "code": 0,
+        "output": "{\"immediateVisualMovement\":true,\"authorityUnchangedBeforeDelivery\":true,\"reconciled\":true,\"lostShotResponseRetried\":true,\"ammunitionConsumedOnce\":true,\"sameDeploymentAfterReload\":true,\"shortInputDeliveredWithoutPolling\":true,\"releaseStopsWithoutPolling\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-offline.mjs",
+        "code": 0,
+        "output": "{\"legacyPrivateCachePurged\":true,\"privateApiNotCached\":true,\"healthNeverStale\":true,\"offlineJsonError\":true,\"onlineAccountRecovered\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-party.mjs",
+        "code": 0,
+        "output": "{\"partyInvite\":true,\"separateAccounts\":true,\"readyChecks\":true,\"groupDeployment\":true,\"sameRaid\":true,\"sameTeam\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-progression.mjs",
+        "code": 0,
+        "output": "{\"threeTraders\":true,\"inventoryCrafting\":true,\"workbenchUpgrade\":true,\"attachmentInstall\":true,\"stashSearch\":true,\"loadoutPreset\":true,\"insuranceQuote\":true,\"insuredDeployment\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-recycling.mjs",
+        "code": 0,
+        "output": "{\"quotedBatchYield\":true,\"mergedPurchasedAmmo\":true,\"partialBatchKeepsOriginalItem\":true,\"insufficientBatchDisabled\":true,\"serverRejectsBypass\":true,\"favoriteGuard\":true,\"medicalStackYield\":true,\"noSalvageTransmutation\":true,\"browserErrors\":[],\"scope\":\"Actual isolated shop/stash controls; does not establish long-term progression or account-farming resistance.\"}\n"
+      },
+      {
+        "file": "raid-browser-sectors.mjs",
+        "code": 0,
+        "output": "{\"sectorBriefing\":true,\"dayNightRendered\":true,\"moonAndStars\":true,\"unsecuredArtifactRecovered\":true,\"ownedItemExtracted\":true,\"saleAndLoadoutProtection\":true,\"contractFilter\":true,\"deliveryConsumesOnce\":true,\"rewardReplayRejected\":true,\"crossSessionProgress\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-smoke.mjs",
+        "code": 0,
+        "output": "{\"account\":true,\"recoveryDeployment\":true,\"rendered\":true,\"serverMovement\":true,\"reconnect\":true,\"browserExceptions\":[]}\n"
+      },
+      {
+        "file": "raid-browser-transfers.mjs",
+        "code": 0,
+        "output": "{\"stashSplitMerge\":true,\"zeroCreditAmmoQuote\":true,\"quantityDialogKeyboard\":true,\"cancelPreservesInventory\":true,\"focusSurvivesStackChange\":true,\"carriedAmmoSplit\":true,\"protectedMedicineWithdrawal\":true,\"partialContainerPickup\":true,\"equippedWeaponDrop\":true,\"unarmedFirstPerson\":true,\"remoteWeaponModelUpdates\":true,\"sameWeaponReequipped\":true,\"transferAudit\":true,\"browserErrors\":[],\"scope\":\"Server-arranged loot/observer positions; not human route or WAN acceptance.\"}\n"
+      },
+      {
+        "file": "raid-browser-utilities.mjs",
+        "code": 0,
+        "output": "{\"purchasedOwnedUtilities\":3,\"paidLoadout\":true,\"keyboardThrow\":true,\"backpackSelection\":true,\"touchButtonThrow\":true,\"smokeRendered\":true,\"lureRendered\":true,\"blastWarningRendered\":true,\"consumedOnce\":true,\"reconnectEffects\":true,\"browserErrors\":[]}\n"
+      },
+      {
+        "file": "raid-browser-worlds.mjs",
+        "code": 0,
+        "output": "{\"maps\":3,\"jump\":true,\"touchAim\":true,\"rendered\":true,\"browserErrors\":[]}\n"
+      }
+    ],
+    "additionalLegacyBrowser": {
+      "modes": {
+        "ext": {
+          "mode": "ext",
+          "phase": "play",
+          "offline": true,
+          "players": 7,
+          "bots": 6,
+          "cooperativeMission": true,
+          "royaleState": false,
+          "drawCalls": 114
+        },
+        "br": {
+          "mode": "br",
+          "phase": "play",
+          "offline": true,
+          "players": 24,
+          "bots": 23,
+          "cooperativeMission": false,
+          "royaleState": true,
+          "drawCalls": 238
+        },
+        "ffa": {
+          "mode": "ffa",
+          "phase": "play",
+          "offline": true,
+          "players": 10,
+          "bots": 9,
+          "cooperativeMission": false,
+          "royaleState": false,
+          "drawCalls": 150
+        }
+      },
+      "legacyWalletMigrated": true,
+      "ownedSkinWeaponUpgradePreserved": true,
+      "persistentEconomySeparate": true,
+      "returnToMainPreservesWallet": true,
+      "cosmeticShopOpens": true,
+      "browserErrors": [],
+      "scope": "Actual offline mode starts with natural countdown and a synthetic legacy profile. No remote PeerJS multiplayer or exhaustive wallet-schema/device acceptance."
+    },
+    "packagedBrowserScenarios": [
+      {
+        "file": "raid-browser-entry.mjs",
+        "code": 0,
+        "output": "{\"mainGameEntry\":true,\"persistentRaidNavigation\":true,\"savedQueryEntry\":true,\"savedSessionEntry\":true,\"localFallbackPreserved\":true,\"browserErrors\":[],\"scope\":\"Local fallback is checked by removing the server marker, matching a plain static page; not a full legacy multiplayer regression.\"}\n"
+      },
+      {
+        "file": "raid-browser-legacy.mjs",
+        "code": 0,
+        "output": "{\"modes\":{\"ext\":{\"mode\":\"ext\",\"phase\":\"play\",\"offline\":true,\"players\":7,\"bots\":6,\"cooperativeMission\":true,\"royaleState\":false,\"drawCalls\":117},\"br\":{\"mode\":\"br\",\"phase\":\"play\",\"offline\":true,\"players\":24,\"bots\":23,\"cooperativeMission\":false,\"royaleState\":true,\"drawCalls\":238},\"ffa\":{\"mode\":\"ffa\",\"phase\":\"play\",\"offline\":true,\"players\":10,\"bots\":9,\"cooperativeMission\":false,\"royaleState\":false,\"drawCalls\":132}},\"legacyWalletMigrated\":true,\"ownedSkinWeaponUpgradePreserved\":true,\"persistentEconomySeparate\":true,\"returnToMainPreservesWallet\":true,\"cosmeticShopOpens\":true,\"browserErrors\":[],\"scope\":\"Actual offline mode starts with natural countdown and a synthetic legacy profile. No remote PeerJS multiplayer or exhaustive wallet-schema/device acceptance.\"}\n"
+      }
+    ]
+  },
+  "measurements": [
+    {
+      "source": "bee7c54d32dbd8f8065c8c44dfa55a74dab9b20951630ed83582b29b7eb9985b",
+      "scenario": {
+        "players": 9,
+        "seconds": 180,
+        "latencyMs": 150,
+        "loss": 0.05,
+        "seed": 1,
+        "profile": "raid",
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "outcomes": {
+        "death": 4
+      },
+      "checks": {
+        "observedEconomyConserved": true,
+        "gameplayLoopCovered": false,
+        "gameplayRejectionRateWithinBudget": true,
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      },
+      "navigation": {
+        "unreachable": 43,
+        "stalls": 0,
+        "offRouteReplans": 16,
+        "airborneDeferrals": 0,
+        "airborneStalls": 0
+      },
+      "scope": "Failed original 180-second full-loop gate; retained in gameplay history. Search poses were not yet captured."
+    },
+    {
+      "source": "a4737b41facb6936f374f61fdc74e7285bf21d351d710a056fae73af50f5fcd7",
+      "scenario": {
+        "players": 9,
+        "seconds": 300,
+        "latencyMs": 150,
+        "loss": 0.05,
+        "seed": 1,
+        "profile": "raid",
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "outcomes": {
+        "death": 7,
+        "extract": 8
+      },
+      "checks": {
+        "observedEconomyConserved": true,
+        "gameplayLoopCovered": true,
+        "gameplayRejectionRateWithinBudget": true,
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      },
+      "navigation": {
+        "unreachable": 4,
+        "stalls": 0,
+        "offRouteReplans": 12,
+        "airborneDeferrals": 0,
+        "airborneStalls": 0
+      },
+      "failedSearchSamples": [
+        {
+          "map": "reservoir",
+          "mapVersion": 3,
+          "position": {
+            "x": 38.76860151432171,
+            "y": 0,
+            "z": 37.7013679386203
+          },
+          "grounded": true,
+          "vy": 0,
+          "combatVersion": 2,
+          "armor": "none",
+          "injured": false,
+          "carrying": false,
+          "target": "cache6",
+          "targetPosition": {
+            "x": 28,
+            "y": 0,
+            "z": -38
+          }
+        },
+        {
+          "map": "relay",
+          "mapVersion": 3,
+          "position": {
+            "x": -0.01666832264805387,
+            "y": 4.184834546125204,
+            "z": 8.94427506769946
+          },
+          "grounded": false,
+          "vy": -0.7016525880000263,
+          "combatVersion": 2,
+          "armor": "none",
+          "injured": false,
+          "carrying": false,
+          "target": "call",
+          "targetPosition": {
+            "x": -70,
+            "y": 0,
+            "z": 0
+          }
+        },
+        {
+          "map": "reservoir",
+          "mapVersion": 3,
+          "position": {
+            "x": -3.778882252725721,
+            "y": 1.6949210982959384,
+            "z": 5.741143353743276
+          },
+          "grounded": false,
+          "vy": -1.4004900000000489,
+          "combatVersion": 2,
+          "armor": "none",
+          "injured": false,
+          "carrying": false,
+          "target": "cache3",
+          "targetPosition": {
+            "x": 0,
+            "y": 1.8,
+            "z": 12
+          }
+        },
+        {
+          "map": "reservoir",
+          "mapVersion": 3,
+          "position": {
+            "x": -4.3312076129682975,
+            "y": 1.2662069969227678,
+            "z": 5.264104825723012
+          },
+          "grounded": false,
+          "vy": -3.5291153380001776,
+          "combatVersion": 2,
+          "armor": "none",
+          "injured": false,
+          "carrying": false,
+          "target": "cache0",
+          "targetPosition": {
+            "x": -30,
+            "y": 0,
+            "z": -22
+          }
+        }
+      ],
+      "scope": "Passed 300-second follow-up with four sampled failed searches. Grounded radius mismatch and three airborne poses reproduced before correction. Initial implicit standard-armor labels can be ambiguous; do not infer exact armor from none."
+    },
+    {
+      "source": "0c8729c066bc0f8e60ab94a7546d7f3b46672a3dfe9c5d082a3cb45614ca6d79",
+      "scenario": {
+        "players": 9,
+        "seconds": 600,
+        "latencyMs": 150,
+        "loss": 0.05,
+        "seed": 1,
+        "profile": "raid",
+        "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+      },
+      "actions": 29765,
+      "outcomes": {
+        "death": 9,
+        "extract": 19
+      },
+      "checks": {
+        "noProlongedAirborneStalls": true,
+        "observedEconomyConserved": true,
+        "gameplayLoopCovered": true,
+        "gameplayRejectionRateWithinBudget": true,
+        "allClientsCompleted": true,
+        "noSimulationErrors": true,
+        "actionFailureRateWithinBudget": true,
+        "tickP95Within50ms": true,
+        "tickIntervalP95Within75ms": true
+      },
+      "navigation": {
+        "unreachable": 0,
+        "stalls": 0,
+        "offRouteReplans": 10,
+        "airborneDeferrals": 31,
+        "airborneStalls": 0
+      },
+      "failedActions": 13,
+      "errorStatuses": {
+        "delivery:fire": 2,
+        "delivery:move": 11
+      },
+      "gameplayRejections": {},
+      "scope": "Final 600-second run, shared workstation with unit/browser checks. Zero failed route searches/stalls/prolonged airborne waits. Bounded delivery failures are retained; not a WAN/device/isolated-capacity test."
+    }
+  ],
+  "regressionsReproduced": [
+    {
+      "log": "/tmp/hs-stall-regression-before.log",
+      "cause": "Retained ramp-side waypoint waits for a stall timeout before replanning; targeted test fails before correction."
+    },
+    {
+      "log": "/tmp/hs-entry-regression-before.log",
+      "cause": "Saved query entry opens the old local base on a persistent host; actual browser regression times out before correction."
+    }
+  ],
+  "retainedDriverFailure": {
+    "log": "/tmp/hs-legacy-browser-current.log",
+    "cause": "New test waited on window.__hsz.inGame, a property the game does not expose. Corrected to actual client phase and visible HUD; no product fix attributed to that driver mistake."
+  },
+  "limits": [
+    "The 42 old poses are traversable under stated static replay conditions; original full paths, velocities and timing were not recorded, and two dynamic target locations remain unknown.",
+    "The three historical unclassified 409 failures remain unexplained. Controlled lost-response reproductions show plausible mechanisms, not their confirmed original causes.",
+    "Current recognized cooldown/capacity changes remain counted and gated; inconsistent/unknown failures remain unexpected.",
+    "Offline existing-mode and representative wallet tests do not certify remote legacy multiplayer, all schemas or physical devices.",
+    "Current-build multi-hour/WAN/device/human and the rest of full release acceptance remain open."
+  ]
+}

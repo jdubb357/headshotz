@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-30",
+  "scope": "Original local weapon/action synthesis, authoritative transition feedback, captions, mute and field lifetime. Full issue remains incomplete.",
+  "candidate": {
+    "id": "caa4ac87ae3a60689311943e95269310530c5723a31f20d878e04a0b7c6d3bef",
+    "label": "field-audio-caption",
+    "path": "/private/tmp/headshotz-extraction-field-audio-final-candidate",
+    "files": 201,
+    "bytes": 11587294,
+    "schema": 12,
+    "protocol": 9
+  },
+  "sourceSha256": {
+    "raid-audio.mjs": "0785736bb1142b65772a6aecfd7c04b00dfb53d8f0cdec6294bc27eeb695e77b",
+    "raid-view.mjs": "b043cfd09f574a31562bccecb7d5072819db6f085e9509a54eac5f15e7bb3cdf",
+    "raid-online.mjs": "cf9fde5e99c3fd29b2606127bda08479265d4ddae877a90550943570990dff7d",
+    "sw.js": "b7f1de1a4a4625b643e55254d41d3d04afdd4afb11453e576cd308607b066aec",
+    "COMBAT.md": "c59530d7833bdbeb0735198ca4265f49549d09970a21f22d95b25ebe8f5c07a6",
+    "tests/raid-audio.test.mjs": "44bbe8756ffa04fa1a0a65081d2161ce030507a8452f5823898aa5e4ce6cd814",
+    "tests/raid-browser-audio.mjs": "039def258730837c885ea66481836c594379fc60ff7aa5cbb983141d33d6c3be"
+  },
+  "automatedTests": {
+    "pass": 1041,
+    "fail": 0,
+    "log": "/tmp/hs-action-audio-final-suite.log"
+  },
+  "packagedAudio": {
+    "runtimeRoot": "file:///private/tmp/headshotz-extraction-field-audio-final-candidate/",
+    "distinctMachineCues": 5,
+    "utilityCuesRendered": 4,
+    "distinctWeaponCues": 6,
+    "distinctActionCues": 12,
+    "realWebAudioRendering": true,
+    "directionalStereo": true,
+    "muteSilent": true,
+    "boundedVoices": true,
+    "nodesReleased": true,
+    "nativeFireAndAcceptedReload": true,
+    "rejectedReloadSilent": true,
+    "damageCueNotDoubled": true,
+    "browserErrors": [],
+    "scope": "Actual offline Web Audio rendering and local authoritative native-input integration; not human mix/readability acceptance."
+  },
+  "packagedTrigger": {
+    "runtimeRoot": "file:///private/tmp/headshotz-extraction-field-audio-final-candidate/",
+    "keyboardAutomatic": true,
+    "releaseStops": true,
+    "modalClearsTrigger": true,
+    "noResumeAfterModal": true,
+    "staleOsRepeatIgnoredAfterClear": true,
+    "semiAutomatic": true,
+    "osRepeatIgnored": true,
+    "touchAutomatic": true,
+    "capturedMouseAutomatic": true,
+    "captureClickDoesNotFire": true,
+    "backgroundClearsTrigger": true,
+    "noSyntheticDoubleShot": true,
+    "authoritativeAmmo": true,
+    "reloadInterruptsTrigger": true,
+    "browserErrors": [],
+    "scope": "Local isolated service with machines removed; not human combat or WAN cadence acceptance."
+  },
+  "packagedLifecycle": {
+    "runtimeRoot": "file:///private/tmp/headshotz-extraction-field-audio-final-candidate/",
+    "returnToBaseClearsScene": true,
+    "signOutClearsSceneAndFieldUi": true,
+    "rendererContextReused": true,
+    "fieldAudioClosed": true,
+    "samePaidBodyResumed": true,
+    "noDuplicateDeployment": true,
+    "browserErrors": [],
+    "scope": "Isolated real paid deployment, base return, account-dialog sign-out and reauthentication. Clearing graphics does not extract or protect the authoritative body."
+  },
+  "sourceAccessibility": {
+    "remapping": true,
+    "persistentSettings": true,
+    "nativeDialogFocus": true,
+    "keyboardAim": true,
+    "statusAnnouncement": true,
+    "itemInspection": true,
+    "keyboardSearchTakeSecure": true,
+    "touchBoarding": true,
+    "modalStopsMovement": true,
+    "backgroundStopsMovement": true,
+    "reducedMotionRender": true,
+    "touchTargets": true,
+    "mobileAim": true,
+    "mobileOverflow": false,
+    "browserErrors": []
+  },
+  "retainedTestFailures": [
+    {
+      "log": "/tmp/hs-action-audio-dsp.log",
+      "reason": "All DSP assertions passed, but initial fixture cleanup called nonexistent runtime.close; corrected to server close/await/store close."
+    },
+    {
+      "log": "/tmp/hs-action-audio-integrated.log",
+      "reason": "Native key release happened before queued shot dispatch; actual input hold added."
+    },
+    {
+      "log": "/tmp/hs-action-audio-integrated-fixed.log",
+      "reason": "Paid gun had no compatible reserve ammunition; rejection correctly produced no reload cue."
+    },
+    {
+      "log": "/tmp/hs-action-audio-integrated-owned-ammo.log",
+      "reason": "Selecting existing ammunition still supplied none; corrected fixture purchases compatible ammunition through real trader rules before deployment."
+    }
+  ],
+  "serverSharedTransportUnchanged": true,
+  "remaining": [
+    "Human mix/readability and full original audio/content acceptance.",
+    "Physical devices, WAN and production acceptance.",
+    "Current server endurance remains running; not claimed complete."
+  ]
+}

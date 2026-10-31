@@ -14,7 +14,7 @@
 <title>HeadShotz – Free Multiplayer FPS</title>
 <link rel="stylesheet" href="style.css">
 </head><body>
-<canvas id="c"></canvas>
+<canvas id="c" tabindex="-1" aria-label="Game world"></canvas>
 
 <!-- HOME -->
 <div id="menu" class="screen bgfx">
@@ -23,6 +23,7 @@
   <div class="logo"><span class="l1">HEAD</span><span class="l2">SHOTZ</span></div>
   <div class="wkBan hidden">💎 2X DIAMOND WEEKEND 💎</div>
   <button id="royaleBtn" class="royBanner"><span class="rbCrown">👑</span><span class="rbTxt"><b>HEADSHOTZ <em>ROYALE</em></b><small>24-player Battle Royale · third person · loot · storm · NEW</small></span><span class="rbGo">PLAY ▶</span></button>
+  <button id="raidBtn" class="raidBanner"><span class="rbCrown">🏴</span><span class="rbTxt"><b>EXTRACTION <em>RAIDS</em></b><small>PvPvE squads · machines · loot · no respawns · multiple exits · stash economy</small></span><span class="rbGo">DEPLOY ▶</span></button>
   <div class="homeGrid">
    <div class="card play">
     <div class="cardHead">⚡ PLAY <span class="dia sm">💎 <b class="diaBal">0</b></span></div>
@@ -85,6 +86,40 @@
   </div>
   <button id="startBtn" class="btnBig yellow sticky">START MATCH</button>
   <p id="lobbyMsg" class="msg"></p>
+ </div>
+</div>
+
+<!-- RAID BASE (v62) -->
+<div id="raid" class="screen bgfx2 hidden">
+ <div class="wrap raidWrap">
+  <div class="lobbyBar"><div class="roomChip">🏴 RAID BASE</div><span class="dia">💎 <b id="raidDia">0</b></span><button id="raidClose" class="pill red">✕ CLOSE</button></div>
+  <p class="msg raidIntro">Prepare at the safe base, deploy into a hostile shared map, scavenge and fight machines and rival squads — then decide: extract with what you have, or push deeper for more. <b>No respawns. Death bags are lootable once.</b></p>
+  <div class="raidGrid">
+   <div class="card"><div class="cardHead sm">🏛️ STASH &amp; ECONOMY</div><div id="raidStash"></div>
+     <div class="raidBtnRow"><button id="raidBuyMed" class="pill">🧰 BUY MEDKIT · 💎30</button><button id="raidCraft" class="pill">🛠️ CRAFT MEDKIT</button></div>
+     <div id="raidTrader" class="raidMini"></div>
+   </div>
+   <div class="card"><div class="cardHead sm">🎒 LOADOUT &amp; CONTRACT</div>
+     <label class="lbl">PRIMARY WEAPON</label><select id="raidWeapon"></select>
+     <label class="chk"><input id="raidArmor" type="checkbox"> Body armor (+30 HP on insertion)</label>
+     <label class="lbl">MEDKITS CARRIED</label><select id="raidMeds"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+     <label class="lbl">CONTRACT</label><select id="raidContract"></select>
+     <label class="chk"><input id="raidInsure" type="checkbox"> Insure primary weapon · 💎25 (returns even if killed)</label>
+     <label class="chk"><input id="raidRecovery" type="checkbox"> Free recovery kit · 💎0 entry · free starter rifle, 1 medkit, no armor, smaller pack (broke/new operators)</label>
+     <p class="raidMini" id="raidLoadHint"></p>
+   </div>
+   <div class="card"><div class="cardHead sm">🚀 DEPLOYMENT</div>
+     <label class="lbl">MAP</label><select id="raidMap"></select>
+     <div class="raidRisk">⚠️ <b>RISK BRIEF</b><br>• One life: downed squadmates can revive you; final death ends your raid.<br>• Backpack loot is dropped as a one-time lootable death bag if you die or time out.<br>• Secure pocket (2 items) and insured gear return to your stash.<br>• Extraction exits: <b>call-in LZ</b>, <b>timed transport</b>, <b>key-gated emergency pad</b>.<br>• Partial-squad extraction is allowed.</div>
+     <label class="chk"><input id="raidRisk" type="checkbox"> I understand and accept the risk</label>
+     <div class="raidCost" id="raidCost"></div>
+     <button id="raidOffline" class="btnBig green">🤖 DEPLOY OFFLINE VS MACHINES</button>
+     <button id="raidOnline" class="btnBig yellow">🌐 HOST ONLINE RAID</button>
+     <div class="joinRow raidJoin"><input id="raidJoinIn" maxlength="5" placeholder="RAID CODE" autocomplete="off"><button id="raidJoinBtn" class="pill blue">JOIN</button></div>
+   </div>
+  </div>
+  <div class="card wide" id="raidHistory"><div class="cardHead sm">📂 LAST RAID REPORTS</div><div id="raidHistList"></div></div>
+  <p id="raidMsg" class="msg"></p>
  </div>
 </div>
 
@@ -155,6 +190,8 @@
   <label class="lbl">MASTER VOLUME <b id="volVal"></b></label><input id="vol" type="range" min="0" max="1" step="0.05">
   <label class="lbl">SOUND EFFECTS <b id="sfxVal"></b></label><input id="sfxv" type="range" min="0" max="1" step="0.05">
   <label class="chk"><input id="aimAssist" type="checkbox"> Aim assist (slows aim on enemies, touch)</label>
+  <label class="chk"><input id="voiceAnn" type="checkbox"> Voice announcements (spoken captions for key events)</label>
+  <label class="chk"><input id="reduceMotion" type="checkbox"> Reduce motion (fewer animations)</label>
   <label class="lbl">GRAPHICS</label><div class="row" id="qualBtns"><button data-q="auto" class="pill">AUTO</button><button data-q="low" class="pill">LOW</button><button data-q="medium" class="pill">MEDIUM</button><button data-q="high" class="pill">HIGH</button></div><div class="hint" id="qualNow" style="opacity:.75;font-size:12px;margin-top:4px"></div>
   <button id="setClose" class="btnBig yellow">DONE</button>
  </div>
@@ -163,13 +200,18 @@
 <!-- HUD -->
 <div id="hud" class="hidden"><button id="bPet" class="hidden" aria-label="Sidekick ability"></button><div id="roomTag" class="hidden"></div><div id="wkHud" class="wkBan hidden">💎 2X DIAMOND WEEKEND</div>
   <div id="markers"></div><div id="msHud" class="hidden"></div><div id="brief" class="hidden"></div><button id="briefBtn" class="hidden">?</button>
+  <div id="raidHud" class="hidden" tabindex="0" role="group" aria-label="Raid status"></div><div id="raidPrompt" class="hidden" role="status" aria-live="polite"></div>
+  <div id="raidLoot" class="hidden" role="dialog" aria-modal="true" aria-labelledby="raidLootHead"><div class="raidBox"><div class="raidBoxHead" id="raidLootHead">LOOT</div><div id="raidLootList"></div><div class="raidBoxFoot"><span id="raidLootW"></span><button id="raidLootX" class="pill" aria-label="Close loot panel">CLOSE</button></div></div></div>
+  <div id="raidPack" class="hidden" role="dialog" aria-modal="true" aria-labelledby="raidPackHead"><div class="raidBox"><div class="raidBoxHead" id="raidPackHead">🎒 BACKPACK <span id="raidPackW"></span></div><div id="raidPackList"></div><div class="raidBoxFoot"><span id="raidPackSec"></span><button id="raidPackX" class="pill" aria-label="Close backpack">CLOSE</button></div></div></div>
+  <div id="raidResult" class="hidden" role="dialog" aria-modal="true" aria-labelledby="raidResHead"><div class="raidBox"><div class="raidBoxHead" id="raidResHead">RAID REPORT</div><div id="raidResBody"></div><div class="raidBoxFoot"><button id="raidResX" class="pill">SPECTATE</button></div></div></div>
+  <div id="raidFinal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="raidFinalT"><div class="raidBox raidFinalBox"><h1 id="raidFinalT">RAID COMPLETE</h1><div id="raidFinalBody"></div><div class="endB"><button id="raidFinalBase" class="btnBig yellow">🏴 RETURN TO BASE</button><button id="raidFinalLobby" class="pill">LOBBY</button></div></div></div>
   <div id="sbar"></div>
   <div id="timer"></div>
   <div id="cross"><i></i><i></i><i></i><i></i><em></em><b id="hitX"></b></div>
-  <div id="center"></div>
+  <div id="center" role="status" aria-live="polite" aria-atomic="true"></div>
   <button id="rlBtn" class="hidden">🎒 LOADOUT</button>
   <div id="endScr" class="hidden"><h1 id="endT">VICTORY</h1><div class="wkBan hidden">💎 2X DIAMOND WEEKEND 💎</div><div id="endScore"></div><div id="endStats"></div><div class="endB"><button id="endAgain" class="btnBig">⚔️ REMATCH</button><button id="endLobby" class="btnBig alt">LOBBY</button></div></div>
-  <div id="feed"></div>
+  <div id="feed" role="log" aria-live="polite" aria-label="Game event feed"></div>
   <div id="bottom"><div id="hpWrap"><div id="hpBar"><div id="hpFill"></div></div><span id="hpTxt">100</span></div><div id="slots"></div></div>
   <div id="dmgLayer"></div>
   <button id="doorBtn" class="hidden"></button>
@@ -194,6 +236,7 @@
     <button class="tb" id="bSlide" aria-label="Crouch (hold while sprinting to slide)"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="2"/><path d="M9 8v5l4 2v5M9 13l-4 1v5M13 11h4"/></svg><span class="tl">CROUCH</span></button>
     <button class="tb" id="bNade" aria-label="Utility"></button>
     <button class="tb" id="bNL" aria-label="Non-lethal item (smoke, flash, decoy, heals)"></button><button class="tb" id="bNLc" aria-label="Cycle non-lethal item"></button>
+    <button class="tb hidden" id="bRaidE" aria-label="Interact: search, extract, use exit">🔍<span class="tl">USE</span></button><button class="tb hidden" id="bRaidBag" aria-label="Open backpack">🎒<span class="tl">PACK</span></button>
     <button class="tb" id="bZoom" aria-label="Zoom / aim"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7.5"/><path d="M12 1.5v5M12 17.5v5M1.5 12h5M17.5 12h5"/><circle cx="12" cy="12" r="1.2" fill="#fff"/></svg></button>
   </div>
   <button id="menuBtn" aria-label="Pause menu"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/><rect x="14.5" y="4" width="4.5" height="16" rx="1.2" fill="#111"/></svg></button>

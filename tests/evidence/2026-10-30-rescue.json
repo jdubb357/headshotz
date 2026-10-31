@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-30",
+  "scope": "Squad rescue authority, durable carrying links and UI integration. Original issue #1 full release remains incomplete.",
+  "candidate": {
+    "id": "f035a0529e2abdafe8cadafaf898acca113b13b7e645809015e31fb65dadfa80",
+    "label": "rescue-integrity",
+    "path": "/private/tmp/headshotz-extraction-rescue-candidate",
+    "files": 201,
+    "bytes": 11571813,
+    "schema": 12,
+    "protocol": 9
+  },
+  "schema": 12,
+  "protocol": 9,
+  "serviceWorker": "headshotz-v82",
+  "sourceSha256": {
+    "server/raids.mjs": "89994a821d6eef1f0c9b34ecd27ea3e17b026f38b4d0a3717c0e1139b23e1aca",
+    "raid-online.mjs": "363e3086597d271a42493ef89e3eeb52937e75218cca6735ac673bd0d59daf1c",
+    "raid-quantity-ui.mjs": "1e893527a486ef1387fa447f8b68a9e8004c93c0737442006668f06fcca6630f",
+    "sw.js": "03b37811ec9d4e1b0f180a2a47574f20d6c506fdb54ab06393c627f80ce4d5b5",
+    "RAID_RULES.md": "acce1d291a263b18655b898fd2312156c8bf848bd47b3739d896493abb817834",
+    "PERFORMANCE.md": "10b362d6f5f87325931ccd8c143535e62d90dbb8fcea171db8ab9a0ede767159",
+    "tests/raid-rescue.test.mjs": "c0505513cd98af5d3de49b82fe8ed7a4a8af604371e703aef9df1bbadf0e49dc",
+    "tests/raid-browser-rescue.mjs": "c779dc89727ec9e76faf5e3c19fe227072c4e5e805b987aadd5bda3dd2b7b685"
+  },
+  "automatedTests": {
+    "command": "node --test tests/*.test.mjs",
+    "pass": 1003,
+    "fail": 0,
+    "durationMs": 10418.679833
+  },
+  "browserResults": {
+    "/tmp/hs-rescue-browser-final.log": {
+      "throughCoverControlsDisabled": true,
+      "clearAccessUpdatesWithoutInventoryChange": true,
+      "patientDamageInterrupts": true,
+      "fiveSecondRevive": true,
+      "carryDropLabel": true,
+      "rescueKeyboardFocusPreserved": true,
+      "downedCarrierReleases": true,
+      "noRecoveryTeleport": true,
+      "carriedPairExtracts": true,
+      "separateSettlements": true,
+      "browserErrors": [],
+      "scope": "Isolated Chrome trio; two support accounts, positions, cover and time are authoritative server fixtures. Not human rescue balance or physical-device acceptance."
+    },
+    "/tmp/hs-rescue-packaged-browser.log": {
+      "runtimeRoot": "file:///private/tmp/headshotz-extraction-rescue-candidate/",
+      "throughCoverControlsDisabled": true,
+      "clearAccessUpdatesWithoutInventoryChange": true,
+      "patientDamageInterrupts": true,
+      "fiveSecondRevive": true,
+      "carryDropLabel": true,
+      "rescueKeyboardFocusPreserved": true,
+      "downedCarrierReleases": true,
+      "noRecoveryTeleport": true,
+      "carriedPairExtracts": true,
+      "separateSettlements": true,
+      "browserErrors": [],
+      "scope": "Isolated Chrome trio; two support accounts, positions, cover and time are authoritative server fixtures. Not human rescue balance or physical-device acceptance."
+    },
+    "/tmp/hs-rescue-cover-browser.log": {
+      "rivalAddedRemovedByVisibility": true,
+      "thinCoverHidesState": true,
+      "blindShotBlocked": true,
+      "noHiddenHitCredit": true,
+      "headPeekVisible": true,
+      "fullWallHides": true,
+      "downedLowCover": true,
+      "ownedUtilityPlacementClipped": true,
+      "utilityConsumedOnce": true,
+      "browserErrors": [],
+      "scope": "Server-only thin-panel/actor fixtures with machines removed; checks authoritative snapshots and renderer membership, not authored-wall pixels or human combat balance."
+    },
+    "/tmp/hs-rescue-accessibility.log": {
+      "remapping": true,
+      "persistentSettings": true,
+      "nativeDialogFocus": true,
+      "keyboardAim": true,
+      "statusAnnouncement": true,
+      "itemInspection": true,
+      "keyboardSearchTakeSecure": true,
+      "touchBoarding": true,
+      "modalStopsMovement": true,
+      "backgroundStopsMovement": true,
+      "reducedMotionRender": true,
+      "touchTargets": true,
+      "mobileAim": true,
+      "mobileOverflow": false,
+      "browserErrors": []
+    }
+  },
+  "logs": {
+    "/tmp/hs-rescue-final-1003-suite.log": "3084397990f4dfebbcfab043c7ff7eb950148c10f4ad94f77dd533abd37afbba",
+    "/tmp/hs-rescue-browser-final.log": "1c737ae35a43c0950fefeaba6bf08fd89ab202ad1e31303246e426a6b5d3b976",
+    "/tmp/hs-rescue-packaged-browser.log": "87cbdbe61c32d11875054e7dfdab736343eb78b03f5b133e276c3001d3553610",
+    "/tmp/hs-rescue-cover-browser.log": "ceeecf61dc62408a9426fc3aa80bbb9dbfd782df79587222335fde9c491d8f88",
+    "/tmp/hs-rescue-accessibility.log": "71430b4e7e853e12627befbe1fa38379d80f20ed1bd34e08cbb27e621f8a810e"
+  },
+  "gameplayLoad": {
+    "scenario": {
+      "players": 9,
+      "seconds": 300,
+      "latencyMs": 150,
+      "loss": 0.05,
+      "seed": 20261030,
+      "profile": "raid",
+      "impairment": "application-level request/response loss and injected delay over loopback HTTP; not packet-level WAN loss"
+    },
+    "actions": 14805,
+    "outcomes": {
+      "extract": 6,
+      "death": 6
+    },
+    "failedActions": 18,
+    "errorStatuses": {
+      "delivery:move": 18
+    },
+    "gameplayRejections": {},
+    "checks": {
+      "noProlongedAirborneStalls": true,
+      "observedEconomyConserved": true,
+      "gameplayLoopCovered": true,
+      "gameplayRejectionRateWithinBudget": true,
+      "allClientsCompleted": true,
+      "noSimulationErrors": true,
+      "actionFailureRateWithinBudget": true,
+      "tickP95Within50ms": true,
+      "tickIntervalP95Within75ms": true
+    },
+    "sourceFingerprint": "7773e574e31678c7109a1b6fdafb6b04b0736d97fb73293b7ee60ab9537cc44b",
+    "fingerprintStillMatches": true,
+    "matchedCandidateFiles": 41,
+    "navigation": {
+      "stalls": 0,
+      "unreachable": 0,
+      "airborneStalls": 0
+    },
+    "rawReport": "tests/evidence/2026-10-30-gameplay-load.json (run with source 7773e574e31678c7109a1b6fdafb6b04b0736d97fb73293b7ee60ab9537cc44b)"
+  },
+  "retainedFailures": {
+    "preFix": {
+      "path": "/tmp/hs-rescue-before.log",
+      "pass": 1,
+      "fail": 9
+    },
+    "browserFirst": "/tmp/hs-rescue-browser-first.log",
+    "fixtureCorrections": [
+      "Trio setup joins all members before readying: each join correctly resets earlier readiness.",
+      "Rollback verification uses authored geometry because checkpoint restoration reloads canonical geometry rather than fixture panels.",
+      "The roof test uses a raised ceiling above a standing helper and a patient on its surface; a separate thin-ramp case verifies ramp clipping."
+    ]
+  },
+  "limitations": [
+    "Loopback workload injects application-level delay/loss; it is not WAN or current multi-hour/device acceptance.",
+    "Rescue browser flow uses fixture support accounts, server-arranged positions/cover and controlled time.",
+    "General workload does not simulate squad rescue; dedicated unit/browser scenarios verify those semantics.",
+    "Legacy active raids retain their saved bullet-cover sampler; rescue safety fixes also apply to them.",
+    "No commit, push, merge or public deployment performed.",
+    "Full release scope remains in RELEASE_ACCEPTANCE.md."
+  ]
+}

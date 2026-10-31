@@ -1,0 +1,151 @@
+{
+  "note": "Isolated Chrome contexts, disposable services/accounts, fake microphone. Corrected player support/navigation, immediate input, protocol 3 and directional audio build. Subsequent ground-machine support correction verified by targeted regression/full unit suite; later guide prose describes the same cues. These focused scenarios are not physical device, real microphone, WAN or human acceptance.",
+  "automatedChecks": 799,
+  "browserScenarios": [
+    {
+      "account": true,
+      "recoveryDeployment": true,
+      "rendered": true,
+      "serverMovement": true,
+      "reconnect": true,
+      "browserExceptions": []
+    },
+    {
+      "maps": 3,
+      "jump": true,
+      "touchAim": true,
+      "rendered": true,
+      "browserErrors": []
+    },
+    {
+      "partyInvite": true,
+      "separateAccounts": true,
+      "readyChecks": true,
+      "groupDeployment": true,
+      "sameRaid": true,
+      "sameTeam": true,
+      "browserErrors": []
+    },
+    {
+      "threeTraders": true,
+      "inventoryCrafting": true,
+      "workbenchUpgrade": true,
+      "attachmentInstall": true,
+      "stashSearch": true,
+      "loadoutPreset": true,
+      "insuranceQuote": true,
+      "insuredDeployment": true,
+      "browserErrors": []
+    },
+    {
+      "mainGameEntry": true,
+      "persistentRaidNavigation": true,
+      "browserErrors": []
+    },
+    {
+      "optIn": true,
+      "pushToTalk": true,
+      "audioRtpReceived": true,
+      "muteDisconnect": true,
+      "unmuteReconnect": true,
+      "squadPing": true,
+      "reportSaved": true,
+      "blockSuppressesPing": true,
+      "microphoneReleased": true,
+      "browserErrors": []
+    },
+    {
+      "remapping": true,
+      "persistentSettings": true,
+      "nativeDialogFocus": true,
+      "keyboardAim": true,
+      "statusAnnouncement": true,
+      "itemInspection": true,
+      "keyboardSearchTakeSecure": true,
+      "touchBoarding": true,
+      "modalStopsMovement": true,
+      "backgroundStopsMovement": true,
+      "reducedMotionRender": true,
+      "touchTargets": true,
+      "mobileAim": true,
+      "mobileOverflow": false,
+      "browserErrors": []
+    },
+    {
+      "legacyPrivateCachePurged": true,
+      "privateApiNotCached": true,
+      "healthNeverStale": true,
+      "offlineJsonError": true,
+      "onlineAccountRecovered": true,
+      "browserErrors": []
+    },
+    {
+      "sessionList": true,
+      "passwordRotation": true,
+      "recoveryCodesHidden": true,
+      "lateCodeDisplayCanceled": true,
+      "remoteSignout": true,
+      "microphoneReleased": true,
+      "codeRecovery": true,
+      "activeBodyPreserved": true,
+      "ownedItemsPreserved": true,
+      "reconnectedAfterRecovery": true,
+      "staleResponseAccountIsolation": true,
+      "browserErrors": []
+    },
+    {
+      "immediateVisualMovement": true,
+      "authorityUnchangedBeforeDelivery": true,
+      "reconciled": true,
+      "lostShotResponseRetried": true,
+      "ammunitionConsumedOnce": true,
+      "sameDeploymentAfterReload": true,
+      "shortInputDeliveredWithoutPolling": true,
+      "releaseStopsWithoutPolling": true,
+      "browserErrors": []
+    },
+    {
+      "costsBeforeDeploy": true,
+      "ownedFuelDeployed": true,
+      "resourceCostConsumedOnce": true,
+      "seatReservation": true,
+      "rivalRejectedAtCapacity": true,
+      "damageFreesSeat": true,
+      "independentExtraction": true,
+      "fullExitDisplayed": true,
+      "reportIncludesAccessCost": true,
+      "ownedWeaponReturned": true,
+      "browserErrors": []
+    },
+    {
+      "sectorBriefing": true,
+      "dayNightRendered": true,
+      "moonAndStars": true,
+      "unsecuredArtifactRecovered": true,
+      "ownedItemExtracted": true,
+      "saleAndLoadoutProtection": true,
+      "contractFilter": true,
+      "deliveryConsumesOnce": true,
+      "rewardReplayRejected": true,
+      "crossSessionProgress": true,
+      "browserErrors": []
+    },
+    {
+      "distinctMachineCues": 5,
+      "realWebAudioRendering": true,
+      "directionalStereo": true,
+      "muteSilent": true,
+      "boundedVoices": true,
+      "nodesReleased": true,
+      "browserErrors": []
+    },
+    {
+      "leftScreenWithoutEscape": true,
+      "realOperatorSettlement": true,
+      "automaticBaseRefresh": true,
+      "ownedWeaponLost": true,
+      "itemizedReport": true,
+      "browserErrors": []
+    }
+  ]
+}
