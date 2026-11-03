@@ -6,7 +6,7 @@ export function buildEnvironment(world){
  const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,4,20)};
  const matrix=new THREE.Matrix4(),position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3(),euler=new THREE.Euler();
  function add(type,color,x,y,z,sx,sy,sz,ry=0,texture='plain',rx=0){const key=type+'|'+color+'|'+texture;let group=groups.get(key);if(!group){
-   const mat=new THREE.MeshStandardMaterial({color,roughness:.88,metalness:texture==='metal'?.4:0,map:getTex(texture)});mat.userData.raidOwned=true;materials.set(key,mat);group={type,transforms:[],material:mat};groups.set(key,group);
+   const glow=texture==='glow',mat=new THREE.MeshStandardMaterial({color,roughness:.88,metalness:texture==='metal'?.4:0,map:glow?null:getTex(texture),...(glow?{emissive:color,emissiveIntensity:1.1}:{})});mat.userData.raidOwned=true;materials.set(key,mat);group={type,transforms:[],material:mat};groups.set(key,group);
   }
   position.set(x,y,z);scale.set(sx,sy,sz);euler.set(rx,ry,0);quaternion.setFromEuler(euler);matrix.compose(position,quaternion,scale);group.transforms.push(matrix.clone());
  }
@@ -29,6 +29,10 @@ export function buildEnvironment(world){
   else if(prop.kind==='basin')add('box',0x547776,x,y,z,prop.w,.03,prop.d,0,'tiles');
   else if(prop.kind==='rail'){for(const side of [-1,1])add('box',0x6c7778,x,y+.1,z+side*.8,prop.w,.2,.12,0,'metal');for(let i=-prop.w/2;i<prop.w/2;i+=2)add('box',0x5d4b3d,x+i,y+.02,z,.3,.14,2.6,0,'planks')}
   else if(prop.kind==='signal'){add('cylinder',0x53646a,x,2.4,z,.12,4.8,.12);add('box',0x29383d,x,4.4,z,.65,1.2,.4);add('sphere',0xc67b4e,x,4.5,z+.25,.18,.18,.1)}
+  else if(prop.kind==='floodlight'){add('cylinder',0x3e4c53,x,y+3.2,z,.16,6.4,.16,0,'metal');add('box',0xf4e3ac,x,y+6.4,z,1.4,.2,.7,0,'glow')}
+  else if(prop.kind==='crane'){add('box',0x4d5f63,x,y+2,z,.5,4,.5,0,'metal');add('box',0x4d5f63,x+8,y+4,z,.5,.35,9,0,'metal');add('box',0x2c3a40,x+12,y+3.4,z,.15,1.2,.15,0,'metal');add('box',0xa08a59,x+8,y+3.8,z,3,.18,.5,0,'metal')}
+  else if(prop.kind==='antenna'){add('cylinder',0x5f7075,x,y+7,z,.2,14,.2,0,'metal');add('box',0x26363b,x,y+12,z,2.4,.24,.24,0,'metal');add('sphere',0xdf6b4e,x,y+13,z,.35,.35,.35,0,'glow')}
+  else if(prop.kind==='wreck'){add('box',0x3d302c,x,y+.8,z,6,1.4,2.4,0,'metal');add('box',0x6e4c38,x+1.6,y+1.6,z-.4,2.6,.4,1.6,0,'metal');add('cylinder',0x24201f,x-1.8,y+.5,z+.9,.45,.6,.45,0,'metal');add('box',0x3f4446,x+2.4,y+1.1,z+.2,2.2,.5,2.2,0,'metal')}
   else if(prop.kind==='lamp'){add('box',0xf6ddac,x,y,z,1.2,.12,.25)}
   else if(prop.kind==='sign'){
    const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const ctx=canvas.getContext('2d');ctx.fillStyle='#25373c';ctx.fillRect(0,0,512,96);ctx.strokeStyle='#ddbe7e';ctx.lineWidth=8;ctx.strokeRect(4,4,504,88);ctx.fillStyle='#f2e3bc';ctx.font='bold 38px system-ui';ctx.textAlign='center';ctx.fillText(prop.name.toUpperCase(),256,62,480);

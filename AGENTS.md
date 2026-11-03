@@ -3,6 +3,7 @@
 Read `COLLABORATION.md` before making changes or using GitHub.
 
 - This checkout belongs to Austin. His local model handles most implementation; Codex helps when requested.
+- Extraction Raids is an additional, opt-in HeadShotz game mode. Preserve the main menu and existing modes, including Battle Royale, Squad Royale, arena/team modes, and the original cooperative Extraction. Keep raid-specific progression, equipment loss, accounts, and deployment rules scoped to raids; do not turn the whole game into an extraction shooter or require raid setup to play other modes.
 - Work on `cypert/dev` by default. Inspect the branch and working tree before editing. Preserve any existing work from the user or another model.
 - Never commit or push directly to `main`. Never merge a pull request, enable auto-merge, force-push, delete remote branches, or change repository settings unless Austin explicitly requests that action.
 - Make focused changes, verify the affected behavior, and explain what changed and what was tested.

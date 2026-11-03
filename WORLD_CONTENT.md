@@ -46,7 +46,7 @@ Backup tooling supports schemas 3–9, including the later utility-item, matchin
 
 ## Traversable layout versions
 
-New deployments use layout version 3, with roof landings placed at ramp tops. Version-2 layouts remain archived byte-for-byte for existing checkpoints; version 1 also remains supported. Shared navigation checks physical ramp clearance, step height, platform support and traversable start connections. Automated movement routes cover every spawn to every current cache/exit and all archived roof approaches. This verifies reachability, not combat fairness or route balance.
+New deployments use layout version 5: three independently authored 720 x 720 districts with distinct sectors, elevated decks, roof caches, terrain cuts, hazards and richer props and loot. Layout versions 1-4 remain available for their existing checkpoints; version 2 remains archived byte-for-byte, version 3 places roof landings at ramp tops, and version 4 retains the enlarged 480 x 480 scaling of the authored districts. Shared navigation checks physical ramp clearance, step height, platform support and traversable start connections. Automated movement routes cover every spawn to every current cache/exit and all archived roof approaches. This verifies reachability, not combat fairness or route balance.
 
 Platform support uses the operator footprint at edges so descending a catwalk onto a ramp cannot drop the body into the platform side. Matching navigation and actual simulation checks cover cache-to-exit routes and measured mid-ramp stall positions. Ground machines use their own footprint radius for the same descent support.
 

@@ -18,8 +18,16 @@ test('old checkpoints retain their original world layout version',()=>{
  for(const old of LEGACY_RAID_WORLDS){assert.equal(getWorld(old.id,1),old);assert.notEqual(getWorld(old.id,2),old)}
 });
 
-test('v2 roof landings remain archived while new v3 landings join the ramp tops',()=>{
- for(const old of ARCHIVED_RAID_WORLDS){const next=getWorld(old.id);assert.equal(getWorld(old.id,2),old);assert.equal(old.version,2);assert.equal(next.version,3);assert.notStrictEqual(next.blocks,old.blocks);for(const ramp of old.ramps.filter(r=>r.axis==='z'&&r.w===4&&r.d===16)){assert.ok(old.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+7&&w===7&&d===4&&h===.18));assert.ok(next.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+9&&w===7&&d===4&&h===.18))}}
+test('v2 roof landings remain archived while v3 keeps corrected landings',()=>{
+ for(const old of ARCHIVED_RAID_WORLDS){const next=getWorld(old.id,3);assert.equal(getWorld(old.id,2),old);assert.equal(old.version,2);assert.equal(next.version,3);assert.notStrictEqual(next.blocks,old.blocks);for(const ramp of old.ramps.filter(r=>r.axis==='z'&&r.w===4&&r.d===16)){assert.ok(old.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+7&&w===7&&d===4&&h===.18));assert.ok(next.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+9&&w===7&&d===4&&h===.18))}}
+});
+test('new deployments use authored v5 sectors while v4 checkpoints keep the enlarged layout',()=>{
+ for(const world of RAID_WORLDS){
+  assert.equal(world.version,5);assert.equal(world.size,720);assert.ok(world.blocks.length>=50);
+  const previous=getWorld(world.id,4);assert.equal(previous.version,4);assert.equal(previous.size,480);assert.notStrictEqual(previous.blocks,world.blocks);
+  assert.notDeepEqual(previous.caches.map(c=>[c[0],c[2]]),world.caches.map(c=>[c[0],c[2]]));
+  assert.equal(getWorld(world.id),world);
+ }
 });
 test('navigation cache invalidates when geometry changes',()=>{
  const world={version:3,size:20,blocks:[],ramps:[]},from={x:-5,y:0,z:0},to={x:5,y:0,z:0};assert.ok(findPath(world,from,to).length);world.blocks.push([0,0,2,20,4]);assert.equal(findPath(world,from,to).length,0);world.blocks.pop();assert.ok(findPath(world,from,to).length);

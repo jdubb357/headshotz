@@ -12,9 +12,9 @@ export function spawnMachine(raid,kind,x,z,now){
  const machine={id:'machine_'+raid.machineSeq,kind,x:point.x,z:point.z,y:def.flight||point.y,hp:def.hp,maxHp:def.hp,yaw:0,nextAttack:now+5,state:'patrol',home:point,path:[],pathAt:0};raid.machines.push(machine);return machine;
 }
 export function populateMachines(raid,now){
- const positions=raid.world.id==='relay'?[[-36,-28],[35,30],[36,-20],[-24,28],[-6,36]]:raid.world.id==='reservoir'?[[-30,-20],[34,30],[30,-38],[-32,28],[8,18]]:[[-34,-28],[32,30],[38,-28],[-24,30],[-6,30]];
+ const scale=raid.world.size/160,positions=raid.world.version>=5?{relay:[[-120,-80],[80,80],[100,-80],[-120,60],[0,160],[60,-180],[-80,140]],reservoir:[[-100,-80],[60,100],[100,-40],[-100,40],[0,180],[80,-200],[-100,180]],switchyard:[[-120,-40],[60,60],[120,-40],[-100,60],[-40,180],[80,-160],[-100,200]]}[raid.world.id]:(raid.world.id==='relay'?[[-36,-28],[35,30],[36,-20],[-24,28],[-6,36],[18,-26],[-28,22]]:raid.world.id==='reservoir'?[[-30,-20],[34,30],[30,-38],[-32,28],[8,18],[34,-20],[-28,26]]:[[-34,-28],[32,30],[38,-28],[-24,30],[-6,30],[18,-26],[-28,22]]).map(([x,z])=>[x*scale,z*scale]);
  ['scout','hunter','heavy','flyer','overlord'].forEach((kind,i)=>spawnMachine(raid,kind,...positions[i],now));
- spawnMachine(raid,'scout',18,-26,now);spawnMachine(raid,'hunter',-28,22,now);
+ spawnMachine(raid,'scout',...positions[5],now);spawnMachine(raid,'hunter',...positions[6],now);
  raid.conditions=raid.conditionPlan?conditionsAt(raid.world,raid.conditionPlan,0):mapConditions(raid.world,raid.id.charCodeAt(0));raid.lastLightPhase=raid.conditions.period;raid.telegraphs=[];raid.noises=[];raid.nextSupply=now+180;raid.nextPatrol=now+150;raid.weatherAt=now+300;raid.hazardTicks={};
 }
 export function hitMachine(service,raid,machine,damage,hitY,team){
@@ -37,7 +37,7 @@ function walk(raid,m,goal,def,dt,now){
  if(def.flight){const d=Math.hypot(goal.x-m.x,goal.z-m.z)||1;m.y=def.flight+Math.sin(now*1.3)*.5;m.x+=((goal.x-m.x)/d)*def.speed*dt;m.z+=((goal.z-m.z)/d)*def.speed*dt;return}
  if(now>=m.pathAt||!m.pathGoal||Math.hypot(goal.x-m.pathGoal.x,goal.z-m.pathGoal.z)>5){
   m.pathAt=now+2;m.pathGoal={x:goal.x,y:goal.y||0,z:goal.z};
-  m.path=findPath(raid.world,m,m.pathGoal,{radius:def.radius,height:def.height,maxNodes:9000});
+  m.path=findPath(raid.world,m,m.pathGoal,{radius:def.radius,height:def.height,maxNodes:raid.world.version>=5?60000:raid.world.version===4?24000:9000});
  }
  while(m.path?.length&&distance(m,m.path[0])<.75)m.path.shift();const target=m.path?.[0];if(!target)return;
  const dx=target.x-m.x,dz=target.z-m.z,d=Math.hypot(dx,dz)||1,step=Math.min(d,def.speed*dt),x=m.x+dx/d*step,z=m.z+dz/d*step;
