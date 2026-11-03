@@ -1,0 +1,78 @@
+{
+  "recordedAt": "2026-10-30T21:08:02.026523+00:00",
+  "scope": "Post-raid outcome and settlement reconciliation; not full feature or production acceptance",
+  "release": {
+    "id": "a8c0e5a4bf05b6802dad048b337cafb2ca067d57b87be75aeb2b8b2e300f93a3",
+    "label": "extraction-report-final",
+    "path": "/private/tmp/headshotz-extraction-report-final-candidate",
+    "files": 193,
+    "bytes": 11515939,
+    "schema": 11,
+    "protocol": 8
+  },
+  "sourceHashes": {
+    "server/raids.mjs": "9e026d32c6214212f5ac16c74da68b7b02a156552d4a3313f8e86e99db845bae",
+    "server/raid-ai.mjs": "f7866d360e6433dbb0d6ec2b1b3082db9ce25c80b3dc72676e5e08e6ef6b9827",
+    "server/store.mjs": "30a9c27908e473c3c70733c14fa2a0b257562df928ccc0f8ffb219d0362d78ea",
+    "shared/raid-report.mjs": "dcce2c9e9f558f7a1a3f2d3b019b4a88d5db9f4498ebce56c39d4f1c63dc3145",
+    "raid-online.mjs": "11c78d653408ecee05ef0449d822d8fbe68d3af92bc20037238d72a28b42a3c9",
+    "sw.js": "7c7a18cfa7e658d6c416f972048bc9b015a6bd54b4a84518b181dc1e19519842",
+    "tests/raid-report.test.mjs": "598e0f97ea1a1cb6ca975cfb8c1d614fa748576b042bb80c44163dda133b478d",
+    "tests/raid-browser-loss-report.mjs": "31b47966847ccfcc125e44967b547c1a9b27443a5e5c061f79c1aebca1ba1ef6"
+  },
+  "verification": {
+    "automated": {
+      "command": "node --test tests/*.test.mjs",
+      "passed": 908,
+      "failed": 0,
+      "logSha256": "b5c8c5933d739680a63c09c8824bec8e87649376f4f58cc3cbba17c37be1a314"
+    },
+    "focused": {
+      "command": "node --test tests/raid-report.test.mjs",
+      "passed": 18,
+      "failed": 0
+    },
+    "packagedBrowser": {
+      "command": "RAID_TEST_URL=http://127.0.0.1:8022 CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-loss-report.mjs",
+      "result": {
+        "leftScreenWithoutEscape": true,
+        "realOperatorSettlement": true,
+        "automaticBaseRefresh": true,
+        "ownedWeaponLost": true,
+        "itemizedReport": true,
+        "browserErrors": []
+      },
+      "assertions": [
+        "Recorded public outcome cause",
+        "Starting loadout snapshot contains the actual committed weapon",
+        "Actual operator settlement and weapon loss",
+        "Settlement balance reconciliation",
+        "Insurance explanation rendered in report DOM",
+        "Automatic base refresh",
+        "No browser exceptions"
+      ]
+    },
+    "manifest": {
+      "verified": true,
+      "schema": 11,
+      "protocol": 8
+    }
+  },
+  "regressions": {
+    "insurance": "Successful extraction no longer cancels a claim for insured equipment left behind; test covers active-raid waiting, closure, one return and duplicate prevention. Actually returned equipment still needs no claim.",
+    "injuryRouting": "An initial implementation reused damage kind for machine/operator attribution and failed an existing injury test. Attribution now uses a separate source field; existing injury rules and full suite pass.",
+    "rollback": "Failed checkpoint rolls back report, reward and actor settlement; retry settles once. Pending outcome reason survives serialization/restore."
+  },
+  "limitations": [
+    "Insurance status is a historical settlement snapshot; current claim status is in the base insurance panel.",
+    "The ledger covers settlement only, not all purchases, sales or later contract claims.",
+    "Original equipment is recorded separately from final carried losses; consumed or voluntarily abandoned items are not mislabeled as death drops.",
+    "Older records are retained without invented death causes or financial detail.",
+    "The loopback browser scenario checks actual settlement and DOM content, not human readability, real-network acceptance or every device.",
+    "The full release acceptance list remains open in RELEASE_ACCEPTANCE.md."
+  ],
+  "supersedesForTheseChanges": [
+    "202f41a60fd8be4ef223890cc0aea445fc998a9af467a23c3d0413653e6b5787",
+    "4f76fd6e592eec231ac21ea72da6022af39fe8055ef02c596300b2f08ad1688d"
+  ]
+}

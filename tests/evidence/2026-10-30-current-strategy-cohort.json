@@ -1,0 +1,256 @@
+{
+  "date": "2026-10-30",
+  "state": "completed",
+  "scope": "Targeted protected-disconnect versus extraction public-API economy cohort. No completed comparison or balance claim.",
+  "phase": "starting",
+  "startedAt": "2026-10-31T00:46:36.188Z",
+  "sourceSha256": "15b0b1df8ffc1abfa1958ad22f9d5d5c6d48e89b1378db9ef0ddad293920f364",
+  "servicePid": 27064,
+  "seconds": 900,
+  "accounts": 6,
+  "sessionId": 89090,
+  "pid": 26986,
+  "log": "/tmp/hs-strategy-current-15min.log",
+  "eventualReport": "/tmp/hs-strategy-current-15min.json",
+  "runnerSha256": "9a93acbfd3ccd90940548f2e037d11b57d12eec73509d9699de90214f51f8b0b",
+  "smoke": {
+    "report": "/tmp/hs-strategy-heartbeat-corrected-smoke.json",
+    "requestedSeconds": 1,
+    "elapsedSeconds": 46.186629624999995,
+    "checks": {
+      "noUnexpectedFailures": true,
+      "allBodiesSettled": true,
+      "starterAllowanceUnspent": true,
+      "observedConservation": true
+    },
+    "outcomes": [
+      {
+        "map": "relay",
+        "strategy": "protected_disconnect",
+        "outcomes": [
+          "disconnect"
+        ]
+      },
+      {
+        "map": "reservoir",
+        "strategy": "protected_disconnect",
+        "outcomes": [
+          "disconnect"
+        ]
+      },
+      {
+        "map": "switchyard",
+        "strategy": "protected_disconnect",
+        "outcomes": [
+          "disconnect"
+        ]
+      },
+      {
+        "map": "relay",
+        "strategy": "extract",
+        "outcomes": [
+          "disconnect"
+        ]
+      },
+      {
+        "map": "reservoir",
+        "strategy": "extract",
+        "outcomes": [
+          "disconnect"
+        ]
+      },
+      {
+        "map": "switchyard",
+        "strategy": "extract",
+        "outcomes": [
+          "death"
+        ]
+      }
+    ]
+  },
+  "retainedFailures": [
+    {
+      "log": "/tmp/hs-strategy-smoke.log",
+      "reason": "Service startup failed with the long macOS temp directory; short /tmp path fixes startup. No economics measured."
+    },
+    {
+      "report": "/tmp/hs-strategy-short-path-smoke.json",
+      "reason": "Observer polled raid snapshots, which reset the disconnect heartbeat. Five bodies incorrectly remained active. Corrected observer polls the base profile without refreshing the raid heartbeat."
+    }
+  ],
+  "note": "Session 89090 exited 0. Its service closed and disposable data was removed. Do not poll or restart this terminal run. Observed extraction returns exceed this first-item protected-disconnect policy on each map; this is not a universal human balance conclusion. Backend 76245 and browser endurance 98089 remain independently live.",
+  "latestProgress": {
+    "progress": {
+      "elapsedSeconds": 480.0440794169999,
+      "agents": [
+        {
+          "index": 0,
+          "map": "relay",
+          "strategy": "protected_disconnect",
+          "actions": 1070,
+          "deployments": 8,
+          "settlements": 7,
+          "secureReached": 8,
+          "voluntaryDisconnects": 8,
+          "failures": 0
+        },
+        {
+          "index": 1,
+          "map": "reservoir",
+          "strategy": "protected_disconnect",
+          "actions": 1190,
+          "deployments": 7,
+          "settlements": 6,
+          "secureReached": 7,
+          "voluntaryDisconnects": 7,
+          "failures": 0
+        },
+        {
+          "index": 2,
+          "map": "switchyard",
+          "strategy": "protected_disconnect",
+          "actions": 1193,
+          "deployments": 8,
+          "settlements": 7,
+          "secureReached": 8,
+          "voluntaryDisconnects": 8,
+          "failures": 0
+        },
+        {
+          "index": 3,
+          "map": "relay",
+          "strategy": "extract",
+          "actions": 3177,
+          "deployments": 6,
+          "settlements": 5,
+          "secureReached": 5,
+          "voluntaryDisconnects": 0,
+          "failures": 0
+        },
+        {
+          "index": 4,
+          "map": "reservoir",
+          "strategy": "extract",
+          "actions": 3178,
+          "deployments": 5,
+          "settlements": 4,
+          "secureReached": 5,
+          "voluntaryDisconnects": 0,
+          "failures": 0
+        },
+        {
+          "index": 5,
+          "map": "switchyard",
+          "strategy": "extract",
+          "actions": 3178,
+          "deployments": 5,
+          "settlements": 4,
+          "secureReached": 5,
+          "voluntaryDisconnects": 0,
+          "failures": 0
+        }
+      ]
+    }
+  },
+  "lastVerifiedAt": "2026-10-31T00:54:46.856Z",
+  "completedAt": "2026-10-31T01:03:02.733Z",
+  "elapsedSeconds": 945.2224042089999,
+  "report": "/tmp/hs-strategy-current-15min.json",
+  "sourceChangedFiles": [],
+  "checks": {
+    "noUnexpectedFailures": true,
+    "allBodiesSettled": true,
+    "starterAllowanceUnspent": true,
+    "observedConservation": true
+  },
+  "results": [
+    {
+      "map": "relay",
+      "strategy": "protected_disconnect",
+      "earnedCredits": 171,
+      "xp": 112,
+      "earnedPerHour": 651.2752948499552,
+      "deployments": 14,
+      "secureReached": 14,
+      "outcomes": {
+        "disconnect": 14
+      },
+      "stalls": 0,
+      "unreachable": 0
+    },
+    {
+      "map": "reservoir",
+      "strategy": "protected_disconnect",
+      "earnedCredits": 65,
+      "xp": 104,
+      "earnedPerHour": 247.56078459208825,
+      "deployments": 13,
+      "secureReached": 13,
+      "outcomes": {
+        "disconnect": 13
+      },
+      "stalls": 0,
+      "unreachable": 0
+    },
+    {
+      "map": "switchyard",
+      "strategy": "protected_disconnect",
+      "earnedCredits": 167,
+      "xp": 118,
+      "earnedPerHour": 636.0407850289037,
+      "deployments": 14,
+      "secureReached": 14,
+      "outcomes": {
+        "disconnect": 13,
+        "death": 1
+      },
+      "stalls": 0,
+      "unreachable": 0
+    },
+    {
+      "map": "relay",
+      "strategy": "extract",
+      "earnedCredits": 613,
+      "xp": 375,
+      "earnedPerHour": 2334.6886300761553,
+      "deployments": 10,
+      "secureReached": 10,
+      "outcomes": {
+        "extract": 9,
+        "death": 1
+      },
+      "stalls": 0,
+      "unreachable": 0
+    },
+    {
+      "map": "reservoir",
+      "strategy": "extract",
+      "earnedCredits": 530,
+      "xp": 367,
+      "earnedPerHour": 2018.572551289335,
+      "deployments": 9,
+      "secureReached": 9,
+      "outcomes": {
+        "extract": 8,
+        "disconnect": 1
+      },
+      "stalls": 0,
+      "unreachable": 0
+    },
+    {
+      "map": "switchyard",
+      "strategy": "extract",
+      "earnedCredits": 532,
+      "xp": 391,
+      "earnedPerHour": 2026.1898061998606,
+      "deployments": 10,
+      "secureReached": 10,
+      "outcomes": {
+        "extract": 9,
+        "death": 1
+      },
+      "stalls": 0,
+      "unreachable": 0
+    }
+  ]
+}

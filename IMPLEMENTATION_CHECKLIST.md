@@ -1,0 +1,142 @@
+# Issue #1 full-scope implementation ledger
+
+This file tracks the full feature request. A prototype, passing unit checks, or a selectable map does not satisfy the complete release. The local PeerJS implementation and the persistent service are currently separate paths; features present in one must be integrated and verified in the authoritative path before completion.
+
+
+## Remaining execution order
+
+1. Audit the remaining arsenal/loadout/presentation coverage against the original issue. Held fire, aiming, shotgun ballistics, rank blueprints and ordinary-mode power isolation are implemented. Identify actual missing weapon or slot behaviors before expanding the catalog; practical weapon feel and full integration acceptance remain open.
+2. Complete player-flow, equipment/base presentation and content/encounter integration against the original issue, then run solo/squad/rival end-to-end acceptance.
+3. Finish repeat-raid farming/insurance/progression measurements and tune against actual strategies; retain starter/earned accounting and failed measurements.
+4. Audit the complete current action/economy/transfer surface adversarially, then repeat current-build multiplayer endurance and measure device performance.
+5. Complete physical-device, real-network/voice, human accessibility/balance and existing-mode multiplayer acceptance. Production configuration/ownership and off-host recovery remain explicit release gates.
+
+This is the finish order for the full request, not a claim that every unchecked historical umbrella item is an independently missing implementation. Detailed implementation evidence follows.
+
+## Verified corrective changes
+
+- [x] Stop simulation/rollback/checkpoint churn on settled worlds after admissions close, retaining original loot/expiry/insurance policy. Scoped multi-world rollback restores canonical inventory, deleted worlds, original ordering and reconnect identity; fixed-clock paired probes and seven new regressions pass. `tests/evidence/2026-10-30-idle-world-memory.json` retains the initially failing draft and live follow-up limitations; long-session memory acceptance remains open.
+- [x] Measured first-protected-item disconnect versus extraction through public APIs on all three maps: 70 settled attempts/26 extractions, conserved starter/earned balances and no unexpected failures. Extraction yielded more income in this small unseeded cohort; `tests/evidence/2026-10-30-strategy-comparison.json` retains outcomes and source. Paid-kit/insurance/expert-route/full-contention/human progression acceptance remains open.
+- [x] Transfer/insurance ownership state-machine review covers eight seeded sequences with attached earned guns, all stack/protected/drop/pickup operations, post-write rollback, replay, service restore and one-time delayed insurance. Per-step canonical live ownership and global subtype/provenance quantity oracles pass; `tests/evidence/2026-10-30-ownership-state-machine.json` records scope. Comprehensive all-surface/human acceptance remains open.
+- [x] Six distinct original raid firearm sounds and twelve local action/status cues, accepted-action captions, silent rejected actions and deduplicated authority transitions. Actual Web Audio rendering, copied native-input/reload/control/lifecycle and source accessibility checks pass; `tests/evidence/2026-10-30-field-audio.json` retains scope and fixture failures. Human mix/readability and full audio/content acceptance remain open.
+- [x] Release raid character GPU geometry and instanced world buffers across visibility/map/account transitions; retain only bounded recent CPU geometry and preserve ordinary-mode cache ownership. Native WebGL-buffer probes, actual paid-body re-entry, copied-package legacy/wallet checks and six high-density map-rendering cases pass. `tests/evidence/2026-10-30-render-resources.json` records the limits; physical devices, whole-client profiling and the new still-running two-hour soak remain open.
+- [x] Enforce one sustained search/revival/boarding interaction per operator, cancel on movement/damage/other actions and release claims immediately. Preserve stationary keepalives/pings, original timers, replay semantics, failed-write rollback and vault payment integrity. Two authenticated browser contexts verify contested search/pickup and restartable boarding from a copied package. Evidence: `tests/evidence/2026-10-30-interactions.json`.
+- [x] Close squad rescue-through-cover, expired-patient revival and carried-body teleport paths. Rescue uses current distance/body cover and interruption/deadline checks; reciprocal carrying links survive valid restart/replay and release on carrier downing. Named server-gated controls, carry/drop keyboard focus, rollback/restart and carried-pair extraction have focused unit/browser coverage. See `RAID_RULES.md` and `tests/evidence/2026-10-30-rescue.json`; human counterplay and full release acceptance remain open.
+- [x] Validate squad readiness against canonical deployment rules without debiting gear or premiums; revalidate stale flags, keep teammate financial errors private, refresh rejected client selections, invalidate consumed/returned inventory and preserve all-member rollback after a late deployment failure. Unit and isolated browser evidence is recorded in `tests/evidence/2026-10-30-readiness.json`.
+- [x] Reject changed deployment IDs and repeated active-raid hello grants in the peer implementation.
+- [x] Restore non-raid mid-match team rules.
+- [x] Preserve condition during loadout edits.
+- [x] Keep peer-mode parties together and enforce three-player squad limits.
+- [x] Preserve downed state and bleed deadline on disconnect.
+- [x] Add reproducible repository regression tests.
+
+## Server foundation
+
+- [x] Enforce a configurable whole-host operator ceiling (default 27), including pending settlements, with whole-squad rejection before any gear/premium debit. Existing actions/reconnect/retry and restored bodies above a reduced limit are preserved; concurrent HTTP and copied startup/browser tests pass. `tests/evidence/2026-10-30-host-capacity.json` records the current 27-client impaired workload and source-specific long-run limits.
+- [x] Persistent account/password authentication, hashed sessions, HttpOnly cookies.
+- [x] Owned item instances, raid currency separate from diamonds, transactional equipment debit.
+- [x] One active deployment per account; deployment retries and durable settlement deduplication.
+- [x] Transaction rollback and interrupted-deployment compensation with tests.
+- [x] Server-controlled movement, collision, line-of-sight damage, AI, loot claims, exit timers and extraction in a separate development client.
+- [x] No client-facing reward/settlement endpoint; bounded HTTP payloads, action sequences and rate limits.
+- [x] Normalize item ownership with unique IDs and indexed account/deployment/raid locations; retain transactional audit records.
+- [ ] Profile indexed ownership and audit retention at production scale.
+- [ ] Durable active raid checkpoints; multi-process session allocation, leases and crash recovery.
+- [x] Restore active checkpoints and action sequences after restart; fence duplicate simulations with an expiring database lease. Durable current/latest deployment selection prevents old dead bodies replacing the reconnect identity. Scoped action rollback leaves unrelated simulations untouched. Tests cover historical-body order, failed checkpoint rollback and lease expiry.
+- [ ] Distributed/multi-instance session allocation and failover testing.
+- [ ] Port remaining peer features into the authoritative server path and consolidate the player flow.
+- [x] Protocol-v8 action allowlists and raid/deployment binding; durable bounded success/failure replay receipts, same-payload retries and pre-debit update boundaries. Forged/stale bindings, conflicting sequences, rollback/restart and lost-response tests pass. Comprehensive adversarial review remains part of the release audit.
+- [x] Per-account/per-action rate limits, credential-abuse protection, single-use code recovery, password changes and account/session management in the development service.
+- [x] Reauthenticated security mutations, rotating HttpOnly session cookies, per-session/all-other revocation, bounded/expiring session metadata, hashed recovery codes with regeneration/consumption rules, UI secret cleanup and stale-request protections. Browser checks cover remote microphone/session shutdown and reconnecting the same vulnerable paid-loadout body after recovery. No email provider or production support process has been configured.
+- [x] Separate account/action/IP/credential rate limits, bounded limiter memory and retry responses. Recovery/session-management is implemented below; production identity/support and operational review remain open.
+
+## Equipment and persistent progression
+
+- [ ] Instance-backed equipment selection integrated with the full game and all weapon types.
+- [x] Three owned armor grades with condition-spent body protection, separate 100 health, grade weight/mobility/pricing/insurance, carried armor swaps/removal and condition-preserving extraction. Head/leg/fall/hazard bypass is server-controlled; legacy active bodies keep old rules. Practical gear balance remains open.
+- [ ] Attachments, ammunition ownership, stack/weight rules, weapon swapping and quick slots.
+- [x] Server-owned eight-pellet shotgun spread and falloff, exact bullet/body and thin-cover/ramp intersections, single-shell ammo/accuracy accounting, hit credit/overkill and checkpoint rollback. Keyboard/captured-mouse/touch aiming magnifies owned optics and shares the authoritative eye height. Schema-11 active raids retain legacy hit rules; current schema12/protocol9 fence incompatible binaries/clients. Full arsenal and practical combat balance remain open.
+- [x] Held automatic rifle/SMG/support fire and one-shot-per-press sidearm/shotgun/scout controls across remapped keyboard, captured mouse and touch. Owned cadence/ammo, reload/swap recovery, queued-shot cancellation, focus/menu/downing cleanup and duplicate touch-click suppression have unit/browser coverage. Slow-network fire rate and broader weapon mechanics remain open.
+- [x] Server-owned ammunition and persistent magazines; compatible attachment installation/removal; bounded stacks and weight; weapon selection/drop and keyboard quick slots. Six firearm classes are in the raid catalog; full arsenal/content integration remains open.
+- [x] Three owned/craftable/lootable field utilities: smoke sight obstruction, investigating-machine lure and armor-aware delayed explosive. Server-derived placement, cooldowns, bounded/checkpointed effects, replay/rollback, exact consumption, stack/weight/loss and UI inspection/keyboard/touch/backpack controls are covered. Practical counterplay/balance and crowded-effect capacity remain open.
+- [ ] Global transactional transfers across every inventory/death/insurance path.
+- [x] Owned stash/carried stack splitting and merging, partial container pickup, protected withdrawal and equipped-item drops/unarmed persistence. Quantity/type/slot/weight/revision guards, lineage, canonical ownership/insurance, receipt/checkpoint rollback and restart are tested. Two-account browser checks cover keyboard quantities/focus and first/third-person weapon changes; INVENTORY.md records the exact rules. Comprehensive human/adversarial transfer acceptance remains open.
+- [x] Delayed insurance eligibility and claimed-item exclusion with durable ownership checks; premiums/refunds and returned-item uniqueness are tested.
+- [x] Protected-item eligibility and bounded stacks; ammunition/equipment/recovery items cannot bypass protected storage rules.
+- [ ] Complete anti-farming/repeat-raid balance across strategies and accounts.
+- [x] Source-preserving new-account starter credits/supplies, earned-first spending and crafting inputs, owner-only pickups, split/recycle/sell/repair/attachment provenance, earned-only contract deliveries and exact refund types. Loaded starter ammo is removed/audited on foreign weapon pickup while earned guns remain transferable. Repeated-account, rollback/restart/migration and actual two-account browser checks cover these rules; ECONOMY.md preserves the open quantitative/human balance work.
+- [x] Protected overflow with explicit retrieval, favorites, sorting, filtering/search and atomic bulk selling. Overflow must be resolved before another deployment; no automatic sale or silent deletion.
+- [x] Three traders with distinct hourly stock, reputation discounts and unlocks.
+- [x] Inventory-backed recipes, recycling, paid repairs, persistent condition effects and stash/repair-bay/workbench upgrades.
+- [x] Eight exploration/recovery/delivery/combat/multi-stage contracts driven by server facts, including sector-specific exploration/kills/artifact extraction. Nearby squad members share map-specific machine/boss credit. Reserved artifacts are protected from sale/recycling and cannot be redeployed; delivery and claims consume/pay once with rollback tests.
+- [x] Deterministic bleeding/leg injuries, shared-authority prediction speed and four owned medical choices with bounded stacks, exact effects, cooldowns, save/receipt rollback and restart catch-up. Medical use/clearance, damage/absorption and accuracy appear in HUD/inspection/reports. Human readability and medical/economy balance remain open.
+- [ ] Balanced XP/unlocks and an audit of classes, pets, upgrades and abilities. The current power audit is complete for the implemented authority; human progression-speed/balance acceptance remains open.
+- [x] Seven XP ranks unlock six ordinary weapon assemblies with server-owned rank/station/material/credit gates, source-preserving outputs, stale-revision/write rollback and immutable rank/unlock settlement records. Existing trader/recipe/recovery access is preserved; ranks add no passive combat stats. PROGRESSION.md records costs and the explicit ordinary class/pet/weapon-upgrade/diamond isolation audit with novice/veteran and legacy-wallet browser checks.
+- [ ] Complete long-term economy/progression balance across realistic behaviors.
+- [x] Source-fingerprinted service-priced financial sensitivity model, actual base-upgrade budgets, trader stock constraints and protected-loot pool ceilings. Public-API workload reports separate starter/earned cash, income/spending and returned/new loot. A fifteen-minute cohort reconciles observed balances; ECONOMY_MODEL.md records assumptions and targeted/longer/human work still required.
+- [x] Quantity-aware recycling quotes and atomic batch consumption with original-identity leftovers. Static auditing includes buy/craft/recycle/sell, merged purchases and all legal binary salvage splits. This closes the single-round-to-steel farming loop; repeat-raid rewards and new-account grant laundering remain separate open audit work.
+- [x] Documented no-scheduled-wipe persistent progression policy in RAID_RULES.md; normal migrations/restarts preserve saves, existing permanent cosmetics remain separate, and a future seasonal change needs its own announced policy.
+- [x] Static maximum-discount buy/sell and craft/sell audit has no profitable resale loops; `node scripts/economy-audit.mjs`. Actual raid earning rates and long-term balance still require playtests.
+
+## Complete raid experience
+
+- [ ] Authenticated solo/duo/trio parties, invitations, ready checks and party-preserving matchmaking.
+- [x] Authenticated invite codes, persistent parties/ready checks, atomic leader-led squad deployment, and same-team placement. Matching excludes prior raid participation by any member, preventing solo and changed-leader combat-respawn bypasses. Verified in isolated browser accounts and server regression tests.
+- [x] Same-size session preference, unanimous mixed-size consent, whole-group nine-player/first-minute admission, dynamic rival/machine-safe anchors and distinct squad formation. Server-timed session-bound connection checks enforce fresh optional limits for every party member before debit; leaders can change preferences with readiness reset. Region and low-population behavior are explicit. Distributed capacity/routing and practical matchmaking/network balance remain open.
+- [ ] Exact committed-loadout/risk summary and clear costs before deployment. Ordered primary/preset preparation, explicit readiness reconciliation and costs now have end-to-end browser evidence; broader human integration acceptance remains open.
+- [x] Stable primary/secondary selection across stash sorting, refresh and presets; base item inspection/comparison/weight; selected gun/secondary/armor portrait with manual rotation and bounded owned GPU resources. A reload can restore the exact readied plan, and server-side leader selection mismatch rejects before debit. Active-body snapshots and sign-out cleanup are explicit. LOADOUTS.md records policy and remaining scope.
+- [x] Owned item/condition/ammunition/weight summary and exact insurance premium before deployment. Inventory mutations invalidate squad readiness; presets preserve item-instance selection.
+- [ ] Production-ready exits: access costs, boarding, interruptions, capacities, reuse and downed/carry rules.
+- [x] Four authored exit routes with persistent seat caps, limited activations, timed/loud/key/fuel access and transactional stack consumption. Server reservations count carried teammates, cancel on either passenger taking damage or losing eligibility, and survive restart. Two-client browser verification covers paid fuel, last-seat contention, cancellation, independent settlement and itemized access costs. RAID_RULES.md documents exact rules; route/camping balance and remote-device playtests remain open.
+- [ ] Server-backed squad downing, revives, elimination, spectating and partial-squad extraction.
+- [x] Server downing, bleeding, interrupted revival, carrying and carrier/teammate extraction with independent settlements. Squad-only spectator selection and server-filtered enemy visibility now have tests; richer presentation remains open.
+- [ ] Complete reconciliation of item losses, insurance, rewards and contracts in post-raid reports. New reports now include public outcome causes, map/time, a starter/earned settlement ledger, named insurance status at settlement, itemized returned/lost/overflow items, usage/access costs and contract progress. Historical details remain explicitly unavailable; full human reconciliation and end-to-end acceptance remain open.
+- [x] Bounded shared-collision visual prediction, camera interpolation, visibility-filtered state and protocol-v9 combined action/state responses. Browser checks prove immediate camera motion before delivery, reconciliation and duplicate-shot safety. Full input-history replay/lag compensation and high-latency human playtests remain open.
+
+## Content, social features and presentation
+
+- [ ] Multiple finished original maps. Three authored version-3 districts now have original environment props, interiors and vertical access; finishing, route balance and playtests remain open.
+- [ ] Spawn safety, complete collision/navigation/interiors/vertical access and balanced loot routes.
+- [x] Versioned map geometry, A* routes to every cache/exit, machine spawn clearance, ramp/roof movement, jump/fall rules and height-aware interactions have automated checks. Route balance and complete human playthroughs remain open.
+- [ ] Original machine art/audio, distinct movement and attacks, weak points/armor, bosses and counterplay.
+- [x] Five original synthesized directional charge cues with distinct waveforms/rhythms, visible-nearby snapshot eligibility, duplicate suppression, mute/volume, bounded polyphony and disconnected completed nodes. Chrome offline DSP verifies distinct nonzero waveforms, stereo direction, silent mute and cleanup; human sound readability and the complete audio mix remain open.
+- [ ] Perception/investigation/disengagement, alarms, patrols and coordinated encounters.
+- [x] Exact current-raid cover shared across visibility, AI perception/strikes, utilities, interaction and markers; head-peek and actual-height downed visibility respect matched smoke rays. All 48 authored cache/exit interaction approaches remain reachable. Legacy raid sight/cover rules are preserved.
+- [x] Five machine types with distinct movement/telegraphed attacks, armor/core damage, last-seen investigation/expiry and nearby alerts; scripted tests verify counterplay and spawn safety. Full encounter tuning and original audio production remain open.
+- [x] Weather/day/night, hazards, contested drops, dynamic events and map-specific contracts/loot are implemented in the authoritative path. New raids use saved daylight/weather plans with machine/snapshot visibility, smoothed sky/sun/moon/stars and advance captions. Three distinct loot pools and two-stage sector recovery contracts use private loot seeds, unique unsecured artifacts, canonical delivery and reserved-item sale protection. WORLD_CONTENT.md records exact policies; practical content/balance/device acceptance remains open.
+- [x] Server weather changes, periodic warning/damage hazards, supply drops and reinforcement patrols; visual weather/warning rings and event captions are integrated. Current sector/day-night code has automated and focused browser coverage; human route/content/balance acceptance remains a separate gate.
+- [ ] Complete safe base, character/equipment presentation and original extraction visuals/audio.
+- [x] Server-owned squad pings/map and world markers, quick supply requests, and teammate downed/boarding/disconnect/outcome status. Tests cover aim ownership, cooldown, expiry, squad isolation and block filtering.
+- [ ] Opt-in squad/proximity voice plus mute/block/report/privacy.
+- [x] Mutually opted-in WebRTC voice, push-to-talk, expiring session signaling, volume, durable mute/block and context-bound reports; published development privacy disclosure and audited local operator review tool. Two isolated fake-microphone clients exchanged audio RTP, disconnected/reconnected on mute/unmute, submitted a report, suppressed blocked pings and released capture.
+- [ ] Deploy and verify remote-network STUN/TURN, latency/loss, real microphones/devices, and operator contact/retention/moderation arrangements before public release.
+- [ ] Full touch and keyboard/mouse flows, remapping, scalable HUD, captions and accessibility validation.
+- [x] Device-local remapping for movement/aim/actions/voice, key conflict swaps, keyboard aiming, scalable text/HUD, contrast, sensitivity/FOV/volume, device reduced-motion preferences, critical text/status announcements, item inspection/rarity text and explicit exit/search/boarding feedback.
+- [x] Isolated browser coverage for dialog focus, persisted remapping, keyboard movement/aim/search/take/secure, touch aiming/boarding, mobile 44px targets/no horizontal overflow, reduced-motion rendering and input reset across a real visible/hidden lifecycle transition. Container/exit positions are arranged by the test server; this is not a full human navigation playthrough.
+- [ ] Onboarding and real-device/background-tab/pointer-lock/service-worker testing.
+- [x] First-raid guide card and remap-aware field guide; background/menu input clearing and microphone quieting; service worker excludes private API responses, purges legacy caches, and returns explicit offline JSON. A browser test stops/restarts an isolated server and verifies private data is never served from cache.
+- [ ] Human onboarding/assistive-technology playtests, physical touch devices, pointer-lock/real network/device compatibility and browser performance remain open.
+
+## Release gates
+
+- [ ] Real-network multiplayer verification, including latency, loss, reconnect and concurrent sessions.
+- [ ] Full gameplay regression across existing modes and wallet/cosmetic migrations.
+- [ ] Defined/measured player, AI, bandwidth, frame-time and memory budgets. Isolated file-backed HTTP measurements now cover 9/27 clients, tick execution/scheduling, memory samples, bandwidth and 150 ms/5% application loss; see PERFORMANCE.md. Production/device/combat-load budgets remain open.
+- [ ] Load/soak tests, mobile hardware profiling and balance playtests.
+- [x] Fifteen-minute 27-client public-API gameplay workload covers combat, owned ammunition/medicine, container/bag looting, exit payments/boarding and canonical settlement: 64 extractions, 307 machine kills, 15 bosses, all declared development timing/error gates passed. The retained report has 107 failed actions and 22 navigation stalls; later fixes are not retroactively attributed to that run. Multi-hour, real WAN and practical balance/device acceptance remain open.
+- [x] Physical routes from every spawn to every current cache/exit, every cache back to every exit, archived roof approaches and reported mid-ramp positions. Platform-edge body support prevents the discovered descent trap, and pilot detours discard stale elevated paths. These are reachability checks, not human route-balance approval.
+- [x] Fifteen-minute isolated 27-client movement endurance baseline with 150 ms/5% application impairment: 134,114 actions, 104 deployments, 6,847 duplicate acknowledgements, no simulation errors, and all declared development thresholds passed. This baseline predates limited-exit rules. A subsequent concurrent-browser scheduling failure is retained in the evidence; multi-hour/combat-heavy/device/WAN validation remains open.
+- [ ] Monitoring, security/audit dashboards, moderation and operations ownership.
+- [x] Minimal health endpoints, private operator status/drain controls, bounded secret-free HTTP/simulation/event-loop metrics, open-report/pending-settlement counts and a rendered snapshot dashboard. Operator audit records track lifecycle changes; drain remains enforced when audit storage fails, and resume requires a committed audit. Public hosting, external collection/alerts and an on-call owner remain open.
+- [ ] Backup/restore drills, deployment/rollback runbooks and migration recovery tests.
+- [x] Private online SQLite backup bundles, checksum/integrity/ownership checks, safe new-directory restore, supported-schema migration, credential invalidation and explicit abort/resume policies. A real child-process crash/restore/restart drill and a concurrent-WAL-writer test pass; OPERATIONS.md documents deployment, rollback and incident recovery. Off-host/production drills and release/hosting automation remain open.
+- [x] Standalone runtime inventory/manifest builder and pinned-ID verifier/starter. Local state/credentials/tests/screenshots are excluded; source races, tampering, extra files, links and existing output folders are refused. Separate save/configuration preflight, credential/loader environment filtering, exact build identity and normal shutdown are covered by unit and real packaged-process restart tests. Six browser scenarios also passed against the copied package; provider/process-manager installation and production acceptance remain open.
+- [ ] Hosting cost and configuration review; production secrets and HTTPS configured outside the repository.
+- [ ] Review all original issue acceptance criteria against evidence before claiming completion.
+
+Nothing in this ledger authorizes a merge, production deployment, or change to main. Follow Austin's instructions for committing, pushing and submitting work.
+
+Historical two-hour schema-8/protocol-5 gameplay run completed with all declared development timing/error gates passing. Its 42 navigation stalls, three unexplained 409 failures and memory windows remain preserved review evidence; this does not close current-build multi-hour/human acceptance. See tests/evidence/2026-10-30-two-hour-soak.json.
+
+- [x] Replay of all 42 recorded historical stall poses, including original/heavy-injured mobility and explicit missing dynamic targets. Corrected stale ramp-side segments, physical/planning radius mismatch and premature airborne searches. Failed measurements remain preserved; current ten-minute impaired gameplay gates pass. STABILITY_REVIEW.md keeps original unexplained causes and broader acceptance open.
+- [x] Persistent-host saved query/session raid entries use the same persistent path as the main button. Browser checks preserve the static fallback and smoke offline co-op Extraction/Royale/FFA plus representative wallet/cosmetic migration; full remote legacy regression remains open.

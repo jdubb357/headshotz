@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-30",
+  "state": "completed",
+  "scope": "Current idle-world tick selection real-time 27-client impaired gameplay follow-up. Not completed or full memory proof.",
+  "sessionId": 51410,
+  "pid": 72370,
+  "childPids": [
+    72459
+  ],
+  "dataRoot": "/private/tmp/hs-load-LzZ0tb/data",
+  "sourceSha256": "21eef29c9e2e1f8bbcdfb505ddd92888aaf9758ff4a0bcd2b02448257d5cba12",
+  "sourceManifest": "/tmp/hs-idle-worlds-current-source.json",
+  "log": "/tmp/hs-idle-worlds-current-15min.log",
+  "eventualReport": "/tmp/hs-idle-worlds-current-15min.json",
+  "seconds": 900,
+  "startedAt": "2026-10-31T01:29:35.981Z",
+  "note": "Session 51410 exited 0 and its private service/data cleaned up. All declared 900-second/27-client workload gates pass; 134 failures are retained, including one unclassified throw rejection. No simulation/navigation stalls. Current 15-minute RSS peaks at 303.58 MiB, but this is not a multi-hour plateau or production certification. Prior two-hour report remains separate. No live workload needs resuming.",
+  "latestPrivateStatus": "/tmp/hs-idle-worlds-current-status-002.json",
+  "lastVerifiedAt": "2026-10-31T01:33:35.899Z",
+  "latestProgress": {
+    "progress": {
+      "elapsedSeconds": 335.05026504100005,
+      "actions": 49727,
+      "finishedClients": 0,
+      "accepted": {
+        "move": 47606,
+        "fire": 1590,
+        "throw": 36,
+        "use": 97,
+        "search": 166,
+        "take": 144,
+        "secure": 48,
+        "extract": 18,
+        "call": 15,
+        "reload": 2,
+        "equip": 3,
+        "unlock": 2
+      }
+    }
+  },
+  "completedAt": "2026-10-31T01:47:51.319Z",
+  "elapsedSeconds": 900.3806466659998,
+  "actions": 134188,
+  "outcomes": {
+    "death": 175,
+    "extract": 64
+  },
+  "failedActions": 134,
+  "errorStatuses": {
+    "delivery:move": 131,
+    "delivery:throw": 1,
+    "409:throw": 1,
+    "delivery:fire": 1
+  },
+  "checks": {
+    "noProlongedAirborneStalls": true,
+    "observedEconomyConserved": true,
+    "gameplayLoopCovered": true,
+    "gameplayRejectionRateWithinBudget": true,
+    "allClientsCompleted": true,
+    "noSimulationErrors": true,
+    "actionFailureRateWithinBudget": true,
+    "tickP95Within50ms": true,
+    "tickIntervalP95Within75ms": true
+  },
+  "sourceChangedFiles": []
+}

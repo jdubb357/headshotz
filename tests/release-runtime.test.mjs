@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {createConnection} from 'node:net';
+import {once} from 'node:events';
+import {mkdtemp,mkdir,readFile,writeFile,rm,access} from 'node:fs/promises';
+import {join} from 'node:path';
+import {buildRelease,verifyRelease} from '../scripts/lib/release.mjs';
+import {controlRequest} from '../server/control.mjs';
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+function launch(bundle,id,data){
+ const child=spawn(process.execPath,[join(bundle,'scripts/start-release.mjs'),'--id',id],{detached:true,env:{PATH:process.env.PATH,RAID_DATA_DIR:data,HOST:'127.0.0.1',PORT:'0',RAID_MAX_OPERATORS:'1'},stdio:['ignore','pipe','pipe']});let output='',errors='',ended;
+ const exit=new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',(code,signal)=>{ended={code,signal};resolve(ended)})});child.stdout.on('data',chunk=>output=(output+chunk.toString()).slice(-16000));child.stderr.on('data',chunk=>errors=(errors+chunk.toString()).slice(-16000));
+ return {child,exit,get ended(){return ended},get errors(){return errors},async ready(){for(let i=0;i<200;i++){const match=output.match(/http:\/\/127\.0\.0\.1:\d+/);if(match){try{if((await fetch(match[0]+'/health/ready')).status===200)return match[0]}catch{}}if(ended)throw new Error('Packaged service exited during startup: '+errors);await delay(50)}throw new Error('Packaged service startup timed out')},async stop({groupSignal,repeatAfterMs=0}={}){if(ended)return ended;if(groupSignal)process.kill(-child.pid,groupSignal);else child.kill('SIGTERM');if(repeatAfterMs){await delay(repeatAfterMs);if(!ended)process.kill(-child.pid,groupSignal)}const timer=setTimeout(()=>{try{process.kill(-child.pid,'SIGKILL')}catch{}},12000);try{return await exit}finally{clearTimeout(timer)}}};
+}
+test('standalone packaged service verifies, serves, escrows, checkpoints and resumes outside the checkout',async()=>{
+ const root=await mkdtemp('/tmp/hs-rlr-'),data=join(root,'saves'),children=[];let release;
+ try{
+  release=await buildRelease({destination:join(root,'candidate'),label:'runtime-drill'});let child=launch(release.path,release.id,data);children.push(child);let base=await child.ready(),cookie='';
+  const request=async(path,body)=>{const response=await fetch(base+path,{method:body?'POST':'GET',headers:{...(cookie?{cookie}:{}),...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});if(response.headers.get('set-cookie'))cookie=response.headers.get('set-cookie').split(';')[0];return {response,text:await response.text()}};
+  const main=await request('/');assert.ok(main.text.includes('headshotz-raid-service'));assert.ok((await request('/raid-online.html')).text.includes('Throw'));assert.equal((await request('/lib/three.module.min.js')).response.status,200);assert.equal((await request('/assets/tex/sky.jpg')).response.status,200);
+  for(const path of ['/server/store.mjs','/scripts/start-release.mjs','/.raid-data/raid.sqlite','/tests/release.test.mjs'])assert.equal((await request(path)).response.status,404);
+  assert.equal((await request('/api/register',{username:'release_drill',password:'a long packaged service password'})).response.status,200);await request('/api/trade',{type:'buy',trader:'engineer',sku:'smoke'});const profile=JSON.parse((await request('/api/profile')).text),weapon=profile.items.find(it=>it.kind==='weapon'),utility=profile.items.find(it=>it.utility==='smoke');assert.ok(utility);
+  const deployed=await request('/api/deploy',{protocol:release.protocol,requestId:'release_paid_deployment',mapId:'relay',itemIds:[weapon.id,utility.id]});assert.equal(deployed.response.status,200);const state=JSON.parse(deployed.text),binding={protocol:release.protocol,raidId:state.raidId,deploymentId:state.self.deploymentId,includeState:true};
+  const fired=JSON.parse((await request('/api/action',{...binding,type:'fire',seq:1,yaw:0,pitch:0})).text);assert.equal(fired.state.self.ammo,29);assert.ok(!JSON.parse((await request('/api/profile')).text).items.some(it=>it.id===weapon.id));
+  const status=await controlRequest(join(data,'.ops/control.sock'),{command:'status'});assert.equal(status.build,release.id);assert.equal(status.schema,release.schema);assert.equal(status.protocol,release.protocol);assert.deepEqual(status.operatorCapacity,{limit:1,used:1,available:0,overCapacity:false});
+  const firstCookie=cookie;assert.equal((await request('/api/register',{username:'release_over_capacity',password:'a long rejected capacity password'})).response.status,200);assert.equal((await request('/api/deploy',{protocol:release.protocol,requestId:'release_capacity_rejected',mapId:'reservoir',recovery:true})).response.status,503);assert.equal(JSON.parse((await request('/api/profile')).text).activeDeployment,null);cookie=firstCookie;
+  assert.equal((await child.stop()).code,0);assert.equal(child.errors,'');
+  child=launch(release.path,release.id,data);children.push(child);base=await child.ready();const resumed=JSON.parse((await request('/api/raid')).text);assert.equal(resumed.self.deploymentId,state.self.deploymentId);assert.equal(resumed.self.equipment.find(it=>it.kind==='weapon').id,weapon.id);assert.equal(resumed.self.ammo,29);assert.equal(resumed.self.seq,1);
+  const thrown=JSON.parse((await request('/api/action',{...binding,type:'throw',seq:2,itemId:utility.id,yaw:0,pitch:0})).text);assert.equal(thrown.ack.accepted,true);assert.equal(thrown.state.self.equipment.some(it=>it.id===utility.id),false);assert.equal(thrown.state.utilities.length,1);const held=createConnection(join(data,'.ops/control.sock'));await once(held,'connect');const stopping=child.stop({groupSignal:'SIGINT',repeatAfterMs:50});await delay(100);held.destroy();assert.equal((await stopping).code,0,'terminal interrupts must not kill checkpoint cleanup through duplicate forwarding');assert.equal(child.errors,'');assert.equal((await verifyRelease({root:release.path,expectedId:release.id})).id,release.id);await assert.rejects(access(join(release.path,'.raid-data')));
+  child=launch(release.path,release.id,data);children.push(child);base=await child.ready();const terminating=createConnection(join(data,'.ops/control.sock'));await once(terminating,'connect');const terminatingStop=child.stop({groupSignal:'SIGTERM',repeatAfterMs:50});await delay(100);terminating.destroy();assert.equal((await terminatingStop).code,0,'repeated termination must finish checkpoint cleanup');assert.equal(child.errors,'');
+  // Tampering fails before even creating a fresh save directory/listener.
+  const client=join(release.path,'raid-online.mjs');await writeFile(client,(await readFile(client,'utf8'))+'\n// tampered');const rejectedData=join(root,'rejected-saves'),rejected=launch(release.path,release.id,rejectedData);children.push(rejected);assert.equal((await rejected.exit).code,1);assert.match(rejected.errors,/Release startup refused: Release file contents/);await assert.rejects(access(rejectedData));
+ }finally{for(const child of children)await child.stop();await rm(root,{recursive:true,force:true})}
+});

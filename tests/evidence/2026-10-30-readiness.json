@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-30",
+  "scope": "Canonical squad readiness validation, stale flags, mutation invalidation and late group rollback. Full issue #1 remains incomplete.",
+  "candidate": {
+    "id": "602ec95472ecc0ff1b34f5fe765c04350511c3698d12b97cf25d8f8a3641674b",
+    "label": "readiness-validation",
+    "path": "/private/tmp/headshotz-extraction-readiness-candidate",
+    "files": 201,
+    "bytes": 11568328,
+    "schema": 12,
+    "protocol": 9
+  },
+  "runtime": {
+    "schema": 12,
+    "protocol": 9,
+    "serviceWorker": "headshotz-v81"
+  },
+  "sourceSha256": {
+    "server/store.mjs": "5a293b6514d95e3be248d7d4e60194b6939d0fae58586a5026a667d2994f8704",
+    "raid-online.mjs": "0364ccad42235fa4be2e9c8bcbc4b7b47df3be18042e03f463b39e31a8629fe8",
+    "sw.js": "06a28bdb944cb7de6bf4837543ea4ee796747060dbf3ea176d4f065da19b04d3",
+    "LOADOUTS.md": "d2363d39ac3abb959b4b9134a76350bbe53c28274c180307ff6c40665d5f96b2",
+    "tests/raid-readiness.test.mjs": "f7f33120d569e7e84c5c1af2aa331e0360f6107439a37a27f7452e8505e6816b",
+    "tests/raid-parties.test.mjs": "551bcf7c1ff09ff521a75a9b0c02ab34f66448cd5f49a50752f06200db087a3e",
+    "tests/raid-browser-readiness.mjs": "ddd9640ccbd094597edc0141bd46cfb25ba19d51c13ebcf79dcf9486aa28d0f3"
+  },
+  "automatedTests": {
+    "command": "node --test tests/*.test.mjs",
+    "passed": 988,
+    "failed": 0,
+    "durationMs": 10483.074625,
+    "log": "/tmp/hs-readiness-final-suite.log"
+  },
+  "logs": {
+    "/tmp/hs-readiness-final-suite.log": {
+      "sha256": "41bc0d0a52482becd0070da9eecfe30a0f4fcf561be11801431eb67a5d66f80a",
+      "output": "riting output (93.201833ms)\n\u2714 drain still fences admission if audit storage fails, and resume requires a successful audit (1.782917ms)\n\u2139 tests 988\n\u2139 suites 0\n\u2139 pass 988\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 10483.074625\n"
+    },
+    "/tmp/hs-readiness-browser.log": {
+      "sha256": "6b3cdb8a74ed3a361f35cc2e0c655f8f691f06263a69deb99391d99477fc9e6d",
+      "output": "{\"readyWithoutDebit\":true,\"staleReadyRevalidated\":true,\"invalidInsuranceBlocksDeploy\":true,\"rejectedReadyRefreshesSoldGear\":true,\"recoveryStillWorks\":true,\"browserErrors\":[],\"scope\":\"Isolated Chrome; second-device balance and sale changes are server fixtures.\"}\n"
+    },
+    "/tmp/hs-readiness-loadout-browser.log": {
+      "sha256": "59ac542afc998e6470f4dc7abd1d7d267f89186cb73f926dbc5c4ff525d8feaf",
+      "output": "{\"sortPreservesPrimary\":true,\"presetPreservesOrder\":true,\"missingPresetWarning\":true,\"ownedGunArmorPreview\":true,\"previewRotation\":true,\"boundedPreviewGeometry\":true,\"baseItemInspection\":true,\"readyReloadMismatch\":true,\"readiedLoadoutRestore\":true,\"primaryChangeUnreadies\":true,\"staleCommitRejectedBeforeDebit\":true,\"primaryDeploysAsPreviewed\":true,\"exactInsuranceDebit\":true,\"activeDeploymentExplained\":true,\"logoutClearsGearUi\":true,\"mobileOverflow\":false,\"browserErrors\":[],\"scope\":\"Isolated bought items, pistol condition/magazine and missing-preset fixture. Not human visual/device/remote multiplayer acceptance.\"}\n"
+    },
+    "/tmp/hs-readiness-packaged-party.log": {
+      "sha256": "301c0135ad153ae4d955db60fad82ef594c5063481e6e5c603dad199b0050bae",
+      "output": "{\"partyInvite\":true,\"separateAccounts\":true,\"readyChecks\":true,\"groupDeployment\":true,\"sameRaid\":true,\"sameTeam\":true,\"browserErrors\":[]}\n"
+    }
+  },
+  "verified": [
+    "Readiness shares side-effect-free canonical deployment validation for typed unique equipment, ownership, condition, count, stacks, weight, active body, overflow and insurance affordability.",
+    "Ready does not debit gear, credits, insurance or inventory revision. Temporary recovery items are created only at commit.",
+    "Previously persisted invalid readiness is presented as unready without mutating storage on GET; only the owner sees detailed errors.",
+    "False readiness can always revoke without a valid replacement loadout and preserves the last validated loadout.",
+    "Contract deliveries and actual insurance returns clear readiness; accept/claim and no-op insurance processing preserve it.",
+    "Late second-member deployment failure rolls back the first member after an actual paid/insured debit, including inventory revision, insurance rows, deployments and simulation actors/raid.",
+    "Chrome verifies stale insurance errors disable deployment, rejected readiness refreshes a second-device sold gun, and recovery remains available.",
+    "Existing loadout/preview/primary-order/insurance/active-body/logout browser flow passes.",
+    "Two isolated browser accounts deploy together from the verified immutable copied candidate."
+  ],
+  "retainedFailureEvidence": {
+    "beforeFix": "/tmp/hs-readiness-before.log",
+    "beforeFixPassed": 2,
+    "beforeFixFailed": 5,
+    "fixtureCorrection": "An initial overweight test used material stacks above the catalog limit and correctly hit stack validation first; replaced it with eight legal owned slots, legal stacks, heavy armor and attached guns exceeding 40 weight."
+  },
+  "limitations": [
+    "No new load/soak claim; prior server simulation workloads predate this preparation validation change.",
+    "Loopback Chrome and server fixtures do not establish physical-device, human, microphone, assistive-technology or WAN acceptance.",
+    "No commit, push, merge or public deployment performed.",
+    "Original full release criteria remain open in RELEASE_ACCEPTANCE.md."
+  ]
+}

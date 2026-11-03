@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {browserHarness} from './browser-harness.mjs';
+const runtimeRoot=process.env.RAID_TEST_ROOT?pathToFileURL(resolve(process.env.RAID_TEST_ROOT)+'/'):new URL('../',import.meta.url);
+const {RaidStore}=await import(new URL('server/store.mjs',runtimeRoot)),{createRaidServer}=await import(new URL('server/main.mjs',runtimeRoot));
+const store=new RaidStore(),runtime=createRaidServer(store);runtime.server.listen(0,'127.0.0.1');await once(runtime.server,'listening');
+const prior=process.env.RAID_TEST_URL;process.env.RAID_TEST_URL='http://127.0.0.1:'+runtime.server.address().port;
+const h=await browserHarness();
+const idle=p=>p.wait("document.body.getAttribute('aria-busy')==='false'");
+try{
+ const p=await h.page();await p.wait("document.getElementById('message')?.textContent.includes('Sign in')");const username='render_life_'+Date.now().toString(36);
+ await p.evaluate(`document.querySelector('[name=username]').value=${JSON.stringify(username)};document.querySelector('[name=password]').value='a long lifecycle password';document.getElementById('register').click()`);
+ await p.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");const profile=await p.evaluate("fetch('/api/profile').then(r=>r.json())");
+ await p.evaluate("import('./raid-view.mjs').then(({RaidView})=>{const start=RaidView.prototype.start;RaidView.prototype.start=function(...args){window.__fieldView=this;window.__fieldStarts=(window.__fieldStarts||0)+1;return start.apply(this,args)}})");
+ const weapon=profile.items.find(it=>it.kind==='weapon');await p.evaluate(`document.querySelector('#stash [data-equip][value="${weapon.id}"]').checked=true;document.getElementById('deploy').click()`);
+ await p.wait("document.getElementById('play').style.display==='block' && window.__fieldView?.snapshot && document.body.getAttribute('aria-busy')==='false'");
+ const deployment=store.profile(profile.id).activeDeployment.id;await p.evaluate("window.__fieldContext=window.__fieldView.renderer.getContext();window.__fieldAudio=window.__fieldView.audio.context;document.getElementById('leave').click()");await idle(p);
+ assert.equal(await p.evaluate("window.__fieldView.snapshot===null && window.__fieldView.scene===null && window.__fieldView.actors.size===0 && window.__fieldView.renderer.info.render.calls===0"),true);
+ assert.equal(store.profile(profile.id).activeDeployment.id,deployment);assert.equal(await p.evaluate("!window.__fieldContext.isContextLost()"),true);assert.equal(await p.evaluate("!window.__fieldAudio || window.__fieldAudio.state==='closed'"),true);
+ await p.evaluate("document.getElementById('resume').click()");await p.wait("document.getElementById('play').style.display==='block' && window.__fieldStarts===2 && document.body.getAttribute('aria-busy')==='false'");
+ assert.equal(await p.evaluate("window.__fieldView.renderer.getContext()===window.__fieldContext"),true);assert.equal(await p.evaluate("window.__fieldView.snapshot.self.deploymentId"),deployment);
+ await p.evaluate("document.getElementById('accountOpen').click()");await p.wait("document.getElementById('accountDialog').open && document.body.getAttribute('aria-busy')==='false'");await p.evaluate("document.getElementById('accountSignOut').click()");await p.wait("!document.getElementById('auth').hidden && document.body.getAttribute('aria-busy')==='false'");
+ assert.equal(await p.evaluate("window.__fieldView.snapshot===null && window.__fieldView.scene===null && window.__fieldView.actors.size===0"),true);
+ for(const id of ['pack','hud','hint','conditions','events','interactionStatus'])assert.equal(await p.evaluate(`document.getElementById(${JSON.stringify(id)}).textContent`),'');
+ assert.equal(store.profile(profile.id).activeDeployment.id,deployment);assert.equal(store.db.prepare('SELECT count(*) n FROM deployments WHERE account=?').get(profile.id).n,1);
+ await p.evaluate(`document.querySelector('[name=username]').value=${JSON.stringify(username)};document.querySelector('[name=password]').value='a long lifecycle password';document.getElementById('login').requestSubmit()`);await p.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
+ await p.evaluate("document.getElementById('resume').click()");await p.wait("document.getElementById('play').style.display==='block' && window.__fieldStarts===3 && document.body.getAttribute('aria-busy')==='false'");
+ assert.equal(await p.evaluate("window.__fieldView.snapshot.self.deploymentId"),deployment);assert.equal(await p.evaluate("window.__fieldView.renderer.getContext()===window.__fieldContext"),true);assert.deepEqual(p.errors,[]);
+ console.log(JSON.stringify({runtimeRoot:runtimeRoot.href,returnToBaseClearsScene:true,signOutClearsSceneAndFieldUi:true,rendererContextReused:true,fieldAudioClosed:true,samePaidBodyResumed:true,noDuplicateDeployment:true,browserErrors:p.errors,scope:'Isolated real paid deployment, base return, account-dialog sign-out and reauthentication. Clearing graphics does not extract or protect the authoritative body.'}));
+}finally{await h.close();runtime.server.close();await once(runtime.server,'close');store.close();if(prior===undefined)delete process.env.RAID_TEST_URL;else process.env.RAID_TEST_URL=prior}

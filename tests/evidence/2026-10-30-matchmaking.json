@@ -1,0 +1,236 @@
+{
+  "automatedChecks": 837,
+  "candidate": {
+    "id": "c0217dcf18b2518fed2c91e54a4cd9c82a176795e28c3f20a5947f2b11f06ba7",
+    "label": "matching-candidate",
+    "path": "/private/tmp/headshotz-extraction-matching-candidate",
+    "files": 181,
+    "bytes": 11437675,
+    "schema": 8,
+    "protocol": 5
+  },
+  "browserScenarios": [
+    {
+      "account": true,
+      "recoveryDeployment": true,
+      "rendered": true,
+      "serverMovement": true,
+      "reconnect": true,
+      "browserExceptions": []
+    },
+    {
+      "maps": 3,
+      "jump": true,
+      "touchAim": true,
+      "rendered": true,
+      "browserErrors": []
+    },
+    {
+      "partyInvite": true,
+      "separateAccounts": true,
+      "readyChecks": true,
+      "groupDeployment": true,
+      "sameRaid": true,
+      "sameTeam": true,
+      "browserErrors": []
+    },
+    {
+      "threeTraders": true,
+      "inventoryCrafting": true,
+      "workbenchUpgrade": true,
+      "attachmentInstall": true,
+      "stashSearch": true,
+      "loadoutPreset": true,
+      "insuranceQuote": true,
+      "insuredDeployment": true,
+      "browserErrors": []
+    },
+    {
+      "mainGameEntry": true,
+      "persistentRaidNavigation": true,
+      "browserErrors": []
+    },
+    {
+      "optIn": true,
+      "pushToTalk": true,
+      "audioRtpReceived": true,
+      "muteDisconnect": true,
+      "unmuteReconnect": true,
+      "squadPing": true,
+      "reportSaved": true,
+      "blockSuppressesPing": true,
+      "microphoneReleased": true,
+      "browserErrors": []
+    },
+    {
+      "remapping": true,
+      "persistentSettings": true,
+      "nativeDialogFocus": true,
+      "keyboardAim": true,
+      "statusAnnouncement": true,
+      "itemInspection": true,
+      "keyboardSearchTakeSecure": true,
+      "touchBoarding": true,
+      "modalStopsMovement": true,
+      "backgroundStopsMovement": true,
+      "reducedMotionRender": true,
+      "touchTargets": true,
+      "mobileAim": true,
+      "mobileOverflow": false,
+      "browserErrors": []
+    },
+    {
+      "legacyPrivateCachePurged": true,
+      "privateApiNotCached": true,
+      "healthNeverStale": true,
+      "offlineJsonError": true,
+      "onlineAccountRecovered": true,
+      "browserErrors": []
+    },
+    {
+      "sessionList": true,
+      "passwordRotation": true,
+      "recoveryCodesHidden": true,
+      "lateCodeDisplayCanceled": true,
+      "remoteSignout": true,
+      "microphoneReleased": true,
+      "codeRecovery": true,
+      "activeBodyPreserved": true,
+      "ownedItemsPreserved": true,
+      "reconnectedAfterRecovery": true,
+      "staleResponseAccountIsolation": true,
+      "browserErrors": []
+    },
+    {
+      "immediateVisualMovement": true,
+      "authorityUnchangedBeforeDelivery": true,
+      "reconciled": true,
+      "lostShotResponseRetried": true,
+      "ammunitionConsumedOnce": true,
+      "sameDeploymentAfterReload": true,
+      "shortInputDeliveredWithoutPolling": true,
+      "releaseStopsWithoutPolling": true,
+      "browserErrors": []
+    },
+    {
+      "costsBeforeDeploy": true,
+      "ownedFuelDeployed": true,
+      "resourceCostConsumedOnce": true,
+      "seatReservation": true,
+      "rivalRejectedAtCapacity": true,
+      "damageFreesSeat": true,
+      "independentExtraction": true,
+      "fullExitDisplayed": true,
+      "reportIncludesAccessCost": true,
+      "ownedWeaponReturned": true,
+      "browserErrors": []
+    },
+    {
+      "sectorBriefing": true,
+      "dayNightRendered": true,
+      "moonAndStars": true,
+      "unsecuredArtifactRecovered": true,
+      "ownedItemExtracted": true,
+      "saleAndLoadoutProtection": true,
+      "contractFilter": true,
+      "deliveryConsumesOnce": true,
+      "rewardReplayRejected": true,
+      "crossSessionProgress": true,
+      "browserErrors": []
+    },
+    {
+      "distinctMachineCues": 5,
+      "utilityCuesRendered": 4,
+      "realWebAudioRendering": true,
+      "directionalStereo": true,
+      "muteSilent": true,
+      "boundedVoices": true,
+      "nodesReleased": true,
+      "browserErrors": []
+    },
+    {
+      "purchasedOwnedUtilities": 3,
+      "paidLoadout": true,
+      "keyboardThrow": true,
+      "backpackSelection": true,
+      "touchButtonThrow": true,
+      "smokeRendered": true,
+      "lureRendered": true,
+      "blastWarningRendered": true,
+      "consumedOnce": true,
+      "reconnectEffects": true,
+      "browserErrors": []
+    },
+    {
+      "leftScreenWithoutEscape": true,
+      "realOperatorSettlement": true,
+      "automaticBaseRefresh": true,
+      "ownedWeaponLost": true,
+      "itemizedReport": true,
+      "browserErrors": []
+    },
+    {
+      "transparentRegionAndPopulationPolicy": true,
+      "serverTimedLimit": true,
+      "highLatencyPreservesOwnedGear": true,
+      "explicitHigherLimitDeploys": true,
+      "strictSoloPool": true,
+      "leaderPreferenceChange": true,
+      "allMembersReadyAgain": true,
+      "memberPreferencesReadOnly": true,
+      "completeDistinctSquadSpawn": true,
+      "proofNotPersistedInBrowserStorage": true,
+      "browserErrors": [],
+      "scope": "Server clock fixture verifies policy/UI; not a WAN latency measurement."
+    }
+  ],
+  "finalTargetedReruns": [
+    {
+      "transparentRegionAndPopulationPolicy": true,
+      "serverTimedLimit": true,
+      "highLatencyPreservesOwnedGear": true,
+      "explicitHigherLimitDeploys": true,
+      "strictSoloPool": true,
+      "proofNotPersistedInBrowserStorage": true,
+      "browserErrors": [],
+      "scope": "Server clock fixture verifies policy/UI; not a WAN latency measurement."
+    },
+    {
+      "sessionList": true,
+      "passwordRotation": true,
+      "recoveryCodesHidden": true,
+      "lateCodeDisplayCanceled": true,
+      "remoteSignout": true,
+      "microphoneReleased": true,
+      "codeRecovery": true,
+      "activeBodyPreserved": true,
+      "ownedItemsPreserved": true,
+      "reconnectedAfterRecovery": true,
+      "staleResponseAccountIsolation": true,
+      "browserErrors": []
+    },
+    {
+      "partyInvite": true,
+      "separateAccounts": true,
+      "readyChecks": true,
+      "groupDeployment": true,
+      "sameRaid": true,
+      "sameTeam": true,
+      "browserErrors": []
+    }
+  ],
+  "scope": "Fifteen prior raid scenarios passed on initial protocol-5/schema-8 matching build; final matching/account/party reruns verify account-generation changes. Expanded matching scenario verifies final leader reconfiguration/member read-only/readiness reset/distinct squad deployment. Region validation and migration are covered by the final 837-check suite. No actual WAN/device/human acceptance claim.",
+  "pendingSoak": {
+    "scenario": {
+      "players": 27,
+      "seconds": 7200,
+      "profile": "raid",
+      "latencyMs": 150,
+      "loss": 0.05
+    },
+    "status": "in_progress_at_recording",
+    "resultClaimed": false,
+    "source": "Loaded before leader preference reconfiguration. Exact loaded source fingerprint will be in its terminal report; historical completion is not inferred from progress.",
+    "interference": "Uncontrolled workstation; brief later isolated browser checks overlapped the beginning of the run."
+  }
+}

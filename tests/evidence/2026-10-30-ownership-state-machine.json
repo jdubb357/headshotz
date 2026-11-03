@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-30",
+  "scope": "Transfer/insurance ownership state-machine audit with attachments. Not a comprehensive security or full release acceptance claim.",
+  "candidateRuntime": "caa4ac87ae3a60689311943e95269310530c5723a31f20d878e04a0b7c6d3bef",
+  "runtimeChangedFiles": [],
+  "documentationChangedFiles": [
+    "ECONOMY_MODEL.md"
+  ],
+  "testFile": "tests/raid-ownership-state-machine.test.mjs",
+  "testSha256": "57ee05b0879789e629617c59b4c3cc3c6410f3c2a9ced99d8cdc9c7e529afd64",
+  "automatedTests": {
+    "pass": 1049,
+    "fail": 0,
+    "log": "/tmp/hs-ownership-current-full-suite.log"
+  },
+  "stateMachine": {
+    "runs": [
+      {
+        "seed": 1,
+        "steps": 180,
+        "rollback": 7,
+        "drop": 29,
+        "move": 35,
+        "replay": 53,
+        "split": 29,
+        "take": 35,
+        "stack": 25,
+        "restart": 4,
+        "secure": 11,
+        "unsecure": 9
+      },
+      {
+        "seed": 7,
+        "steps": 180,
+        "rollback": 7,
+        "drop": 32,
+        "split": 30,
+        "replay": 56,
+        "take": 30,
+        "move": 30,
+        "secure": 18,
+        "unsecure": 17,
+        "stack": 16,
+        "restart": 4
+      },
+      {
+        "seed": 23,
+        "steps": 180,
+        "rollback": 7,
+        "split": 20,
+        "replay": 54,
+        "move": 33,
+        "take": 35,
+        "drop": 31,
+        "stack": 15,
+        "secure": 21,
+        "restart": 4,
+        "unsecure": 18
+      },
+      {
+        "seed": 61,
+        "steps": 180,
+        "rollback": 7,
+        "take": 30,
+        "split": 27,
+        "replay": 45,
+        "move": 33,
+        "secure": 19,
+        "stack": 21,
+        "drop": 26,
+        "unsecure": 17,
+        "restart": 4
+      },
+      {
+        "seed": 101,
+        "steps": 180,
+        "rollback": 7,
+        "move": 43,
+        "replay": 59,
+        "split": 27,
+        "take": 28,
+        "drop": 33,
+        "secure": 16,
+        "stack": 11,
+        "restart": 4,
+        "unsecure": 15
+      },
+      {
+        "seed": 307,
+        "steps": 180,
+        "rollback": 7,
+        "drop": 27,
+        "replay": 48,
+        "take": 27,
+        "split": 32,
+        "move": 32,
+        "secure": 18,
+        "stack": 21,
+        "unsecure": 16,
+        "restart": 4
+      },
+      {
+        "seed": 911,
+        "steps": 180,
+        "rollback": 7,
+        "take": 37,
+        "replay": 47,
+        "drop": 29,
+        "move": 35,
+        "secure": 16,
+        "unsecure": 12,
+        "split": 26,
+        "stack": 18,
+        "restart": 4
+      },
+      {
+        "seed": 20261030,
+        "steps": 180,
+        "rollback": 7,
+        "drop": 31,
+        "take": 39,
+        "secure": 15,
+        "split": 28,
+        "unsecure": 14,
+        "replay": 52,
+        "stack": 23,
+        "move": 23,
+        "restart": 4
+      }
+    ],
+    "counts": {
+      "steps": 1440,
+      "rollback": 56,
+      "drop": 238,
+      "move": 264,
+      "replay": 414,
+      "split": 219,
+      "take": 261,
+      "stack": 150,
+      "restart": 32,
+      "secure": 134,
+      "unsecure": 118
+    },
+    "oracle": [
+      "Canonical rows for every usable stash/overflow/carried/source/attachment identity exactly match one live representation.",
+      "Total nonconsumed quantities by kind/subtype/value/recovery/starter owner are conserved after every operation.",
+      "Checkpoint failures thrown after actual writes leave canonical inventory unchanged.",
+      "Identical accepted-request replay leaves inventory unchanged.",
+      "Service constructor restore preserves live ownership.",
+      "Insurance waits until raid cleanup, excludes every item ever claimed by another account and returns the remaining eligible gear/attached mods once."
+    ]
+  },
+  "limitations": [
+    "Two accounts on a controlled collision-free/AI-free fixture; not a navigation/combat balance test.",
+    "Seed controls action choices; loot content and item identities use normal service randomness.",
+    "Constructor restart on the same in-memory SQLite instance; separate-process/file-backed crash drills are separate evidence.",
+    "Does not cover every combat, account, voice, operational or economic action."
+  ],
+  "sourceRuntimeUnchanged": true
+}

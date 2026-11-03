@@ -1,0 +1,129 @@
+{
+  "recordedAt": "2026-10-30T22:34:50.671101+00:00",
+  "scope": "Ordered equipment preparation, owned preview/inspection and readied-loadout reconciliation; full issue #1 remains open",
+  "release": {
+    "id": "665e4e8bed4d46996398eebeaaed6cd048c2c1f675ca730e84a1047d202ff097",
+    "label": "extraction-loadout-final",
+    "path": "/private/tmp/headshotz-extraction-loadout-final-candidate",
+    "files": 201,
+    "bytes": 11565630,
+    "schema": 12,
+    "protocol": 9
+  },
+  "manifestVerified": true,
+  "sourceHashes": {
+    "shared/raid-loadout.mjs": "7ae3ec9dea998f9756bade82bc5a8c67280f25617081bbc2ac752fedc8aa12d7",
+    "server/raids.mjs": "0e92bde584d4b655824dd655436beaa52f7f4d8ee82318ecc511fd4f2e224007",
+    "raid-base.mjs": "c2bcac30ae94d242438fbff5e6104a11efd3fa76bd656b07a5e2c84587c7b9e9",
+    "raid-online.mjs": "fbab957049a106fd00320f7c35e15d4834ee5016c51dfb18547ad620b150adb0",
+    "raid-online.html": "0f9ac9cd4082faa1118ba7e895dbf66bf7a9663434cadea33a3d9bdec50c9346",
+    "raid-view.mjs": "981725afac32ec0c6eef25532ac077aca16ca9a9e1e31b229a78ccd2ddfd13ad",
+    "sw.js": "3fdcf5ac49ef09db87bff725cb69f94fe00c6bec671b5745d7bc4e4c1e4b942a",
+    "tests/raid-loadout.test.mjs": "cd8da5ac15082d46864514d965f93089d6b319d9558b8ed1fa18b90163bfcf70",
+    "tests/raid-browser-loadout.mjs": "8dee2445534e80f5f7525f005af6f8444f9881cf8576970fcc483faa281282af",
+    "tests/raid-browser-party.mjs": "42de65c727cd6907f17f7341fe30dfaf43025388410a625f0aee9d14ad508e05"
+  },
+  "automated": {
+    "command": "node --test tests/*.test.mjs",
+    "passed": 977,
+    "failed": 0,
+    "loadoutTests": 6,
+    "logSha256": "ff062fbdc2ee4d23024d675034265701fe6362e1d145ba7469a337d63482fdd9"
+  },
+  "browser": {
+    "finalLoadout": {
+      "sortPreservesPrimary": true,
+      "presetPreservesOrder": true,
+      "missingPresetWarning": true,
+      "ownedGunArmorPreview": true,
+      "previewRotation": true,
+      "boundedPreviewGeometry": true,
+      "baseItemInspection": true,
+      "readyReloadMismatch": true,
+      "readiedLoadoutRestore": true,
+      "primaryChangeUnreadies": true,
+      "staleCommitRejectedBeforeDebit": true,
+      "primaryDeploysAsPreviewed": true,
+      "exactInsuranceDebit": true,
+      "activeDeploymentExplained": true,
+      "logoutClearsGearUi": true,
+      "mobileOverflow": false,
+      "browserErrors": [],
+      "scope": "Isolated bought items, pistol condition/magazine and missing-preset fixture. Not human visual/device/remote multiplayer acceptance."
+    },
+    "finalPackagedDuo": {
+      "partyInvite": true,
+      "separateAccounts": true,
+      "readyChecks": true,
+      "groupDeployment": true,
+      "sameRaid": true,
+      "sameTeam": true,
+      "browserErrors": []
+    },
+    "matchingRegression": {
+      "transparentRegionAndPopulationPolicy": true,
+      "serverTimedLimit": true,
+      "highLatencyPreservesOwnedGear": true,
+      "explicitHigherLimitDeploys": true,
+      "strictSoloPool": true,
+      "leaderPreferenceChange": true,
+      "allMembersReadyAgain": true,
+      "memberPreferencesReadOnly": true,
+      "completeDistinctSquadSpawn": true,
+      "proofNotPersistedInBrowserStorage": true,
+      "browserErrors": [],
+      "scope": "Server clock fixture verifies policy/UI; not a WAN latency measurement."
+    },
+    "accessibilityRegression": {
+      "remapping": true,
+      "persistentSettings": true,
+      "nativeDialogFocus": true,
+      "keyboardAim": true,
+      "statusAnnouncement": true,
+      "itemInspection": true,
+      "keyboardSearchTakeSecure": true,
+      "touchBoarding": true,
+      "modalStopsMovement": true,
+      "backgroundStopsMovement": true,
+      "reducedMotionRender": true,
+      "touchTargets": true,
+      "mobileAim": true,
+      "mobileOverflow": false,
+      "browserErrors": []
+    },
+    "accountRegression": {
+      "sessionList": true,
+      "passwordRotation": true,
+      "recoveryCodesHidden": true,
+      "lateCodeDisplayCanceled": true,
+      "remoteSignout": true,
+      "microphoneReleased": true,
+      "codeRecovery": true,
+      "activeBodyPreserved": true,
+      "ownedItemsPreserved": true,
+      "reconnectedAfterRecovery": true,
+      "staleResponseAccountIsolation": true,
+      "browserErrors": []
+    }
+  },
+  "verificationNotes": [
+    "Final loadout flow and copied-package duo scenario were rerun after the empty-preset guard and saved-preset focus correction.",
+    "Matching/accessibility/account regression runs preceded the final client-only empty-preset guard; their tested paths were unchanged by that correction.",
+    "A first loadout fixture expected insurance to survive applying another preset; presets store equipment/order, so the test was corrected to reselect and verify the quoted premium explicitly.",
+    "The old duo fixture applied an empty preset and exposed that it could clear recovery selection. The UI now disables/guards empty application; the regression now saves and applies a real owned preset before readying.",
+    "No new load/soak capacity claim is made for the current artifact; the focused change affects preparation/party preflight and client presentation."
+  ],
+  "visualReview": {
+    "path": "/tmp/headshotz-loadout-mobile.png",
+    "sha256": "992f96b8bc553fe8bdd5e3e6bfecf48684d73f1ad15d36e183225531a15188cf",
+    "scope": "390x844 isolated Chrome portrait/controls inspected. Not physical-device or human visual acceptance."
+  },
+  "supersededCandidate": "1ec2ff08438ee182d6878c819a8cd9cf3e584fd201849b259412a0707dca3460",
+  "limitations": [
+    "The preview is illustrative selected gear or the original deployment snapshot, not live field inventory.",
+    "Preset insurance must be reviewed; the saved object remains ordered equipment IDs.",
+    "A local unready change cannot undo a deployment already committed before the request arrives.",
+    "Loopback/browser fixture checks do not establish real WAN, assistive-technology, physical touch or human presentation acceptance.",
+    "No commit, push, merge or public deployment occurred. Remaining scope is retained in RELEASE_ACCEPTANCE.md."
+  ]
+}

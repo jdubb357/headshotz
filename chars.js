@@ -66,10 +66,10 @@ function charMat(lvl){if(lvl==='low')return texMat('char');if(CM[lvl])return CM[
    #include <opaque_fragment>`)};
  m.customProgramCacheKey=()=>'char3'+lvl;return CM[lvl]=m}
 MATHOOK.char3=charMat;
-const GEO={};const MAT=()=>texMat('char3');
-function mk(key,f,camo){key+="|"+GQ.level;if(!GEO[key]){const P=[];f(P);if(!P.length){GEO[key]=null}else{const g=mergeParts(P);const n=g.attributes.position.count;const md=new Float32Array(n),cm=new Float32Array(n);let o=0;
+const GEO={};let activeGeometryCache=GEO;const MAT=()=>texMat('char3');
+function mk(key,f,camo){const cache=activeGeometryCache;key+="|"+GQ.level;if(!cache[key]){const P=[];f(P);if(!P.length){cache[key]=null}else{const g=mergeParts(P);const n=g.attributes.position.count;const md=new Float32Array(n),cm=new Float32Array(n);let o=0;
   for(const pt of P){const c=pt.g.index?pt.g.index.count:pt.g.attributes.position.count;md.fill(pt.k||0,o,o+c);cm.fill((pt.k||0)===0?camo:0,o,o+c);o+=c}
-  if(o===n){g.setAttribute('mid',new THREE.BufferAttribute(md,1));g.setAttribute('camo',new THREE.BufferAttribute(cm,1))}else{g.setAttribute('mid',new THREE.BufferAttribute(new Float32Array(n),1));g.setAttribute('camo',new THREE.BufferAttribute(new Float32Array(n),1))}GEO[key]=g}}return GEO[key]}
+  if(o===n){g.setAttribute('mid',new THREE.BufferAttribute(md,1));g.setAttribute('camo',new THREE.BufferAttribute(cm,1))}else{g.setAttribute('mid',new THREE.BufferAttribute(new Float32Array(n),1));g.setAttribute('camo',new THREE.BufferAttribute(new Float32Array(n),1))}cache[key]=g}}return cache[key]}
 let CAMO=0;
 function sect(parent,key,main,detail){const g=new THREE.Group();MID=0;const a=mk(key+'|m',main,CAMO);if(a){const m=new THREE.Mesh(a,MAT());m.userData.tm='char3';m.castShadow=true;g.add(m)}
  if(detail){MID=0;const b=mk(key+'|d',detail,CAMO);if(b){const d=new THREE.Mesh(b,MAT());d.userData.tm='char3';d.userData.lod=1;g.add(d)}}MID=0;parent.add(g);return g}
@@ -82,6 +82,10 @@ export const LOOKS={
  scout:{head:'boonie',vest:0x6b5b3e,pants:0x7a6c4c,light:1,goggles:1,rolled:1,camo:3},
  engineer:{head:'hardhat',vest:0xe67e22,pants:0x34495e,tools:1,pack:1,rolled:1,camo:0}};
 export function makeCharacter(teamCol,name,id,tagCol,outfit,cls){let m=null;if(window.__toonOn&&window.__toonOn(id))return makeToon(teamCol,name,id,tagCol,window.__toonFit?window.__toonFit(id):null);if(HUM.ready&&!window.__procChars){try{m=makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS)}catch(e){console.warn('human',e&&e.message)}}if(!m)m=makeProc(teamCol,name,id,tagCol,outfit,cls);m.userData.args=[teamCol,name,id,tagCol,outfit,cls];return m}
+// Synchronous construction scope: callers may own a separate geometry cache
+// without invalidating the shared geometry used by ordinary game modes.
+export function makeCharacterWithCache(cache,...args){const prior=activeGeometryCache;activeGeometryCache=cache;try{return makeCharacter(...args)}finally{activeGeometryCache=prior}}
+
 export {HUM};
 function makeProc(teamCol,name,id,tagCol,outfit,cls){const h=hash(id);const skin=SKINS[h%SKINS.length],hair=HAIR[(h>>3)%HAIR.length],iris=IRIS[(h>>5)%IRIS.length];
  const hs=(h>>7)%4,fh=(h>>9)%4;// hair style, facial hair

@@ -1,0 +1,1423 @@
+{
+  "state": "completed",
+  "lastVerifiedAt": "2026-10-31T01:03:38.340Z",
+  "sessionId": 76245,
+  "parentPid": 42323,
+  "servicePid": 42333,
+  "dataDirectory": "/private/tmp/hs-load-0yfDXa/data",
+  "log": "/tmp/hs-current-two-hour-gameplay.log",
+  "report": "/tmp/hs-current-two-hour-gameplay.json",
+  "command": "node scripts/raid-load.mjs --profile raid --players 27 --seconds 7200 --latency-ms 150 --loss 0.05 --seed 20261030 --out /tmp/hs-current-two-hour-gameplay.json --enforce true",
+  "source": {
+    "sha256": "f7827207f2ca296c21f7a1e46537479bc1390212a0c3e3547b17098b49a45110",
+    "files": [
+      {
+        "path": "raid-transport.mjs",
+        "sha256": "61818b888db59e8d463206710aee35fba03f5c00bab26732c2cb40d489cff0cc"
+      },
+      {
+        "path": "scripts/lib/isolated-raid-service.mjs",
+        "sha256": "fc5a0b2e95d066b188f00e0bdc20ed771d42aaf62f0c996a0cc9b960a9b3defc"
+      },
+      {
+        "path": "scripts/lib/raid-economy-observer.mjs",
+        "sha256": "a8e0307bfd5bc72a9e1e761fa6056a25b588e650157ab9f0925d0bd664a1cc34"
+      },
+      {
+        "path": "scripts/lib/raid-failure-diagnostics.mjs",
+        "sha256": "87e247f899ce74a23f5ecc9071b6546d8c7bcdaccea02c3ff6f1355a181e7893"
+      },
+      {
+        "path": "scripts/lib/raid-pilot.mjs",
+        "sha256": "ddad27d898f1bab16dcaa6e6a080963640cfca9cbb7bf7421469e60452672cb0"
+      },
+      {
+        "path": "scripts/raid-load.mjs",
+        "sha256": "cce5de91328ef25abf52404f3d0b750e30820d9155271ce3b4b8c54692c09715"
+      },
+      {
+        "path": "server/account-security.mjs",
+        "sha256": "d50e557d9a054aad2ba4003e0a9e3a71f768e6803f51b218445078b6a7a21062"
+      },
+      {
+        "path": "server/backup.mjs",
+        "sha256": "f4691c18103094d1fc5e737d6543b383d8b6fbbfffc5db31697d81655c13432d"
+      },
+      {
+        "path": "server/comms.mjs",
+        "sha256": "0d87897acb50e63ce57468268c73160fb3b9e2cfbe7b2ab39c98bb17cb65471a"
+      },
+      {
+        "path": "server/control.mjs",
+        "sha256": "10c84a343b15e1ee24c97d83421a2a9a880a3b1c992307048e6570df80270756"
+      },
+      {
+        "path": "server/credentials.mjs",
+        "sha256": "83ddf4df5d9fba94ea872ccd5d9a33885b3dca5ce9d3f54b8379adcdf5d8ad0f"
+      },
+      {
+        "path": "server/main.mjs",
+        "sha256": "c7b915f99dcdc39af96f9836fa0d40dbe886baac4cbb6c945e4e722f8800b3c7"
+      },
+      {
+        "path": "server/matchmaking.mjs",
+        "sha256": "25e49d3bb695c636b4363035d4b6ad078bac0ec57b26f35b1270df0a5b02d222"
+      },
+      {
+        "path": "server/operations.mjs",
+        "sha256": "1b541eb876d6f44193542a299db2a072b364ac5dca2fd04795beeabd4bc39d7a"
+      },
+      {
+        "path": "server/raid-ai.mjs",
+        "sha256": "f11ceaff0c18751c2e19c32c85ea57a185f52a1348e0f93a8c534625d7129e5f"
+      },
+      {
+        "path": "server/raid-ballistics.mjs",
+        "sha256": "ecaab0ccc8c228673755d9a77f27d880e3ec3726020eca23272352446754884b"
+      },
+      {
+        "path": "server/raid-cover.mjs",
+        "sha256": "07d3f75c97a2d23cc345846a75f2e2e3c74a992846e012a778f24be104f5f5a7"
+      },
+      {
+        "path": "server/raid-inventory.mjs",
+        "sha256": "d15f7a61d1b161c83d94c1135888f3827e023af696f4fa71cf32f7abadefa684"
+      },
+      {
+        "path": "server/raid-loot.mjs",
+        "sha256": "3413f0b9971704d6aa2208d7c8a028878bbb115f17b5d311c4d2012a44e9a593"
+      },
+      {
+        "path": "server/raid-medical.mjs",
+        "sha256": "ac9bf9fe342431cac89cd03898b948a268c176056dc8ed5ef47ea2e3c9facb49"
+      },
+      {
+        "path": "server/raid-utilities.mjs",
+        "sha256": "e2f541e2c81f8b99b795444ec7d6fd0e5109a2fe84d366a510b90fcc77dd289e"
+      },
+      {
+        "path": "server/raids.mjs",
+        "sha256": "eb849cd4243ec19eabda6c5994323c8c034a1299516002b5c3c45517f5fcee0b"
+      },
+      {
+        "path": "server/rate-limit.mjs",
+        "sha256": "9e0c1646f97dd71ee4c8c7b8348c2113cdbf5ce27c96464a97e2ff94885875e8"
+      },
+      {
+        "path": "server/rules.mjs",
+        "sha256": "5c13f331e8340847c4cc39cd9c803260edd08a5922594b06ecfc7edae1fe50ca"
+      },
+      {
+        "path": "server/schema.mjs",
+        "sha256": "90ea5d36b9382de9844406fc6d6fab4a9e8378756825efa77f56673100038691"
+      },
+      {
+        "path": "server/store.mjs",
+        "sha256": "5a293b6514d95e3be248d7d4e60194b6939d0fae58586a5026a667d2994f8704"
+      },
+      {
+        "path": "shared/raid-ballistics.mjs",
+        "sha256": "d975308b9a17cbc592f86e434505d87569e8aa3e1289fe4ded259e980ae51d8e"
+      },
+      {
+        "path": "shared/raid-catalog.mjs",
+        "sha256": "09cbfc6a9736e77a647e5d384bab67a3033717b78374bd2f7da09c0b8e153c3b"
+      },
+      {
+        "path": "shared/raid-combat.mjs",
+        "sha256": "f4c3873f2fb28a69566cd5c3c34d773a81694285e1db573c1f91cb49f21941a9"
+      },
+      {
+        "path": "shared/raid-comms.mjs",
+        "sha256": "42936ec99bbb695f7853a0339c3ecee9a49ead9176d660b47293526dfe63833c"
+      },
+      {
+        "path": "shared/raid-conditions.mjs",
+        "sha256": "673f04980a0fbda69c1ffd6805a356743ad432cf485b8e6f1191400e998125af"
+      },
+      {
+        "path": "shared/raid-enemies.mjs",
+        "sha256": "fe0da374d7e030ec9d5891c9994b580fa6603e0ae72c4241e04454a4262cd918"
+      },
+      {
+        "path": "shared/raid-exits.mjs",
+        "sha256": "e01155d431c1483de68d1392455744cf061a2d1b19aa6cc9a0631d6cf5d77a29"
+      },
+      {
+        "path": "shared/raid-grants.mjs",
+        "sha256": "d5c2117c2a28ea6ff2319cf472ef901714af0892a03041a890921eb824983268"
+      },
+      {
+        "path": "shared/raid-inventory.mjs",
+        "sha256": "46f1bb2d5b1f45147365215bd588cdb8e49791fc51e4395c1c0acbbf718c0a49"
+      },
+      {
+        "path": "shared/raid-loadout.mjs",
+        "sha256": "7ae3ec9dea998f9756bade82bc5a8c67280f25617081bbc2ac752fedc8aa12d7"
+      },
+      {
+        "path": "shared/raid-matchmaking.mjs",
+        "sha256": "899e7a66c82c2d4fdfb29320f5428aecc76b5faa69d1385790b418a94b54a913"
+      },
+      {
+        "path": "shared/raid-motion.mjs",
+        "sha256": "60a9d2ce3f94d21f35a5e09d3df19c288ddd3b6992d1b6e376039f04fdd687bd"
+      },
+      {
+        "path": "shared/raid-navigation.mjs",
+        "sha256": "4e7b1116d54afda173080c463199753abe18be34c5e9e4c730acfe70d2e678c5"
+      },
+      {
+        "path": "shared/raid-progression.mjs",
+        "sha256": "38dca84f2be99fcabbc026b03f3f40e042303066c75462c66b4e15914ba8e98a"
+      },
+      {
+        "path": "shared/raid-protocol.mjs",
+        "sha256": "a563c87895c45402adedaddc6aa9651951a2c3ecf9412e38aaaabad319a28edf"
+      },
+      {
+        "path": "shared/raid-report.mjs",
+        "sha256": "dcce2c9e9f558f7a1a3f2d3b019b4a88d5db9f4498ebce56c39d4f1c63dc3145"
+      },
+      {
+        "path": "shared/raid-sectors.mjs",
+        "sha256": "75ff316d38d9bf8c8ad76ba653b2ec76114da2a95e5173c53a7f814f119ae530"
+      },
+      {
+        "path": "shared/raid-settings.mjs",
+        "sha256": "371886774256aecf96503a76a385b2eb0c9a2ae0184c1b9197b2c894f048022a"
+      },
+      {
+        "path": "shared/raid-utilities.mjs",
+        "sha256": "082854cc8899cb4c582aa2be9ecd48f319fa8465ded03299fbd349e9a0437c9d"
+      },
+      {
+        "path": "shared/raid-worlds.mjs",
+        "sha256": "d07da399c76e49d22a7e7f10cafe43643fa8e94bbd815b90a1557cca228fec58"
+      }
+    ]
+  },
+  "interimObservation": {
+    "verifiedAt": "2026-10-30T23:45:58.868Z",
+    "status": {
+      "memory": {
+        "rss": 470974464,
+        "heapTotal": 183123968,
+        "heapUsed": 98417256,
+        "external": 4207698,
+        "arrayBuffers": 287094
+      },
+      "cpu": {
+        "user": 833992343,
+        "system": 97983655
+      },
+      "at": 1793403958865,
+      "startedAt": 1793401958069,
+      "uptimeSeconds": 2000.796,
+      "build": "load-f7827207f2ca296c",
+      "region": "local",
+      "schema": 12,
+      "protocol": 9,
+      "listening": true,
+      "ready": true,
+      "draining": false,
+      "reason": null,
+      "lifecycleAuditFailed": false,
+      "activeOperators": 26,
+      "activeRaids": 9,
+      "pendingSettlements": 0,
+      "oldestPendingMs": 0,
+      "reportsOpen": 0,
+      "voiceSessions": 0,
+      "rateLimiterKeys": 163,
+      "requests": 316979,
+      "abortedRequests": 0,
+      "responseBytes": 2031724559,
+      "tickErrors": 0,
+      "tickAgeMs": 14,
+      "tick": {
+        "count": 38516,
+        "meanMs": 17.987350138539874,
+        "maxMs": 344.41270800004713,
+        "p50Ms": 25,
+        "p95Ms": 25,
+        "p99Ms": 75,
+        "boundsMs": [
+          5,
+          10,
+          25,
+          50,
+          75,
+          100,
+          150,
+          250,
+          500,
+          1000
+        ],
+        "buckets": [
+          873,
+          3474,
+          32572,
+          1109,
+          465,
+          20,
+          0,
+          1,
+          2,
+          0,
+          0
+        ]
+      },
+      "tickInterval": {
+        "count": 38516,
+        "meanMs": 51.94603685587808,
+        "maxMs": 356.7710410000291,
+        "p50Ms": 75,
+        "p95Ms": 75,
+        "p99Ms": 100,
+        "boundsMs": [
+          5,
+          10,
+          25,
+          50,
+          75,
+          100,
+          150,
+          250,
+          500,
+          1000
+        ],
+        "buckets": [
+          0,
+          0,
+          0,
+          4410,
+          33545,
+          541,
+          17,
+          0,
+          3,
+          0,
+          0
+        ]
+      },
+      "eventLoop": {
+        "meanMs": 25.696506055457803,
+        "p99Ms": 65.798143,
+        "maxMs": 363.855871
+      },
+      "http": [
+        {
+          "method": "GET",
+          "route": "/api/profile",
+          "statusGroup": "2xx",
+          "bytes": 4025295,
+          "count": 2758,
+          "meanMs": 0.10903202320199656,
+          "maxMs": 1.593207999999997,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            2758,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/trade",
+          "statusGroup": "2xx",
+          "bytes": 438466,
+          "count": 601,
+          "meanMs": 0.3297769101502492,
+          "maxMs": 47.26583399999072,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            600,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "GET",
+          "route": "/api/market",
+          "statusGroup": "2xx",
+          "bytes": 1234709,
+          "count": 331,
+          "meanMs": 0.09271680966988032,
+          "maxMs": 0.3900419999845326,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            331,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/deploy",
+          "statusGroup": "2xx",
+          "bytes": 2760722,
+          "count": 546,
+          "meanMs": 15.443547576926541,
+          "maxMs": 69.38879100000486,
+          "p50Ms": 25,
+          "p95Ms": 25,
+          "p99Ms": 75,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            48,
+            56,
+            431,
+            4,
+            7,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/action",
+          "statusGroup": "2xx",
+          "bytes": 2009733701,
+          "count": 311739,
+          "meanMs": 0.8221565868466186,
+          "maxMs": 69.63495799992234,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            310699,
+            158,
+            64,
+            710,
+            108,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "GET",
+          "route": "/api/results",
+          "statusGroup": "2xx",
+          "bytes": 9614788,
+          "count": 519,
+          "meanMs": 0.24372776107864794,
+          "maxMs": 0.6995000001043081,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            519,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/action",
+          "statusGroup": "4xx",
+          "bytes": 3916878,
+          "count": 485,
+          "meanMs": 0.49026579587329083,
+          "maxMs": 1.5260829999970156,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            485,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "alerts": []
+    },
+    "canonicalOutcomes": [
+      {
+        "outcome": "death",
+        "count": 356
+      },
+      {
+        "outcome": "extract",
+        "count": 164
+      }
+    ]
+  },
+  "earlierObservations": [
+    {
+      "memory": {
+        "rss": 439238656,
+        "heapTotal": 175423488,
+        "heapUsed": 28523704,
+        "external": 4198272,
+        "arrayBuffers": 277668
+      },
+      "cpu": {
+        "user": 360407856,
+        "system": 40510224
+      },
+      "at": 1793402902956,
+      "startedAt": 1793401958069,
+      "uptimeSeconds": 944.887,
+      "build": "load-f7827207f2ca296c",
+      "region": "local",
+      "schema": 12,
+      "protocol": 9,
+      "listening": true,
+      "ready": true,
+      "draining": false,
+      "reason": null,
+      "lifecycleAuditFailed": false,
+      "activeOperators": 27,
+      "activeRaids": 13,
+      "pendingSettlements": 0,
+      "oldestPendingMs": 0,
+      "reportsOpen": 0,
+      "voiceSessions": 0,
+      "rateLimiterKeys": 163,
+      "requests": 150073,
+      "abortedRequests": 0,
+      "responseBytes": 958707484,
+      "tickErrors": 0,
+      "tickAgeMs": 5,
+      "tick": {
+        "count": 18213,
+        "meanMs": 15.804662485587569,
+        "maxMs": 340.2887080000073,
+        "p50Ms": 25,
+        "p95Ms": 25,
+        "p99Ms": 75,
+        "boundsMs": [
+          5,
+          10,
+          25,
+          50,
+          75,
+          100,
+          150,
+          250,
+          500,
+          1000
+        ],
+        "buckets": [
+          873,
+          3474,
+          13139,
+          449,
+          269,
+          7,
+          0,
+          1,
+          1,
+          0,
+          0
+        ]
+      },
+      "tickInterval": {
+        "count": 18213,
+        "meanMs": 51.87803680288805,
+        "maxMs": 346.3470420000085,
+        "p50Ms": 75,
+        "p95Ms": 75,
+        "p99Ms": 75,
+        "boundsMs": [
+          5,
+          10,
+          25,
+          50,
+          75,
+          100,
+          150,
+          250,
+          500,
+          1000
+        ],
+        "buckets": [
+          0,
+          0,
+          0,
+          1941,
+          16098,
+          165,
+          7,
+          0,
+          2,
+          0,
+          0
+        ]
+      },
+      "eventLoop": {
+        "meanMs": 24.994179314869193,
+        "p99Ms": 65.601535,
+        "maxMs": 350.224383
+      },
+      "http": [
+        {
+          "method": "GET",
+          "route": "/api/profile",
+          "statusGroup": "2xx",
+          "bytes": 1675121,
+          "count": 1412,
+          "meanMs": 0.10245092776069702,
+          "maxMs": 1.593207999999997,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            1412,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/trade",
+          "statusGroup": "2xx",
+          "bytes": 252032,
+          "count": 319,
+          "meanMs": 0.41316432288621724,
+          "maxMs": 47.26583399999072,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            318,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "GET",
+          "route": "/api/market",
+          "statusGroup": "2xx",
+          "bytes": 585527,
+          "count": 157,
+          "meanMs": 0.09783284713441054,
+          "maxMs": 0.3900419999845326,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            157,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/deploy",
+          "statusGroup": "2xx",
+          "bytes": 1419139,
+          "count": 280,
+          "meanMs": 12.739626064287703,
+          "maxMs": 69.38879100000486,
+          "p50Ms": 25,
+          "p95Ms": 25,
+          "p99Ms": 75,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            48,
+            56,
+            171,
+            2,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/action",
+          "statusGroup": "2xx",
+          "bytes": 950355855,
+          "count": 147416,
+          "meanMs": 0.8342303416657622,
+          "maxMs": 69.63495799992234,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            146965,
+            68,
+            47,
+            286,
+            50,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "GET",
+          "route": "/api/results",
+          "statusGroup": "2xx",
+          "bytes": 2509568,
+          "count": 253,
+          "meanMs": 0.1889441699637073,
+          "maxMs": 0.3649999999906868,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            253,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/action",
+          "statusGroup": "4xx",
+          "bytes": 1910242,
+          "count": 236,
+          "meanMs": 0.5157941398307014,
+          "maxMs": 1.5260829999970156,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            236,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "alerts": []
+    },
+    {
+      "memory": {
+        "rss": 405438464,
+        "heapTotal": 181846016,
+        "heapUsed": 88557696,
+        "external": 4206832,
+        "arrayBuffers": 286228
+      },
+      "cpu": {
+        "user": 598371968,
+        "system": 69333165
+      },
+      "at": 1793403429043,
+      "startedAt": 1793401958069,
+      "uptimeSeconds": 1470.974,
+      "build": "load-f7827207f2ca296c",
+      "region": "local",
+      "schema": 12,
+      "protocol": 9,
+      "listening": true,
+      "ready": true,
+      "draining": false,
+      "reason": null,
+      "lifecycleAuditFailed": false,
+      "activeOperators": 27,
+      "activeRaids": 11,
+      "pendingSettlements": 0,
+      "oldestPendingMs": 0,
+      "reportsOpen": 0,
+      "voiceSessions": 0,
+      "rateLimiterKeys": 163,
+      "requests": 233141,
+      "abortedRequests": 0,
+      "responseBytes": 1493647591,
+      "tickErrors": 0,
+      "tickAgeMs": 16,
+      "tick": {
+        "count": 28327,
+        "meanMs": 17.394791475377346,
+        "maxMs": 344.41270800004713,
+        "p50Ms": 25,
+        "p95Ms": 25,
+        "p99Ms": 75,
+        "boundsMs": [
+          5,
+          10,
+          25,
+          50,
+          75,
+          100,
+          150,
+          250,
+          500,
+          1000
+        ],
+        "buckets": [
+          873,
+          3474,
+          22813,
+          777,
+          374,
+          13,
+          0,
+          1,
+          2,
+          0,
+          0
+        ]
+      },
+      "tickInterval": {
+        "count": 28327,
+        "meanMs": 51.92681152402302,
+        "maxMs": 356.7710410000291,
+        "p50Ms": 75,
+        "p95Ms": 75,
+        "p99Ms": 100,
+        "boundsMs": [
+          5,
+          10,
+          25,
+          50,
+          75,
+          100,
+          150,
+          250,
+          500,
+          1000
+        ],
+        "buckets": [
+          0,
+          0,
+          0,
+          3117,
+          24850,
+          347,
+          10,
+          0,
+          3,
+          0,
+          0
+        ]
+      },
+      "eventLoop": {
+        "meanMs": 25.47646378301609,
+        "p99Ms": 65.798143,
+        "maxMs": 363.855871
+      },
+      "http": [
+        {
+          "method": "GET",
+          "route": "/api/profile",
+          "statusGroup": "2xx",
+          "bytes": 2741702,
+          "count": 2086,
+          "meanMs": 0.10547795397599362,
+          "maxMs": 1.593207999999997,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            2086,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/trade",
+          "statusGroup": "2xx",
+          "bytes": 353846,
+          "count": 473,
+          "meanMs": 0.3534571078258533,
+          "maxMs": 47.26583399999072,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            472,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "GET",
+          "route": "/api/market",
+          "statusGroup": "2xx",
+          "bytes": 910110,
+          "count": 244,
+          "meanMs": 0.09426130738140565,
+          "maxMs": 0.3900419999845326,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            244,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/deploy",
+          "statusGroup": "2xx",
+          "bytes": 2081792,
+          "count": 410,
+          "meanMs": 14.498769231707508,
+          "maxMs": 69.38879100000486,
+          "p50Ms": 25,
+          "p95Ms": 25,
+          "p99Ms": 75,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            48,
+            56,
+            299,
+            2,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/action",
+          "statusGroup": "2xx",
+          "bytes": 1479256988,
+          "count": 229188,
+          "meanMs": 0.8224489052262774,
+          "maxMs": 69.63495799992234,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            228451,
+            106,
+            60,
+            494,
+            77,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "GET",
+          "route": "/api/results",
+          "statusGroup": "2xx",
+          "bytes": 5418719,
+          "count": 383,
+          "meanMs": 0.21608791383993015,
+          "maxMs": 0.3939170001540333,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            383,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "method": "POST",
+          "route": "/api/action",
+          "statusGroup": "4xx",
+          "bytes": 2884434,
+          "count": 357,
+          "meanMs": 0.5005480952351223,
+          "maxMs": 1.5260829999970156,
+          "p50Ms": 5,
+          "p95Ms": 5,
+          "p99Ms": 5,
+          "boundsMs": [
+            5,
+            10,
+            25,
+            50,
+            75,
+            100,
+            150,
+            250,
+            500,
+            1000
+          ],
+          "buckets": [
+            357,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "alerts": []
+    }
+  ],
+  "note": "Session 76245 exited 0; parent 42323 and child 42333 are gone and disposable data cleaned up normally. Do not poll/restart this terminal run. All declared workload gates passed, but late RSS growth remains unresolved: JS heap means level near 69 MiB while final-quarter mean RSS rises to 457.49 MiB (peak 480.47). This run is exact pre-admission fingerprint f7827207, not current host-admission backend certification. Separate current 120-second guard workload and source/method change-impact evidence are retained. Original older c466/schema8 two-hour report remains separate.",
+  "latestProgress": {
+    "progress": {
+      "elapsedSeconds": 6656.153326167,
+      "actions": 984246,
+      "finishedClients": 0,
+      "accepted": {
+        "move": 943731,
+        "fire": 30392,
+        "throw": 307,
+        "use": 897,
+        "search": 3640,
+        "take": 2903,
+        "extract": 596,
+        "secure": 899,
+        "call": 326,
+        "equip": 154,
+        "reload": 322,
+        "unlock": 79
+      }
+    }
+  },
+  "latestStatusFile": "/tmp/hs-current-two-hour-status-004.json",
+  "sourceTreeAdvancedAt": "2026-10-31T01:07:51.660Z",
+  "changedSourceFilesAfterStartup": [
+    "server/main.mjs",
+    "server/operations.mjs",
+    "server/raids.mjs"
+  ],
+  "addedSourceFilesAfterStartup": [
+    "server/admission.mjs"
+  ],
+  "completedAt": "2026-10-31T01:14:18.262Z",
+  "elapsedSeconds": 7200.397666042,
+  "actions": 1064553,
+  "outcomes": {
+    "death": 1182,
+    "extract": 628,
+    "timeout": 3
+  },
+  "checks": {
+    "noProlongedAirborneStalls": true,
+    "observedEconomyConserved": true,
+    "gameplayLoopCovered": true,
+    "gameplayRejectionRateWithinBudget": true,
+    "allClientsCompleted": true,
+    "noSimulationErrors": true,
+    "actionFailureRateWithinBudget": true,
+    "tickP95Within50ms": true,
+    "tickIntervalP95Within75ms": true
+  },
+  "failedActions": 1044,
+  "errorStatuses": {
+    "delivery:move": 1007,
+    "delivery:fire": 28,
+    "delivery:reload": 1,
+    "delivery:search": 4,
+    "delivery:take": 2,
+    "delivery:use": 1,
+    "delivery:call": 1
+  },
+  "gameplayRejections": {
+    "search_changed": 2,
+    "treatment_changed": 1,
+    "cooldown": 2,
+    "exit_changed": 1
+  },
+  "navigation": {
+    "stalls": 0,
+    "unreachable": 0,
+    "airborneStalls": 0
+  },
+  "memoryQuarters": [
+    {
+      "count": 360,
+      "rssMeanMiB": 374.0466579861111,
+      "rssMaxMiB": 450.5,
+      "heapMeanMiB": 54.48808642493354
+    },
+    {
+      "count": 360,
+      "rssMeanMiB": 424.515234375,
+      "rssMaxMiB": 472.609375,
+      "heapMeanMiB": 65.78616496192085
+    },
+    {
+      "count": 360,
+      "rssMeanMiB": 418.83758680555553,
+      "rssMaxMiB": 475.65625,
+      "heapMeanMiB": 69.2917424943712
+    },
+    {
+      "count": 360,
+      "rssMeanMiB": 457.48993055555553,
+      "rssMaxMiB": 480.46875,
+      "heapMeanMiB": 68.90662165747749
+    }
+  ]
+}

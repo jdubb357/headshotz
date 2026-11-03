@@ -1,0 +1,927 @@
+{
+  "date": "2026-10-30",
+  "scope": "Controlled allocation/checkpoint investigation and completed-unjoinable-world tick fix. Full real-time memory acceptance remains unproven.",
+  "candidate": {
+    "id": "a96ccf914d15ba945966ae8ba8d710edfa0516195dd6a35c20f6e1fe63185200",
+    "label": "idle-world-ticks",
+    "path": "/private/tmp/headshotz-extraction-idle-world-candidate",
+    "files": 202,
+    "bytes": 11596462,
+    "schema": 12,
+    "protocol": 9
+  },
+  "sourceSha256": {
+    "server/raids.mjs": "0323bea6b6522a6f1b4b8edbfd41d906e65b416529e1e74d6f229600fabce7dd",
+    "tests/raid-idle-worlds.test.mjs": "40bea4dd5f62c6de4c653692cf22417e15cc5b52586ce0dfe955d4a26bb5da32",
+    "scripts/raid-memory-probe.mjs": "4785e3546a56eb06d7cf07ed96331b2189af1a5ec0e9cb151dfdd416bc5a28f6",
+    "scripts/raid-idle-world-probe.mjs": "5505b2200ed8c251b1504cf4e438dfa33be0b585f8e91eb785329520f786d6ae"
+  },
+  "automatedTests": {
+    "pass": 1069,
+    "fail": 0,
+    "log": "/tmp/hs-idle-worlds-final-suite.log"
+  },
+  "statementExperiment": {
+    "format": 1,
+    "actions": 30000,
+    "at": "2026-10-31T01:17:36.912Z",
+    "results": [
+      {
+        "variant": "uncached",
+        "actions": 30000,
+        "elapsedSeconds": 16.061052917,
+        "samples": [
+          {
+            "phase": "start-after-gc",
+            "elapsedSeconds": 0.0013919169999999995,
+            "rss": 62177280,
+            "heapTotal": 11091968,
+            "heapUsed": 6108352,
+            "external": 2612963,
+            "arrayBuffers": 143931,
+            "v8Malloced": 278576,
+            "v8Physical": 11042816,
+            "compiled": 166,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "actions-5000",
+            "elapsedSeconds": 2.65502675,
+            "rss": 123961344,
+            "heapTotal": 62734336,
+            "heapUsed": 36687312,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 62930944,
+            "compiled": 15546,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "actions-10000",
+            "elapsedSeconds": 5.4605932919999995,
+            "rss": 173113344,
+            "heapTotal": 109920256,
+            "heapUsed": 63609752,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 110116864,
+            "compiled": 30919,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "actions-15000",
+            "elapsedSeconds": 8.095973375,
+            "rss": 180240384,
+            "heapTotal": 106774528,
+            "heapUsed": 49203920,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 106971136,
+            "compiled": 46292,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "actions-20000",
+            "elapsedSeconds": 10.7091495,
+            "rss": 180502528,
+            "heapTotal": 107823104,
+            "heapUsed": 45782856,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 108019712,
+            "compiled": 61664,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "actions-25000",
+            "elapsedSeconds": 13.333677042000001,
+            "rss": 249823232,
+            "heapTotal": 159989760,
+            "heapUsed": 75479416,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 160186368,
+            "compiled": 77037,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "actions-30000",
+            "elapsedSeconds": 16.052267333000003,
+            "rss": 267878400,
+            "heapTotal": 201670656,
+            "heapUsed": 111189248,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 202129408,
+            "compiled": 92411,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "before-final-gc",
+            "elapsedSeconds": 16.052543125,
+            "rss": 267894784,
+            "heapTotal": 201932800,
+            "heapUsed": 111221136,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 202129408,
+            "compiled": 92411,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "after-final-gc",
+            "elapsedSeconds": 16.055799042,
+            "rss": 267911168,
+            "heapTotal": 141639680,
+            "heapUsed": 5905952,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 141836288,
+            "compiled": 92411,
+            "cacheEntries": 0,
+            "hits": 0
+          },
+          {
+            "phase": "after-database-close",
+            "elapsedSeconds": 16.060987208,
+            "rss": 267878400,
+            "heapTotal": 141639680,
+            "heapUsed": 5959824,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 141836288,
+            "compiled": 92414,
+            "cacheEntries": 0,
+            "hits": 0
+          }
+        ],
+        "prepares": 92414,
+        "compiled": 92414,
+        "cacheHits": 0,
+        "uniqueSql": 18,
+        "topSql": [
+          {
+            "sql": "SELECT * FROM leases WHERE name='simulation'",
+            "count": 31114
+          },
+          {
+            "sql": "INSERT INTO leases VALUES('simulation',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires=excluded.expires",
+            "count": 31114
+          },
+          {
+            "sql": "SELECT account,seen FROM sessions WHERE token=? AND expires>?",
+            "count": 30000
+          },
+          {
+            "sql": "SELECT id FROM deployments WHERE account=? ORDER BY active DESC,rowid DESC LIMIT 1",
+            "count": 27
+          },
+          {
+            "sql": "DELETE FROM sessions WHERE expires<=?",
+            "count": 27
+          },
+          {
+            "sql": "SELECT token FROM sessions WHERE account=? ORDER BY created DESC,rowid DESC",
+            "count": 27
+          },
+          {
+            "sql": "INSERT INTO sessions(token,account,expires,id,created,seen,label) VALUES(?,?,?,?,?,?,?)",
+            "count": 27
+          },
+          {
+            "sql": "INSERT INTO audit(account,event,data,at) VALUES(?,?,?,?)",
+            "count": 27
+          },
+          {
+            "sql": "SELECT id,username FROM accounts WHERE id=?",
+            "count": 27
+          },
+          {
+            "sql": "SELECT * FROM insurance WHERE status='pending' AND due<=?",
+            "count": 16
+          },
+          {
+            "sql": "SELECT payload FROM raid_checkpoints ORDER BY updated",
+            "count": 1
+          },
+          {
+            "sql": "SELECT id FROM deployments WHERE active=1",
+            "count": 1
+          }
+        ],
+        "scope": "Private cloned file-backed 27-account fixture, zero movement, no AI/hazards, fixed simulation clock and synchronous actions/checkpoints with regular event-loop yields. Cached variant is experimental in this process only. Explicit GC phases are diagnostic, not production behavior."
+      },
+      {
+        "variant": "cached",
+        "actions": 30000,
+        "elapsedSeconds": 15.565664791,
+        "samples": [
+          {
+            "phase": "start-after-gc",
+            "elapsedSeconds": 0.0013746660000000049,
+            "rss": 61685760,
+            "heapTotal": 11091968,
+            "heapUsed": 6109088,
+            "external": 2612963,
+            "arrayBuffers": 143931,
+            "v8Malloced": 278576,
+            "v8Physical": 11042816,
+            "compiled": 10,
+            "cacheEntries": 10,
+            "hits": 156
+          },
+          {
+            "phase": "actions-5000",
+            "elapsedSeconds": 2.594662,
+            "rss": 123338752,
+            "heapTotal": 62734336,
+            "heapUsed": 30732352,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 62930944,
+            "compiled": 17,
+            "cacheEntries": 17,
+            "hits": 15529
+          },
+          {
+            "phase": "actions-10000",
+            "elapsedSeconds": 5.190153416,
+            "rss": 171933696,
+            "heapTotal": 110444544,
+            "heapUsed": 68092720,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 110641152,
+            "compiled": 17,
+            "cacheEntries": 17,
+            "hits": 30902
+          },
+          {
+            "phase": "actions-15000",
+            "elapsedSeconds": 7.765967708,
+            "rss": 178896896,
+            "heapTotal": 108347392,
+            "heapUsed": 47518616,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 108544000,
+            "compiled": 17,
+            "cacheEntries": 17,
+            "hits": 46274
+          },
+          {
+            "phase": "actions-20000",
+            "elapsedSeconds": 10.327696833,
+            "rss": 179437568,
+            "heapTotal": 103628800,
+            "heapUsed": 46092768,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 103825408,
+            "compiled": 17,
+            "cacheEntries": 17,
+            "hits": 61647
+          },
+          {
+            "phase": "actions-25000",
+            "elapsedSeconds": 12.90577725,
+            "rss": 247218176,
+            "heapTotal": 169426944,
+            "heapUsed": 79471296,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 169623552,
+            "compiled": 17,
+            "cacheEntries": 17,
+            "hits": 77019
+          },
+          {
+            "phase": "actions-30000",
+            "elapsedSeconds": 15.556379666,
+            "rss": 265682944,
+            "heapTotal": 201670656,
+            "heapUsed": 111962784,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 202129408,
+            "compiled": 17,
+            "cacheEntries": 17,
+            "hits": 92394
+          },
+          {
+            "phase": "before-final-gc",
+            "elapsedSeconds": 15.556648874999999,
+            "rss": 265699328,
+            "heapTotal": 201932800,
+            "heapUsed": 111994720,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 202129408,
+            "compiled": 17,
+            "cacheEntries": 17,
+            "hits": 92394
+          },
+          {
+            "phase": "after-final-gc",
+            "elapsedSeconds": 15.559973915999999,
+            "rss": 265699328,
+            "heapTotal": 141639680,
+            "heapUsed": 5908336,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 141836288,
+            "compiled": 17,
+            "cacheEntries": 17,
+            "hits": 92394
+          },
+          {
+            "phase": "after-database-close",
+            "elapsedSeconds": 15.565604916,
+            "rss": 265666560,
+            "heapTotal": 141639680,
+            "heapUsed": 5960848,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Malloced": 278576,
+            "v8Physical": 141836288,
+            "compiled": 18,
+            "cacheEntries": 0,
+            "hits": 92396
+          }
+        ],
+        "prepares": 92414,
+        "compiled": 18,
+        "cacheHits": 92396,
+        "uniqueSql": 18,
+        "topSql": [
+          {
+            "sql": "SELECT * FROM leases WHERE name='simulation'",
+            "count": 31114
+          },
+          {
+            "sql": "INSERT INTO leases VALUES('simulation',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires=excluded.expires",
+            "count": 31114
+          },
+          {
+            "sql": "SELECT account,seen FROM sessions WHERE token=? AND expires>?",
+            "count": 30000
+          },
+          {
+            "sql": "SELECT id FROM deployments WHERE account=? ORDER BY active DESC,rowid DESC LIMIT 1",
+            "count": 27
+          },
+          {
+            "sql": "DELETE FROM sessions WHERE expires<=?",
+            "count": 27
+          },
+          {
+            "sql": "SELECT token FROM sessions WHERE account=? ORDER BY created DESC,rowid DESC",
+            "count": 27
+          },
+          {
+            "sql": "INSERT INTO sessions(token,account,expires,id,created,seen,label) VALUES(?,?,?,?,?,?,?)",
+            "count": 27
+          },
+          {
+            "sql": "INSERT INTO audit(account,event,data,at) VALUES(?,?,?,?)",
+            "count": 27
+          },
+          {
+            "sql": "SELECT id,username FROM accounts WHERE id=?",
+            "count": 27
+          },
+          {
+            "sql": "SELECT * FROM insurance WHERE status='pending' AND due<=?",
+            "count": 16
+          },
+          {
+            "sql": "SELECT payload FROM raid_checkpoints ORDER BY updated",
+            "count": 1
+          },
+          {
+            "sql": "SELECT id FROM deployments WHERE active=1",
+            "count": 1
+          }
+        ],
+        "scope": "Private cloned file-backed 27-account fixture, zero movement, no AI/hazards, fixed simulation clock and synchronous actions/checkpoints with regular event-loop yields. Cached variant is experimental in this process only. Explicit GC phases are diagnostic, not production behavior."
+      }
+    ],
+    "scope": "Controlled experiment with identical cloned databases and independent sequential processes. Not a proof that statement churn causes long-session RSS growth."
+  },
+  "unchangedRuntimeControl": {
+    "format": 1,
+    "at": "2026-10-31T01:21:47.664Z",
+    "worlds": 60,
+    "ticks": 500,
+    "results": [
+      {
+        "label": "before",
+        "runtimeRoot": "file:///private/tmp/headshotz-extraction-host-capacity-candidate/",
+        "ticks": 500,
+        "worlds": 60,
+        "elapsedSeconds": 7.016252666000001,
+        "checkpointCalls": 31500,
+        "checkpointBytes": 462902414,
+        "samples": [
+          {
+            "phase": "start-after-gc",
+            "seconds": 0.0014241250000000037,
+            "rss": 63799296,
+            "heapTotal": 17121280,
+            "heapUsed": 7182744,
+            "external": 2611955,
+            "arrayBuffers": 143787,
+            "v8Physical": 12402688,
+            "checkpointCalls": 0,
+            "checkpointBytes": 0
+          },
+          {
+            "phase": "ticks-100",
+            "seconds": 1.634255625,
+            "rss": 174751744,
+            "heapTotal": 163921920,
+            "heapUsed": 45345112,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 101203968,
+            "checkpointCalls": 6300,
+            "checkpointBytes": 93932383
+          },
+          {
+            "phase": "ticks-200",
+            "seconds": 2.951489833,
+            "rss": 262569984,
+            "heapTotal": 195117056,
+            "heapUsed": 92140624,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195313664,
+            "checkpointCalls": 12600,
+            "checkpointBytes": 186193964
+          },
+          {
+            "phase": "ticks-300",
+            "seconds": 4.241443541000001,
+            "rss": 262701056,
+            "heapTotal": 195379200,
+            "heapUsed": 91062840,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195575808,
+            "checkpointCalls": 18900,
+            "checkpointBytes": 278430114
+          },
+          {
+            "phase": "ticks-400",
+            "seconds": 5.589856500000001,
+            "rss": 265404416,
+            "heapTotal": 195379200,
+            "heapUsed": 92373840,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195575808,
+            "checkpointCalls": 25200,
+            "checkpointBytes": 370666264
+          },
+          {
+            "phase": "ticks-500",
+            "seconds": 7.012393,
+            "rss": 265420800,
+            "heapTotal": 195117056,
+            "heapUsed": 91226552,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195313664,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462902414
+          },
+          {
+            "phase": "before-final-gc",
+            "seconds": 7.012720291000001,
+            "rss": 265453568,
+            "heapTotal": 195379200,
+            "heapUsed": 91247752,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195330048,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462902414
+          },
+          {
+            "phase": "after-final-gc",
+            "seconds": 7.016187875000001,
+            "rss": 265469952,
+            "heapTotal": 143474688,
+            "heapUsed": 7075624,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Physical": 143671296,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462902414
+          }
+        ],
+        "raidCount": 63,
+        "activeRaids": 3
+      },
+      {
+        "label": "after",
+        "runtimeRoot": "file:///private/tmp/headshotz-extraction-host-capacity-candidate/",
+        "ticks": 500,
+        "worlds": 60,
+        "elapsedSeconds": 6.714958750000001,
+        "checkpointCalls": 31500,
+        "checkpointBytes": 462902414,
+        "samples": [
+          {
+            "phase": "start-after-gc",
+            "seconds": 0.0013931660000000043,
+            "rss": 64094208,
+            "heapTotal": 17383424,
+            "heapUsed": 7182768,
+            "external": 2611955,
+            "arrayBuffers": 143787,
+            "v8Physical": 12664832,
+            "checkpointCalls": 0,
+            "checkpointBytes": 0
+          },
+          {
+            "phase": "ticks-100",
+            "seconds": 1.481689916,
+            "rss": 174407680,
+            "heapTotal": 162611200,
+            "heapUsed": 43974512,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 99893248,
+            "checkpointCalls": 6300,
+            "checkpointBytes": 93932383
+          },
+          {
+            "phase": "ticks-200",
+            "seconds": 2.8028860829999998,
+            "rss": 262029312,
+            "heapTotal": 195379200,
+            "heapUsed": 92398312,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195575808,
+            "checkpointCalls": 12600,
+            "checkpointBytes": 186193964
+          },
+          {
+            "phase": "ticks-300",
+            "seconds": 4.106464583,
+            "rss": 262127616,
+            "heapTotal": 195379200,
+            "heapUsed": 92158288,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195575808,
+            "checkpointCalls": 18900,
+            "checkpointBytes": 278430114
+          },
+          {
+            "phase": "ticks-400",
+            "seconds": 5.417629541,
+            "rss": 262127616,
+            "heapTotal": 195379200,
+            "heapUsed": 92479352,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195575808,
+            "checkpointCalls": 25200,
+            "checkpointBytes": 370666264
+          },
+          {
+            "phase": "ticks-500",
+            "seconds": 6.711286125000001,
+            "rss": 262144000,
+            "heapTotal": 195117056,
+            "heapUsed": 91280688,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195313664,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462902414
+          },
+          {
+            "phase": "before-final-gc",
+            "seconds": 6.711599625,
+            "rss": 262160384,
+            "heapTotal": 195379200,
+            "heapUsed": 91301904,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195330048,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462902414
+          },
+          {
+            "phase": "after-final-gc",
+            "seconds": 6.714886083000001,
+            "rss": 262176768,
+            "heapTotal": 143736832,
+            "heapUsed": 7075408,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Physical": 143933440,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462902414
+          }
+        ],
+        "raidCount": 63,
+        "activeRaids": 3
+      }
+    ],
+    "scope": "Identical cloned file-backed fixture: completed/unjoinable worlds plus nine active bodies, fixed simulation time, original AI/events and real tick/checkpoint transactions. Independent worker processes, explicit GC diagnostics. Not real-time human gameplay or full long-session memory proof."
+  },
+  "pairedIdleWorldExperiment": {
+    "format": 1,
+    "at": "2026-10-31T01:26:03.420Z",
+    "worlds": 60,
+    "ticks": 500,
+    "results": [
+      {
+        "label": "before",
+        "runtimeRoot": "file:///private/tmp/headshotz-extraction-host-capacity-candidate/",
+        "ticks": 500,
+        "worlds": 60,
+        "elapsedSeconds": 6.8455408339999995,
+        "checkpointCalls": 31500,
+        "checkpointBytes": 462772914,
+        "samples": [
+          {
+            "phase": "start-after-gc",
+            "seconds": 0.001931874999999998,
+            "rss": 63995904,
+            "heapTotal": 17121280,
+            "heapUsed": 7185480,
+            "external": 2611955,
+            "arrayBuffers": 143787,
+            "v8Physical": 12402688,
+            "checkpointCalls": 0,
+            "checkpointBytes": 0
+          },
+          {
+            "phase": "ticks-100",
+            "seconds": 1.47173225,
+            "rss": 175636480,
+            "heapTotal": 162611200,
+            "heapUsed": 43957144,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 99893248,
+            "checkpointCalls": 6300,
+            "checkpointBytes": 93906483
+          },
+          {
+            "phase": "ticks-200",
+            "seconds": 2.79542825,
+            "rss": 263389184,
+            "heapTotal": 195379200,
+            "heapUsed": 92443240,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195575808,
+            "checkpointCalls": 12600,
+            "checkpointBytes": 186142164
+          },
+          {
+            "phase": "ticks-300",
+            "seconds": 4.258436208999999,
+            "rss": 265306112,
+            "heapTotal": 195379200,
+            "heapUsed": 92469720,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195575808,
+            "checkpointCalls": 18900,
+            "checkpointBytes": 278352414
+          },
+          {
+            "phase": "ticks-400",
+            "seconds": 5.553276791999999,
+            "rss": 265322496,
+            "heapTotal": 195379200,
+            "heapUsed": 92213680,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195575808,
+            "checkpointCalls": 25200,
+            "checkpointBytes": 370562664
+          },
+          {
+            "phase": "ticks-500",
+            "seconds": 6.841927917,
+            "rss": 265338880,
+            "heapTotal": 195117056,
+            "heapUsed": 89984448,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195313664,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462772914
+          },
+          {
+            "phase": "before-final-gc",
+            "seconds": 6.842241625,
+            "rss": 265355264,
+            "heapTotal": 195379200,
+            "heapUsed": 90005648,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 195330048,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462772914
+          },
+          {
+            "phase": "after-final-gc",
+            "seconds": 6.8454763750000005,
+            "rss": 265404416,
+            "heapTotal": 143474688,
+            "heapUsed": 7078792,
+            "external": 2544925,
+            "arrayBuffers": 143787,
+            "v8Physical": 143671296,
+            "checkpointCalls": 31500,
+            "checkpointBytes": 462772914
+          }
+        ],
+        "raidCount": 63,
+        "activeRaids": 3
+      },
+      {
+        "label": "after",
+        "runtimeRoot": "file:///Users/a.cypert/Documents/Applications/headshotz/",
+        "ticks": 500,
+        "worlds": 60,
+        "elapsedSeconds": 0.395665125,
+        "checkpointCalls": 1500,
+        "checkpointBytes": 24159234,
+        "samples": [
+          {
+            "phase": "start-after-gc",
+            "seconds": 0.0013304589999999976,
+            "rss": 63815680,
+            "heapTotal": 16859136,
+            "heapUsed": 7191752,
+            "external": 2611955,
+            "arrayBuffers": 143787,
+            "v8Physical": 12386304,
+            "checkpointCalls": 0,
+            "checkpointBytes": 0
+          },
+          {
+            "phase": "ticks-100",
+            "seconds": 0.112501,
+            "rss": 80150528,
+            "heapTotal": 20529152,
+            "heapUsed": 11522552,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 20725760,
+            "checkpointCalls": 300,
+            "checkpointBytes": 4896223
+          },
+          {
+            "phase": "ticks-200",
+            "seconds": 0.183338042,
+            "rss": 82919424,
+            "heapTotal": 22888448,
+            "heapUsed": 14454712,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 23085056,
+            "checkpointCalls": 600,
+            "checkpointBytes": 9712884
+          },
+          {
+            "phase": "ticks-300",
+            "seconds": 0.254131,
+            "rss": 94306304,
+            "heapTotal": 34160640,
+            "heapUsed": 19723656,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 34357248,
+            "checkpointCalls": 900,
+            "checkpointBytes": 14528334
+          },
+          {
+            "phase": "ticks-400",
+            "seconds": 0.324461209,
+            "rss": 94552064,
+            "heapTotal": 32063488,
+            "heapUsed": 16929872,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 32260096,
+            "checkpointCalls": 1200,
+            "checkpointBytes": 19343784
+          },
+          {
+            "phase": "ticks-500",
+            "seconds": 0.393068,
+            "rss": 94552064,
+            "heapTotal": 32063488,
+            "heapUsed": 18660792,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 32260096,
+            "checkpointCalls": 1500,
+            "checkpointBytes": 24159234
+          },
+          {
+            "phase": "before-final-gc",
+            "seconds": 0.39319,
+            "rss": 94568448,
+            "heapTotal": 32063488,
+            "heapUsed": 18674024,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 32260096,
+            "checkpointCalls": 1500,
+            "checkpointBytes": 24159234
+          },
+          {
+            "phase": "after-final-gc",
+            "seconds": 0.395607292,
+            "rss": 94699520,
+            "heapTotal": 26034176,
+            "heapUsed": 8035392,
+            "external": 2547524,
+            "arrayBuffers": 143787,
+            "v8Physical": 26230784,
+            "checkpointCalls": 1500,
+            "checkpointBytes": 24159234
+          }
+        ],
+        "raidCount": 63,
+        "activeRaids": 3
+      }
+    ],
+    "scope": "Identical cloned file-backed fixture: completed/unjoinable worlds plus nine active bodies, fixed simulation time, original AI/events and real tick/checkpoint transactions. Independent worker processes, explicit GC diagnostics. Not real-time human gameplay or full long-session memory proof."
+  },
+  "retainedFailures": [
+    {
+      "log": "/tmp/hs-idle-worlds-gc-rollback-before.log",
+      "reason": "The first scoped-tick draft restored deleted worlds after surviving worlds on write failure, changing map order. The final rollback restores original order and has an explicit regression."
+    }
+  ],
+  "invariants": [
+    "Paused worlds have no alive/pending operators and their original join window is closed.",
+    "World/checkpoint/loot retention and original expiry/insurance delays remain unchanged.",
+    "Still-joinable worlds and pending settlements continue tick/checkpoint work.",
+    "One simulation time sample controls tick selection and advancement across deadline boundaries.",
+    "A failed multi-world/expiry checkpoint restores selected worlds, canonical rows, order and latest reconnect identity."
+  ],
+  "currentRealtimeFollowup": "tests/evidence/2026-10-30-current-idle-world-soak.json",
+  "limitations": [
+    "Statement caching is experimental only; it did not materially reduce RSS and was not added to production.",
+    "Paired fixed-clock fixture uses explicit GC and a serialized-byte counter with its own JSON work; timings are not a production capacity multiplier.",
+    "The controlled reduction does not attribute every part of the earlier two-hour process-memory trend.",
+    "Physical devices, real WAN/voice, human balance/accessibility and hosting/operator acceptance remain open."
+  ],
+  "changeImpact": {
+    "priorRelease": "c484f317844683e3d81be639981a40f9f3f0aa81b4bc30a14588b679d4d20d53",
+    "currentRelease": "a96ccf914d15ba945966ae8ba8d710edfa0516195dd6a35c20f6e1fe63185200",
+    "changedFiles": [
+      "SERVER.md",
+      "server/raids.mjs"
+    ],
+    "changedMethods": [
+      "serialize",
+      "restore",
+      "atomic",
+      "tick",
+      "advance"
+    ],
+    "allOtherRuntimeFilesUnchanged": true,
+    "note": "Source identity/change impact, not execution coverage. Current live workload uses source 21eef29c and validates changed tick/rollback paths separately from prior full-browser coverage."
+  }
+}

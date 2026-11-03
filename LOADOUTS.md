@@ -1,0 +1,29 @@
+# Equipment bench and loadout preparation
+
+The equipment bench previews owned primary/secondary weapons and the selected worn armor before deployment. The primary selector chooses which of the one/two selected guns is equipped first; the other becomes the secondary quick-slot weapon. Sorting, searching or filtering the stash changes presentation only. Hidden selected items remain selected and remain in the risk/weight summary.
+
+Selection order is preserved across stash refreshes and presets. A newly selected item is appended after existing selections. Changing the primary moves that weapon to the front of the loadout without replacing item IDs, changing condition, refilling magazines, installing attachments or moving anything into escrow. The server commits the same ordered item list and uses its first weapon as primary. Ownership, quantities, eight bring-in items, one/two guns, one worn armor, weight, insurance and normal raid rules still determine whether a deployment is valid.
+
+## Inspect and preview
+
+Every stash item has an Inspect control. Weapon inspection shows condition-adjusted damage, magazine, reload, range, ammo, optics/attachments, fire mode and item weight; another gun can be compared with the selected primary. Armor and medical inspection describe the current protection, movement and treatment rules. Inspection reads the owned item; it does not select, purchase, equip, repair or otherwise alter it. The same dialog remains usable in the raid for carried/nearby items.
+
+The portrait follows the actual chosen gun models, holstered secondary, armor grade and remaining condition. Rotate preview turns the operator to see other equipment. Reduced-motion mode stops autonomous portrait motion while preserving deliberate rotation. Replacing preview equipment disposes owned geometry/materials rather than accumulating a new model per selection. This is presentation of the selection, not an additional equipment inventory or combat authority.
+
+The recovery choice previews the temporary recovery rifle and no worn armor. If an operator is still deployed, the bench shows the original committed equipment snapshot, disables loadout mutation controls and explicitly directs the player to reconnect for current gear. Returning to the base screen does not extract the operator. Sign-out clears the portrait's equipment, selection order and new loadout/quote fields so another account does not inherit them.
+
+## Presets
+
+Presets store selected owned item-instance IDs and their order. They do not purchase replacement equipment or save an insurance purchase. Applying one retains insurance checks only for items that remain selected; review the premium before readying. The UI identifies missing/consumed/sold preset items and selects only those still in the stash. It never substitutes a different item silently. Existing preset records remain compatible.
+
+## Squad readiness
+
+Readiness stores a server-side loadout, including its ordered items and insurance selection. Changing gear or primary requests unready and stops automatic entry. If a browser reloads with a server-readied loadout that differs from its local selection, deployment is blocked locally and the discrepancy is visible. **Use my readied loadout** refreshes ownership/profile data and restores the exact stored gear order, recovery choice and insurance checks. Alternatively select a new plan and ready again.
+
+Ready validates the same canonical ownership, equipment count, condition, stack, weight, overflow and insurance affordability rules as deployment. It quotes insurance without spending credits, moving gear, creating recovery items or changing the inventory revision. A free recovery loadout cannot include owned equipment or insurance. Existing active operators cannot ready for a second raid. Revoking readiness requires only `ready:false`, preserves the last validated loadout and works even if that gear is gone or an operator has already deployed.
+
+Party reads revalidate previously saved ready flags without writing to storage. An invalid member appears unready; that operator sees the specific reason and teammates see “Loadout needs review.” This blocks the whole squad before anyone is charged. Deployment still validates each member inside the group transaction; a later failure rolls back every member's gear, premium, insurance claim, deployment and simulation state. Contract deliveries and actual insurance returns clear readiness; accepting/claiming a contract alone does not. Failed ready requests refresh the browser's stash and display the rejection so a second device's sold or consumed equipment does not remain selectable.
+
+The normal browser deployment sends its own selected loadout. For a party, the server rejects an explicitly supplied leader selection that differs from that leader's readied loadout before creating operators, debiting equipment or charging premiums. Insurance checkbox ordering is immaterial; item/weapon ordering is meaningful. A committed request retry still resumes the same deployment. Other party members' equipment remains selected from their server-readied records. Network delivery determines when an unready request takes effect; a local change cannot retroactively cancel a deployment already committed by the server.
+
+These additions use the existing ordered-item and party data records under schema12/protocol9; they do not rewrite equipment or presets. `tests/raid-loadout.test.mjs` verifies stable order, semantic readiness comparisons, malformed input, pre-debit rejection and committed retry behavior. `tests/raid-browser-loadout.mjs` exercises buying/selection/inspection/sorting/presets/readiness/reload/restore/deployment, insurance costs, active-body messaging, portrait replacement/rotation and sign-out cleanup. Its condition/magazine and missing-item setup are fixtures. Human presentation/accessibility/device acceptance and the broader release criteria remain open.

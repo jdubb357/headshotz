@@ -1,0 +1,6 @@
+import {randomBytes,scryptSync,timingSafeEqual,createHash} from 'node:crypto';
+import {requireRule} from './rules.mjs';
+export const digest=value=>createHash('sha256').update(value).digest('hex');
+export function encodePassword(password){requireRule(typeof password==='string'&&password.length>=12&&password.length<=256,'Use a password with 12–256 characters',400);const salt=randomBytes(16).toString('hex');return salt+':'+scryptSync(password,salt,64).toString('hex')}
+export function verifyPassword(password,encoded){const [salt,expected]=(encoded||('0'.repeat(32)+':'+ '0'.repeat(128))).split(':');const derived=scryptSync(typeof password==='string'&&password.length<=256?password:'',salt,64);return typeof password==='string'&&password.length<=256&&!!encoded&&timingSafeEqual(derived,Buffer.from(expected,'hex'))}
+export function sessionLabel(agent=''){const browser=/Edg\//.test(agent)?'Edge':/Firefox\//.test(agent)?'Firefox':/Chrome\//.test(agent)?'Chrome':/Safari\//.test(agent)?'Safari':'Browser',device=/Android/.test(agent)?'Android':/iPhone|iPad/.test(agent)?'iOS':/Windows/.test(agent)?'Windows':/Macintosh|Mac OS X/.test(agent)?'Mac':/Linux/.test(agent)?'Linux':'device';return browser+' on '+device}
