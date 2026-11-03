@@ -844,7 +844,7 @@ function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdi
  case 'round':{if(!inGame)break;if(m.late){if(!C.fresh)break;C.fresh=0}else if(m.count)C.fresh=0;C.round=m.round;const rh=m.hp||{};for(const k in C.players){C.players[k].hp=rh[k]!=null?rh[k]:100;C.players[k].down=false;C.players[k].dst=null}me.down=false;me.dst=null;updDown();hideEnd();C.score=m.score;C.phase=m.count?'count':'play';for(const n of nades)scene.remove(n.m);nades=[];smokes.length=0;fires.length=0;
   for(const id in C.players){const q=C.players[id];const s=m.spawns[id];if(s){q.alive=true;q.hp=rh[id]!=null?rh[id]:100;q.rp.set(s[0],0,s[1]);q.tp.copy(q.rp);q.yaw=q.tyaw=s[2];if(q.model){q.model.userData.dead=0;q.model.visible=true}}}
   if(m.spawns[me.id]){spawnMe(m.spawns[me.id]);if(rh[me.id]!=null){me.hp=rh[me.id];updHP()}}else if(!m.count){me.alive=false;center('Joined mid-round\nYou spawn next round')}if(BC&&m.count){for(const id in C.players)C.players[id].flags=32;brRoundStart()}else if(BC&&m.late){brRoundStart();if(m.lp){me.pos.set(m.lp[0],m.lp[1],m.lp[2]);BC.air=me.air='fall';me.vel.set(0,-10,0)}}
-  if(m.count){me.frozen=true;let n=m.count;const tick=()=>{if(C.phase!=='count')return;center((C.mode==='raid'?'RAID DEPLOYMENT':(BRM(C.mode)?'AIR DROP':'ROUND'))+' '+n);SFX.beep(600);n--;if(n>0)setTimeout(tick,1000)};tick()}renderSB();break}
+  if(m.count){me.frozen=true;let n=m.count;const tick=()=>{if(C.phase!=='count')return;center((C.mode==='raid'?'RAID DEPLOYMENT':(BRM(C.mode)?'AIR DROP':'ROUND'))+' '+n);if(!BRM(C.mode)||n<=3)SFX.beep(600);n--;if(n>0)setTimeout(tick,1000)};tick()}renderSB();break}
  case 'go':C.phase='play';me.frozen=false;center(BC?'🚁 DROP! Press JUMP':'FIGHT!',BC?1600:800);SFX.beep(1200);showRL(false);break;
  case 'spawn':{const q=C.players[m.id];if(q){q.alive=true;q.hp=100;q.rp.set(m.s[0],0,m.s[1]);q.tp.copy(q.rp);if(q.model){q.model.userData.dead=0;q.model.visible=true}}if(m.id===me.id){spawnMe(m.s);me.frozen=false}break}
  case 'snap':C.roundT=m.rt;for(const a of m.p){const q=C.byOrd[a[0]];if(!q||q.id===me.id)continue;q.tp.set(a[1]/100,a[2]/100,a[3]/100);q.tyaw=a[4]/1000;q.tpitch=a[5]/100;q.flags=a[7]|0;q.wid=a[6]|0;
@@ -2319,7 +2319,7 @@ function brBagRender(){const B=BC,w=$('brBag');if(!B||!w||!B.bagOn)return;const 
  const g=w.querySelector('#bagGhost');if(g)w._g=g}
 function brBag(on){const B=BC;if(!B)return;const w=$('brBag');if(!w)return;B.bagOn=!!on;w.classList.toggle('hidden',!on);if(on){if(document.pointerLockElement)document.exitPointerLock();B.bagSel=null;brBagRender()}}
 function brMap(on){const w=$('brMapWrap');if(!w)return;w.classList.toggle('hidden',!on);if(on){brDrawMap($('brMapCv'),true);if(document.pointerLockElement)document.exitPointerLock()}BC.mapOn=on}
-function brClear(){if(!BC)return;try{BC.bagOn=false}catch(e){}try{scene.remove(BC.g)}catch(e){}if(BC.saved)me.load=BC.saved;for(const k of['air'])me[k]=null;BC=null;const h=$('brHud');if(h)h.className='hidden';vmRoot.visible=true}
+function brClear(){try{heliStop()}catch(e){}if(!BC)return;try{BC.bagOn=false}catch(e){}try{scene.remove(BC.g)}catch(e){}if(BC.saved)me.load=BC.saved;for(const k of['air'])me[k]=null;BC=null;const h=$('brHud');if(h)h.className='hidden';vmRoot.visible=true}
 function brClientInit(info){brClear();BC={bank:0,half:info.half,y:info.y,heli:info.heli,zones:info.zones||[],items:new Map(),chests:info.chests.map(c=>({id:c[0],x:c[1],y:c[2],z:c[3],ry:c[4],open:!!c[5],sec:!!c[6],tier:c[6]?4:(c[7]|0)})),bt0:-3,btAt:performance.now(),btNow:-3,storm:null,sdisp:{cx:0,cz:0,r:300},
   inv:{g:[null,null,null,null,null],bp:[],m:[WIDX.fists,0],u:null,n:null,c:[0,0,0,0]},res:[0,0,0,0],sh:0,air:null,kills:0,al:0,sq:0,cast:null,paid:0,saved:me.load.slice(0,4),gk:['','','','',''],bagOn:false,bagSel:null,near:[],nearK:'',pkT:{},dirty:1,placed:0,spec:null,scan:0,mapT:0,chT:0,hT:0,wT:0,stT:0,mapOn:false};
  for(const it of info.items)BC.items.set(it[0],it);me.load=['fists','fists','fists','grenade','fists','fists','fists'];me.ammo=[0,0,0,0,0,0,0];me.utilN=0;brBuild();brHudInit();brApplyInv(true)}
@@ -2400,6 +2400,14 @@ function brUse(k){const B=BC;if(!B||!me.alive||me.down||B.air||B.cast||B.inv.c[k
 function brCancelCast(){if(BC&&BC.cast){BC.cast=null;$('brCast').classList.add('hidden')}}
 function brStormTick(){if(typeof noise==='function'&&AC)noise('lowpass',420,1,.25,.22,out())}
 // realistic rotor/diesel engine: low sawtooth + warble LFO + filtered noise, no square-wave beep
+// v62: battle-bus / helicopter engine = a real recorded rotor loop (CC0, see ASSETS.md), gain + low-pass follow the distance to the bus
+const HELI={buf:null,loading:0,src:null,g:null,lp:null};
+function heliLoad(){if(HELI.buf||HELI.loading||!AC)return;HELI.loading=1;fetch('heli_loop.mp3').then(r=>r.arrayBuffer()).then(b=>new Promise((ok,no)=>{const p=AC.decodeAudioData(b,ok,no);if(p&&p.catch)p.catch(no)})).then(buf=>{HELI.buf=buf;HELI.loading=0}).catch(()=>{HELI.loading=2})}
+function heliLoop(v,bus){if(!AC||HELI.loading===2)return false;if(!HELI.buf){heliLoad();return false}
+ if(!HELI.src){try{const s=AC.createBufferSource();s.buffer=HELI.buf;s.loop=true;const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1200;const gn=AC.createGain();gn.gain.value=0;s.connect(lp);lp.connect(gn);gn.connect(out());s.start();HELI.src=s;HELI.g=gn;HELI.lp=lp}catch(e){HELI.loading=2;return false}}
+ const t=AC.currentTime;HELI.g.gain.setTargetAtTime(Math.min(1,v)*(bus?.6:.42),t,.15);HELI.lp.frequency.setTargetAtTime(700+v*6500,t,.2);HELI.src.playbackRate.setTargetAtTime(bus?1:1.05,t,.3);return true}
+function heliStop(){if(HELI.src){try{const s=HELI.src;HELI.g.gain.setTargetAtTime(0,AC.currentTime,.15);setTimeout(()=>{try{s.stop()}catch(e){}},700)}catch(e){}HELI.src=null}}
+window.__hsz.heli=HELI;
 function brEngineHit(v,bus){
  const d=out();if(!d||!AC)return;const t=AC.currentTime,lo=bus?46:58;
  const o=AC.createOscillator(),lp=AC.createBiquadFilter(),g=AC.createGain();
@@ -2413,7 +2421,9 @@ function brFrame(dt,now){const B=BC;if(!B)return;B.btNow=B.bt0+(now-B.btAt)/1000
  if(B.dirty)brRefresh();
  // helicopter / battle bus engine
  const hm=B.heliM;if(bt<B.heli.dur+14){const k=Math.max(0,bt);const h=B.heli,t=Math.min(k,h.dur+14)/h.dur;const x=h.a[0]+(h.b[0]-h.a[0])*t,z=h.a[1]+(h.b[1]-h.a[1])*t;hm.visible=true;hm.position.set(x,B.y-2.4,z);hm.rotation.y=Math.atan2(-(h.b[0]-h.a[0]),-(h.b[1]-h.a[1]));hm.userData.update(dt,performance.now()/1000);
-  if(B.air==='bus'||bt<B.heli.dur){B.hT-=dt;if(B.hT<=0&&AC){const bus=B.air==='bus';B.hT=bus?.34:.2;const d=Math.hypot(camera.position.x-x,camera.position.y-B.y,camera.position.z-z);const v=Math.max(0,1-d/260);if(v>0)brEngineHit(v,bus)}}}else hm.visible=false;
+  if(B.air==='bus'||bt<B.heli.dur){const bus=B.air==='bus';const d=Math.hypot(camera.position.x-x,camera.position.y-B.y,camera.position.z-z);const v=Math.max(0,1-d/260);
+   // real recorded rotor loop (CC0); the synthesized engine only plays until the sample has loaded (or if it cannot decode)
+   if(!heliLoop(v*v*(3-2*v),bus)){B.hT-=dt;if(B.hT<=0&&AC){B.hT=bus?.34:.2;if(v>0)brEngineHit(v,bus)}}}else heliStop()}else{hm.visible=false;heliStop()}
  // my canopy
  B.canopy.visible=me.air==='chute'&&!TPV.on;if(B.canopy.visible)B.canopy.position.set(me.pos.x,me.pos.y+3.2,me.pos.z);
  if(B.wind){const fall=me.air==='fall',gl=me.air==='chute';B.wind.userData.update(dt,_v.set(me.pos.x,me.pos.y+1.2,me.pos.z),fall||gl?me.vel:_v2.set(0,-1,0),fall?1:gl?.22:0)}
@@ -2434,9 +2444,9 @@ function brFrame(dt,now){const B=BC;if(!B)return;B.btNow=B.bt0+(now-B.btAt)/1000
  B.rfT=(B.rfT||0)-dt;if(B.rfT<=0){B.rfT=.5;if(Math.hypot(camera.position.x-(B.rfx??1e9),camera.position.z-(B.rfz??1e9))>8)brRefresh()}
   {let mv=false;for(const c of B.chests){const tg=c.open?1:0;if(c.lidT!==tg){const d=Math.sign(tg-c.lidT)*dt*1.8;c.lidT=Math.abs(tg-c.lidT)<=Math.abs(d)?tg:c.lidT+d;mv=true}}if(mv)brChestMats();if(B.sec)for(const o of B.sec){o.pivot.rotation.x=-lidAng(o.c.lidT||0);o.inner.material.opacity=.85*(o.c.lidT||0);o.beam.visible=o.ring.visible=o.gem.visible=!o.c.open}}
  if(B.sec){const tt=now/1000;for(const o of B.sec){if(o.c.open)continue;o.beam.material.opacity=.38+.16*Math.sin(tt*3+o.c.id);o.ring.scale.setScalar(1+.25*((tt*1.2+o.c.id*.3)%1));o.ring.material.opacity=.8*(1-((tt*1.2+o.c.id*.3)%1));o.gem.rotation.y=tt*2;o.gem.position.y=1.15+Math.sin(tt*2.4)*.08}
-  B.sT=(B.sT||0)-dt;if(B.sT<=0&&me.alive&&AC&&!B.air){B.sT=1.05;let bd=1e9;for(const o of B.sec){if(o.c.open)continue;const d=Math.hypot(o.c.x-me.pos.x,o.c.z-me.pos.z);if(d<bd)bd=d}if(bd<45){const v=Math.max(.03,(1-bd/45))*.22;tone(196,.5,v,'sawtooth',98,out());setTimeout(()=>{tone(311,.35,v*.7,'square',0,out());tone(466,.5,v*.5,'triangle',233,out())},170)}}}
+  B.sT=(B.sT||0)-dt;if(B.sT<=0&&me.alive&&AC&&!B.air){B.sT=9;let bd=1e9;for(const o of B.sec){if(o.c.open)continue;const d=Math.hypot(o.c.x-me.pos.x,o.c.z-me.pos.z);if(d<bd)bd=d}if(bd<45){const v=Math.max(.03,(1-bd/45))*.13;tone(147,1.1,v,'sine',110,out());setTimeout(()=>tone(220,.9,v*.55,'triangle',165,out()),260)}}}
  // chest chimes
- B.chT-=dt;if(B.chT<=0&&me.alive&&AC&&!B.air){B.chT=1.3;let bd=1e9;for(const c of B.chests){if(c.open)continue;const d=Math.hypot(c.x-me.pos.x,c.z-me.pos.z);if(d<bd)bd=d}if(bd<26){const v=Math.max(.02,(1-bd/26))*.16;tone(1568,.12,v,'sine',0,out());setTimeout(()=>tone(2093,.16,v*.8,'sine',0,out()),110)}}
+ B.chT-=dt;if(B.chT<=0&&me.alive&&AC&&!B.air){B.chT=.5;let bd=1e9,bc=null;for(const c of B.chests){if(c.open)continue;const d=Math.hypot(c.x-me.pos.x,c.z-me.pos.z);if(d<bd){bd=d;bc=c}}if(bc&&bd<14&&!(bc.chimed&&B.btNow-bc.chimed<60)){bc.chimed=B.btNow;const v=Math.max(.04,(1-bd/14))*.1;tone(880,.5,v,'sine',0,out());setTimeout(()=>tone(1175,.7,v*.7,'sine',0,out()),140)}}
  // use cast
  if(B.cast){B.cast.t+=dt;const c=$('brCast');c.firstChild.style.width=Math.min(100,B.cast.t/B.cast.d*100)+'%';if(inp.fire||me.down||!me.alive||B.air){brCancelCast()}else if(B.cast.t>=B.cast.d){const k=B.cast.k;B.cast=null;c.classList.add('hidden');send({t:'use',k});SFX.heal&&SFX.heal()}}
  B.mapT-=dt;if(B.mapT<=0){B.mapT=.12;brDrawMap($('brMini'),false);if(B.mapOn)brDrawMap($('brMapCv'),true)}

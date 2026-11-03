@@ -74,3 +74,6 @@ No new third-party assets. The typed quick slots, backpack, swap prompts, red **
 
 ## v58b: chests, doors, crouch, non-lethal slot
 No new third-party assets. The PBR chest kit (`chests.js`: wood planks, iron bands, lock, lid hinge, rarity glow), the swinging doors, the new door/crouch sound effects and the decoy model are all procedural (generated in code, existing CC0 Poly Haven wood/metal textures reused).
+
+## v62: battle bus engine audio (CC0)
+`heli_loop.mp3`: a loopable 8 s mono excerpt (steady middle section, cross-faded at the loop point, loudness-normalised, MP3 48 kbps) of **"Helicopter SFX" by WuxiaScrub**, https://opengameart.org/content/helicopter-sfx, licence **CC0** (public domain, no attribution required; credited anyway). Played as a looping Web Audio source whose gain and low-pass follow the distance to the bus. The old synthesized engine pulses remain only as a fallback until the sample has loaded.
