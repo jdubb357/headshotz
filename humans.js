@@ -148,10 +148,10 @@ function ik(u,side,target,poleW){const up=u.bones['upperarm_'+side],lo=u.bones['
 // rest arm pose (relaxed, hanging) and emote hand targets, in rig space relative to each shoulder: x right, y up, z back (the body faces -z). [target, elbow pole]
 const RESTR=[[.1,-.58,-.04],[.35,-.25,.5]],RESTL=[[-.1,-.58,-.04],[-.35,-.25,.5]];
 const HEMO={
- wave:t=>({r:[[.3+Math.sin(t*9)*.1,.3,-.06],[1,-.25,.2]],l:RESTL,body:{headX:0,rigZ:Math.sin(t*3)*.01}}),
+ wave:t=>({r:[[.34+Math.sin(t*9)*.1,.2,-.08],[1,-.3,.2]],l:RESTL,body:{headX:0,rigZ:Math.sin(t*3)*.01}}),
  dance:t=>{const b=Math.sin(t*7),h=Math.abs(Math.sin(t*7));return{r:[[.32,.18+.3*b,-.2],[.9,-.3,.1]],l:[[-.32,.18-.3*b,-.2],[-.9,-.3,.1]],body:{rigY:-.03-.05*h,rigZ:Math.sin(t*3.5)*.1,legA:[Math.sin(t*7)*.5,-Math.sin(t*7)*.5],shA:[-.3-.3*Math.max(0,Math.sin(t*7)),-.3-.3*Math.max(0,-Math.sin(t*7))]}}},
  flex:t=>({r:[[.27,.2,-.14],[1,.05,.15]],l:[[-.27,.2,-.14],[-1,.05,.15]],body:{}}),
- cheer:t=>{const p=Math.sin(t*12)*.05;return{r:[[.3,.5+p,-.02],[.9,0,.25]],l:[[-.3,.5-p,-.02],[-.9,0,.25]],body:{rigY:Math.abs(Math.sin(t*6))*.07,legA:[.1,.1],shA:[-.2,-.2]}}},
+ cheer:t=>{const p=Math.sin(t*12)*.05;return{r:[[.32,.4+p,-.04],[.9,0,.25]],l:[[-.32,.4-p,-.04],[-.9,0,.25]],body:{rigY:Math.abs(Math.sin(t*6))*.07,legA:[.1,.1],shA:[-.2,-.2]}}},
  salute:t=>{const k=Math.min(1,t*5)*(t>2.1?Math.max(0,1-(t-2.1)*5):1);const R=[[.1,.27*k-.58*(1-k),-.24*k-.04*(1-k)],[1,-.2,.3]];return{r:R,l:RESTL,body:{}}},
  spin:t=>({r:[[.58,.05,0],[0,-.3,.7]],l:[[-.58,.05,0],[0,-.3,.7]],body:{rigY:Math.max(0,Math.sin(Math.min(1,t/.5)*Math.PI))*.1,legA:[.12,-.12],spin:(1-Math.pow(1-Math.min(1,t/1.5),3))*Math.PI*4}}),
  clap:t=>{const c=(1+Math.sin(t*15))/2;return{r:[[.03+.1*c,-.08,-.42],[.7,-.6,.2]],l:[[-.03-.1*c,-.08,-.42],[-.7,-.6,.2]],body:{rigY:Math.abs(Math.sin(t*7.5))*.02}}},

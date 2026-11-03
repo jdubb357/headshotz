@@ -492,11 +492,11 @@ function BERETTA(o={}){const R=C.blk,yb=.046;const L=o.r93?-.185:-.165;
  return{muzzle:[0,yb,L-.01],eject:[.014,.056,-.035],sight:[0,.07,.16],grip:pgrip,lh:o.r93?[0,-.03,-.063]:null,lhT:o.r93?'vert':'pistol',len:.21,pistol:1,rl:'mag',hold:'pistol',slide:.028,piv:{mag:[0,-.05,.04]},shellT:'pistol'}}
 // Glock 18
 function GLOCK(){const yb=.046;grp('slide');metal();prof([[.045,.03],[.045,.062,.003],[-.14,.062,.003],[-.142,.032,.003]],.025,0,0x2b2d31,{b:.0028});
- if(det()){for(let i=0;i<6;i++)rbox(.0255,.026,.0018,0,.046,.022+i*.004,C.dark,.0004);box(.002,.012,.034,.0122,.054,-.03,C.dark);rbox(.006,.005,.006,0,.066,.04,C.dark,.001);rbox(.004,.006,.004,0,.065,-.132,C.dark,.001);rbox(.002,.006,.01,.0125,.05,.036,C.red,.0005)}
+ if(det()){for(let i=0;i<6;i++)rbox(.0255,.026,.0018,0,.046,.022+i*.004,C.dark,.0004);for(let i=0;i<4;i++)rbox(.0255,.026,.0016,0,.046,-.075-i*.0035,C.dark,.0004);for(let i=0;i<3;i++)rbox(.0105,.0016,.012,0,.0622,-.108-i*.014,C.dark,.0004);rbox(.007,.008,.014,.0152,.05,.047,C.dark,.0015);box(.002,.012,.034,.0122,.054,-.03,C.dark);rbox(.006,.005,.006,0,.066,.04,C.dark,.001);rbox(.004,.006,.004,0,.065,-.132,C.dark,.001);rbox(.002,.006,.01,.0125,.05,.036,C.red,.0005)}
  metal();cyl(.007,.012,0,yb,-.138,C.dark,{seg:12});grp(null);
  matte();prof([[.046,.03],[.046,.02,.004],[.056,.012,.006],[.058,.004],[.052,-.01],[.074,-.085,.008],[.068,-.094],[.032,-.098,.006],[.026,-.088],[.028,-.076,.004],[.02,-.066,.004],[.022,-.054,.004],[.014,-.044,.004],[.016,-.03,.004],[.006,-.004],[-.045,.008],[-.14,.012],[-.14,.03]],.026,0,C.poly,{b:.002});
  if(det())rail(-.07,-.13,.008,C.poly,.018);
- trig(-.048,.006,.004,C.poly,.006);pistolMag(.02,.05,-.19,.024,C.poly);
+ trig(-.048,.006,.004,C.poly,.006);pistolMag(.02,.05,-.25,.024,C.poly);if(det()){matte();for(let i=0;i<7;i++)rbox(.0262,.0016,.027,0,-.1-i*.022,.043+(i*.022+.1)*.3,C.dark,.0004)}// extended 33-round stick mag with ribs
  return{muzzle:[0,yb,-.15],eject:[.013,.056,-.03],sight:[0,.07,.16],grip:pgrip,lh:null,lhT:'pistol',len:.19,pistol:1,rl:'mag',hold:'pistol',slide:.026,piv:{mag:[0,-.05,.04]},shellT:'pistol'}}
 // AutoMag-style stainless hand cannon (rotating bolt with rear ears, vent rib barrel)
 function AUTOMAG(){const yb=.05,S=C.chrome;metal();mat('chrome');
