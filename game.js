@@ -2140,15 +2140,26 @@ function botBR(b,dt){const E=H.br,e=b.e,s=E.storm;if(!b.inv)b.inv=newInv();const
  b.sitT=(b.sitT||0)-dt;
  // stuck watchdog: abandon the current loot target when we are not making progress
  b.wt=(b.wt||0)+dt;if(b.wt>3.5){b.wt=0;const m=Math.hypot(px-(b.wx||0),pz-(b.wz||0));b.wx=px;b.wz=pz;if(m<1.1&&b.goal){if(b.lootT){(b.bad=b.bad||{})[b.lootT]=1;b.lootT=null;b.stage=0}b.goal=null;b.stuck=(b.stuck||0)+1}}
+ if(b.dbgGo)return brRoute(b,b.dbgGo[0],0,b.dbgGo[1],-1); // test hook: walk to a point
+ // v62 unstick: a bot that wants to be somewhere >5 m away but has not made 3.5 m of NET progress in 8 s (wiggling against a wall, trapped in a building) escalates:
+ // 1) leave through the doorway + drop the target, 2) forget every target, 3) nudge it to its building's doorway / toward the safe circle
+ if(!b.tgtNow){b.nt=(b.nt||0)+dt;if(b.nt>=8){b.nt=0;const mv=Math.hypot(px-(b.nx||px),pz-(b.nz||pz));b.nx=px;b.nz=pz;const gg=b.goal;
+  if(gg&&Math.hypot(gg[0]-px,gg[1]-pz)>5&&mv<3.5){b.bs=(b.bs||0)+1;H.brUnstuck=(H.brUnstuck||0)+1;
+   if(b.lootT){(b.bad=b.bad||{})[b.lootT]=1;b.lootT=null}if(b.lootC!=null){(b.badC=b.badC||{})[b.lootC]=1;b.lootC=null}b.goal=null;b.via=null;b.stage=0;b.exitIn=0;b.pickT=H.t+.5;
+   if(b.bs>=2){b.bad={};b.badC={}}
+   if(b.bs>=3){const ob=brOwn(e.pos);let nx,nz,ny=0;
+    if(ob>=0){const o=E.doors[ob];nx=o.out[0];nz=o.out[1];ny=o.y||0}else{const dx=s.cx-px,dz=s.cz-pz,l=Math.hypot(dx,dz)||1;nx=px+dx/l*3;nz=pz+dz/l*3;ny=e.pos.y}
+    if(supportAt(nx,ny,nz)||ob>=0){e.pos.set(nx,ny+.05,nz);e.vel.set(0,0,0)}b.bs=0;H.brNudge=(H.brNudge||0)+1}}
+  else b.bs=0}}
  // 1) storm: leave the danger zone / head for the next safe circle
  const dC=Math.hypot(px-s.cx,pz-s.cz),fut=s.state==='wait'&&s.waitT-s.t>25&&dC<s.r-10?null:[s.tcx,s.tcz,s.tr];
  const toNext=fut&&Math.hypot(px-fut[0],pz-fut[1])>fut[2]-10;
- if(dC>s.r-4||toNext){const c=fut||[s.cx,s.cz];const dx=c[0]-px,dz=c[1]-pz,l=Math.hypot(dx,dz)||1;const d=Math.min(l,18);b.lootT=null;return[px+dx/l*d,pz+dz/l*d,0]}
+ if(dC>s.r-4||toNext){const c=fut||[s.cx,s.cz];const dx=c[0]-px,dz=c[1]-pz,l=Math.hypot(dx,dz)||1;const d=Math.min(l,18);b.lootT=null;b.lootC=null;return brRoute(b,px+dx/l*d,0,pz+dz/l*d,-1)}
  // 2) heal when hurt
  if(b.hp<65&&H.t>(b.healT||0)&&b.inv.c[0]+b.inv.c[1]>0&&!b.tgtNow){b.healT=H.t+6;const k=b.hp<40&&b.inv.c[1]>0?1:b.inv.c[0]>0?0:1;if(b.inv.c[k]>0){b.inv.c[k]--;b.hp=Math.min(k===0?75:100,b.hp+(k===0?15:100));bcast({t:'hp',id:b.id,hp:b.hp})}}
  if(b.hp>0&&(b.sh||0)<50&&H.t>(b.shT||0)&&b.inv.c[2]+b.inv.c[3]>0){b.shT=H.t+5;const k=b.inv.c[2]>0?2:3;b.inv.c[k]--;b.sh=Math.min(k===2?100:50,(b.sh||0)+(k===2?50:25))}
  // 3) squad bots stick near a human mate in squads
- if(H.mode==='brs'&&!b.lootT){const hm=plist().filter(q=>q.team===b.team&&!q.bot&&q.alive&&!q.elim);if(hm.length){const q=hm[0];const d=Math.hypot(q.p[0]-px,q.p[2]-pz);if(d>22)return[q.p[0]+rrand(-3,3),q.p[2]+rrand(-3,3),q.p[1]]}}
+ if(H.mode==='brs'&&!b.lootT){const hm=plist().filter(q=>q.team===b.team&&!q.bot&&q.alive&&!q.elim);if(hm.length){const q=hm[0];const d=Math.hypot(q.p[0]-px,q.p[2]-pz);if(d>22)return brRoute(b,q.p[0]+rrand(-3,3),q.p[1],q.p[2]+rrand(-3,3),-1)}}
  // 4) loot
  if(!b.lootT||!E.items[b.lootT]){b.lootT=null;if(H.t>=(b.pickT||0)){b.pickT=H.t+1.2;let best=null,bd=1e9;const need=b.inv.g.filter(Boolean).length<2;
   for(const id in E.items){const it=E.items[id];if(b.bad&&b.bad[id])continue;if(it.claim&&it.claim!==b.id&&E.items[id])continue;const d=Math.hypot(it[4]-px,it[6]-pz)+Math.abs(it[5]-e.pos.y)*3;if(d>(b.sit?60:95))continue;
@@ -2156,16 +2167,24 @@ function botBR(b,dt){const E=H.br,e=b.e,s=E.storm;if(!b.inv)b.inv=newInv();const
    else if(k===1){if(b.inv.res[it[2]]>90)continue;sc+=8}else if(k===2){if(b.inv.c[it[2]]>=CONMAX[it[2]])continue;sc+=4}else if(k===3){sc+=14}else if(k===4){if(b.inv.m[0]!==WIDX.fists)continue;sc+=10}
    if(sc<bd){bd=sc;best=id}}
   // chests are worth a detour
-  let bch=null,cd=1e9;for(const c of E.chests){if(c.open||c.claim&&c.claim!==b.id)continue;const d=Math.hypot(c.x-px,c.z-pz)+Math.abs(c.y-e.pos.y)*3;if(d<cd&&d<(b.inv.g[0]?55:85)){cd=d;bch=c}}
+  let bch=null,cd=1e9;for(const c of E.chests){if(c.open||c.claim&&c.claim!==b.id||b.badC&&b.badC[c.id])continue;const d=Math.hypot(c.x-px,c.z-pz)+Math.abs(c.y-e.pos.y)*3;if(d<cd&&d<(b.inv.g[0]?55:85)){cd=d;bch=c}}
   if(bch&&(!best||cd<bd+30)){b.lootC=bch.id;bch.claim=b.id;b.lootT=null;b.stage=0}else if(best){b.lootT=+best;E.items[best].claim=b.id;b.lootC=null;b.stage=0}}}
  // chest target
  if(b.lootC!=null&&!b.lootT){const c=E.chests[b.lootC];if(!c||c.open){b.lootC=null}else{const d=Math.hypot(c.x-px,c.z-pz);if(d<2.4&&Math.abs(c.y-e.pos.y)<2.5){brOpen(b,c.id);b.lootC=null;b.pickT=H.t+.6;return null}return brRoute(b,c.x,c.y,c.z,c.bd)}}
  if(b.lootT){const it=E.items[b.lootT];if(it){const d=Math.hypot(it[4]-px,it[6]-pz);if(d<1.6&&Math.abs(it[5]-e.pos.y)<2.5){brTake(b,it[0],b.inv.g[0]&&b.inv.g[1]?(gunScore(WIDS[b.inv.g[0][0]],b.inv.g[0][1])<=gunScore(WIDS[b.inv.g[1][0]],b.inv.g[1][1])?0:1):0);b.lootT=null;b.pickT=H.t+.15;return null}return brRoute(b,it[4],it[5],it[6],it.bd)}}
  // 5) roam the safe zone
- if(!b.goal||b.sitT<=0&&Math.random()<dt*.04){b.sitT=6+Math.random()*8;return brRoam(b,E)}
+ if(!b.goal||b.sitT<=0&&Math.random()<dt*.04){b.sitT=6+Math.random()*8;{const r=brRoam(b,E);return brRoute(b,r[0],0,r[1],-1)}}
  return b.goal}
+// v62: which building (E.doors index) is this position inside? -1 = outdoors
+function brOwn(p){const D=H.br.doors;for(let i=0;i<D.length;i++){const d=D[i];if(p.x>d.x0-.2&&p.x<d.x1+.2&&p.z>d.z0-.2&&p.z<d.z1+.2&&p.y>(d.y||0)-1&&p.y<(d.y||0)+3.6)return i}return -1}
 function brRoute(b,x,y,z,bd){const e=b.e;const d=bd>=0?H.br.doors[bd]:null;
- if(d){const inside=e.pos.x>d.x0-.3&&e.pos.x<d.x1+.3&&e.pos.z>d.z0-.3&&e.pos.z<d.z1+.3&&Math.abs(e.pos.y-(d.y||0))<4;const roof=y>(d.y||0)+2.2;
+ // standing inside a building that is not the target's: leave through its own doorway first (walk to the inside mark, then out), never straight through the walls
+ const ob=brOwn(e.pos);b.ob=ob;
+ if(ob>=0&&(ob!==bd||y>(H.br.doors[ob].y||0)+2.2)){const o=H.br.doors[ob];
+  if(!b.exitIn&&Math.hypot(e.pos.x-o.in[0],e.pos.z-o.in[1])>1.5)return[o.in[0],o.in[1],o.y||0];
+  b.exitIn=1;return[o.out[0],o.out[1],o.y||0]}
+ if(ob<0)b.exitIn=0;
+ if(d){const inside=ob===bd;const roof=y>(d.y||0)+2.2;
   if(!inside&&!roof){if(Math.hypot(e.pos.x-d.out[0],e.pos.z-d.out[1])>1.6&&!b.doorIn){return[d.out[0],d.out[1],d.y||0]}b.doorIn=1;return[d.in[0],d.in[1],d.y||0]}
   if(inside)b.doorIn=0}
  return[x,z,y]}
