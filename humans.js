@@ -145,6 +145,17 @@ function ik(u,side,target,poleW){const up=u.bones['upperarm_'+side],lo=u.bones['
  const ca=Math.max(-1,Math.min(1,(l1*l1+d*d-l2*l2)/(2*l1*Math.max(d,1e-4)))),sa=Math.sqrt(1-ca*ca);
  _P.copy(poleW).sub(_A);_P.addScaledVector(_D,-_P.dot(_D)).normalize();_E.copy(_A).addScaledVector(_D,l1*ca).addScaledVector(_P,l1*sa);
  aimTo(up,_B,_E);lo.getWorldPosition(_B);hd.getWorldPosition(_C);aimTo(lo,_C,_T)}
+// rest arm pose (relaxed, hanging) and emote hand targets, in rig space relative to each shoulder: x right, y up, z back (the body faces -z). [target, elbow pole]
+const RESTR=[[.1,-.58,-.04],[.35,-.25,.5]],RESTL=[[-.1,-.58,-.04],[-.35,-.25,.5]];
+const HEMO={
+ wave:t=>({r:[[.3+Math.sin(t*9)*.1,.3,-.06],[1,-.25,.2]],l:RESTL,body:{headX:0,rigZ:Math.sin(t*3)*.01}}),
+ dance:t=>{const b=Math.sin(t*7),h=Math.abs(Math.sin(t*7));return{r:[[.32,.18+.3*b,-.2],[.9,-.3,.1]],l:[[-.32,.18-.3*b,-.2],[-.9,-.3,.1]],body:{rigY:-.03-.05*h,rigZ:Math.sin(t*3.5)*.1,legA:[Math.sin(t*7)*.5,-Math.sin(t*7)*.5],shA:[-.3-.3*Math.max(0,Math.sin(t*7)),-.3-.3*Math.max(0,-Math.sin(t*7))]}}},
+ flex:t=>({r:[[.27,.2,-.14],[1,.05,.15]],l:[[-.27,.2,-.14],[-1,.05,.15]],body:{}}),
+ cheer:t=>{const p=Math.sin(t*12)*.05;return{r:[[.3,.5+p,-.02],[.9,0,.25]],l:[[-.3,.5-p,-.02],[-.9,0,.25]],body:{rigY:Math.abs(Math.sin(t*6))*.07,legA:[.1,.1],shA:[-.2,-.2]}}},
+ salute:t=>{const k=Math.min(1,t*5)*(t>2.1?Math.max(0,1-(t-2.1)*5):1);const R=[[.1,.27*k-.58*(1-k),-.24*k-.04*(1-k)],[1,-.2,.3]];return{r:R,l:RESTL,body:{}}},
+ spin:t=>({r:[[.58,.05,0],[0,-.3,.7]],l:[[-.58,.05,0],[0,-.3,.7]],body:{rigY:Math.max(0,Math.sin(Math.min(1,t/.5)*Math.PI))*.1,legA:[.12,-.12],spin:(1-Math.pow(1-Math.min(1,t/1.5),3))*Math.PI*4}}),
+ clap:t=>{const c=(1+Math.sin(t*15))/2;return{r:[[.03+.1*c,-.08,-.42],[.7,-.6,.2]],l:[[-.03-.1*c,-.08,-.42],[-.7,-.6,.2]],body:{rigY:Math.abs(Math.sin(t*7.5))*.02}}},
+ sit:t=>({r:[[.2,-.5,-.36],[.7,-.2,.4]],l:[[-.2,-.5,-.36],[-.7,-.2,.4]],body:{rigY:-.42,legA:[1.45,1.45],shA:[-1.5,-1.5]}})};
 export function animateHuman(m,st,dt){const u=m.userData;const sp=Math.min(st.speed,10);
  if(st.dist!=null&&u.far.length){const on=st.dist<20;if(on!==u.lodOn){u.lodOn=on;for(const o of u.fineM)o.visible=on;for(const o of u.lod)o.visible=on;for(const o of u.far)o.visible=!on}}
  const k8=Math.min(1,dt*8),k14=Math.min(1,dt*14);
@@ -158,9 +169,14 @@ export function animateHuman(m,st,dt){const u=m.userData;const sp=Math.min(st.sp
  if(st.slide){rigY=-.48;rigX=.45;legA=[1.25,1.05];shA=[-.15,-.55]}
  if(u.down>.01){const k=u.down,cw=Math.sin(u.ph*.6)*walk;rigY=lerp(rigY,-.46,k);rigX=lerp(rigX,.6,k);legA=legA.map((a,i)=>lerp(a,.18+(i?-cw:cw)*.12,k));shA=shA.map((a,i)=>lerp(a,-2.68+(i?cw:-cw)*.1,k));headX=-.55*k;aimY=Math.max(aimY,.5*k)}
  let idleSway=0;{const idle=(1-walk)*(1-u.crouch)*(1-u.down)*(st.air||st.slide||st.climb?0:1);if(idle>.01){u.it=(u.it||0)+dt;const w=Math.sin(u.it*.7);rigZ+=w*.02*idle;legA=legA.map((a,i)=>a+(i?(w>0?.06:0):(w<0?.06:0))*idle);shA=shA.map((a,i)=>a-(i?(w>0?.1:0):(w<0?.1:0))*idle);rigY+=-.01*Math.abs(w)*idle;idleSway=Math.sin((u.it||0)*1.7)*.02*idle}}
+ // v62 emotes for the realistic rig (the hero rig has its own in toon.js): arm IK with an elbow pole so elbows can never bend backwards
+ let emo=null,ES=null;if(st.emote&&!st.pose&&!st.air&&!u.dead){u.et=(u.et||0)+dt;emo=HEMO[st.emote]||HEMO.wave;ES=emo(u.et)}else u.et=0;
+ u.ek=lerp(u.ek||0,emo?1:0,Math.min(1,dt*9));const ek=u.ek;
+ if(ES&&ES.body){const B=ES.body;if(B.legA)legA=legA.map((a,i)=>lerp(a,B.legA[i],ek));if(B.shA)shA=shA.map((a,i)=>lerp(a,B.shA[i],ek));if(B.rigY!=null)rigY=lerp(rigY,B.rigY,ek);if(B.rigZ!=null)rigZ=lerp(rigZ,B.rigZ,ek);if(B.rigX!=null)rigX=lerp(rigX,B.rigX,ek);if(B.headX!=null)headX=lerp(headX,B.headX,ek)}
+ if(u.gunMount)u.gunMount.visible=ek<.5;
  u.flinch=Math.max(0,u.flinch-dt*4);
  if(u.dead>0){u.dead+=dt;const k=Math.min(1,u.dead/.55);const e=k*k*(3-2*k);rigX=1.45*e;rigY=-.05*e;rigZ=u.roll*.25*e;legA=[.3*e,.1*e];shA=[-.2,-.3];u.tag.visible=false}else u.tag.visible=true;
- if(st.slope!=null&&u.down>.01)rigX+=st.slope*u.down;const r=u.rig;r.position.y+=(rigY-r.position.y)*k14;r.rotation.x+=((rigX+u.flinch*.35)-r.rotation.x)*Math.min(1,dt*(u.dead?8:12));r.rotation.z+=(rigZ-r.rotation.z)*k14;
+ if(st.slope!=null&&u.down>.01)rigX+=st.slope*u.down;const r=u.rig;r.position.y+=(rigY-r.position.y)*k14;r.rotation.x+=((rigX+u.flinch*.35)-r.rotation.x)*Math.min(1,dt*(u.dead?8:12));r.rotation.z+=(rigZ-r.rotation.z)*k14;r.rotation.y=(ES&&ES.body&&ES.body.spin?ES.body.spin:0)*ek;
  const pitch=u.dead?0:st.pitch;u.aim.rotation.x+=(lerp(pitch-r.rotation.x*.85,-.9,aimY*.6)-u.aim.rotation.x)*Math.min(1,dt*15);u.aim.position.y=1.36+(u.climb>.01?.05*u.climb:0)+(u.crouch>.01?0:0);
  // smoothed joint angles
  const J=u.J||(u.J={l0:0,l1:0,s0:0,s1:0,hx:0,sx:0});J.l0+=(legA[0]-J.l0)*k14;J.l1+=(legA[1]-J.l1)*k14;J.s0+=(shA[0]-J.s0)*k14;J.s1+=(shA[1]-J.s1)*k14;
@@ -174,8 +190,12 @@ export function animateHuman(m,st,dt){const u=m.userData;const sp=Math.min(st.sp
  // fingers: grip curl
  for(const sd of['l','r'])for(const f of['index','middle','ring','pinky'])for(let i=1;i<=3;i++)rot(u,`${f}_0${i}_${sd}`,'x',-(i===1?.5:.7));
  m.updateMatrixWorld(true);
- // arms: 2-bone IK onto the weapon (right hand on the grip, left on the handguard); elbows down/out
- u.gR.getWorldPosition(_w);const pr=_v.set(.45,-.9,.2).applyQuaternion(r.getWorldQuaternion(_q3)).add(u.bones.upperarm_r.getWorldPosition(new THREE.Vector3()));ik(u,'r',_w.clone(),pr);
- u.gL.getWorldPosition(_w);const pl=_v.set(-.6,-.8,-.1).applyQuaternion(r.getWorldQuaternion(_q3)).add(u.bones.upperarm_l.getWorldPosition(new THREE.Vector3()));ik(u,'l',_w.clone(),pl);
+ // arms: 2-bone IK onto the weapon (right hand on the grip, left on the handguard); elbows down/out. During an emote the hand targets blend to the emote pose.
+ {const rq=r.getWorldQuaternion(_q3),sR=u.bones.upperarm_r.getWorldPosition(new THREE.Vector3()),sL=u.bones.upperarm_l.getWorldPosition(new THREE.Vector3());
+  u.gR.getWorldPosition(_w);const tR=_w.clone(),pR=_v.set(.45,-.9,.2).applyQuaternion(rq).add(sR).clone();
+  u.gL.getWorldPosition(_w);const tL=_w.clone(),pL=_v.set(-.6,-.8,-.1).applyQuaternion(rq).add(sL).clone();
+  if(ek>.01&&ES){const rq2=rq.clone();const W=(o,sh)=>new THREE.Vector3(o[0],o[1],o[2]).applyQuaternion(rq2).add(sh);
+   tR.lerp(W(ES.r[0],sR),ek);pR.lerp(W(ES.r[1],sR),ek);tL.lerp(W(ES.l[0],sL),ek);pL.lerp(W(ES.l[1],sL),ek)}
+  ik(u,'r',tR,pR);ik(u,'l',tL,pL)}
  // hands align with the gun's forward axis
- u.aim.getWorldQuaternion(_q3);_x.set(0,0,-1).applyQuaternion(_q3);for(const sd of['r','l']){const hb=u.bones['hand_'+sd],mc=u.bones['middle_01_'+sd];if(hb&&mc){mc.getWorldPosition(_E);hb.getWorldPosition(_A);aimTo(hb,_E,_A.clone().add(_x))}}}
+ if(ek<.5){u.aim.getWorldQuaternion(_q3);_x.set(0,0,-1).applyQuaternion(_q3);for(const sd of['r','l']){const hb=u.bones['hand_'+sd],mc=u.bones['middle_01_'+sd];if(hb&&mc){mc.getWorldPosition(_E);hb.getWorldPosition(_A);aimTo(hb,_E,_A.clone().add(_x))}}}}
