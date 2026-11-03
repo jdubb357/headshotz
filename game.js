@@ -80,7 +80,7 @@ let lastTouchEnd=0;document.addEventListener('touchend',e=>{const n=Date.now();i
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=navigator.standalone||matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches;
 if(isIOS&&!standalone)$('iosTip').classList.remove('hidden');
-if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update().catch(()=>{});setInterval(()=>r.update().catch(()=>{}),15*60000)}).catch(()=>{});let swR=false;const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||swR)return;swR=true;const go=()=>{if(!inGame)location.reload();else setTimeout(go,5000)};go()})}
+if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update().catch(()=>{});setInterval(()=>r.update().catch(()=>{}),15*60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update().catch(()=>{})})}).catch(()=>{});let swR=false;const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||swR)return;swR=true;const go=()=>{if(!inGame)location.reload();else setTimeout(go,5000)};go()})}
 // ---------------- audio ----------------
 let AC=null,noiseBuf=null,master=null,verb=null,mVol=null,VB={},VOX=0;const MAXV=isIOS?30:56;let outdoor=true;
 // all sounds are synthesised live with Web Audio (no samples, no third-party assets)
@@ -534,7 +534,7 @@ function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H
 function newP(id,name,bot){return{id,name,team:'A',color:0xffffff,hp:100,alive:false,kills:0,deaths:0,pts:0,hs:0,rk:0,vote:-1,bot:!!bot,p:[0,-50,0,0,0,0,0],respawn:0,ord:H.order++,gun:bot?BOTGUNS[(Math.random()*BOTGUNS.length)|0]:null,cl:bot?PCL_IDS[Math.random()*PCL_IDS.length|0]:'soldier',ws:bot&&Math.random()<.35?{'*':WSKIN_IDS[1+(Math.random()*(WSKIN_IDS.length-1))|0]}:{}}}
 function plist(){return Object.values(H.players).sort((a,b)=>a.ord-b.ord)}
 function assignTeams(){let i=0;const AT=H.auto&&H.auto.teams;for(const p of plist()){if(AT&&p.hid&&AT[p.hid]&&H.mode!=='ffa'){p.team=AT[p.hid];p.color=TEAMCOL[p.team];i++;continue}if(H.mode==='ffa'){p.team=p.id;p.color=FFACOL[i%10]}else{p.team=i%2?'B':'A';p.color=TEAMCOL[p.team]}i++}}
-function lobbyData(){return{t:'lobby',mode:H.mode,phase:H.phase,hostId:me.id,diff:H.diff||'normal',fill:!!H.fill,pub:!!H.pub,offline:!!H.offline,players:plist().map(p=>({id:p.id,name:p.name,team:p.team,color:p.color,bot:p.bot,vote:p.vote}))}}
+function lobbyData(){return{t:'lobby',mode:H.mode,phase:H.phase,hostId:me.id,diff:H.diff||'normal',fill:!!H.fill,pub:!!H.pub,offline:!!H.offline,wt:(H.auto&&H.autoAt&&H.phase==='lobby'&&H.auto.expect>1)?[plist().filter(p=>!p.bot).length,H.auto.expect]:null,players:plist().map(p=>({id:p.id,name:p.name,team:p.team,color:p.color,bot:p.bot,vote:p.vote}))}}
 function sendLobby(){if(H.phase==='lobby')assignTeams();bcast(lobbyData())}
 function sbData(){return{t:'sb',p:plist().map(p=>[p.id,p.kills,p.deaths,p.pts,p.alive?1:0,p.hs,p.as||0]),r:H.score}}
 function sendSB(){bcast(sbData())}
@@ -544,7 +544,7 @@ function botTakeover(team){if(!H.fill||H.phase==='lobby'||H.phase==='starting')r
 function hostLeave(id){const lp=H.players[id];if(!lp)return;if(H.br&&BRM(H.mode)&&H.phase==='play'&&!lp.elim&&!lp.bot){lp.alive=false;brElim(lp)}delete H.players[id];delete conns[id];bcast({t:'bye',id});if(H.phase==='lobby')sendLobby();else{if(!lp.bot&&H.phase!=='roundEnd'&&!BRM(H.mode))botTakeover(lp.team);sendSB();checkRound();remCheck()}}
 function hostHandle(from,m){const p=H.players[from];
  switch(m.t){
- case 'hello':{if(BRM(H.mode)&&H.phase!=='lobby'){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'full'});return}if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
+ case 'hello':{if(BRM(H.mode)&&H.phase!=='lobby'){brLateJoin(from,m);return}if(Object.values(H.players).filter(q=>!q.bot).length>=MAXP){conns[from]?.send({t:'full'});return}if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}
   const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
   if(H.phase==='lobby')sendLobby();else{if(H.mode==='ffa'){np.team=from;np.color=FFACOL[plist().length%10]}else{np.team=H.mode==='ext'?'A':teamForJoiner(from);np.color=TEAMCOL[np.team]}
    {const mx=MODEMAX[H.mode]||MAXP;if(plist().length>mx){const bs=plist().filter(q=>q.bot&&(H.mode==='ffa'||q.team===np.team));const bt=bs.find(q=>!q.alive)||bs[0];if(bt){delete H.players[bt.id];bcast({t:'bye',id:bt.id})}}}
@@ -556,6 +556,7 @@ function hostHandle(from,m){const p=H.players[from];
  case 'bot':if(from===me.id&&H.phase==='lobby'){if(m.add&&Object.keys(H.players).length<MAXP){const id='bot'+(++H.botN);H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true)}
   else if(!m.add){const b=plist().filter(x=>x.bot).pop();if(b)delete H.players[b.id]}sendLobby()}break;
  case 'start':if(from===me.id&&H.phase==='lobby')startMatch();break;
+ case 'sack':if(H.sack&&from in H.sack&&m.mid===H.mid)H.sack[from]=H.mid;break;
  case 'rem':if(p&&H.matchOver){H.rem[from]=m.v?1:0;remCheck()}break;
  case 'ws':if(p){p.ws=cleanWS(m.ws);bcast({t:'ws',id:from,ws:p.ws})}break;
  case 'pab':if(p)hostAbility(PETX,p,m);break;
@@ -597,11 +598,13 @@ function damage(v,dmg,by,head,w){if(!v.alive)return;if(v.air&&w!=='storm'&&w!=='
 function toPlayer(id,msg){if(conns[id]&&conns[id].open)conns[id].send(msg);else if(id===me.id)clientHandle(msg)}
 function hitFX(v,w,by){const k=H.players[by];if(w.slow){if(v.bot){v.slowT=H.t+w.slow[1];v.slowF=w.slow[0]}else toPlayer(v.id,{t:'slow',f:w.slow[0],d:w.slow[1]})}
  if(w.push&&k){const dx=v.p[0]-k.p[0],dz=v.p[2]-k.p[2],l=Math.hypot(dx,dz)||1;const px=dx/l*w.push,pz=dz/l*w.push;if(v.bot&&v.e){v.e.vel.x+=px;v.e.vel.z+=pz;v.e.vel.y=Math.max(v.e.vel.y,1.2)}else toPlayer(v.id,{t:'push',v:[px,pz]})}}
-function startData(){return{t:'start',map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ft:p.fit==null?null:p.fit,ws:p.ws||{},cl:p.cl||'soldier',rd:p.raider?1:0}])),ms:MISSION(H.mode)?mInfo():null,br:BRM(H.mode)&&H.br?brInfo():null}}
+function startData(){return{t:'start',mid:H.mid|0,seed:H.seed|0,map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ft:p.fit==null?null:p.fit,ws:p.ws||{},cl:p.cl||'soldier',rd:p.raider?1:0}])),ms:MISSION(H.mode)?mInfo():null,br:BRM(H.mode)&&H.br?brInfo():null}}
 function startMatch(){for(const p of plist())if(p.raider){delete H.players[p.id];bcast({t:'bye',id:p.id})}{const mx=MODEMAX[H.mode]||10;const bots=plist().filter(p=>p.bot);while(plist().length>mx&&bots.length){const b=bots.pop();delete H.players[b.id];bcast({t:'bye',id:b.id})}}if(H.fill||BRM(H.mode)){const want=MODEMAX[H.mode]||4;while(Object.keys(H.players).length<want){const id='bot'+(++H.botN);H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true)}}if(!H.rematch)assignTeams();const votes=MAPS.map(()=>0);for(const p of plist())if(p.vote>=0)votes[p.vote]++;
  const mx=Math.max(...votes);const best=votes.map((v,i)=>v===mx?i:-1).filter(i=>i>=0);H.map=best[Math.random()*best.length|0];if(H.auto&&H.auto.map!=null)H.map=H.auto.map;if(H.rematch&&H.prevMap!=null)H.map=H.prevMap;H.rematch=0;if(BRM(H.mode))H.map=BR_I;
  H.score={};H.round=0;H.fires=[];H.smokes=[];for(const p of plist()){p.kills=p.deaths=p.pts=p.hs=p.as=0}const m=buildMap(H.map);doorReset(m);cols=m.cols;groundHalf=m.groundHalf;ladders=m.ladders||[];hides=m.hides||[];buildGrid();
- if(MISSION(H.mode))missionPrep();if(BRM(H.mode))brPrep();else H.br=null;H.phase='starting';bcast(lobbyData());bcast(startData());sendSB();setTimeout(startRound,900)}
+ if(MISSION(H.mode))missionPrep();if(BRM(H.mode))brPrep();else H.br=null;H.phase='starting';H.mid=(H.mid|0)+1;H.seed=Math.random()*2147483647|0;H.sack={};H.sackT=H.t;H.sackN=0;for(const p of plist())if(!p.bot&&p.id!==me.id&&conns[p.id])H.sack[p.id]=0;bcast(lobbyData());bcast(startData());sendSB();setTimeout(startRound,900)}
+// v61b: every human gets the start message: clients ack {t:'sack',mid}; the host resends start (+ current round) to anyone who has not acked until they do
+function startResend(){if(!H.sack||H.phase==='lobby'||H.t-H.sackT<1.2)return;const miss=Object.keys(H.sack).filter(id=>H.sack[id]!==H.mid&&H.players[id]&&conns[id]&&conns[id].open);if(!miss.length){if(H.t-H.sackT>6)H.sack=null;return}if(H.t-H.sackT<1.2*(H.sackN+1)||H.sackN>=40)return;H.sackN++;window.__startResends=(window.__startResends||0)+1;const sd=startData();for(const id of miss){try{conns[id].send(sd);conns[id].send(BRM(H.mode)&&H.br&&H.phase!=='starting'?brLateMsg(H.players[id]):{t:'round',round:H.round,score:H.score,spawns:{},count:0,resync:1})}catch(e){}}}
 // ---- spawn selection ----
 function allSpawns(m){return[...m.spawnsA,...m.spawnsB,...m.spawnsM]}
 function faceCenter(s){return Math.atan2(s[0],s[1])}
@@ -639,7 +642,7 @@ function hostDecide(){if(!isHost||!H.matchOver)return;clearTimeout(H.remT);if(re
  if(H.phase==='roundEnd'){H.phase='lobby';for(const p of plist())p.vote=-1;sendLobby()}}
 function remCheck(){if(!isHost||!H.matchOver)return;const hs=humansOther();bcast({t:'remv',y:remYes(),n:hs.length});clearTimeout(H.remT);if(hs.length&&remYes()===hs.length&&H.rem[me.id]!==0)H.remT=setTimeout(()=>{if(H.matchOver)hostRematch()},3000)}
 function hostTick(dt){H.t+=dt;if(H.phase==='play'||H.phase==='starting')botDoors(dt);if(H.phase==='play')hostPets(PETX,dt);if(H.phase==='play')for(const p of plist()){const pc=PCL[p.cl];if(pc&&pc.regen&&p.alive&&!p.down&&p.hp<100&&H.t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+pc.regen*dt);if(Math.floor(p.hp)!==o&&Math.floor(p.hp)%3===0||p.hp>=100)bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
- if(H.auto&&H.phase==='lobby'&&H.autoAt){const humans=plist().filter(p=>!p.bot).length;if(humans>=H.auto.expect||H.t>H.autoAt){H.autoAt=0;startMatch()}}
+ if(H.auto&&H.phase==='lobby'&&H.autoAt){const humans=plist().filter(p=>!p.bot).length;if(humans>=H.auto.expect||H.t>H.autoAt){H.autoAt=0;startMatch()}else if(H.auto.expect>1&&H.t>=(H.wT||0)){H.wT=H.t+3;sendLobby();try{partyGo(roomCode)}catch(e){}}}startResend();
  if(H.phase==='count'&&H.t>=H.next){H.phase='play';bcast({t:'go'})}
  if(H.phase==='play'){
   for(const v of plist()){if(!v.down)continue;if(H.t>=v.downT){damage(v,999,v.id,false,'bleed');continue}
@@ -711,8 +714,8 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt)
 let lastLobby=null;
 function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdia'){if(m.n>0){addDia(m.n|0,'sidekick');center('🐾 '+((SK_BY[PROG.pet]||{}).name||'Buddy')+' found '+(m.n|0)+'💎!',1400)}return}if(BC&&brMsg(m))return;switch(m.t){
  case 'lobby':lastLobby=m;C.hostId=m.hostId;C.mode=m.mode;if(m.phase==='lobby'){if(inGame)leaveToLobby();showLobby()}renderLobby();break;
- case 'full':menuMsg('Room is full (10 players max).');break;
- case 'start':startGame(m);break;
+ case 'full':menuMsg(m.started?'That Battle Royale already took off — wait for the next one.':'Room is full (10 players max).');break;
+ case 'start':if(window.__dropStartN>0){window.__dropStartN--;break}startGame(m);break;
  case 'ms':if(MS){MS.s=m.s;MS.at=performance.now();updMsHud()}break;
  case 'mev':missionEvent(m);break;
  case 'rematch':center('REMATCH!\nSame room, same players',1800);remWait=false;break;
@@ -723,9 +726,9 @@ function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdi
  case 'ws':{const q=C.players[m.id];if(q){q.ws=m.ws||{};q.gunSk=null;if(q.gunId){const g=q.gunId;q.gunId=null;setRemoteGun(q,WIDX[g])}}break}
  case 'join':addRemote(m.id,{name:m.name,team:m.team,color:m.color,o:m.o,sk:m.sk,ws:m.ws,cl:m.cl,bot:m.bot,raider:m.raider});renderSB();feed(`${m.name} joined`);break;
  case 'bye':{const q=C.players[m.id];if(q){if(q.model)scene.remove(q.model);feed(q.name+' left');delete C.players[m.id];delete C.sb[m.id];renderSB()}break}
- case 'round':{C.round=m.round;for(const k in C.players){C.players[k].hp=100;C.players[k].down=false;C.players[k].dst=null}me.down=false;me.dst=null;updDown();hideEnd();C.score=m.score;C.phase=m.count?'count':'play';for(const n of nades)scene.remove(n.m);nades=[];smokes.length=0;fires.length=0;
+ case 'round':{if(!inGame)break;if(m.late){if(!C.fresh)break;C.fresh=0}else if(m.count)C.fresh=0;C.round=m.round;for(const k in C.players){C.players[k].hp=100;C.players[k].down=false;C.players[k].dst=null}me.down=false;me.dst=null;updDown();hideEnd();C.score=m.score;C.phase=m.count?'count':'play';for(const n of nades)scene.remove(n.m);nades=[];smokes.length=0;fires.length=0;
   for(const id in C.players){const q=C.players[id];const s=m.spawns[id];if(s){q.alive=true;q.hp=100;q.rp.set(s[0],0,s[1]);q.tp.copy(q.rp);q.yaw=q.tyaw=s[2];if(q.model){q.model.userData.dead=0;q.model.visible=true}}}
-  if(m.spawns[me.id])spawnMe(m.spawns[me.id]);else if(!m.count){me.alive=false;center('Joined mid-round\nYou spawn next round')}if(BC&&m.count){for(const id in C.players)C.players[id].flags=32;brRoundStart()}
+  if(m.spawns[me.id])spawnMe(m.spawns[me.id]);else if(!m.count){me.alive=false;center('Joined mid-round\nYou spawn next round')}if(BC&&m.count){for(const id in C.players)C.players[id].flags=32;brRoundStart()}else if(BC&&m.late){brRoundStart();if(m.lp){me.pos.set(m.lp[0],m.lp[1],m.lp[2]);BC.air=me.air='fall';me.vel.set(0,-10,0)}}
   if(m.count){me.frozen=true;let n=m.count;const tick=()=>{if(C.phase!=='count')return;center('ROUND '+C.round+'\n'+n);SFX.beep(600);n--;if(n>0)setTimeout(tick,1000)};tick()}renderSB();break}
  case 'go':C.phase='play';me.frozen=false;center(BC?'🚁 DROP! Press JUMP':'FIGHT!',BC?1600:800);SFX.beep(1200);showRL(false);break;
  case 'spawn':{const q=C.players[m.id];if(q){q.alive=true;q.hp=100;q.rp.set(m.s[0],0,m.s[1]);q.tp.copy(q.rp);if(q.model){q.model.userData.dead=0;q.model.visible=true}}if(m.id===me.id){spawnMe(m.s);me.frozen=false}break}
@@ -763,7 +766,7 @@ function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdi
 function addRemote(id,info){if(C.players[id]?.model)scene.remove(C.players[id].model);
  const q={id,cl:clOf(info.cl),ws:info.ws||{},name:info.name,team:info.team,color:info.color??0xffffff,bot:info.bot,raider:info.raider||info.rd,alive:false,hp:100,rp:new THREE.Vector3(0,-50,0),tp:new THREE.Vector3(0,-50,0),lp:new THREE.Vector3(),yaw:0,tyaw:0,pitch:0,tpitch:0,flags:0};
  q.fit=fitOf(info.ft);if(id!==me.id){window.__fitNext=q.fit;q.model=makeCharacter(q.color,info.name,id,undefined,skinOutfit(info.sk)||undefined,info.cl);q.sk=info.sk;q.model.visible=false;scene.add(q.model)}C.players[id]=q;if(info.o!=null)C.byOrd[info.o]=q}
-function startGame(m){hideEnd();setTimeout(renderParty,50);remWait=false;{const rt=$('roomTag');if(rt){const online=!(H&&H.offline)&&roomCode&&roomCode!=='OFFLINE'&&!C.hub;rt.classList.toggle('hidden',!online);if(online){const pub=lastLobby?!!lastLobby.pub:!!H.pub;rt.textContent=(pub?'🌐 PUBLIC · ':'🔒 PRIVATE · ')+roomCode+' · tap to invite'}}}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
+function startGame(m){if(m.mid&&inGame&&C.mid===m.mid){send({t:'sack',mid:m.mid});return}hideEnd();C.mid=m.mid|0;C.fresh=1;if(m.mid)send({t:'sack',mid:m.mid});setTimeout(renderParty,50);remWait=false;{const rt=$('roomTag');if(rt){const online=!(H&&H.offline)&&roomCode&&roomCode!=='OFFLINE'&&!C.hub;rt.classList.toggle('hidden',!online);if(online){const pub=lastLobby?!!lastLobby.pub:!!H.pub;rt.textContent=(pub?'🌐 PUBLIC · ':'🔒 PRIVATE · ')+roomCode+' · tap to invite'}}}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};C.byOrd={};C.mode=m.mode;C.map=m.map;C.score={};C.sb={};C.matchDia=0;
  loadMap(m.map);for(const id in m.players)addRemote(id,m.players[id]);missionClientInit(m.ms||null);if(m.br)brClientInit(m.br);else brClear();tpSetup();
  for(const s of['menu','lobby','arsenal','settings'])$(s).classList.add('hidden');stopPreview();$('hud').classList.remove('hidden');$('hud').classList.toggle('touch',isTouch);$('touch').classList.toggle('hidden',!isTouch);
  inGame=true;resize();me.alive=false;me.frozen=true;feed(`${MI(m.map).icon} ${MI(m.map).name} · ${MODES[m.mode][0]}`);center(MI(m.map).name.toUpperCase(),1500);renderSB();buildSlots();
@@ -827,7 +830,7 @@ function renderLobby(){const m=lastLobby;if(!m||$('lobby').classList.contains('h
  const votes=MAPS.map(()=>0);let mine=-1;for(const p of m.players){if(p.vote>=0)votes[p.vote]++;if(p.id===me.id)mine=p.vote}
  $('mapBtns').innerHTML=MAPS.map((mp,i)=>`<button data-map="${i}" class="map${mine===i?' sel':''}" style="${THUMB[i]?`background-image:url(${THUMB[i]})`:''}">${votes[i]?`<span class="vc">${votes[i]}</span>`:''}<span class="mn">${mp.icon} ${mp.name}<small>${mp.desc}</small></span></button>`).join('');
  $('startBtn').style.display=host?'':'none';
- $('lobbyMsg').textContent=host?(m.players.length<2?'Tap INVITE to share the link — or add bots to practice!':'Ready? Hit START MATCH when everyone is in.'):(m.phase==='lobby'?'Waiting for the host to start…':'Match in progress — joining…')}
+ $('lobbyMsg').textContent=m.wt?`👥 Waiting for your squad… ${m.wt[0]}/${m.wt[1]} in the room`:host?(m.players.length<2?'Tap INVITE to share the link — or add bots to practice!':'Ready? Hit START MATCH when everyone is in.'):(m.phase==='lobby'?'Waiting for the host to start…':'Match in progress — joining…')}
 function renderLoadoutMini(){$('loadoutMini').innerHTML=me.load.map((id,i)=>`<button class="lm" data-slot="${i}"><img src="${ICON[id]||''}"><b>${W[id].name}</b><small>${['PRIMARY','SECONDARY','MELEE','UTILITY'][i]}</small></button>`).join('')}
 $('lobby').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;audioInit();
  if(b.dataset.mode)send({t:'mode',mode:b.dataset.mode});if(b.dataset.map)send({t:'vote',map:+b.dataset.map});
@@ -1371,7 +1374,7 @@ function startHubMatch(m){clearInterval(mapSelIv);$('mapSelT').textContent='GO';
  setTimeout(()=>{$('mapSel').classList.add('hidden');hubUnlink();leaveHubWorld();C.fromHub=true;sessionStorage.setItem('hsz_fromHub','1');sessionStorage.setItem('hsz_pad',JSON.stringify(lastPad));
   if(m.host===hubSelfId)createRoom(m.code,auto);else setTimeout(()=>joinRoom(m.code,auto),900+Math.random()*400)},900)}
 function leaveHubWorld(){C.hub=false;document.body.classList.remove('hub');$('hubUI').classList.add('hidden');if(hubVis){scene.remove(hubVis.g);hubVis=null}for(const id in C.players)if(C.players[id].model)scene.remove(C.players[id].model);C.players={};inGame=false;C.phase='lobby';$('hud').classList.add('hidden')}
-function setupAuto(){const a=H.auto;H.mode=a.mode;H.fill=true;H.pub=a.pub!=null?!!a.pub:!!a.solo;H.diff=DIFF[a.diff]?a.diff:'normal';H.autoAt=a.solo?H.t+.5:H.t+12;sendLobby();if(a.solo){hubKind=null;regRoom()}}
+function setupAuto(){const a=H.auto;H.mode=a.mode;H.fill=true;H.pub=a.pub!=null?!!a.pub:!!a.solo;H.diff=DIFF[a.diff]?a.diff:'normal';H.autoAt=a.solo?H.t+.5:H.t+(a.expect>1?75:12);sendLobby();if(a.solo){hubKind=null;regRoom()}}
 let sbDirty=0;setInterval(()=>{if(sbDirty&&inGame){sbDirty=0;renderSB()}},250);
 // between-round loadout pick (like duel games: swap weapons while the next round loads)
 function showRL(on){$('rlBtn').classList.toggle('hidden',!on||C.hub||!inGame)}
@@ -1655,7 +1658,14 @@ $('chClose').onclick=()=>$('chests').classList.add('hidden');
 // weekend banners: menu, hub HUD and end screen
 function updWknd(){const on=isWknd();for(const e of document.querySelectorAll('.wkBan'))e.classList.toggle('hidden',!on||(e.id==='wkHud'&&!(cur&&cur.def&&cur.def.hub)))}
 setInterval(updWknd,1000);updWknd();
-Object.assign(window.__hsz,{CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,endMatchTest:(win)=>{if(!isHost)return false;H.score[win]=WIN_ROUNDS-1;H.phase='play';endRound(win);return true},hostDecide,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
+// v61b: one-time dev gift. America/Chicago (DST-safe via Intl): valid until Sat Oct 31 2026 00:00 CT. Stored in PROG (the wallet / online-profile data) AND the 'gift_2000_oct29' flag.
+const GIFT={key:'gift_2000_oct29',n:2000,until:[2026,10,31]};
+function ctYMD(ms){const o={};for(const x of new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(new Date(ms)))if(x.type!=='literal')o[x.type]=+x.value;return[o.year,o.month,o.day]}
+function giftDue(){try{if(localStorage.getItem(GIFT.key)||(PROG.gifts||[]).includes(GIFT.key))return false}catch(e){}const t=window.__mockNow!=null?window.__mockNow:Date.now(),a=ctYMD(t),b=GIFT.until;return a[0]*10000+a[1]*100+a[2]<b[0]*10000+b[1]*100+b[2]}
+function giftPopup(){const d=document.createElement('div');d.id='giftPop';d.innerHTML=`<div class="gpBox"><div class="gpConf">${Array.from({length:26},(_,i)=>`<i style="left:${(i*37)%100}%;animation-delay:${(i%9)*.18}s;background:hsl(${(i*47)%360},95%,60%)"></i>`).join('')}</div><div class="gpEm">🎁</div><h2>Gift from the devs</h2><p class="gpN">+2,000 💎</p><button id="gpOk" class="btnBig yellow">AWESOME!</button></div>`;document.body.appendChild(d);const x=()=>{d.classList.add('out');setTimeout(()=>d.remove(),400)};d.querySelector('#gpOk').onclick=x;d.addEventListener('click',e=>{if(e.target===d)x()});setTimeout(x,12000);try{SFX.beep&&SFX.beep(880)}catch(e){}}
+function giftCheck(){if(!giftDue())return false;try{localStorage.setItem(GIFT.key,'1')}catch(e){}PROG.gifts=(PROG.gifts||[]).concat(GIFT.key).slice(-20);PROG.dia=(PROG.dia|0)+GIFT.n;saveProg();try{window.__dlog&&window.__dlog.push([GIFT.n,'gift from the devs'])}catch(e){}giftPopup();return true}
+setTimeout(giftCheck,1500);
+Object.assign(window.__hsz,{giftCheck,giftDue,GIFT,CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,endMatchTest:(win)=>{if(!isHost)return false;H.score[win]=WIN_ROUNDS-1;H.phase='play';endRound(win);return true},hostDecide,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
 
 // ================= v42 MISSION MODES: Capture the Flag + Extraction (host side) =================
 const MISSION=m=>m==='ctf'||m==='ext';
@@ -1931,6 +1941,33 @@ function brOpenSecret(p,c,cid){const E=H.br;const out=[];const slotOf=c=>c==='sm
 function brDeathDrop(v){const E=H.br;if(!v.inv)return;const out=[];for(const g of v.inv.g)if(g)out.push([0,g[0],g[1]]);for(const e of(v.inv.bp||[]))out.push([e[0],e[1],e[2]]);if(v.inv.m[0]!==WIDX.fists&&v.inv.m[1]>0)out.push([4,v.inv.m[0],v.inv.m[1]]);if(v.inv.u&&v.inv.u[1]>0)out.push([3,v.inv.u[0],v.inv.u[1]]);if(v.inv.n&&v.inv.n[1]>0)out.push([3,v.inv.n[0],v.inv.n[1]]);
  for(let i=0;i<4;i++)if(v.inv.c[i]>0)out.push([2,i,v.inv.c[i]]);for(let i=0;i<4;i++)if(v.inv.res[i]>=10)out.push([1,i,v.inv.res[i]]);
  const items=out.map((o,i)=>{const a=i/out.length*6.283,r=.8+Math.random()*.6;return brItem(o[0],o[1],o[2],v.p[0]+Math.cos(a)*r,Math.max(0,v.p[1]),v.p[2]+Math.sin(a)*r,-1).slice(0,7)});if(items.length)bcast({t:'ldm',it:items});v.inv=newInv()}
+// v61b: a real player joining a Battle Royale / Squad Royale that already took off. Humans always outrank bots: a bot is removed to make room
+// (Squad Royale: a bot in the joiner's party squad, else the host's squad, else any squad with bots; otherwise the bot farthest from every human)
+// and the player is slotted in: still on the bus if it has not left, else dropped from the bus height above a squadmate (or a random zone).
+function brLateJoin(from,m){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}const E=H.br;
+ if(!E||E.over||E.ph==='over'||!['starting','count','play'].includes(H.phase)||Object.values(H.players).filter(q=>!q.bot).length>=MAXP||H.players[from]){conns[from]?.send({t:'full',started:1});return}
+ const live=plist().filter(q=>!q.bot&&q.alive&&!q.elim);const farFromHumans=b=>{let d=1e9;for(const q of live)d=Math.min(d,Math.hypot(q.p[0]-b.p[0],q.p[2]-b.p[2]));return d};
+ const bots=plist().filter(q=>q.bot&&!q.elim);const dead=plist().filter(q=>q.bot&&q.elim);let team=null,rm=null;const pick=L=>L.slice().sort((a,b)=>farFromHumans(b)-farFromHumans(a))[0];
+ if(H.mode==='brs'){const party=m.party?String(m.party).slice(0,12):null;const mate=plist().find(q=>!q.bot&&party&&q.party===party);const host=H.players[me.id];
+  const cand=[mate&&mate.team,host&&host.team].filter(Boolean);for(const t of cand){const L=bots.filter(b=>b.team===t);if(L.length){team=t;rm=pick(L);break}}
+  if(!rm){const L=bots.filter(b=>b.team);if(L.length){rm=pick(L);team=rm.team}}}
+ else rm=bots.length?pick(bots):null;
+ if(!rm&&dead.length)rm=dead[0],team=H.mode==='brs'?rm.team:null;
+ if(!rm&&plist().length>=(MODEMAX[H.mode]||24)){conns[from]?.send({t:'full',started:1});return}
+ if(rm){delete H.players[rm.id];bcast({t:'bye',id:rm.id})}
+ const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
+ if(H.mode==='brs'){np.team=team||'S'+(plist().length+1);np.color=rm?rm.color:SQCOL[0]}else{np.team=from;np.color=FFACOL[plist().length%10]}
+ np.elim=0;np.sh=0;np.down=false;np.inv=newInv();np.prot=0;np.alive=true;np.hp=100;
+ window.__brLate=(window.__brLate||0)+1;
+ if(H.phase==='starting'){bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);sendSB();return}
+ bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
+ sendTo(from,brLateMsg(np));sendSB()}
+// the round message that slots a player into a BR already under way: still on the bus, or dropped from bus height above a squadmate / a random zone
+function brLateMsg(np){const E=H.br,from=np.id;const hs=heliAt(0),yaw=Math.atan2(-(E.heli.b[0]-E.heli.a[0]),-(E.heli.b[1]-E.heli.a[1]));np.air='bus';np.p=[hs[0],E.y,hs[1],yaw,0,WIDX.fists,32];
+ const busGone=E.ph!=='bus'||H.t-E.t0>=BRC.busDur;let lp=null;
+ if(busGone){const mate=plist().find(q=>q.id!==from&&q.team===np.team&&q.alive&&!q.elim);let x,z;if(mate){x=mate.p[0]+rrand(-6,6);z=mate.p[2]+rrand(-6,6)}else{const pool=E.zones.length?E.zones:[{x:0,z:0,r:40}];const zn=pool[Math.random()*pool.length|0];x=zn.x+rrand(-zn.r,zn.r)*.5;z=zn.z+rrand(-zn.r,zn.r)*.5}
+  const lim=E.half-4;x=Math.max(-lim,Math.min(lim,x));z=Math.max(-lim,Math.min(lim,z));lp=[+x.toFixed(1),+(E.y-3).toFixed(1),+z.toFixed(1)];np.air='fall';np.p=[lp[0],lp[1],lp[2],yaw,0,WIDX.fists,2]}
+ return{t:'round',round:H.round,score:H.score,spawns:{[from]:[hs[0],hs[1],yaw]},count:0,late:1,lp}}
 function brElim(v,by){const E=H.br;if(!E||E.over||v.elim)return;v.elim=1;v.air=null;v.down=false;if(!v.bot||true)brDeathDrop(v);
  const k=H.players[by];if(k&&k!==v)E.kills[k.id]=(E.kills[k.id]||0)+1;
  const mates=H.mode==='brs'?plist().filter(q=>q.team===v.team):[v];const wiped=mates.every(q=>q.elim);let place=0,ids=[v.id];
@@ -2304,7 +2341,7 @@ function partyMsg(m,code,name,cat){
  if(m.t==='plv'){if(partyLead()&&PARTY.m.some(x=>x.code===code)){PARTY.m=PARTY.m.filter(x=>x.code!==code);toast(`👥 ${name} left the party`);if(PARTY.m.length<2){PARTY=null;renderParty()}else partyPush()}return{t:'ok'}}
  if(m.t==='pst'){if(PARTY&&PARTY.lead===code&&PARTY.id===m.pid){const mm=(Array.isArray(m.m)?m.m:[]).slice(0,4).map(x=>({code:normCode(x.code)||'',name:String(x.name||'').slice(0,12)})).filter(x=>x.code);if(mm.some(x=>x.code===FR.code))PARTY.m=mm;else PARTY=null;renderParty();if(frOpen)renderFriends()}return{t:'ok'}}
  if(m.t==='pdis'){if(PARTY&&PARTY.lead===code){PARTY=null;toast('👥 Party disbanded');renderParty();if(frOpen)renderFriends()}return{t:'ok'}}
- if(m.t==='pgo'){if(PARTY&&PARTY.lead===code&&/^[A-Z0-9]{4,8}$/.test(String(m.room))&&roomCode!==m.room&&(!inGame||C.hub)){toast(`👥 ${name} started a match — joining`);const nl=/[?&]net=local/.test(location.search)?'&net=local':'';window.__partyGo=m.room;if(!$('lobby').classList.contains('hidden')||inGame||C.hub)location.href=location.pathname+'?join='+m.room+nl+(PROF?'&prof='+PROF:'');else{closeFriends();joinRoom(m.room)}}return{t:'ok'}}
+ if(m.t==='pgo'){if(PARTY&&PARTY.lead===code&&/^[A-Z0-9]{4,8}$/.test(String(m.room))&&roomCode!==m.room&&(!inGame||C.hub||!$('endScr').classList.contains('hidden'))){toast(`👥 ${name} started a match — joining`);const nl=/[?&]net=local/.test(location.search)?'&net=local':'';window.__partyGo=m.room;if(!$('lobby').classList.contains('hidden')||inGame||C.hub)location.href=location.pathname+'?join='+m.room+nl+(PROF?'&prof='+PROF:'');else{closeFriends();joinRoom(m.room)}}return{t:'ok'}}
  return{t:'ok'}}
 let partyKey='';function renderParty(){try{if(PARTY)sessionStorage.setItem('hsz_party',JSON.stringify(PARTY));else sessionStorage.removeItem('hsz_party')}catch(e){}try{window.__hsz.royale&&window.__hsz.royale.refresh()}catch(e){}const b=$('partyBar');if(!b)return;const show=(PARTY||PINV)&&(!inGame||C.hub)&&!(PARTY&&PARTY.m.length<2&&!PINV&&false);
  let h='';if(PINV)h+=`<div class="pInv">👥 <b>${esc(PINV.name)}</b> invites you to a party <button data-p="acc" class="pill green sm">JOIN</button><button data-p="dec" class="pill red sm">✕</button></div>`;
