@@ -776,7 +776,7 @@ function hostTick(dt){H.t+=dt;if(H.phase==='play'||H.phase==='starting')botDoors
   {const all=plist(),big=BRM(H.mode)&&all.length>30;H.tk=(H.tk||0)+1;let hs=null;
    for(const p of all)if(p.bot&&p.alive&&!(H.botFreeze&&H.botFreeze[p.id])){
     if(big){if(!hs)hs=all.filter(q=>!q.bot&&q.alive&&!q.air);let dm=hs.length?1e9:60;for(const h of hs){const d=Math.hypot(h.p[0]-p.p[0],h.p[2]-p.p[2]);if(d<dm)dm=d}
-     const k=dm>150?4:dm>80?2:1;p._lt=(p._lt||0)+dt;if(k>1&&((H.tk+(p.ord|0))%k)!==0)continue;botTick(p,Math.min(.1,p._lt));p._lt=0}
+     const k=dm>150?4:dm>80?2:1;p._lt=(p._lt||0)+dt;if(k>1&&((H.tk+(p.ord|0))%k)!==0)continue;{let rem=Math.min(.36,p._lt);while(rem>1e-4){const c=Math.min(.12,rem);botTick(p,c);rem-=c;if(!p.alive)break}}p._lt=0}
     else botTick(p,dt)}}// v96: far bots (>80 m / >150 m from every living human) think every 2nd / 4th tick in 50-player Royale lobbies
   // molotov damage over time
   H.fireT+=dt;for(const f of H.fires)f.t+=dt;H.fires=H.fires.filter(f=>f.t<f.life);for(const s of H.smokes)s.t+=dt;H.smokes=H.smokes.filter(s=>s.t<s.life);
