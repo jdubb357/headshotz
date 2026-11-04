@@ -1,12 +1,12 @@
 // HeadShotz v57 SIDEKICK BOOTH screen: buy buddies with diamonds, equip one at a time, rotating 3D preview + shopkeeper chat.
 import {THREE} from './gfx.js';
-import {SK_DEFS,SK_BY,AB,RAR_N,RAR_C,SK_FLAVOR,makePet,animPet} from './sidekicks.js';
+import {SK_DEFS,SK_BY,AB,RAR_N,RAR_C,SK_FLAVOR,makePet,animPet,TM} from './sidekicks.js';
 const FIL=[['all','ALL'],['owned','OWNED'],['0','COMMON'],['1','UNCOMMON'],['2','RARE'],['3','EPIC'],['4','LEGENDARY']];
 const KEEPER=['Welcome to my Sidekick Booth! Every buddy has one special trick.','Pick one to take along. You can only bring one buddy at a time!','Buddies also drop from chests. Doubles turn into diamonds.','Tap EQUIP and your buddy will trot along behind you.'];
 export function initSidekickShop(A){
  const $=A.$;const el=$('pkShop');if(!el)return null;const P=A.PROG;
- const S={sel:SK_DEFS[0].id,fil:'all',on:false,drag:null,from:'menu',ki:0};
- const own=id=>P.pets.includes(id);const eq=()=>P.pet||'';
+ const S={tv:0,sel:SK_DEFS[0].id,fil:'all',on:false,drag:null,from:'menu',ki:0};
+ const own=id=>P.pets.includes(id);const tierOwned=id=>Math.max(1,Math.min(3,(P.pt&&P.pt[id]|0)||1));const upCost=(d,t)=>Math.round(d.price*(t===2?.5:1));const eq=()=>P.pet||'';
  const toast=m=>{const t=$('pkToast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),1800)};
  let R=null,scene=null,cam=null,model=null,raf=0,last=0,cv=null,clock=0;
  function freshCanvas(){const o=$('pkCv');if(!o)return null;const n=o.cloneNode(false);o.replaceWith(n);return n}
@@ -17,7 +17,7 @@ export function initSidekickShop(A){
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.57,.018,8,48),new THREE.MeshBasicMaterial({color:0xffd23f}));ring.rotation.x=Math.PI/2;ring.position.y=.004;scene.add(ring)}
  function resize(){if(!R)return;const b=cv.parentElement.getBoundingClientRect();const w=Math.max(120,b.width|0),h=Math.max(120,b.height|0);R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.setSize(w,h,false);cam.aspect=w/h;cam.fov=h>w?36:30;cam.position.set(0,.6,h>w?2.9:2.4);cam.lookAt(0,.3,0);cam.updateProjectionMatrix()}
  function disposeModel(){if(model){scene.remove(model);model=null}}
- function mkModel(){if(!scene)return;const ry=model?model.rotation.y:.7;disposeModel();model=makePet(S.sel);model.rotation.y=ry;scene.add(model)}
+ function mkModel(){if(!scene)return;const ry=model?model.rotation.y:.7;disposeModel();model=makePet(S.sel,S.tv||(own(S.sel)?tierOwned(S.sel):1));model.rotation.y=ry;scene.add(model)}
  function frame(t){if(!S.on)return;raf=requestAnimationFrame(frame);const dt=Math.min(.05,(t-last)/1000||.016);last=t;clock+=dt;if(model){if(!S.drag)model.rotation.y+=dt*.7;animPet(model,clock,0,dt)}R.render(scene,cam)}
  // thumbnails: one throw-away renderer, rendered in small batches
  const TH={};let thBusy=false;
@@ -31,7 +31,8 @@ export function initSidekickShop(A){
  const list=()=>SK_DEFS.filter(d=>S.fil==='all'||(S.fil==='owned'?own(d.id):d.rar===+S.fil)).sort((a,b)=>a.rar-b.rar||a.price-b.price);
  function renderGrid(){const L=list();$('pkGrid').innerHTML=L.length?L.map(card).join(''):'<p class="ssEmpty">No buddies here yet — buy one or open a chest!</p>';$('pkCount').textContent=`${SK_DEFS.filter(d=>own(d.id)).length}/${SK_DEFS.length} owned`}
  function renderSide(){const d=SK_BY[S.sel],o=own(d.id),e=eq()===d.id;$('pkDia').textContent=P.dia;$('pkName').textContent=d.name+' · '+d.kind;$('pkRar').textContent=RAR_N[d.rar]+(d.orig?' · ORIGINAL':'');$('pkRar').style.background=RAR_C[d.rar];
-  const ab=AB[d.ab];$('pkAbil').innerHTML=`<b>${ab.ic} ${ab.n}</b> <span>${ab.act?'ACTIVE · button / X':'PASSIVE'}</span><p>${A.esc(ab.d(d.pw))}</p>`;
+  const ab=AB[d.ab];const ot=own(d.id)?tierOwned(d.id):1,vt=S.tv||ot;const nx=ot<3?ot+1:0;
+  $('pkAbil').innerHTML=`<b>${ab.ic} ${ab.n}</b> <span>${ab.act?'ACTIVE · button / X':'PASSIVE'}</span><p>${A.esc(ab.d(d.pw*TM[vt-1],vt))}</p><div class="tierRow" style="pointer-events:auto;position:relative;z-index:5;display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap">${[1,2,3].map(n=>`<button data-tv="${n}" class="${vt===n?'sel':''}" style="padding:3px 9px;border-radius:8px;border:1px solid #fff5;background:${vt===n?'#ffd23f':'#0006'};color:${vt===n?'#000':'#fff'};font-weight:700">T${n}${n<=ot&&own(d.id)?' ✓':''}</button>`).join('')}${own(d.id)&&nx?`<button data-up="1" style="padding:3px 10px;border-radius:8px;border:0;background:${P.dia>=upCost(d,nx)?'#4cd964':'#555'};color:#000;font-weight:800">UPGRADE → T${nx} · 💎 ${upCost(d,nx)}</button>`:''}</div>`;
   $('pkSay').textContent='Penny: “'+(S.say||SK_FLAVOR[d.id]||KEEPER[0])+'”';
   $('pkFil').innerHTML=FIL.map(f=>`<button data-f="${f[0]}" class="${S.fil===f[0]?'sel':''}">${f[1]}</button>`).join('');
   const b=$('pkBuy');b.classList.remove('poor','own');
@@ -40,7 +41,7 @@ export function initSidekickShop(A){
   else{b.textContent=`NEED 💎 ${d.price-P.dia} MORE`;b.dataset.act='poor';b.classList.add('poor')}
   $('pkNone').classList.toggle('hidden',!eq())}
  const render=()=>{renderGrid();renderSide()};
- function select(id){S.sel=id;S.say=null;mkModel();render()}
+ function select(id){S.sel=id;S.say=null;S.tv=0;mkModel();render()}
  function buy(){const d=SK_BY[S.sel];if(own(d.id)||P.dia<d.price){A.denied&&A.denied();return}P.dia-=d.price;P.pets.push(d.id);A.SFX&&A.SFX.kill&&A.SFX.kill();S.say='Yay! '+d.name+' is yours. Take good care of them!';toast(`✨ ${d.name} joined your team!`);equip()}
  function equip(){const d=SK_BY[S.sel];if(!own(d.id))return;A.equip(d.id);render();toast(`${d.name} is following you`)}
  function open(from){A.audioInit&&A.audioInit();try{document.exitPointerLock&&document.exitPointerLock()}catch(e){}S.from=from||'menu';el.classList.remove('hidden');if(S.on){cancelAnimationFrame(raf);disposeModel();if(R){try{R.dispose();R.forceContextLoss&&R.forceContextLoss()}catch(e){}R=null;scene=null;cam=null;freshCanvas()}}try{build()}catch(e){console.error('sidekick preview unavailable',e)}S.on=true;S.say=KEEPER[S.ki++%KEEPER.length];
@@ -49,6 +50,8 @@ export function initSidekickShop(A){
  el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   if(b.id==='pkClose')close();else if(b.dataset.id)select(b.dataset.id);else if(b.dataset.f!=null){S.fil=b.dataset.f;render()}
   else if(b.id==='pkBuy'){const a=b.dataset.act;if(a==='buy')buy();else if(a==='equip')equip();else if(a==='poor'){S.say='Come back with a few more diamonds!';renderSide();A.denied&&A.denied()}}
+  else if(b.dataset.tv){S.tv=+b.dataset.tv;mkModel();renderSide()}
+  else if(b.dataset.up){const d=SK_BY[S.sel];if(!own(d.id))return;const o=tierOwned(d.id);if(o>=3)return;const c=upCost(d,o+1);if(P.dia<c){S.say='Come back with more diamonds for the upgrade!';renderSide();A.denied&&A.denied();return}P.dia-=c;P.pt=P.pt||{};P.pt[d.id]=o+1;S.tv=0;A.SFX&&A.SFX.kill&&A.SFX.kill();toast(`✨ ${d.name} upgraded to T${o+1}!`);if(eq()===d.id)A.equip(d.id);else A.save&&A.save();mkModel();render()}
   else if(b.id==='pkNone'){A.equip('');render();toast('Your buddy is resting at home')}});
  const st=$('pkStage');st.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;S.drag={x:e.clientX};try{st.setPointerCapture(e.pointerId)}catch(x){}});
  st.addEventListener('pointermove',e=>{if(S.drag&&model){model.rotation.y+=(e.clientX-S.drag.x)*.012;S.drag.x=e.clientX}});const up=()=>{S.drag=null};st.addEventListener('pointerup',up);st.addEventListener('pointercancel',up);

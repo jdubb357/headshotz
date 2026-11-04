@@ -246,7 +246,7 @@ function rayCols(o,d,t){if(!CG){for(const c of cols){const r=rayBox(o,d,c.x0,c.y
 function supportAt(x,y,z){if(Math.abs(x)<groundHalf[0]&&Math.abs(z)<groundHalf[1]&&y<1.5)return true;for(const c of CN(x,z,.6,_cbA))if(x>c.x0-.2&&x<c.x1+.2&&z>c.z0-.2&&z<c.z1+.2&&c.y1<=y+.6&&c.y1>y-2.5)return true;return false}
 function onFloor(p){return Math.abs(p.x)<groundHalf[0]&&Math.abs(p.z)<groundHalf[1]}
 function physStep(e,dt){dt=Math.min(dt,.25);const n=Math.ceil(dt/(1/60)-1e-6);if(n>1){let b=0,l=0;for(let i=0;i<n;i++){physStep1(e,dt/n);b=b||e.bump;l=l||e.landed}e.bump=b;e.landed=l;return}physStep1(e,dt)}
-function physStep1(e,dt){const p=e.pos,v=e.vel;const py0=p.y;if(!(isFinite(p.x)&&isFinite(p.y)&&isFinite(p.z))){const L=e.lastG||[0,0,0];p.x=L[0];p.y=L[1];p.z=L[2];v.x=v.y=v.z=0}if(!isFinite(v.x+v.y+v.z))v.x=v.y=v.z=0;v.y-=24*dt;if(v.y<-40)v.y=-40;const wasG=e.ground;const cl=CN(p.x,p.z,Math.abs(v.x*dt)+Math.abs(v.z*dt)+PR+1.4,_cbB);
+function physStep1(e,dt){const p=e.pos,v=e.vel;const py0=p.y;if(!(isFinite(p.x)&&isFinite(p.y)&&isFinite(p.z))){const L=e.lastG||[0,0,0];p.x=L[0];p.y=L[1];p.z=L[2];v.x=v.y=v.z=0}if(!isFinite(v.x+v.y+v.z))v.x=v.y=v.z=0;v.y-=24*(e.gm==null?1:e.gm)*dt;if(v.y<-40)v.y=-40;const wasG=e.ground;const cl=CN(p.x,p.z,Math.abs(v.x*dt)+Math.abs(v.z*dt)+PR+1.4,_cbB);
  for(const ax of['x','z']){p[ax]+=v[ax]*dt;for(const c of cl){if(!overlaps(p,c,PH))continue;
    if(c.y1-p.y<=.55&&(e.ground||v.y<=0)){let ok=true;const oy=p.y;p.y=c.y1+.001;for(const c2 of cl)if(c2!==c&&overlaps(p,c2,PH)){ok=false;break}if(ok)continue;p.y=oy}
    const mid=ax==='x'?(c.x0+c.x1)/2:(c.z0+c.z1)/2;if(p[ax]<mid)p[ax]=(ax==='x'?c.x0:c.z0)-PR-.001;else p[ax]=(ax==='x'?c.x1:c.z1)+PR+.001;v[ax]=0;e.bump=1}}
@@ -364,7 +364,7 @@ const TPG={};function tpGun(id,sk,glove){const k=id+'|'+(sk||'')+'|'+GQ.level+'|
  // clone() copies sub-group pivots by value: re-link the animation groups on the clone
  const Gp={};c.traverse(o=>{if(o.name&&o.name.startsWith('G_'))Gp[o.name.slice(2)]=o});c.userData.G=Gp;if(Gp.mag&&src.userData.G.mag)Gp.mag.userData.c=src.userData.G.mag.userData.c;return c}
 function skOf(q,id){const w=q&&q.ws;const k=w&&(w[id]||w['*']);return WSKINS[k]&&k!=='default'?k:''}
-function cleanWS(ws){const o={};if(ws&&typeof ws==='object')for(const k in ws)if(k==='pet'){if(SK_BY[ws[k]])o.pet=ws[k]}else if((W[k]||k==='*')&&WSKINS[ws[k]]&&ws[k]!=='default')o[k]=ws[k];return o}
+function cleanWS(ws){const o={};if(ws&&typeof ws==='object')for(const k in ws)if(k==='pet'){if(SK_BY[ws[k]])o.pet=ws[k]}else if(k==='pt'){const n=ws[k]|0;if(n>=1&&n<=3)o.pt=n}else if((W[k]||k==='*')&&WSKINS[ws[k]]&&ws[k]!=='default')o[k]=ws[k];return o}
 function setRemoteGun(q,wid){const id=WIDS[wid]||'ar';const sk=skOf(q,id);if(!q.model||(q.gunId===id&&q.gunSk===sk))return;q.gunSk=sk;const mt=q.model.userData.gunMount;if(!mt)return;mt.clear();if(!(W[id]&&W[id].cls==='util')||true){const g=tpGun(id,sk,q.model.userData.outfit&&q.model.userData.outfit.glove);mt.add(g);q.gunObj=g}q.gunId=id}// viewmodel animation state
 function setViewModel(id){if(vmCur)vmRoot.remove(vmCur);vmCur=getVM(id);vmCur.traverse(o=>{o.frustumCulled=false});vmRoot.add(vmCur);vmInfo=vmCur.userData.info||{};vmCur.add(muzzle);muzzle.position.set(...(vmInfo.muzzle||[0,0,-.5]));muzzle.visible=false;
  const Gp=vmCur.userData.G;for(const k in Gp){Gp[k].position.copy(Gp[k].userData.base);Gp[k].rotation.set(0,0,0);Gp[k].visible=true}
@@ -480,12 +480,12 @@ const skinOutfit=s=>{const{id,tint}=splitSkin(s);return id==='default'||!SKIN_BY
 const FIT_N=BASE_N+SKIN_DEFS.length;
 const UPG={mag:{name:'Extended Mag',per:.15,cost:[200,450]},reload:{name:'Fast Hands',per:.08,cost:[200,450]}};
 // one wallet + inventory per device, shared by offline, hub and online play. Versioned key; migrates the old 'prog' save.
-const WALLET_V=3;const PROG=(()=>{const base={v:WALLET_V,dia:0,owned:[],upg:{},camo:{},camos:{},skin:'default',skins:['default'],pets:[],pet:'',wskin:{},wskins:{},fr:null,pc:'soldier',pcs:['soldier']};let w=null;try{w=JSON.parse(LS('wallet')||'null')}catch(e){}
+const WALLET_V=3;const PROG=(()=>{const base={v:WALLET_V,dia:0,owned:[],upg:{},camo:{},camos:{},skin:'default',skins:['default'],pets:[],pet:'',pt:{},wskin:{},wskins:{},fr:null,pc:'soldier',pcs:['soldier']};let w=null;try{w=JSON.parse(LS('wallet')||'null')}catch(e){}
  if(!w||!w.v){let old={};try{old=JSON.parse(LS('prog')||'{}')||{}}catch(e){}w=Object.assign({},old,w||{});}
- const P=Object.assign(base,w);P.v=WALLET_V;P.dia=Math.max(0,P.dia|0);for(const k of['owned','skins','pcs','pets'])if(!Array.isArray(P[k]))P[k]=[];P.pets=P.pets.filter(id=>SK_BY[id]);if(typeof P.pet!=='string'||!P.pets.includes(P.pet))P.pet='';if(!P.pcs.includes('soldier'))P.pcs.push('soldier');if(!PCL[P.pc]||!P.pcs.includes(P.pc))P.pc='soldier';for(const k of['upg','camo','camos','wskin','wskins'])if(!P[k]||typeof P[k]!=='object'||Array.isArray(P[k]))P[k]={};
+ const P=Object.assign(base,w);P.v=WALLET_V;P.dia=Math.max(0,P.dia|0);for(const k of['owned','skins','pcs','pets'])if(!Array.isArray(P[k]))P[k]=[];P.pets=P.pets.filter(id=>SK_BY[id]);if(typeof P.pet!=='string'||!P.pets.includes(P.pet))P.pet='';if(!P.pcs.includes('soldier'))P.pcs.push('soldier');if(!PCL[P.pc]||!P.pcs.includes(P.pc))P.pc='soldier';for(const k of['upg','camo','camos','wskin','wskins','pt'])if(!P[k]||typeof P[k]!=='object'||Array.isArray(P[k]))P[k]={};
 if(!P.skins.includes('default'))P.skins.push('default');LSS('wallet',JSON.stringify(P));return P})();
 
-const wsOut=()=>({...PROG.wskin,pet:PROG.pet||undefined});
+const wsOut=()=>({...PROG.wskin,pet:PROG.pet||undefined,pt:PROG.pet?(PROG.pt[PROG.pet]|0)||1:undefined});
 function saveProg(){PROG.v=WALLET_V;LSS('wallet',JSON.stringify(PROG));updDiaUI()}
 addEventListener('storage',e=>{if(e.key===LSP+'wallet'&&e.newValue){try{Object.assign(PROG,JSON.parse(e.newValue));updDiaUI()}catch(x){}}});
 const owns=id=>!W[id].price||PROG.owned.includes(id);
@@ -1143,7 +1143,7 @@ function aimPull(dt){const o=camera.position,d=fwd();let best=null,bd=.09;for(co
 function aimTarget(maxD){const o=camera.position,d=fwd();const wt=rayWorld(o,d,maxD);let best=null,bt=wt;
  for(const id in C.players){const q=C.players[id];if(!q.alive||!isEnemy(q))continue;const r=rayPlayer(o,d,q.rp,q.flags&69);if(r.t<bt){bt=r.t;best=q}}if(best&&smokeBlock(o,d,bt))return null;return best}
 let recoilP=0,recoilY=0,kick=0,meleeT=0,bob=0,stTimer=0,swayX=0,swayY=0,lastYaw=0,lastPitch=0;
-function fire(){if(me.down)return;const id=me.load[me.cur],w=W[id];me.cool=w.rate*curRarFr();me.lastShot=performance.now();me.shots++;if(AMBL)AMBL.scare(me.pos.x,me.pos.z,90);
+function fire(){if(me.down||me.pf)return;const id=me.load[me.cur],w=W[id];me.cool=w.rate*curRarFr();me.lastShot=performance.now();me.shots++;if(AMBL)AMBL.scare(me.pos.x,me.pos.z,90);
  const o=camera.position.clone();
  if(w.melee){if(w.saw){SFX.saw();meleeT=Math.max(meleeT,.35)}else{SFX.melee();meleeT=1}const d=fwd();let best=null,bd=w.melee+.4,part='torso';for(const k in C.players){const q=C.players[k];if(!q.alive||!isEnemy(q))continue;
    const c=q.rp.clone();c.y+=1.2;const to=c.clone().sub(o);const dist=to.length();if(dist>w.melee+.4)continue;if(to.normalize().dot(d)<.78)continue;if(!losClear(o,c))continue;
@@ -1188,6 +1188,9 @@ function ladderMe(dt,mx,mz){if(me.mountT>0)return;if(me.lad){const A=me.lad;if(M
  if(up&&me.pos.y>=top-.55){for(const d of[.75,1.0,.55,1.3,-.4,-.25]){const bx=me.pos.x-n[0]*(.4+d),bz=me.pos.z-n[1]*(.4+d);let gy=-1;for(const c of CN(bx,bz,.6,_cbC))if(bx>c.x0&&bx<c.x1&&bz>c.z0&&bz<c.z1&&c.y1<=top+.8&&c.y1>top-1.2&&c.y1>gy)gy=c.y1;if(gy<0)continue;if(!freeAt(bx,gy+.01,bz))continue;
    me.mountA=[me.pos.x,me.pos.y,me.pos.z];me.mountB=[bx,gy+.01,bz];me.mountD=me.mountT=.28;me.lad=null;me.onLadder=false;me.ladTop=null;inp.ladUp=false;return}}
 }
+// v94: Shadow Bat form - 3D flight along the view direction (still collides with walls/roofs), capped height + map bounds, no shooting
+function batMove(dt,wx,wz,mz){const sp=15,a=Math.min(1,dt*6),pf=me.pf;pf.up=Math.max(0,(pf.up||0)-dt);const cp=Math.max(.2,Math.cos(me.pitch));let ty=-mz*Math.sin(me.pitch)*sp+(pf.up>0?7:0);if(me.pos.y>16&&ty>0)ty=0;
+ me.vel.x+=(wx*sp-me.vel.x)*a;me.vel.z+=(wz*sp-me.vel.z)*a;me.vel.y+=(ty-me.vel.y)*a;me.gm=0;me.crouch=false;me.slideT=0;const gh=(groundHalf||60)-1.2;if(Math.abs(me.pos.x)>gh&&me.pos.x*me.vel.x>0)me.vel.x=0;if(Math.abs(me.pos.z)>gh&&me.pos.z*me.vel.z>0)me.vel.z=0}
 function updateMe(dt){const id=me.load[me.cur],w=W[id];if(BC&&me.air){brAirMe(dt);return}
  if(isTouch&&!(RC&&RC.modal))applyTouchLook(dt);
  let mx=inp.mx,mz=inp.mz;if(keys.KeyW||keys.ArrowUp)mz-=1;if(keys.KeyS||keys.ArrowDown)mz+=1;if(keys.KeyA||keys.ArrowLeft)mx-=1;if(keys.KeyD||keys.ArrowRight)mx+=1;
@@ -1208,9 +1211,9 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];if(BC&&me.air){brAirMe(dt
  else if(me.slideCd>2)me.slideCd=(myC.slideCd||1)*.7;
  else if(me.ground){const a=Math.min(1,dt*13);me.vel.x+=(wx*speed-me.vel.x)*a;me.vel.z+=(wz*speed-me.vel.z)*a}
  else{me.vel.x+=wx*speed*dt*2.5;me.vel.z+=wz*speed*dt*2.5;const n=Math.hypot(me.vel.x,me.vel.z);const cap=Math.max(hs,speed);if(n>cap){me.vel.x*=cap/n;me.vel.z*=cap/n}}
- if(me.down){inp.jump=false;inp.slide=false}if(inp.jump&&me.ground&&me.alive&&!me.frozen){me.crouch=false;me.vel.y=(myC.jump||8.3);if(me.slideT>0){me.vel.x*=1.08;me.vel.z*=1.08;me.slideT=0}SFX.jump()}inp.jump=false;
+ if(inp.jump&&me.pf&&me.pf.bat)me.pf.up=.45;if(me.down){inp.jump=false;inp.slide=false}if(inp.jump&&me.ground&&me.alive&&!me.frozen&&!me.pf){me.crouch=false;me.vel.y=(myC.jump||8.3);if(me.slideT>0){me.vel.x*=1.08;me.vel.z*=1.08;me.slideT=0}SFX.jump()}inp.jump=false;
  ladderMe(dt,mx,mz);if(me.mountT>0){me.mountT-=dt;const k=1-Math.max(0,me.mountT)/me.mountD;const a=me.mountA,b=me.mountB;me.pos.set(a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*Math.min(1,k*2),a[2]+(b[2]-a[2])*k);me.vel.set(0,0,0);if(me.mountT<=0){me.pos.set(b[0],b[1],b[2]);me.ground=true;me.lastG=[b[0],b[1],b[2]]}}
- if(me.alive&&!(me.mountT>0)){physStep(me,dt);if(me.landed){SFX.land();landDip=.08}}
+ if(me.alive&&!(me.mountT>0)){if(me.pf&&me.pf.bat)batMove(dt,wx,wz,mz);physStep(me,dt);if(me.landed){SFX.land();landDip=.08}}
  if(me.alive&&me.pos.y<-3){me.alive=false;send({t:'fall'})}
  if(me.ground&&hs>2&&me.slideT<=0){me.stepT-=dt*hs;if(me.stepT<=0){me.stepT=sprint?3.3:2.9;if(!myC.quiet||(me.qStep=!me.qStep))SFX.step()}}
  bob+=dt*hs*(me.ground&&me.slideT<=0?1.55:0);landDip=Math.max(0,landDip-dt*.4);
@@ -1348,9 +1351,9 @@ let lastHostTick=performance.now();function hostStep(){const n=performance.now()
 setInterval(()=>{if(performance.now()-lastHostTick>120)hostStep()},50);
 let slowWin=0,cellT=0;function loop(now){requestAnimationFrame(loop);const el=now-last;if(el<15.2)return;last=now;const dt=Math.min(.05,el/1000);tickSkins(now/1000);
  hostStep();if(PETS)PETS.update(dt,now);
- if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);updTracers(dt);updNades(dt);updUtil(dt);updDoors(dt);doorScan();cellT-=dt;if(cellT<=0){cellT=.15;const cg=cur&&cur.group;if(cg&&cg.userData.cells&&cg.userData.cells.length)updateCells(cg,window.__camOv?window.__camOv.p[0]:camera.position.x,window.__camOv?window.__camOv.p[2]:camera.position.z,(scene.fog?Math.min(scene.fog.far,320):320)+4,window.__lodD||85)}updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(RAIDM(C.mode))raidFrame(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
+ if(inGame){updateMe(dt);tpBody(dt);updRemotes(dt);if(PETS)PETS.post();updTracers(dt);updNades(dt);updUtil(dt);updDoors(dt);doorScan();cellT-=dt;if(cellT<=0){cellT=.15;const cg=cur&&cur.group;if(cg&&cg.userData.cells&&cg.userData.cells.length)updateCells(cg,window.__camOv?window.__camOv.p[0]:camera.position.x,window.__camOv?window.__camOv.p[2]:camera.position.z,(scene.fog?Math.min(scene.fog.far,320):320)+4,window.__lodD||85)}updHub(dt,now);fx.update(dt,floorAt);listen();updHeat(dt);updFireLights(dt);updRings(dt);updAmb(dt,now/1000);updDmg(dt);updMission(dt,now);if(RAIDM(C.mode))raidFrame(dt,now);if(BC)brFrame(dt,now);if(cur&&cur.water&&cur.water.material.map)cur.water.material.map.offset.x+=dt*.01;WT.value=now/1000%1000;GRASS_T.value=now/1000%1000;updDust(dt,now/1000);
   if(sun.castShadow){const c=camera.position,sd=cur.sunDir;const s=68/2048;const tx=Math.round(c.x/s)*s,tz=Math.round(c.z/s)*s;sun.target.position.set(tx,0,tz);sun.position.set(tx+sd.x*90,sd.y*90,tz+sd.z*90);sun.target.updateMatrixWorld()}
-  if(cur&&cur.sky)cur.sky.position.copy(camera.position);if(AMBL&&inGame){try{AMBL.update(dt,camera.position,{air:!!(me&&me.air)})}catch(e){console.warn('amb',e);AMBL=null}}
+  if(me.pf&&me.pf.bat)vmRoot.visible=false;if(cur&&cur.sky)cur.sky.position.copy(camera.position);if(AMBL&&inGame){try{AMBL.update(dt,camera.position,{air:!!(me&&me.air)})}catch(e){console.warn('amb',e);AMBL=null}}
   if(vmCam.aspect!==camera.aspect){vmCam.aspect=camera.aspect;vmCam.updateProjectionMatrix()}
   if(window.__camOv){const o=window.__camOv;camera.position.set(...o.p);camera.lookAt(...o.l);camera.updateMatrixWorld();vmRoot.visible=false}renderer.info.reset();if(post&&qLevel()==='high'){post.begin();renderer.render(scene,camera);if(!C.hub){renderer.clearDepth();renderer.render(vmScene,vmCam)}post.end(now/1000)}
   else{renderer.setRenderTarget(null);renderer.clear();renderer.render(scene,camera);if(!C.hub){renderer.clearDepth();renderer.render(vmScene,vmCam)}}
@@ -1751,9 +1754,9 @@ const CHEST={price:300,cost:{common:300,rare:300,epic:300,legendary:1500,secret:
  // loot: [type,id|amount,weight]; higher tiers hold rarer items. Duplicates convert to diamonds (DUPE per tier).
  loot:{common:[['pet','dog',1.3],['pet','cat',1.3],['pet','bunny',1.2],['dia',80,4],['dia',120,3],['wsk','carbon',2],['wsk','tiger',2],['wpn','water',1],['wpn','bat',1],['skin','sky',1.5],['skin','sunset',1.5],['skin','lemon',1.5],['skin','forest',1.2],['skin','ocean',1.2]],
   rare:[['pet','bat',1.3],['pet','fox',1.3],['pet','penguin',1.3],['dia',200,3],['wsk','ice',2],['wsk','toxic',2],['wsk','neon',2],['wpn','m4',1],['wpn','mp5',1],['wpn','ump45',1],['wpn','pan',1],['cls','scout',1],['skin','rose',1.5],['skin','steel',1.5],['skin','jungle',1.3],['skin','tiger',1.3],['skin','ranger',1.2],['skin','cherry',1.2]],
-  epic:[['pet','bear',1.4],['pet','tiger',1.4],['pet','hedgehog',1.4],['dia',350,2],['wsk','gold',2],['wsk','lightning',1],['wpn','ak47',1],['wpn','scar',1],['wpn','kriss',1],['wpn','p90',1],['wpn','deagle',1],['cls','engineer',1],['cls','ninja',1],['skin','moonmage',1.4],['skin','viking',1.4],['skin','samurai',1.4],['skin','pirate',1.2],['skin','cyber',1.2],['skin','ronin',1.2]],
-  legendary:[['pet','lion',1.4],['pet','superdog',1.4],['pet','twohead',1.3],['pet','robot',1.3],['dia',600,2],['wsk','lightning',2],['wsk','fire',2],['wpn','aa12',1],['wpn','lmg',1],['wpn','freeze',1],['wpn','laser',1],['wpn','barrett',1],['wpn','chainsaw',1],['cls','medic',2],['wsk','galaxy_blue',1.3],['wsk','galaxy_red',1.3],['skin','gxv',1.3],['skin','gxb',1.3],['skin','galaxy',1.6],['skin','gladiator',1.6],['skin','inferno',1.4],['skin','candy',1.4],['skin','starpilot',1.2]],
-  secret:[['pet','ghost',2.2],['pet','dragon',2.2],['pet','superdog',1.4],['dia',1200,1],['wsk','galaxy',3],['wsk','galaxy_blue',2.2],['wsk','galaxy_red',2.2],['wsk','galaxy_gold',1.8],['skin','gxv',2.2],['skin','gxb',2.2],['skin','gxr',2.2],['skin','gxg',1.6],['wsk','fire',2],['wsk','lightning',2],['cls','juggernaut',3],['skin','dragon',2.5],['skin','aurora',2.5],['skin','void',2],['skin','solar',2],['wpn','minigun',1.5],['wpn','awp',1.5],['wpn','rpg',1.5],['wpn','gl',1.5]]},
+  epic:[['pet','shadowbat',1.2],['pet','bear',1.4],['pet','tiger',1.4],['pet','hedgehog',1.4],['dia',350,2],['wsk','gold',2],['wsk','lightning',1],['wpn','ak47',1],['wpn','scar',1],['wpn','kriss',1],['wpn','p90',1],['wpn','deagle',1],['cls','engineer',1],['cls','ninja',1],['skin','moonmage',1.4],['skin','viking',1.4],['skin','samurai',1.4],['skin','pirate',1.2],['skin','cyber',1.2],['skin','ronin',1.2]],
+  legendary:[['pet','emberdragon',1.1],['pet','lion',1.4],['pet','superdog',1.4],['pet','twohead',1.3],['pet','robot',1.3],['dia',600,2],['wsk','lightning',2],['wsk','fire',2],['wpn','aa12',1],['wpn','lmg',1],['wpn','freeze',1],['wpn','laser',1],['wpn','barrett',1],['wpn','chainsaw',1],['cls','medic',2],['wsk','galaxy_blue',1.3],['wsk','galaxy_red',1.3],['skin','gxv',1.3],['skin','gxb',1.3],['skin','galaxy',1.6],['skin','gladiator',1.6],['skin','inferno',1.4],['skin','candy',1.4],['skin','starpilot',1.2]],
+  secret:[['pet','emberdragon',1.6],['pet','shadowbat',1.6],['pet','ghost',2.2],['pet','dragon',2.2],['pet','superdog',1.4],['dia',1200,1],['wsk','galaxy',3],['wsk','galaxy_blue',2.2],['wsk','galaxy_red',2.2],['wsk','galaxy_gold',1.8],['skin','gxv',2.2],['skin','gxb',2.2],['skin','gxr',2.2],['skin','gxg',1.6],['wsk','fire',2],['wsk','lightning',2],['cls','juggernaut',3],['skin','dragon',2.5],['skin','aurora',2.5],['skin','void',2],['skin','solar',2],['wpn','minigun',1.5],['wpn','awp',1.5],['wpn','rpg',1.5],['wpn','gl',1.5]]},
  dupe:{common:40,rare:90,epic:160,legendary:280,secret:500,godly:1000}};
 CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['dia',3000,2],['wsk','galaxy_gold',1.5],['skin','gxg',1.5]];
 const GODLY_CHEST_P=.04,GODLY_AA_P=.06;// Godly upgrade chance: 4% of Secret chests, 6% of Admin Abuse Secret chests (Godly itself has 0% base weight)
@@ -2648,14 +2651,14 @@ function equipSkin(id,tint=0){tint=tint|0;const full=id==='default'?'default':jo
  try{hubEquip&&hubEquip();const hp=H&&H.players&&H.players[me.id];if(hp&&C.hostId===me.id){hp.skin=cleanSkin(full);hp.fit=curFit();bcast({t:'fit',id:me.id,ft:hp.fit,sk:hp.skin})}else if(C.hostId&&C.hostId!==me.id&&!C.hub)send({t:'fit',fit:curFit(),sk:full})}catch(e){}}
 window.__hsz.equipSkin=equipSkin;
 const PETX={H:()=>H,plist,enemy:(p,q)=>H.mode==='ffa'||q.team!==p.team,los:(p,q)=>{_o.set(p.p[0],p.p[1]+1,p.p[2]);return rayClearHost(_o,_d.set(q.p[0],q.p[1]+1.1,q.p[2]))},damage:(v,d,by,h,w)=>damage(v,d,by,h,w),bcast:m=>bcast(m),toPlayer:(id,m)=>toPlayer(id,m),take:(p,id)=>H.br?brTake(p,id):false};
-PETS=initSidekicks({scene,me,C,PROG,isEnemy,cols:()=>cur&&cur.cols,send,inGame:()=>inGame,toast:m=>center(m,1300),sfx:()=>{try{SFX.beep&&SFX.beep()}catch(e){}},canAct:()=>inGame&&!paused&&me.alive});window.__hsz.pets=PETS;
+PETS=initSidekicks({scene,me,C,PROG,isEnemy,cols:()=>cur&&cur.cols,send,inGame:()=>inGame,toast:m=>center(m,1300),sfx:()=>{try{SFX.beep&&SFX.beep()}catch(e){}},canAct:()=>inGame&&!paused&&me.alive,tpv:()=>TPV.on,hideVm:()=>{vmRoot.visible=false}});window.__hsz.pets=PETS;
 function equipPet(id){id=SK_BY[id]&&PROG.pets.includes(id)?id:'';PROG.pet=id;saveProg();try{sendWS();if(!inGame&&C.hostId&&C.hostId!==me.id)send({t:'ws',ws:cleanWS(wsOut())});if(!inGame||C.hub){const hp=H&&H.players&&H.players[me.id];if(hp&&C.hostId===me.id){hp.ws=cleanWS(wsOut());bcast({t:'ws',id:me.id,ws:hp.ws})}}}catch(e){}if(PETS)PETS.reset()}
 window.__hsz.equipPet=equipPet;
 SHOP=initSkinShop({$,PROG,saveProg,SFX,esc,audioInit,equip:equipSkin,gun:(id,gl)=>tpGun(id,skOf({ws:PROG.wskin},id),gl),denied:()=>{SFX.beep&&SFX.beep()},onClose:from=>{if(from==='royale'&&window.__hsz.royale)window.__hsz.royale.refresh()}});window.__hsz.shop=SHOP;
 // v62: safety net so the Skin Shop buttons always open it, even if another handler on the page was skipped or swallowed (idempotent: opened at most once per 600 ms)
 if(SHOP)document.addEventListener('click',e=>{const b=e.target&&e.target.closest&&e.target.closest('#openSkinShop,#royShop');if(!b)return;if(SHOP.isOpen())return;try{SHOP.open(b.id==='royShop'?'royale':'menu')}catch(x){console.error('skin shop open',x)}},true);
 if(SHOP&&$('openSkinShop'))$('openSkinShop').onclick=()=>SHOP.open('menu');
-PETSHOP=initSidekickShop({$,PROG,saveProg,SFX,esc,audioInit,equip:equipPet,denied:()=>{SFX.beep&&SFX.beep()},onClose:from=>{if(from==='royale'&&window.__hsz.royale)window.__hsz.royale.refresh()}});window.__hsz.petshop=PETSHOP;if(PETSHOP&&$('openPets'))$('openPets').onclick=()=>PETSHOP.open('menu');
+PETSHOP=initSidekickShop({$,PROG,saveProg,save:saveProg,SFX,esc,audioInit,equip:equipPet,denied:()=>{SFX.beep&&SFX.beep()},onClose:from=>{if(from==='royale'&&window.__hsz.royale)window.__hsz.royale.refresh()}});window.__hsz.petshop=PETSHOP;if(PETSHOP&&$('openPets'))$('openPets').onclick=()=>PETSHOP.open('menu');
 {const ROY=initRoyale({$,LS,LSS,audioInit,lastSquad:()=>{try{return JSON.parse(sessionStorage.getItem('hsz_squad')||'null')}catch(e){return null}},play:(m,o)=>playOnlineBots(m,o),party:()=>PARTY,partyLead,myCode:()=>FR.code,esc,openFriends,partyLeave,r2,gun:(id,gl)=>tpGun(id,skOf({ws:PROG.wskin},id),gl),W,shop:SHOP,pets:PETSHOP,equipSkin,PROG});window.__hsz.royale=ROY;if(ROY&&$('royaleBtn'))$('royaleBtn').onclick=()=>ROY.open();try{if(sessionStorage.getItem('hsz_royMenu')){sessionStorage.removeItem('hsz_royMenu');setTimeout(()=>{if(!inGame)ROY.open()},700)}}catch(e){}}
 
 // ================= v62 EXTRACTION RAID =================
