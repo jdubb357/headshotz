@@ -1,0 +1,9 @@
+v90 (before) vs v91 (after), headless software GL desktop 1100x620, per-zone tour (zone order identical, names differ)
+Tilted Town        {'fps': 14.4, 'calls': 348, 'tris': 141240, 'geo': 578, 'tex': 24}
+                   {'fps': 13.3, 'calls': 420, 'tris': 171030, 'geo': 697, 'tex': 28}
+Industrial Works   {'fps': 16, 'calls': 491, 'tris': 192609, 'geo': 787, 'tex': 31}
+                   {'fps': 14.3, 'calls': 245, 'tris': 161452, 'geo': 784, 'tex': 31}
+Farmstead          {'fps': 12.8, 'calls': 617, 'tris': 301803, 'geo': 889, 'tex': 39}
+                   {'fps': 16.2, 'calls': 358, 'tris': 134052, 'geo': 826, 'tex': 33}
+Pine Woods         {'fps': 14.3, 'calls': 583, 'tris': 342179, 'geo': 1027, 'tex': 49}
+                   {'fps': 16.5, 'calls': 60, 'tris': 101179, 'geo': 831, 'tex': 34}

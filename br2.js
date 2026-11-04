@@ -1,9 +1,9 @@
 // HeadShotz v59: Royale island expansion ring (540 x 540 m). Named POIs: Iron Keep (castle), Foundry (factory), Maple Village (town),
-// Misty Lake, Frostpeak (mountains), Old Growth Forest, Dune Camp + rivers, bridges, ponds, rocky outcrops and richer CC0 ground patches.
+// Toxic Swamp (was Misty Lake), Frostbite Peaks (mountains), Old Growth Forest, Dune Camp + rivers, bridges, ponds, rocky outcrops and richer CC0 ground patches.
 // Everything is built from the same merged boxes / cylinders as the rest of the island (chunk-culled in maps.js), so it stays cheap on iPhone.
 export const BR_ZONES2=[
- {n:'Iron Keep',x:110,z:-232,r:40,c:'#c9a0ff'},{n:'Foundry',x:226,z:-60,r:42,c:'#ffb347'},{n:'Maple Village',x:110,z:232,r:42,c:'#ff8fb3'},
- {n:'Misty Lake',x:-236,z:36,r:44,c:'#6fd0ff'},{n:'Frostpeak',x:-222,z:-218,r:50,c:'#e8f4ff'},{n:'Old Growth Forest',x:-206,z:204,r:52,c:'#2fa35a'},{n:'Dune Camp',x:232,z:226,r:40,c:'#f2c46d'}];
+ {n:'Phantom Keep',x:110,z:-232,r:40,c:'#9affc8'},{n:'Rust Valley',x:226,z:-60,r:42,c:'#e8803a'},{n:'Blossom Village',x:110,z:232,r:42,c:'#ff8fc0'},
+ {n:'Toxic Swamp',x:-236,z:36,r:44,c:'#8aff3a'},{n:'Frostbite Peaks',x:-222,z:-218,r:50,c:'#bfe8ff'},{n:'Jungle Ruins',x:-206,z:204,r:52,c:'#2fd06a'},{n:'Sandstorm Dunes',x:232,z:226,r:40,c:'#f2b45a'}];
 export function brExtra(X){const{B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp,road,block,isFree,lootAt,patch,NS,PAL}=X;
  const crenel=(x,y,z,len,ax,c,step=2.2)=>{const n=Math.floor(len/step);for(let i=0;i<n;i++){const o=-len/2+step*(i+.5);ax==='x'?B.box(x+o,y,z,1.1,.9,.55,c,'brick',{shadow:false}):B.box(x,y,z+o,.55,.9,1.1,c,'brick',{shadow:false})}};
  const water=(x,z,w,d,c=0x2f86c8,y=0)=>B.box(x,y,z,w,.05,d,c,'plain',{solid:false,shadow:false});

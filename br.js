@@ -1,9 +1,9 @@
 // HeadShotz v44: Battle Royale island "Skyline Island" (v59: 540 x 540 m). Procedural, original. Named zones, climbable roofs/towers, lots of cover & loot spots.
-import {brExtra,BR_ZONES2} from './br2.js';
+import {brExtra,BR_ZONES2} from './br2.js';import {biomeProps} from './biomeprops.js';
 export const BR_ZONES0=[
- {n:'Tilted Town',x:0,z:0,r:62,c:'#ffd23f'},{n:'Industrial Works',x:112,z:-104,r:46,c:'#ff8a3d'},{n:'Farmstead',x:108,z:108,r:50,c:'#9be15d'},
- {n:'Pine Woods',x:-122,z:-12,r:50,c:'#3fbf6a'},{n:'Harbor Docks',x:-18,z:150,r:46,c:'#4de3ff'},{n:'Mount Summit',x:-18,z:-142,r:42,c:'#c9d3e0'},
- {n:'Dusty Quarry',x:-128,z:118,r:42,c:'#e0b070'},{n:'Signal Hill',x:158,z:2,r:34,c:'#ff5a8a'},{n:'Lakeside Cabins',x:-132,z:-128,r:40,c:'#7fb6ff'}];
+ {n:'Neon City',x:0,z:0,r:62,c:'#ff3df0'},{n:'Inferno Forge',x:112,z:-104,r:46,c:'#ff5a1a'},{n:'Golden Savanna',x:108,z:108,r:50,c:'#ffc23a'},
+ {n:'Nebula Realm',x:-122,z:-12,r:50,c:'#b36bff'},{n:'Moonlit Lagoon',x:-18,z:150,r:46,c:'#3ee0d0'},{n:'Aurora Ridge',x:-18,z:-142,r:42,c:'#5affb0'},
+ {n:'Crystal Caverns',x:-128,z:118,r:42,c:'#4fe8ff'},{n:'Thunder Isle',x:158,z:2,r:34,c:'#6fa0ff'},{n:'Firefly Hollow',x:-132,z:-128,r:40,c:'#b6ff4a'}];
 export const BR_ZONES=[...BR_ZONES0,...BR_ZONES2];
 export function brDef({G,rng,_c}){
  const R=rng(4242);const rr=(a,b)=>a+R()*(b-a),pick=a=>a[R()*a.length|0];
@@ -128,6 +128,7 @@ export function brDef({G,rng,_c}){
    lamp(cx-14,cz-4,1);block(cx+6,cz+10,46,38,0)}
   // ============ connecting roads + wilderness ============
   brExtra({B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp,road,block,isFree,lootAt,patch,NS,PAL});
+  biomeProps({B,G,rr,pick,isFree,block,zones:BR_ZONES});
   road(0,70,0,108,5);road(-70,0,-70,-12,4);road(70,-34,112,-60,4);road(0,-70,0,-110,5);road(-100,-12,-100,-120,4);
   const zones=[[0,0,66],[112,-104,52],[108,108,56],[-122,-12,56],[-18,150,50],[-18,-142,48],[-128,118,48],[158,2,36],[-132,-128,44],...BR_ZONES2.map(z=>[z.x,z.z,z.r+6])];
   for(let i=0;i<460;i++){const x=rr(-262,262),z=rr(-262,262);if(zones.some(([a,b,r])=>Math.hypot(x-a,z-b)<r))continue;if(!isFree(x,z,2.2))continue;const k=R();if(k<.5)B.tree(x,z,rr(.9,1.5));else if(k<.72)pine(x,z,rr(.9,1.5));else if(k<.88)rock(x,z,rr(.7,1.6));else B.bush(x,z,rr(.8,1.4))}

@@ -546,3 +546,8 @@ body.rm *,body.rm *::before,body.rm *::after{animation-duration:.001ms!important
 @keyframes gpFall{to{transform:translateY(340px) rotate(540deg)}}
 @keyframes gpBob{50%{transform:translateY(-8px) scale(1.08)}}
 @keyframes gpIn{from{opacity:0}}
+/* v91 biome banner */
+#biomeBan{position:fixed;left:50%;top:17%;transform:translate(-50%,-14px);text-align:center;pointer-events:none;z-index:30;opacity:0;transition:opacity .5s,transform .5s;--bc:#fff}
+#biomeBan.on{opacity:1;transform:translate(-50%,0)}
+#biomeBan .bbS{font:700 12px/1 system-ui,sans-serif;letter-spacing:.5em;color:#fff;opacity:.85;text-shadow:0 0 8px #000;margin-bottom:6px}
+#biomeBan .bbN{font:900 clamp(22px,5.2vw,44px)/1.05 system-ui,sans-serif;letter-spacing:.08em;color:#fff;text-shadow:0 0 6px var(--bc),0 0 18px var(--bc),0 0 40px var(--bc),0 2px 4px #000;white-space:nowrap}
