@@ -86,3 +86,6 @@ No new third-party assets. The airliners, contrails, helicopters, bird flocks, b
 
 ## v94 — Pet tiers + active abilities (batch 1)
 No third-party assets. Shadow Bat ("Nyx") and Ember Dragon ("Cinder") are original in-code models (`petmodels.js`, `petkit.js`: membrane wings, glowing eyes, T2 halo, T3 spark aura). All code is original.
+
+## v95 — Pet batch 2
+No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunder Hawk) are original in-code models (`petmodels2.js`, built with `petkit.js`); abilities live in `petabil.js`.
