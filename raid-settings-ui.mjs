@@ -4,7 +4,7 @@ export function settingsUI({onChange}){
  const $=id=>document.getElementById(id);let value;try{value=normalizeSettings(JSON.parse(localStorage.getItem(STORAGE)||'null'))}catch{value=normalizeSettings(null)}
  let capture=null,returnFocus=null;const media=matchMedia('(prefers-reduced-motion: reduce)');
  const effective=()=>({...value,reduced:value.reducedMotion==='on'||value.reducedMotion==='system'&&media.matches});
- function apply(){document.documentElement.style.setProperty('--hud-scale',value.hudScale);document.documentElement.dataset.reducedMotion=String(effective().reduced);document.documentElement.dataset.highContrast=String(value.highContrast);$('welcome').hidden=value.onboardingDismissed;onChange?.(effective());dispatchEvent(new Event('raidsettingschange'))}
+ function apply(){document.documentElement.style.setProperty('--hud-scale',value.hudScale);document.documentElement.dataset.hudLarge=String(value.hudScale>1.2);document.documentElement.dataset.reducedMotion=String(effective().reduced);document.documentElement.dataset.highContrast=String(value.highContrast);$('welcome').hidden=value.onboardingDismissed;onChange?.(effective());dispatchEvent(new Event('raidsettingschange'))}
  function save(){try{localStorage.setItem(STORAGE,JSON.stringify(value));$('settingsStatus').textContent='Settings saved on this device.'}catch{$('settingsStatus').textContent='Browser storage unavailable. Settings apply for this visit.'}apply()}
  function render(){
   for(const [id,key]of Object.entries({sensitivity:'sensitivity',hudScale:'hudScale',fieldOfView:'fov',sfxVolume:'sfxVolume',settingsVoiceVolume:'voiceVolume'})){$(id).value=value[key];$(id+'Value').textContent=value[key]}
