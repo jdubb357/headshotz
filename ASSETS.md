@@ -80,3 +80,6 @@ No new third-party assets. The PBR chest kit (`chests.js`: wood planks, iron ban
 
 ## v91: Battle Royale biomes & effects
 No new third-party assets. The 16 named areas of Skyline Island (Neon City, Inferno Forge, Golden Savanna, Nebula Realm, Moonlit Lagoon, Thunder Isle, Crystal Caverns, Aurora Ridge, Firefly Hollow, Phantom Keep, Rust Valley, Blossom Village, Toxic Swamp, Frostbite Peaks, Jungle Ruins, Sandstorm Dunes) are **original code**: `biomes.js` (per-area sky / fog / light blending, pooled ambient particles, rain streaks, lightning, procedurally painted ground textures, the area-name banner) and `biomeprops.js` (crystals, floating rocks, lava pools, neon signs, ice spikes, mushrooms, waterfall and so on, built from the same merged primitives as the rest of the map). The extra muzzle sparks, biome-tinted bullet impacts, chest-open / elimination bursts, landing dust, glider trails and the animated storm wall are built on the existing pooled FX system and one GLSL shader written for the game.
+
+## v93: ambient life
+No new third-party assets. The airliners, contrails, helicopters, bird flocks, bats, deer and rabbits are generated in code (original low-poly shapes). Any future CC0/CC-BY models will be listed here.
