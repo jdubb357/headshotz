@@ -186,7 +186,7 @@ export function initSidekicks(A){
   for(const [k,f] of F)if(!seen.has(k))drop(f);
   const nowT=performance.now();
   for(const [k,mo] of MO){const mine=k==='me';const q=mine?null:C.players[k];const alive=mine?me.alive:(q&&q.alive);if(nowT>mo.until||!alive||(mine&&!A.inGame())){if(mo.mesh){root.remove(mo.mesh)}if(mine){me.pf=null;me.gm=1}MO.delete(k);continue}
-   if(!mo.mesh){mo.mesh=makePet('shadowbat',3);mo.mesh.scale.setScalar(2.1);root.add(mo.mesh)}const pos=mine?me.pos:q.rp;mo.mesh.position.set(pos.x,pos.y+.9,pos.z);mo.mesh.visible=!(mine&&!A.tpv());
+   if(!mo.mesh){mo.mesh=makePet('shadowbat',3);mo.mesh.scale.setScalar(2.1);root.add(mo.mesh)}const pos=mine?me.pos:q.rp;mo.mesh.position.set(pos.x,pos.y+.9,pos.z);mo.mesh.visible=!(mine&&!A.tpv()&&!window.__camOv);
    const yw=mine?me.yaw:(q.model?q.model.rotation.y:0);mo.mesh.rotation.y=mine?yw+Math.PI:yw;const spd=mine?Math.hypot(me.vel.x,me.vel.z):6;mo.mesh.rotation.x=mine?-me.vel.y*.03:0;animPet(mo.mesh,clock*2,1,dt);const f=F.get(k);if(f){f.g.visible=false;f.g.userData.blob.visible=false}
    if(mine&&mo.until-nowT<1200&&Math.floor(nowT/150)%2)mo.mesh.visible=false}
   for(let i=FB.length-1;i>=0;i--){const b=FB[i],e=(nowT-b.t)/230;if(e>=1){root.remove(b.s);puff(b.b,0xffb040,7,.55);puff(b.b,0xff4a10,4,.8);FB.splice(i,1);continue}b.s.position.lerpVectors(b.a,b.b,e);b.s.position.y+=Math.sin(e*3.14)*.25;b.s.scale.setScalar(.5+.2*Math.sin(nowT/40))}
