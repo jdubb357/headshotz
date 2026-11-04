@@ -46,7 +46,7 @@ export function brExtra(X){const{B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp
   bld({x:cx-14,z:cz-6,w:34,d:22,h:9,c:0x9ba3ab,tex:'metal',door:'s',loot:8,chest:1,win:0,rc:0x4a5560,dg:5.2});bld({x:cx+22,z:cz-22,w:14,d:10,h:5,c:0xc8bfae,tex:'concrete',door:'w',loot:4,chest:.8,rc:0x5a6068});bld({x:cx+26,z:cz+16,w:12,d:9,h:4,c:0xb9a58c,tex:'brick',door:'w',loot:4,chest:.7});
   // smokestacks (ladder + top loot) and tanks
   for(let i=0;i<2;i++){const x=cx+14+i*9,z=cz+2;B.cyl(x,0,z,2.2,28,i?0xa8553f:0xb86a50,'brick',{seg:14,r2:1.7});B.box(x,28,z,5,.5,5,0x4a4a4a,'metal',{gy:28});B.ladder(x+2.2*.85,z,0,28,'x+');lootAt(x,28.5,z,-1);if(i===0)B.brChests.push([x,28.5,z+1.4,0,-1]);B.spot(x,28.5,z)}
-  B.cyl(cx-46,0,cz+6,4.5,8,0x5a7a9a,'metal',{seg:20});B.cyl(cx-46,0,cz+18,4.5,8,0x5a7a9a,'metal',{seg:20});B.cyl(cx-46,0,cz-8,4.5,8,0x7a8a5a,'metal',{seg:20});
+  B.cyl(cx-46,0,cz+6,4.5,8,0x5a7a9a,'metal',{seg:20});B.cyl(cx-46,0,cz+18,4.5,8,0x5a7a9a,'metal',{seg:20});B.cyl(cx-46,0,cz-8,4.5,8,0x7a8a5a,'metal',{seg:20});for(const dz of[6,18,-8])B.ladder(cx-46+4.5*.85,cz+dz,0,8,'x+');
   // conveyor + pipes + crane + container yard + rails
   for(let k=0;k<5;k++)B.box(cx-28+k*6,0,cz+22,.3,1.6,.3,0x444a52,'metal',{shadow:false,solid:false});B.box(cx-16,1.6,cz+22,28,.35,1.6,0x2d3436,'metal',{solid:false,shadow:false});for(let k=0;k<6;k++)B.box(cx-28+k*5,1.95,cz+22,1.4,.5,1.2,0xc79a5c,'crate',{solid:false,shadow:false,local:true});
   for(let k=0;k<4;k++)B.box(cx-6+k*4,0,cz+34,.5,5,.5,0x888e96,'metal',{shadow:false});B.box(cx+2,5,cz+34,16,.7,.7,0xd0452a,'metal',{solid:false,shadow:false});
@@ -72,13 +72,13 @@ export function brExtra(X){const{B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp
  {const cx=-236,cz=36;for(const[px,pz,pw,pd]of[[cx+4,cz-24,76,14],[cx+4,cz+26,76,10],[cx-27,cz+2,14,38],[cx+37,cz+2,10,38]])patch(px,pz,pw,pd,'gravel',0xc9bd9a,1);water(cx+6,cz+2,52,38,0x2f86c8,.01);for(let k=0;k<5;k++)B.box(cx+6,.06,cz-14+k*7,52-k*2,.02,.6,0x9fd0f0,'plain',NS);
   B.box(cx+6,0,cz+2,24,.55,2.4,0x8a6a45,'planks',{gy:0,us:.5});lootAt(cx+18,.55,cz+2,-1);lootAt(cx-2,.55,cz+2,-1);B.brChests.push([cx+17,.55,cz+3,0,-1]);
   for(const[dx,dz,door]of[[-26,-14,'e'],[-24,14,'e'],[2,-30,'s'],[36,-16,'w'],[34,18,'w'],[2,30,'n']])bld({x:cx+dx,z:cz+dz,w:8.5,d:7.5,h:3.2,c:0x8a6a45,tex:'planks',door,loot:3,chest:.7,rc:0x4e3b2a,win:1});
-  bld({x:cx+8,z:cz-34,w:14,d:8,h:4,c:0xd8c9a8,tex:'planks',door:'s',loot:5,chest:.9,rc:0x6d4c41});
+  bld({x:cx+8,z:cz-42,w:14,d:8,h:4,c:0xd8c9a8,tex:'planks',door:'s',loot:5,chest:.9,rc:0x6d4c41});// v97: moved north so it no longer overlaps the house at cz-30
   for(const[x,z,c]of[[cx-6,cz+10,0xe8e8e8],[cx+24,cz-8,0xc0392b]]){B.box(x,.05,z,4,1.1,9,c,'metal',{gy:.05});B.box(x,1.15,z-1,2.6,1.6,3,0xf4f4f4,'plaster',{gy:1.15})}
   road(-172,30,cx+32,30,4,'dirt');lamp(cx+20,cz+8,1);for(let i=0;i<40;i++){const x=cx+rr(-60,60),z=cz+rr(-52,56);if(isFree(x,z,2.4)&&!(x>cx-22&&x<cx+34&&z>cz-18&&z<cz+22)){if(i%3)pine(x,z,rr(.9,1.4));else B.tree(x,z,rr(.9,1.3))}}
   for(let i=0;i<8;i++){const a=R()*6.28;B.bush(cx+6+Math.cos(a)*28,cz+2+Math.sin(a)*22,rr(.8,1.2))}block(cx+4,cz,78,66,0)}
  // ============ FROSTPEAK (mountains, NW corner) ============
  {const cx=-222,cz=-218;patch(cx-4,cz+2,88,108,'gravel',0xeef3f7,1);const L=[[62,56,5],[46,42,5],[32,30,5],[20,18,5]];let y=0;const ys=[];L.forEach(([w,d,hh],i)=>{ys.push(y);B.box(cx,y,cz,w,hh,d,_c.set(0x8b8f96).multiplyScalar(1-i*.05).getHex(),'rock',{gy:y,us:.1});B.box(cx,y+hh,cz,w*.94,.07,d*.94,0xf4f7fa,'plain',{solid:false,shadow:false});y+=hh});
-  L.forEach(([w,d,hh],i)=>{const n=Math.round(hh/.34),sh=hh/n,run=.5,len=run*n;if(i%2===0)B.stairs(cx+w/2+len,ys[i],cz+(i===2?4:-4),'x-',n,sh,run,2.4,0x9a9ea5,'rock');else B.stairs(cx+(i===3?-3:3),ys[i],cz+d/2+len,'z-',n,sh,run,2.4,0x9a9ea5,'rock')});
+  L.forEach(([w,d,hh],i)=>{const n=Math.ceil(hh/.45),sh=hh/n,run=.4,len=run*n;if(i%2===0)B.stairs(cx+w/2+len,ys[i],cz+(i===2?4:-4),'x-',n,sh,run,2.4,0x9a9ea5,'rock');else B.stairs(cx+(i===3?-3:3),ys[i],cz+d/2+len,'z-',n,sh,run,2.4,0x9a9ea5,'rock')});
   const top=y;bld({x:cx,z:cz,w:9,d:8,h:3,c:0x6f757d,tex:'concrete',door:'s',stairs:0,loot:5,chest:1,rc:0x3f444a,win:0,y:top});
   bld({x:cx-36,z:cz+26,w:12,d:9,h:3.6,c:0x8a6a45,tex:'planks',door:'e',loot:4,chest:.9,rc:0xeeeeee});bld({x:cx+44,z:cz+22,w:9,d:8,h:3.2,c:0x8a6a45,tex:'planks',door:'w',loot:3,chest:.7,rc:0xeeeeee});
   lootAt(cx-20,5,cz+6,-1);lootAt(cx+14,10,cz+4,-1);lootAt(cx,15,cz+6,-1);B.brChests.push([cx-21,5,cz-6,0,-1],[cx+15,10,cz-5,0,-1],[cx+8,15,cz-5,0,-1]);B.spot(cx,top,cz);
@@ -88,7 +88,7 @@ export function brExtra(X){const{B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp
  // ============ OLD GROWTH FOREST (SW corner) ============
  {const cx=-206,cz=204;patch(cx,cz,112,104,'forest',0xa09062,1);
   for(const[dx,dz,door]of[[-12,-14,'e'],[16,-6,'w'],[-2,16,'n'],[30,20,'w']])bld({x:cx+dx,z:cz+dz,w:8.5,d:7.5,h:3.2,c:0x6d4c41,tex:'planks',door,loot:4,chest:.8,rc:0x3e2f23,win:1});
-  tower(cx-32,cz-24,11);tower(cx+30,cz+34,10);tower(cx-14,cz+40,9);
+  tower(cx-36,cz-12,11);tower(cx+30,cz+34,10);tower(cx-14,cz+40,9);
   for(let i=0;i<10;i++){const x=cx+rr(-52,52),z=cz+rr(-50,50);if(!isFree(x,z,6))continue;const h=rr(14,19);B.cyl(x,0,z,1,h,0x5d4037,'rock',{seg:8,r2:.7});for(let k=0;k<4;k++)B.part('leaves',{g:G('ico',rr(4,5.5),1),p:[x+rr(-2.4,2.4),h-1+k*1.6,z+rr(-2.4,2.4)],c:_c.set(pick([0x2f5d3a,0x2a5234,0x37683f])).getHex(),ao:false});B.shadows.push([x,z,6,6])}
   for(let i=0;i<230;i++){const x=cx+rr(-58,58),z=cz+rr(-56,56);if(isFree(x,z,2.2))pine(x,z,rr(.9,1.7))}
   for(let i=0;i<14;i++){const x=cx+rr(-50,50),z=cz+rr(-50,50);if(isFree(x,z,3))B.box(x,0,z,rr(4,6),.7,.7,0x6d4c41,'planks',{us:.5})}

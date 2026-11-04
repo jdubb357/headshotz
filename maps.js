@@ -19,12 +19,14 @@ function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],li
   glow(x,y,z,w,h,d,c){glows.push({g:G('box',w,h,d),p:[x,y+h/2,z],c});return B},
   stairs(x,y,z,dir,n,sh,run,width,c,tex='concrete'){for(let i=0;i<n;i++){const h=sh*(i+1),off=run*i+run/2;const o={gy:y};
    if(dir==='x+')B.box(x+off,y,z,run,h,width,c,tex,o);if(dir==='x-')B.box(x-off,y,z,run,h,width,c,tex,o);if(dir==='z+')B.box(x,y,z+off,width,h,run,c,tex,o);if(dir==='z-')B.box(x,y,z-off,width,h,run,c,tex,o)}
-   const L=run*n,top=y+sh*n,dv={'x+':[1,0],'x-':[-1,0],'z+':[0,1],'z-':[0,-1]}[dir];links.push({a:[x-dv[0]*.9,y,z-dv[1]*.9],b:[x+dv[0]*(L+.7),top,z+dv[1]*(L+.7)]});return B},
+   const L=run*n,top=y+sh*n,dv={'x+':[1,0],'x-':[-1,0],'z+':[0,1],'z-':[0,-1]}[dir];if(B.keep){const hw=width/2+.35,ex=dv[0]!==0,K=(a0,a1,b0,b1,k0,k1)=>B.keep.push({x0:Math.min(a0,a1),x1:Math.max(a0,a1),z0:Math.min(b0,b1),z1:Math.max(b0,b1),y0:k0,y1:k1});
+ if(ex){K(x-dv[0]*1.8,x,z-hw,z+hw,y-.6,y+1.8);K(x,x+dv[0]*L,z-hw,z+hw,y-.6,top+1.8);K(x+dv[0]*L,x+dv[0]*(L+1.6),z-hw,z+hw,top+.1,top+1.8)}
+ else{K(x-hw,x+hw,z-dv[1]*1.8,z,y-.6,y+1.8);K(x-hw,x+hw,z,z+dv[1]*L,y-.6,top+1.8);K(x-hw,x+hw,z+dv[1]*L,z+dv[1]*(L+1.6),top+.1,top+1.8)}}links.push({a:[x-dv[0]*.9,y,z-dv[1]*.9],b:[x+dv[0]*(L+.7),top,z+dv[1]*(L+.7)]});return B},
   // climbable ladder on a wall face. n = outward normal of the wall ('x+','x-','z+','z-'); climb by holding forward
   ladder(x,z,y0,y1,n,c=0x8a8f98){const dv={'x+':[1,0],'x-':[-1,0],'z+':[0,1],'z-':[0,-1]}[n];const sx=dv[0]!==0;const px=x+dv[0]*.12,pz=z+dv[1]*.12;
    for(const s of[-.38,.38])add('metal',{g:G('box',sx?.06:.06,y1-y0+1,sx?.06:.06),p:[px+(sx?0:s),y0+(y1-y0+1)/2,pz+(sx?s:0)],c});
    for(let y=y0+.3;y<y1+.9;y+=.32)add('metal',{g:G('box',sx?.05:.76,.05,sx?.76:.05),p:[px,y,pz],c});
-   const cx=x+dv[0]*.4,cz=z+dv[1]*.4;ladders.push({x0:cx-(sx?.42:.55),x1:cx+(sx?.42:.55),z0:cz-(sx?.55:.42),z1:cz+(sx?.55:.42),y0:y0-.1,y1:y1+.25,n:dv});
+   const cx=x+dv[0]*.4,cz=z+dv[1]*.4;if(B.keep){const ex=dv[0]!==0,l0=ex?[x,x+dv[0]*1.7]:[x-.8,x+.8],l1=ex?[z-.8,z+.8]:[z,z+dv[1]*1.7];B.keep.push({x0:Math.min(...l0),x1:Math.max(...l0),z0:Math.min(...l1),z1:Math.max(...l1),y0:y0-.4,y1:y0+2.2});const t0=ex?[x-dv[0]*1.8,x]:[x-.8,x+.8],t1=ex?[z-.8,z+.8]:[z-dv[1]*1.8,z];B.keep.push({x0:Math.min(...t0),x1:Math.max(...t0),z0:Math.min(...t1),z1:Math.max(...t1),y0:y1+.1,y1:y1+2.2})}ladders.push({x0:cx-(sx?.42:.55),x1:cx+(sx?.42:.55),z0:cz-(sx?.55:.42),z1:cz+(sx?.55:.42),y0:y0-.1,y1:y1+.25,n:dv});
    links.push({a:[x+dv[0]*1.1,y0,z+dv[1]*1.1],b:[x-dv[0]*.9,y1,z-dv[1]*.9],ladder:1});return B},
   // foliage you can hide in (not solid; bots can't spot you inside unless close)
   hedge(x,z,w,d,h=1.9,c=0x3f8f3a,y=0){const r=rng(x*31+z*17);const n=Math.max(2,Math.round(w*d/1.4));for(let i=0;i<n;i++)add('leaves',{g:G('ico',.75+r()*.35,1),p:[x+(r()-.5)*w*.85,y+.6+r()*(h-1),z+(r()-.5)*d*.85],s:[1,1.15,1],c:_c.set(c).multiplyScalar(.8+r()*.35).getHex(),ao:false});
