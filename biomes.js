@@ -1,7 +1,7 @@
 // HeadShotz v91: Battle Royale BIOMES. Every named area of the island has its own atmosphere (sky / fog / light tint that blends as you walk between areas),
 // ambient particles (one pooled THREE.Points + one pooled LineSegments for the whole island: 2 draw calls), lightning, and an area-name banner.
 // Everything is generated in code (no third-party assets).
-import {THREE} from './gfx.js';
+import {THREE,G,mergeParts,rng} from './gfx.js';
 const H=c=>new THREE.Color(c);
 // sky:[top,mid,bottom] (blended into the sky dome), fog colour + [near,far] multipliers, hemisphere light (sky,ground,intensity x), sun (colour,intensity x), p = particle kind, pc = particle colours
 export const BIOMES={
@@ -10,7 +10,7 @@ export const BIOMES={
  'Golden Savanna':{ico:'🌾',c:'#ffc23a',sky:[0xd8782a,0xffc060,0xffe0a0],fog:0xf2d089,fk:[.8,.85],hemi:0xfff0c0,hg:0x9a7a30,hk:1.05,sun:0xffe0a0,sk:1.05,p:'pollen',pc:[0xfff0a0,0xffd060],glow:0xffc23a},
  'Nebula Realm':{ico:'🌌',c:'#b36bff',sky:[0x0a0224,0x3b1a8a,0xc46bff],fog:0x2a1060,fk:[.45,.55],hemi:0xcaa0ff,hg:0x2a0f5a,hk:.9,sun:0xc88aff,sk:.6,p:'sparkle',pc:[0xc78bff,0x7fd8ff,0xff9bf0],glow:0xb36bff},
  'Moonlit Lagoon':{ico:'🌙',c:'#3ee0d0',sky:[0x061a3a,0x0e5a7a,0x6fe8e0],fog:0x0e4a5a,fk:[.5,.62],hemi:0x9ff0ff,hg:0x0a3a4a,hk:.85,sun:0x9ff0ff,sk:.6,p:'bubble',pc:[0x7ff5ea,0xbafcff],glow:0x3ee0d0},
- 'Thunder Isle':{ico:'⚡',c:'#6fa0ff',sky:[0x0a0f1e,0x2a3550,0x6a7a9a],fog:0x2a3548,fk:[.4,.5],hemi:0xa8b8d8,hg:0x2a3140,hk:.75,sun:0xb0c4ff,sk:.45,p:'rain',pc:[0xbcd0ff,0xe8f0ff],glow:0x8fb0ff,storm:1},
+ 'Thunder Isle':{ico:'⚡',c:'#6fa0ff',sky:[0x0a0f1e,0x2a3550,0x6a7a9a],fog:0x2a3548,fk:[.4,.5],hemi:0xc0d0f0,hg:0x3a4358,hk:1.0,sun:0xc0d0ff,sk:.75,p:'rain',pc:[0xbcd0ff,0xe8f0ff],glow:0x8fb0ff,storm:1},
  'Crystal Caverns':{ico:'💎',c:'#4fe8ff',sky:[0x08143a,0x1a4a8a,0xff8fe0],fog:0x1a3a6a,fk:[.5,.6],hemi:0xb8e8ff,hg:0x5a2a6a,hk:.9,sun:0xc8f0ff,sk:.7,p:'sparkle',pc:[0x6ff0ff,0xff8fe8,0xffffff],glow:0x4fe8ff},
  'Aurora Ridge':{ico:'🌠',c:'#5affb0',sky:[0x05123a,0x1a8a6a,0xa86bff],fog:0x1a4a5a,fk:[.55,.65],hemi:0xb0ffe0,hg:0x1a3a5a,hk:.9,sun:0xb0ffd8,sk:.65,p:'sparkle',pc:[0x5affb0,0xb08aff,0xffffff],glow:0x5affb0,sky2:[0x1a0a5a,0x6a2ab0,0x5affb0]},
  'Firefly Hollow':{ico:'🌿',c:'#b6ff4a',sky:[0x061a22,0x1a4a3a,0x7ad06a],fog:0x1a4030,fk:[.55,.65],hemi:0xc8ffc0,hg:0x1a4020,hk:.85,sun:0xe8ffb0,sk:.7,p:'firefly',pc:[0xd8ff5a,0xfff08a],glow:0xb6ff4a},
@@ -18,7 +18,7 @@ export const BIOMES={
  'Rust Valley':{ico:'🏭',c:'#e8803a',sky:[0x4a3a30,0xc07a4a,0xe8b88a],fog:0xb8845a,fk:[.5,.65],hemi:0xffd0a0,hg:0x6a4a30,hk:.95,sun:0xffb070,sk:.85,p:'ash',pc:[0xc79a5c,0x8a7a6a],glow:0xe8803a},
  'Blossom Village':{ico:'🌸',c:'#ff8fc0',sky:[0xd870a8,0xffb0d0,0xfff0f4],fog:0xffd8e8,fk:[.7,.8],hemi:0xfff0f8,hg:0x9a6a8a,hk:1.05,sun:0xffe0f0,sk:1.0,p:'petal',pc:[0xffb7d5,0xffd9e8],glow:0xff8fc0},
  'Toxic Swamp':{ico:'☣️',c:'#8aff3a',sky:[0x0a1a08,0x3a5a10,0x9ad030],fog:0x3a5a18,fk:[.3,.45],hemi:0xc8ff90,hg:0x2a4010,hk:.85,sun:0xc8ff70,sk:.6,p:'bubble',pc:[0x9aff3a,0xd8ff7a],glow:0x8aff3a},
- 'Frostbite Peaks':{ico:'🏔️',c:'#bfe8ff',sky:[0x2a5a9a,0xbfdcf5,0xf4fbff],fog:0xdcecf8,fk:[.35,.55],hemi:0xe8f6ff,hg:0x8aa0b8,hk:1.1,sun:0xf0f8ff,sk:.85,p:'snow',pc:[0xffffff,0xdbefff],glow:0xbfe8ff},
+ 'Frostbite Peaks':{sv:.85,ico:'🏔️',c:'#bfe8ff',sky:[0x2a6aca,0xa8d0f0,0xe8f6ff],fog:0xdcecf8,fk:[.35,.55],hemi:0xe8f6ff,hg:0x8aa0b8,hk:1.1,sun:0xf0f8ff,sk:.85,p:'snow',pc:[0xffffff,0xdbefff],glow:0xbfe8ff},
  'Jungle Ruins':{ico:'🌴',c:'#2fd06a',sky:[0x0a3a2a,0x2a8a50,0x9ae0a0],fog:0x2a6a40,fk:[.45,.6],hemi:0xc0ffd0,hg:0x1a4a20,hk:.9,sun:0xffffc0,sk:.8,p:'firefly',pc:[0xe8ff6a,0xb6ff4a],glow:0x2fd06a},
  'Sandstorm Dunes':{ico:'🏜️',c:'#f2b45a',sky:[0xd09050,0xe8b070,0xffd8a0],fog:0xd8a868,fk:[.2,.4],hemi:0xffe0b0,hg:0x9a7040,hk:1.0,sun:0xffd090,sk:.9,p:'sand',pc:[0xe8c68a,0xd7a860],glow:0xf2b45a}
 };
@@ -35,7 +35,8 @@ const KIND={
  pollen:{up:[.05,.35],dr:.5,wander:.5,sz:[.12,.22],life:[4,8],pulse:1,add:1},
  rain:{up:[0,0],dr:0,sz:[.1,.1],life:[1,1],add:0}
 };
-const VS=`attribute float size;attribute float alpha;attribute vec3 col;varying float vA;varying vec3 vC;uniform float scale;void main(){vA=alpha;vC=col;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=clamp(size*scale/max(.5,-mv.z),2.5,70.);gl_Position=projectionMatrix*mv;}`;
+const MAXP=(typeof navigator!=='undefined'&&(('ontouchstart' in window)||navigator.maxTouchPoints>0))?'34.':'70.';
+const VS=`attribute float size;attribute float alpha;attribute vec3 col;varying float vA;varying vec3 vC;uniform float scale;void main(){vA=alpha;vC=col;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=clamp(size*scale/max(.5,-mv.z),2.5,${MAXP});gl_Position=projectionMatrix*mv;}`;
 const FS=`varying float vA;varying vec3 vC;void main(){float d=length(gl_PointCoord-.5);float a=smoothstep(.5,.0,d);a*=a;if(a<.01)discard;gl_FragColor=vec4(vC,a*vA);}`;
 
 // ---- procedural ground textures (one per biome, built lazily the first time you come near an area)
@@ -57,7 +58,7 @@ function groundCanvas(name,S){const cv=document.createElement('canvas');cv.width
   case 'Golden Savanna':fill('#c9a050');blot(['#d8b560','#b88c40','#e8c878'],50,30,80,.8);strokes(['#e8d080','#a8803a','#f0dc90','#8a6a2a'],900,16,1.6,.7);dots(['#6a5020'],40,1,3,.5);break;
   case 'Nebula Realm':fill('#240c50');blot(['#5a22b8','#b050ff','#2a1a90','#ff70e0','#38a8ff'],46,40,110,.7);cracks('#e8c8ff','#a050ff',8,1.6);dots(['#fff','#d8b8ff','#9ae8ff'],110,1,2.6,.9);break;
   case 'Moonlit Lagoon':fill('#0c4458');blot(['#14707a','#0a3048','#3ac8c0'],40,30,90,.7);ripples('#9ffcf2',16,10,.35,2);dots(['#fff','#bafcff'],50,1,2.4,.8);break;
-  case 'Thunder Isle':fill('#333b4c');blot(['#4a5468','#252c3a','#5a6a84'],55,25,80,.8);cracks('#8a96b0','#171c26',12,1.4);blot(['#7a90c0','#a8c0f0'],10,16,40,.35);break;
+  case 'Thunder Isle':fill('#56637e');blot(['#6a7a98','#3a4660','#8095b8'],55,25,80,.8);cracks('#b8c6e0','#222a3c',12,1.6);blot(['#9ab4e8','#c8dcff'],14,16,44,.45);dots(['#e8f0ff'],40,1,3,.8);break;
   case 'Crystal Caverns':fill('#142e5c');blot(['#244a8a','#0c1e44'],30,40,100,.8);facets(['#4fe8ff','#ff8fe8','#8a9aff','#b8f8ff'],150,50,.38);dots(['#fff'],70,1,2.4,.9);break;
   case 'Aurora Ridge':fill('#d8ecf4');blot(['#ffffff','#b8dcee'],40,30,90,.8);blot(['#5affb0','#b08aff','#4ad8ff'],24,40,100,.45);ripples('#7affd0',8,26,.28,6);dots(['#fff'],80,1,2.4,.9);break;
   case 'Firefly Hollow':fill('#173a1e');blot(['#256a30','#0e2a14','#3a8a3a'],60,20,70,.85);strokes(['#4aa04a','#1a5a24'],400,14,1.8,.7);dots(['#d8ff5a','#fff08a'],40,1.4,3,.9);dots(['#b86aff','#ff8fd0'],14,3,6,.85);break;
@@ -71,11 +72,36 @@ function groundCanvas(name,S){const cv=document.createElement('canvas');cv.width
   default:fill('#667');}
  // soft circular mask
  x.globalCompositeOperation='destination-in';const g=x.createRadialGradient(S/2,S/2,S*.28,S/2,S/2,S*.5);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(.62,'rgba(0,0,0,.92)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,S,S);x.globalCompositeOperation='source-over';return cv}
+
+// ---- per-biome horizon silhouettes (built once per biome, faded in over the generic city ring)
+const HZK={'Neon City':'tower','Inferno Forge':'volcano','Golden Savanna':'mesa','Nebula Realm':'island','Moonlit Lagoon':'humps','Thunder Isle':'cliffs','Crystal Caverns':'crystals','Aurora Ridge':'peaks','Firefly Hollow':'mush','Phantom Keep':'castle','Rust Valley':'stack','Blossom Village':'pagoda','Toxic Swamp':'dead','Frostbite Peaks':'peaks','Jungle Ruins':'temple','Sandstorm Dunes':'pyramid'};
+function horizonMesh(name,b){const r=rng(name.length*977+name.charCodeAt(0)*31),kind=HZK[name]||'peaks';const F=new THREE.Color(b.fog),D=new THREE.Color(0x0c0c18),L=new THREE.Color(b.sky[1]);
+ const tone=(k,glow)=>F.clone().lerp(D,.28+k*.35).lerp(L,.12).getHex();const parts=[];const R=330;const N=kind==='tower'||kind==='stack'?90:64;
+ const add=(g,x,y,z,c,rot,sc)=>parts.push({g,p:[x,y,z],r:rot,s:sc,c});
+ for(let i=0;i<N;i++){const a=i/N*Math.PI*2+r()*.05,d=R+r()*40,x=Math.cos(a)*d,z=Math.sin(a)*d,k=r(),c=tone(k);
+  switch(kind){
+   case 'tower':{const h=20+r()*r()*110,w=10+r()*16;add(G('box',w,h,w),x,h/2-4,z,c,[0,-a,0]);if(r()<.3)add(G('box',2,18,2),x,h+5,z,c);break}
+   case 'stack':{const h=30+r()*70;add(G('cyl',5,6.5,h,7),x,h/2-4,z,c);if(r()<.5)add(G('box',24+r()*20,14+r()*16,18),x+8,5,z,c,[0,-a,0]);break}
+   case 'volcano':{const h=40+r()*70,w=50+r()*40;add(G('cone',w,h,7),x,h/2-6,z,c,[0,r()*6,0]);if(h>70)add(G('cone',w*.18,h*.12,6),x,h-10,z,0xff5a14,[0,0,0]);break}
+   case 'mesa':{const h=16+r()*26,w=45+r()*50;add(G('box',w,h,w*.5),x,h/2-4,z,c,[0,-a,0]);if(r()<.5){add(G('cyl',1,1.2,14,5),x+20,3,z,c);add(G('cyl',9,6,2,8),x+20,14,z,c)}break}
+   case 'island':{const s=14+r()*20,y=40+r()*60;add(G('dode',s),x,y,z,c,[r()*3,r()*3,0],[1.5,.55,1.2]);add(G('cone',s*.5,s*1.3,5),x,y-s*.65,z,c,[Math.PI,0,0]);break}
+   case 'humps':{const h=8+r()*16,w=50+r()*50;add(G('sph',w,8,5),x,-4,z,c,[0,0,0],[1,h/w,.6]);if(r()<.08)add(G('cyl',2,3,50,6),x,22,z,c);break}
+   case 'cliffs':{const h=40+r()*90;add(G('cone',10+r()*14,h,4),x,h/2-6,z,c,[(r()-.5)*.2,r()*3,(r()-.5)*.2]);break}
+   case 'crystals':{const h=50+r()*100;add(G('cone',8+r()*10,h,5),x,h/2-6,z,c,[(r()-.5)*.3,r()*3,(r()-.5)*.3]);if(r()<.6)add(G('cone',5,h*.6,5),x+10,h*.3-6,z,tone(.2),[.2,r()*3,-.2]);break}
+   case 'peaks':{const h=60+r()*90,w=70+r()*40;add(G('cone',w,h,6),x,h/2-6,z,c,[0,r()*6,0]);add(G('cone',w*.3,h*.3,6),x,h*.85-6,z,0xf4fbff);break}
+   case 'mush':{const h=30+r()*50;add(G('cyl',3,4,h,6),x,h/2-4,z,c);add(G('sph',16+r()*14,8,5),x,h,z,c,[0,0,0],[1,.45,1]);break}
+   case 'castle':{const h=30+r()*45,w=14+r()*10;add(G('box',w,h,w),x,h/2-4,z,c,[0,-a,0]);add(G('cone',w*.8,18,4),x,h+5,z,c,[0,.78,0]);if(r()<.4)add(G('box',40,16,6),x+22,4,z,c,[0,-a,0]);break}
+   case 'pagoda':{if(r()<.5){const h=70+r()*50;add(G('cone',80,h,6),x,h/2-6,z,c)}else{let y=-4;for(let t=0;t<4;t++){const w=22-t*4;add(G('box',w,6,w),x,y+3,z,c,[0,-a,0]);add(G('cone',w*.85,4,4),x,y+8,z,c,[0,.78,0]);y+=9}}break}
+   case 'dead':{const h=25+r()*40;add(G('cyl',1.2,2.6,h,5),x,h/2-4,z,c);for(let t=0;t<3;t++)add(G('cyl',.5,1,h*.45,4),x+(t-1)*5,h*.8,z,c,[0,0,(t-1)*.9]);break}
+   case 'temple':{if(r()<.6){let y=-4;for(let t=0;t<5;t++){const w=40-t*7;add(G('box',w,7,w),x,y+3.5,z,c,[0,-a,0]);y+=7}}else{const h=40+r()*30;add(G('cyl',1.5,2,h,5),x,h/2-4,z,c);add(G('sph',12,7,4),x,h,z,c,[0,0,0],[1,.5,1])}break}
+   case 'pyramid':{if(r()<.25)add(G('cone',50+r()*25,40+r()*30,4),x,18,z,c,[0,.78,0]);else add(G('sph',60+r()*50,8,5),x,-4,z,c,[0,0,0],[1,(10+r()*22)/80,.7]);break}
+  }}
+ const m=new THREE.Mesh(mergeParts(parts),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,depthWrite:false,transparent:true,opacity:0}));m.renderOrder=-9;m.frustumCulled=false;m.visible=false;return m}
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const sm=(a,b,x)=>{x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x)};
 export function initBiomes(o){const{scene,camera,renderer,hemi,sun,zones:getZones,isTouch,qLevel,thunder,show}=o;
  let ZN=[],base=null,on=false;const S={t:0,b:null,flash:0,nextL:6,bolt:0,shown:null,timeI:0,time:0};
- const q=qLevel();const N0=isTouch?150:(q==='low'?160:q==='medium'?260:360),NR=isTouch?90:(q==='low'?100:220);
+ const q=qLevel();const N0=isTouch?110:(q==='low'?160:q==='medium'?260:360),NR=isTouch?60:(q==='low'?100:220);
  // ---- pooled particles (1 draw call)
  const N=N0,P=new Float32Array(N*3),V=new Float32Array(N*3),L=new Float32Array(N*2),Z=new Float32Array(N),PH=new Float32Array(N),Cc=new Float32Array(N*3),Al=new Float32Array(N);
  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(P,3));geo.setAttribute('size',new THREE.BufferAttribute(Z,1));geo.setAttribute('alpha',new THREE.BufferAttribute(Al,1));geo.setAttribute('col',new THREE.BufferAttribute(Cc,3));
@@ -88,32 +114,35 @@ export function initBiomes(o){const{scene,camera,renderer,hemi,sun,zones:getZone
  // ---- lightning bolt (1 object, 3 jittered strands)
  const BS=14,bp=new Float32Array(3*BS*2*2*3),bg=new THREE.BufferGeometry();bg.setAttribute('position',new THREE.BufferAttribute(bp,3));
  const bm=new THREE.LineBasicMaterial({color:0xdfe9ff,transparent:true,opacity:0,depthWrite:false,fog:false,blending:THREE.AdditiveBlending});const bolt=new THREE.LineSegments(bg,bm);bolt.frustumCulled=false;bolt.visible=false;bolt.renderOrder=22;scene.add(bolt);
- const grp=new THREE.Group();scene.add(grp);const dMade={};const TS=isTouch||q==='low'?256:512,glowSet=new Set(['Neon City','Inferno Forge','Crystal Caverns','Nebula Realm','Toxic Swamp','Aurora Ridge']);
+ const grp=new THREE.Group();scene.add(grp);const dMade={};const TS=isTouch||q==='low'?256:512,glowSet=new Set(['Neon City','Inferno Forge','Crystal Caverns','Nebula Realm','Toxic Swamp','Aurora Ridge','Thunder Isle']);
  function decal(z){if(dMade[z.n]||!BIOMES[z.n])return;dMade[z.n]=1;const tex=new THREE.CanvasTexture(groundCanvas(z.n,TS));tex.anisotropy=2;if(THREE.SRGBColorSpace)tex.colorSpace=THREE.SRGBColorSpace;
   const gl=glowSet.has(z.n),m=new THREE.MeshLambertMaterial({map:tex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3,emissive:0xffffff,emissiveMap:tex,emissiveIntensity:gl?.8:.3});
   const R=z.r*1.18,mesh=new THREE.Mesh(new THREE.PlaneGeometry(R*2,R*2),m);mesh.rotation.x=-Math.PI/2;mesh.position.set(z.x,.05,z.z);mesh.renderOrder=1;mesh.receiveShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();grp.add(mesh)}
+ const hzM={};let hzParent=null;
  const col=new THREE.Color(),tmp=new THREE.Color();
  let kind=null,pcs=[0xffffff];const BOX=26,BH=16;
  function setKind(bi){const b=bi?BIOMES[bi]:null;kind=b?KIND[b.p]:null;pcs=b?b.pc:[0xffffff];for(let i=0;i<N;i++){L[i*2+1]=0;Al[i]=0}}
  function spawn(i,cx,cy,cz,first){const k=kind||KIND.sparkle;const a=i*3;P[a]=cx+rnd(-BOX,BOX);P[a+2]=cz+rnd(-BOX,BOX);
   const fall=k.up[1]<0,rise=k.up[0]>.2;P[a+1]=cy+(first?rnd(-4,BH):(fall?rnd(BH*.6,BH):rise?rnd(-5,2):rnd(-3,BH*.7)));
-  const up=rnd(k.up[0],k.up[1]);V[a]=rnd(-k.dr,k.dr)+(k.wind?rnd(k.wind[0],k.wind[1]):0);V[a+1]=up;V[a+2]=rnd(-k.dr,k.dr);L[i*2]=0;L[i*2+1]=rnd(k.life[0],k.life[1])*(first?rnd(.2,1):1);Z[i]=rnd(k.sz[0],k.sz[1])*(isTouch?2.4:2.1);PH[i]=rnd(0,6.28);
+  const up=rnd(k.up[0],k.up[1]);V[a]=rnd(-k.dr,k.dr)+(k.wind?rnd(k.wind[0],k.wind[1]):0);V[a+1]=up;V[a+2]=rnd(-k.dr,k.dr);L[i*2]=0;L[i*2+1]=rnd(k.life[0],k.life[1])*(first?rnd(.2,1):1);Z[i]=rnd(k.sz[0],k.sz[1])*(isTouch?1.7:2.1);PH[i]=rnd(0,6.28);
   col.set(pcs[(Math.random()*pcs.length)|0]);Cc[a]=col.r;Cc[a+1]=col.g;Cc[a+2]=col.b}
- function begin(def,sky,cloudMat,horMat,cloud2){base={cm:cloudMat||null,cc:cloudMat?cloudMat.color.clone():null,co:cloudMat?cloudMat.opacity:1,c2o:cloud2?cloud2.opacity:1,c2:cloud2||null,c2c:cloud2?cloud2.color.clone():null,hm:horMat||null,hc2:horMat?horMat.color.clone():null,fog:scene.fog?scene.fog.color.clone():H(0xbcd8ee),near:scene.fog?scene.fog.near:110,far:scene.fog?scene.fog.far:330,bg:scene.background&&scene.background.isColor?scene.background.clone():H(0x86cbff),
+ function begin(def,sky,cloudMat,horMat,cloud2,skyGrp){hzParent=skyGrp||null;base={cm:cloudMat||null,cc:cloudMat?cloudMat.color.clone():null,co:cloudMat?cloudMat.opacity:1,c2o:cloud2?cloud2.opacity:1,c2:cloud2||null,c2c:cloud2?cloud2.color.clone():null,hm:horMat||null,hc2:horMat?horMat.color.clone():null,fog:scene.fog?scene.fog.color.clone():H(0xbcd8ee),near:scene.fog?scene.fog.near:110,far:scene.fog?scene.fog.far:330,bg:scene.background&&scene.background.isColor?scene.background.clone():H(0x86cbff),
    hc:hemi.color.clone(),hg:hemi.groundColor.clone(),hi:hemi.intensity,sc:sun.color.clone(),si:sun.intensity,sky:sky?[sky.top.value.clone(),sky.mid.value.clone(),sky.bot.value.clone()]:null,sunC:sky&&sky.sunCol?sky.sunCol.value.clone():null,sunI:sky&&sky.sunI?sky.sunI.value:1,skyU:sky};
   ZN=getZones()||[];grp.visible=true;S.t=0;S.b=null;S.shown=null;S.flash=0;on=true;for(let i=0;i<N;i++){L[i*2+1]=0;Al[i]=0}
   const w=renderer.getSize(new THREE.Vector2());mat.uniforms.scale.value=w.y*.5;}
- function end(){if(!on)return;on=false;grp.visible=false;pts.visible=false;rain.visible=false;bolt.visible=false;if(base){apply(0,null,0)}base=null}
+ function end(){if(!on)return;on=false;for(const k in hzM)hzM[k].visible=false;grp.visible=false;pts.visible=false;rain.visible=false;bolt.visible=false;if(base){apply(0,null,0)}base=null}
  function apply(t,b,flash){if(!base)return;const k=Math.min(1,t*.95),ks=Math.min(1,t*1.12);
   if(scene.fog){scene.fog.color.copy(base.fog);if(b)scene.fog.color.lerp(tmp.set(b.fog),k);if(flash)scene.fog.color.lerp(tmp.set(0xdfe9ff),flash*.45);const f=b?1+(b.fk[0]-1)*k:1,f2=b?1+(b.fk[1]-1)*k:1;scene.fog.near=base.near*f;scene.fog.far=base.far*f2}
   if(scene.background&&scene.background.isColor){scene.background.copy(base.bg);if(b)scene.background.lerp(tmp.set(b.sky[1]),ks);if(flash)scene.background.lerp(tmp.set(0xdfe9ff),flash*.5)}
   hemi.color.copy(base.hc);hemi.groundColor.copy(base.hg);if(b){hemi.color.lerp(tmp.set(b.hemi),k);hemi.groundColor.lerp(tmp.set(b.hg),k)}hemi.intensity=base.hi*(b?1+(b.hk-1)*k:1)*(1+flash*2.2);
   sun.color.copy(base.sc);if(b)sun.color.lerp(tmp.set(b.sun),k);sun.intensity=base.si*(b?1+(b.sk-1)*k:1)*(1+flash*1.2);
-  if(base.cm){base.cm.color.copy(base.cc);base.cm.opacity=base.co*(1-.55*(b?ks:0));if(b)base.cm.color.lerp(tmp.set(b.sky[1]).lerp(col.set(0xffffff),.1),ks*.95);if(flash)base.cm.color.lerp(col.set(0xdfe9ff),flash*.6)}
-  if(base.c2){base.c2.color.copy(base.c2c);base.c2.opacity=base.c2o*(1-.6*(b?ks:0));if(b)base.c2.color.lerp(tmp.set(b.sky[1]).lerp(col.set(0xffffff),.1),ks*.95);if(flash)base.c2.color.lerp(col.set(0xdfe9ff),flash*.6)}
-  if(base.hm){base.hm.color.copy(base.hc2);if(b)base.hm.color.lerp(tmp.set(b.fog).lerp(col.set(0xffffff),.3),ks*.8)}
+  if(base.cm){base.cm.color.copy(base.cc);base.cm.opacity=base.co*(1-.55*(b?ks:0));if(b)base.cm.color.lerp(tmp.set(b.sky[1]).lerp(col.set(0xffffff),.5),ks*.95);if(flash)base.cm.color.lerp(col.set(0xdfe9ff),flash*.6)}
+  if(base.c2){base.c2.color.copy(base.c2c);base.c2.opacity=base.c2o*(1-.6*(b?ks:0));if(b)base.c2.color.lerp(tmp.set(b.sky[1]).lerp(col.set(0xffffff),.5),ks*.95);if(flash)base.c2.color.lerp(col.set(0xdfe9ff),flash*.6)}
+  if(base.hm){base.hm.color.copy(base.hc2);base.hm.transparent=true;base.hm.opacity=b?Math.max(0,1-ks*1.05):1;
+   for(const k in hzM)hzM[k].visible=false;
+   if(b&&hzParent){const nm=S.b;let m=hzM[nm];if(!m){m=hzM[nm]=horizonMesh(nm,b);hzParent.add(m)}m.visible=ks>.02;m.material.opacity=Math.min(1,ks*1.05)}}
   if(base.skyU&&base.sunC){const U=base.skyU;U.sunCol.value.copy(base.sunC);if(b)U.sunCol.value.lerp(tmp.set(b.sun),ks*.6).multiplyScalar(1-.65*ks);U.sunI.value=base.sunI*(b?1-.5*ks:1)}
-  if(base.skyU){const U=base.skyU,al=b&&b.sky2?(Math.sin(S.time*.35)+1)/2:0;for(let i=0;i<3;i++){const u=[U.top,U.mid,U.bot][i];u.value.copy(base.sky[i]);if(b){const tgt=b.sky2?tmp.set(b.sky[i]).lerp(col.set(b.sky2[i]),al):tmp.set(b.sky[i]);u.value.lerp(tgt,ks)}if(flash)u.value.lerp(col.set(0xdfe9ff),flash*.55)}}}
+  if(base.skyU){const U=base.skyU,al=b&&b.sky2?(Math.sin(S.time*.35)+1)/2:0;for(let i=0;i<3;i++){const u=[U.top,U.mid,U.bot][i];u.value.copy(base.sky[i]);if(b){const tgt=b.sky2?tmp.set(b.sky[i]).lerp(col.set(b.sky2[i]),al):tmp.set(b.sky[i]);tgt.multiplyScalar(b.sv||.6);u.value.lerp(tgt,ks)}if(flash)u.value.lerp(col.set(0xdfe9ff),flash*.55)}}}
  function update(dt,pos,air){if(!on||!base)return;dt=Math.min(dt,.1);S.time+=dt;S.mk=0;
   let best=null,bw=0;for(const z of ZN){if(!dMade[z.n]&&Math.hypot(pos.x-z.x,pos.z-z.z)<z.r*2.6&&!S.mk){decal(z);S.mk=1}const d=Math.hypot(pos.x-z.x,pos.z-z.z),w=1-d/(z.r*1.45);if(w>bw){bw=w;best=z}}
   const tgtB=best&&BIOMES[best.n]?best.n:null,want=tgtB?sm(0,.3,bw):0;

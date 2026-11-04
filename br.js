@@ -128,7 +128,7 @@ export function brDef({G,rng,_c}){
    lamp(cx-14,cz-4,1);block(cx+6,cz+10,46,38,0)}
   // ============ connecting roads + wilderness ============
   brExtra({B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp,road,block,isFree,lootAt,patch,NS,PAL});
-  biomeProps({B,G,rr,pick,isFree,block,zones:BR_ZONES});
+  biomeProps({B,G,rr,pick,isFree:(x,z,m)=>isFree(x,z,m)&&!B.brChests.some(c=>Math.abs(c[0]-x)<5&&Math.abs(c[2]-z)<5),block,zones:BR_ZONES});
   road(0,70,0,108,5);road(-70,0,-70,-12,4);road(70,-34,112,-60,4);road(0,-70,0,-110,5);road(-100,-12,-100,-120,4);
   const zones=[[0,0,66],[112,-104,52],[108,108,56],[-122,-12,56],[-18,150,50],[-18,-142,48],[-128,118,48],[158,2,36],[-132,-128,44],...BR_ZONES2.map(z=>[z.x,z.z,z.r+6])];
   for(let i=0;i<460;i++){const x=rr(-262,262),z=rr(-262,262);if(zones.some(([a,b,r])=>Math.hypot(x-a,z-b)<r))continue;if(!isFree(x,z,2.2))continue;const k=R();if(k<.5)B.tree(x,z,rr(.9,1.5));else if(k<.72)pine(x,z,rr(.9,1.5));else if(k<.88)rock(x,z,rr(.7,1.6));else B.bush(x,z,rr(.8,1.4))}
