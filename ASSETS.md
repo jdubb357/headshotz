@@ -89,3 +89,6 @@ No third-party assets. Shadow Bat ("Nyx") and Ember Dragon ("Cinder") are origin
 
 ## v95 — Pet batch 2
 No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunder Hawk) are original in-code models (`petmodels2.js`, built with `petkit.js`); abilities live in `petabil.js`.
+
+## v96 — Pet batch 3
+No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
