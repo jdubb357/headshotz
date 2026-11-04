@@ -17,9 +17,9 @@ function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],li
   part(tex,pt,solid){add(tex,pt);if(solid)cols.push(solid);return B},
   cyl(x,y,z,r,h,c,tex='metal',o={}){if(!o.novis)add(tex,{g:G('cyl',r,o.r2??r,h,o.seg||10),p:[x,y+h/2,z],c,us:o.us,gy:o.gy??0,ao:o.ao});if(o.solid!==false){const k=r*.85;cols.push({x0:x-k,x1:x+k,y0:y,y1:y+h,z0:z-k,z1:z+k,s:tex})}if(o.shadow!==false&&y<.06)shadows.push([x,z,r*2+.5,r*2+.5]);return B},
   glow(x,y,z,w,h,d,c){glows.push({g:G('box',w,h,d),p:[x,y+h/2,z],c});return B},
-  stairs(x,y,z,dir,n,sh,run,width,c,tex='concrete'){for(let i=0;i<n;i++){const h=sh*(i+1),off=run*i+run/2;const o={gy:y};
+  stairs(x,y,z,dir,n,sh,run,width,c,tex='concrete'){const _i0=cols.length;for(let i=0;i<n;i++){const h=sh*(i+1),off=run*i+run/2;const o={gy:y};
    if(dir==='x+')B.box(x+off,y,z,run,h,width,c,tex,o);if(dir==='x-')B.box(x-off,y,z,run,h,width,c,tex,o);if(dir==='z+')B.box(x,y,z+off,width,h,run,c,tex,o);if(dir==='z-')B.box(x,y,z-off,width,h,run,c,tex,o)}
-   const L=run*n,top=y+sh*n,dv={'x+':[1,0],'x-':[-1,0],'z+':[0,1],'z-':[0,-1]}[dir];if(B.keep){const hw=width/2+.35,ex=dv[0]!==0,K=(a0,a1,b0,b1,k0,k1)=>B.keep.push({x0:Math.min(a0,a1),x1:Math.max(a0,a1),z0:Math.min(b0,b1),z1:Math.max(b0,b1),y0:k0,y1:k1});
+   for(let k=_i0;k<cols.length;k++)cols[k]._st=1;const L=run*n,top=y+sh*n,dv={'x+':[1,0],'x-':[-1,0],'z+':[0,1],'z-':[0,-1]}[dir];if(B.keep){const hw=width/2+.35,ex=dv[0]!==0,K=(a0,a1,b0,b1,k0,k1)=>B.keep.push({x0:Math.min(a0,a1),x1:Math.max(a0,a1),z0:Math.min(b0,b1),z1:Math.max(b0,b1),y0:k0,y1:k1});
  if(ex){K(x-dv[0]*1.8,x,z-hw,z+hw,y-.6,y+1.8);K(x,x+dv[0]*L,z-hw,z+hw,y-.6,top+1.8);K(x+dv[0]*L,x+dv[0]*(L+1.6),z-hw,z+hw,top+.1,top+1.8)}
  else{K(x-hw,x+hw,z-dv[1]*1.8,z,y-.6,y+1.8);K(x-hw,x+hw,z,z+dv[1]*L,y-.6,top+1.8);K(x-hw,x+hw,z+dv[1]*L,z+dv[1]*(L+1.6),top+.1,top+1.8)}}links.push({a:[x-dv[0]*.9,y,z-dv[1]*.9],b:[x+dv[0]*(L+.7),top,z+dv[1]*(L+.7)]});return B},
   // climbable ladder on a wall face. n = outward normal of the wall ('x+','x-','z+','z-'); climb by holding forward

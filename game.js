@@ -248,9 +248,10 @@ function rayCols(o,d,t){if(!CG){for(const c of cols){const r=rayBox(o,d,c.x0,c.y
 function supportAt(x,y,z){if(Math.abs(x)<groundHalf[0]&&Math.abs(z)<groundHalf[1]&&y<1.5)return true;for(const c of CN(x,z,.6,_cbA))if(x>c.x0-.2&&x<c.x1+.2&&z>c.z0-.2&&z<c.z1+.2&&c.y1<=y+.6&&c.y1>y-2.5)return true;return false}
 function onFloor(p){return Math.abs(p.x)<groundHalf[0]&&Math.abs(p.z)<groundHalf[1]}
 function physStep(e,dt){dt=Math.min(dt,.25);const n=Math.ceil(dt/(1/60)-1e-6);if(n>1){let b=0,l=0;for(let i=0;i<n;i++){physStep1(e,dt/n);b=b||e.bump;l=l||e.landed}e.bump=b;e.landed=l;return}physStep1(e,dt)}
-function physStep1(e,dt){const p=e.pos,v=e.vel;if(e.nc){p.x+=v.x*dt;p.y=Math.max(0,p.y+v.y*dt);p.z+=v.z*dt;e.ground=false;e.landed=false;return}const py0=p.y;if(!(isFinite(p.x)&&isFinite(p.y)&&isFinite(p.z))){const L=e.lastG||[0,0,0];p.x=L[0];p.y=L[1];p.z=L[2];v.x=v.y=v.z=0}if(!isFinite(v.x+v.y+v.z))v.x=v.y=v.z=0;v.y-=24*(e.gm==null?1:e.gm)*dt;if(v.y<-40)v.y=-40;const wasG=e.ground;const cl=CN(p.x,p.z,Math.abs(v.x*dt)+Math.abs(v.z*dt)+PR+1.4,_cbB);
+function physStep1(e,dt){const p=e.pos,v=e.vel;if(e.nc){p.x+=v.x*dt;p.y=Math.max(0,p.y+v.y*dt);p.z+=v.z*dt;e.ground=false;e.landed=false;return}const py0=p.y;if(!(isFinite(p.x)&&isFinite(p.y)&&isFinite(p.z))){const L=e.lastG||[0,0,0];p.x=L[0];p.y=L[1];p.z=L[2];v.x=v.y=v.z=0}if(!isFinite(v.x+v.y+v.z))v.x=v.y=v.z=0;v.y-=24*(e.gm==null?1:e.gm)*dt;if(v.y<-40)v.y=-40;const wasG=e.ground;if(e.ground)e.gy0=p.y;const cl=CN(p.x,p.z,Math.abs(v.x*dt)+Math.abs(v.z*dt)+PR+1.4,_cbB);
  for(const ax of['x','z']){p[ax]+=v[ax]*dt;for(const c of cl){if(!overlaps(p,c,PH))continue;
-   if(c.y1-p.y<=.55&&(e.ground||v.y<=0)){let ok=true;const oy=p.y;p.y=c.y1+.001;for(const c2 of cl)if(c2!==c&&overlaps(p,c2,PH)){ok=false;break}if(ok)continue;p.y=oy}
+   const mant=e.mm&&!e.ground&&v.y>-2&&c.y1-p.y>.55&&c.y1-p.y<=1.05&&c.y1-(e.gy0==null?p.y:e.gy0)<=1.65;// v97: mantle - a jump onto a ledge up to ~1.6 m above where you jumped from pulls you up onto it (player only)
+   if((c.y1-p.y<=.55&&(e.ground||v.y<=0))||mant){let ok=true;const oy=p.y;p.y=c.y1+.001;for(const c2 of cl)if(c2!==c&&overlaps(p,c2,PH)){ok=false;break}if(ok){if(mant)v.y=Math.min(v.y,1.2);continue}p.y=oy}
    const mid=ax==='x'?(c.x0+c.x1)/2:(c.z0+c.z1)/2;if(p[ax]<mid)p[ax]=(ax==='x'?c.x0:c.z0)-PR-.001;else p[ax]=(ax==='x'?c.x1:c.z1)+PR+.001;v[ax]=0;e.bump=1}}
  p.y+=v.y*dt;e.ground=false;
  // swept landing: feet crossed a top surface this step (prevents sinking/tunnelling at high fall speed or low FPS)
@@ -499,7 +500,7 @@ function updDiaUI(){for(const e of document.querySelectorAll('.diaBal'))e.textCo
 let diaToastT=null;
 const BR_WIN_BONUS=300;// v62: flat bonus for every squad member of the winning BR squad (alive or already eliminated); the weekend x2 in addDia doubles it too
 function addDia(n,why){if(n>0&&isWknd()){n*=2;why=(why||'')+' ×2 weekend'}(window.__dlog||(window.__dlog=[])).push([n,why]);if(!n)return;PROG.dia+=n;C.matchDia=(C.matchDia||0)+n;saveProg();const t=$('diaToast');if(t){t.textContent=`+${n} 💎 ${why||''}`;t.classList.remove('show');void t.offsetWidth;t.classList.add('show')}}
-const me={id:null,pos:new THREE.Vector3(),vel:new THREE.Vector3(),ground:false,yaw:0,pitch:0,hp:100,alive:false,
+const me={mm:1,id:null,pos:new THREE.Vector3(),vel:new THREE.Vector3(),ground:false,yaw:0,pitch:0,hp:100,alive:false,
  load:DEFAULT_LOAD.slice(),utilN:2,nl:{smoke:1,flash:1,decoy:1,medkit:0},nlSel:'smoke',cur:0,ammo:[0,0,0],cool:0,reloadT:0,reloadStage:0,switchT:0,slideT:0,crouch:false,slideCd:0,camH:1.62,stepT:0,zoomT:0,frozen:true,burst:0,burstT:0,shots:0,lastShot:0};
 try{const l=JSON.parse(LS('load2')||'null');if(l&&l.length===4&&l.every((k,i)=>W[k]&&W[k].slot===i&&owns(k)))me.load=l}catch(e){}
 const C={byOrd:{},players:{},phase:'lobby',map:0,mode:'team',score:{},round:0,hostId:null,roundT:0,sb:{}};
@@ -2683,7 +2684,7 @@ function equipSkin(id,tint=0){tint=tint|0;const full=id==='default'?'default':jo
  try{hubEquip&&hubEquip();const hp=H&&H.players&&H.players[me.id];if(hp&&C.hostId===me.id){hp.skin=cleanSkin(full);hp.fit=curFit();bcast({t:'fit',id:me.id,ft:hp.fit,sk:hp.skin})}else if(C.hostId&&C.hostId!==me.id&&!C.hub)send({t:'fit',fit:curFit(),sk:full})}catch(e){}}
 window.__hsz.equipSkin=equipSkin;
 const PETX={H:()=>H,plist,enemy:(p,q)=>H.mode==='ffa'||q.team!==p.team,los:(p,q)=>{_o.set(p.p[0],p.p[1]+1,p.p[2]);return rayClearHost(_o,_d.set(q.p[0],q.p[1]+1.1,q.p[2]))},damage:(v,d,by,h,w)=>damage(v,d,by,h,w),bcast:m=>bcast(m),toPlayer:(id,m)=>toPlayer(id,m),take:(p,id,far)=>H.br?brTake(p,id,undefined,far):false};
-PETS=initSidekicks({addCol:dynColAdd,delCol:dynColDel,scene,me,C,PROG,isEnemy,cols:()=>cur&&cur.cols,send,inGame:()=>inGame,toast:m=>center(m,1300),sfx:()=>{try{SFX.beep&&SFX.beep()}catch(e){}},canAct:()=>inGame&&!paused&&me.alive,tpv:()=>TPV.on,hideVm:()=>{vmRoot.visible=false}});window.__hsz.pets=PETS;window.__hsz.petx=PETX;window.__hsz.pcx={cols:()=>cur&&cur.cols,free:phaseFree,spot:phaseSafeSpot,end:phaseEnd};
+PETS=initSidekicks({addCol:dynColAdd,delCol:dynColDel,scene,me,C,PROG,isEnemy,cols:()=>cur&&cur.cols,send,inGame:()=>inGame,toast:m=>center(m,1300),sfx:()=>{try{SFX.beep&&SFX.beep()}catch(e){}},canAct:()=>inGame&&!paused&&me.alive,tpv:()=>TPV.on,hideVm:()=>{vmRoot.visible=false}});window.__hsz.pets=PETS;window.__hsz.petx=PETX;window.__hsz.dynAdd=dynColAdd;window.__hsz.dynDel=dynColDel;window.__hsz.pcx={cols:()=>cur&&cur.cols,free:phaseFree,spot:phaseSafeSpot,end:phaseEnd};
 function equipPet(id){id=SK_BY[id]&&PROG.pets.includes(id)?id:'';PROG.pet=id;saveProg();try{sendWS();if(!inGame&&C.hostId&&C.hostId!==me.id)send({t:'ws',ws:cleanWS(wsOut())});if(!inGame||C.hub){const hp=H&&H.players&&H.players[me.id];if(hp&&C.hostId===me.id){hp.ws=cleanWS(wsOut());bcast({t:'ws',id:me.id,ws:hp.ws})}}}catch(e){}if(PETS)PETS.reset()}
 window.__hsz.equipPet=equipPet;
 SHOP=initSkinShop({$,PROG,saveProg,SFX,esc,audioInit,equip:equipSkin,gun:(id,gl)=>tpGun(id,skOf({ws:PROG.wskin},id),gl),denied:()=>{SFX.beep&&SFX.beep()},onClose:from=>{if(from==='royale'&&window.__hsz.royale)window.__hsz.royale.refresh()}});window.__hsz.shop=SHOP;

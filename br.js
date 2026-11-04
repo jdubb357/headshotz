@@ -82,7 +82,7 @@ export function brDef({G,rng,_c}){
    // silos, tanks, pipes, crane
    for(let i=0;i<3;i++){const x=cx+4+i*7,z=cz+34;B.cyl(x,0,z,3,13,0xd9d9d0,'metal',{seg:20,us:.4});B.ladder(x+3*.85,z,0,13,'x+');lootAt(x,13,z,-1)}block(cx+14,cz+34,24,8,1);
    B.cyl(cx-50,0,cz-4,4.2,6,0x5a7a9a,'metal',{seg:20});B.cyl(cx-50,0,cz+6,4.2,6,0x5a7a9a,'metal',{seg:20});B.ladder(cx-50+4.2*.85,cz-4,0,6,'x+');B.ladder(cx-50+4.2*.85,cz+6,0,6,'x+');
-   {const x=cx+46,z=cz-40,h=22;for(const a of[-1,1])for(const b of[-1,1])B.box(x+a*2.5,0,z+b*2.5,.5,h,.5,0xe0a020,'metal',{gy:0});B.box(x,h,z,6.5,.5,6.5,0xe0a020,'metal',{gy:h});B.box(x+10,h+.3,z,24,.7,1.2,0xd09010,'metal',{solid:false});B.ladder(x,z-2.85,0,h,'z-');lootAt(x,h+.5,z,-1);B.brChests.push([x,h+.5,z+1,0,-1])}
+   {const x=cx+46,z=cz-34,h=22;for(const a of[-1,1])for(const b of[-1,1])B.box(x+a*2.5,0,z+b*2.5,.5,h,.5,0xe0a020,'metal',{gy:0});B.box(x,h,z,6.5,.5,6.5,0xe0a020,'metal',{gy:h});B.box(x+10,h+.3,z,24,.7,1.2,0xd09010,'metal',{solid:false});B.ladder(x,z-2.85,0,h,'z-');lootAt(x,h+.5,z,-1);B.brChests.push([x,h+.5,z+1,0,-1])}
    for(let i=0;i<14;i++){const x=cx+rr(-40,44),z=cz+rr(-34,8);if(isFree(x,z,2.5)){if(i%2)B.barrel(x,z,pick([0xc0392b,0x2e86de,0xf39c12]));else B.crate(x,z,1.3,0,0xc79a5c)}}
    B.car(cx+4,cz-4,1,0xf39c12);B.wreck(cx-14,cz+3,0,0x7f8c8d);for(let i=0;i<5;i++)B.barrier(cx-42+i*4,cz-24,0,3);block(cx,cz,100,80,0)}
   // ============ 3. FARMSTEAD (SE) ============
@@ -152,9 +152,11 @@ export function brDef({G,rng,_c}){
   {const hit=(c,k)=>c.x1>k.x0&&c.x0<k.x1&&c.z1>k.z0&&c.z0<k.z1&&c.y1>k.y0&&c.y0<k.y1;const dead=new Set(),deadP=new Set(),deadS=new Set();let n=0;
    for(const e of PL)if(e.cols.some(c=>B.keep.some(k=>hit(c,k)))){n++;for(const c of e.cols)dead.add(c);for(const s of e.sh)deadS.add(s);for(const p of e.parts)deadP.add(p[1])}
    if(dead.size){const keepCol=B.cols.filter(c=>!dead.has(c));B.cols.length=0;B.cols.push(...keepCol);const ks=B.shadows.filter(x=>!deadS.has(x));B.shadows.length=0;B.shadows.push(...ks);for(const t in B.T){const f=B.T[t].filter(p=>!deadP.has(p));B.T[t].length=0;B.T[t].push(...f)}}
+   // untracked low junk (scrap piles, small biome props) sitting on a stair foot / ladder base: drop its collider
+   {const chestLike=c=>Math.abs((c.x1-c.x0)-1.1)<.05&&Math.abs((c.z1-c.z0)-1.1)<.05&&c.y1-c.y0<.9;const drop=B.cols.filter(c=>c.door==null&&!c._st&&c.y1-c.y0<=2.4&&c.x1-c.x0<=4.5&&c.z1-c.z0<=4.5&&!chestLike(c)&&B.keep.some(k=>hit(c,k)));if(drop.length){const ds=new Set(drop);const kc=B.cols.filter(c=>!ds.has(c));B.cols.length=0;B.cols.push(...kc);n+=drop.length}}
    B.propsCleared=n}
-  {const solid=k=>k.y1-k.y0>1.2&&!k.door&&k.door!==0;const inside=(x,z,y,h)=>B.cols.some(k=>solid(k)&&x>k.x0+.05&&x<k.x1-.05&&z>k.z0+.05&&z<k.z1-.05&&y>=k.y0-.01&&y+h<k.y1-.05);
-   const near=(x,z,y,h,m)=>B.cols.some(k=>solid(k)&&x>k.x0-m&&x<k.x1+m&&z>k.z0-m&&z<k.z1+m&&y>=k.y0-.01&&y+h<k.y1-.05);
+  {const KP=B.keep.map(k=>({x0:k.x0,x1:k.x1,z0:k.z0,z1:k.z1,y0:k.y0,y1:k.y0+3}));const solid=k=>k.y1-k.y0>1.2&&!k.door&&k.door!==0;const inside=(x,z,y,h)=>B.cols.concat(KP).some(k=>solid(k)&&x>k.x0+.05&&x<k.x1-.05&&z>k.z0+.05&&z<k.z1-.05&&y>=k.y0-.01&&y+h<k.y1-.05);
+   const near=(x,z,y,h,m)=>B.cols.concat(KP).some(k=>solid(k)&&x>k.x0-m&&x<k.x1+m&&z>k.z0-m&&z<k.z1+m&&y>=k.y0-.01&&y+h<k.y1-.05);
    const sup=(x,z,y)=>y<.1||B.cols.some(k=>x>k.x0&&x<k.x1&&z>k.z0&&z<k.z1&&Math.abs(k.y1-y)<.12);
    const fix=(a,h,m)=>{if(!inside(a[0],a[2],a[1],h))return;for(let r=.7;r<9;r+=.7)for(let q=0;q<14;q++){const ang=q/14*6.283,x=a[0]+Math.cos(ang)*r,z=a[2]+Math.sin(ang)*r;if(!near(x,z,a[1],h,m)&&sup(x,z,a[1])&&Math.abs(x)<HB&&Math.abs(z)<HB){const ox=a[0],oz=a[2];a[0]=+x.toFixed(1);a[2]=+z.toFixed(1);return[ox,oz]}}};
    for(const c of B.brChests){const o=fix(c,.5,.6);if(o){const k=B.cols.find(k=>Math.abs(k.x0-(o[0]-.55))<.02&&Math.abs(k.z0-(o[1]-.55))<.02&&k.y1-k.y0<.8);if(k){k.x0=c[0]-.55;k.x1=c[0]+.55;k.z0=c[2]-.55;k.z1=c[2]+.55}}}
