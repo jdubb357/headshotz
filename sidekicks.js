@@ -3,7 +3,7 @@
 // active ones (scout / decoy) use the ability button / X key, sprinter + tracker run on the client. Equipped pet id travels in the weapon-skin
 // object (ws.pet) so it syncs everywhere ws already syncs (join, lobby, 'ws' messages).
 import {THREE} from './gfx.js';
-import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
+import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
 export const RAR_N=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY'];
 export const RAR_C=['#9aa4b2','#4cd964','#4dabff','#b37bff','#ffb020'];
 export const TM=[1,1.2,1.4];// passive-power multiplier per tier (T1/T2/T3)
@@ -23,7 +23,7 @@ export const AB={
  firebreath:{n:'Ember Strike',ic:'🔥',act:1,d:(p,t=1)=>`Ability button / X: your dragon hovers and spits fireballs at the nearest visible enemy within 50 m for 50 damage each, one every ${TV.firebreath.gap[t-1]} s for ${TV.firebreath.dur[t-1]} s. ${TV.firebreath.cd} s cooldown.`},
  finder:{n:'Diamond Finder',ic:'💎',act:0,d:p=>`Sniffs out 1 💎 every ${Math.round(85/p)} s while you play a match (max 4 per match).`}};
 // pw = power multiplier of the ability (kept modest so nothing is overpowered)
-Object.assign(AB,NAB);Object.assign(TV,TV2);
+Object.assign(AB,NAB,NAB3);Object.assign(TV,TV2,TV3);
 export const SK_DEFS=[
  {id:'dog',name:'Biscuit',kind:'Puppy',ab:'guard',pw:1,rar:0,price:120,col:0xc99a5b},
  {id:'cat',name:'Mochi',kind:'Kitten',ab:'lucky',pw:1,rar:0,price:120,col:0x9aa0a8},
@@ -44,11 +44,18 @@ export const SK_DEFS=[
  {id:'emberdragon',name:'Cinder',kind:'Ember Dragon',ab:'firebreath',pw:1,rar:4,price:1500,col:0xff7a1a,orig:1,new:1},
  {id:'specter',name:'Wisp',kind:'Phantom Wisp',ab:'phase',pw:1,rar:3,price:850,col:0x5fe0ff,orig:1,new:1},
  {id:'frostfox',name:'Glacier',kind:'Frost Fox',ab:'frostring',pw:1,rar:3,price:800,col:0x8fe0ff,orig:1,new:1},
- {id:'thunderhawk',name:'Volt',kind:'Thunder Hawk',ab:'thunder',pw:1,rar:4,price:1300,col:0xffd84a,orig:1,new:1}];
+ {id:'thunderhawk',name:'Volt',kind:'Thunder Hawk',ab:'thunder',pw:1,rar:4,price:1300,col:0xffd84a,orig:1,new:1},
+ {id:'stonegolem',name:'Rocky',kind:'Stone Golem Pup',ab:'wall',pw:1,rar:3,price:900,col:0x8c8f98,orig:1,new:1},
+ {id:'phoenix',name:'Fenix',kind:'Phoenix Chick',ab:'rebirth',pw:1,rar:4,price:1400,col:0xff8a1a,orig:1,new:1},
+ {id:'sharkpup',name:'Finn',kind:'Shark-Pup',ab:'swim',pw:1,rar:3,price:750,col:0x5d86b8,orig:1,new:1},
+ {id:'mirrormonkey',name:'Mirra',kind:'Mirror Monkey',ab:'mirror',pw:1,rar:3,price:850,col:0xb8bcc8,orig:1,new:1},
+ {id:'gravityowl',name:'Orbit',kind:'Gravity Owl',ab:'lowg',pw:1,rar:3,price:950,col:0x9a7fd0,orig:1,new:1},
+ {id:'raccoon',name:'Bandit',kind:'Magnet Raccoon',ab:'pull',pw:1,rar:2,price:520,col:0x8a8f98,orig:1,new:1},
+ {id:'magnetdrone',name:'Magnetron',kind:'Magnet Drone',ab:'vacuum',pw:1,rar:2,price:480,col:0xc8ccd6,orig:1,new:1}];
 export const SK_BY=Object.fromEntries(SK_DEFS.map(d=>[d.id,d]));
 export const SK_IDS=SK_DEFS.map(d=>d.id);
 export const SK_FLAVOR={dog:'Loyal and a little bit grumpy.',cat:'Always lands on a good drop.',bunny:'Collects everything that bounces.',bat:'Hears enemies through the walls.',fox:'Never loses a trail.',penguin:'Waddles over with bandages.',bear:'Big hugs, bigger bubbles.',tiger:'Makes a very convincing double of you.',hedgehog:'Zoom zoom! Original speedy hedgehog.',lion:'Sniffs diamonds from across the map.',superdog:'Cape on, ears up, zap zap!',twohead:'Two heads, one very good nose.',robot:'Beep boop, scanning...',ghost:'Boo! Now you see me, now you don\'t.',dragon:'Hoards luck instead of gold.'};
-SK_FLAVOR.shadowbat='Becomes a bat when the lights go out.';SK_FLAVOR.emberdragon='Small, proud and very, very warm.';SK_FLAVOR.specter='Drifts through walls like they were fog.';SK_FLAVOR.frostfox='Leaves frost where it steps.';SK_FLAVOR.thunderhawk='Calls the storm down on one unlucky target.';
+SK_FLAVOR.shadowbat='Becomes a bat when the lights go out.';SK_FLAVOR.emberdragon='Small, proud and very, very warm.';SK_FLAVOR.specter='Drifts through walls like they were fog.';SK_FLAVOR.frostfox='Leaves frost where it steps.';SK_FLAVOR.stonegolem='Small, sturdy, and very good at walls.';SK_FLAVOR.phoenix='Burns out, then bursts back brighter.';SK_FLAVOR.sharkpup='Swims through sand like it was the sea.';SK_FLAVOR.mirrormonkey='Which one is the real you?';SK_FLAVOR.gravityowl='Weightless wisdom with a mean hop.';SK_FLAVOR.raccoon='Steals the loot right off the floor.';SK_FLAVOR.magnetdrone='Vacuums up supplies, no strings attached.';SK_FLAVOR.thunderhawk='Calls the storm down on one unlucky target.';
 export const abOf=(id,tier=1)=>{const d=SK_BY[id];return d?{...AB[d.ab],key:d.ab,pw:d.pw,text:AB[d.ab].d(d.pw*TM[tier-1],tier)}:null};
 // ---------------------------------------------------------------- models (shared geometry + cached materials: cheap on phones)
 const GE={sph:new THREE.SphereGeometry(1,10,8),box:new THREE.BoxGeometry(1,1,1),cone:new THREE.ConeGeometry(1,1,8),cyl:new THREE.CylinderGeometry(1,1,1,10),tor:new THREE.TorusGeometry(1,.18,6,14)};
@@ -119,7 +126,7 @@ B.bat=()=>{const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,e
  for(const s of[-1,1]){P(hd,'cone',C,s*.07,.13,-.02,.05,.13,.025,0,0,-s*.15);P(hd,'cone',0xf0b8d8,s*.07,.12,0,.025,.08,.015,0,0,-s*.15);P(hd,'cone',0xffffff,s*.02,-.1,.1,.012,.03,.012,Math.PI)}
  for(const s of[-1,1]){const w=G(b,s*.1,.34,0);P(w,'cone',C2,s*.18,0,-.02,.1,.28,.01,0,0,-s*Math.PI/2);P(w,'cone',C,s*.1,.02,-.02,.05,.16,.012,0,0,-s*Math.PI/2);rig.wings.push(w)}
  rig.sc=1.45;root.userData.rig=rig;return root};
-Object.assign(B,NB,NB2);
+Object.assign(B,NB,NB2,NB3);
 const LITE=typeof window!=='undefined'&&('ontouchstart' in window||(navigator.maxTouchPoints|0)>0);
 export function makePet(id,tier=1){const f=B[id];const g=new THREE.Group();if(!f)return g;const m=f();m.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false}});const sc=(m.userData.rig&&m.userData.rig.sc)||1;m.scale.setScalar(sc*1.15);g.add(m);g.userData.rig=m.userData.rig;g.userData.inner=m;g.userData.id=id;g.userData.tier=tier;decorate(g,(SK_BY[id]||{}).col||0xffffff,tier,LITE);return g}
 export function animPet(g,t,mv,dt){const r=g.userData.rig;if(!r)return;const m=Math.min(1,mv);const ph=t*(r.speedy?20:r.waddle?10:12);
@@ -146,7 +153,7 @@ export function initSidekicks(A){
   ring=new THREE.Mesh(new THREE.TorusGeometry(1,.03,6,48),new THREE.MeshBasicMaterial({color:0x7fe8ff,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));ring.rotation.x=Math.PI/2;ring.visible=false;root.add(ring)}
  let scan=null,zaps=[],holos=[];const MO=new Map(),FB=[],PF=[];// MO: bat forms by key; FB: fireballs; PF: puff sprites
  function puff(p,col,n,sz){for(let i=0;i<n;i++){const s=new THREE.Sprite(spriteMat(col,.9));s.position.copy(p);s.scale.setScalar(sz);root.add(s);PF.push({s,t:performance.now(),v:new THREE.Vector3((Math.random()-.5)*2.4,Math.random()*2,(Math.random()-.5)*2.4),sz})}}
- const FXX={A,me,C,root,F,puff,now:()=>performance.now(),setCd:ms=>{cdUntil=performance.now()+ms;dur=ms}};
+ const FXX={A,me,C,root,F,puff,now:()=>performance.now(),setCd:ms=>{cdUntil=performance.now()+ms;dur=ms},addCol:A.addCol,delCol:A.delCol,holo:()=>holoMk()};
  const beamG=new THREE.CylinderGeometry(.03,.03,1,6);beamG.rotateX(Math.PI/2);beamG.translate(0,0,.5);
  function holoMk(){const g=new THREE.Group();const m=new THREE.MeshBasicMaterial({color:0x46e0ff,transparent:true,opacity:.45,depthWrite:false,blending:THREE.AdditiveBlending,wireframe:false});const add=(geo,x,y,z,sx,sy,sz)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);g.add(o)};add(GE.sph,0,1.62,0,.16,.19,.16);add(GE.box,0,1.2,0,.3,.5,.18);for(const s of[-1,1]){add(GE.box,s*.2,1.15,0,.08,.5,.1);add(GE.box,s*.09,.45,0,.12,.85,.14)}g.userData.m=m;return g}
  // ---- ability state
@@ -157,7 +164,7 @@ export function initSidekicks(A){
  function use(){const d=activeDef();if(!d||!A.inGame()||C.hub||!me.alive)return false;const now=performance.now();if(now<cdUntil||now<(use.t||0))return false;const pw=myPw(d);
   if(d.ab==='scout'){markers();scan={t:now,d:5000*pw};dur=26000/pw;cdUntil=now+dur;A.toast&&A.toast(`${d.name} scans the area 📡`)}
   else if(d.ab==='decoy'){dur=32000/pw;cdUntil=now+dur;A.send({t:'pab',k:'decoy'});A.toast&&A.toast(`${d.name} drops a decoy 🎭`)}
-  else if(d.ab==='batform'||d.ab==='firebreath'||NAB[d.ab]){use.t=now+700;A.send({t:'pab',k:d.ab})}
+  else if(d.ab==='batform'||d.ab==='firebreath'||NAB[d.ab]||NAB3[d.ab]){use.t=now+700;A.send({t:'pab',k:d.ab})}
   A.sfx&&A.sfx('ping');return true}
  if(btn){const dn=e=>{e.stopPropagation();e.preventDefault();btn.classList.add('down');use()};btn.addEventListener('pointerdown',dn);const up=()=>btn.classList.remove('down');btn.addEventListener('pointerup',up);btn.addEventListener('pointercancel',up);btn.addEventListener('pointerleave',up)}
  addEventListener('keydown',e=>{if(e.code==='KeyX'&&!e.repeat&&!/INPUT|TEXTAREA/.test((e.target&&e.target.tagName)||'')&&A.canAct()){use()}});
@@ -166,6 +173,7 @@ export function initSidekicks(A){
   else if(m.k==='fireon'){const f=F.get(m.id===me.id?'me':m.id);if(f)f.hoverUntil=performance.now()+m.d*1000;if(m.id===me.id){cdUntil=performance.now()+m.cd*1000;dur=m.cd*1000;A.toast&&A.toast('🔥 Ember Strike!')}}
   else if(m.k==='fball'){const f=F.get(m.id===me.id?'me':m.id),q=m.v===me.id?{rp:me.pos}:C.players[m.v];if(!f||!q)return;f.g.updateMatrixWorld();const a=new THREE.Vector3();const rg=f.g.userData.rig;(rg&&rg.mouth?rg.mouth:f.g).getWorldPosition(a);const s=new THREE.Sprite(spriteMat(0xff8a1a,1));s.scale.setScalar(.55);s.position.copy(a);root.add(s);FB.push({s,a,b:new THREE.Vector3(q.rp.x,q.rp.y+1.1,q.rp.z),t:performance.now(),q:m.v});f.aim=new THREE.Vector3(q.rp.x,q.rp.y,q.rp.z);f.aimT=performance.now()+700}
   else if(m.k==='phase'||m.k==='frost'||m.k==='mark'||m.k==='bolt'||m.k==='nomark')clientFx2(m,FXX);
+  else if(m.k==='wall'||m.k==='swim'||m.k==='mirror'||m.k==='lowg'||m.k==='pullring'||m.k==='nopull'||m.k==='phx')clientFx3(m,FXX);
   else if(m.k==='decoy'){const h=holoMk();h.position.set(m.x,m.y,m.z);h.rotation.y=m.yaw||0;h.userData.t=performance.now();h.userData.d=(m.d||6)*1000;root.add(h);holos.push(h)}}
  // ---- followers
  function ownersNow(){const out=[];const mine=P0.pet;if(mine&&SK_BY[mine]&&(me.alive||C.hub)&&!me.air&&!(A.spectating&&A.spectating()))out.push({key:'me',pet:mine,tier:myTier(),pos:me.pos,ground:me.ground,vel:me.vel,own:1});
@@ -207,8 +215,8 @@ export function initSidekicks(A){
   // zap beams + holograms
   for(let i=zaps.length-1;i>=0;i--){const z=zaps[i],e=(performance.now()-z.userData.t)/1000;if(e>.28){root.remove(z);z.material.dispose();zaps.splice(i,1);continue}const a=z.userData.a.g.position,v=z.userData.v.rp;z.position.set(a.x,a.y+.3,a.z);_v.set(v.x,v.y+1.1,v.z);z.lookAt(_v);z.scale.set(1+Math.random()*.6,1+Math.random()*.6,z.position.distanceTo(_v));z.material.opacity=.95*(1-e/.28)}
   for(let i=holos.length-1;i>=0;i--){const h=holos[i],e=performance.now()-h.userData.t;if(e>h.userData.d){root.remove(h);holos.splice(i,1);continue}h.userData.m.opacity=.45*Math.min(1,(h.userData.d-e)/500)*(.8+.2*Math.sin(e/90));h.position.y+=0}
-  updateFx2(FXX,dt);setBtn()}
- return{update,use,onFx,phaseOff(id){phaseClear();unghost(id)},post(){const n=performance.now();for(const [k,mo] of MO){if(k==='me')continue;const q=C.players[k];if(q&&q.model)q.model.visible=false}for(const id in C.players){if(id!==me.id&&ghosted(id)){const q=C.players[id];if(q&&q.model)q.model.visible=false}}if(me.pf&&me.pf.bat){A.hideVm&&A.hideVm()}},speedMul:()=>{const d=myDef();return d&&d.ab==='sprinter'&&A.inGame()?1+.06*myPw(d):1},root,followers:F,morphMesh:k=>{const o=MO.get(k);return o&&o.mesh},state:()=>({morphs:MO.size,scan:!!scan,cd:Math.max(0,cdUntil-performance.now())|0,holos:holos.length,zaps:zaps.length,prints:PRN.filter(o=>o.visible).length,markers:MK.filter(s=>s.visible).length}),def:myDef,reset(){scan=null;cdUntil=0}}}
+  updateFx2(FXX,dt);updateFx3(FXX,dt);if(!me.alive&&((me.jm!=null&&me.jm!==1)||me.spb)){resetFx3(me);if(!me.pf)me.gm=1}setBtn()}
+ return{update,use,onFx,phaseOff(id){phaseClear();unghost(id)},post(){const n=performance.now();for(const [k,mo] of MO){if(k==='me')continue;const q=C.players[k];if(q&&q.model)q.model.visible=false}for(const id in C.players){if(id!==me.id&&ghosted(id)){const q=C.players[id];if(q&&q.model)q.model.visible=false}}if(me.pf&&me.pf.bat){A.hideVm&&A.hideVm()}},speedMul:()=>{const d=myDef();const sb=me.spb&&performance.now()<me.spb.until?me.spb.mul:1;return(d&&d.ab==='sprinter'&&A.inGame()?1+.06*myPw(d):1)*sb},root,followers:F,morphMesh:k=>{const o=MO.get(k);return o&&o.mesh},state:()=>({morphs:MO.size,scan:!!scan,cd:Math.max(0,cdUntil-performance.now())|0,holos:holos.length,zaps:zaps.length,prints:PRN.filter(o=>o.visible).length,markers:MK.filter(s=>s.visible).length}),def:myDef,reset(){scan=null;cdUntil=0}}}
 // ---------------------------------------------------------------- host side (passive abilities, resolved for every human with a sidekick)
 export function luck(p){const d=SK_BY[p&&p.ws&&p.ws.pet];return d&&d.ab==='lucky'?.18*d.pw*TM[tierOf(p.ws)-1]:0}
 export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;const t=H.t;
@@ -221,10 +229,14 @@ export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;cons
   else if(d.ab==='firebreath'){const FI=S.fire;if(!FI||t>=FI.until||t<FI.next||H.noFight)continue;let best=null,bd=1e9;for(const q of X.plist()){if(q.id===p.id||!q.alive||q.down||q.air||(q.prot&&t<q.prot)||!X.enemy(p,q))continue;const dd=Math.hypot(q.p[0]-p.p[0],q.p[1]-p.p[1],q.p[2]-p.p[2]);if(dd>50||dd>=bd||!X.los(p,q))continue;bd=dd;best=q}
    if(best){FI.next=t+TV.firebreath.gap[tr-1];X.bcast({t:'pfx',k:'fball',id:p.id,v:best.id});X.damage(best,50,p.id,false,'fists')}else FI.next=t+.3}
   else if(d.ab==='thunder'||d.ab==='phase')hostTick2(X,p,d,S,H,tr);
+  else if(d.ab==='vacuum'){const E=H.br;if(!E||!E.items||t<S.a)continue;S.a=t+.35;let n=0;const R=TV3.vacuum.r[tr-1];for(const k in E.items){const it=E.items[k];if(it[1]!==1&&it[1]!==2)continue;if(Math.hypot(p.p[0]-it[4],p.p[2]-it[6])>R||Math.abs(p.p[1]-it[5])>3)continue;if(X.take(p,+k)&&++n>=3)break}}
   else if(d.ab==='finder'){if(H.noFight!==undefined&&0)continue;if(t<S.a)continue;S.fl=S.fl.filter(x=>t-x<360);if(S.fl.length>=4){S.a=t+30;continue}S.fl.push(t);S.a=t+85/pw;X.toPlayer(p.id,{t:'pdia',n:1})}}}
 export function hostAbility(X,p,m){const H=X.H();if(!H||!p||!p.alive||H.phase!=='play')return;const d=SK_BY[p.ws&&p.ws.pet];if(!d)return;const S=(p._pk&&p._pk.id===d.id)?p._pk:(p._pk={id:d.id,a:H.t+6,fl:[],dc:0});
  const tr=tierOf(p.ws),pw=d.pw*TM[tr-1];
  if(d.ab==='decoy'&&m.k==='decoy'&&H.t>=S.dc-.6){S.dc=H.t+32/pw;p.decoy=H.t+6*pw;X.bcast({t:'pfx',k:'decoy',id:p.id,x:p.p[0],y:p.p[1],z:p.p[2],yaw:p.p[3]||0,d:6*pw})}
  else if(d.ab==='batform'&&m.k==='batform'){if(H.t<(S.cd||0)||p.down||p.air)return;const du=TV.batform.dur[tr-1];S.cd=H.t+du+TV.batform.cd;X.bcast({t:'pfx',k:'batform',id:p.id,d:du,cd:du+TV.batform.cd})}
  else if(d.ab==='firebreath'&&m.k==='firebreath'){if(H.t<(S.cd||0)||p.down||p.air)return;const du=TV.firebreath.dur[tr-1];S.cd=H.t+du+TV.firebreath.cd;S.fire={until:H.t+du,next:H.t+.7};X.bcast({t:'pfx',k:'fireon',id:p.id,d:du,cd:du+TV.firebreath.cd})}
- else if(NAB[d.ab]&&m.k===d.ab)hostUse2(X,p,d,S,H,tr)}
+ else if(NAB[d.ab]&&m.k===d.ab)hostUse2(X,p,d,S,H,tr)
+ else if(NAB3[d.ab]&&m.k===d.ab)hostUse3(X,p,d,S,H,tr)}
+// v96 Phoenix Rebirth: called from damage() when a hit would kill a human; true = saved
+export function petSave(X,v){const H=X.H();if(!H||v.bot||!v.ws||v.ws.pet!=='phoenix'||H.phase!=='play')return false;const tr=tierOf(v.ws),t=H.t;const S=(v._pk&&v._pk.id==='phoenix')?v._pk:(v._pk={id:'phoenix',a:t+6,fl:[],dc:0});if(t<(S.rb||0))return false;const V=TV3.rebirth;S.rb=t+V.cd;v.hp=V.hp[tr-1];v.sh=Math.max(v.sh||0,0);v.prot=t+V.prot;X.bcast({t:'hp',id:v.id,hp:Math.round(v.hp)});X.bcast({t:'pfx',k:'phx',id:v.id});return true}
