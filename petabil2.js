@@ -20,7 +20,7 @@ export function hostUse3(X,p,d,S,H,tr){const t=H.t;if(t<(S.cd||0)||p.down||p.air
  else if(ab==='mirror'){const V=TV3.mirror,n=V.n[tr-1],du=V.dur[tr-1];S.cd=t+du+V.cd;p.decoy=Math.max(p.decoy||0,t+du);const cl=[];const a0=Math.random()*6.283;for(let i=0;i<n;i++){const a=a0+i/n*6.283,s=2.6+Math.random()*.8,v=2.6+Math.random()*1.4;cl.push([Math.cos(a)*s,Math.sin(a)*s,Math.cos(a+.6)*v,Math.sin(a+.6)*v])}
   X.bcast({t:'pfx',k:'mirror',id:p.id,x:p.p[0],y:p.p[1],z:p.p[2],yaw:p.p[3]||0,d:du,cl,cd:du+V.cd})}
  else if(ab==='lowg'){const V=TV3.lowg,du=V.dur[tr-1];S.cd=t+du+V.cd;X.bcast({t:'pfx',k:'lowg',id:p.id,d:du,jm:V.jm[tr-1],g:V.g,cd:du+V.cd})}
- else if(ab==='pull'){const V=TV3.pull,E=H.br;let n=0;if(E&&E.items){const R=V.r[tr-1];for(const k in E.items){const it=E.items[k];if(it[1]!==1&&it[1]!==2)continue;if(Math.hypot(p.p[0]-it[4],p.p[2]-it[6])>R||Math.abs(p.p[1]-it[5])>6)continue;if(X.take(p,+k)&&++n>=V.n[tr-1])break}}
+ else if(ab==='pull'){const V=TV3.pull,E=H.br;let n=0;if(E&&E.items){const R=V.r[tr-1];for(const k in E.items){const it=E.items[k];if(it[1]!==1&&it[1]!==2)continue;if(Math.hypot(p.p[0]-it[4],p.p[2]-it[6])>R||Math.abs(p.p[1]-it[5])>6)continue;if(X.take(p,+k,true)&&++n>=V.n[tr-1])break}}
   if(!n){S.cd=t+2;X.toPlayer(p.id,{t:'pfx',k:'nopull',id:p.id});return}S.cd=t+V.cd;X.bcast({t:'pfx',k:'pullring',id:p.id,x:p.p[0],y:p.p[1],z:p.p[2],r:V.r[tr-1],n,cd:V.cd})}}
 // ---------- client ----------
 const WALLS=[],FINS=new Map(),CLONES=[],RINGS=[],LGS=new Map();let lg=null;

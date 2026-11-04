@@ -220,7 +220,7 @@ export function initSidekicks(A){
 // ---------------------------------------------------------------- host side (passive abilities, resolved for every human with a sidekick)
 export function luck(p){const d=SK_BY[p&&p.ws&&p.ws.pet];return d&&d.ab==='lucky'?.18*d.pw*TM[tierOf(p.ws)-1]:0}
 export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;const t=H.t;
- for(const p of X.plist()){if(p.bot||!p.alive||p.down||p.air||p.elim)continue;const id=p.ws&&p.ws.pet;const d=SK_BY[id];if(!d)continue;const S=(p._pk&&p._pk.id===id)?p._pk:(p._pk={id,a:t+(d.ab==='magnet'||d.ab==='guard'?1:6),fl:[],dc:0});const pw=d.pw*TM[tierOf(p.ws)-1];const tr=tierOf(p.ws);
+ for(const p of X.plist()){if(p.bot||!p.alive||p.down||p.air||p.elim)continue;const id=p.ws&&p.ws.pet;const d=SK_BY[id];if(!d)continue;const S=(p._pk&&p._pk.id===id)?p._pk:(p._pk={id,a:t+(d.ab==='magnet'||d.ab==='guard'||d.ab==='vacuum'?1:6),fl:[],dc:0});const pw=d.pw*TM[tierOf(p.ws)-1];const tr=tierOf(p.ws);
   if(d.ab==='guard'){if(t<S.a||H.noFight)continue;const R=5+pw;let best=null,bd=1e9;for(const q of X.plist()){if(q.id===p.id||!q.alive||q.down||q.air||(q.prot&&t<q.prot)||!X.enemy(p,q))continue;const dd=Math.hypot(q.p[0]-p.p[0],q.p[1]-p.p[1],q.p[2]-p.p[2]);if(dd>R||dd>=bd||!X.los(p,q))continue;bd=dd;best=q}
    if(best){S.a=t+5.4-pw*1.2;X.bcast({t:'pfx',k:'zap',id:p.id,v:best.id});X.damage(best,Math.round(6+4*pw),p.id,false,'fists')}else S.a=t+.4}
   else if(d.ab==='medic'){if(p.hp<100&&t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+1.4*pw*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
@@ -229,7 +229,7 @@ export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;cons
   else if(d.ab==='firebreath'){const FI=S.fire;if(!FI||t>=FI.until||t<FI.next||H.noFight)continue;let best=null,bd=1e9;for(const q of X.plist()){if(q.id===p.id||!q.alive||q.down||q.air||(q.prot&&t<q.prot)||!X.enemy(p,q))continue;const dd=Math.hypot(q.p[0]-p.p[0],q.p[1]-p.p[1],q.p[2]-p.p[2]);if(dd>50||dd>=bd||!X.los(p,q))continue;bd=dd;best=q}
    if(best){FI.next=t+TV.firebreath.gap[tr-1];X.bcast({t:'pfx',k:'fball',id:p.id,v:best.id});X.damage(best,50,p.id,false,'fists')}else FI.next=t+.3}
   else if(d.ab==='thunder'||d.ab==='phase')hostTick2(X,p,d,S,H,tr);
-  else if(d.ab==='vacuum'){const E=H.br;if(!E||!E.items||t<S.a)continue;S.a=t+.35;let n=0;const R=TV3.vacuum.r[tr-1];for(const k in E.items){const it=E.items[k];if(it[1]!==1&&it[1]!==2)continue;if(Math.hypot(p.p[0]-it[4],p.p[2]-it[6])>R||Math.abs(p.p[1]-it[5])>3)continue;if(X.take(p,+k)&&++n>=3)break}}
+  else if(d.ab==='vacuum'){const E=H.br;if(!E||!E.items||t<S.a)continue;S.a=t+.35;let n=0;const R=TV3.vacuum.r[tr-1];for(const k in E.items){const it=E.items[k];if(it[1]!==1&&it[1]!==2)continue;if(Math.hypot(p.p[0]-it[4],p.p[2]-it[6])>R||Math.abs(p.p[1]-it[5])>3)continue;if(X.take(p,+k,true)&&++n>=3)break}}
   else if(d.ab==='finder'){if(H.noFight!==undefined&&0)continue;if(t<S.a)continue;S.fl=S.fl.filter(x=>t-x<360);if(S.fl.length>=4){S.a=t+30;continue}S.fl.push(t);S.a=t+85/pw;X.toPlayer(p.id,{t:'pdia',n:1})}}}
 export function hostAbility(X,p,m){const H=X.H();if(!H||!p||!p.alive||H.phase!=='play')return;const d=SK_BY[p.ws&&p.ws.pet];if(!d)return;const S=(p._pk&&p._pk.id===d.id)?p._pk:(p._pk={id:d.id,a:H.t+6,fl:[],dc:0});
  const tr=tierOf(p.ws),pw=d.pw*TM[tr-1];

@@ -2096,7 +2096,7 @@ function brBp(p,m){const inv=p&&p.inv;if(!inv||!p.alive||p.elim||p.air||p.bot)re
  sendTo(p.id,invOut(p))}
 function brBotEquip(b){const inv=b.inv;let best=null,bs=-1;for(const g of inv.g)if(g){const s=gunScore(WIDS[g[0]],g[1]);if(s>bs){bs=s;best=g}}
  if(best){b.gun=WIDS[best[0]];b.rarD=RAR[best[1]].d}else{b.gun=WIDS[inv.m[0]];b.rarD=RAR[inv.m[1]].d}}
-function brTake(p,iid,sl){const E=H.br;const it=E.items[iid];if(!it||!p||!p.alive||p.elim)return false;const dx=p.p[0]-it[4],dz=p.p[2]-it[6];if(Math.hypot(dx,dz)>3.6||Math.abs(p.p[1]-it[5])>3)return false;
+function brTake(p,iid,sl,far){const E=H.br;const it=E.items[iid];if(!it||!p||!p.alive||p.elim)return false;const dx=p.p[0]-it[4],dz=p.p[2]-it[6];if(!far&&(Math.hypot(dx,dz)>3.6||Math.abs(p.p[1]-it[5])>3))return false;
  if(!it._lk&&(it[1]===0||it[1]===4)){it._lk=1;const lk=petLuck(p);if(lk&&it[3]<4&&Math.random()<lk)it[3]++}const r=brGive(p,it,sl);if(!r.ok){if(!p.bot&&r.why==='full')sendTo(p.id,{t:'bpf'});return false}delete E.items[iid];bcast({t:'lp',i:iid,by:p.id});
  if(r.dropped){const d=brItem(r.dropped[0],r.dropped[1],r.dropped[2],p.p[0]+rrand(-.6,.6),p.p[1],p.p[2]+rrand(-.6,.6),-1);bcast({t:'ld',it:d.slice(0,7)})}
  if(!p.bot)sendTo(p.id,{...invOut(p),it:it.slice(0,4)});return true}
@@ -2666,7 +2666,7 @@ function equipSkin(id,tint=0){tint=tint|0;const full=id==='default'?'default':jo
  saveProg();if(me.model)me.model.userData.mk='stale';
  try{hubEquip&&hubEquip();const hp=H&&H.players&&H.players[me.id];if(hp&&C.hostId===me.id){hp.skin=cleanSkin(full);hp.fit=curFit();bcast({t:'fit',id:me.id,ft:hp.fit,sk:hp.skin})}else if(C.hostId&&C.hostId!==me.id&&!C.hub)send({t:'fit',fit:curFit(),sk:full})}catch(e){}}
 window.__hsz.equipSkin=equipSkin;
-const PETX={H:()=>H,plist,enemy:(p,q)=>H.mode==='ffa'||q.team!==p.team,los:(p,q)=>{_o.set(p.p[0],p.p[1]+1,p.p[2]);return rayClearHost(_o,_d.set(q.p[0],q.p[1]+1.1,q.p[2]))},damage:(v,d,by,h,w)=>damage(v,d,by,h,w),bcast:m=>bcast(m),toPlayer:(id,m)=>toPlayer(id,m),take:(p,id)=>H.br?brTake(p,id):false};
+const PETX={H:()=>H,plist,enemy:(p,q)=>H.mode==='ffa'||q.team!==p.team,los:(p,q)=>{_o.set(p.p[0],p.p[1]+1,p.p[2]);return rayClearHost(_o,_d.set(q.p[0],q.p[1]+1.1,q.p[2]))},damage:(v,d,by,h,w)=>damage(v,d,by,h,w),bcast:m=>bcast(m),toPlayer:(id,m)=>toPlayer(id,m),take:(p,id,far)=>H.br?brTake(p,id,undefined,far):false};
 PETS=initSidekicks({addCol:dynColAdd,delCol:dynColDel,scene,me,C,PROG,isEnemy,cols:()=>cur&&cur.cols,send,inGame:()=>inGame,toast:m=>center(m,1300),sfx:()=>{try{SFX.beep&&SFX.beep()}catch(e){}},canAct:()=>inGame&&!paused&&me.alive,tpv:()=>TPV.on,hideVm:()=>{vmRoot.visible=false}});window.__hsz.pets=PETS;window.__hsz.petx=PETX;window.__hsz.pcx={cols:()=>cur&&cur.cols,free:phaseFree,spot:phaseSafeSpot,end:phaseEnd};
 function equipPet(id){id=SK_BY[id]&&PROG.pets.includes(id)?id:'';PROG.pet=id;saveProg();try{sendWS();if(!inGame&&C.hostId&&C.hostId!==me.id)send({t:'ws',ws:cleanWS(wsOut())});if(!inGame||C.hub){const hp=H&&H.players&&H.players[me.id];if(hp&&C.hostId===me.id){hp.ws=cleanWS(wsOut());bcast({t:'ws',id:me.id,ws:hp.ws})}}}catch(e){}if(PETS)PETS.reset()}
 window.__hsz.equipPet=equipPet;
