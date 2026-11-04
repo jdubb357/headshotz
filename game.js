@@ -2460,6 +2460,7 @@ function brChestGround(c){const hx=.5,hz=.32,cs=Math.cos(c.ry),sn=Math.sin(c.ry)
  if(hi-lo<.45&&hi-lo>.01){const dA=((h[1]+h[3])-(h[2]+h[4]))/(4*hx),dB=((h[1]+h[2])-(h[3]+h[4]))/(4*hz),yc=(h[1]+h[2]+h[3]+h[4])/4;let lift=0;for(let i=0;i<5;i++)lift=Math.max(lift,h[i]-(yc+dA*P[i][0]+dB*P[i][1]));
   const nl=new THREE.Vector3(-dA,1,-dB).normalize();const qt=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),nl);c.fy=yc+lift;c.nq=qy.clone().multiply(qt)}
  else{c.fy=hi;c.nq=qy}c.gy=c.fy}
+function brAutoOK(B,it){const k=it[1],a=it[2];if(!B.inv)return false;if(k===1)return((B.res&&B.res[a])|0)<240;if(k===2)return(B.inv.c[a]|0)<CONMAX[a];return false}
 function brAct(k,i){if(!BC||!me.alive||BC.air)return;if(k==='c'){send({t:'co',c:i});BC.chT=-1}else{BC.pkT[i]=performance.now();send({t:'pk',i,s:k==='s'?9:0});SFX.swap&&SFX.swap()}}
 function brUse(k){const B=BC;if(!B||!me.alive||me.down||B.air||B.cast||B.inv.c[k]<=0)return;if(k===0&&me.hp>=75)return center('Health is above 75',700);if(k===1&&me.hp>=100)return center('Health is full',700);if(k===2&&B.sh>=100)return center('Shield is full',700);if(k===3&&B.sh>=50)return center('Shield is above 50 (mini)',700);
  B.cast={k,t:0,d:CONT[k]};$('brCast').classList.remove('hidden');$('brCast').querySelector('span').textContent='Using '+CONN[k]+'…';SFX.swap&&SFX.swap()}
@@ -2503,7 +2504,8 @@ function brFrame(dt,now){const B=BC;if(!B)return;if(!B.bioOn){B.bioOn=1;try{bioB
  B.scan-=dt;if(B.scan<=0&&me.alive&&!B.air){B.scan=.2;const near=[];const px=me.pos.x,py=me.pos.y,pz=me.pos.z;for(const it of B.items.values()){const dx=it[4]-px,dz=it[6]-pz;if(dx*dx+dz*dz>9||Math.abs(it[5]-py)>2.4)continue;near.push([dx*dx+dz*dz,'i',it])}
   for(const c of B.chests){if(c.open)continue;const dx=c.x-px,dz=c.z-pz;if(dx*dx+dz*dz>12||Math.abs(c.y-py)>2.4)continue;near.push([dx*dx+dz*dz-2,'c',c])}
   near.sort((a,b)=>a[0]-b[0]);B.near=near.slice(0,4);
-  for(const n of near)if(n[1]==='i'&&n[2][1]===1&&n[0]<3.2&&performance.now()-(B.pkT[n[2][0]]||0)>900){B.pkT[n[2][0]]=performance.now();send({t:'pk',i:n[2][0],s:0})}
+  // v97: walking over ammo / health / shield items picks them up automatically (never weapons; items you are full on are left on the ground)
+  for(const n of near)if(n[1]==='i'&&n[0]<3.6&&Math.abs(n[2][5]-py)<1.7&&brAutoOK(B,n[2])&&performance.now()-(B.pkT[n[2][0]]||0)>900){B.pkT[n[2][0]]=performance.now();send({t:'pk',i:n[2][0],s:0})}
   const key=B.near.map(n=>n[1]+(n[1]==='i'?n[2][0]:n[2].id)).join(',')+'|'+B.inv.g.map(g=>g?g[0]+g[1]:'').join()+'|'+B.inv.m.join()+'|'+(B.inv.bp||[]).length;if(key!==B.nearK){B.nearK=key;const h=B.near.map((n,i)=>n[1]==='c'?`<button data-k="c" data-i="${n[2].id}" class="nb chest${n[2].god?' god':n[2].sec?' secret':''}"><b>${n[2].god?'⭐ OPEN GODLY CHEST':n[2].sec?'🔴 OPEN SECRET CRATE':'📦 OPEN CHEST'}</b>${i===0&&!isTouch?'<kbd>E</kbd>':''}</button>`:brNearBtn(n,i)).join('');$('brNear').innerHTML=h}}
  else if(me.alive===false||B.air){if(B.nearK!==''){B.nearK='';$('brNear').innerHTML=''}}
  // secret crates: pulse + distinct alarm sound when close
