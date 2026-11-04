@@ -17,7 +17,7 @@ const $=id=>document.getElementById(id);
 const GAME='HeadShotz';
 const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 const MODES={duel:['1v1 Duel','⚔️'],team:['2v2 Teams','👥'],t3:['3v3 Teams','🛡️'],t4:['4v4 Teams','🚩'],t5:['5v5 Teams','🏰'],ffa:['Free-For-All','💥'],ctf:['Capture the Flag','🏁'],ext:['Extraction','🚁'],raid:['Extraction Raid','🏴'],br:['Battle Royale','🪂'],brs:['Squad Royale','🪂']};
-const MODEMAX={duel:2,team:4,t3:6,t4:8,t5:10,ffa:10,ctf:8,ext:4,raid:9,br:24,brs:24},MAXP=10;const isTeamMode=m=>m!=='ffa'&&m!=='duel'&&m!=='br';
+const MODEMAX={duel:2,team:4,t3:6,t4:8,t5:10,ffa:10,ctf:8,ext:4,raid:9,br:50,brs:50},MAXP=10;const isTeamMode=m=>m!=='ffa'&&m!=='duel'&&m!=='br';
 // down-and-revive (team modes): bleed-out 20 s, downed HP pool 50, revive = stand within 1.5 m for 5 s (progress resets if the reviver leaves), revived with 30 HP
 const DOWN={bleed:20,hp:50,r:1.5,revive:5,revHp:30};
 const DIFF={easy:{hit:.22,react:.9,turn:3.5,head:.06},normal:{hit:.33,react:.72,turn:5,head:.11},hard:{hit:.58,react:.35,turn:9,head:.24}};
@@ -773,17 +773,21 @@ function hostTick(dt){H.t+=dt;if(H.phase==='play'||H.phase==='starting')botDoors
    if((v.dsT=(v.dsT||0)+dt)>.15){v.dsT=0;bcast({t:'dst',id:v.id,left:Math.max(0,v.downT-H.t),rv:v.rev?Math.min(1,(H.t-v.rev.t0)/((PCL[(H.players[v.rev.by]||{}).cl]||{}).rev||DOWN.revive)):0,by:v.rev?v.rev.by:null})}}
   if(RAIDM(H.mode))raidTick(dt);else if(MISSION(H.mode))missionTick(dt);else if(BRM(H.mode)&&H.br)brTick(dt);else if(H.t>=H.roundEnd){let win='draw';if(H.mode==='ffa'){let b=-1;for(const p of plist())if(p.rk>b){b=p.rk;win=p.id}}else{const a=teamAlive();win=(a.A||0)>(a.B||0)?'A':(a.B||0)>(a.A||0)?'B':'draw'}endRound(win)}
   if(H.phase==='play')for(const p of plist()){if(!p.alive&&p.respawn&&H.t>=p.respawn){p.respawn=0;p.dmgBy={};p.alive=true;p.hp=100;p.prot=MISSION(H.mode)?H.t+CTF.prot:0;const s=respawnPoint(p);p.p=[s[0],0,s[1],s[2],0,0,0];if(p.bot)botReset(p,s);bcast({t:'spawn',id:p.id,s});sendSB()}}
-  for(const p of plist())if(p.bot&&p.alive&&!(H.botFreeze&&H.botFreeze[p.id]))botTick(p,dt);
+  {const all=plist(),big=BRM(H.mode)&&all.length>30;H.tk=(H.tk||0)+1;let hs=null;
+   for(const p of all)if(p.bot&&p.alive&&!(H.botFreeze&&H.botFreeze[p.id])){
+    if(big){if(!hs)hs=all.filter(q=>!q.bot&&q.alive&&!q.air);let dm=hs.length?1e9:60;for(const h of hs){const d=Math.hypot(h.p[0]-p.p[0],h.p[2]-p.p[2]);if(d<dm)dm=d}
+     const k=dm>150?4:dm>80?2:1;p._lt=(p._lt||0)+dt;if(k>1&&((H.tk+(p.ord|0))%k)!==0)continue;botTick(p,Math.min(.1,p._lt));p._lt=0}
+    else botTick(p,dt)}}// v96: far bots (>80 m / >150 m from every living human) think every 2nd / 4th tick in 50-player Royale lobbies
   // molotov damage over time
   H.fireT+=dt;for(const f of H.fires)f.t+=dt;H.fires=H.fires.filter(f=>f.t<f.life);for(const s of H.smokes)s.t+=dt;H.smokes=H.smokes.filter(s=>s.t<s.life);
   if(H.fireT>=.5){H.fireT=0;for(const f of H.fires){const o=H.players[f.owner];for(const p of plist()){if(!p.alive)continue;if(o&&H.mode!=='ffa'&&p.team===o.team&&p.id!==f.owner)continue;if(p.id===f.owner)continue;
     if(Math.hypot(p.p[0]-f.p.x,p.p[2]-f.p.z)<f.r&&Math.abs(p.p[1]-f.p.y)<1.6)damage(p,7,f.owner,false,'molotov')}}}}
- if(H.phase!=='lobby'){const ps=plist(),n=ps.length;const iv=n<=4?.05:n<=6?.066:.083;H.snapT=(H.snapT||0)+dt;if(H.snapT>=iv){H.snapT=0;H.snapN=(H.snapN||0)+1;
+ if(H.phase!=='lobby'){const ps=plist(),n=ps.length;const iv=n<=4?.05:n<=6?.066:n<=30?.083:.1;H.snapT=(H.snapT||0)+dt;if(H.snapT>=iv){H.snapT=0;H.snapN=(H.snapN||0)+1;
   const rows=ps.map(p=>{const a=p.p;return[p.ord,Math.round(a[0]*100),Math.round(a[1]*100),Math.round(a[2]*100),Math.round(a[3]*1000),Math.round(a[4]*100),a[5]|0,(a[6]|0)|(p.down?4:0),p.alive?1:0]});
   const rt=Math.max(0,H.roundEnd-H.t)|0;const odd=H.snapN&1;
   for(const id in conns){if(!conns[id].open)continue;const v=H.players[id];const vp=v&&v.p;
    // interest throttling: players >45m away from this viewer are only sent every other snapshot (they move little on screen)
-   const arr=vp&&n>4?rows.filter((r,i)=>odd||ps[i].id===id||Math.hypot(r[1]/100-vp[0],r[3]/100-vp[2])<45):rows;conns[id].send({t:'snap',p:arr,rt})}
+   const arr=vp&&n>4?rows.filter((r,i)=>{if(ps[i].id===id)return true;const d=Math.hypot(r[1]/100-vp[0],r[3]/100-vp[2]);return d<45||(n>30&&d>140?(H.snapN&3)===1:odd)}):rows;conns[id].send({t:'snap',p:arr,rt})}
   clientHandle({t:'snap',p:rows,rt})}}}
 // ---- bots ----
 function botReset(b,s){b.e={pos:new THREE.Vector3(s[0],0,s[1]),vel:new THREE.Vector3(),ground:true};b.yaw=s[2];b.cool=1;b.goal=null;b.strafe=1;b.st=0;b.react=.7;b.blind=0;b.shots=0}
@@ -1354,7 +1358,7 @@ function deathCam(dt){if(BC&&brSpec(dt))return;const q=me.killer&&C.players[me.k
 // animation LOD for remote players: full rate <70 m, every 2nd frame 70-150 m, every 3rd beyond (guns are NEVER culled by distance - v52 did, that made guns vanish at range)
 function lodRun(q,dt,d){q.ld=d;q.lacc=(q.lacc||0)+dt;if(!window.__noLod&&d>70&&q.lwait>0&&!q.eo){q.lwait--;return false}q.lwait=window.__noLod?0:d>150?2:d>70?1:0;q.ldt=q.lacc;q.lacc=0;return true}
 function updRemotes(dt){const a=Math.min(1,dt*14);for(const id in C.players){const q=C.players[id];if(!q.model)continue;const u=q.model.userData;
- if(!q.alive&&!u.dead){q.model.visible=false;continue}if(u.dead>3){q.model.visible=false;continue}q.model.visible=true;
+ if(!q.alive&&!u.dead){q.model.visible=false;continue}if(u.dead>3){q.model.visible=false;continue}q.model.visible=!(BC&&camera.position.distanceTo(q.rp)>240);
  if(q.alive){if(q.rp.distanceTo(q.tp)>6)q.rp.copy(q.tp);else q.rp.lerp(q.tp,a);let dy=q.tyaw-q.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));q.yaw+=dy*a;q.pitch+=(q.tpitch-q.pitch)*a}
  const sp=Math.hypot(q.rp.x-q.lp.x,q.rp.z-q.lp.z)/Math.max(dt,.001);q.lp.copy(q.rp);q.spd=(q.spd||0)+(sp-(q.spd||0))*Math.min(1,dt*8);
  if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);{const eo=q.emo&&performance.now()<q.emo.until&&q.spd<1.5&&q.alive?q.emo.id:null;if(q.emo&&!eo)q.emo=null;q.ek=(q.ek||0)+((eo?1:0)-(q.ek||0))*a;q.model.rotation.y=q.yaw+Math.PI*q.ek;q.eo=eo}{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);if(lodRun(q,dt,camera.position.distanceTo(q.rp)))animate(q.model,{emote:q.eo,pose:BC&&!(q.flags&32)?((q.flags&16)?'fall':(q.flags&8)?'glide':null):null,bank:0,shot:q.shotAt!==q.shotSeen,speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,crouch:!!(q.flags&64)&&!dn,pitch:q.pitch,climb:cl,down:dn,slope:dn?downSlope(q):null,dist:camera.position.distanceTo(q.rp)},q.ldt);q.shotSeen=q.shotAt;q.model.rotation.x=0;downMark(q,dn);if(BC)brRemote(q)}}}
@@ -2009,7 +2013,7 @@ $('briefBtn')&&($('briefBtn').onclick=()=>{const m=MS&&MS.info.m;if(m)showBrief(
 Object.assign(window.__hsz,{MSX:()=>({MS,H,CTF,EXT}),damage:(...a)=>damage(...a),extCall,missionTick,endMission,addRaider});
 // ================= v44 BATTLE ROYALE (host side) =================
 const RAR=[{n:'COMMON',c:0xb8bcc4,d:1,m:1,rl:1,sp:1,fr:1},{n:'UNCOMMON',c:0x4cd964,d:1.1,m:1.06,rl:.95,sp:.95,fr:.98},{n:'RARE',c:0x3b9cff,d:1.2,m:1.12,rl:.9,sp:.9,fr:.96},{n:'EPIC',c:0xb35cff,d:1.32,m:1.2,rl:.85,sp:.84,fr:.94},{n:'LEGENDARY',c:0xffb81c,d:1.45,m:1.3,rl:.8,sp:.78,fr:.92},{n:'SECRET',c:0xff2b2b,d:1.6,m:1.4,rl:.75,sp:.7,fr:.9},{n:'GODLY',c:0xffd700,d:1.8,m:1.5,rl:.7,sp:.65,fr:.88}];
-const BRC={secret:7,god:2,pop:24,sq:4,heliY:230,busDur:52,chuteY:70,ft:48,cd:3};
+const BRC={secret:7,god:2,pop:50,sq:4,heliY:230,busDur:52,chuteY:70,ft:48,cd:3};
 const AMN=['Light','Medium','Shells','Heavy'],AMV=[36,30,8,6];
 const CONS=['band','med','shd','mini'],CONN=['Bandage','Medkit','Shield Potion','Mini Shield'],CONMAX=[15,3,3,6],CONT=[2.5,6,4,2],CONI=['🩹','🧰','🧪','🧃'];
 const GUNW=[['ar',24],['smg',18],['shotgun',14],['pistol',14],['marksman',10],['sniper',8],['heavy',3]];
@@ -2050,6 +2054,7 @@ function brPrep(){const m=buildMap(H.map);const E=H.br={half:m.size[0]/2,ph:'bus
   sq.forEach((s,i)=>s.forEach(p=>{p.team='S'+(i+1);p.color=SQCOL[i%SQCOL.length]}));}
  // loot
  const sp=m.lootSpots||[];for(const s of sp){const n=Math.random()<.5?2:1;for(let k=0;k<n;k++){const it=fixItem(rollItem(false),false);brItem(it[0],it[1],it[2],s[0]+(k?rrand(-.8,.8):0),s[1],s[2]+(k?rrand(-.8,.8):0),s[3])}}
+ {const xk=Math.max(0,(BRC.pop/24-1)*.38);if(xk>0)for(const s of sp)if(Math.random()<xk){const it=fixItem(rollItem(false),false);brItem(it[0],it[1],it[2],s[0]+rrand(-1,1),s[1],s[2]+rrand(-1,1),s[3])}}// v96: ~+30% ground loot for the 50-player lobby
  (m.chestSpots||[]).forEach((c,i)=>E.chests.push({id:i,x:c[0],y:c[1],z:c[2],ry:c[3],bd:c[4],open:0,tier:wrand([[0,52],[1,29],[2,14],[3,5]])}));
  // v92: 7 red Secret + 2 gold Godly crates per map, one per biome zone first (spread across the whole island), then fill with spacing
  {const H2=brHalf(),ok=c=>Math.hypot(c.x,c.z)<=H2*.92,pool=E.chests.filter(ok).sort(()=>Math.random()-.5),pick=[],want=BRC.secret+BRC.god;const far=(c,d)=>pick.every(q=>Math.hypot(q.x-c.x,q.z-c.z)>d);const mark=c=>{c.sec=1;if(pick.length<BRC.god)c.god=1;pick.push(c)};
@@ -2126,7 +2131,7 @@ function brLateJoin(from,m){if(!conns[from]){const c=peer.connections?.[from]?.[
   if(!rm){const L=bots.filter(b=>b.team);if(L.length){rm=pick(L);team=rm.team}}}
  else rm=bots.length?pick(bots):null;
  if(!rm&&dead.length)rm=dead[0],team=H.mode==='brs'?rm.team:null;
- if(!rm&&plist().length>=(MODEMAX[H.mode]||24)){conns[from]?.send({t:'full',started:1});return}
+ if(!rm&&plist().length>=(MODEMAX[H.mode]||50)){conns[from]?.send({t:'full',started:1});return}
  if(rm){delete H.players[rm.id];bcast({t:'bye',id:rm.id})}
  const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
  if(H.mode==='brs'){np.team=team||'S'+(plist().length+1);np.color=rm?rm.color:SQCOL[0]}else{np.team=from;np.color=FFACOL[plist().length%10]}

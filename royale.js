@@ -56,12 +56,12 @@ export function initRoyale(A){
  function party(){const P=A.party&&A.party();const lead=A.partyLead&&A.partyLead();const sq=S.mode==='brs';
   let h=`<div class="pMemRow"><b>👥 ${P?'PARTY '+P.m.length+'/4':'NO PARTY'}</b>`;if(P)h+=P.m.map(x=>`<span class="${x.code===P.lead?'lead':''}">${x.code===P.lead?'👑 ':''}${A.esc(x.name)}</span>`).join('');h+='</div>';
   h+=`<div class="royBtns"><button id="royInvite" class="pill yellow">➕ INVITE FRIENDS</button>${P?'<button id="royLeave" class="pill">LEAVE PARTY</button>':''}</div>`;
-  h+=`<p class="royHint">${sq?'Squad: you and your party drop together; empty slots are filled by bots.':'Solo: every hero for themselves — 24 players, last one standing wins.'}${P&&!lead?' <b>Only the party leader can press PLAY.</b>':''}</p>`;return h}
+  h+=`<p class="royHint">${sq?'Squad: you and your party drop together; empty slots are filled by bots.':'Solo: every hero for themselves — 50 players, last one standing wins.'}${P&&!lead?' <b>Only the party leader can press PLAY.</b>':''}</p>`;return h}
  function render(){const sq=S.mode==='brs';const P=A.party&&A.party();const canPlay=!P||A.partyLead();
   $('royTabs').innerHTML=`<button data-t="lobby" class="${S.tab==='lobby'?'sel':''}">🏝️ LOBBY</button><button data-t="locker" class="${S.tab==='locker'?'sel':''}">🎒 LOCKER</button>`;
   $('royLobby').style.display=S.tab==='lobby'?'':'none';$('royLocker').style.display=S.tab==='locker'?'':'none';
   if(S.tab==='lobby'){$('royLobby').innerHTML=`<div class="royMode"><button data-m="br" class="${!sq?'sel':''}">🧍 SOLO</button><button data-m="brs" class="${sq?'sel':''}">👥 SQUAD</button></div>
-   <div class="royInfo">🏝️ Skyline Island · 24 players · loot · storm</div>${party()}
+   <div class="royInfo">🏝️ Skyline Island · 50 players · loot · storm</div>${party()}
    <div class="royDiff"><span>BOTS</span>${['easy','normal','hard'].map(d=>`<button data-d="${d}" class="${S.diff===d?'sel':''}">${d.toUpperCase()}</button>`).join('')}</div>
    ${(()=>{const q=A.lastSquad&&A.lastSquad();return q?`<button id="royAgain" class="btnBig royAgain" ${canPlay?'':'disabled'}>🔁 PLAY AGAIN · SAME SQUAD<small>${q.mode==='brs'?'Squad':'Solo'} · ${String(q.diff||'normal').toUpperCase()} bots${P&&P.m&&P.m.length>1?' · '+P.m.length+' friends':''}</small></button>`:''})()}<button id="royPlay" class="btnBig yellow royPlay" ${canPlay?'':'disabled'}>▶ PLAY</button>`}
   else renderLocker();

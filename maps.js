@@ -257,7 +257,7 @@ DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,
   B.palm(30,21);B.palm(-30,-21);B.palm(30,-21)},
  spawnsA:[[0,4],[2,5],[-2,5],[3,3],[-3,3]],spawnsB:[[0,6]],spawnsM:[[0,6]]});
 export const HUB_I=DEFS.length-1;
-DEFS.push(brDef({G,rng,_c}));export const BR_I=DEFS.length-1;export const BR_INFO={name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',def:DEFS[BR_I]};export{BR_ZONES};
+DEFS.push(brDef({G,rng,_c}));export const BR_I=DEFS.length-1;export const BR_INFO={name:'Skyline Island',desc:'50 players · loot · storm',icon:'🏝️',def:DEFS[BR_I]};export{BR_ZONES};
 // --------- collision-free spawn fix ----------
 function clear(cols,x,z,r=.6){for(const c of cols)if(x+r>c.x0&&x-r<c.x1&&z+r>c.z0&&z-r<c.z1&&c.y0<1.8&&c.y1>.05)return false;return true}
 function fixSpawn(cols,s,lim){if(clear(cols,s[0],s[1]))return s;for(let rad=.5;rad<6;rad+=.5)for(let a=0;a<16;a++){const x=s[0]+Math.cos(a/16*6.283)*rad,z=s[1]+Math.sin(a/16*6.283)*rad;if(Math.abs(x)<lim[0]-1&&Math.abs(z)<lim[1]-1&&clear(cols,x,z))return[+x.toFixed(2),+z.toFixed(2)]}return s}
