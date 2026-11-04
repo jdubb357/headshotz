@@ -19,7 +19,7 @@ export function hostTick2(X,p,d,S,H,tr){const t=H.t;if(d.ab==='thunder'&&S.th&&t
  else if(d.ab==='phase'&&p.phase&&t>=p.phase){p.phase=0}}
 // ---------- client ----------
 const GH=new Map();// key -> until(ms): phased players (hidden from everyone else)
-export const ghosted=id=>{const u=GH.get(id);return !!u&&performance.now()<u};
+export const unghost=id=>{GH.delete(id)};export const ghosted=id=>{const u=GH.get(id);return !!u&&performance.now()<u};
 export function clientFx2(m,X){const{A,me,C,root,F,puff,now}=X;const key=m.id===me.id?'me':m.id;
  if(m.k==='phase'){const u=now()+m.d*1000;GH.set(m.id,u);if(m.id===me.id){me.pf={ph:1,until:u,up:0};X.setCd(m.cd*1000);A.toast&&A.toast('👻 Phantom Phase!');document.body.classList.add('phasing')}const f=F.get(key);if(f){f.g.visible=false;f.g.userData.blob.visible=false}}
  else if(m.k==='frost'){const ring=new THREE.Mesh(new THREE.TorusGeometry(1,.06,6,48),new THREE.MeshBasicMaterial({color:0x8fe8ff,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));ring.rotation.x=Math.PI/2;ring.position.set(m.x,m.y+.25,m.z);root.add(ring);RINGS.push({ring,t:now(),r:m.r});
