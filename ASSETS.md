@@ -83,3 +83,6 @@ No new third-party assets. The 16 named areas of Skyline Island (Neon City, Infe
 
 ## v93: ambient life
 No new third-party assets. The airliners, contrails, helicopters, bird flocks, bats, deer and rabbits are generated in code (original low-poly shapes). Any future CC0/CC-BY models will be listed here.
+
+## v94 — Pet tiers + active abilities (batch 1)
+No third-party assets. Shadow Bat ("Nyx") and Ember Dragon ("Cinder") are original in-code models (`petmodels.js`, `petkit.js`: membrane wings, glowing eyes, T2 halo, T3 spark aura). All code is original.
