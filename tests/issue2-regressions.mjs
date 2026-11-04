@@ -126,8 +126,8 @@ try {
       const p = Object.values(H.players);
       return {total: p.length, bots: p.filter(q => q.bot).length, humans: p.filter(q => !q.bot).length, s1Humans: p.filter(q => !q.bot && q.team === 'S1').length};
     })()`);
-    assert.equal(before.total, 24, 'full-squad fixture keeps the 24-player match size');
-    assert.equal(before.bots, 20, 'full-squad fixture has bots in other squads');
+    assert.equal(before.total, 50, 'full-squad fixture keeps the 50-player match size');
+    assert.equal(before.bots, 46, 'full-squad fixture has bots in other squads');
     assert.equal(before.humans, 4, 'full-squad fixture has four humans');
     assert.equal(before.s1Humans, 4, 'party squad S1 is at its 4-human cap');
 
@@ -146,8 +146,8 @@ try {
         byTeam: p.reduce((a, q) => ((a[q.team] = (a[q.team] || 0) + 1), a), {}),
         joiner: window.__hsz.H.players[${JSON.stringify(joined.id)}] && {team: window.__hsz.H.players[${JSON.stringify(joined.id)}].team}};
     })()`);
-    assert.equal(after.total, 24, 'match size stays 24 after the party friend joins');
-    assert.equal(after.bots, 19, 'the party friend replaced an available bot');
+    assert.equal(after.total, 50, 'match size stays 50 after the party friend joins');
+    assert.equal(after.bots, 45, 'the party friend replaced an available bot');
     assert.equal(after.humans, 5, 'the party friend is in the match as a human');
     assert.equal(after.joiner.team, 'S2', 'the full party squad is preserved; the joiner takes a bot slot in another squad');
     assert.ok(Object.values(after.byTeam).every(n => n <= 4), 'every squad stays at the 4-player cap: ' + JSON.stringify(after.byTeam));
@@ -167,14 +167,14 @@ try {
       return {mode: window.__hsz.H.mode, total: p.length, bots: p.filter(q => q.bot).length};
     })()`);
     assert.equal(before.mode, 'br', 'solo Battle Royale fixture is in br mode');
-    assert.equal(before.total, 24, 'solo Battle Royale match starts at its 24-player size');
-    assert.equal(before.bots, 23, 'solo Battle Royale match starts with bots');
+    assert.equal(before.total, 50, 'solo Battle Royale match starts at its 50-player size');
+    assert.equal(before.bots, 49, 'solo Battle Royale match starts with bots');
     const client = await joinClient(root, contextId, code);
     await client.wait(`(() => {const C = window.__hsz.CC(), me = window.__hsz.ME();return !!(C && C.mode==='br' && me.id && C.players[me.id] && window.__hsz.room.inGame)})()`, 40000);
     const joined = await client.evaluate(`(() => {const C = window.__hsz.CC(), me = window.__hsz.ME();return {id: me.id, mode: C.mode, phase: C.phase, team: C.players[me.id].team, air: me.air}})()`);
     const after = await host.evaluate(`(() => {const p = Object.values(window.__hsz.H.players);return {total: p.length, bots: p.filter(q => q.bot).length, humans: p.filter(q => !q.bot).length}})()`);
-    assert.equal(after.total, 24, 'solo match size stays 24 after the online join');
-    assert.equal(after.bots, 22, 'solo online join replaces one bot');
+    assert.equal(after.total, 50, 'solo match size stays 50 after the online join');
+    assert.equal(after.bots, 48, 'solo online join replaces one bot');
     assert.equal(after.humans, 2, 'solo match now has two humans');
     assert.equal(joined.mode, 'br', 'client entered solo Battle Royale');
     assert.equal(joined.team, joined.id, 'solo joiners keep their own team id');
