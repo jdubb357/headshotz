@@ -4,7 +4,7 @@
 // carriers, packs) is attached to bones. Animation is procedural on the skeleton (same pose model as the old rig: gait, crouch, slide,
 // jump, climb, downed crawl, death) with 2-bone IK putting both hands on the weapon, which is mounted on the right hand's aim frame.
 // If anything fails to load, chars.js keeps building the old procedural characters.
-import {THREE,GQ} from './gfx.js';import {buildGear,buildSkinHat} from './gear.js';
+import {THREE,GQ} from './gfx.js';import {buildGear,buildSkinHat} from './gear.js';import * as AD from './addons.js';
 import {skinU,GX_PAL,GX_GLSL,gxDefs} from './wskins.js';
 import {KITS,mkG} from './kits.js';
 export const HUM={ready:false,failed:false,tpl:{},tex:{},ms:0,bytes:0};
@@ -119,12 +119,14 @@ if(K&&K.head&&bones.head)bones.head.scale.setScalar(K.head);
  // gear on bones
  // gear: collected per bone, baked into that bone's space and merged into ONE vertex-coloured mesh per bone (few draw calls)
  const GB={},GF={};const addG=(m,bn)=>{const b=bones[bn]?bn:'spine_03';const G=m.userData.fine?GF:GB;(G[b]=G[b]||[]).push(m)};
- if(K){if(K.legacy)gear({...L,...K.legacy},teamCol,K.legacy.cls||cls,addG);if(K.build)K.build(mkG(addG,rboxF),{...KC,skin:new THREE.Color(KS&&KS.col!=null?KS.col:TONES[toneI|0]).multiply(new THREE.Color(SKAVG[+skinK])).getHex()})}else{gear(L,teamCol,cls,addG);if(SX)buildSkinHat(SX.hat,SX.hatc,SX.acc,addG)}
+ if(K){if(K.legacy)gear({...L,...K.legacy},teamCol,K.legacy.cls||cls,addG);if(K.build)K.build(mkG(addG,rboxF),{...KC,skin:new THREE.Color(KS&&KS.col!=null?KS.col:TONES[toneI|0]).multiply(new THREE.Color(SKAVG[+skinK])).getHex()})}else{gear(L,teamCol,cls,addG);if(SX)buildSkinHat(SX.hat,SX.hatc,SX.acc,addG,SX)}
  const fineM=[];
  for(const [GBX,isF] of [[GB,0],[GF,1]])for(const bn in GBX){const b=bones[bn];b.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(b.matrixWorld).invert();const gs=[];
-  for(const m of GBX[bn]){rig.add(m);m.updateMatrixWorld(true);let g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();for(const k of Object.keys(g.attributes))if(!['position','normal'].includes(k))g.deleteAttribute(k);
-   g.applyMatrix4(_m.multiplyMatrices(inv,m.matrixWorld));const col=m.material.color,n=g.attributes.position.count,ca=new Float32Array(n*4);const rr=m.material.roughness,mt=m.material.metalness,gk=m.material.userData.k||0;const gx=new Float32Array(n*2);for(let i=0;i<n;i++){ca[i*4]=col.r;ca[i*4+1]=col.g;ca[i*4+2]=col.b;ca[i*4+3]=rr;gx[i*2]=mt;gx[i*2+1]=gk}g.setAttribute('color',new THREE.BufferAttribute(ca,4));g.setAttribute('gx',new THREE.BufferAttribute(gx,2));rig.remove(m);gs.push(g)}
+  for(const m of GBX[bn]){rig.add(m);m.updateMatrixWorld(true);let g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();const vcA=g.attributes.color&&g.attributes.color.itemSize===3?g.attributes.color:null;for(const k of Object.keys(g.attributes))if(!['position','normal'].includes(k))g.deleteAttribute(k);
+   g.applyMatrix4(_m.multiplyMatrices(inv,m.matrixWorld));const col=m.material.color,n=g.attributes.position.count,ca=new Float32Array(n*4);const rr=m.material.roughness,mt=m.material.metalness,gk=m.material.userData.k||0;const gx=new Float32Array(n*2);for(let i=0;i<n;i++){ca[i*4]=col.r*(vcA?vcA.getX(i):1);ca[i*4+1]=col.g*(vcA?vcA.getY(i):1);ca[i*4+2]=col.b*(vcA?vcA.getZ(i):1);ca[i*4+3]=rr;gx[i*2]=mt;gx[i*2+1]=gk}g.setAttribute('color',new THREE.BufferAttribute(ca,4));g.setAttribute('gx',new THREE.BufferAttribute(gx,2));rig.remove(m);gs.push(g)}
   const mg=HUM.BGU.mergeGeometries(gs);if(!mg)continue;const mesh=new THREE.Mesh(mg,gearMat());mesh.castShadow=true;b.add(mesh);if(isF)fineM.push(mesh)}
+ // v98 soldier tail: segmented chain hung on the pelvis bone, swayed by animateHuman
+ let tailU=null;if(SX&&SX.tail){const bp=bones.pelvis||bones.spine_01;if(bp){const ch=AD.buildTailChain(SX.tail,SX.tailc==null?shirt:SX.tailc,SX.tipc,SX.tailx==null?SX.acc:SX.tailx);rig.updateMatrixWorld(true);bp.updateMatrixWorld(true);const grp=new THREE.Group();bp.add(grp);const wq=new THREE.Quaternion();bp.getWorldQuaternion(wq);grp.quaternion.copy(wq).invert();const ws=new THREE.Vector3();bp.getWorldScale(ws);grp.scale.set(1/ws.x,1/ws.y,1/ws.z);grp.position.copy(bp.worldToLocal(new THREE.Vector3(0,.99,.1)));grp.add(ch.root);ch.root.scale.setScalar(.95);tailU={root:ch.root,tail:ch.tail,t:Math.random()*9}}}
  // aim frame + gun mount (same numbers as the old rig so gun FX/muzzle stay where the game expects)
  const aim=new THREE.Group();aim.position.set(0,1.36,0);rig.add(aim);const gunMount=new THREE.Group();gunMount.position.set(.055,-.085,-.4);aim.add(gunMount);
  const gR=new THREE.Object3D();gR.position.set(.06,-.11,-.36);aim.add(gR);const gL=new THREE.Object3D();gL.position.set(-.01,-.07,-.53);aim.add(gL);
@@ -132,7 +134,7 @@ if(K&&K.head&&bones.head)bones.head.scale.setScalar(K.head);
  const cv=document.createElement('canvas');cv.width=256;cv.height=64;const x=cv.getContext('2d');x.font='bold 38px system-ui,sans-serif';x.textAlign='center';
  x.lineWidth=8;x.strokeStyle='rgba(0,0,0,.85)';x.strokeText(name,128,46);x.fillStyle='#'+new THREE.Color(tagCol??teamCol).getHexString();x.fillText(name,128,46);
  const tg=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthWrite:false,transparent:true}));tg.scale.set(1.5,.375,1);tg.position.y=2.25;root.add(tg);
- root.userData={kind:'hum',rig,body,bones,rest,AX,aim,gunMount,gR,gL,head:bones.head,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod,far,fineM,lodOn:true,cls:cls||'soldier',crouch:0,climb:0,down:0,lean:0,mats:[cm]};
+ root.userData={kind:'hum',rig,body,bones,rest,AX,aim,gunMount,gR,gL,head:bones.head,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod,far,fineM,tailU,lodOn:true,cls:cls||'soldier',crouch:0,climb:0,down:0,lean:0,mats:[cm]};
  return root}
 const lerp=(a,b,k)=>a+(b-a)*k;
 function rot(u,n,axis,a){const b=u.bones[n];if(!b||!a)return;const ax=u.AX[n][axis];_q.setFromAxisAngle(ax,a);b.quaternion.multiply(_q)}
@@ -156,7 +158,8 @@ const HEMO={
  spin:t=>({r:[[.58,.05,0],[0,-.3,.7]],l:[[-.58,.05,0],[0,-.3,.7]],body:{rigY:Math.max(0,Math.sin(Math.min(1,t/.5)*Math.PI))*.1,legA:[.12,-.12],spin:(1-Math.pow(1-Math.min(1,t/1.5),3))*Math.PI*4}}),
  clap:t=>{const c=(1+Math.sin(t*15))/2;return{r:[[.03+.1*c,-.08,-.42],[.7,-.6,.2]],l:[[-.03-.1*c,-.08,-.42],[-.7,-.6,.2]],body:{rigY:Math.abs(Math.sin(t*7.5))*.02}}},
  sit:t=>({r:[[.2,-.5,-.36],[.7,-.2,.4]],l:[[-.2,-.5,-.36],[-.7,-.2,.4]],body:{rigY:-.42,legA:[1.45,1.45],shA:[-1.5,-1.5]}})};
-export function animateHuman(m,st,dt){const u=m.userData;const sp=Math.min(st.speed,10);
+export function animateHuman(m,st,dt){const r=animateHuman0(m,st,dt);const u=m.userData;if(u.tailU){const T=u.tailU;T.t+=dt;const sp=Math.min(st.speed||0,10);AD.tickTail(T.root,T.tail,T.t,Math.min(1,sp/7),st.air&&!st.climb?1:0,st.lx,u.crouch||0)}return r}
+function animateHuman0(m,st,dt){const u=m.userData;const sp=Math.min(st.speed,10);
  if(st.dist!=null&&u.far.length){const on=st.dist<20;if(on!==u.lodOn){u.lodOn=on;for(const o of u.fineM)o.visible=on;for(const o of u.lod)o.visible=on;for(const o of u.far)o.visible=!on}}
  const k8=Math.min(1,dt*8),k14=Math.min(1,dt*14);
  u.crouch=lerp(u.crouch,st.crouch?1:0,k8);u.climb=lerp(u.climb,st.climb?1:0,k8);u.down=lerp(u.down,st.down?1:0,Math.min(1,dt*5));
