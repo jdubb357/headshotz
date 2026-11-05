@@ -35,11 +35,11 @@ export const W={
  mp7:{name:'MP7',cls:'smg',price:600,auto:1,rate:.06,mag:40,reload:1.9,body:9,head:12,fall:[15,40],min:3,spread:.019,rc:[.006,.007],snd:{f:2800,d:.06,b:200,v:.44},desc:'Tiny, fast, 40-round mag.'},
  kriss:{name:'KRISS Vector .45',cls:'smg',price:800,auto:1,rate:.045,mag:25,reload:1.8,body:9,head:12,fall:[10,30],min:2,spread:.023,rc:[.004,.006],snd:{f:2300,d:.06,b:170,v:.46},desc:'Crazy fire rate, almost no recoil.'},
  p90:{name:'P90',cls:'smg',price:800,auto:1,rate:.055,mag:50,reload:2.3,body:9,head:12,fall:[14,38],min:3,spread:.021,rc:[.005,.006],snd:{f:2700,d:.06,b:190,v:.44},desc:'50-round top mag. Never stop shooting.'},
- aa12:{name:'AA-12',cls:'shotgun',rar:'LEGENDARY',price:1100,shop:5000,auto:1,rate:.2,mag:20,reload:2.8,body:6,head:9,pellets:8,fall:[6,20],min:1.5,spread:.09,rc:[.04,.016],snd:{f:1050,d:.18,b:85,v:.8},desc:'Full-auto drum shotgun. Total chaos.'},
+ aa12:{name:'AA-12',cls:'shotgun',rar:'LEGENDARY',price:1100,auto:1,rate:.2,mag:20,reload:2.8,body:6,head:9,pellets:8,fall:[6,20],min:1.5,spread:.09,rc:[.04,.016],snd:{f:1050,d:.18,b:85,v:.8},desc:'Full-auto drum shotgun. Total chaos.'},
  glock18:{name:'Glock 18',cls:'pistol',price:450,auto:1,rate:.05,mag:20,reload:1.4,body:8,head:11,fall:[12,35],min:2,spread:.028,rc:[.01,.012],snd:{f:2500,d:.06,b:190,v:.44},desc:'Full-auto machine pistol.'},
  deagle:{name:'Desert Eagle',cls:'pistol',price:650,rate:.45,mag:7,reload:1.9,body:36,head:60,fall:[25,60],min:14,spread:.007,rc:[.07,.015],snd:{f:900,d:.26,b:70,v:.88},desc:'.50 cal hand cannon.'},
  crossbow:{name:'Crossbow',cls:'marksman',price:900,rate:1,mag:1,reload:1.3,body:65,head:130,spread:.003,scope:45,rc:[.02,.004],snd:{f:700,d:.12,b:220,v:.5},noShell:1,desc:'Silent bolts. One-shot headshots.'},
- lmg:{name:'LMG',cls:'heavy',rar:'LEGENDARY',price:1200,shop:5000,auto:1,rate:.09,mag:100,reload:4,body:13,head:17,fall:[30,80],min:5,spread:.022,rc:[.011,.01],snd:{f:1600,d:.13,b:120,v:.62},desc:'100-round belt. Suppress everything.'},
+ lmg:{name:'LMG',cls:'heavy',rar:'LEGENDARY',price:1200,auto:1,rate:.09,mag:100,reload:4,body:13,head:17,fall:[30,80],min:5,spread:.022,rc:[.011,.01],snd:{f:1600,d:.13,b:120,v:.62},desc:'100-round belt. Suppress everything.'},
  gl:{name:'Grenade Launcher',cls:'heavy',rar:'SECRET',price:1500,shop:3000,proj:'gl',rate:.9,mag:6,reload:3,body:0,head:0,splash:85,radius:5,spread:0,rc:[.06,.01],snd:{f:500,d:.2,b:60,v:.7},noShell:1,desc:'Lobs explosive rounds that pop on impact.'},
  rpg:{name:'Rocket Launcher',cls:'heavy',rar:'SECRET',price:1900,shop:3000,proj:'rpg',rate:1.4,mag:1,reload:2.6,body:0,head:0,splash:120,radius:5.5,spread:0,rc:[.09,.015],snd:{f:380,d:.45,b:50,v:.85},noShell:1,desc:'Rocket with big splash. Self-damage reduced.'},
  m16:{name:'M16A4',cls:'ar',price:550,burst:3,rate:.34,mag:30,reload:2.1,body:14,head:20,fall:[30,85],min:5,spread:.006,rc:[.012,.004],snd:{f:2000,d:.11,b:140,v:.58},desc:'3-round burst, long barrel, laser accurate.'},
@@ -49,21 +49,21 @@ export const W={
  tommy:{name:'Tommy Gun',cls:'smg',price:700,auto:1,rate:.07,mag:50,reload:2.6,body:10,head:13,fall:[12,32],min:3,spread:.028,rc:[.009,.012],snd:{f:1700,d:.09,b:120,v:.55},desc:'50-round drum, wood and steel.'},
  saiga:{name:'Saiga-12',cls:'shotgun',price:900,rate:.3,mag:8,reload:2.3,body:9,head:12,pellets:8,fall:[7,22],min:1.5,spread:.08,rc:[.06,.014],snd:{f:1000,d:.22,b:80,v:.82},desc:'Semi-auto mag-fed shotgun.'},
  ksg:{name:'KSG',cls:'shotgun',price:1000,rate:.75,mag:14,reload:3.2,body:11,head:15,pellets:8,fall:[8,26],min:2,spread:.07,rc:[.07,.01],snd:{f:950,d:.26,b:75,v:.86},desc:'Bullpup pump with twin tubes: 14 shells.'},
- barrett:{name:'Barrett .50',cls:'sniper',rar:'LEGENDARY',price:1600,shop:5000,rate:.9,mag:5,reload:3.2,body:65,head:150,spread:.05,scope:16,rc:[.11,.02],snd:{f:600,d:.5,b:50,v:.95,crack:1},desc:'Semi-auto anti-materiel. Massive kick.'},
+ barrett:{name:'Barrett .50',cls:'sniper',rar:'LEGENDARY',price:1600,rate:.9,mag:5,reload:3.2,body:65,head:150,spread:.05,scope:16,rc:[.11,.02],snd:{f:600,d:.5,b:50,v:.95,crack:1},desc:'Semi-auto anti-materiel. Massive kick.'},
  awp:{name:'Arctic Magnum',cls:'sniper',rar:'SECRET',price:1900,shop:3000,rate:1.6,mag:5,reload:3.4,body:100,head:200,spread:.06,scope:18,rc:[.1,.015],snd:{f:650,d:.5,b:52,v:.95,crack:1},desc:'One shot, one elimination. Slow bolt.'},
  minigun:{name:'Minigun',cls:'heavy',rar:'SECRET',price:2000,shop:3000,auto:1,rate:.045,mag:150,reload:5,body:8,head:11,fall:[25,60],min:4,spread:.032,rc:[.006,.012],snd:{f:1800,d:.06,b:130,v:.5},desc:'6 spinning barrels. 150-round box.'},
  // ---- fun & sci-fi (v7) ----
  paintball:{name:'Paintball Marker',cls:'fun',price:450,auto:1,rate:.11,mag:40,reload:2,body:7,head:10,fall:[15,45],min:3,spread:.02,rc:[.004,.004],paint:1,noShell:1,tracer:0xff4fd8,snd:{f:700,d:.05,b:320,v:.32,pop:1},desc:'Pop-pop! Low damage, splats paint everywhere.'},
  water:{name:'Water Blaster',cls:'fun',price:300,auto:1,rate:.06,mag:90,reload:2.5,body:1,head:1,fall:[8,18],min:1,spread:.03,rc:[.002,.002],push:3.2,noShell:1,tracer:0x6ab8ff,snd:{f:500,d:.05,b:200,v:.18,pop:1},desc:'Tiny damage, big knockback. Soak them!'},
- freeze:{name:'Freeze Ray',cls:'fun',rar:'LEGENDARY',price:1100,shop:5000,auto:1,rate:.08,mag:60,reload:2.4,body:4,head:5,fall:[10,22],min:1,spread:.01,rc:[.002,.002],slow:[.55,1.2],noShell:1,tracer:0xa8e8ff,snd:{f:3800,d:.05,b:900,v:.22,zap:1},desc:'Chilly beam: slows targets by 45% for a moment.'},
- laser:{name:'Laser Rifle',cls:'fun',rar:'LEGENDARY',price:1400,shop:5000,auto:1,rate:.1,mag:36,reload:2.2,body:12,head:16,spread:.006,rc:[.006,.004],noShell:1,tracer:0x34e7ff,snd:{f:3200,d:.08,b:600,v:.36,zap:1},desc:'Sci-fi pulse rifle. Hitscan, no falloff.'},
+ freeze:{name:'Freeze Ray',cls:'fun',rar:'LEGENDARY',price:1100,auto:1,rate:.08,mag:60,reload:2.4,body:4,head:5,fall:[10,22],min:1,spread:.01,rc:[.002,.002],slow:[.55,1.2],noShell:1,tracer:0xa8e8ff,snd:{f:3800,d:.05,b:900,v:.22,zap:1},desc:'Chilly beam: slows targets by 45% for a moment.'},
+ laser:{name:'Laser Rifle',cls:'fun',rar:'LEGENDARY',price:1400,auto:1,rate:.1,mag:36,reload:2.2,body:12,head:16,spread:.006,rc:[.006,.004],noShell:1,tracer:0x34e7ff,snd:{f:3200,d:.08,b:600,v:.36,zap:1},desc:'Sci-fi pulse rifle. Hitscan, no falloff.'},
  taser:{name:'Taser',cls:'pistol',price:600,rate:1.1,mag:1,reload:1.6,body:15,head:18,maxR:14,spread:.004,rc:[.03,.006],slow:[.3,2],noShell:1,tracer:0xfff36a,snd:{f:4200,d:.12,b:1200,v:.3,zap:1},desc:'Short-range darts that stun (big slow) for 2s.'},
  flare:{name:'Flare Gun',cls:'pistol',price:700,proj:'flare',rate:1,mag:1,reload:1.6,body:0,head:0,splash:20,radius:1.6,spread:0,rc:[.05,.01],noShell:1,fire:1,snd:{f:600,d:.15,b:90,v:.6},desc:'Fires a flare that sets a small fire.'},
  bat:{name:'Baseball Bat',cls:'melee',price:350,melee:3.1,rate:.6,body:40,head:55,desc:'Swing for the fences.'},
  pan:{name:'Frying Pan',cls:'melee',price:400,melee:2.6,rate:.55,body:36,head:70,bonk:1,desc:'BONK. Headshots ring loud.'},
  scythe:{name:'Scythe',cls:'melee',price:900,melee:4.2,rate:1,body:58,head:75,desc:'Huge reach, slow reap.'},
  trident:{name:'Trident',cls:'melee',price:1000,melee:4.6,rate:.85,body:50,head:70,desc:'Longest reach of any melee.'},
- chainsaw:{name:'Chainsaw',cls:'melee',rar:'LEGENDARY',price:1300,shop:5000,melee:2.4,auto:1,rate:.1,body:9,head:12,saw:1,slowSelf:.82,desc:'Hold to rip (~90 dps). Loud and a bit heavy.'},
+ chainsaw:{name:'Chainsaw',cls:'melee',rar:'LEGENDARY',price:1300,melee:2.4,auto:1,rate:.1,body:9,head:12,saw:1,slowSelf:.82,desc:'Hold to rip (~90 dps). Loud and a bit heavy.'},
  grenade:{name:'Frag Grenade',cls:'util',count:2,desc:'Explodes after 1.8s. Up to ~100 damage.'},
  molotov:{name:'Molotov',cls:'util',count:1,desc:'Bursts into flames on impact. Burns over time.'},
  smoke:{name:'Smoke',cls:'util',count:2,desc:'Thick cloud that blocks vision for 12s.'},
@@ -71,6 +71,9 @@ export const W={
  decoy:{name:'Decoy',cls:'util',count:1,desc:'Non-lethal. Fakes gunfire from where it lands for 8s.'},
  medkit:{name:'Med Kit',cls:'util',count:1,heal:50,desc:'Instantly heal 50 HP.'},
 };
+// v62 GODLY weapons: gold-finished versions of existing models, 1.8x damage (Secret rarity is 1.6x). Sold in the weapon shop for 5000 and in the Godly chest (5000). price keeps them out of the 'owned by default' set.
+export const GODLY_BASE={gk_ak47:['ak47','Godly AK-47','Midas-plated AK. Hits 1.8x harder than stock.'],gk_deagle:['deagle','Godly Desert Eagle','Solid-gold .50. 1.8x damage.'],gk_katana:['katana','Godly Katana','Sun-forged blade. 1.8x damage.'],gk_awp:['awp','Godly Arctic Magnum','Gilded one-shot sniper. 1.8x damage.'],gk_aa12:['aa12','Godly AA-12','Golden auto-shotgun. 1.8x damage.']};
+for(const g in GODLY_BASE){const[b,n,d]=GODLY_BASE[g];const w=W[b];W[g]={...w,name:n,desc:d,godly:1,rar:'GODLY',price:99999,shop:5000,body:Math.round(w.body*1.8),head:Math.round(w.head*1.8)}}
 for(const k in W){const w=W[k];w.id=k;w.slot=CLASSES.find(c=>c.id===w.cls).slot}
 export const STARTER=Object.keys(W).filter(k=>!W[k].price);
 export const LIMB=.85;
@@ -489,11 +492,11 @@ function BERETTA(o={}){const R=C.blk,yb=.046;const L=o.r93?-.185:-.165;
  return{muzzle:[0,yb,L-.01],eject:[.014,.056,-.035],sight:[0,.07,.16],grip:pgrip,lh:o.r93?[0,-.03,-.063]:null,lhT:o.r93?'vert':'pistol',len:.21,pistol:1,rl:'mag',hold:'pistol',slide:.028,piv:{mag:[0,-.05,.04]},shellT:'pistol'}}
 // Glock 18
 function GLOCK(){const yb=.046;grp('slide');metal();prof([[.045,.03],[.045,.062,.003],[-.14,.062,.003],[-.142,.032,.003]],.025,0,0x2b2d31,{b:.0028});
- if(det()){for(let i=0;i<6;i++)rbox(.0255,.026,.0018,0,.046,.022+i*.004,C.dark,.0004);box(.002,.012,.034,.0122,.054,-.03,C.dark);rbox(.006,.005,.006,0,.066,.04,C.dark,.001);rbox(.004,.006,.004,0,.065,-.132,C.dark,.001);rbox(.002,.006,.01,.0125,.05,.036,C.red,.0005)}
+ if(det()){for(let i=0;i<6;i++)rbox(.0255,.026,.0018,0,.046,.022+i*.004,C.dark,.0004);for(let i=0;i<4;i++)rbox(.0255,.026,.0016,0,.046,-.075-i*.0035,C.dark,.0004);for(let i=0;i<3;i++)rbox(.0105,.0016,.012,0,.0622,-.108-i*.014,C.dark,.0004);rbox(.007,.008,.014,.0152,.05,.047,C.dark,.0015);box(.002,.012,.034,.0122,.054,-.03,C.dark);rbox(.006,.005,.006,0,.066,.04,C.dark,.001);rbox(.004,.006,.004,0,.065,-.132,C.dark,.001);rbox(.002,.006,.01,.0125,.05,.036,C.red,.0005)}
  metal();cyl(.007,.012,0,yb,-.138,C.dark,{seg:12});grp(null);
  matte();prof([[.046,.03],[.046,.02,.004],[.056,.012,.006],[.058,.004],[.052,-.01],[.074,-.085,.008],[.068,-.094],[.032,-.098,.006],[.026,-.088],[.028,-.076,.004],[.02,-.066,.004],[.022,-.054,.004],[.014,-.044,.004],[.016,-.03,.004],[.006,-.004],[-.045,.008],[-.14,.012],[-.14,.03]],.026,0,C.poly,{b:.002});
  if(det())rail(-.07,-.13,.008,C.poly,.018);
- trig(-.048,.006,.004,C.poly,.006);pistolMag(.02,.05,-.19,.024,C.poly);
+ trig(-.048,.006,.004,C.poly,.006);pistolMag(.02,.05,-.25,.024,C.poly);if(det()){matte();for(let i=0;i<7;i++)rbox(.0262,.0016,.027,0,-.1-i*.022,.043+(i*.022+.1)*.3,C.dark,.0004)}// extended 33-round stick mag with ribs
  return{muzzle:[0,yb,-.15],eject:[.013,.056,-.03],sight:[0,.07,.16],grip:pgrip,lh:null,lhT:'pistol',len:.19,pistol:1,rl:'mag',hold:'pistol',slide:.026,piv:{mag:[0,-.05,.04]},shellT:'pistol'}}
 // AutoMag-style stainless hand cannon (rotating bolt with rear ears, vent rib barrel)
 function AUTOMAG(){const yb=.05,S=C.chrome;metal();mat('chrome');
@@ -942,6 +945,7 @@ const EXTRA={
 function SNX(i){const[,yb,zm]=i.muzzle;const sy=i.sight[1],sz=i.sight[2];metal();rbox(.012,.008,.02,.024,sy-.022,sz-.17,C.blk,.002);GLW('ggreen',.006,.004,.024,sy-.017,sz-.159);
  SWIVEL(0,yb-.028,zm*.55);SWIVEL(0,yb-.05,.3);mat('rubber');rbox(.03,.01,.06,0,yb-.02,.42,C.rub,.003)}
 function SMX(i){const[,yb,zm]=i.muzzle;SWIVEL(-.022,yb,i.grip.c[2]+.06,.007);metal();rbox(.004,.012,.03,.022,yb+.01,i.grip.c[2]-.06,C.steel,.001)}
+for(const g in GODLY_BASE){const b=GODLY_BASE[g][0];BUILD[g]=BUILD[b];if(EXTRA[b])EXTRA[g]=EXTRA[b]}
 export function gunParts(id,lod=0){const k=id+'|'+lod;if(!PC[k]){parts.length=0;LOD=lod;XF=null;MAT='metal';GRP=null;TRG=null;const info=(BUILD[id]||BUILD.ar)();if(!info.sight)info.sight=[0,info.sightY||.06,.15];if(!lod&&EXTRA[id]){const M=MAT,G=GRP;GRP=null;XF=null;MAT='metal';EXTRA[id](info);MAT=M;GRP=G}info.trigP=info.trigP||TRG;LOD=0;
   if(!info.sight)info.sight=[0,info.sightY||.06,.15];info.sightY=info.sight[1];PC[k]={parts:parts.splice(0),info}}
  return{parts:PC[k].parts,info:PC[k].info}}

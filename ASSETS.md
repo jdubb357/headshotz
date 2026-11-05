@@ -74,3 +74,27 @@ No new third-party assets. The typed quick slots, backpack, swap prompts, red **
 
 ## v58b: chests, doors, crouch, non-lethal slot
 No new third-party assets. The PBR chest kit (`chests.js`: wood planks, iron bands, lock, lid hinge, rarity glow), the swinging doors, the new door/crouch sound effects and the decoy model are all procedural (generated in code, existing CC0 Poly Haven wood/metal textures reused).
+
+## v62: battle bus engine audio (CC0)
+`heli_loop.mp3`: a loopable 8 s mono excerpt (steady middle section, cross-faded at the loop point, loudness-normalised, MP3 48 kbps) of **"Helicopter SFX" by WuxiaScrub**, https://opengameart.org/content/helicopter-sfx, licence **CC0** (public domain, no attribution required; credited anyway). Played as a looping Web Audio source whose gain and low-pass follow the distance to the bus. The old synthesized engine pulses remain only as a fallback until the sample has loaded.
+
+## v91: Battle Royale biomes & effects
+No new third-party assets. The 16 named areas of Skyline Island (Neon City, Inferno Forge, Golden Savanna, Nebula Realm, Moonlit Lagoon, Thunder Isle, Crystal Caverns, Aurora Ridge, Firefly Hollow, Phantom Keep, Rust Valley, Blossom Village, Toxic Swamp, Frostbite Peaks, Jungle Ruins, Sandstorm Dunes) are **original code**: `biomes.js` (per-area sky / fog / light blending, pooled ambient particles, rain streaks, lightning, procedurally painted ground textures, the area-name banner) and `biomeprops.js` (crystals, floating rocks, lava pools, neon signs, ice spikes, mushrooms, waterfall and so on, built from the same merged primitives as the rest of the map). The extra muzzle sparks, biome-tinted bullet impacts, chest-open / elimination bursts, landing dust, glider trails and the animated storm wall are built on the existing pooled FX system and one GLSL shader written for the game.
+
+## v93: ambient life
+No new third-party assets. The airliners, contrails, helicopters, bird flocks, bats, deer and rabbits are generated in code (original low-poly shapes). Any future CC0/CC-BY models will be listed here.
+
+## v94 — Pet tiers + active abilities (batch 1)
+No third-party assets. Shadow Bat ("Nyx") and Ember Dragon ("Cinder") are original in-code models (`petmodels.js`, `petkit.js`: membrane wings, glowing eyes, T2 halo, T3 spark aura). All code is original.
+
+## v95 — Pet batch 2
+No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunder Hawk) are original in-code models (`petmodels2.js`, built with `petkit.js`); abilities live in `petabil.js`.
+
+## v96 — Pet batch 3
+No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
+
+## v97 — Battle Royale roofs, auto-pickup, mantle
+No third-party assets: all new geometry (ladders, stair runs) and code are original.
+
+## v98 — Godly/Secret chests, sculpted add-ons, Galaxy rebuild
+No third-party assets: ears, horns, tails, wings, crowns, halos and the Galaxy helmet/visor (`addons.js`, `galaxyhead.js`) and the nebula/starfield shader (`wskins.js`) are original procedural code.

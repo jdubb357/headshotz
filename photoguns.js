@@ -3,6 +3,7 @@
 import {THREE} from './gfx.js';
 // rot = Euler rotation applied to the scan, s = uniform scale, off = offset (m) in gun space (-z = forward).
 // parts: nodes (suffix match) merged per material; grp = animation group (pivot comes from info.piv), loose = ignore the node's display translation.
+import {GODLY_BASE} from './weapons.js';
 export const PHOTO={
  handgun:{hi:'pistol_hi',lo:'pistol_lo',rot:[0,Math.PI/2,0],s:1,off:[0,-.02,0],parts:[
   {nodes:['pistol_a','hammer_a','trigger_a']},{nodes:['slide_a'],grp:'slide'},{nodes:['magazine_loaded'],grp:'mag',loose:1}]},
@@ -33,6 +34,7 @@ export const PHOTO={
  katana:{hi:'katana_hi',lo:'katana_hi',rot:[-Math.PI/2,Math.PI/2,0],s:1,off:[0,0,-.04],parts:[{nodes:['antique_katana_01']}]},
  axe:{hi:'axe_hi',lo:'axe_hi',rot:[-Math.PI/2,0,0],s:1,off:[0,0,0],parts:[{nodes:['wooden_axe']}]},
 };
+for(const g in GODLY_BASE){const b=GODLY_BASE[g][0];if(PHOTO[b])PHOTO[g]=PHOTO[b]}// v62: godly guns reuse the photo model of their base gun (gold finish applied in gunGroup)
 const _m=new THREE.Matrix4(),_f=new THREE.Matrix4(),_q=new THREE.Quaternion(),_e=new THREE.Euler();
 function flo(a){if(a.array instanceof Float32Array&&!a.isInterleavedBufferAttribute)return a.array;const o=new Float32Array(a.count*a.itemSize);for(let i=0;i<a.count;i++)for(let k=0;k<a.itemSize;k++)o[i*a.itemSize+k]=[a.getX,a.getY,a.getZ,a.getW][k].call(a,i);return o}
 function bakeGeo(g,m){const r=new THREE.BufferGeometry();const p=new THREE.Float32BufferAttribute(flo(g.attributes.position),3);r.setAttribute('position',p);

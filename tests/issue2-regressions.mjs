@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 // Focused regressions for GitHub issue #2 gaps reproduced against the production game:
 // 1. a party friend joining a live Squad Royale match whose party squad is full of humans must
 //    still enter the match by taking a bot slot in another squad (squad cap stays 4).
-// 2. a duplicated BR roundEnd message pays the +30 victory bonus only once per match, and the
+// 2. a duplicated BR roundEnd message pays the +300 victory bonus only once per match, and the
 //    guard resets for the next match.
 // 3. the shop pricing tiers match the issue: Legendary ("godly") 5,000, Secret 3,000, with the
 //    same amounts shown in the weapon shop and deducted on purchase.
@@ -126,8 +126,8 @@ try {
       const p = Object.values(H.players);
       return {total: p.length, bots: p.filter(q => q.bot).length, humans: p.filter(q => !q.bot).length, s1Humans: p.filter(q => !q.bot && q.team === 'S1').length};
     })()`);
-    assert.equal(before.total, 24, 'full-squad fixture keeps the 24-player match size');
-    assert.equal(before.bots, 20, 'full-squad fixture has bots in other squads');
+    assert.equal(before.total, 50, 'full-squad fixture keeps the 50-player match size');
+    assert.equal(before.bots, 46, 'full-squad fixture has bots in other squads');
     assert.equal(before.humans, 4, 'full-squad fixture has four humans');
     assert.equal(before.s1Humans, 4, 'party squad S1 is at its 4-human cap');
 
@@ -146,8 +146,8 @@ try {
         byTeam: p.reduce((a, q) => ((a[q.team] = (a[q.team] || 0) + 1), a), {}),
         joiner: window.__hsz.H.players[${JSON.stringify(joined.id)}] && {team: window.__hsz.H.players[${JSON.stringify(joined.id)}].team}};
     })()`);
-    assert.equal(after.total, 24, 'match size stays 24 after the party friend joins');
-    assert.equal(after.bots, 19, 'the party friend replaced an available bot');
+    assert.equal(after.total, 50, 'match size stays 50 after the party friend joins');
+    assert.equal(after.bots, 45, 'the party friend replaced an available bot');
     assert.equal(after.humans, 5, 'the party friend is in the match as a human');
     assert.equal(after.joiner.team, 'S2', 'the full party squad is preserved; the joiner takes a bot slot in another squad');
     assert.ok(Object.values(after.byTeam).every(n => n <= 4), 'every squad stays at the 4-player cap: ' + JSON.stringify(after.byTeam));
@@ -167,14 +167,14 @@ try {
       return {mode: window.__hsz.H.mode, total: p.length, bots: p.filter(q => q.bot).length};
     })()`);
     assert.equal(before.mode, 'br', 'solo Battle Royale fixture is in br mode');
-    assert.equal(before.total, 24, 'solo Battle Royale match starts at its 24-player size');
-    assert.equal(before.bots, 23, 'solo Battle Royale match starts with bots');
+    assert.equal(before.total, 50, 'solo Battle Royale match starts at its 50-player size');
+    assert.equal(before.bots, 49, 'solo Battle Royale match starts with bots');
     const client = await joinClient(root, contextId, code);
     await client.wait(`(() => {const C = window.__hsz.CC(), me = window.__hsz.ME();return !!(C && C.mode==='br' && me.id && C.players[me.id] && window.__hsz.room.inGame)})()`, 40000);
     const joined = await client.evaluate(`(() => {const C = window.__hsz.CC(), me = window.__hsz.ME();return {id: me.id, mode: C.mode, phase: C.phase, team: C.players[me.id].team, air: me.air}})()`);
     const after = await host.evaluate(`(() => {const p = Object.values(window.__hsz.H.players);return {total: p.length, bots: p.filter(q => q.bot).length, humans: p.filter(q => !q.bot).length}})()`);
-    assert.equal(after.total, 24, 'solo match size stays 24 after the online join');
-    assert.equal(after.bots, 22, 'solo online join replaces one bot');
+    assert.equal(after.total, 50, 'solo match size stays 50 after the online join');
+    assert.equal(after.bots, 48, 'solo online join replaces one bot');
     assert.equal(after.humans, 2, 'solo match now has two humans');
     assert.equal(joined.mode, 'br', 'client entered solo Battle Royale');
     assert.equal(joined.team, joined.id, 'solo joiners keep their own team id');
@@ -203,7 +203,7 @@ try {
     console.log('victory client joined', joined.id);
     const weekend = await client.evaluate('window.__hsz.isWknd()===true');
     console.log('victory weekend', weekend);
-    const bonusValue = 30 * (weekend ? 2 : 1);
+    const bonusValue = 300 * (weekend ? 2 : 1);
     const placementValue = 50 * (weekend ? 2 : 1);
     const sendRoundEnd = `(() => {
       const H = window.__hsz.H, id = ${JSON.stringify(joined.id)}, team = H.players[id].team;
@@ -221,12 +221,12 @@ try {
     })()`);
     await new Promise(resolve => setTimeout(resolve, 800));
     const first = await client.evaluate(`(() => {
-      const log = (window.__dlog || []).filter(e => String(e[1] || '').startsWith('royale victory bonus'));
+      const log = (window.__dlog || []).filter(e => String(e[1] || '').startsWith('👑 Victory Royale bonus'));
       const place = (window.__dlog || []).filter(e => String(e[1] || '').startsWith('placement #1'));
       return {bonus: log, placement: place, dia: window.__hsz.PROG.dia};
     })()`);
     assert.equal(first.bonus.length, 1, 'duplicate roundEnd must not pay the victory bonus twice: ' + JSON.stringify(first.bonus));
-    assert.equal(first.bonus[0][0], bonusValue, 'victory bonus amount is the base 30 (or weekend double)');
+    assert.equal(first.bonus[0][0], bonusValue, 'victory bonus amount is the base 300 (or weekend double)');
     assert.equal(first.placement.length, 1, 'duplicate brp must not pay placement twice: ' + JSON.stringify(first.placement));
     assert.equal(first.placement[0][0], placementValue, 'placement #1 reward remains correct');
 
@@ -245,10 +245,13 @@ try {
       const m = {t: 'roundEnd', win: ${JSON.stringify(nextTeam)}, name: 'SQUAD', score: {}, match: true, br: 1, title: 'VICTORY ROYALE', sub: 'test squad 2', k: {}};
       window.__hsz.brx.bcast(m);
       window.__hsz.brx.bcast(m);
+      const b = {t: 'brp', ids: [window.__hsz.ME ? ${JSON.stringify(joined.id)} : ''], place: 1, n: 24, k: {}, win: 1};
+      window.__hsz.brx.bcast(b);
+      window.__hsz.brx.bcast(b);
       return true;
     })()`);
     await new Promise(resolve => setTimeout(resolve, 800));
-    const second = await client.evaluate(`(() => (window.__dlog || []).filter(e => String(e[1] || '').startsWith('royale victory bonus')))()`);
+    const second = await client.evaluate(`(() => (window.__dlog || []).filter(e => String(e[1] || '').startsWith('👑 Victory Royale bonus')))()`);
     assert.equal(second.length, 2, 'the guard must reset for the next match and pay once there: ' + JSON.stringify(second));
     assert.equal(second[1][0], bonusValue, 'next-match victory bonus amount is correct');
     result.checks.victoryGuard = {clientId: joined.id, first, second, weekend, bonusValue, placementValue};
@@ -265,19 +268,18 @@ try {
     const catalog = await page.evaluate(`(() => {
       const W = window.__hsz.W, C = window.__hsz.CHEST;
       return {
-        chest: {legendary: C.cost.legendary, secret: C.cost.secret, common: C.cost.common},
+        chest: {godly: C.cost.godly, secret: C.cost.secret, common: C.cost.common},
         weapons: {
-          aa12: {rar: W.aa12.rar, shop: W.aa12.shop, price: W.aa12.price},
-          barrett: {rar: W.barrett.rar, shop: W.barrett.shop},
+          gk: {rar: W.gk_ak47.rar, shop: W.gk_ak47.shop, cls: W.gk_ak47.cls},
           awp: {rar: W.awp.rar, shop: W.awp.shop},
-          minigun: {rar: W.minigun.rar, shop: W.minigun.shop}
+          minigun: {rar: W.minigun.rar, shop: W.minigun.shop},
+          aa12: {rar: W.aa12.rar, shop: W.aa12.shop, price: W.aa12.price}
         }
       };
     })()`);
-    assert.deepEqual(catalog.chest, {legendary: 5000, secret: 3000, common: 300}, 'chest tier prices must match the issue');
-    assert.equal(catalog.weapons.aa12.rar, 'LEGENDARY', 'legendary-tier weapons carry the project rarity label');
-    assert.equal(catalog.weapons.aa12.shop, 5000, 'legendary-tier weapons cost 5,000 in the shop');
-    assert.equal(catalog.weapons.barrett.shop, 5000, 'legendary-tier weapons cost 5,000 in the shop');
+    assert.deepEqual(catalog.chest, {godly: 5000, secret: 3000, common: 300}, 'chest tier prices: Godly 5,000, Secret 3,000');
+    assert.equal(catalog.weapons.gk.rar, 'GODLY', 'godly weapons carry the GODLY rarity');
+    assert.equal(catalog.weapons.gk.shop, 5000, 'godly weapons cost 5,000 in the shop');
     assert.equal(catalog.weapons.awp.rar, 'SECRET', 'secret-tier weapons carry the project rarity label');
     assert.equal(catalog.weapons.awp.shop, 3000, 'secret-tier weapons cost 3,000 in the shop');
     assert.equal(catalog.weapons.minigun.shop, 3000, 'secret-tier weapons cost 3,000 in the shop');
@@ -285,16 +287,16 @@ try {
 
     await page.evaluate(`(() => {window.__hsz.PROG.dia = 5100; document.getElementById('openShop').click(); return true})()`);
     await page.wait(`!document.getElementById('arsenal').classList.contains('hidden')`);
-    await page.evaluate(`document.querySelector('#arsTabs [data-c="shotgun"]').click()`);
-    await page.wait(`!!document.querySelector('#arsGrid [data-w="aa12"]')`);
-    const badge = await page.evaluate(`document.querySelector('#arsGrid [data-w="aa12"]').innerText`);
-    assert.ok(/LEGENDARY · 💎 5000/.test(badge), 'shop badge shows the rarity and 5,000 price: ' + JSON.stringify(badge));
-    await page.evaluate(`document.querySelector('#arsGrid [data-w="aa12"]').click()`);
+    await page.evaluate(`document.querySelector('#arsTabs [data-c="${catalog.weapons.gk.cls}"]').click()`);
+    await page.wait(`!!document.querySelector('#arsGrid [data-w="gk_ak47"]')`);
+    const badge = await page.evaluate(`document.querySelector('#arsGrid [data-w="gk_ak47"]').innerText`);
+    assert.ok(/GODLY · 💎 5000/.test(badge), 'shop badge shows the rarity and 5,000 price: ' + JSON.stringify(badge));
+    await page.evaluate(`document.querySelector('#arsGrid [data-w="gk_ak47"]').click()`);
     await page.wait(`document.getElementById('arsEquip').textContent.includes('5000')`);
     await page.evaluate(`document.getElementById('arsEquip').click()`);
-    const boughtLegendary = await page.evaluate(`(() => ({dia: window.__hsz.PROG.dia, owned: window.__hsz.PROG.owned.includes('aa12')}))()`);
-    assert.equal(boughtLegendary.dia, 100, 'buying a legendary weapon deducts exactly 5,000 diamonds');
-    assert.equal(boughtLegendary.owned, true, 'legendary weapon unlocked');
+    const boughtLegendary = await page.evaluate(`(() => ({dia: window.__hsz.PROG.dia, owned: window.__hsz.PROG.owned.includes('gk_ak47')}))()`);
+    assert.equal(boughtLegendary.dia, 100, 'buying a godly weapon deducts exactly 5,000 diamonds');
+    assert.equal(boughtLegendary.owned, true, 'godly weapon unlocked');
 
     await page.evaluate(`(() => {window.__hsz.PROG.dia = 3100; document.querySelector('#arsTabs [data-c="sniper"]').click(); return true})()`);
     await page.wait(`!!document.querySelector('#arsGrid [data-w="awp"]')`);

@@ -4,7 +4,7 @@
 // carriers, packs) is attached to bones. Animation is procedural on the skeleton (same pose model as the old rig: gait, crouch, slide,
 // jump, climb, downed crawl, death) with 2-bone IK putting both hands on the weapon, which is mounted on the right hand's aim frame.
 // If anything fails to load, chars.js keeps building the old procedural characters.
-import {THREE,GQ} from './gfx.js';import {buildGear,buildSkinHat} from './gear.js';
+import {THREE,GQ} from './gfx.js';import {buildGear,buildSkinHat} from './gear.js';import * as AD from './addons.js';
 import {skinU,GX_PAL,GX_GLSL,gxDefs} from './wskins.js';
 import {KITS,mkG} from './kits.js';
 export const HUM={ready:false,failed:false,tpl:{},tex:{},ms:0,bytes:0};
@@ -35,7 +35,7 @@ function clothMat(shirt,pants,camo,fx,K){K=K||{};const cut=K.cut||[9,-9,9],sty=K
  if(gxp)Object.assign(m.userData.u,{uT:skinU.uT,uC0:{value:new THREE.Vector3(...gxp[0])},uC1:{value:new THREE.Vector3(...gxp[1])},uC2:{value:new THREE.Vector3(...gxp[2])},uC3:{value:new THREE.Vector3(...gxp[3])}});
  m.onBeforeCompile=s=>{Object.assign(s.uniforms,m.userData.u);
   s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float pants;attribute vec3 bpos;varying float vP;varying vec3 vOP;varying vec3 vB;').replace('#include <begin_vertex>','#include <begin_vertex>\nvP=pants;vOP=position;vB=bpos;');
-  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uShirt;uniform vec3 uPants;uniform float uCamo;uniform vec3 uCut;uniform float uSty;uniform vec3 uSC2;varying float vP;varying vec3 vOP;varying vec3 vB;\n'+NOISE+(gxp?'\n'+gxDefs(1.25,glo)+GX_GLSL+'\n':''))
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uShirt;uniform vec3 uPants;uniform float uCamo;uniform vec3 uCut;uniform float uSty;uniform vec3 uSC2;varying float vP;varying vec3 vOP;varying vec3 vB;\n'+NOISE+(gxp?'\n'+gxDefs(1.25,glo,1,true)+GX_GLSL+'\n':''))
    
    .replace('#include <map_fragment>',`
    {float ax=abs(vB.x);if((ax>uCut.x&&vB.y>.8)||vB.y<uCut.y||(uCut.z<8.&&vB.y>uCut.z&&vB.y<1.5&&ax<.215&&!(ax>.17&&vB.y>1.38)))discard;
@@ -52,7 +52,7 @@ function clothMat(shirt,pants,camo,fx,K){K=K||{};const cut=K.cut||[9,-9,9],sty=K
     else if(uSty>3.5&&uSty<4.5){float s2=step(.5,fract(vB.y*22.+vB.x*8.));diffuseColor.rgb=mix(diffuseColor.rgb,uSC2*d,.9*s2*step(.9,vB.y)*step(vB.y,1.0)+0.);}
    }`)
    .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=diffuseColor.rgb*pow(1.-saturate(dot(normalize(normal),normalize(vViewPosition))),3.)*.14;'+(gxp?'{vec3 gv=normalize(vViewPosition);float gr=pow(1.-saturate(dot(normalize(normal),gv)),2.5);totalEmissiveRadiance+=gxCol(vOP,gv,.8,gr)*.85;}':''))};
- m.customProgramCacheKey=()=>'humcloth3'+(HUM.tex.clothn?1:0)+(gxp?'gx'+(glo?'L':'H'):'');return m}
+ m.customProgramCacheKey=()=>'humcloth4'+(HUM.tex.clothn?1:0)+(gxp?'gx'+(glo?'L':'H'):'');return m}
 const TONES=[0xffffff,0xfaf2ec,0xf5e6da,0xefd9c6,0xe6c7ac,0xdcb394,0xcfa183];const SKM={};function partMat(part,key,tint,tone){const k=part+key+'|'+(part==='skin'?tone|0:'');if(SKM[k])return SKM[k];let m;
  if(part==='skin'){m=new THREE.MeshStandardMaterial({map:HUM.tex['skin'+key],roughness:.55,metalness:0,envMapIntensity:.45});
   m.color=new THREE.Color(TONES[tone|0]);
@@ -98,7 +98,7 @@ function box(w,h,d){return rboxF?rboxF(w,h,d):new THREE.BoxGeometry(w,h,d)}
 function gear(L,teamCol,cls,add){buildGear(L,teamCol,cls,add,rboxF)}
 const _v=new THREE.Vector3(),_w=new THREE.Vector3(),_x=new THREE.Vector3(),_y=new THREE.Vector3(),_q=new THREE.Quaternion(),_q2=new THREE.Quaternion(),_q3=new THREE.Quaternion(),_m=new THREE.Matrix4();
 function hashS(s){let h=7;for(const c of String(s))h=h*31+c.charCodeAt(0)|0;return Math.abs(h)}
-export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS(id);let L=LOOKS[cls]||LOOKS.soldier;const SX=outfit&&outfit.x&&(outfit.x.hat||outfit.x.kit)?outfit.x:null;if(SX)L={...L,head:null,vest:SX.vest||L.vest};const K=SX&&SX.kit&&KITS[SX.kit]?KITS[SX.kit]:null,KC=K&&SX.c?SX.c:null,KS=K&&K.skin?K.skin:null,KH=K&&K.hide?K.hide:{},KCL=K&&K.cloth?K.cloth(KC):null;
+export function makeHuman(teamCol,name,id,tagCol,outfit,cls,LOOKS){const h=hashS(id);let L=LOOKS[cls]||LOOKS.soldier;const SX=outfit&&outfit.x&&(outfit.x.hat||outfit.x.kit)?outfit.x:null;if(SX)L={...L,head:null,vest:SX.vest||L.vest};const K=SX&&SX.kit&&KITS[SX.kit]?KITS[SX.kit]:null,KC=K&&SX.c?SX.c:null,KS=K&&K.skin?K.skin:null,KH=K&&K.hide?K.hide:(SX&&SX.fx?{hair:1,brow:1,lash:1,eye:1}:{}),KCL=K&&K.cloth?K.cloth(KC):null;
  const root=new THREE.Group(),rig=new THREE.Group();root.add(rig);const T=HUM.tier;
  const body=HUM.SU.clone(HUM.tpl[T]);body.rotation.y=Math.PI;const bw=K&&K.size?K.size.w:L.bulk?1.1:L.slim?.96:1,bh=K&&K.size?K.size.h:1;body.scale.set(bw,bh,bw);rig.add(body);
  const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o});
@@ -106,7 +106,7 @@ if(K&&K.head&&bones.head)bones.head.scale.setScalar(K.head);
  const skinK=K&&K.skinK!=null?String(K.skinK):String(SKINC[(h>>2)%SKINC.length]),shirt=outfit?outfit[0]:(L.shirt??new THREE.Color(teamCol).lerp(new THREE.Color(0x3a3d36),.3).getHex()),pants=outfit?outfit[1]:L.pants,cm=clothMat(KCL&&KCL.shirt!=null?KCL.shirt:shirt,KCL&&KCL.pants!=null?KCL.pants:pants,outfit?(outfit.camo||0):L.camo,SX&&SX.fx,KCL);
  const hairT=HAIRT[(h>>5)%HAIRT.length],toneI=outfit&&outfit.x&&outfit.x.tone!=null?outfit.x.tone:(h>>9)%TONES.length;
  const HC=K&&K.hair!=null?K.hair:hairT;const rmHidden=root=>{const dead=[];root.traverse(o=>{if(o.isSkinnedMesh&&KH[o.userData.part])dead.push(o)});for(const o of dead)o.parent&&o.parent.remove(o)};rmHidden(body);
- const setMats=o=>{if(!o.isSkinnedMesh)return;const p=o.userData.part;o.material=p==='cloth'?cm:(p==='skin'&&KS)?skinMatK(KS,skinK,toneI):(p==='shoes'&&K&&K.shoe!=null)?shoeMatK(K.shoe):(p==='eye'&&KS&&KS.eye!=null)?eyeMatK(KS.eye):partMat(p,p==='skin'?skinK:p==='hair'?String(HC):'',HC,toneI);o.castShadow=true;if(p==='hair'&&L.head&&L.head!=='cap')o.visible=false};
+ const setMats=o=>{if(!o.isSkinnedMesh)return;const p=o.userData.part;o.material=p==='cloth'||(p==='skin'&&SX&&SX.fx&&!K)?cm:(p==='skin'&&KS)?skinMatK(KS,skinK,toneI):(p==='shoes'&&K&&K.shoe!=null)?shoeMatK(K.shoe):(p==='eye'&&KS&&KS.eye!=null)?eyeMatK(KS.eye):partMat(p,p==='skin'?skinK:p==='hair'?String(HC):'',HC,toneI);o.castShadow=true;if(p==='hair'&&L.head&&L.head!=='cap')o.visible=false};
  body.traverse(setMats);
  // far LOD: the lo tier bound to this body's skeleton
  const lod=[],far=[];if(T!=='lo'&&HUM.tpl.lo){const lo=HUM.SU.clone(HUM.tpl.lo);rmHidden(lo);lo.traverse(o=>{if(o.isSkinnedMesh){const bs=o.skeleton.bones.map(b=>bones[b.name]);o.bind(new THREE.Skeleton(bs,o.skeleton.boneInverses),o.bindMatrix);setMats(o)}});
@@ -119,12 +119,14 @@ if(K&&K.head&&bones.head)bones.head.scale.setScalar(K.head);
  // gear on bones
  // gear: collected per bone, baked into that bone's space and merged into ONE vertex-coloured mesh per bone (few draw calls)
  const GB={},GF={};const addG=(m,bn)=>{const b=bones[bn]?bn:'spine_03';const G=m.userData.fine?GF:GB;(G[b]=G[b]||[]).push(m)};
- if(K){if(K.legacy)gear({...L,...K.legacy},teamCol,K.legacy.cls||cls,addG);if(K.build)K.build(mkG(addG,rboxF),{...KC,skin:new THREE.Color(KS&&KS.col!=null?KS.col:TONES[toneI|0]).multiply(new THREE.Color(SKAVG[+skinK])).getHex()})}else{gear(L,teamCol,cls,addG);if(SX)buildSkinHat(SX.hat,SX.hatc,SX.acc,addG)}
+ if(K){if(K.legacy)gear({...L,...K.legacy},teamCol,K.legacy.cls||cls,addG);if(K.build)K.build(mkG(addG,rboxF),{...KC,skin:new THREE.Color(KS&&KS.col!=null?KS.col:TONES[toneI|0]).multiply(new THREE.Color(SKAVG[+skinK])).getHex()})}else{gear(L,teamCol,cls,addG);if(SX)buildSkinHat(SX.hat,SX.hatc,SX.acc,addG,SX)}
  const fineM=[];
  for(const [GBX,isF] of [[GB,0],[GF,1]])for(const bn in GBX){const b=bones[bn];b.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(b.matrixWorld).invert();const gs=[];
-  for(const m of GBX[bn]){rig.add(m);m.updateMatrixWorld(true);let g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();for(const k of Object.keys(g.attributes))if(!['position','normal'].includes(k))g.deleteAttribute(k);
-   g.applyMatrix4(_m.multiplyMatrices(inv,m.matrixWorld));const col=m.material.color,n=g.attributes.position.count,ca=new Float32Array(n*4);const rr=m.material.roughness,mt=m.material.metalness,gk=m.material.userData.k||0;const gx=new Float32Array(n*2);for(let i=0;i<n;i++){ca[i*4]=col.r;ca[i*4+1]=col.g;ca[i*4+2]=col.b;ca[i*4+3]=rr;gx[i*2]=mt;gx[i*2+1]=gk}g.setAttribute('color',new THREE.BufferAttribute(ca,4));g.setAttribute('gx',new THREE.BufferAttribute(gx,2));rig.remove(m);gs.push(g)}
+  for(const m of GBX[bn]){rig.add(m);m.updateMatrixWorld(true);let g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();const vcA=g.attributes.color&&g.attributes.color.itemSize===3?g.attributes.color:null;for(const k of Object.keys(g.attributes))if(!['position','normal'].includes(k))g.deleteAttribute(k);
+   g.applyMatrix4(_m.multiplyMatrices(inv,m.matrixWorld));const col=m.material.color,n=g.attributes.position.count,ca=new Float32Array(n*4);const rr=m.material.roughness,mt=m.material.metalness,gk=m.material.userData.k||0;const gx=new Float32Array(n*2);for(let i=0;i<n;i++){ca[i*4]=col.r*(vcA?vcA.getX(i):1);ca[i*4+1]=col.g*(vcA?vcA.getY(i):1);ca[i*4+2]=col.b*(vcA?vcA.getZ(i):1);ca[i*4+3]=rr;gx[i*2]=mt;gx[i*2+1]=gk}g.setAttribute('color',new THREE.BufferAttribute(ca,4));g.setAttribute('gx',new THREE.BufferAttribute(gx,2));rig.remove(m);gs.push(g)}
   const mg=HUM.BGU.mergeGeometries(gs);if(!mg)continue;const mesh=new THREE.Mesh(mg,gearMat());mesh.castShadow=true;b.add(mesh);if(isF)fineM.push(mesh)}
+ // v98 soldier tail: segmented chain hung on the pelvis bone, swayed by animateHuman
+ let tailU=null;if(SX&&SX.tail){const bp=bones.pelvis||bones.spine_01;if(bp){const ch=AD.buildTailChain(SX.tail,SX.tailc==null?shirt:SX.tailc,SX.tipc,SX.tailx==null?SX.acc:SX.tailx);rig.updateMatrixWorld(true);bp.updateMatrixWorld(true);const grp=new THREE.Group();bp.add(grp);const wq=new THREE.Quaternion();bp.getWorldQuaternion(wq);grp.quaternion.copy(wq).invert();const ws=new THREE.Vector3();bp.getWorldScale(ws);grp.scale.set(1/ws.x,1/ws.y,1/ws.z);grp.position.copy(bp.worldToLocal(new THREE.Vector3(0,.99,.1)));grp.add(ch.root);ch.root.scale.setScalar(.95);tailU={root:ch.root,tail:ch.tail,t:Math.random()*9}}}
  // aim frame + gun mount (same numbers as the old rig so gun FX/muzzle stay where the game expects)
  const aim=new THREE.Group();aim.position.set(0,1.36,0);rig.add(aim);const gunMount=new THREE.Group();gunMount.position.set(.055,-.085,-.4);aim.add(gunMount);
  const gR=new THREE.Object3D();gR.position.set(.06,-.11,-.36);aim.add(gR);const gL=new THREE.Object3D();gL.position.set(-.01,-.07,-.53);aim.add(gL);
@@ -132,7 +134,7 @@ if(K&&K.head&&bones.head)bones.head.scale.setScalar(K.head);
  const cv=document.createElement('canvas');cv.width=256;cv.height=64;const x=cv.getContext('2d');x.font='bold 38px system-ui,sans-serif';x.textAlign='center';
  x.lineWidth=8;x.strokeStyle='rgba(0,0,0,.85)';x.strokeText(name,128,46);x.fillStyle='#'+new THREE.Color(tagCol??teamCol).getHexString();x.fillText(name,128,46);
  const tg=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthWrite:false,transparent:true}));tg.scale.set(1.5,.375,1);tg.position.y=2.25;root.add(tg);
- root.userData={kind:'hum',rig,body,bones,rest,AX,aim,gunMount,gR,gL,head:bones.head,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod,far,fineM,lodOn:true,cls:cls||'soldier',crouch:0,climb:0,down:0,lean:0,mats:[cm]};
+ root.userData={kind:'hum',rig,body,bones,rest,AX,aim,gunMount,gR,gL,head:bones.head,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod,far,fineM,tailU,lodOn:true,cls:cls||'soldier',crouch:0,climb:0,down:0,lean:0,mats:[cm]};
  return root}
 const lerp=(a,b,k)=>a+(b-a)*k;
 function rot(u,n,axis,a){const b=u.bones[n];if(!b||!a)return;const ax=u.AX[n][axis];_q.setFromAxisAngle(ax,a);b.quaternion.multiply(_q)}
@@ -145,7 +147,19 @@ function ik(u,side,target,poleW){const up=u.bones['upperarm_'+side],lo=u.bones['
  const ca=Math.max(-1,Math.min(1,(l1*l1+d*d-l2*l2)/(2*l1*Math.max(d,1e-4)))),sa=Math.sqrt(1-ca*ca);
  _P.copy(poleW).sub(_A);_P.addScaledVector(_D,-_P.dot(_D)).normalize();_E.copy(_A).addScaledVector(_D,l1*ca).addScaledVector(_P,l1*sa);
  aimTo(up,_B,_E);lo.getWorldPosition(_B);hd.getWorldPosition(_C);aimTo(lo,_C,_T)}
-export function animateHuman(m,st,dt){const u=m.userData;const sp=Math.min(st.speed,10);
+// rest arm pose (relaxed, hanging) and emote hand targets, in rig space relative to each shoulder: x right, y up, z back (the body faces -z). [target, elbow pole]
+const RESTR=[[.1,-.58,-.04],[.35,-.25,.5]],RESTL=[[-.1,-.58,-.04],[-.35,-.25,.5]];
+const HEMO={
+ wave:t=>({r:[[.34+Math.sin(t*9)*.1,.2,-.08],[1,-.3,.2]],l:RESTL,body:{headX:0,rigZ:Math.sin(t*3)*.01}}),
+ dance:t=>{const b=Math.sin(t*7),h=Math.abs(Math.sin(t*7));return{r:[[.32,.18+.3*b,-.2],[.9,-.3,.1]],l:[[-.32,.18-.3*b,-.2],[-.9,-.3,.1]],body:{rigY:-.03-.05*h,rigZ:Math.sin(t*3.5)*.1,legA:[Math.sin(t*7)*.5,-Math.sin(t*7)*.5],shA:[-.3-.3*Math.max(0,Math.sin(t*7)),-.3-.3*Math.max(0,-Math.sin(t*7))]}}},
+ flex:t=>({r:[[.27,.2,-.14],[1,.05,.15]],l:[[-.27,.2,-.14],[-1,.05,.15]],body:{}}),
+ cheer:t=>{const p=Math.sin(t*12)*.05;return{r:[[.32,.4+p,-.04],[.9,0,.25]],l:[[-.32,.4-p,-.04],[-.9,0,.25]],body:{rigY:Math.abs(Math.sin(t*6))*.07,legA:[.1,.1],shA:[-.2,-.2]}}},
+ salute:t=>{const k=Math.min(1,t*5)*(t>2.1?Math.max(0,1-(t-2.1)*5):1);const R=[[.1,.27*k-.58*(1-k),-.24*k-.04*(1-k)],[1,-.2,.3]];return{r:R,l:RESTL,body:{}}},
+ spin:t=>({r:[[.58,.05,0],[0,-.3,.7]],l:[[-.58,.05,0],[0,-.3,.7]],body:{rigY:Math.max(0,Math.sin(Math.min(1,t/.5)*Math.PI))*.1,legA:[.12,-.12],spin:(1-Math.pow(1-Math.min(1,t/1.5),3))*Math.PI*4}}),
+ clap:t=>{const c=(1+Math.sin(t*15))/2;return{r:[[.03+.1*c,-.08,-.42],[.7,-.6,.2]],l:[[-.03-.1*c,-.08,-.42],[-.7,-.6,.2]],body:{rigY:Math.abs(Math.sin(t*7.5))*.02}}},
+ sit:t=>({r:[[.2,-.5,-.36],[.7,-.2,.4]],l:[[-.2,-.5,-.36],[-.7,-.2,.4]],body:{rigY:-.42,legA:[1.45,1.45],shA:[-1.5,-1.5]}})};
+export function animateHuman(m,st,dt){const r=animateHuman0(m,st,dt);const u=m.userData;if(u.tailU){const T=u.tailU;T.t+=dt;const sp=Math.min(st.speed||0,10);AD.tickTail(T.root,T.tail,T.t,Math.min(1,sp/7),st.air&&!st.climb?1:0,st.lx,u.crouch||0)}return r}
+function animateHuman0(m,st,dt){const u=m.userData;const sp=Math.min(st.speed,10);
  if(st.dist!=null&&u.far.length){const on=st.dist<20;if(on!==u.lodOn){u.lodOn=on;for(const o of u.fineM)o.visible=on;for(const o of u.lod)o.visible=on;for(const o of u.far)o.visible=!on}}
  const k8=Math.min(1,dt*8),k14=Math.min(1,dt*14);
  u.crouch=lerp(u.crouch,st.crouch?1:0,k8);u.climb=lerp(u.climb,st.climb?1:0,k8);u.down=lerp(u.down,st.down?1:0,Math.min(1,dt*5));
@@ -158,9 +172,14 @@ export function animateHuman(m,st,dt){const u=m.userData;const sp=Math.min(st.sp
  if(st.slide){rigY=-.48;rigX=.45;legA=[1.25,1.05];shA=[-.15,-.55]}
  if(u.down>.01){const k=u.down,cw=Math.sin(u.ph*.6)*walk;rigY=lerp(rigY,-.46,k);rigX=lerp(rigX,.6,k);legA=legA.map((a,i)=>lerp(a,.18+(i?-cw:cw)*.12,k));shA=shA.map((a,i)=>lerp(a,-2.68+(i?cw:-cw)*.1,k));headX=-.55*k;aimY=Math.max(aimY,.5*k)}
  let idleSway=0;{const idle=(1-walk)*(1-u.crouch)*(1-u.down)*(st.air||st.slide||st.climb?0:1);if(idle>.01){u.it=(u.it||0)+dt;const w=Math.sin(u.it*.7);rigZ+=w*.02*idle;legA=legA.map((a,i)=>a+(i?(w>0?.06:0):(w<0?.06:0))*idle);shA=shA.map((a,i)=>a-(i?(w>0?.1:0):(w<0?.1:0))*idle);rigY+=-.01*Math.abs(w)*idle;idleSway=Math.sin((u.it||0)*1.7)*.02*idle}}
+ // v62 emotes for the realistic rig (the hero rig has its own in toon.js): arm IK with an elbow pole so elbows can never bend backwards
+ let emo=null,ES=null;if(st.emote&&!st.pose&&!st.air&&!u.dead){u.et=(u.et||0)+dt;emo=HEMO[st.emote]||HEMO.wave;ES=emo(u.et)}else u.et=0;
+ u.ek=lerp(u.ek||0,emo?1:0,Math.min(1,dt*9));const ek=u.ek;
+ if(ES&&ES.body){const B=ES.body;if(B.legA)legA=legA.map((a,i)=>lerp(a,B.legA[i],ek));if(B.shA)shA=shA.map((a,i)=>lerp(a,B.shA[i],ek));if(B.rigY!=null)rigY=lerp(rigY,B.rigY,ek);if(B.rigZ!=null)rigZ=lerp(rigZ,B.rigZ,ek);if(B.rigX!=null)rigX=lerp(rigX,B.rigX,ek);if(B.headX!=null)headX=lerp(headX,B.headX,ek)}
+ if(u.gunMount)u.gunMount.visible=ek<.5;
  u.flinch=Math.max(0,u.flinch-dt*4);
  if(u.dead>0){u.dead+=dt;const k=Math.min(1,u.dead/.55);const e=k*k*(3-2*k);rigX=1.45*e;rigY=-.05*e;rigZ=u.roll*.25*e;legA=[.3*e,.1*e];shA=[-.2,-.3];u.tag.visible=false}else u.tag.visible=true;
- if(st.slope!=null&&u.down>.01)rigX+=st.slope*u.down;const r=u.rig;r.position.y+=(rigY-r.position.y)*k14;r.rotation.x+=((rigX+u.flinch*.35)-r.rotation.x)*Math.min(1,dt*(u.dead?8:12));r.rotation.z+=(rigZ-r.rotation.z)*k14;
+ if(st.slope!=null&&u.down>.01)rigX+=st.slope*u.down;const r=u.rig;r.position.y+=(rigY-r.position.y)*k14;r.rotation.x+=((rigX+u.flinch*.35)-r.rotation.x)*Math.min(1,dt*(u.dead?8:12));r.rotation.z+=(rigZ-r.rotation.z)*k14;r.rotation.y=(ES&&ES.body&&ES.body.spin?ES.body.spin:0)*ek;
  const pitch=u.dead?0:st.pitch;u.aim.rotation.x+=(lerp(pitch-r.rotation.x*.85,-.9,aimY*.6)-u.aim.rotation.x)*Math.min(1,dt*15);u.aim.position.y=1.36+(u.climb>.01?.05*u.climb:0)+(u.crouch>.01?0:0);
  // smoothed joint angles
  const J=u.J||(u.J={l0:0,l1:0,s0:0,s1:0,hx:0,sx:0});J.l0+=(legA[0]-J.l0)*k14;J.l1+=(legA[1]-J.l1)*k14;J.s0+=(shA[0]-J.s0)*k14;J.s1+=(shA[1]-J.s1)*k14;
@@ -174,8 +193,12 @@ export function animateHuman(m,st,dt){const u=m.userData;const sp=Math.min(st.sp
  // fingers: grip curl
  for(const sd of['l','r'])for(const f of['index','middle','ring','pinky'])for(let i=1;i<=3;i++)rot(u,`${f}_0${i}_${sd}`,'x',-(i===1?.5:.7));
  m.updateMatrixWorld(true);
- // arms: 2-bone IK onto the weapon (right hand on the grip, left on the handguard); elbows down/out
- u.gR.getWorldPosition(_w);const pr=_v.set(.45,-.9,.2).applyQuaternion(r.getWorldQuaternion(_q3)).add(u.bones.upperarm_r.getWorldPosition(new THREE.Vector3()));ik(u,'r',_w.clone(),pr);
- u.gL.getWorldPosition(_w);const pl=_v.set(-.6,-.8,-.1).applyQuaternion(r.getWorldQuaternion(_q3)).add(u.bones.upperarm_l.getWorldPosition(new THREE.Vector3()));ik(u,'l',_w.clone(),pl);
+ // arms: 2-bone IK onto the weapon (right hand on the grip, left on the handguard); elbows down/out. During an emote the hand targets blend to the emote pose.
+ {const rq=r.getWorldQuaternion(_q3),sR=u.bones.upperarm_r.getWorldPosition(new THREE.Vector3()),sL=u.bones.upperarm_l.getWorldPosition(new THREE.Vector3());
+  u.gR.getWorldPosition(_w);const tR=_w.clone(),pR=_v.set(.45,-.9,.2).applyQuaternion(rq).add(sR).clone();
+  u.gL.getWorldPosition(_w);const tL=_w.clone(),pL=_v.set(-.6,-.8,-.1).applyQuaternion(rq).add(sL).clone();
+  if(ek>.01&&ES){const rq2=rq.clone();const W=(o,sh)=>new THREE.Vector3(o[0],o[1],o[2]).applyQuaternion(rq2).add(sh);
+   tR.lerp(W(ES.r[0],sR),ek);pR.lerp(W(ES.r[1],sR),ek);tL.lerp(W(ES.l[0],sL),ek);pL.lerp(W(ES.l[1],sL),ek)}
+  ik(u,'r',tR,pR);ik(u,'l',tL,pL)}
  // hands align with the gun's forward axis
- u.aim.getWorldQuaternion(_q3);_x.set(0,0,-1).applyQuaternion(_q3);for(const sd of['r','l']){const hb=u.bones['hand_'+sd],mc=u.bones['middle_01_'+sd];if(hb&&mc){mc.getWorldPosition(_E);hb.getWorldPosition(_A);aimTo(hb,_E,_A.clone().add(_x))}}}
+ if(ek<.5){u.aim.getWorldQuaternion(_q3);_x.set(0,0,-1).applyQuaternion(_q3);for(const sd of['r','l']){const hb=u.bones['hand_'+sd],mc=u.bones['middle_01_'+sd];if(hb&&mc){mc.getWorldPosition(_E);hb.getWorldPosition(_A);aimTo(hb,_E,_A.clone().add(_x))}}}}

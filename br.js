@@ -1,25 +1,33 @@
 // HeadShotz v44: Battle Royale island "Skyline Island" (v59: 540 x 540 m). Procedural, original. Named zones, climbable roofs/towers, lots of cover & loot spots.
-import {brExtra,BR_ZONES2} from './br2.js';
+import {brExtra,BR_ZONES2} from './br2.js';import {biomeProps} from './biomeprops.js';
 export const BR_ZONES0=[
- {n:'Tilted Town',x:0,z:0,r:62,c:'#ffd23f'},{n:'Industrial Works',x:112,z:-104,r:46,c:'#ff8a3d'},{n:'Farmstead',x:108,z:108,r:50,c:'#9be15d'},
- {n:'Pine Woods',x:-122,z:-12,r:50,c:'#3fbf6a'},{n:'Harbor Docks',x:-18,z:150,r:46,c:'#4de3ff'},{n:'Mount Summit',x:-18,z:-142,r:42,c:'#c9d3e0'},
- {n:'Dusty Quarry',x:-128,z:118,r:42,c:'#e0b070'},{n:'Signal Hill',x:158,z:2,r:34,c:'#ff5a8a'},{n:'Lakeside Cabins',x:-132,z:-128,r:40,c:'#7fb6ff'}];
+ {n:'Neon City',x:0,z:0,r:62,c:'#ff3df0'},{n:'Inferno Forge',x:112,z:-104,r:46,c:'#ff5a1a'},{n:'Golden Savanna',x:108,z:108,r:50,c:'#ffc23a'},
+ {n:'Nebula Realm',x:-122,z:-12,r:50,c:'#b36bff'},{n:'Moonlit Lagoon',x:-18,z:150,r:46,c:'#3ee0d0'},{n:'Aurora Ridge',x:-18,z:-142,r:42,c:'#5affb0'},
+ {n:'Crystal Caverns',x:-128,z:118,r:42,c:'#4fe8ff'},{n:'Thunder Isle',x:158,z:2,r:34,c:'#6fa0ff'},{n:'Firefly Hollow',x:-132,z:-128,r:40,c:'#b6ff4a'}];
 export const BR_ZONES=[...BR_ZONES0,...BR_ZONES2];
 export function brDef({G,rng,_c}){
  const R=rng(4242);const rr=(a,b)=>a+R()*(b-a),pick=a=>a[R()*a.length|0];
  const PAL=[0xe8dcc8,0xd9c9a8,0xcfd8dc,0xe6c9b8,0xc8d9c1,0xdcd0e0,0xe3d7a3];const ROOF=[0x8a3b32,0x4a5a68,0x2f6f6a,0x6d4c41,0x555b66];
  const NS={solid:false,shadow:false};
- return {name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',br:true,noDress:true,size:[540,540],ground:['grass',0x8fbf6a,.18],grade:[1.04,1.02,.97,1.3,1.1,.8],horizon:'city',wallH:6,
+ return {name:'Skyline Island',desc:'50 players · loot · storm',icon:'🏝️',br:true,noDress:true,size:[540,540],ground:['grass',0x8fbf6a,.18],grade:[1.04,1.02,.97,1.3,1.1,.8],horizon:'city',wallH:6,
  sky:[0x2a68dc,0x86cbff,0xfff1dc],fog:[0xbcd8ee,110,330],hemi:[0xe8f2ff,0x6f8a55,1.35],sun:[0xfff0d0,1.8,[-.45,.7,-.35]],
  spawnsA:[[0,10],[6,10],[-6,10],[0,16]],spawnsB:[[0,-10],[6,-10],[-6,-10],[0,-16]],spawnsM:[[10,0],[-10,0]],zones:BR_ZONES,
- build(B){B.brLoot=[];B.brChests=[];B.brDoors=[];let bid=0;const taken=[];const lootAt=(x,y,z,b)=>B.brLoot.push([+x.toFixed(1),y,+z.toFixed(1),b]);
+ build(B){B.brLoot=[];B.brChests=[];B.brDoors=[];
+  // v97: props that would block a stair foot / ladder base / roof landing are removed at the end (RNG sequence untouched)
+  B.keep=[];const PL=[];const track=fn=>function(...a){const c0=B.cols.length,s0=B.shadows.length,t0={};for(const k in B.T)t0[k]=B.T[k].length;const r=fn.apply(this,a);const e={cols:B.cols.slice(c0),sh:B.shadows.slice(s0),parts:[]};for(const k in B.T)for(let i=t0[k]||0;i<B.T[k].length;i++)e.parts.push([k,B.T[k][i]]);if(e.cols.length)PL.push(e);return r};
+  for(const k of['barrel','container','car','wreck','tree','palm','bush','lamp','barrier','bench','planter','stall','forklift','cactus','rock','crate'])if(typeof B[k]==='function')B[k]=track(B[k]);
+  let bid=0;const taken=[];const lootAt=(x,y,z,b)=>B.brLoot.push([+x.toFixed(1),y,+z.toFixed(1),b]);
   const block=(x,z,w,d,pad=2)=>taken.push([x-w/2-pad,z-d/2-pad,x+w/2+pad,z+d/2+pad]);const HB=263;const isFree=(x,z,m=1.5)=>Math.abs(x)<HB&&Math.abs(z)<HB&&!taken.some(t=>x>t[0]-m&&x<t[2]+m&&z>t[1]-m&&z<t[3]+m);
   const patch=(x,z,w,d,tex,col,hh=1,us)=>B.box(x,0,z,w,.03*hh,d,col,tex,{solid:false,shadow:false,us});
   const road=(x0,z0,x1,z1,w=6,kind)=>{const horiz=Math.abs(x1-x0)>=Math.abs(z1-z0);const cx=(x0+x1)/2,cz=(z0+z1)/2,len=horiz?Math.abs(x1-x0):Math.abs(z1-z0);B.box(cx,0,cz,horiz?len:w,.04,horiz?w:len,kind==='dirt'?0x9a7a55:0x4a4d52,kind==='dirt'?'dirt':'asphalt',{solid:false,shadow:false,us:kind==='dirt'?.25:.2});
    if(kind!=='dirt')for(let k=-len/2+4;k<len/2-4;k+=9)B.box(horiz?cx+k:cx,.04,horiz?cz:cz+k,horiz?4:.3,.015,horiz?.3:4,0xe8e0a8,'plain',NS);taken.push(horiz?[Math.min(x0,x1),cz-w/2-1,Math.max(x0,x1),cz+w/2+1]:[cx-w/2-1,Math.min(z0,z1),cx+w/2+1,Math.max(z0,z1)])};
   // ---- generic building: 4 walls, one door (optionally windows), flat roof deck with parapet reachable by outside stairs, loot inside
   function bld(o){const{x,z,w,d,h=3.4,c=pick(PAL),tex='plaster',door='s',rc=pick(ROOF),stairs=1,dg=2.1,loot=3,chest=.3,win=1,windows,y:Y=0}=o;const id=bid++;const t=.3;const bx=(px,py,pz,a,b2,c2,col,tx,op)=>B.box(px,py+Y,pz,a,b2,c2,col,tx,op);
-   const side=stairs?(door==='s'||door==='n'?(R()<.5?'e':'w'):(R()<.5?'n':'s')):null;
+   let side=stairs?(door==='s'||door==='n'?(R()<.5?'e':'w'):(R()<.5?'n':'s')):(Y>0?{s:'n',n:'s',e:'w',w:'e'}[door]:null);
+   // v97: if the stair run would collide with another building / stair (e.g. two buildings facing each other), use another side (never the door wall)
+   if(stairs){const wd=1.7,e=.25,L0=.55*Math.ceil((h+.35)/.35);const rc=sd=>sd==='e'?[x+w/2+e,z-d/2+.25,x+w/2+e+L0+1.8,z-d/2+.6+wd+.35]:sd==='w'?[x-w/2-e-L0-1.8,z-d/2+.25,x-w/2-e,z-d/2+.6+wd+.35]:sd==='n'?[x-w/2+.25,z+d/2+e,x-w/2+.6+wd+.35,z+d/2+e+L0+1.8]:[x-w/2+.25,z-d/2-e-L0-1.8,x-w/2+.6+wd+.35,z-d/2-e];
+    const free=sd=>{const r=rc(sd);return!B.cols.some(c=>c.door==null&&c.y1>Y+.3&&c.y0<Y+h+1.8&&c.x1>r[0]&&c.x0<r[2]&&c.z1>r[1]&&c.z0<r[3])};
+    if(!free(side)){const alt=['e','w','n','s'].filter(q=>q!==door&&q!==side&&free(q));if(alt.length)side=alt[0]}}
    const wall=(wx,wz,len,isX,sd)=>{const span=len;if(door===sd){const s=(span-dg)/2;B.door(wx,wz,Y,dg,2.4,isX?'x':'z',isX?(sd==='n'?1:-1):(sd==='e'?1:-1));if(isX){bx(wx-span/2+s/2,0,wz,s,h,t,c,tex);bx(wx+span/2-s/2,0,wz,s,h,t,c,tex);bx(wx,2.4,wz,dg,h-2.4,t,c,tex)}else{bx(wx,0,wz-span/2+s/2,t,h,s,c,tex);bx(wx,0,wz+span/2-s/2,t,h,s,c,tex);bx(wx,2.4,wz,t,h-2.4,dg,c,tex)}return}
     if(win&&span>5&&(windows??R()<.55)){const ww=1.5,s=(span-ww)/2;if(isX){bx(wx-span/2+s/2,0,wz,s,h,t,c,tex);bx(wx+span/2-s/2,0,wz,s,h,t,c,tex);bx(wx,0,wz,ww,1.0,t,c,tex);bx(wx,2.1,wz,ww,h-2.1,t,c,tex);bx(wx,1.0,wz,ww,1.1,.05,0xffffff,'window',{...NS,local:true})}
      else{bx(wx,0,wz-span/2+s/2,t,h,s,c,tex);bx(wx,0,wz+span/2-s/2,t,h,s,c,tex);bx(wx,0,wz,t,1.0,ww,c,tex);bx(wx,2.1,wz,t,h-2.1,ww,c,tex);bx(wx,1.0,wz,.05,1.1,ww,0xffffff,'window',{...NS,local:true})}return}
@@ -37,13 +45,14 @@ export function brDef({G,rng,_c}){
     if(side==='e')B.stairs(x+w/2+e+L,Y,z-d/2+wd/2+.6,'x-',n,sh,run,wd,0x9aa0a6,'concrete');else if(side==='w')B.stairs(x-w/2-e-L,Y,z-d/2+wd/2+.6,'x+',n,sh,run,wd,0x9aa0a6,'concrete');
     else if(side==='n')B.stairs(x-w/2+wd/2+.6,Y,z+d/2+e+L,'z-',n,sh,run,wd,0x9aa0a6,'concrete');else B.stairs(x-w/2+wd/2+.6,Y,z-d/2-e-L,'z+',n,sh,run,wd,0x9aa0a6,'concrete');
     lootAt(x+rr(-w/4,w/4),Y+h+.35,z+rr(-d/4,d/4),id);if(R()<.2)B.brChests.push([+x.toFixed(1),Y+h+.35,+z.toFixed(1),R()*6.28,id]);B.spot(x,Y+h+.35,z)}
+   if(!stairs&&Y>0){const lx=side==='e'?x+w/2:side==='w'?x-w/2:x,lz=side==='n'?z+d/2:side==='s'?z-d/2:z;B.ladder(lx,lz,Y,Y+h+.05,{n:'z+',s:'z-',e:'x+',w:'x-'}[side])}// v97: raised buildings without stairs get a roof ladder
    block(x,z,w+(stairs?7:0),d+(stairs?7:0),1.5);return id}
   const tower=(x,z,h=9,c=0x7a5a3a)=>{// lookout tower: four legs, deck, rails, ladder
    for(const a of[-1,1])for(const b of[-1,1])B.box(x+a*1.5,0,z+b*1.5,.3,h,.3,c,'planks',{gy:0});B.box(x,h,z,4,.3,4,0x8a6a45,'planks',{gy:h});for(const s of[-1,1]){B.box(x,h+.3,z+s*1.9,4,.9,.2,0x6d5232,'planks',{shadow:false});B.box(x+s*1.9,h+.3,z,.2,.9,4,0x6d5232,'planks',{shadow:false})}
    B.box(x,h+3.2,z,4.6,.25,4.6,0x6d4c41,'planks',{solid:false,shadow:false});for(const a of[-1,1])for(const b of[-1,1])B.box(x+a*1.9,h+.3,z+b*1.9,.15,2.9,.15,0x6d5232,'planks',{solid:false,shadow:false});
    B.ladder(x,z-2.05,0,h,'z-');lootAt(x,h+.3,z,-1);if(R()<.5)B.brChests.push([x,h+.3,z+.8,0,-1]);block(x,z,5,5,2);B.spot(x,h+.3,z)};
-  const pine=(x,z,s=1)=>{B.cyl(x,0,z,.2*s,1.4*s,0x5d4037,'rock',{seg:6,shadow:false,solid:false});for(let i=0;i<3;i++)B.part('leaves',{g:G('cone',(1.8-i*.5)*s,1.9*s,8),p:[x,(1.7+i*1.15)*s,z],c:_c.set(pick([0x2f5d3a,0x2a5234,0x37683f])).multiplyScalar(.9+R()*.2).getHex(),ao:false});B.cols.push({x0:x-.35*s,x1:x+.35*s,y0:0,y1:4*s,z0:z-.35*s,z1:z+.35*s});B.shadows.push([x,z,3*s,3*s])};
-  const rock=(x,z,s=1)=>{B.part('rock',{g:G('dode',1.2*s),p:[x,.6*s,z],s:[1.3,.8,1.1],r:[R(),R()*3,R()],c:_c.set(0x8a8c90).multiplyScalar(.85+R()*.3).getHex()});B.cols.push({x0:x-1.1*s,x1:x+1.1*s,y0:0,y1:1.1*s,z0:z-1*s,z1:z+1*s});B.shadows.push([x,z,3*s,3*s])};
+  const pine=track((x,z,s=1)=>{B.cyl(x,0,z,.2*s,1.4*s,0x5d4037,'rock',{seg:6,shadow:false,solid:false});for(let i=0;i<3;i++)B.part('leaves',{g:G('cone',(1.8-i*.5)*s,1.9*s,8),p:[x,(1.7+i*1.15)*s,z],c:_c.set(pick([0x2f5d3a,0x2a5234,0x37683f])).multiplyScalar(.9+R()*.2).getHex(),ao:false});B.cols.push({x0:x-.35*s,x1:x+.35*s,y0:0,y1:4*s,z0:z-.35*s,z1:z+.35*s});B.shadows.push([x,z,3*s,3*s])});
+  const rock=track((x,z,s=1)=>{B.part('rock',{g:G('dode',1.2*s),p:[x,.6*s,z],s:[1.3,.8,1.1],r:[R(),R()*3,R()],c:_c.set(0x8a8c90).multiplyScalar(.85+R()*.3).getHex()});B.cols.push({x0:x-1.1*s,x1:x+1.1*s,y0:0,y1:1.1*s,z0:z-1*s,z1:z+1*s});B.shadows.push([x,z,3*s,3*s])});
   const fence=(x,z,len,ax,c=0x8a6a45)=>{const n=Math.floor(len/2);for(let i=0;i<n;i++){const o=-len/2+1+i*2;if(ax==='x'){B.box(x+o,0,z,.12,1.1,.12,c,'planks',{shadow:false,solid:false});B.box(x+o+1,.7,z,2,.09,.07,c,'planks',{...NS})}else{B.box(x,0,z+o,.12,1.1,.12,c,'planks',{shadow:false,solid:false});B.box(x,.7,z+o+1,.07,.09,2,c,'planks',{...NS})}}};
   const lamp=(x,z,q=0)=>B.lamp(x,z,4.4,q);
   for(const s of[-1,1]){B.box(0,0,s*263,540,.05,14,0xe2d3a0,'sand',NS);B.box(s*263,0,0,14,.05,540,0xe2d3a0,'sand',NS)}
@@ -72,8 +81,8 @@ export function brDef({G,rng,_c}){
    block(cx-26,cz+23,26,12,1);for(let k=0;k<4;k++){B.brChests.push([cx-34+k*8,0,cz+26.5,0,-1]);}
    // silos, tanks, pipes, crane
    for(let i=0;i<3;i++){const x=cx+4+i*7,z=cz+34;B.cyl(x,0,z,3,13,0xd9d9d0,'metal',{seg:20,us:.4});B.ladder(x+3*.85,z,0,13,'x+');lootAt(x,13,z,-1)}block(cx+14,cz+34,24,8,1);
-   B.cyl(cx-50,0,cz-4,4.2,6,0x5a7a9a,'metal',{seg:20});B.cyl(cx-50,0,cz+6,4.2,6,0x5a7a9a,'metal',{seg:20});
-   {const x=cx+46,z=cz-40,h=22;for(const a of[-1,1])for(const b of[-1,1])B.box(x+a*2.5,0,z+b*2.5,.5,h,.5,0xe0a020,'metal',{gy:0});B.box(x,h,z,6.5,.5,6.5,0xe0a020,'metal',{gy:h});B.box(x+10,h+.3,z,24,.7,1.2,0xd09010,'metal',{solid:false});B.ladder(x,z-2.85,0,h,'z-');lootAt(x,h+.5,z,-1);B.brChests.push([x,h+.5,z+1,0,-1])}
+   B.cyl(cx-50,0,cz-4,4.2,6,0x5a7a9a,'metal',{seg:20});B.cyl(cx-50,0,cz+6,4.2,6,0x5a7a9a,'metal',{seg:20});B.ladder(cx-50+4.2*.85,cz-4,0,6,'x+');B.ladder(cx-50+4.2*.85,cz+6,0,6,'x+');
+   {const x=cx+46,z=cz-34,h=22;for(const a of[-1,1])for(const b of[-1,1])B.box(x+a*2.5,0,z+b*2.5,.5,h,.5,0xe0a020,'metal',{gy:0});B.box(x,h,z,6.5,.5,6.5,0xe0a020,'metal',{gy:h});B.box(x+10,h+.3,z,24,.7,1.2,0xd09010,'metal',{solid:false});B.ladder(x,z-2.85,0,h,'z-');lootAt(x,h+.5,z,-1);B.brChests.push([x,h+.5,z+1,0,-1])}
    for(let i=0;i<14;i++){const x=cx+rr(-40,44),z=cz+rr(-34,8);if(isFree(x,z,2.5)){if(i%2)B.barrel(x,z,pick([0xc0392b,0x2e86de,0xf39c12]));else B.crate(x,z,1.3,0,0xc79a5c)}}
    B.car(cx+4,cz-4,1,0xf39c12);B.wreck(cx-14,cz+3,0,0x7f8c8d);for(let i=0;i<5;i++)B.barrier(cx-42+i*4,cz-24,0,3);block(cx,cz,100,80,0)}
   // ============ 3. FARMSTEAD (SE) ============
@@ -102,7 +111,7 @@ export function brDef({G,rng,_c}){
    for(let i=0;i<10;i++){const x=cx+rr(-60,60),z=cz+rr(-30,6);if(isFree(x,z,2.5)){if(i%2)B.barrel(x,z,pick([0x2e86de,0xc0392b]));else B.crate(x,z,1.2,0,0xc79a5c)}}road(-18,60,-18,110,6);block(cx,cz,0,0,0)}
   // ============ 6. MOUNT SUMMIT (N) ============
   {const cx=-18,cz=-142;const L=[[44,40,3],[32,28,3],[22,18,3],[12,10,3]];let y=0;const ys=[];L.forEach(([w,d,hh],i)=>{ys.push(y);B.box(cx,y,cz,w,hh,d,_c.set(0x8a8c90).multiplyScalar(1-i*.06).getHex(),'rock',{gy:y,us:.12});y+=hh});
-   L.forEach(([w,d,hh],i)=>{const n=Math.round(hh/.34),sh=hh/n,run=.5,len=run*n;if(i%2===0)B.stairs(cx+w/2+len,ys[i],cz+(i===2?3:-3),'x-',n,sh,run,2.2,0x9a9ea5,'rock');else B.stairs(cx+(i===3?-2:2),ys[i],cz+d/2+len,'z-',n,sh,run,2.2,0x9a9ea5,'rock')});
+   L.forEach(([w,d,hh],i)=>{const n=Math.ceil(hh/.45),sh=hh/n,run=.4,len=run*n;if(i%2===0)B.stairs(cx+w/2+len,ys[i],cz+(i===2?3:-3),'x-',n,sh,run,2.2,0x9a9ea5,'rock');else B.stairs(cx+(i===3?-2:2),ys[i],cz+d/2+len,'z-',n,sh,run,2.2,0x9a9ea5,'rock')});
    const top=y;bld({x:cx,z:cz,w:8,d:7,h:3,c:0x6f757d,tex:'concrete',door:'s',stairs:0,loot:4,chest:1,rc:0x3f444a,win:0,y:top});
    for(let i=0;i<10;i++){const a=R()*6.28,r=rr(30,44);const x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r;if(isFree(x,z,3))rock(x,z,rr(1,2.2))}for(let i=0;i<16;i++){const x=cx+rr(-64,64),z=cz+rr(-52,56);if(isFree(x,z,3)&&Math.hypot(x-cx,z-cz)>30)pine(x,z,rr(.9,1.4))}
    lootAt(cx-19,3,cz+6,-1);lootAt(cx+13,6,cz+4,-1);lootAt(cx,9,cz+7,-1);B.brChests.push([cx-20,3,cz-5,0,-1],[cx+14,6,cz-4,0,-1]);B.spot(cx,top,cz);block(cx,cz,60,56,0)}
@@ -119,7 +128,7 @@ export function brDef({G,rng,_c}){
    {const h=34;for(const a of[-1,1])for(const b of[-1,1])B.box(cx+4+a*1.2,4.8,cz+b*1.2,.25,h-4.8,.25,0xd0452a,'metal',{gy:4.8,solid:false,shadow:false});B.cols.push({x0:cx+2.6,x1:cx+5.4,y0:4.8,y1:28,z0:cz-1.4,z1:cz+1.4});B.ladder(cx+5.4,cz,4.8,28,'x+');B.box(cx+4,28,cz,3.2,.3,3.2,0x666d75,'metal',{gy:28});lootAt(cx+4,28.3,cz,-1);B.brChests.push([cx+4,28.3,cz+1,0,-1])}
    bld({x:cx+30,z:cz-12,w:10,d:8,h:3.2,c:0x6f757d,tex:'concrete',door:'w',loot:4,chest:1,rc:0x3f444a,win:0});bld({x:cx+30,z:cz+14,w:9,d:8,h:3.2,c:0x6f757d,tex:'concrete',door:'w',loot:3,chest:.8,rc:0x3f444a,win:0});
    for(let i=0;i<6;i++){const a=i/6*6.283;sandbagsAt(cx+Math.cos(a)*18,cz+Math.sin(a)*18,i)}lootAt(cx,4.8,cz+3,-1);lootAt(cx-4,4.8,cz-3,-1);road(70,2,140,2,5);block(cx,cz,0,0,0)}
-  function sandbagsAt(x,z,i){const L=B.at(x,z,i%2);L.box(0,0,0,3.2,.9,.6,0xb8a57a,'sand',{us:.5,shadow:false})}
+  function sandbagsAt(x,z,i){return track(()=>{const L=B.at(x,z,i%2);L.box(0,0,0,3.2,.9,.6,0xb8a57a,'sand',{us:.5,shadow:false})})()}
   // ============ 9. LAKESIDE CABINS (NW) ============
   {const cx=-132,cz=-128;B.box(cx+6,0,cz+10,44,.05,36,0x2f86c8,'plain',{solid:false,shadow:false});for(let k=0;k<6;k++)B.box(cx+6,.05,cz+10-14+k*5.6,44-k*2,.02,.6,0x9fd0f0,'plain',NS);// lake
    for(const[dx,dz,door]of[[-24,-12,'e'],[-24,10,'e'],[-6,-30,'s'],[22,-24,'w'],[30,6,'w']])bld({x:cx+dx,z:cz+dz,w:8.5,d:7.5,h:3.2,c:0x8a6a45,tex:'planks',door,loot:3,chest:.7,rc:0x4e3b2a,win:1});
@@ -128,6 +137,7 @@ export function brDef({G,rng,_c}){
    lamp(cx-14,cz-4,1);block(cx+6,cz+10,46,38,0)}
   // ============ connecting roads + wilderness ============
   brExtra({B,G,_c,R,rr,pick,bld,tower,pine,rock,fence,lamp,road,block,isFree,lootAt,patch,NS,PAL});
+  biomeProps({B,G,rr,pick,isFree:(x,z,m)=>isFree(x,z,m)&&!B.brChests.some(c=>Math.abs(c[0]-x)<5&&Math.abs(c[2]-z)<5),block,zones:BR_ZONES});
   road(0,70,0,108,5);road(-70,0,-70,-12,4);road(70,-34,112,-60,4);road(0,-70,0,-110,5);road(-100,-12,-100,-120,4);
   const zones=[[0,0,66],[112,-104,52],[108,108,56],[-122,-12,56],[-18,150,50],[-18,-142,48],[-128,118,48],[158,2,36],[-132,-128,44],...BR_ZONES2.map(z=>[z.x,z.z,z.r+6])];
   for(let i=0;i<460;i++){const x=rr(-262,262),z=rr(-262,262);if(zones.some(([a,b,r])=>Math.hypot(x-a,z-b)<r))continue;if(!isFree(x,z,2.2))continue;const k=R();if(k<.5)B.tree(x,z,rr(.9,1.5));else if(k<.72)pine(x,z,rr(.9,1.5));else if(k<.88)rock(x,z,rr(.7,1.6));else B.bush(x,z,rr(.8,1.4))}
@@ -138,8 +148,15 @@ export function brDef({G,rng,_c}){
   // ground loot sprinkled in the open (small crates & barrels)
   for(let i=0;i<100;i++){const x=rr(-255,255),z=rr(-255,255);if(isFree(x,z,2.5)){B.brLoot.push([+x.toFixed(1),0,+z.toFixed(1),-1])}}
   // v59: nudge any chest / loot spot that ended up inside a wall, container or prop out onto free, supported floor
-  {const solid=k=>k.y1-k.y0>1.2&&!k.door&&k.door!==0;const inside=(x,z,y,h)=>B.cols.some(k=>solid(k)&&x>k.x0+.05&&x<k.x1-.05&&z>k.z0+.05&&z<k.z1-.05&&y>=k.y0-.01&&y+h<k.y1-.05);
-   const near=(x,z,y,h,m)=>B.cols.some(k=>solid(k)&&x>k.x0-m&&x<k.x1+m&&z>k.z0-m&&z<k.z1+m&&y>=k.y0-.01&&y+h<k.y1-.05);
+  // v97: remove props overlapping a stair foot, stair landing or ladder base/top (so every roof stays reachable)
+  {const hit=(c,k)=>c.x1>k.x0&&c.x0<k.x1&&c.z1>k.z0&&c.z0<k.z1&&c.y1>k.y0&&c.y0<k.y1;const dead=new Set(),deadP=new Set(),deadS=new Set();let n=0;
+   for(const e of PL)if(e.cols.some(c=>B.keep.some(k=>hit(c,k)))){n++;for(const c of e.cols)dead.add(c);for(const s of e.sh)deadS.add(s);for(const p of e.parts)deadP.add(p[1])}
+   if(dead.size){const keepCol=B.cols.filter(c=>!dead.has(c));B.cols.length=0;B.cols.push(...keepCol);const ks=B.shadows.filter(x=>!deadS.has(x));B.shadows.length=0;B.shadows.push(...ks);for(const t in B.T){const f=B.T[t].filter(p=>!deadP.has(p));B.T[t].length=0;B.T[t].push(...f)}}
+   // untracked low junk (scrap piles, small biome props) sitting on a stair foot / ladder base: drop its collider
+   {const chestLike=c=>Math.abs((c.x1-c.x0)-1.1)<.05&&Math.abs((c.z1-c.z0)-1.1)<.05&&c.y1-c.y0<.9;const drop=B.cols.filter(c=>c.door==null&&!c._st&&c.y1-c.y0<=2.4&&c.x1-c.x0<=4.5&&c.z1-c.z0<=4.5&&!chestLike(c)&&B.keep.some(k=>hit(c,k)));if(drop.length){const ds=new Set(drop);const kc=B.cols.filter(c=>!ds.has(c));B.cols.length=0;B.cols.push(...kc);n+=drop.length}}
+   B.propsCleared=n}
+  {const KP=B.keep.map(k=>({x0:k.x0,x1:k.x1,z0:k.z0,z1:k.z1,y0:k.y0,y1:k.y0+3}));const solid=k=>k.y1-k.y0>1.2&&!k.door&&k.door!==0;const inside=(x,z,y,h)=>B.cols.concat(KP).some(k=>solid(k)&&x>k.x0+.05&&x<k.x1-.05&&z>k.z0+.05&&z<k.z1-.05&&y>=k.y0-.01&&y+h<k.y1-.05);
+   const near=(x,z,y,h,m)=>B.cols.concat(KP).some(k=>solid(k)&&x>k.x0-m&&x<k.x1+m&&z>k.z0-m&&z<k.z1+m&&y>=k.y0-.01&&y+h<k.y1-.05);
    const sup=(x,z,y)=>y<.1||B.cols.some(k=>x>k.x0&&x<k.x1&&z>k.z0&&z<k.z1&&Math.abs(k.y1-y)<.12);
    const fix=(a,h,m)=>{if(!inside(a[0],a[2],a[1],h))return;for(let r=.7;r<9;r+=.7)for(let q=0;q<14;q++){const ang=q/14*6.283,x=a[0]+Math.cos(ang)*r,z=a[2]+Math.sin(ang)*r;if(!near(x,z,a[1],h,m)&&sup(x,z,a[1])&&Math.abs(x)<HB&&Math.abs(z)<HB){const ox=a[0],oz=a[2];a[0]=+x.toFixed(1);a[2]=+z.toFixed(1);return[ox,oz]}}};
    for(const c of B.brChests){const o=fix(c,.5,.6);if(o){const k=B.cols.find(k=>Math.abs(k.x0-(o[0]-.55))<.02&&Math.abs(k.z0-(o[1]-.55))<.02&&k.y1-k.y0<.8);if(k){k.x0=c[0]-.55;k.x1=c[0]+.55;k.z0=c[2]-.55;k.z1=c[2]+.55}}}
