@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "at": "2026-11-04",
+  "build": "0529d77 (cypert/dev, working tree includes HUD docking changes)",
+  "profile": "raid",
+  "fixture": "isolated file-backed SQLite/WAL, preseeded accounts, separate server process, loopback HTTP",
+  "impairment": "application-level request/response loss (5%) and injected delay (150ms) over loopback HTTP; NOT packet-level WAN loss or device networking",
+  "hardware": {"platform": "darwin", "cpu": "Apple M5 Max", "logicalCpus": 18, "memoryBytes": 137438953472, "node": "v24.21.0"},
+  "runs": [
+    {"seconds": 180, "clients": 9, "coverage": {"combat": true, "search": true, "loot": true, "extraction": false}, "gate_failures": ["gameplayLoopCovered"], "serverTickP95Ms": 25},
+    {"seconds": 240, "clients": 9, "coverage": {"combat": true, "search": true, "loot": true, "extraction": true}, "outcomes": {"extract": 1}, "gate_failures": [], "serverTickP95Ms": 25},
+    {"seconds": 300, "clients": 9, "coverage": {"combat": true, "search": true, "loot": true, "extraction": true}, "outcomes": {"extract": 3}, "gate_failures": [], "serverTickP95Ms": 25}
+  ],
+  "longRun": {
+    "seconds": 900,
+    "clients": 27,
+    "activeRaids": 15,
+    "durationSeconds": 900.42,
+    "coverage": {"combat": true, "search": true, "loot": true, "extraction": true},
+    "outcomes": {"death": 18, "extract": 11, "timeout": 14},
+    "extractionSettlements": 11,
+    "returnedItems": 50,
+    "lostItems": 105,
+    "failedActions": 99,
+    "failedActionKinds": {"delivery:move": 99},
+    "normalRaidEndRejections": 39,
+    "serverTickP95Ms": 25,
+    "serverTickIntervalP95Ms": 75,
+    "tickErrors": 0,
+    "eventLoopP99Ms": 65.27,
+    "clientRoundTripP95Ms": 404.9,
+    "bytesPerClientSecond": 33565,
+    "rssBytes": 304267264,
+    "cpuSeconds": 337.4,
+    "gates": {
+      "noProlongedAirborneStalls": true,
+      "observedEconomyConserved": true,
+      "gameplayLoopCovered": true,
+      "gameplayRejectionRateWithinBudget": true,
+      "allClientsCompleted": true,
+      "noSimulationErrors": true,
+      "actionFailureRateWithinBudget": true,
+      "tickP95Within50ms": true,
+      "tickIntervalP95Within75ms": true
+    }
+  },
+  "notes": [
+    "The raid-load fixture only requires gameplay loop coverage at seconds >= 180. On the authored 720x720 sectors the first extraction is not reached at 180s in this synthetic pilot; 240s is the slimmest measured window if a run-level extraction gate is required.",
+    "The 99 delivery:move failures are bounded, deduplicated delivery failures under injected impairment, not duplicate settlement or loot creation; tick errors remained zero.",
+    "This evidence is an application-level loopback workload on one machine. It does not certify WAN packet loss, per-device frame time/memory, long-session client soak, or deployment capacity."
+  ]
+}

@@ -26,6 +26,12 @@ installDialogNavigation();
 const chooseQuantity=quantityUI();
 document.getElementById('previewTurn').onclick=()=>preview?.turn();
 const $=id=>document.getElementById(id),message=text=>$('message').textContent=text;
+const syncTouchHeight=()=>document.documentElement.style.setProperty('--touch-h',Math.round($('touch').getBoundingClientRect().height)+'px');
+new ResizeObserver(syncTouchHeight).observe($('touch'));
+const syncRaidDock=()=>{const tele=Math.round($('telemetry').getBoundingClientRect().height),toggle=Math.round($('packToggle').getBoundingClientRect().height),root=document.documentElement;root.style.setProperty('--toggle-top',(64+tele+12)+'px');root.style.setProperty('--dock-top',(64+tele+20+toggle)+'px')};
+new ResizeObserver(syncRaidDock).observe($('telemetry'));
+new ResizeObserver(syncRaidDock).observe($('packToggle'));
+syncTouchHeight();syncRaidDock();
 let baseUI,previewLoadout={primary:null,secondary:null,armor:null};
 let profile,party,snapshot,view,preview,yaw=0,pitch=0,seq=0,busy=false,tickBusy=false,inRaid=false,nearest=null,awaitingParty=false,notice={text:'',until:0};
 let latencyProof=null,probeWork=null,matchInfo=null;
@@ -231,7 +237,9 @@ function controlAction(kind){
  if(kind==='utility')return run(()=>throwHeldUtility(items.find(i=>i.kind==='utility')));
  if(kind==='heal'){const item=items.find(i=>i.kind==='med'&&(snapshot.self.combatVersion!==2||medicalNeed(snapshot.self,i,snapshot.serverTime)));if(item)run(()=>action({type:'use',itemId:item.id}))}
 }
-function setPack(open,focus=false){$('play').dataset.packOpen=String(open);if(open)input.clear();$('pack').hidden=!open;$('packToggle').setAttribute('aria-expanded',String(open));$('packToggle').textContent=(open?'Hide backpack':'Backpack')+' / '+keyName(preferences.get().bindings.pack);if(focus){if(open)($('pack').querySelector('button')||$('pack')).focus();else $('view').focus()}}
+function packToggleLabel(open){const compact=innerWidth<=340;$('packToggle').textContent=(compact?(open?'Close':'Pack'):(open?'Hide backpack':'Backpack'))+' / '+keyName(preferences.get().bindings.pack);$('packToggle').setAttribute('aria-label',open?'Close backpack':'Backpack')}
+function setPack(open,focus=false){$('play').dataset.packOpen=String(open);if(open)input.clear();$('pack').hidden=!open;$('packToggle').setAttribute('aria-expanded',String(open));packToggleLabel(open);if(focus){if(open)($('pack').querySelector('button')||$('pack')).focus();else $('view').focus()}}
+matchMedia('(max-width:340px)').addEventListener('change',()=>packToggleLabel(!$('pack').hidden));
 $('packToggle').onclick=()=>setPack($('pack').hidden,true);
 $('view').onclick=e=>{if(e.pointerType==='touch'||preferences.isModal()||!$('communications').hidden)return;if(inRaid){if(document.pointerLockElement!==$('view')){const request=$('view').requestPointerLock();request?.catch(()=>{notice={text:'Mouse capture was unavailable. Use arrow keys, touch aim, or click the view to retry.',until:performance.now()+5000}})}}};
 addEventListener('mousemove',e=>{if(document.pointerLockElement===$('view'))aim(e.movementX,e.movementY,.003)});

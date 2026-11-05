@@ -1,0 +1,421 @@
+{
+  "format": 1,
+  "runtimeRoot": "file:///Users/a.cypert/Documents/Applications/headshotz/",
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/156.0.8078.76",
+    "revision": "@93ce6b54af3fee27e384d1f30346e80db47a14da",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "jsVersion": "15.6.75.25"
+  },
+  "results": [
+    {
+      "map": "relay",
+      "coldStartCpuMs": 1012.6999998092651,
+      "frameIntervalMs": {
+        "count": 85,
+        "p50": 99.89999999999964,
+        "p95": 116.59999999999991,
+        "max": 1000.0000000000001
+      },
+      "renderCpuMs": {
+        "count": 85,
+        "p50": 0.6999998092651367,
+        "p95": 0.9000000953674316,
+        "max": 1.0999999046325684
+      },
+      "drawCalls": {
+        "count": 85,
+        "p50": 377,
+        "p95": 393,
+        "max": 393
+      },
+      "triangles": {
+        "count": 85,
+        "p50": 152207,
+        "p95": 152815,
+        "max": 152815
+      },
+      "resources": {
+        "geometries": 153,
+        "textures": 22
+      },
+      "resourceSamples": [
+        {
+          "geometries": 153,
+          "textures": 22
+        },
+        {
+          "geometries": 153,
+          "textures": 22
+        }
+      ],
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "pixelRatio": 1.5,
+      "canvas": {
+        "width": 1920,
+        "height": 1080
+      },
+      "actors": 34,
+      "jsHeapUsedBytes": 8675340,
+      "viewport": {
+        "name": "desktop",
+        "width": 1280,
+        "height": 720,
+        "deviceScaleFactor": 2,
+        "mobile": false,
+        "frameBudgetMs": 20,
+        "cpuBudgetMs": 12
+      },
+      "targets": {
+        "drawingBufferMatchesRequestedDensity": true,
+        "enoughFrames": false,
+        "frameP95WithinBudget": false,
+        "renderCpuP95WithinBudget": true
+      }
+    },
+    {
+      "map": "reservoir",
+      "coldStartCpuMs": 701.3999996185303,
+      "frameIntervalMs": {
+        "count": 88,
+        "p50": 99.89999999999782,
+        "p95": 100.10000000000036,
+        "max": 100.10000000000218
+      },
+      "renderCpuMs": {
+        "count": 88,
+        "p50": 0.5999999046325684,
+        "p95": 0.7999997138977051,
+        "max": 0.8000001907348633
+      },
+      "drawCalls": {
+        "count": 88,
+        "p50": 361,
+        "p95": 379,
+        "max": 379
+      },
+      "triangles": {
+        "count": 88,
+        "p50": 156671,
+        "p95": 157217,
+        "max": 157217
+      },
+      "resources": {
+        "geometries": 152,
+        "textures": 23
+      },
+      "resourceSamples": [
+        {
+          "geometries": 152,
+          "textures": 22
+        },
+        {
+          "geometries": 152,
+          "textures": 22
+        }
+      ],
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "pixelRatio": 1.5,
+      "canvas": {
+        "width": 1920,
+        "height": 1080
+      },
+      "actors": 34,
+      "jsHeapUsedBytes": 14029260,
+      "viewport": {
+        "name": "desktop",
+        "width": 1280,
+        "height": 720,
+        "deviceScaleFactor": 2,
+        "mobile": false,
+        "frameBudgetMs": 20,
+        "cpuBudgetMs": 12
+      },
+      "targets": {
+        "drawingBufferMatchesRequestedDensity": true,
+        "enoughFrames": false,
+        "frameP95WithinBudget": false,
+        "renderCpuP95WithinBudget": true
+      }
+    },
+    {
+      "map": "switchyard",
+      "coldStartCpuMs": 586.1999998092651,
+      "frameIntervalMs": {
+        "count": 81,
+        "p50": 100,
+        "p95": 116.60000000000218,
+        "max": 116.79999999999927
+      },
+      "renderCpuMs": {
+        "count": 81,
+        "p50": 0.6000003814697266,
+        "p95": 0.8000001907348633,
+        "max": 0.9000000953674316
+      },
+      "drawCalls": {
+        "count": 81,
+        "p50": 380,
+        "p95": 398,
+        "max": 398
+      },
+      "triangles": {
+        "count": 81,
+        "p50": 159757,
+        "p95": 160265,
+        "max": 160265
+      },
+      "resources": {
+        "geometries": 153,
+        "textures": 23
+      },
+      "resourceSamples": [
+        {
+          "geometries": 153,
+          "textures": 23
+        },
+        {
+          "geometries": 153,
+          "textures": 23
+        }
+      ],
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "pixelRatio": 1.5,
+      "canvas": {
+        "width": 1920,
+        "height": 1080
+      },
+      "actors": 34,
+      "jsHeapUsedBytes": 17527400,
+      "viewport": {
+        "name": "desktop",
+        "width": 1280,
+        "height": 720,
+        "deviceScaleFactor": 2,
+        "mobile": false,
+        "frameBudgetMs": 20,
+        "cpuBudgetMs": 12
+      },
+      "targets": {
+        "drawingBufferMatchesRequestedDensity": true,
+        "enoughFrames": false,
+        "frameP95WithinBudget": false,
+        "renderCpuP95WithinBudget": true
+      }
+    },
+    {
+      "map": "relay",
+      "coldStartCpuMs": 502.19999980926514,
+      "frameIntervalMs": {
+        "count": 183,
+        "p50": 49.900000000001455,
+        "p95": 66.69999999999709,
+        "max": 150.09999999999854
+      },
+      "renderCpuMs": {
+        "count": 183,
+        "p50": 0.40000009536743164,
+        "p95": 0.5999999046325684,
+        "max": 159.7000002861023
+      },
+      "drawCalls": {
+        "count": 183,
+        "p50": 188,
+        "p95": 242,
+        "max": 261
+      },
+      "triangles": {
+        "count": 183,
+        "p50": 66932,
+        "p95": 100919,
+        "max": 117435
+      },
+      "resources": {
+        "geometries": 137,
+        "textures": 21
+      },
+      "resourceSamples": [
+        {
+          "geometries": 134,
+          "textures": 19
+        },
+        {
+          "geometries": 134,
+          "textures": 19
+        },
+        {
+          "geometries": 137,
+          "textures": 21
+        }
+      ],
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "pixelRatio": 1.5,
+      "canvas": {
+        "width": 585,
+        "height": 1266
+      },
+      "actors": 34,
+      "jsHeapUsedBytes": 8987956,
+      "viewport": {
+        "name": "mobile-sized",
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2,
+        "mobile": true,
+        "frameBudgetMs": 35,
+        "cpuBudgetMs": 20
+      },
+      "targets": {
+        "drawingBufferMatchesRequestedDensity": true,
+        "enoughFrames": true,
+        "frameP95WithinBudget": false,
+        "renderCpuP95WithinBudget": true
+      }
+    },
+    {
+      "map": "reservoir",
+      "coldStartCpuMs": 462.90000009536743,
+      "frameIntervalMs": {
+        "count": 180,
+        "p50": 50,
+        "p95": 66.59999999999854,
+        "max": 66.70000000000437
+      },
+      "renderCpuMs": {
+        "count": 180,
+        "p50": 0.40000009536743164,
+        "p95": 0.5,
+        "max": 0.5999999046325684
+      },
+      "drawCalls": {
+        "count": 180,
+        "p50": 178,
+        "p95": 232,
+        "max": 258
+      },
+      "triangles": {
+        "count": 180,
+        "p50": 71292,
+        "p95": 105489,
+        "max": 122209
+      },
+      "resources": {
+        "geometries": 135,
+        "textures": 21
+      },
+      "resourceSamples": [
+        {
+          "geometries": 133,
+          "textures": 18
+        },
+        {
+          "geometries": 133,
+          "textures": 18
+        },
+        {
+          "geometries": 135,
+          "textures": 21
+        }
+      ],
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "pixelRatio": 1.5,
+      "canvas": {
+        "width": 585,
+        "height": 1266
+      },
+      "actors": 34,
+      "jsHeapUsedBytes": 11810384,
+      "viewport": {
+        "name": "mobile-sized",
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2,
+        "mobile": true,
+        "frameBudgetMs": 35,
+        "cpuBudgetMs": 20
+      },
+      "targets": {
+        "drawingBufferMatchesRequestedDensity": true,
+        "enoughFrames": true,
+        "frameP95WithinBudget": false,
+        "renderCpuP95WithinBudget": true
+      }
+    },
+    {
+      "map": "switchyard",
+      "coldStartCpuMs": 424,
+      "frameIntervalMs": {
+        "count": 156,
+        "p50": 50,
+        "p95": 66.70000000000437,
+        "max": 99.90000000000146
+      },
+      "renderCpuMs": {
+        "count": 156,
+        "p50": 0.40000009536743164,
+        "p95": 0.5,
+        "max": 0.7000002861022949
+      },
+      "drawCalls": {
+        "count": 156,
+        "p50": 182,
+        "p95": 231,
+        "max": 253
+      },
+      "triangles": {
+        "count": 156,
+        "p50": 74280,
+        "p95": 108471,
+        "max": 125143
+      },
+      "resources": {
+        "geometries": 137,
+        "textures": 21
+      },
+      "resourceSamples": [
+        {
+          "geometries": 135,
+          "textures": 17
+        },
+        {
+          "geometries": 135,
+          "textures": 17
+        },
+        {
+          "geometries": 137,
+          "textures": 21
+        }
+      ],
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "pixelRatio": 1.5,
+      "canvas": {
+        "width": 585,
+        "height": 1266
+      },
+      "actors": 34,
+      "jsHeapUsedBytes": 11777256,
+      "viewport": {
+        "name": "mobile-sized",
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2,
+        "mobile": true,
+        "frameBudgetMs": 35,
+        "cpuBudgetMs": 20
+      },
+      "targets": {
+        "drawingBufferMatchesRequestedDensity": true,
+        "enoughFrames": false,
+        "frameP95WithinBudget": false,
+        "renderCpuP95WithinBudget": true
+      }
+    }
+  ],
+  "checks": {
+    "allTargets": false,
+    "noBrowserErrors": true
+  },
+  "browserErrors": [],
+  "scope": "Renderer-only fixed snapshots: three real authored maps, nine operators including self, ten machine models, animated camera/aim, 1s warmup and 8s sample. Headless Chrome on the current workstation with a concurrent 27-client server soak. Not physical mobile hardware, whole-client input/network performance or human acceptance."
+}
