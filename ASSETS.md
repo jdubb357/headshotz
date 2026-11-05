@@ -95,3 +95,6 @@ No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Sha
 
 ## v97 — Battle Royale roofs, auto-pickup, mantle
 No third-party assets: all new geometry (ladders, stair runs) and code are original.
+
+## v98 — Godly/Secret chests, sculpted add-ons, Galaxy rebuild
+No third-party assets: ears, horns, tails, wings, crowns, halos and the Galaxy helmet/visor (`addons.js`, `galaxyhead.js`) and the nebula/starfield shader (`wskins.js`) are original procedural code.
