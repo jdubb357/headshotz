@@ -3,8 +3,9 @@
 // (run/strafe/jump/aim/crouch/slide/climb/down/freefall/glide/chute/emotes) and a 2-bone IK for the two-handed weapon grip.
 import {THREE,mergeParts,GQ} from './gfx.js';
 import {SKIN_DEFS,toonDef,skinColors} from './skins.js';
-import {gxMat} from './wskins.js';
+import {gxMat,GX_PAL} from './wskins.js';
 import * as AD from './addons.js';
+import {galaxyHead} from './galaxyhead.js';
 const V3=THREE.Vector3;
 export const OUTFITS=[
  {id:0,name:'Sunny Scout',top:0xff9a2e,acc:0xfff1c9,pants:0x3b4a6b,shoes:0x6b3b1f,glove:0xfff1c9,skin:0xf1c27d,hair:0x5a3825,hs:0,hat:'cap',hatc:0x2f6fdf,iris:0x3a7bd5,pack:'round',packc:0x2f6fdf,sleeve:1,rar:0},
@@ -72,10 +73,10 @@ case 'beanie':part(P,shell(0,Math.PI*.6),o.hatc,[0,hy+.03,.01],[.305,.29,.305],[
  case 'tophat':part(P,cyl(),o.hatc,[0,hy+.17,0],[.36,.025,.34]);part(P,cyl(),o.hatc,[0,hy+.33,0],[.2,.17,.2]);part(P,cyl(),o.acc,[0,hy+.22,0],[.205,.03,.205]);break;
  case 'hood':part(P,shell(0,Math.PI*.8),o.hatc,[0,hy+.0,.11],[.31,.32,.3],[-.25,0,0]);part(P,tor(.2,.045,Math.PI*1.5),o.hatc,[0,hy-.01,-.2],[1,1.1,.5],[0,0,Math.PI*.75]);hairParts(P,{...o,hs:-1});break}
  if(o.hat!=='hood'&&o.hat!=='helmet')hairParts(P,o)}
-function bodyParts(P,o){const t=o.top,a=o.acc;
+function bodyParts(P,o){const t=o.top,a=o.fx?0xffffff:o.acc;// v98: galaxy suits use pure-white vertices for glowing seams
  part(P,cap(.2,.3),t,[0,1.02,0],[1.3,1.02,.95]);// torso
  part(P,cap(.205,.04),o.pants,[0,.84,0],[1.1,.8,.85]);// hips
- part(P,cyl(),a,[0,.9,0],[.235,.03,.185]);// belt
+ part(P,cyl(),o.fx?mix(t,0xffffff,.28):a,[0,.9,0],[.235,.03,.185]);// belt
  part(P,cyl(),o.skin,[0,1.31,0],[.08,.07,.08]);// neck
  S(P,0xd9c27a,[0,.9,-.185],[.04,.03,.012]);// buckle
  S(P,a,[0,1.12,-.17],[.06,.06,.02]);// chest emblem
@@ -91,15 +92,20 @@ if(o.pat==='stripe')part(P,tor(.2,.03,Math.PI*2),a,[0,1.06,0],[1.35,1,1],[Math.P
  case'tank':part(P,cap(.07,.34),o.packc,[-.1,1.06,.26]);part(P,cap(.07,.34),o.packc,[.1,1.06,.26]);part(P,cyl(),0xe5333f,[0,1.2,.22],[.22,.04,.08],[0,0,Math.PI/2]);break;
  case'quiver':part(P,cap(.05,.5),o.packc,[.08,1.1,.25],[1,1,1],[0,0,.35]);for(let i=0;i<3;i++)part(P,cone(),a,[.1+i*.03,1.5-i*.02,.26],[.03,.12,.03],[0,0,.35]);break;
  case'wings2':break}
+ if(o.fx){// glowing suit seams: chest panel lines, shoulder yoke, hip rings, spine line
+  part(P,tor(.205,.006,Math.PI*2),0xffffff,[0,1.2,0],[1.32,1,.96],[Math.PI/2,0,0]);part(P,tor(.2,.006,Math.PI*2),0xffffff,[0,.97,0],[1.28,1,.95],[Math.PI/2,0,0]);
+  for(const s of[-1,1]){part(P,box(),0xffffff,[s*.07,1.1,-.19],[.008,.2,.01],[0,0,s*.22]);part(P,box(),0xffffff,[s*.255,1.05,-.04],[.008,.34,.008],[0,0,0]);part(P,box(),0xffffff,[s*.17,1.27,-.13],[.14,.008,.01],[0,0,s*-.45])}
+  part(P,box(),0xffffff,[0,1.04,.255],[.008,.4,.008],[0,0,0])}
  if(o.hat==='hood')part(P,cone(),o.hatc,[0,1.2,.19],[.12,.18,.06],[Math.PI,0,0]);
 }
 function armParts(P,o,s,seg){// seg 0 upper, 1 fore (mitten is a separate mesh so it can hide when a gun's own hands take over)
- const sl=o.sleeve;if(seg===0){part(P,cap(.075,.2),o.top,[0,-.15,0]);S(P,o.top,[0,0,0],[.09,.09,.09]);part(P,tor(.07,.012,Math.PI*2),o.acc,[0,-.06,0],[1,1,1],[Math.PI/2,0,0])}
- else{part(P,cap(.066,.17),sl?o.top:o.skin,[0,-.15,0]);part(P,tor(.067,.016,Math.PI*2),o.acc,[0,-.23,0],[1,1,1],[Math.PI/2,0,0])}}
+ const sl=o.sleeve;if(seg===0){part(P,cap(.075,.2),o.top,[0,-.15,0]);S(P,o.top,[0,0,0],[.09,.09,.09]);part(P,tor(.07,.012,Math.PI*2),(o.fx?0xffffff:o.acc),[0,-.06,0],[1,1,1],[Math.PI/2,0,0])}
+ else{part(P,cap(.066,.17),sl?o.top:o.skin,[0,-.15,0]);part(P,tor(.067,.016,Math.PI*2),(o.fx?0xffffff:o.acc),[0,-.23,0],[1,1,1],[Math.PI/2,0,0])}}
 function mittParts(P,o){S(P,o.glove,[0,-.325,-.01],[.085,.08,.09]);S(P,o.glove,[0,-.295,-.075],[.035,.04,.04])}
 function legParts(P,o,seg){
  if(seg===0){part(P,cap(.11,.2),o.pants,[0,-.19,0]);S(P,o.pants,[0,0,0],[.115,.115,.115])}
- else{part(P,cap(.08,.15),o.pants,[0,-.15,0]);S(P,o.pants,[0,0,0],[.085,.085,.085]);S(P,mix(o.pants,0x000000,.2),[0,-.02,-.075],[.085,.075,.04]);part(P,cap(.095,.1),o.shoes,[0,-.37,-.045],[1,1,1.7],[Math.PI/2,0,0]);part(P,box(),0xeeeeee,[0,-.335,-.1],[.09,.012,.1]);part(P,box(),0xeeeeee,[0,-.35,-.12],[.09,.012,.1]);part(P,box(),mix(o.shoes,0xffffff,.55),[0,-.445,-.04],[.19,.03,.34])}}
+ else{part(P,cap(.08,.15),o.pants,[0,-.15,0]);S(P,o.pants,[0,0,0],[.085,.085,.085]);S(P,mix(o.pants,0x000000,.2),[0,-.02,-.075],[.085,.075,.04]);part(P,cap(.095,.1),o.shoes,[0,-.37,-.045],[1,1,1.7],[Math.PI/2,0,0]);part(P,box(),0xeeeeee,[0,-.335,-.1],[.09,.012,.1]);part(P,box(),0xeeeeee,[0,-.35,-.12],[.09,.012,.1]);part(P,box(),mix(o.shoes,0xffffff,.55),[0,-.445,-.04],[.19,.03,.34])}
+ if(o.fx){if(seg===0){part(P,tor(.118,.006,Math.PI*2),0xffffff,[0,-.1,0],[1,1,1],[Math.PI/2,0,0]);part(P,box(),0xffffff,[.0,-.19,-.108],[.008,.3,.008])}else{part(P,tor(.083,.006,Math.PI*2),0xffffff,[0,-.12,0],[1,1,1],[Math.PI/2,0,0]);part(P,box(),0xffffff,[0,-.15,-.082],[.008,.2,.008])}}}
 function eyeParts(P,o){for(const s of[-1,1]){const x=s*.095,y=1.555,z=-.225;
  part(P,sph(),0xf4f1ee,[x,y,z],[.078,.098,.04]);part(P,sph(),mix(o.iris,0x000000,.6),[x,y-.005,z-.0235],[.06,.075,.018]);part(P,sph(),o.iris,[x,y-.005,z-.026],[.052,.067,.02]);part(P,sphLo(),mix(o.iris,0xffffff,.45),[x,y-.032,z-.034],[.034,.026,.01]);part(P,sph(),0x101018,[x,y-.005,z-.037],[.028,.038,.012]);part(P,sphLo(),0xffffff,[x+s*-.017,y+.026,z-.046],[.014,.014,.01]);part(P,sphLo(),0xffffff,[x+s*.02,y-.025,z-.044],[.007,.007,.006]);
   part(P,tor(.074,.009,Math.PI),0x15101a,[x,y+.012,z-.038],[1,1.05,.5],[0,0,0])}}
@@ -148,15 +154,20 @@ function animAddons(u,st,dt,sp){const ad=u.add;if(!ad)return;ad.tt+=dt;const t=a
  for(const e of ad.ears){const flick=Math.max(0,Math.sin(t*.9+e.ph*3.1)-.93)*14;e.g.rotation.x=Math.sin(t*1.7+e.ph)*.025+flick*.35-run*.12;e.g.rotation.z=-e.s*(e.g.userData.z0==null?(e.g.userData.z0=e.g.rotation.z*-e.s):e.g.userData.z0)+e.s*Math.sin(t*1.3+e.ph)*.02-(flick*.1)*e.s}
  if(ad.halo){ad.halo.position.y=H0+.48+Math.sin(t*2)*.012;ad.halo.rotation.z=Math.sin(t*1.3)*.05;ad.halo.rotation.x=Math.cos(t*1.1)*.05}
  if(ad.tailRoot)AD.tickTail(ad.tailRoot,ad.tail,t,run,air,st.lx,u.crouch||0);
- for(const w of ad.wings){const f=Math.sin(t*(2.6+run*3+air*5))*(.04+.05*run+air*.22);w.g.rotation.set(0,-w.s*.62+w.s*(air?.2:0),w.s*(.32+f*(w.bat?1.3:1)+(u.crouch||0)*.1))}
+ for(const w of ad.wings){const f=Math.sin(t*(2.6+run*3+air*5))*(.04+.05*run+air*.22);w.g.rotation.set(0,-w.s*.34+w.s*(air?.25:0),w.s*(.3+f*(w.bat?1.3:1)+(u.crouch||0)*.1))}
  if(ad.cape){const a=ad.cape;a.rotation.x=.04+run*.42+air*.35+Math.sin(t*2.1)*.025*(1+run)+(u.crouch||0)*.1;a.rotation.z=Math.sin(t*1.4)*.025+(st.lx||0)*run*.1}}
 export function makeToon(teamCol,name,id,tagCol,outfitIdx,opt={}){
  const h=Math.abs([...String(id)].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7));const raw=outfitIdx!=null?(parseInt(outfitIdx)||0):null,tn=raw!=null?Math.min(8,Math.max(0,raw>>6)):0,oi=raw!=null?raw&63:h%BASE_N;const o=tinted(OUTFITS[((oi%OUTFITS.length)+OUTFITS.length)%OUTFITS.length],tn);
  const root=new THREE.Group();const rig=new THREE.Group();root.add(rig);
  const hips=new THREE.Group();hips.position.y=.78;rig.add(hips);
  const torso=new THREE.Group();hips.add(torso);const T=mesh(geo(o,'body',P=>bodyParts(P,o)));T.position.y=-.78;torso.add(T);
- const headG=new THREE.Group();headG.position.set(0,1.38-.78,0);headG.scale.setScalar(.93);torso.add(headG);const Hm=mesh(geo(o,'head',P=>headParts(P,o)));Hm.position.set(0,-1.38,0);headG.add(Hm);
- const eyes=mesh(geo(o,'eyes',P=>eyeParts(P,o)));eyes.position.set(0,-1.38,0);eyes.castShadow=false;headG.add(eyes);
+ const headG=new THREE.Group();headG.position.set(0,1.38-.78,0);headG.scale.setScalar(.93);torso.add(headG);const GXH=o.fx?galaxyHead(o.top,mix(o.top,0x000000,.72),0xffffff):null;
+ const Hm=GXH?mesh(GXH.head):mesh(geo(o,'head',P=>headParts(P,o)));Hm.position.set(0,-1.38,0);headG.add(Hm);
+ const eyes=GXH?mesh(GXH.eyes):mesh(geo(o,'eyes',P=>eyeParts(P,o)));eyes.position.set(0,-1.38,0);eyes.castShadow=false;headG.add(eyes);
+ if(GXH){// v98 galaxy hero: full face mask (glossy dark plate) + glowing eyes/vents; the whole head, neck and hands wear the galaxy shader
+  const P0=GX_PAL[o.fx]||GX_PAL.purple,gl=new THREE.Color(...P0[3]).lerp(new THREE.Color(...P0[2]),.5);gl.multiplyScalar(1.7);
+  eyes.material=new THREE.MeshBasicMaterial({color:gl,side:THREE.DoubleSide,vertexColors:true,toneMapped:false});
+  const mk=new THREE.Mesh(GXH.mask,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.16,metalness:.55,envMapIntensity:1.6,emissive:new THREE.Color(...P0[1]).multiplyScalar(.16)}));mk.position.set(0,-1.38,0);mk.castShadow=false;mk.userData.mask=1;headG.add(mk)}
  const mk=(seg,fn,pos,par)=>{const g=new THREE.Group();g.position.set(...pos);par.add(g);if(fn){const m=mesh(geo(o,fn[0],fn[1]));g.add(m)}return g};
  const arm=[],fore=[],leg=[],shin=[],handM=[];
  for(const s of[-1,1]){const i=s<0?0:1;const a=mk(0,['au'+s,P=>armParts(P,o,s,0)],[s*.285,1.24-.78,0],torso);const f=mk(0,['af'+s,P=>armParts(P,o,s,1)],[0,-.29,0],a);const hm=mesh(geo(o,'mit'+s,P=>mittParts(P,o)));f.add(hm);handM[i]=hm;arm[i]=a;fore[i]=f;
@@ -170,7 +181,7 @@ export function makeToon(teamCol,name,id,tagCol,outfitIdx,opt={}){
  const tg=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthWrite:false,transparent:true}));tg.scale.set(1.5,.375,1);tg.position.y=2.25;root.add(tg);
  if(opt.noTag)tg.visible=false;
  // v55 galaxy suits: torso/arms/legs/pack swap to the animated galaxy shader (head, hat, hair, eyes and mittens stay normal)
- if(o.fx){const gm=gxMat(o.fx,'toon');root.traverse(c=>{if(c.isMesh&&c!==Hm&&c!==eyes&&!handM.includes(c)&&(c.material===MAT||(c.userData.addon&&c.material!==addons.halo?.material)))c.material=gm})}
+ if(o.fx){const gm=gxMat(o.fx,'toon');root.traverse(c=>{if(c.isMesh&&c!==eyes&&!c.userData.mask&&(c.material===MAT||(c.userData.addon&&c.material!==addons.halo?.material)))c.material=gm})}
  if(opt.outline){const om=new THREE.MeshBasicMaterial({color:0x10141f,side:THREE.BackSide});root.traverse(c=>{if(c.isMesh&&c!==eyes){const m=new THREE.Mesh(c.geometry,om);m.scale.setScalar(1.05);c.add(m)}})}
  root.userData={kind:'toon',anim:animToon,rig,hips,torso,headG,eyes,arm,fore,handM,leg,shin,aim,gunMount,gR,gL,tag:tg,ph:0,flinch:0,dead:0,roll:(h%2?1:-1),lod:[],far:[],lodOn:true,cls:'soldier',crouch:0,climb:0,down:0,lean:0,outfit:o,add:addons,blinkT:2+(h%30)/10,mood:0,J:{}};
  root.userData.args=[teamCol,name,id,tagCol,oi];return root}

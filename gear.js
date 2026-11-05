@@ -3,6 +3,8 @@
 // 4 lens/glass, 5 leather/rubber). humans.js bakes them per bone into one merged mesh each.
 import {THREE,GQ} from './gfx.js';
 import * as AD from './addons.js';
+import {galaxyHead} from './galaxyhead.js';
+import {GX_PAL} from './wskins.js';
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);const UP=V(0,1,0);
 const MC={};export function gmat(c,r=.6,mt=0,k=0){const key=c+'|'+r+'|'+mt+'|'+k;if(MC[key])return MC[key];const m=new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:mt});m.userData.k=k;return MC[key]=m}
 const HY=1.675,HZ=-.045;// head centre (bind) + head-bone calibration offset
@@ -131,7 +133,15 @@ export function buildSkinHat(hat,c,acc,add,X){X=X||{};const low=GQ.level==='low'
  const cl=gmat(c,.8,0,1),ac=gmat(acc,.55,0,1),dk=gmat(new THREE.Color(c).multiplyScalar(.45).getHex(),.7,0,1),gl=gmat(c,.12,.4,4),mt=gmat(c,.3,.7,2),Y=HY;
  const sph=(r)=>new THREE.SphereGeometry(r,S2,S2),cyl=(a,b,h)=>new THREE.CylinderGeometry(a,b,h,S),tor=(r,t,a=Math.PI*2)=>new THREE.TorusGeometry(r,t,low?4:6,S,a),cone=(r,h)=>new THREE.ConeGeometry(r,h,S2),dome=(r,a)=>new THREE.SphereGeometry(r,S,Math.max(4,S/2|0),0,Math.PI*2,0,a);
  // v98 sculpted add-ons (shared with the hero): authored in hero head units, scaled .47 onto the soldier head
- const SC=.47,H0=.17,adp=(geo,k,x,y,z,rx=0,ry=0,rz=0,sc=1,mir=false)=>{const m=new THREE.Mesh(mir?AD.mirrorX(geo):geo,k==='metal'?GM_METAL:k==='gloss'?GM_GLOSS:GM_MATTE);m.position.set(x*SC,Y+(y-H0)*SC,z*SC+HZ);m.rotation.set(rx,ry,rz);m.scale.setScalar(SC*sc);add(m,'head')};
+ const SC=.47,H0=.17,adp=(geo,k,x,y,z,rx=0,ry=0,rz=0,sc=1,mir=false)=>{const m=new THREE.Mesh(mir?AD.mirrorX(geo):geo,k==='metal'?GM_METAL:k==='gloss'?GM_GLOSS:GM_MATTE);m.position.set(x*SC*.92,Y+(y-H0)*SC*.8,z*SC*.92+HZ);m.rotation.set(rx,ry,rz);m.scale.setScalar(SC*sc);add(m,'head')};
+ if(X.fx&&GX_PAL[X.fx]){// v98 galaxy soldier: full face visor + glowing eyes/vents + crest, ear pods and seam lines (scaled hero kit) over the galaxy-shaded head
+  const P0=GX_PAL[X.fx],glow=new THREE.Color(...P0[3]).lerp(new THREE.Color(...P0[2]),.5),GH=galaxyHead(X.c&&X.c.top!=null?X.c.top:c,new THREE.Color(X.c&&X.c.top!=null?X.c.top:c).multiplyScalar(.28).getHex(),0xffffff);
+  const put2=(geo,k,tint)=>{const m=new THREE.Mesh(geo,k==='glow'?GM_GLOW:k==='gloss'?GM_GLOSS:GM_MATTE);m.position.set(0,Y,HZ);m.scale.setScalar(SC);m.userData.gxk=k;add(m,'head')};
+  const tintGeo=(geo,mul,mulC)=>{const g2=geo.clone();const ca=g2.attributes.color;for(let i=0;i<ca.count;i++){ca.setXYZ(i,ca.getX(i)*mulC.r*mul,ca.getY(i)*mulC.g*mul,ca.getZ(i)*mulC.b*mul)}return g2};
+  const hy0=1.55;const re=(geo)=>{const g2=geo.clone();g2.translate(0,-hy0,0);return g2};
+  // seams/white vertices -> glowing palette colour; the rest of the cranium kit (crest, pods, brow) keeps the suit colour
+  const hg=re(GH.extras);{const ca=hg.attributes.color;for(let i=0;i<ca.count;i++){if(ca.getX(i)>.99&&ca.getY(i)>.99&&ca.getZ(i)>.99)ca.setXYZ(i,glow.r*1.4,glow.g*1.4,glow.b*1.4)}}
+  put2(hg,'glow');put2(re(GH.mask),'gloss');put2(tintGeo(re(GH.eyes),1.15,glow),'glow')}
  const earKind=hat==='ears'?'cat':hat==='bunny'?'bunny':(X.ear||'');
  if(earKind){const ec=hat==='bunny'||hat==='ears'?c:(X.earc||c),g0=AD.ear(earKind,ec,X.earin==null?0xffb3c1:X.earin,X.eart==null?null:X.eart),sc=earKind==='bunny'?1.25:earKind==='elf'?1.9:earKind==='bat'?1.2:1.55,out=earKind==='bunny'?.05:earKind==='elf'?0:earKind==='fox'?.1:.12;
   for(const s of[-1,1]){if(earKind==='elf')adp(g0,'matte',s*.25,H0+.02,.03,0,s*-.1,-s*1.2,sc,s<0);else adp(g0,'matte',s*.12,H0+.205,.02,0,0,-s*out,sc,s<0)}}

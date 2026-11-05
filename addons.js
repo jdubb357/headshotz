@@ -89,17 +89,18 @@ export function halo(r,t,col){const k='o'+r+'|'+t+'|'+col+GQ.level;if(EC[k])retu
 export function batWing(span,h,boneCol,memCol){const k='bw'+span+'|'+h+'|'+boneCol+'|'+memCol+GQ.level;if(EC[k])return EC[k];const bc=hex(boneCol),mc=hex(memCol);
  const arm=bez([0,0,0],[span*.2,h*.55,0],[span*.5,h*.8,0],[span*.62,h*.62,0],8),tips=[[span,h*.25,0],[span*.86,-h*.35,0],[span*.55,-h*.72,0]];
  const bones=[sweep(arm,t=>.016*(1-t*.6)+.004,t=>mixh(bc,0xffffff,.12*t),6,1,1.5)];const wrist=arm[arm.length-1];const fingers=tips.map((e,i)=>sweep(bez(wrist,[wrist[0]+(e[0]-wrist[0])*.4,wrist[1]+(e[1]-wrist[1])*.3+.03,0],[wrist[0]+(e[0]-wrist[0])*.75,wrist[1]+(e[1]-wrist[1])*.7,0],e,6),t=>.011*(1-t*.8)+.002,t=>mixh(bc,0xffffff,.1*t),5,1,1.2));
- const m=mk();const root=m.v(0,0,0,mc.clone().multiplyScalar(.7));const edge=[wrist,...tips,[0,-h*.35,0]];const ev=edge.map((p,i)=>m.v(p[0],p[1],p[2],mixh(mc,0xffffff,.0).multiplyScalar(i===0?1:.9)));
- // scalloped trailing edge: fan from the root to each edge span with a dip between fingers
- const pts=[];for(let i=0;i<edge.length-1;i++){const a=edge[i],b=edge[i+1];pts.push(a);const mid=[(a[0]+b[0])/2*.93,(a[1]+b[1])/2*.9,0];if(i>0)pts.push(mid)}pts.push(edge[edge.length-1]);
- const pv=pts.map((p,i)=>m.v(p[0],p[1],p[2],mc.clone().multiplyScalar(.75+.25*(i%2))));
- for(let i=0;i<pv.length-1;i++){m.tri(root,pv[i],pv[i+1]);m.tri(root,pv[i+1],pv[i])}
+ const m=mk();const edge=[wrist,...tips,[0,-h*.35,0]];
+ // scalloped trailing edge, then a billowing membrane grid (radial strips from the shoulder) between every pair of neighbouring bones
+ const pts=[];for(let i=0;i<edge.length-1;i++){const a=edge[i],b=edge[i+1];pts.push(a);if(i>0)pts.push([(a[0]+b[0])/2*.93,(a[1]+b[1])/2*.9,0])}pts.push(edge[edge.length-1]);
+ const KR=lo()?3:5,KC=lo()?1:2;
+ for(let i=0;i<pts.length-1;i++){const A=pts[i],B=pts[i+1];const grid=[];for(let r=0;r<=KR;r++){const row=[];const f=r/KR;for(let q=0;q<=KC;q++){const g=q/KC;const px=(A[0]*(1-g)+B[0]*g)*f,py=(A[1]*(1-g)+B[1]*g)*f;const bil=Math.sin(f*Math.PI)*Math.sin(g*Math.PI)*h*.05;const shade=.62+.38*f*(.7+.3*Math.sin(g*Math.PI));row.push(m.v(px,py,-bil,mc.clone().multiplyScalar(shade)))}grid.push(row)}
+  for(let r=0;r<KR;r++)for(let q=0;q<KC;q++){const a0=grid[r][q],a1=grid[r][q+1],b0=grid[r+1][q],b1=grid[r+1][q+1];m.tri(a0,b0,a1);m.tri(a1,b0,b1)}}
  const mem=m.geo();
  return EC[k]={bone:merge([...bones,...fingers]),mem}}
 // ---- feathered wing: n tapered flat feathers fanned from the shoulder, longer toward the tip (+x). {feathers}
 export function featherWing(span,h,col,tipCol){const k='fw'+span+'|'+h+'|'+col+'|'+tipCol+GQ.level;if(EC[k])return EC[k];const n=lo()?7:11,L=[];const c=hex(col),tc=hex(tipCol);
  for(let i=0;i<n;i++){const t=i/(n-1);const ang=.95-t*1.55;const len=span*(.5+.5*Math.sin(t*2.2+.4)*.9+.12*(1-t));const bend=.25+.2*t;const p=bez([0,0,0],[Math.cos(ang)*len*.3,Math.sin(ang)*len*.3+h*.1,0],[Math.cos(ang)*len*.7,Math.sin(ang)*len*.7+h*.1-bend*len*.15,0],[Math.cos(ang)*len,Math.sin(ang)*len-bend*len*.3,0],7);
-  L.push(sweep(p,u=>(.05+.02*t)*Math.pow(Math.sin(Math.PI*Math.min(1,u*.96+.04)),.7)+.003,u=>mixh(c,tc,u*u*.8).multiplyScalar(.85+.15*u),lo()?5:6,.16,1.5,false))}
+  L.push(sweep(p,u=>(.078+.025*t)*Math.pow(Math.sin(Math.PI*Math.min(1,u*.96+.04)),.7)+.003,u=>mixh(c,tc,u*u*.8).multiplyScalar(.85+.15*u),lo()?5:6,.16,1.5,false))}
  return EC[k]=merge(L)}
 // ---- tail spec -> segments: returns array of {geo, len, rx} for a chain; each segment geometry starts at the origin and points +y (length len); consumers hang them as nested groups.
 // kinds: fox (bushy, white tip) | cat (slim, curled) | demon (thin with a spade tip) | dragon (thick, spiked) | comet (bright plume) | wolf

@@ -60,7 +60,10 @@ export const GX_GLSL=`uniform float uT;uniform vec3 uC0;uniform vec3 uC1;uniform
 float gh(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float gn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(mix(mix(gh(i),gh(i+vec3(1,0,0)),f.x),mix(gh(i+vec3(0,1,0)),gh(i+vec3(1,1,0)),f.x),f.y),mix(mix(gh(i+vec3(0,0,1)),gh(i+vec3(1,0,1)),f.x),mix(gh(i+vec3(0,1,1)),gh(i+vec3(1,1,1)),f.x),f.y),f.z);}
 float gf(vec3 p){float a=.5,s=0.;for(int i=0;i<GXOCT;i++){s+=a*gn(p);p=p*2.03+1.7;a*=.5;}return s*(GXOCT==1?1.5:1.);}
-vec3 gxCol(vec3 vp,vec3 V,float dif,float rim){float t=uT;vp*=GXS;vec3 p=vp*8.;
+vec3 gxCol(vec3 vp,vec3 V,float dif,float rim){float t=uT;vec3 vp0=vp;vp*=GXS;vec3 p=vp*8.;
+#ifdef GXFANCY
+ {float sa=.6*sin(vp.y*5.+t*.35)+t*.06+length(vp.xz)*3.;float cs=cos(sa),sn=sin(sa);p.xz=mat2(cs,-sn,sn,cs)*p.xz;}// v98 nebula swirl: the clouds spiral around the body and drift
+#endif
  float n=clamp((gf(p*1.6+vec3(t*.06,0.,t*.04))-.5)*GXK+.5,0.,1.);
 #ifdef GXLO
  float n2=n*n*.9;
@@ -68,6 +71,12 @@ vec3 gxCol(vec3 vp,vec3 V,float dif,float rim){float t=uT;vp*=GXS;vec3 p=vp*8.;
  float n2=clamp((gf(p*2.6-vec3(0.,t*.05,0.)+n*1.5)-.5)*2.6+.5,0.,1.);
 #endif
  vec3 c=uC0;c=mix(c,uC1,smoothstep(.42,.62,n));c=mix(c,uC2,smoothstep(.55,.7,n2)*.4);c=mix(c,uC0*.35,smoothstep(.45,.3,n2)*.7);c=mix(c,uC3,smoothstep(.5,.8,n*n2*2.)*.45);
+#ifdef GXFANCY
+ {float dust=smoothstep(.2,.6,gf(p*.65+vec3(5.,t*.02,1.)));c*=.5+.5*dust;// dark dust lanes
+  float rid=1.-abs(gf(p*.55+vec3(0.,t*.07,0.)+n*.9)*2.-1.);float seam=smoothstep(.972,.998,rid);float pulse=.6+.4*sin(t*2.3+vp.y*9.+rid*6.);
+  c+=mix(uC3,uC2,.5)*(seam*pulse*2.4+smoothstep(.93,.99,rid)*.12);// glowing energy veins
+  }
+#endif
 #ifdef GXHQ
  float n3v=clamp((gf(p*4.+V*1.2+vec3(0.,0.,t*.08))-.5)*3.+.5,0.,1.);c=mix(c,mix(uC3,uC2,.5)*1.1,smoothstep(.6,.85,n3v)*.35);c+=uC2*pow(n*n2,3.)*.35;
 #endif
@@ -85,19 +94,25 @@ vec3 gxCol(vec3 vp,vec3 V,float dif,float rim){float t=uT;vp*=GXS;vec3 p=vp*8.;
  float pl=pow(.5+.5*sin(t*(1.1+r3*2.)+r3*60.),5.);float core3=exp(-length(d3)*26.);float fl3=exp(-abs(d3.x)*34.)*exp(-abs(d3.y)*6.)+exp(-abs(d3.y)*34.)*exp(-abs(d3.x)*6.);
  c+=vec3(1.,.96,.9)*(core3*1.1+fl3*.8)*pl*step(.955,r3)*3.*GXSTARS*aa3;
  c+=vec3(1.,.97,.9)*.04*(1.-aa)*GXSTARS;
+#ifdef GXFANCY
+ // v98 parallax depth: three object-space star layers at different depths, each shifted by the view vector so they slide against each other as the camera/model moves
+ for(int L=0;L<3;L++){float dp=float(L)+1.;vec3 q=vp0*(34.+dp*26.)+V*(.7*dp)+vec3(dp*7.3,dp*1.7,dp*3.1);vec3 ic=floor(q);float r=gh(ic+dp*13.);float fwq=fwidth(q.x)+fwidth(q.y);float aq=1.-smoothstep(.4,1.1,fwq);
+  vec3 fq=fract(q)-.5-(vec3(gh(ic+3.),gh(ic+5.),gh(ic+9.))-.5)*.5;float d=length(fq);float tw=.35+.65*(.5+.5*sin(t*(1.2+r*5.)+r*60.));float st=step(.86-.02*dp,r)*(1.-smoothstep(.0,.15+.04*dp,d));
+  c+=mix(vec3(1.,.95,.85),mix(uC3,vec3(1.),.5),step(.5,fract(r*9.1)))*st*tw*aq*(1.5-.25*dp);}
+#endif
 #ifdef GXHQ
  float ph=floor(t/1.8);float pt=fract(t/1.8);vec3 dir=normalize(vec3(gh(vec3(ph,1.,2.))-.5,gh(vec3(ph,3.,1.))-.5,gh(vec3(2.,ph,5.))-.5));vec3 up=normalize(cross(dir,vec3(.3,1.,.2)));
  float u=dot(vp,dir)*10.,v=dot(vp,up)*10.-(gh(vec3(ph,9.,9.))-.5)*2.;float head=(pt*3.-1.5);float tail=clamp((head-u)/.6,0.,1.);float ss=step(0.,head-u)*(1.-tail)*exp(-abs(v)*90.)*smoothstep(1.,.6,pt);c+=vec3(1.,.95,.85)*ss*2.5*aa;
 #endif
  c=mix(c,c*vec3(.7,.8,1.3),smoothstep(.5,.2,n)*.6);vec3 rc=mix(uC3,uC2,smoothstep(-.35,.35,sc.x+sc.y*.4));c+=rc*(rim*.55+rim*rim*.9);return c;}`;
-export const gxDefs=(scale,lo,sm=1)=>`#define GXSM ${sm.toFixed(2)}\n#define GXK ${lo?'1.5':'2.6'}\n#define GXOCT ${lo?1:2}\n#define GXS ${scale.toFixed(2)}\n#define GXSTARS ${lo?'0.6':'1.0'}\n${lo?'#define GXLO\n':'#define GXHQ\n'}`;
+export const gxDefs=(scale,lo,sm=1,fancy=false)=>`${fancy&&!lo?'#define GXFANCY\n':''}#define GXSM ${sm.toFixed(2)}\n#define GXK ${lo?'1.5':'2.6'}\n#define GXOCT ${lo?1:2}\n#define GXS ${scale.toFixed(2)}\n#define GXSTARS ${lo?'0.6':'1.0'}\n${lo?'#define GXLO\n':'#define GXHQ\n'}`;
 const GXM={};
 // mode 'gun' (weapons, plain), 'toon' (Royale hero suit: modulated by the part's vertex colours so belts/emblems keep their shape)
 export function gxMat(pal,mode='gun'){const lo=GQ.level==='low',k=pal+mode+(lo?'L':'H');if(GXM[k])return GXM[k];const P=GX_PAL[pal]||GX_PAL.purple,toon=mode==='toon';
  const vs=`varying vec3 vP;varying vec3 vN;varying vec3 vV;${toon?'varying vec3 vC;':''}void main(){vP=position;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vV=-mv.xyz;${toon?'vC=color;':''}gl_Position=projectionMatrix*mv;}`;
- const fs=gxDefs(toon?1.5:1.6,lo,toon?1:1.7)+`varying vec3 vP;varying vec3 vN;varying vec3 vV;${toon?'varying vec3 vC;':''}\n`+GX_GLSL+`
+ const fs=gxDefs(toon?1.5:1.6,lo,toon?1:1.7,toon)+`varying vec3 vP;varying vec3 vN;varying vec3 vV;${toon?'varying vec3 vC;':''}\n`+GX_GLSL+`
 void main(){vec3 N=normalize(vN),V=normalize(vV);float dif=.45+.55*max(0.,dot(N,normalize(vec3(.35,.8,.45))));float rim=pow(1.-max(0.,dot(N,V)),2.5);vec3 c=gxCol(vP,V,dif,rim);
- ${toon?'c*=.5+1.0*dot(vC,vec3(.3,.59,.11))+.15*vC;':''}gl_FragColor=vec4(c,1.);
+ ${toon?'float sm=step(.99,min(min(vC.r,vC.g),vC.b));c*=.5+1.0*dot(vC,vec3(.3,.59,.11))+.15*vC;c=mix(c,mix(uC3,uC2,.55)*(1.5+.5*sin(uT*3.+vP.y*9.))+vec3(.06),sm);':''}gl_FragColor=vec4(c,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
