@@ -1779,7 +1779,11 @@ const CHEST={price:300,cost:{common:300,rare:300,epic:300,legendary:1500,secret:
   legendary:[['pet','emberdragon',1.1],['pet','phoenix',1.1],['pet','thunderhawk',1.1],['pet','lion',1.4],['pet','superdog',1.4],['pet','twohead',1.3],['pet','robot',1.3],['dia',600,2],['wsk','lightning',2],['wsk','fire',2],['wpn','aa12',1],['wpn','lmg',1],['wpn','freeze',1],['wpn','laser',1],['wpn','barrett',1],['wpn','chainsaw',1],['cls','medic',2],['wsk','galaxy_blue',1.3],['wsk','galaxy_red',1.3],['skin','gxv',1.3],['skin','gxb',1.3],['skin','galaxy',1.6],['skin','gladiator',1.6],['skin','inferno',1.4],['skin','candy',1.4],['skin','starpilot',1.2]],
   secret:[['pet','emberdragon',1.6],['pet','phoenix',1.5],['pet','stonegolem',1.4],['pet','mirrormonkey',1.4],['pet','gravityowl',1.4],['pet','sharkpup',1.2],['pet','shadowbat',1.6],['pet','specter',1.5],['pet','frostfox',1.5],['pet','thunderhawk',1.5],['pet','ghost',2.2],['pet','dragon',2.2],['pet','superdog',1.4],['dia',1200,1],['wsk','galaxy',3],['wsk','galaxy_blue',2.2],['wsk','galaxy_red',2.2],['wsk','galaxy_gold',1.8],['skin','gxv',2.2],['skin','gxb',2.2],['skin','gxr',2.2],['skin','gxg',1.6],['wsk','fire',2],['wsk','lightning',2],['cls','juggernaut',3],['skin','dragon',2.5],['skin','aurora',2.5],['skin','void',2],['skin','solar',2],['wpn','minigun',1.5],['wpn','awp',1.5],['wpn','rpg',1.5],['wpn','gl',1.5]]},
  dupe:{common:40,rare:90,epic:160,legendary:280,secret:500,godly:1000}};
-CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['dia',3000,2],['wsk','galaxy_gold',1.5],['skin','gxg',1.5]];
+// v98: Secret and Godly chests hold ONLY items of their own rarity (no diamonds, no lower-tier filler, nothing that also drops from a lower chest).
+CHEST.loot.secret=[['pet','ghost',3],['pet','dragon',3],['wsk','galaxy',3],['skin','gxr',2.6],['skin','dragon',2.6],['skin','aurora',2.6],['skin','void',2.4],['skin','solar',2.4],['cls','juggernaut',3],['wpn','minigun',2],['wpn','awp',2],['wpn','rpg',2],['wpn','gl',2]];
+CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['wsk','galaxy_gold',2],['skin','gxg',2]];
+CHEST.exclusive={secret:new Set(CHEST.loot.secret.map(x=>x[0]+':'+x[1])),godly:new Set(CHEST.loot.godly.map(x=>x[0]+':'+x[1]))};
+for(const t of ['common','rare','epic','legendary'])CHEST.loot[t]=CHEST.loot[t].filter(x=>!CHEST.exclusive.secret.has(x[0]+':'+x[1])&&!CHEST.exclusive.godly.has(x[0]+':'+x[1]));
 const GODLY_CHEST_P=.04,GODLY_AA_P=.06;// Godly upgrade chance: 4% of Secret chests, 6% of Admin Abuse Secret chests (Godly itself has 0% base weight)
 const upGodly=(t,p,r)=>t==='secret'&&(r!=null?r:Math.random())<p?'godly':t;
 function chestTier(r=Math.random()){let a=0;for(const t of CHEST.tiers){a+=t[3]/100;if(r<a)return t[0]}return 'common'}
@@ -2113,8 +2117,8 @@ function brOpen(p,cid){const E=H.br;const c=E.chests[cid];if(!c||c.open||!p||!p.
 const SECW=[['ar',24],['smg',18],['shotgun',14],['marksman',10],['sniper',10]];
 const GODLY_BR_P=0;// v96: red SECRET crates never hold a Godly gun any more (was 12%); Godly guns come only from the purple GODLY crates (BRC.god per map)
 function brOpenSecret(p,c,cid){const E=H.br;const out=[];const slotOf=c=>c==='smg'?1:c==='shotgun'?2:c==='sniper'||c==='marksman'?3:0;const c1=wrand(SECW),c2=wrand(SECW.filter(x=>slotOf(x[0])!==slotOf(c1)));
- const godlyCrate=!!c.god||Math.random()<(window.__godlyP!=null?window.__godlyP:GODLY_BR_P);for(const cl of [c1,c2]){const id=POOLS[cl][Math.random()*POOLS[cl].length|0];out.push([0,WIDX[id],godlyCrate&&cl===c1?6:5]);out.push([1,ammoOf(id),Math.round(AMV[ammoOf(id)]*2)])}
- out.push([2,2,1]);out.push([2,3,2]);out.push([2,1,1]);
+ // v98: a Godly crate holds only GODLY (rarity 6) guns, a Secret crate only SECRET (rarity 5) guns; ammo for those guns is the only extra (no bandages / medkits / lower-tier filler)
+ const rarity=c.god?6:5;for(const cl of [c1,c2]){const id=POOLS[cl][Math.random()*POOLS[cl].length|0];out.push([0,WIDX[id],rarity]);out.push([1,ammoOf(id),Math.round(AMV[ammoOf(id)]*2)])}
  const items=out.map((o,i)=>{const a=i/out.length*6.283+c.ry,r=1.2+Math.random()*.5;return brItem(o[0],o[1],o[2],c.x+Math.cos(a)*r,c.y,c.z+Math.sin(a)*r,-1).slice(0,7)});
  bcast({t:'cop',c:cid,it:items,by:p.id,sec:c.god?2:1});return true}
 function brDeathDrop(v){const E=H.br;if(!v.inv)return;const out=[];for(const g of v.inv.g)if(g)out.push([0,g[0],g[1]]);for(const e of(v.inv.bp||[]))out.push([e[0],e[1],e[2]]);if(v.inv.m[0]!==WIDX.fists&&v.inv.m[1]>0)out.push([4,v.inv.m[0],v.inv.m[1]]);if(v.inv.u&&v.inv.u[1]>0)out.push([3,v.inv.u[0],v.inv.u[1]]);if(v.inv.n&&v.inv.n[1]>0)out.push([3,v.inv.n[0],v.inv.n[1]]);
