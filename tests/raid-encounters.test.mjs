@@ -94,6 +94,6 @@ test('server aim height distinguishes a level miss from an aimed hit on an airbo
 
 test('ground machines descend a catwalk edge without falling into its side',t=>{
  const {raid,service}=setup(t,'switchyard');raid.players=new Map();const m={id:'catwalk_hunter',kind:'hunter',x:0,y:3.0,z:0,hp:140,yaw:0,nextAttack:2000,pathAt:0,path:[],home:{x:0,y:3.0,z:0},investigate:{x:80,y:0,z:0,until:1100}};raid.machines=[m];
- for(let i=0;i<600&&m.x<50;i++)advanceMachines(service,raid,.05,1000+i*.05);
+ for(let i=0;i<600&&m.y>1e-3;i++)advanceMachines(service,raid,.05,1000+i*.05);
  assert.ok(m.x>=50,JSON.stringify({x:m.x,y:m.y,z:m.z,path:m.path}));assert.equal(m.y,0);
 });

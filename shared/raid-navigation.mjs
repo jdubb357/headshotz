@@ -4,10 +4,11 @@ function navigationCache(world,step,radius,height){
  const signature=JSON.stringify([world.size,world.blocks,world.ramps||[]]);let cached=caches.get(world);if(!cached||cached.signature!==signature){cached={signature,profiles:new Map()};caches.set(world,cached)}
  const key=[step,radius,height].join(':');let profile=cached.profiles.get(key);if(!profile){if(cached.profiles.size>=16)cached.profiles.delete(cached.profiles.keys().next().value);profile={levels:new Map(),edges:new Map()};cached.profiles.set(key,profile)}return profile;
 }
+const before=(a,b)=>a.score<b.score||(a.score===b.score&&a.depth>b.depth);
 class Heap {
  constructor(){this.items=[]}
- push(value){const a=this.items;a.push(value);let i=a.length-1;while(i>0){const p=(i-1)>>1;if(a[p].score<=value.score)break;a[i]=a[p];i=p}a[i]=value}
- pop(){const a=this.items,first=a[0],last=a.pop();if(a.length){let i=0;while(i*2+1<a.length){let j=i*2+1;if(j+1<a.length&&a[j+1].score<a[j].score)j++;if(a[j].score>=last.score)break;a[i]=a[j];i=j}a[i]=last}return first}
+ push(value){const a=this.items;a.push(value);let i=a.length-1;while(i>0){const p=(i-1)>>1;if(!before(value,a[p]))break;a[i]=a[p];i=p}a[i]=value}
+ pop(){const a=this.items,first=a[0],last=a.pop();if(a.length){let i=0;while(i*2+1<a.length){let j=i*2+1;if(j+1<a.length&&before(a[j+1],a[j]))j++;if(!before(a[j],last))break;a[i]=a[j];i=j}a[i]=last}return first}
  get length(){return this.items.length}
 }
 function levels(world,x,z,radius,height){
@@ -31,7 +32,7 @@ export function canWalkSegment(world,a,b,{radius=.4,height=1.7}={}){
   }
   return valid&&Math.abs(y-(b.y||0))<.15;
 }
-export function findPath(world,from,to,{step=world.version===2?1:2,radius=.4,height=1.7,maxNodes=world.version===2?40000:world.version===4?48000:world.version>=5?160000:16000}={}){
+export function findPath(world,from,to,{step=world.version>=6?4:world.version===2?1:2,radius=.4,height=1.7,maxNodes=world.version===2?40000:world.version===4?48000:world.version>=6?640000:world.version>=5?160000:16000}={}){
  const cache=navigationCache(world,step,radius,height),at=(x,z)=>{const key=x+':'+z;if(!cache.levels.has(key))cache.levels.set(key,levels(world,x,z,radius,height));return cache.levels.get(key)};
  const offset=world.version===2?.5:0,key=p=>`${p.x},${p.z},${p.y}`,snap=v=>Math.round((v-offset)/step)*step+offset;
  function reachable(a,b,memo=false){
@@ -44,7 +45,7 @@ export function findPath(world,from,to,{step=world.version===2?1:2,radius=.4,hei
  const start=nearest(from),goal=nearest(to);if(!start||!goal)return [];
  const heap=new Heap(),cost=new Map([[key(start),0]]),parents=new Map(),nodes=new Map([[key(start),start]]),closed=new Set();
  const heuristic=p=>Math.abs(p.x-goal.x)+Math.abs(p.z-goal.z)+Math.abs(p.y-goal.y)*2;
- heap.push({key:key(start),score:heuristic(start)});let visited=0;
+ heap.push({key:key(start),score:heuristic(start),depth:0});let visited=0;
  while(heap.length&&visited++<maxNodes){
   const current=heap.pop();if(closed.has(current.key))continue;closed.add(current.key);const p=nodes.get(current.key);
   if(current.key===key(goal)){
@@ -55,10 +56,12 @@ export function findPath(world,from,to,{step=world.version===2?1:2,radius=.4,hei
    const x=p.x+dx,z=p.z+dz;if(Math.abs(x)>world.size/2-radius||Math.abs(z)>world.size/2-radius)continue;
    for(const y of at(x,z)){
     if(Math.abs(y-p.y)>.7)continue;
-    const middleY=floorAt(world,(x+p.x)/2,(z+p.z)/2,Math.max(y,p.y)+.05);
-    if(blocked(world,(x+p.x)/2,(z+p.z)/2,radius,Math.max(middleY,Math.min(y,p.y)),height)||!reachable(p,{x,y,z},true))continue;
+    // canWalkSegment already samples the whole edge and resolves stepped floors
+    // (ramp tops meeting roof landings). Re-testing the exact midpoint with the
+    // endpoint body height falsely rejects those legal step-ups at grid scales.
+    if(!reachable(p,{x,y,z},true))continue;
     const next={x,y,z},k=key(next),value=cost.get(current.key)+step+Math.abs(y-p.y)*2;
-    if(value>=(cost.get(k)??Infinity))continue;cost.set(k,value);parents.set(k,current.key);nodes.set(k,next);heap.push({key:k,score:value+heuristic(next)});
+    if(value>=(cost.get(k)??Infinity))continue;cost.set(k,value);parents.set(k,current.key);nodes.set(k,next);heap.push({key:k,score:value+heuristic(next),depth:value});
    }
   }
  }

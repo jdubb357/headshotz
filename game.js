@@ -7,7 +7,7 @@ import {initSkinShop} from './skinshop.js';import {initSidekicks,hostPets,hostAb
 import {Post} from './post.js';import {initAdminAbuse,AA_DIA,AA_CHESTS} from './adminabuse.js';
 import {loadAssets,HQP} from './assets.js';import {photoItems,clearPhotoCache,PHOTO} from './photoguns.js';import {initRoyale} from './royale.js';import {chestKit,TIERC,CHEST_HINGE} from './chests.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';import {initBiomes,BIOMES} from './biomes.js';import {initAmbient} from './ambient.js';
-import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO,updateCells} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||BR_INFO;const isQ=p=>!!(p.single||p.q);
+import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO,RAID_MAPS,MAP_COUNT,RAID_I,updateCells} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||RAID_MAPS.find(m=>m.index===i)||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
 import {makeCharacter,animate,LOOKS,HUM} from './chars.js';import {loadHumans} from './humans.js';
 // player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
@@ -721,7 +721,7 @@ function hitFX(v,w,by){const k=H.players[by];if(w.slow){if(v.bot){v.slowT=H.t+w.
  if(w.push&&k){const dx=v.p[0]-k.p[0],dz=v.p[2]-k.p[2],l=Math.hypot(dx,dz)||1;const px=dx/l*w.push,pz=dz/l*w.push;if(v.bot&&v.e){v.e.vel.x+=px;v.e.vel.z+=pz;v.e.vel.y=Math.max(v.e.vel.y,1.2)}else toPlayer(v.id,{t:'push',v:[px,pz]})}}
 function startData(){return{t:'start',mid:H.mid|0,seed:H.seed|0,map:H.map,mode:H.mode,players:Object.fromEntries(plist().map(p=>[p.id,{name:p.name,team:p.team,color:p.color,bot:p.bot,o:p.ord,sk:p.skin,ft:p.fit==null?null:p.fit,ws:p.ws||{},cl:p.cl||'soldier',rd:p.raider?1:0,mc:p.machine?1:0,arch:p.arch||null}])),ms:MISSION(H.mode)?mInfo():null,br:BRM(H.mode)&&H.br?brInfo():null,raid:RAIDM(H.mode)?raidInfo():null}}
 function startMatch(){for(const p of plist())if(p.raider){delete H.players[p.id];bcast({t:'bye',id:p.id})}{const mx=MODEMAX[H.mode]||10;const bots=plist().filter(p=>p.bot);while(plist().length>mx&&bots.length){const b=bots.pop();delete H.players[b.id];bcast({t:'bye',id:b.id})}}if(H.fill||BRM(H.mode)){const want=MODEMAX[H.mode]||4;while(Object.keys(H.players).filter(p=>!p.machine).length<want){const id='bot'+(++H.botN);H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true)}}if(!H.rematch)assignTeams();const votes=MAPS.map(()=>0);for(const p of plist())if(p.vote>=0)votes[p.vote]++;
- const mx=Math.max(...votes);const best=votes.map((v,i)=>v===mx?i:-1).filter(i=>i>=0);H.map=best[Math.random()*best.length|0];if(H.auto&&H.auto.map!=null)H.map=H.auto.map;if(H.rematch&&H.prevMap!=null)H.map=H.prevMap;H.rematch=0;if(BRM(H.mode))H.map=BR_I;if(RAIDM(H.mode)&&H.raidMap!=null){H.map=H.raidMap;H.raidMap=null;H.map=Math.max(0,Math.min(MAPS.length-1,H.map|0))}
+ const mx=Math.max(...votes);const best=votes.map((v,i)=>v===mx?i:-1).filter(i=>i>=0);H.map=best[Math.random()*best.length|0];if(H.auto&&H.auto.map!=null)H.map=H.auto.map;if(H.rematch&&H.prevMap!=null)H.map=H.prevMap;H.rematch=0;if(BRM(H.mode))H.map=BR_I;if(RAIDM(H.mode)&&H.raidMap!=null){H.map=H.raidMap;H.raidMap=null;H.map=Math.max(0,Math.min(MAP_COUNT-1,H.map|0))}
  H.score={};H.round=0;H.fires=[];H.smokes=[];for(const p of plist()){p.kills=p.deaths=p.pts=p.hs=p.as=0}const m=buildMap(H.map);doorReset(m);cols=m.cols;groundHalf=m.groundHalf;ladders=m.ladders||[];hides=m.hides||[];buildGrid();
  if(MISSION(H.mode))missionPrep();else if(RAIDM(H.mode))raidPrep(m);else if(BRM(H.mode))brPrep();else H.br=null;H.phase='starting';H.mid=(H.mid|0)+1;H.seed=Math.random()*2147483647|0;H.sack=null;if(BRM(H.mode)){H.sack={};H.sackT=H.t;H.sackN=0;for(const p of plist())if(!p.bot&&p.id!==me.id&&conns[p.id])H.sack[p.id]=0}bcast(lobbyData());bcast(startData());sendSB();setTimeout(startRound,900)}
 // v61b: every human gets the start message: clients ack {t:'sack',mid}; the host resends start (+ current round) to anyone who has not acked until they do
@@ -3202,14 +3202,14 @@ const RAID_STASH_V2=1;
 function raidClamp2(v,a,b){return Math.max(a,Math.min(b,v))}
 function raidStash(){
  let s=null;try{s=JSON.parse(LS('raidstash')||'null')}catch(e){}
- const base={v:RAID_STASH_V2,gear:{weapon:'ar',armor:false,meds:1,insure:false,contract:'cores',wcond:100,acond:100},mats:{wire:0,steel:0,chem:0,fuel:0},items:[],hist:[],map:0,recovery:false,base:{stash:0,bay:0},trader:{rep:0,stock:null}};
+ const base={v:RAID_STASH_V2,gear:{weapon:'ar',armor:false,meds:1,insure:false,contract:'cores',wcond:100,acond:100},mats:{wire:0,steel:0,chem:0,fuel:0},items:[],hist:[],map:RAID_I,recovery:false,base:{stash:0,bay:0},trader:{rep:0,stock:null}};
  if(!s||typeof s!=='object')s=Object.assign({},base);
  s.v=RAID_STASH_V2;s.gear=Object.assign({},base.gear,s.gear||{});s.mats=Object.assign({},base.mats,s.mats||{});
  s.gear.weapon=W[s.gear.weapon]&&W[s.gear.weapon].slot===0?s.gear.weapon:'ar';
  s.gear.meds=raidClamp2(parseInt(s.gear.meds)||0,0,3);s.gear.contract=['cores','boss','extract'].indexOf(s.gear.contract)>=0?s.gear.contract:'cores';
  s.gear.wcond=raidClamp2(Math.round(+s.gear.wcond),0,100);if(!isFinite(s.gear.wcond))s.gear.wcond=100;
  s.gear.acond=raidClamp2(Math.round(+s.gear.acond),0,100);if(!isFinite(s.gear.acond))s.gear.acond=100;
- s.armor=!!s.gear.armor;s.insure=!!s.gear.insure;s.map=raidClamp2(parseInt(s.map)||0,0,MATHSafe());
+ s.armor=!!s.gear.armor;s.insure=!!s.gear.insure;s.map=raidMapIndex(s.map);
  s.base=Object.assign({},base.base,s.base||{});s.base.stash=raidClamp2(parseInt(s.base.stash)||0,0,3);s.base.bay=raidClamp2(parseInt(s.base.bay)||0,0,2);
  s.trader=Object.assign({},base.trader,s.trader||{});s.trader.rep=raidClamp2(parseInt(s.trader.rep)||0,0,20);
  if(!Array.isArray(s.trader.stock))s.trader.stock=raidTraderStock();
@@ -3230,7 +3230,7 @@ function raidRepairQuote(st,slot){
  const miss=Math.max(0,100-(cond|0));
  return{dia:Math.max(0,Math.round(Math.ceil(miss/10)*5*(1-Math.min(.30,.15*(st.base.bay|0))))),mat:slot==='w'?'steel':'wire',cond:cond|0};
 }
-function MATHSafe(){return Math.max(0,MAPS.length-1)}
+function raidMapIndex(value){const index=parseInt(value,10);return RAID_MAPS.some(m=>m.index===index)?index:RAID_I}
 function raidSaveStash(s){s.v=RAID_STASH_V2;try{LSS('raidstash',JSON.stringify(s))}catch(e){}}
 function raidLocalId(){return 'st'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function raidPending(){
@@ -3860,13 +3860,13 @@ function raidFillSelects(){
  const ws=$('raidWeapon');if(ws&&!ws.dataset.ready){
   ws.innerHTML=WIDS.filter(id=>W[id]&&W[id].slot===0&&owns(id)).map(id=>`<option value="${id}">${esc(W[id].name)}${W[id].price?' · 💎'+W[id].price:''}</option>`).join('');ws.dataset.ready='1';
  }
- const ms=$('raidMap');if(ms&&!ms.dataset.ready){ms.innerHTML=MAPS.map((x,i)=>`<option value="${i}">${esc((MI(i)||{}).name||('Map '+(i+1)))}</option>`).join('');ms.dataset.ready='1'}
+ const ms=$('raidMap');if(ms&&!ms.dataset.ready){ms.innerHTML=RAID_MAPS.map(m=>`<option value="${m.index}">${esc(m.name)}</option>`).join('');ms.dataset.ready='1'}
  const cs=$('raidContract');if(cs&&!cs.dataset.ready){cs.innerHTML='<option value="cores">REACTOR CORES · 💎60 per core</option><option value="boss">OVERLORD · 💎120 bounty</option><option value="extract">EXTRACT · 💎30 completion</option>';cs.dataset.ready='1'}
 }
 function raidUiGear(){
  const st=raidStash();
  const rec=!!($('raidRecovery')&&$('raidRecovery').checked);
- st.map=(parseInt($('raidMap')&&$('raidMap').value)||0);
+ st.map=raidMapIndex($('raidMap')&&$('raidMap').value);
  if(rec){st.recovery=true;raidSaveStash(st);return{weapon:'ar',armor:0,meds:1,insure:0,contract:'cores',map:st.map|0,risk:0,recovery:1}}
  const w=($('raidWeapon')&&$('raidWeapon').value)||st.gear.weapon;
  const armor=!!($('raidArmor')&&$('raidArmor').checked);

@@ -425,3 +425,37 @@ Next action: real-device touch/assistive-technology/voice-safety and human onboa
 - Criterion 11 remains [~]: automated keyboard/touch checks pass (including 44x44 targets, edge hit-tests and voice-toggle clearance), but a real-device touch playtest and voice-safety review are still pending; headless emulation only approximates touch.
 - Criterion 9's off-host disaster recovery and production operator signoff, and criterion 13's provider/HTTPS/alert/retention ownership and off-host drills, cannot be performed in this checkout.
 - No commit/push/PR requested.
+
+## Extraction Raids massive-map acceptance (2026-11-05)
+
+Acceptance criteria for this iteration:
+1. Offline Extraction Raid deployments never use a small arena: the raid map selector offers only massive raid sectors, defaults to one, and a 48x48 or smaller map cannot be selected or launched.
+2. A raid map is at least Battle-Royale scale on every axis and genuinely massive: >= 1,440 m x 1,440 m for the shared authored raid worlds, with raid content (spawns, caches, exits, machines, ramps) spread across the full sector.
+3. Online/authoritative raids (server, shared world model, raid-online client) and offline/peer-hosted raids use the same massive sector definitions and all in-bounds checks, collisions, extraction exits and machine navigation continue to work.
+4. Other modes (Battle Royale, cooperative Extraction, FFA, arena modes, hub) are unchanged and still boot/play, including their existing map lists.
+5. Unit tests updated for the massive scale, full suite passes, and runtime/browser probes exercise raid map selection and field deployment with 0 errors.
+
+### Status — November 5, 2026
+
+All 5 criteria are objectively verified for the implementation and browser runtime; no known blocker remains for this massive-map iteration.
+
+Changes:
+
+1. Shared raid worlds now deploy layout version 6: the three authored sectors (Relay Graveyard, Dry Reservoir, Ember Switchyard) are scaled to 1,440 x 1,440 m each. Each sector is 4x the area of the previous 720 x 720 layout and more than 7x the 540 x 540 Battle Royale island. Versions 1-5 remain available unchanged for existing checkpoints, and promotion/equipment/account/deployment rules remain raid-scoped.
+2. Offline raid definitions (`maps.js`) consume the same `RAID_WORLDS`; `RAID_MAPS` exposes only the three massive sectors (indices 12-14), spawns/caches/exits and authored blocks/ramps/props/landmarks/hazards are spread across the full sector. `game.js` validates the selector through `raidMapIndex`, so a value outside `RAID_MAPS` falls back to a valid raid sector instead of a small arena.
+3. Online/authoritative deployment uses the same shared v6 worlds; `/api/worlds` serves version 6 and 1,440 m sectors, and the raid client builds its map selector directly from `RAID_WORLDS`.
+4. Navigation/traversal adjusted for the massive grid: v6 uses a 4 m A* search step with a 640,000-node budget, and the false midpoint collision test that rejected legal ramp-to-roof transitions was removed (walk segments still sample the edge and resolve stepped floors). Pilot and machine path budgets were raised accordingly (4,000 pilot iterations; machine maxNodes 640,000).
+5. `tests/raid-worlds.test.mjs`, `tests/raid-content-migration.test.mjs`, `tests/raid-pilot.test.mjs`, `tests/raid-encounters.test.mjs`, `tests/raid-regressions.test.cjs`, `WORLD_CONTENT.md` and `SERVER.md` updated for v6 and the massive sector.
+
+Commands/results:
+
+- `node --check game.js maps.js scripts/lib/raid-pilot.mjs server/raid-ai.mjs shared/raid-navigation.mjs shared/raid-worlds.mjs`: `SYNTAX_OK`.
+- `node --test tests/*.test.*`: **1084 pass, 0 fail**, 113.5 s (includes worlds/route, pilot, encounters, content migration, regressions and the rest of the suite).
+- `node --test tests/raid-worlds.test.mjs`: pass (spawns/caches/exits walkable; routes reach every cache/exit; v6 size 1440, content near sector edges, v5 preserved).
+- Offline browser probe (`node /tmp/hsz-raid-map-probe.mjs`, Chrome 156 CDP 9337, static server 8010): selector offers only Relay Graveyard / Dry Reservoir / Ember Switchyard, each `[1440,1440]`; selecting **Ember Switchyard** (index 14) and launching offline produced `phase:"play"`, `mode:"raid"`, `offline:true`, `H.map=14`, `H.raid.map=14`, built map size `[1440,1440]`, live canvas/HUD, and **zero browser exceptions**. Field screenshot inspected (`/tmp/hsz-raid-massive.png`).
+- Online browser probe (`node /tmp/hsz-raid-online-map-probe.mjs`, isolated server 8021, Chrome 156 CDP 9337): `/api/worlds` returned all three sectors as version 6, size 1,440; deployment via the UI on **switchyard** returned `map:"switchyard"`, `mapVersion:6`, defined size 1,440, rendered field 756x469, HP 100, and server-accepted movement `(-600,-600) -> (-600,-595.92)`, with **zero browser exceptions**. A first attempt timed out waiting for play on a background-throttled page; the unchanged rerun completed normally.
+- `node tests/raid-browser-smoke.mjs` against the same isolated online server: account, recovery deployment, rendered field, server movement and reconnect all pass, zero exceptions.
+- `node tests/raid-browser-legacy.mjs`: cooperative Extraction, Battle Royale and free-for-all each boot to `phase:"play"` offline with bots and nonzero draw calls; legacy wallet/skin/weapon/class/pet/upgrade data preserved; persistent raid economy separate; cosmetic shop opens; **zero browser errors**.
+- Ordinary arena-mode browser probe (`node /tmp/hsz-arena-modes-probe.mjs`, Chrome 156 CDP 9337, server 8010): main menu boots, and `duel`, `team`, `t3`, `t4`, `t5`, `ctf` and `brs` each reach offline `phase:"play"` with bots and nonzero draw calls; **zero browser errors**. Squad Royale retains 24 players/23 bots; existing map lists are unchanged.
+
+Remaining caveat: these are headless Chrome and loopback/runtime probes, not physical-device, real-WAN, human balance or production acceptance. No commit, push, PR, merge or deployment was performed.
