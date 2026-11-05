@@ -43,8 +43,8 @@ function scatter(m,seed){
 // New raids use a larger open-sector layout. Scaling the authored district
 // geometry keeps every interior, ramp, cache and exit reachable while giving
 // the raid a much broader ground area for exploration and encounter spacing.
-function enlargedWorld(world,factor){
- const enlarged=structuredClone(world);enlarged.version=4;enlarged.size=world.size*factor;
+function enlargedWorld(world,factor,version=4){
+ const enlarged=structuredClone(world);enlarged.version=version;enlarged.size=world.size*factor;
  enlarged.blocks=enlarged.blocks.map(([x,z,w,d,h,base=0,material='concrete'])=>[x*factor,z*factor,w*factor,d*factor,h,base,material]);
  enlarged.ramps=(enlarged.ramps||[]).map(ramp=>({...ramp,x:ramp.x*factor,z:ramp.z*factor,w:ramp.w*factor,d:ramp.d*factor}));
  enlarged.props=(enlarged.props||[]).map(prop=>({...prop,x:prop.x*factor,z:prop.z*factor,...(prop.w!=null?{w:prop.w*factor}:{}),...(prop.d!=null?{d:prop.d*factor}:{})}));
@@ -204,11 +204,14 @@ const V3_RAID_WORLDS=authoredWorlds.map(world=>{const v3=structuredClone(world);
 // Version 4 keeps the corrected v3 landings but triples every authored district
 // and its footprints, producing a 480 x 480 sector for existing checkpoints.
 const V4_RAID_WORLDS=V3_RAID_WORLDS.map(world=>enlargedWorld(world,3));
-// Version 5 is the current authored layout: a 720 x 720 sector with new
-// connected districts and elevated routes, while versions 1-4 stay available
-// for checkpoints that were saved before the redesign.
-export const RAID_WORLDS=[relay5,reservoir5,switchyard5];
-export function getWorld(id,version=5){return (version===1?LEGACY_RAID_WORLDS:version===2?ARCHIVED_RAID_WORLDS:version===3?V3_RAID_WORLDS:version===4?V4_RAID_WORLDS:version===5?RAID_WORLDS:[]).find(w=>w.id===id)}
+// Version 5 authored layout: a 720 x 720 sector with connected districts and
+// elevated routes. Version 6 keeps identical connections but doubles every
+// shipped district footprint, producing a genuinely massive 1,440 x 1,440 m
+// sector (over seven times the area of Skyline Island) for current deployments.
+const V5_RAID_WORLDS=[relay5,reservoir5,switchyard5];
+export const RAID_WORLDS=V5_RAID_WORLDS.map(world=>enlargedWorld(world,2,6));
+// Old checkpoints still resolve their exact 720 m layout for versions 1-5.
+export function getWorld(id,version=6){return (version===1?LEGACY_RAID_WORLDS:version===2?ARCHIVED_RAID_WORLDS:version===3?V3_RAID_WORLDS:version===4?V4_RAID_WORLDS:version===5?V5_RAID_WORLDS:version===6?RAID_WORLDS:[]).find(w=>w.id===id)}
 export function blocked(world,x,z,r=.5,y=0,height=1.7){
  if(Math.abs(x)>world.size/2-r||Math.abs(z)>world.size/2-r)return true;
  if(world.blocks.some(([bx,bz,w,d,h,base=0])=>Math.abs(x-bx)<w/2+r&&Math.abs(z-bz)<d/2+r&&y+height>base+.04&&y<base+h-.04))return true;

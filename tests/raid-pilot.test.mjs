@@ -32,7 +32,7 @@ for(const world of [...RAID_WORLDS,...ARCHIVED_RAID_WORLDS]){
  const goals=world.version>=3?[...world.caches.map(([x,z,y=0],i)=>({id:'cache'+i,x,y,z})),...world.exits]:[world.caches.find(c=>c[2]>0)].map(([x,z,y])=>({id:'legacy_roof',x,y,z}));
  for(const [spawnIndex,spawn]of world.spawns.entries())for(const goal of goals)test(`${world.name} v${world.version}: spawn ${spawnIndex} reaches ${goal.id}`,()=>{
   const state=snapshot();state.map=world.id;state.mapVersion=world.version;state.self.x=spawn[0];state.self.z=spawn[1];const pilot=new RaidPilot();let reached=false;
-  for(let i=0;i<(world.version>=5?2400:1200);i++){
+  for(let i=0;i<(world.version>=6?4000:world.version>=5?2400:1200);i++){
    if(Math.hypot(state.self.x-goal.x,state.self.z-goal.z,(state.self.y||0)-(goal.y||0))<2.4&&clearLine(world,state.self.x,state.self.z,goal.x,goal.z,(state.self.y||0)+1,(goal.y||0)+.6)){reached=true;break}
    const intent=pilot.navigate(state,world,goal);if(pilot.stats.unreachable)break;state.self.move={x:intent.x,z:intent.z};state.self.lastInput=state.serverTime;for(let step=0;step<3;step++){state.serverTime+=.05;stepOperator(world,state.self,.05,state.serverTime)}
   }
@@ -42,7 +42,7 @@ for(const world of [...RAID_WORLDS,...ARCHIVED_RAID_WORLDS]){
 
 for(const world of RAID_WORLDS)for(const [cacheIndex,[x,z,y=0]]of world.caches.entries())for(const goal of world.exits)test(`${world.name}: cache ${cacheIndex} returns to ${goal.id}`,()=>{
  const state=snapshot();state.map=world.id;state.mapVersion=world.version;Object.assign(state.self,{x,y,z});const pilot=new RaidPilot();let reached=false;
- for(let i=0;i<(world.version>=5?2400:1200);i++){
+ for(let i=0;i<(world.version>=6?4000:world.version>=5?2400:1200);i++){
   if(Math.hypot(state.self.x-goal.x,state.self.z-goal.z,(state.self.y||0)-(goal.y||0))<2.4&&clearLine(world,state.self.x,state.self.z,goal.x,goal.z,(state.self.y||0)+1,(goal.y||0)+.6)){reached=true;break}
   const intent=pilot.navigate(state,world,goal);if(pilot.stats.unreachable)break;state.self.move={x:intent.x,z:intent.z};state.self.lastMoveAt=state.serverTime;for(let step=0;step<3;step++){state.serverTime+=.05;stepOperator(world,state.self,.05,state.serverTime)}
  }

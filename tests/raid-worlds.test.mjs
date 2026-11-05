@@ -21,12 +21,16 @@ test('old checkpoints retain their original world layout version',()=>{
 test('v2 roof landings remain archived while v3 keeps corrected landings',()=>{
  for(const old of ARCHIVED_RAID_WORLDS){const next=getWorld(old.id,3);assert.equal(getWorld(old.id,2),old);assert.equal(old.version,2);assert.equal(next.version,3);assert.notStrictEqual(next.blocks,old.blocks);for(const ramp of old.ramps.filter(r=>r.axis==='z'&&r.w===4&&r.d===16)){assert.ok(old.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+7&&w===7&&d===4&&h===.18));assert.ok(next.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+9&&w===7&&d===4&&h===.18))}}
 });
-test('new deployments use authored v5 sectors while v4 checkpoints keep the enlarged layout',()=>{
+test('new deployments use massive v6 sectors while v5 checkpoints keep their authored 720 m layout',()=>{
  for(const world of RAID_WORLDS){
-  assert.equal(world.version,5);assert.equal(world.size,720);assert.ok(world.blocks.length>=50);
-  const previous=getWorld(world.id,4);assert.equal(previous.version,4);assert.equal(previous.size,480);assert.notStrictEqual(previous.blocks,world.blocks);
-  assert.notDeepEqual(previous.caches.map(c=>[c[0],c[2]]),world.caches.map(c=>[c[0],c[2]]));
+  assert.equal(world.version,6);assert.equal(world.size,1440);assert.ok(world.blocks.length>=50);
+  assert.ok(Math.max(...world.spawns.flatMap(p=>p.map(Math.abs)))+0>=600,'spawns reach the massive sector edges');
+  assert.ok(Math.max(...world.caches.flatMap(c=>[Math.abs(c[0]),Math.abs(c[2])]))+0>=450,'caches spread across the massive sector');
+  assert.ok(world.ramps.length>0);assert.ok(world.exits.every(e=>Math.abs(e.x)>640||Math.abs(e.z)>640),'exits sit at the outer sector edge');
+  const previous=getWorld(world.id,5);assert.equal(previous.version,5);assert.equal(previous.size,720);assert.notStrictEqual(previous.blocks,world.blocks);
+  assert.deepEqual(previous.blocks.map(([x,z,w,d,h,base=0,kind])=>[x*2,z*2,w*2,d*2,h,base,kind]),world.blocks);
   assert.equal(getWorld(world.id),world);
+  assert.equal(getWorld(world.id,4).version,4);assert.equal(getWorld(world.id,4).size,480);
  }
 });
 test('navigation cache invalidates when geometry changes',()=>{

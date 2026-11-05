@@ -3,6 +3,7 @@ import {newDefs} from './maps2.js';
 import {dress} from './mapdress.js';
 import {HQP} from './assets.js';
 import {brDef,BR_ZONES} from './br.js';
+import {RAID_WORLDS} from './shared/raid-worlds.mjs';
 const useHQ=k=>HQP.ready&&HQP.models[k]&&GQ.level!=='low';
 import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng,WT} from './gfx.js';
 const _c=new THREE.Color();
@@ -258,6 +259,83 @@ DEFS.push({name:'HeadShotz Hub',hub:true,desc:'Main lobby',icon:'🏠',size:[64,
  spawnsA:[[0,4],[2,5],[-2,5],[3,3],[-3,3]],spawnsB:[[0,6]],spawnsM:[[0,6]]});
 export const HUB_I=DEFS.length-1;
 DEFS.push(brDef({G,rng,_c}));export const BR_I=DEFS.length-1;export const BR_INFO={name:'Skyline Island',desc:'24 players · loot · storm',icon:'🏝️',def:DEFS[BR_I]};export{BR_ZONES};
+// --------- massive Extraction Raid sectors ----------
+// The same authored worlds the authoritative server ships are rendered here as
+// offline map definitions, so peer/offline raids and online raids share one
+// 1,440 m x 1,440 m sector (2x the v5 authored footprint, 4x its area).
+const RAID_THEMES={
+ industrial:{ground:['gravel',0x6c7469,.22],concrete:0x9ba0a0,brick:0x92968b,roof:0x354951,metal:0x748889,container:0x426a72,rock:0x6d6a60,crate:0x9c7b4d,barrier:0xc6ab65,
+  fog:0xa9bacb,sky:[0x27436f,0x83b7da,0xffe4bf],hemi:[0xe4efff,0x5c615c,1.35],sun:[0xffedcf,1.75,[-.45,.62,-.5]]},
+ wilderness:{ground:['forest',0x6c795b,.2],concrete:0x9d9d8f,brick:0x9a9a7e,roof:0x455f5b,metal:0x7e9292,container:0x716645,rock:0x8a8777,crate:0x8d7850,barrier:0x9c956c,
+  fog:0xb3c6b0,sky:[0x27628b,0x8fc6d8,0xe6f1e9],hemi:[0xe7f3f0,0x627a54,1.3],sun:[0xfff2d6,1.7,[-.35,.7,-.55]]},
+ settlement:{ground:['dirt',0x756a60,.24],concrete:0x9f9b95,brick:0xb08063,roof:0x50505b,metal:0x7e8a90,container:0x6d5751,rock:0x766f64,crate:0x9b744a,barrier:0xc4a86e,
+  fog:0xcfae99,sky:[0x343f7a,0xe08e5c,0xffd9bc],hemi:[0xffe8d6,0x6b5546,1.35],sun:[0xffcf9e,1.8,[-.4,.6,-.55]]}
+};
+const RAID_TEX={concrete:'concrete',plaster:'concrete',brick:'brick',metal:'metal',rock:'rock',container:'metal',roof:'concrete',crate:'crate',barrier:'hazard'};
+function raidMaterial(theme,kind){const t=RAID_THEMES[theme]||RAID_THEMES.industrial;return{t,color:t[kind]??t.concrete,tex:RAID_TEX[kind]||'concrete'}}
+function raidRamp(B,ramp,t){
+ const rise=Math.abs(ramp.to-ramp.from),count=Math.max(4,Math.ceil(rise/.34)),seg=ramp.w/count;
+ for(let i=0;i<count;i++){
+  const a=i/count,b=(i+1)/count,level=ramp.from+(ramp.to-ramp.from)*(a+b)/2;
+  if(ramp.axis==='x')B.box(ramp.x-ramp.w/2+ramp.w/count*(i+.5),0,ramp.z,seg,Math.max(.12,level),ramp.d,t.metal,'metal');
+  else B.box(ramp.x,0,ramp.z-ramp.d/2+ramp.d/count*(i+.5),ramp.w,Math.max(.12,level),ramp.d/count,t.metal,'metal');
+ }
+}
+function raidProp(B,p,t){
+ const x=p.x||0,z=p.z||0,y=p.y||0,s=p.scale||1;
+ switch(p.kind){
+  case 'floor':B.box(x,y,z,p.w||10,.03,p.d||10,p.color||t.ground[1],'tiles',{solid:false,shadow:false,us:.3});break;
+  case 'tree':B.tree(x,z,s);break;
+  case 'scrap':B.box(x,y+.45,z,1.8,.9,1.2,0x536368,'metal');B.barrel(x,z,0x977d58,y);break;
+  case 'dish':B.cyl(x,y+1.2,z,2.8,.25,0xbdc5b6,'metal',{seg:18});B.box(x,y+1.35,z,.2,3,.2,0x415259,'metal');break;
+  case 'turbine':B.cyl(x,y+1.1,z,1,2.2,0x7d8b87,'metal');for(let i=0;i<4;i++)B.box(x+Math.sin(i*Math.PI/2)*1.7,y+2.3,z+Math.cos(i*Math.PI/2)*1.7,.65,.18,3,0x424d52,'metal');break;
+  case 'waterTower':{for(const sx of[-1.3,1.3])for(const sz of[-1.3,1.3])B.box(x+sx,y+3,z+sz,.25,6,.25,0x687d7b,'metal');B.cyl(x,y+6.5,z,2.2,3,0x8d9b8a,'metal');B.part('metal',{g:G('cone',2.4,1.2,8),p:[x,y+8.5,z],c:0x435754});break}
+  case 'pump':B.box(x,y+1,z,4,2,2,0x79918a,'metal');for(const side of[-1,1])B.cyl(x+side*2,y+.65,z,.4,5,0x3e5156,'metal');break;
+  case 'basin':B.box(x,y,z,p.w||40,.03,p.d||20,0x547776,'tiles',{solid:false,shadow:false,us:.3});break;
+  case 'rail':{const w=p.w||40;for(const side of[-1,1])B.box(x,y+.1,z+side*.8,w,.2,.12,0x6c7778,'metal',{solid:false,shadow:false});for(let i=-w/2;i<w/2;i+=2)B.box(x+i,y+.02,z,.3,.14,2.6,0x5d4b3d,'planks',{solid:false,shadow:false});break}
+  case 'signal':B.cyl(x,y+2.4,z,.12,4.8,0x53646a,'metal');B.box(x,y+4.4,z,.65,1.2,.4,0x29383d,'metal');B.glow(x,y+4.6,z+.25,.36,.18,.1,0xc67b4e);break;
+  case 'floodlight':B.cyl(x,y+3.2,z,.16,6.4,0x3e4c53,'metal');B.glow(x,y+6.4,z,1.4,.2,.7,0xf4e3ac);break;
+  case 'crane':B.crane(x,z,12,0);break;
+  case 'antenna':B.cyl(x,y+7,z,.2,14,0x5f7075,'metal');B.box(x,y+12,z,2.4,.24,.24,0x26363b,'metal');B.glow(x,y+13,z,.7,.7,.7,0xdf6b4e);break;
+  case 'wreck':B.wreck(x,z,0,0x6e4c38);break;
+  case 'lamp':B.lamp(x,z,4.2,0);break;
+  case 'sign':B.box(x,y,z,4,.5,.25,0x25373c,'metal');B.glow(x,y+.25,z,4.1,.12,.08,0xddbe7e);break;
+  default:B.box(x,y,z,1.2,1.2,1.2,p.color||0x8d7850,'crate');
+ }
+}
+function raidMassiveDef(world){
+ const t=RAID_THEMES[world.theme]||RAID_THEMES.industrial,size=world.size;
+ return {
+  name:world.name,desc:`Extraction Raid · ${size} m × ${size} m sector`,icon:world.id==='relay'?'📡':world.id==='reservoir'?'💧':'⚙️',
+  br:true,noDress:true,wallH:8,size:[size,size],ground:t.ground,horizon:'city',
+  sky:t.sky,fog:[t.fog,120,460],hemi:t.hemi,sun:t.sun,grade:[1.03,1,.96,1.28,1.06,.82],
+  build(B){
+   // roads and lane paint read at massive-map scale; they sit under buildings.
+   for(const axis of ['x','z']){
+    B.box(0,.02,0,axis==='x'?size-8:7,.02,axis==='z'?size-8:7,0x3e4546,'asphalt',{solid:false,shadow:false});
+    for(let i=-size/2+8;i<size/2;i+=12)B.box(axis==='x'?i:0,.035,axis==='z'?i:0,axis==='x'?4:.14,.015,axis==='z'?4:.14,0xc8ba79,'plain',{solid:false,shadow:false});
+   }
+   for(const [x,z,w,d,h,base=0,kind='concrete']of world.blocks){
+    const m=raidMaterial(world.theme,kind);
+    B.box(x,base,z,w,h,d,m.color,m.tex,{us:kind==='container'?.4:.22,gy:base});
+   }
+   for(const ramp of world.ramps||[])raidRamp(B,ramp,t);
+   for(const prop of world.props||[])raidProp(B,prop,t);
+   for(const lm of world.landmarks||[]){B.glow(lm.x,2.8,lm.z,3,.12,3,0xffd23f);B.box(lm.x,0,lm.z,.28,2.8,.28,0x2b2f3a,'metal')}
+   for(let i=0;i<24;i++){const a=i/24*Math.PI*2,r=size/2-8,x=Math.sin(a)*r,z=Math.cos(a)*r;
+    B.cyl(x,0,z,.4,3.4,0x4a555c,'metal',{seg:6,shadow:false});B.glow(x,3.3,z,.9,.2,.9,0xffa43a)}
+  },
+  spawnsA:world.spawns.slice(0,3).map(s=>[s[0],s[1]]),
+  spawnsB:world.spawns.slice(3,6).map(s=>[s[0],s[1]]),
+  spawnsM:world.spawns.slice(6).map(s=>[s[0],s[1]])
+ };
+}
+const RAID_DEFS=RAID_WORLDS.map(raidMassiveDef);
+const RAID_BASE=DEFS.length;
+DEFS.push(...RAID_DEFS);
+export const RAID_MAPS=RAID_DEFS.map((d,i)=>({index:RAID_BASE+i,name:d.name,desc:d.desc,icon:d.icon,def:d}));
+export const RAID_I=RAID_MAPS[0].index;
+export const MAP_COUNT=DEFS.length;
 // --------- collision-free spawn fix ----------
 function clear(cols,x,z,r=.6){for(const c of cols)if(x+r>c.x0&&x-r<c.x1&&z+r>c.z0&&z-r<c.z1&&c.y0<1.8&&c.y1>.05)return false;return true}
 function fixSpawn(cols,s,lim){if(clear(cols,s[0],s[1]))return s;for(let rad=.5;rad<6;rad+=.5)for(let a=0;a<16;a++){const x=s[0]+Math.cos(a/16*6.283)*rad,z=s[1]+Math.sin(a/16*6.283)*rad;if(Math.abs(x)<lim[0]-1&&Math.abs(z)<lim[1]-1&&clear(cols,x,z))return[+x.toFixed(2),+z.toFixed(2)]}return s}

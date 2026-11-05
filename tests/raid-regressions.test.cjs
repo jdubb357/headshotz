@@ -109,7 +109,7 @@ test('loadout edits and saving preserve damaged condition and other metadata',()
  let saved;
  const stash={gear:{weapon:'ar',armor:true,meds:1,insure:false,contract:'cores',wcond:25,acond:30,custom:'preserve'}};
  const ui={raidRecovery:{checked:false},raidMap:{value:'0'},raidWeapon:{value:'ar'},raidArmor:{checked:true},raidMeds:{value:'2'},raidInsure:{checked:true},raidContract:{value:'extract'}};
- const c={raidStash:()=>stash,$:id=>ui[id],raidSaveStash:s=>{saved=JSON.parse(JSON.stringify(s))},raidClamp2:(v,a,b)=>Math.max(a,Math.min(b,v))};
+ const c={raidStash:()=>stash,$:id=>ui[id],raidSaveStash:s=>{saved=JSON.parse(JSON.stringify(s))},raidClamp2:(v,a,b)=>Math.max(a,Math.min(b,v)),raidMapIndex:value=>parseInt(value,10)||0};
  vm.createContext(c);vm.runInContext(section('function raidUiGear(){','function raidRenderBase(){'),c);
  c.raidUiGear();c.raidUiGear();
  assert.equal(saved.gear.wcond,25);assert.equal(saved.gear.acond,30);assert.equal(saved.gear.custom,'preserve');
