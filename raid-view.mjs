@@ -24,12 +24,12 @@ export class RaidView {
  }
  start(snapshot){
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.lastWeapon=null;this.audio.reset();
-  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.scene=new THREE.Scene();this.scene.add(buildEnvironment(this.world));this.camera=new THREE.PerspectiveCamera(75,1,.08,230);this.camera.rotation.order='YXZ';
+  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.scene.add(buildEnvironment(this.world));this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';
   this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.scene.add(this.hemi,this.sun);
   this.environmentTarget=null;this.buildSky();
   this.overlay=new THREE.Scene();this.weaponCamera=new THREE.PerspectiveCamera(58,1,.02,8);this.overlay.add(new THREE.HemisphereLight(0xe5f2ff,0x425059,2));const light=new THREE.DirectionalLight(0xffd4a4,2);light.position.set(2,3,4);this.overlay.add(light);
   this.gunRoot=new THREE.Group();this.gunRoot.position.set(.2,-.22,-.5);this.gunRoot.scale.setScalar(.65);this.overlay.add(this.gunRoot);
-  const geometry=new THREE.BufferGeometry(),positions=new Float32Array(450*3);for(let i=0;i<positions.length;i+=3){positions[i]=(Math.random()-.5)*140;positions[i+1]=Math.random()*35;positions[i+2]=(Math.random()-.5)*140}geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));geometry.userData.raidOwned=true;
+  const geometry=new THREE.BufferGeometry(),positions=new Float32Array(450*3);for(let i=0;i<positions.length;i+=3){positions[i]=(Math.random()-.5)*this.world.size;positions[i+1]=Math.random()*35;positions[i+2]=(Math.random()-.5)*this.world.size}geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));geometry.userData.raidOwned=true;
   const material=new THREE.PointsMaterial({color:0xd2e1e8,size:.07,transparent:true,opacity:.5});material.userData.raidOwned=true;this.weather=new THREE.Points(geometry,material);this.scene.add(this.weather);
   this.visualSelf=new THREE.Vector3(snapshot.self.x,(snapshot.self.y||0),snapshot.self.z);this.audio.resume();this.sync(snapshot);
  }
@@ -56,8 +56,8 @@ export class RaidView {
   for(const [key,ring]of this.effects)if(!effects.has(key)){this.scene.remove(ring);disposeOwned(ring);this.effects.delete(key)}
   this.syncUtilities(snapshot);
   const observer=snapshot.camera||snapshot.self,eye={x:observer.x,y:(observer.y||0)+1.6,z:observer.z},insideSmoke=!smokeClear(snapshot.utilities,eye,eye,snapshot.serverTime);
-  const conditions=insideSmoke?{...(snapshot.conditions||mapConditions(this.world)),fog:0x9aa6a1,visibility:.07}:snapshot.conditions||mapConditions(this.world);this.environmentTarget={sky:new THREE.Color(conditions.sky),fog:new THREE.Color(conditions.fog),visibility:conditions.visibility,light:conditions.light,ambient:conditions.ambient??1.8,daylight:conditions.daylight??1,sun:new THREE.Vector3(conditions.sun?.x??-30,conditions.sun?.y??65,conditions.sun?.z??35)};
-  if(!this.scene.background){this.scene.background=this.environmentTarget.sky.clone();this.scene.fog=new THREE.Fog(conditions.fog,28*conditions.visibility,150*conditions.visibility);this.updateEnvironment(1)}this.weather.visible=conditions.weather!=='clear'&&!this.settings?.reduced;
+  const conditions=insideSmoke?{...(snapshot.conditions||mapConditions(this.world)),fog:0x9aa6a1,visibility:.07}:snapshot.conditions||mapConditions(this.world);this.environmentTarget={sky:new THREE.Color(conditions.sky),fog:new THREE.Color(conditions.fog),visibility:conditions.visibility,light:conditions.light,ambient:conditions.ambient??1.8,daylight:conditions.daylight??1,sun:new THREE.Vector3((conditions.sun?.x??-30)*this.viewScale,(conditions.sun?.y??65)*this.viewScale,(conditions.sun?.z??35)*this.viewScale)};
+  if(!this.scene.background){this.scene.background=this.environmentTarget.sky.clone();this.scene.fog=new THREE.Fog(conditions.fog,28*this.viewScale*conditions.visibility,150*this.viewScale*conditions.visibility);this.updateEnvironment(1)}this.weather.visible=conditions.weather!=='clear'&&!this.settings?.reduced;
   const item=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId);
   this.gunRoot.visible=!!item;
   if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun)}
@@ -81,12 +81,12 @@ export class RaidView {
  }
  buildSky(){
   const orb=(radius,color)=>{const geometry=new THREE.SphereGeometry(radius,12,8),material=new THREE.MeshBasicMaterial({color,fog:false,depthWrite:false});geometry.userData.raidOwned=material.userData.raidOwned=true;const mesh=new THREE.Mesh(geometry,material);this.scene.add(mesh);return mesh};
-  this.sunOrb=orb(3.4,0xffd7a5);this.moonOrb=orb(2.2,0xd6e6f6);
-  const positions=[];for(let i=0;i<220;i++){const y=.08+.88*(i+.5)/220,angle=i*2.399963,ring=Math.sqrt(1-y*y);positions.push(Math.cos(angle)*ring*185,y*185,Math.sin(angle)*ring*185)}
-  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.userData.raidOwned=true;const material=new THREE.PointsMaterial({color:0xdfebff,size:.4,transparent:true,opacity:0,fog:false,depthWrite:false});material.userData.raidOwned=true;this.stars=new THREE.Points(geometry,material);this.scene.add(this.stars);
+  this.sunOrb=orb(3.4*this.viewScale,0xffd7a5);this.moonOrb=orb(2.2*this.viewScale,0xd6e6f6);
+  const positions=[],radius=185*this.viewScale;for(let i=0;i<220;i++){const y=.08+.88*(i+.5)/220,angle=i*2.399963,ring=Math.sqrt(1-y*y);positions.push(Math.cos(angle)*ring*radius,y*radius,Math.sin(angle)*ring*radius)}
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.userData.raidOwned=true;const material=new THREE.PointsMaterial({color:0xdfebff,size:.4*this.viewScale,transparent:true,opacity:0,fog:false,depthWrite:false});material.userData.raidOwned=true;this.stars=new THREE.Points(geometry,material);this.scene.add(this.stars);
  }
  updateEnvironment(blend){
-  const target=this.environmentTarget;if(!target)return;this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(28*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(150*target.visibility-this.scene.fog.far)*blend;this.sun.intensity+=(target.light-this.sun.intensity)*blend;this.hemi.intensity+=(target.ambient-this.hemi.intensity)*blend;
+  const target=this.environmentTarget;if(!target)return;this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(28*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(150*this.viewScale*target.visibility-this.scene.fog.far)*blend;this.sun.intensity+=(target.light-this.sun.intensity)*blend;this.hemi.intensity+=(target.ambient-this.hemi.intensity)*blend;
   const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sun.position.lerp(lightPosition,blend);this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=this.stars.material.opacity>.01;
  }
  fire(){this.recoil=this.settings?.reduced?0:.07;const s=this.snapshot?.self,item=s&&[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);this.audio.play(item?'shot:'+item.weapon:'shot')}

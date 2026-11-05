@@ -40,6 +40,54 @@ function scatter(m,seed){
   else m.props.push({kind:m.theme==='wilderness'?'tree':'scrap',x,z,y:0,scale:.7+random()});
  }
 }
+// New raids use a larger open-sector layout. Scaling the authored district
+// geometry keeps every interior, ramp, cache and exit reachable while giving
+// the raid a much broader ground area for exploration and encounter spacing.
+function enlargedWorld(world,factor){
+ const enlarged=structuredClone(world);enlarged.version=4;enlarged.size=world.size*factor;
+ enlarged.blocks=enlarged.blocks.map(([x,z,w,d,h,base=0,material='concrete'])=>[x*factor,z*factor,w*factor,d*factor,h,base,material]);
+ enlarged.ramps=(enlarged.ramps||[]).map(ramp=>({...ramp,x:ramp.x*factor,z:ramp.z*factor,w:ramp.w*factor,d:ramp.d*factor}));
+ enlarged.props=(enlarged.props||[]).map(prop=>({...prop,x:prop.x*factor,z:prop.z*factor,...(prop.w!=null?{w:prop.w*factor}:{}),...(prop.d!=null?{d:prop.d*factor}:{})}));
+ enlarged.landmarks=(enlarged.landmarks||[]).map(marker=>({...marker,x:marker.x*factor,z:marker.z*factor,radius:marker.radius*factor}));
+ enlarged.hazards=(enlarged.hazards||[]).map(hazard=>({...hazard,x:hazard.x*factor,z:hazard.z*factor,radius:hazard.radius*factor}));
+ enlarged.caches=enlarged.caches.map(([x,z,y=0])=>[x*factor,z*factor,y]);
+ enlarged.exits=enlarged.exits.map(exit=>({...exit,x:exit.x*factor,z:exit.z*factor}));
+ enlarged.spawns=enlarged.spawns.map(([x,z])=>[x*factor,z*factor]);
+ if(enlarged.supply)enlarged.supply={...enlarged.supply,x:enlarged.supply.x*factor,z:enlarged.supply.z*factor};
+ return enlarged;
+}
+
+// Version-5 sectors are authored from scratch rather than scaled copies. Each
+// keeps twelve loot sites and four exits but adds linked districts, elevated
+// decks, towers and terrain cuts so the larger ground area has distinct places
+// to explore instead of one stretched district.
+function arena(id,name,theme){
+ return {id,name,theme,version:5,size:720,blocks:[],ramps:[],props:[],landmarks:[],hazards:[],caches:[],cacheMeta:[],
+  spawns:[[-300,-300],[-80,-320],[140,-320],[320,-140],[320,160],[160,320],[-140,320],[-320,160],[-320,-120]],
+  exits:[{id:'call',x:-330,y:0,z:0,kind:'call',name:'West evacuation beacon'},{id:'transport',x:200,y:0,z:330,kind:'timed',name:'South cargo lift'},{id:'hatch',x:0,y:0,z:-330,kind:'key',name:'North maintenance hatch'},{id:'freight',x:330,y:0,z:-180,kind:'resource',name:'Emergency freight winch'}],
+  supply:{x:0,y:0,z:100}};
+}
+function roofLink(m,x,z,h){
+ const roof=m.blocks.find(([bx,bz,w,d,rh,base=0])=>bx===x&&bz===z&&rh===.22&&base===h),width=roof?roof[2]:30;
+ const rampX=x+width/2+4,distance=Math.max(16,Math.ceil((2*(h+.22))/.7));
+ m.ramps.push({x:rampX,z,w:4,d:distance,from:0,to:h+.22,axis:'z'});
+ box(m,rampX-5.5,z+9,7,4,.18,h+.04,'metal');
+}
+function deck(m,x,z,w,d,h){
+ box(m,x,z,w,d,.2,h,'metal');
+ m.ramps.push({x:x-w/2-6,z,w:12,d,from:0,to:h+.2,axis:'x'});
+ m.ramps.push({x:x+w/2+6,z,w:12,d,from:h+.2,to:0,axis:'x'});
+}
+function scatterBig(m,seed){
+ let s=seed;const random=()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296},range=m.size/2-30;
+ for(let i=0;i<90;i++){
+  const x=Math.round((random()-.5)*range*2),z=Math.round((random()-.5)*range*2);
+  if(m.caches.some(p=>Math.hypot(x-p[0],z-p[1])<7)||m.exits.some(p=>Math.hypot(x-p.x,z-p.z)<10)||m.spawns.some(([sx,sz])=>Math.hypot(x-sx,z-sz)<6)||blocked(m,x,z,3))continue;
+  if(i%5===0)box(m,x,z,1.8,1.8,1.1,0,'crate');
+  else m.props.push({kind:m.theme==='wilderness'?'tree':'scrap',x,z,y:0,scale:.8+random()});
+ }
+}
+
 const relay=authored('relay','Relay Graveyard','industrial');
 room(relay,-40,-30,24,18,5.2,['n','e']);room(relay,0,0,18,16,4);roofAccess(relay,0,0,4);room(relay,38,28,20,14,4.4,['w','s']);
 for(const x of [-40,-28]){box(relay,x,32,2,2,10,0,'metal');relay.props.push({kind:'dish',x,y:10,z:32})}
@@ -67,14 +115,100 @@ for(const z of [-8,8])switchyard.props.push({kind:'rail',x:0,y:.02,z,w:132,d:2.2
 landmark(switchyard,'Freight Office',-36,-28);landmark(switchyard,'Dispatch',0,-25);landmark(switchyard,'Ember Depot',34,30);landmark(switchyard,'Transfer Bridge',-22,30);landmark(switchyard,'Rail Corridor',6,0);
 for(const args of [[-36,-28,1,'Freight office'],[0,-25,2,'Dispatch console'],[34,30,2,'Depot stores'],[34,30,3,'Depot roof strongbox',4.42],[-22,30,2,'Bridge signal box',3.4],[-48,21,0,'Trackside salvage'],[20,-40,1,'Signal supplies'],[46,-26,1,'Burned carriage'],[-18,-45,0,'Worker camp'],[-1,48,0,'Evacuation stores'],[54,14,1,'Platform luggage'],[0,22,3,'Locked dispatch vault',0,true]])cache(switchyard,...args);
 switchyard.hazards.push({id:'live_rail',name:'Live rail discharge',x:8,z:8,y:0,radius:7,period:50,active:8,warning:4,damage:9});scatter(switchyard,2033);
-export const ARCHIVED_RAID_WORLDS=[relay,reservoir,switchyard].map(world=>structuredClone(world));
+const relay5=arena('relay','Relay Graveyard','industrial');
+room(relay5,0,0,30,24,5.4);roofLink(relay5,0,0,5.4);
+room(relay5,-180,40,26,20,5.0);roofLink(relay5,-180,40,5.0);
+room(relay5,180,-40,24,18,4.6);
+for(const [x,z]of [[-180,-160],[-160,-160]]){box(relay5,x,z,2,2,10,0,'metal');relay5.props.push({kind:'dish',x,y:10,z})}
+for(const [x,z]of [[80,-140],[100,-140],[120,-140],[-60,160],[-40,160],[-20,160]])box(relay5,x,z,6,12,2.4,0,'container');
+for(const [x,z]of [[-220,-260],[220,-260],[-180,240],[180,240]])box(relay5,x,z,4,2,1.2,0,'barrier');
+box(relay5,200,180,20,16,3.2,0,'rock');box(relay5,-240,-200,24,18,3.0,0,'rock');
+deck(relay5,-140,0,220,8,2.8);
+for(const [x,z]of [[-80,0],[180,0],[0,-160]])relay5.props.push({kind:'floodlight',x,y:0,z});
+relay5.props.push({kind:'crane',x:220,y:0,z:-260},{kind:'antenna',x:-180,y:0,z:-160},{kind:'turbine',x:140,y:2.4,z:-140},{kind:'turbine',x:160,y:2.4,z:-140});
+cache(relay5,-240,-120,0,'Tooling cache');
+cache(relay5,-180,40,1,'Freight hall stores');
+cache(relay5,-174,47,2,'Freight roof locker',5.22);
+cache(relay5,70,-130,0,'Drainage cache');
+cache(relay5,180,-40,1,'Turbine hall depot');
+cache(relay5,-140,0,2,'Bridge relay node',3.0);
+cache(relay5,180,160,2,'Substation supplies');
+cache(relay5,240,-200,0,'Fuel dump');
+cache(relay5,0,10,3,'Control roof locker',5.62);
+cache(relay5,250,-100,1,'Loading apron');
+cache(relay5,-20,180,1,'Dispatch annex');
+cache(relay5,0,0,3,'Sealed relay vault',0,true);
+landmark(relay5,'Relay Control',0,0,20);landmark(relay5,'Freight Hall',-180,40,20);landmark(relay5,'Turbine Hall',180,-40,20);landmark(relay5,'Dish Field',-170,-160,18);landmark(relay5,'Substation',240,100,18);landmark(relay5,'Transfer Deck',-140,0,16);
+relay5.hazards.push({id:'substation_arcs',name:'Substation discharge',x:240,y:0,z:100,radius:8,period:65,active:9,warning:5,damage:9});
+scatterBig(relay5,9271);
+
+const reservoir5=arena('reservoir','Dry Reservoir','wilderness');
+room(reservoir5,-180,-160,24,20,5.0);roofLink(reservoir5,-180,-160,5.0);
+room(reservoir5,180,160,22,18,6.0);roofLink(reservoir5,180,160,6.0);
+room(reservoir5,180,-160,20,16,5.4);roofLink(reservoir5,180,-160,5.4);
+for(const [x,z,w,d,h]of [[-200,120,26,20,4.2],[220,220,22,18,3.8],[-260,-220,30,22,4.0]])box(reservoir5,x,z,w,d,h,0,'rock');
+deck(reservoir5,0,0,260,10,1.6);
+reservoir5.props.push({kind:'basin',x:0,y:.01,z:0,w:220,d:70},{kind:'pump',x:-220,y:0,z:-190},{kind:'waterTower',x:220,y:0,z:-200});
+for(const [x,z]of [[-150,-20],[150,20],[180,220]])reservoir5.props.push({kind:'floodlight',x,y:0,z});
+cache(reservoir5,-260,60,0,'Ranger cache');
+cache(reservoir5,-180,-160,1,'Pump stores');
+cache(reservoir5,-174,-153,2,'Pump roof observation',5.22);
+cache(reservoir5,180,160,1,'Watch station stores');
+cache(reservoir5,186,167,2,'Watch tower roof',6.22);
+cache(reservoir5,0,0,2,'Basin bridge inspection',1.8);
+cache(reservoir5,200,-140,2,'Tower equipment');
+cache(reservoir5,-20,240,0,'Fuel cache');
+cache(reservoir5,180,-160,3,'Intake roof locker',5.62);
+cache(reservoir5,240,-220,1,'Intake supplies');
+cache(reservoir5,-240,-80,1,'Survey camp');
+cache(reservoir5,-40,-260,3,'Sealed pump vault',0,true);
+landmark(reservoir5,'Pump House',-180,-160,20);landmark(reservoir5,'Watch Station',180,160,20);landmark(reservoir5,'Dry Basin',0,0,24);landmark(reservoir5,'Rock Cut',-200,120,18);landmark(reservoir5,'Intake Tower',180,-160,18);
+reservoir5.hazards.push({id:'coolant_vent',name:'Coolant vent',x:60,y:0,z:60,radius:7,period:70,active:10,warning:5,damage:7});
+scatterBig(reservoir5,7719);
+
+const switchyard5=arena('switchyard','Ember Switchyard','settlement');
+room(switchyard5,-180,-120,26,20,5.0);roofLink(switchyard5,-180,-120,5.0);
+room(switchyard5,0,-140,22,20,4.6);
+room(switchyard5,160,140,30,24,5.2);roofLink(switchyard5,160,140,5.2);
+for(const z of [-60,40])for(const x of [-220,-160,-100,60,120,200])box(switchyard5,x,z,14,4,2.5,0,'container');
+deck(switchyard5,-80,0,200,10,2.8);
+for(const z of [-100,100])switchyard5.props.push({kind:'rail',x:0,y:.02,z,w:600,d:2.2});
+for(const [x,z]of [[-220,-180],[220,-180],[-220,180],[220,180]])switchyard5.props.push({kind:'signal',x,y:0,z});
+for(const [x,z]of [[-150,-20],[150,20],[-80,-40]])switchyard5.props.push({kind:'floodlight',x,y:0,z});
+switchyard5.props.push({kind:'crane',x:220,y:0,z:220},{kind:'wreck',x:220,y:0,z:-160},{kind:'antenna',x:0,y:0,z:-140});
+cache(switchyard5,-260,-40,0,'Trackside salvage');
+cache(switchyard5,-180,-120,1,'Freight office stores');
+cache(switchyard5,160,140,2,'Depot stores');
+cache(switchyard5,-174,-113,2,'Freight roof platform',5.22);
+cache(switchyard5,-80,0,2,'Bridge signal box',3.0);
+cache(switchyard5,-40,-200,0,'Worker camp');
+cache(switchyard5,220,-160,2,'Burned carriage');
+cache(switchyard5,220,220,0,'Fuel depot');
+cache(switchyard5,160,140,3,'Depot roof strongbox',5.42);
+cache(switchyard5,200,-40,1,'Platform luggage');
+cache(switchyard5,0,240,1,'Evacuation stores');
+cache(switchyard5,0,-140,3,'Locked dispatch vault',0,true);
+landmark(switchyard5,'Freight Office',-180,-120,20);landmark(switchyard5,'Dispatch',0,-140,20);landmark(switchyard5,'Ember Depot',160,140,20);landmark(switchyard5,'Transfer Bridge',-80,0,16);landmark(switchyard5,'Rail Corridor',0,0,24);
+switchyard5.hazards.push({id:'live_rail',name:'Live rail discharge',x:60,y:0,z:-100,radius:8,period:60,active:9,warning:5,damage:9});
+scatterBig(switchyard5,2033);
+
+const authoredWorlds=[relay,reservoir,switchyard];
+export const ARCHIVED_RAID_WORLDS=authoredWorlds.map(world=>structuredClone(world));
 // Keep v2 checkpoints intact. The v3 landing meets the top of each roof ramp,
 // instead of blocking its middle and forcing a precision climb along its edge.
-export const RAID_WORLDS=[relay,reservoir,switchyard];
-for(const world of RAID_WORLDS){world.version=3;for(const ramp of world.ramps.filter(r=>r.axis==='z'&&r.w===4&&r.d===16)){
- const landing=world.blocks.find(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+7&&w===7&&d===4&&h===.18);if(landing)landing[1]+=2;
-}}
-export function getWorld(id,version=3){return (version===1?LEGACY_RAID_WORLDS:version===2?ARCHIVED_RAID_WORLDS:version===3?RAID_WORLDS:[]).find(w=>w.id===id)}
+const V3_RAID_WORLDS=authoredWorlds.map(world=>{const v3=structuredClone(world);v3.version=3;for(const ramp of v3.ramps.filter(r=>r.axis==='z'&&r.w===4&&r.d===16)){
+ const landing=v3.blocks.find(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+7&&w===7&&d===4&&h===.18);if(landing)landing[1]+=2;
+}
+ return v3;
+});
+// Version 4 keeps the corrected v3 landings but triples every authored district
+// and its footprints, producing a 480 x 480 sector for existing checkpoints.
+const V4_RAID_WORLDS=V3_RAID_WORLDS.map(world=>enlargedWorld(world,3));
+// Version 5 is the current authored layout: a 720 x 720 sector with new
+// connected districts and elevated routes, while versions 1-4 stay available
+// for checkpoints that were saved before the redesign.
+export const RAID_WORLDS=[relay5,reservoir5,switchyard5];
+export function getWorld(id,version=5){return (version===1?LEGACY_RAID_WORLDS:version===2?ARCHIVED_RAID_WORLDS:version===3?V3_RAID_WORLDS:version===4?V4_RAID_WORLDS:version===5?RAID_WORLDS:[]).find(w=>w.id===id)}
 export function blocked(world,x,z,r=.5,y=0,height=1.7){
  if(Math.abs(x)>world.size/2-r||Math.abs(z)>world.size/2-r)return true;
  if(world.blocks.some(([bx,bz,w,d,h,base=0])=>Math.abs(x-bx)<w/2+r&&Math.abs(z-bz)<d/2+r&&y+height>base+.04&&y<base+h-.04))return true;

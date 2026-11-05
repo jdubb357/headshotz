@@ -79,6 +79,8 @@ At the initial check on October 29, 2026, there were no open or closed issues, n
 
 ## Implement and verify
 
+Extraction Raids is an additional game mode, not a revamp of HeadShotz. Keep the normal home screen as the default entry point, with Extraction Raids available as an explicit choice alongside the existing modes. Preserve Battle Royale, Squad Royale, arena/team modes, and the original cooperative Extraction. Raid accounts, stash progression, equipment loss, and deployment requirements apply within the raid mode; they must not become prerequisites for the rest of the game. Shared fixes should preserve each mode's existing rules.
+
 Stay on `cypert/dev` for the shared work unless Austin asks for a separate feature branch. Make a focused change, inspect the diff, and verify the behavior that changed.
 
 This checkout is a static browser game using Three.js and PeerJS, with `index.html`, `style.css`, and JavaScript files at the root. There was no package manifest or test runner in the initial checkout. Inspect the current project before choosing build/test commands; do not invent an `npm test` workflow.

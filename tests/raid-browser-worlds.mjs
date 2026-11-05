@@ -20,7 +20,7 @@ try{
   await p.evaluate(`document.getElementById('map').value=${JSON.stringify(map)};document.getElementById('map').dispatchEvent(new Event('change'));document.getElementById('recovery').checked=true;document.getElementById('deploy').click()`);
   await p.wait("document.getElementById('play').style.display==='block' && document.body.getAttribute('aria-busy')==='false' && document.getElementById('hud').textContent.includes('HP')");
   const before=await p.evaluate("fetch('/api/raid').then(r=>r.json())");
-  assert.equal(before.mapVersion,3);
+  assert.equal(before.mapVersion,5,'new deployments use the authored large-sector layout');
   assert.ok(Array.isArray(before.machines),'machine snapshots are visibility-filtered');
   await p.command('Input.dispatchKeyEvent',{type:'keyDown',code:'Space',key:' '});
   await p.command('Input.dispatchKeyEvent',{type:'keyUp',code:'Space',key:' '});

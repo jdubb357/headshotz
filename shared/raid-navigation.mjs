@@ -31,7 +31,7 @@ export function canWalkSegment(world,a,b,{radius=.4,height=1.7}={}){
   }
   return valid&&Math.abs(y-(b.y||0))<.15;
 }
-export function findPath(world,from,to,{step=world.version===2?1:2,radius=.4,height=1.7,maxNodes=world.version===2?40000:16000}={}){
+export function findPath(world,from,to,{step=world.version===2?1:2,radius=.4,height=1.7,maxNodes=world.version===2?40000:world.version===4?48000:world.version>=5?160000:16000}={}){
  const cache=navigationCache(world,step,radius,height),at=(x,z)=>{const key=x+':'+z;if(!cache.levels.has(key))cache.levels.set(key,levels(world,x,z,radius,height));return cache.levels.get(key)};
  const offset=world.version===2?.5:0,key=p=>`${p.x},${p.z},${p.y}`,snap=v=>Math.round((v-offset)/step)*step+offset;
  function reachable(a,b,memo=false){
