@@ -1,5 +1,30 @@
 # Ralph progress — Issue #1 Extraction Raids
 
+## Extraction Raid full-sector city fabric — November 6, 2026
+
+Request: the Extraction Raid sectors still read as a huge, mostly empty ground plane with only a few buildings; fill the whole sector with authored districts and make the maps look amazing without changing any mode, raid rule or objective route.
+
+Acceptance criteria (recorded before implementation, objectively checkable):
+1. Current deployments use a new v9 district layer on top of the frozen v8 settlements; v8, v7, v6 and v5 layouts remain retrievable for existing checkpoints, and all spawn/cache/exit coordinates, ramps, hazards and sector size stay unchanged.
+2. The sector interior is genuinely filled: for each of the three sectors, every 240 m × 240 m cell of the 1,440 m × 1,440 m play area contains authored block geometry; each sector gains at least 8 distinct district clusters distributed across its center and all four quadrants, with at least 30 structures per sector (row houses, warehouses, factories, depots, hamlets, ruins or fields).
+3. Block and prop counts grow materially over v8 (blocks ≥ 1.6× v8, props ≥ 1.4× v8) and every sector has a readable road grid with sidewalks, lamps, power lines, fences, and lit windows so the map is legible at night.
+4. New prop kinds (fence, hedge, field, billboard, truck, pallet) render identically online and offline; visual-only props add no collision and offline raids do not invent obstacles the authoritative server lacks.
+5. All spawns, caches and exits remain walkable and reachable from every spawn; the raid-worlds, navigation, content-migration and full unit suites pass.
+6. Running the game in headless Chrome deploys all three sectors with zero console errors; screenshots show populated districts at spawn and a filled sector overview; the deployment/minimap previews render roads and districts instead of sparse dots.
+7. Existing modes (Battle Royale, cooperative Extraction, FFA, arena/team modes, hub) still boot and play.
+
+### Current status — verified November 6, 2026
+
+1. **Verified**: `RAID_WORLDS` is version 9 (`getWorld(id)` defaults to 9); `getWorld(id,8)` returns the frozen settlement layer and versions 1–8 remain retrievable. Spawn/cache/exit coordinates, ramps, hazards and the 1,440 m sector size are unchanged from v8.
+2. **Verified**: densifyWorld authors all 36 district cells (6×6 grid at ±600/±360/±120 m) per sector. No cell is empty of ground-block geometry: relay 9,973 blocks, reservoir 9,286, switchyard 9,351, including residential rows, warehouses, factories, depots, hamlets, ruins and fields, four skyline towers per sector, continuous avenue frontage and spawn-threshold frontage framing every spawn approach.
+3. **Verified**: density over v8 — relay 2.30× blocks / 3.50× props / 8,823 windows; reservoir 2.33× / 3.41× / 8,762; switchyard 2.01× / 4.61× / 13,449. Thirty-four/37 distinct prop kinds. The road grid (five avenue lines each way) carries sidewalks, lamps, power poles, street trees, benches, bins and parked cars. Tinted facades/roofs: 2,503 / 3,690 / 1,454 blocks. Each sector also gets authored field patches with bushes/rocks, fences, hedges, billboards, chimneys and ponds.
+4. **Verified**: tint is an optional eighth element of `world.blocks`; `raid-environment.mjs`, `maps.js` and the cached `mapBackground` preview consume it. New prop kinds (`field`, `fence`, `hedge`, `billboard`, `truck`, `pallet`, `hay`, `planter`, `stall`) are rendered by both online and offline builders as visual-only props, so no phantom offline collision is introduced. Browser execution of `maps.js` built the three offline raid maps successfully (4,585 / 4,854 / 5,058 meshes) with zero exceptions.
+5. **Verified**: `node --test tests/raid-worlds.test.mjs tests/raid-content-migration.test.mjs` → 14/14; `node --test tests/*.test.*` → 1,084 pass, 0 fail, including every-spawn route suites to all ground/interior/roof caches and exits.
+6. **Verified**: `RAID_TEST_URL=http://127.0.0.1:8021 CDP_URL=http://127.0.0.1:9337 node tests/raid-browser-worlds.mjs` → `{"maps":3,"jump":true,"touchAim":true,"rendered":true,"browserErrors":[]}`. Day-lit spawn and avenue screenshots at `/tmp/hs-scene-{rsp,rssp,swsp,rls,rss,sws}.png` show populated districts lining the roads at first-person spawn. Minimap/deployment previews render the road grid and tinted districts instead of sparse dots.
+7. **Verified**: `tests/raid-browser-legacy.mjs` boots offline Extra/BR/FFA with bots, zero browser errors, preserved wallet/skin/weapon/upgrade data; `tests/raid-browser-smoke.mjs` passes account/recovery/render/movement/reconnect with zero exceptions.
+
+Limitation: visual “amazing” remains subjective; objective coverage is sector-filling density, authored per-cell geometry, unchanged routes/collision, deterministic authored layout and clean runtime. The standalone `tests/raid-browser-sectors.mjs` lighting harness still times out waiting for its white-box forced day condition (a pre-existing test-harness issue; sector rendering itself boots cleanly in the main browser tests). No blocker to the map request.
+
 ## Extraction Raid living settlements — November 5, 2026
 
 Request: make the raid sectors read like a real abandoned world with inhabited-looking mini-towns, not scattered dressing on empty ground, while preserving every mode and raid rule.

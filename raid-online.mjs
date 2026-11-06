@@ -262,12 +262,46 @@ let look=null;
 $('view').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){e.preventDefault();look={id:e.pointerId,x:e.clientX,y:e.clientY};$('view').setPointerCapture(e.pointerId);view?.audio.resume()}});
 $('view').addEventListener('pointermove',e=>{if(preferences.isModal()||!$('communications').hidden){look=null;return}if(look?.id===e.pointerId){aim(e.clientX-look.x,e.clientY-look.y,.006);look={id:e.pointerId,x:e.clientX,y:e.clientY}}});
 for(const type of ['pointerup','pointercancel'])$('view').addEventListener(type,()=>look=null);
+const MAP_PALETTES={
+ industrial:{ground:'#404643',road:'#2c3233',sidewalk:'#85857b',plaza:'#6f6b5e',field:'#56634a',window:'#f6cf7e',tree:'#3c6b3d',hedge:'#355934'},
+ wilderness:{ground:'#566448',road:'#3d4438',sidewalk:'#898b79',plaza:'#6f6b58',field:'#617650',window:'#f5d78b',tree:'#2f6235',hedge:'#2f5431'},
+ settlement:{ground:'#716257',road:'#33393b',sidewalk:'#9c968a',plaza:'#87786b',field:'#5d6c4b',window:'#ffd386',tree:'#3a6b38',hedge:'#315e31'}
+};
+const MAP_KIND_COLORS={
+ industrial:{concrete:'#90968d',plaster:'#a1988d',planks:'#7a6047',brick:'#9c6d53',metal:'#6b7a7b',container:'#696048',rock:'#7c7a6c',crate:'#8a6d48',barrier:'#b39b63',roof:'#4e5558'},
+ wilderness:{concrete:'#9b9d8e',plaster:'#aaa192',planks:'#81684e',brick:'#8f8d73',metal:'#728a89',container:'#6e6448',rock:'#858273',crate:'#867049',barrier:'#958f6b',roof:'#4a615d'},
+ settlement:{concrete:'#aaa29b',plaster:'#bdb1a1',planks:'#93704f',brick:'#b47d60',metal:'#6e7d82',container:'#665650',rock:'#726d63',crate:'#9a7449',barrier:'#c3a66c',roof:'#505260'}
+};
+const MAP_BACKGROUNDS=new Map();
+function mapBackground(world,n){
+ const key=world.id+':'+world.version+':'+n; // keeps cached layouts versioned and canvas-sized
+ let cached=MAP_BACKGROUNDS.get(key);if(cached)return cached;
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=n;const ctx=canvas.getContext('2d'),k=n/world.size,theme=world.theme in MAP_PALETTES?world.theme:'industrial',pal=MAP_PALETTES[theme],blockColors=MAP_KIND_COLORS[theme];
+ const rect=(x,z,w,d,color,ry=0)=>{ctx.save();ctx.translate(x,z);if(ry)ctx.rotate(ry);ctx.fillStyle=color;ctx.fillRect(-w/2,-d/2,w,d);ctx.restore()};
+ ctx.fillStyle=pal.ground;ctx.fillRect(0,0,n,n);ctx.save();ctx.translate(n/2,n/2);ctx.scale(k,k);
+ for(const p of world.props){
+  if(p.kind==='field')rect(p.x||0,p.z||0,p.w||20,p.d||20,p.color||pal.field,p.ry||0);
+  else if(p.kind==='basin')rect(p.x||0,p.z||0,p.w||40,p.d||20,'#487580',p.ry||0);
+ }
+ for(const p of world.props){
+  if(p.kind==='road')rect(p.x||0,p.z||0,p.w||20,p.d||10,p.color||pal.road,p.ry||0);
+  else if(p.kind==='sidewalk')rect(p.x||0,p.z||0,p.w||20,p.d||10,p.color||pal.sidewalk,p.ry||0);
+  else if(p.kind==='plaza'||p.kind==='floor')rect(p.x||0,p.z||0,p.w||20,p.d||20,p.color||pal.plaza,p.ry||0);
+ }
+ for(const [x,z,w,d,,base=0,kind='concrete',tint]of world.blocks){if(base>3)continue;const color=tint==null?(blockColors[kind]||blockColors.concrete):'#'+tint.toString(16).padStart(6,'0');rect(x,z,w,d,color)}
+ for(const p of world.props){
+  if(p.kind==='window'&&p.lit)rect(p.x||0,p.z||0,Math.max(1.2,p.w||1.2),Math.max(1.2,p.d||1.2),pal.window);
+  else if(p.kind==='tree'){ctx.fillStyle=pal.tree;ctx.beginPath();ctx.arc(p.x||0,p.z||0,Math.max(3,(p.scale||1)*3.4),0,Math.PI*2);ctx.fill()}
+  else if(p.kind==='hedge')rect(p.x||0,p.z||0,p.w||2,p.d||2,p.color||pal.hedge,p.ry||0);
+  else if(p.kind==='billboard')rect(p.x||0,p.z||0,5.2,2.8,'#d9b26a');
+ }
+ ctx.restore();MAP_BACKGROUNDS.set(key,canvas);return canvas;
+}
 function drawMap(canvas,id,state){
  const world=state?getWorld(id,state.mapVersion===undefined?1:state.mapVersion):RAID_WORLDS.find(w=>w.id===id);if(!world)return;
- const ctx=canvas.getContext('2d'),n=canvas.width,k=n/world.size;ctx.fillStyle='#172c32';ctx.fillRect(0,0,n,n);ctx.save();ctx.translate(n/2,n/2);ctx.scale(k,k);
- ctx.fillStyle='#6b7e7e';for(const [x,z,w,d]of world.blocks)ctx.fillRect(x-w/2,z-d/2,w,d);
+ const ctx=canvas.getContext('2d'),n=canvas.width,k=n/world.size;ctx.clearRect(0,0,n,n);ctx.drawImage(mapBackground(world,n),0,0);ctx.save();ctx.translate(n/2,n/2);ctx.scale(k,k);
  const point=(x,z,color,r)=>{ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,z,r,0,Math.PI*2);ctx.fill()};
- for(const exit of state?.exits||world.exits){point(exit.x,exit.z,state?'#'+exitColor(exit,state.serverTime).toString(16).padStart(6,'0'):'#83efc2',2);ctx.fillStyle='#fff';ctx.font='5px system-ui';ctx.fillText('E',exit.x+2,exit.z)}
+ for(const exit of state?.exits||world.exits){point(exit.x,exit.z,state?'#'+exitColor(exit,state.serverTime).toString(16).padStart(6,'0'):'#83efc2',3);ctx.fillStyle='#fff';ctx.font='5px system-ui';ctx.fillText('E',exit.x+2.8,exit.z+1.7)}
  if(state){for(const p of state.players.filter(p=>p.team===state.self.team))point(p.x,p.z,'#77c5ff',1.7);for(const ping of state.pings||[]){point(ping.x,ping.z,'#f3b9ff',2);ctx.fillStyle='#fff';ctx.font='5px system-ui';ctx.fillText(ping.kind==='danger'?'!':ping.kind==='needAmmo'?'A':ping.kind==='needMed'?'+':'P',ping.x+2,ping.z)}point(state.self.x,state.self.z,'#ffcf61',2.1)}
  ctx.restore();
 }
