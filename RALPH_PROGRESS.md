@@ -507,3 +507,45 @@ Commands/results:
 - Ordinary arena-mode browser probe (`node /tmp/hsz-arena-modes-probe.mjs`, Chrome 156 CDP 9337, server 8010): main menu boots, and `duel`, `team`, `t3`, `t4`, `t5`, `ctf` and `brs` each reach offline `phase:"play"` with bots and nonzero draw calls; **zero browser errors**. Squad Royale retains 24 players/23 bots; existing map lists are unchanged.
 
 Remaining caveat: these are headless Chrome and loopback/runtime probes, not physical-device, real-WAN, human balance or production acceptance. No commit, push, PR, merge or deployment was performed.
+
+## Teammate match / invite-code joining acceptance (2026-11-05)
+
+Reported: joining teammates' matches and joining by invite code are broken across the "team player" (friends/party) flows.
+Acceptance criteria for this iteration:
+1. A client launching `?join=CODE` joins an existing room and reaches the lobby or an in-progress match (solo and team modes).
+2. An invite/code share (`?room=CODE` links and the displayed room code) actually brings the invited player into the host's room once they confirm/click join, instead of only prefilling the input.
+3. Friends-list JOIN (`frAsk`/`frJoin`) and party invites (`pinv` → accept → `pjoin` → leader's `pgo`) result in the invited player joining the leader's current room, including a room that is already in progress.
+4. Team modes (team, t3, t4, t5, ctf) accept invited teammates on the correct team with bots replaced and no capacity/validation rejection.
+5. Reproduction, fix and verification are recorded here (commands/results), relevant unit tests and headless two-client browser probes pass with zero browser errors, and unrelated modes/menu remain working.
+
+### Status — November 5, 2026
+
+All five criteria verified in the running game (headless Chrome, static server 8010). Root causes fixed in `game.js`:
+
+1. `startMatch()` never told party members a match was starting unless the room had just been created/auto-lobbyed. It now calls `partyGo(roomCode)` at match start.
+2. The leader’s `pjoin` handler added the member to the party but never told them the leader’s current room. It now sends `partyPush(); partyGo(roomCode)` so a late joiner is pulled into the leader's room (including an in-progress one).
+3. If the party was formed after the room was created, the host’s own `H.players[me.id].party` stayed empty, breaking Squad Royale same-squad grouping. `renderParty()` now syncs that field from `PARTY`.
+
+Criteria status:
+
+1. [✓] `?join=CODE` reaches in-progress team modes (probe: `?join` page -> `inGame:true`, phase `play`) and solo modes (`duel` and `ffa`, `inGame:true`, `play`).
+2. [✓] `?room=CODE` only prefills (menu visible, `inGame:false`, JOIN label shows the code); clicking JOIN enters the in-progress match, and the code-invite link includes the current room code.
+3. [✓] Friends-list JOIN of an in-progress match (`frStat.w:"match"`, `join.room` present -> guest `inGame:true`, phase `play`, opposite balanced team) and party `pinv` -> accept -> `pjoin` -> `pgo` pull the member into a lobby and into an already-running match.
+4. [✓] Team modes `team`, `t3`, `t4`, `t5`, `ctf` accept an invited teammate on the team that needs a player with a bot replaced; match size is preserved and no browser/validation errors occurred.
+5. [✓] Recorded below; 1084 unit tests pass; two-client browser probes and the menu/arena-mode regression probe all pass with zero browser errors.
+
+Commands/results:
+
+- `node --check game.js`: `SYNTAX_OK`.
+- `node --test tests/*.test.*`: **1084 pass, 0 fail**, 25.6 s.
+- `node /tmp/hsz-party-acceptance.mjs`: `ok:true`, zero browser errors. Cases: team party lobby -> host/guest party `DLG4-U5AU`, guest team B; Squad Royale party -> both squad `S1` with same party id; code invites -> prefill `{code:"BKUE",label:"JOIN BKUE",menu:true,inGame:false}`, JOIN -> `inGame:true/play/hud`, `?join=BKUE` -> auto `inGame:true/play`, host 3 humans; friend mid-match JOIN -> status `{w:"match",join:{room:"BAD9"}}`, guest `inGame:true/play`, team B; party invite accepted while host is in a bot-filled match -> guest same party id, team B, host 2 humans / 2 bots.
+- `node /tmp/hsz-team-modes.mjs team,t3,t4,t5` and `node /tmp/hsz-team-modes.mjs ctf` (fresh browser processes): each mode joins in-progress with a bot replaced and zero browser errors at mode maxima (team 4, t3 6, t4 8, t5 10, ctf 8; 2 humans after joining).
+- `node /tmp/hsz-solo-join.mjs`: `duel` and `ffa` `?join=CODE` in-progress joins pass (`duel` 1v1 from a 2-player/bot match, `ffa` keeps 10 players with 8 bots) with zero browser errors.
+- `node /tmp/hsz-lobby-invite.mjs` (idle host lobby): `?room=CODE` prefills `code/6EUC,label:JOIN 6EUC,inGame:false`; clicking JOIN puts the guest in the host lobby; `?join=CODE` auto-joins the lobby; typing the displayed code and clicking JOIN also joins the lobby (host sees 3 guests, zero browser errors).
+- `CDP_URL=http://127.0.0.1:9337 node /tmp/hsz-arena-modes-probe.mjs`: main menu boots and `duel`,`team`,`t3`,`t4`,`t5`,`ctf`,`brs` still reach offline `phase:"play"` with bots/nonzero draw calls, zero browser errors.
+
+Test-transport caveat: the probes use the test-only `?net=local` BroadcastChannel transport. Its synthesized connect falls back to `peer-unavailable` after 900 ms while the host page is inside a heavy `startMatch`, so the probes wait for the invited client to appear in the leader's lobby before pressing START (the normal flow). Production PeerJS cloud signaling does not use this synthetic timeout; real-WAN/cloud verification was not performed. No commit, push, PR, merge or deployment; changes remain uncommitted on `cypert/dev`.
+
+Fresh rerun (November 5, 2026): `CDP_URL=http://127.0.0.1:9337 node /tmp/hsz-party-acceptance.mjs` exited 0 with `ok:true` and zero browser errors, re-confirming code prefill/`?join` auto-join, friend mid-match JOIN (`w:"match"`, `join:{room:"JJHC"}`), team party, Squad Royale same-squad party, and party invite into an in-progress bot-filled match.
+
+Next action: optional real-network PeerJS cloud verification; no known blocker for this acceptance scope.
