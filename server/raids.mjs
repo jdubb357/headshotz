@@ -106,7 +106,10 @@ export class RaidService {
    for(const [dx,dz]of [[sign*1.5,1.5],[-sign*1.5,0],[0,-1.5],[sign*2.5,-1.5]]){const point=safePoint(map,leader.x+dx,leader.z+dz,{y:leader.y||0,avoid:friends,distance:1.1});if(point&&Math.hypot(point.x-leader.x,point.z-leader.z)<=6&&[...raid.players.values()].every(p=>!p.alive||p.team===team||Math.hypot(p.x-point.x,p.z-point.z)>=24)){at=point;break}}check(at,'No safe squad formation point');
   }
   check(!raid.players.has(account),'An operator cannot redeploy into a raid they already entered');raid.region=region;
-  const player={account,name:this.store.profile(account).username,requestId:request.requestId,deploymentId:deployment.id,raidId:raid.id,...at,vy:0,grounded:true,pitch:0,yaw:0,hp:100,alive:true,ammo:30,nextFire:0,lastInput:this.now(),lastMoveAt:this.now(),seq:0,receipts:[],
+  // Face the sector centre on insertion so operators see the authored district
+  // instead of the empty outer fringe.
+  const spawnYaw=Math.atan2(-at.x,-at.z);
+  const player={account,name:this.store.profile(account).username,requestId:request.requestId,deploymentId:deployment.id,raidId:raid.id,...at,vy:0,grounded:true,pitch:0,yaw:spawnYaw,hp:100,alive:true,ammo:30,nextFire:0,lastInput:this.now(),lastMoveAt:this.now(),seq:0,receipts:[],
    equipment:deployment.equipment,pack:[],secure:[],cap:deployment.recovery?8:18,weightCap:deployment.recovery?22:40,secureCap:deployment.recovery?1:2,move:{x:0,z:0},extracted:false,team,downed:false,bleedUntil:0,hurtAt:0,
    combatVersion:raid.combatVersion||1,wounds:{},facts:{explorations:[],machines:0,bosses:0},protectedUntil:this.now()+5};
   const weapon=player.equipment.find(it=>it.kind==='weapon');player.weaponId=weapon.id;weapon.loaded??=WEAPONS[weapon.weapon]?.mag||30;player.weapon=weaponStats(weapon);player.ammo=weapon.loaded;

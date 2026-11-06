@@ -1,5 +1,53 @@
 # Ralph progress — Issue #1 Extraction Raids
 
+## Extraction Raid living settlements — November 5, 2026
+
+Request: make the raid sectors read like a real abandoned world with inhabited-looking mini-towns, not scattered dressing on empty ground, while preserving every mode and raid rule.
+
+Acceptance criteria (recorded before implementation):
+1. Current deployments use a new v8 settlement layer; v7 dressed, v6 massive and v5 authored layouts remain frozen and retrievable for checkpoints.
+2. Every spawn approach is a compact, street-anchored settlement: paved road, sidewalks, at least 8 visible buildings, lit windows/lamps, vehicles, crates, and a gate or checkpoint. At least one additional town district per sector so settlements are not only at the map edge.
+3. New town assets render identically online and offline: roads/sidewalks/plazas, windows (dark and lit), awnings, street/power poles, benches, dumpsters, stalls, sandbags, pallets and vehicles. Visual props must not create phantom offline collision.
+4. Existing spawn/cache/extraction coordinates, ramps and authoritative collision rules stay unchanged; all caches and exits remain reachable from every spawn.
+5. Runtime evidence: headless Chrome deploys and renders all three sectors with zero console errors, plus screenshots showing settlement structures at first-person spawn.
+6. Existing modes and raid-only scoping unchanged.
+
+### Current status — verified November 5, 2026
+
+1. **Verified**: `RAID_WORLDS` is version 8 and deployments report `mapVersion: 8`; `getWorld(id,7)`, `6` and `5` return the frozen dressed/massive/authored layouts. `tests/raid-content-migration.test.mjs` and `tests/raid-worlds.test.mjs` pass.
+2. **Verified**: all 9 spawn anchors per sector now anchor a spawnTown settlement 84 m toward the sector-centre approach. Near each spawn settlement the shared data has 24–57 roof-tipped building blocks, 57–130 lit windows (106–212 total windows), 1–8 parked cars, 35–44 lamps and 10–21 checkpoints/sandbags/crates/barrels. Two extra interior `settlement(...,district=true)` towns per sector cover 14 lots each. Density: relay 4,340 blocks/3,890 props/1,852 windows, reservoir 3,981/4,165/1,814, switchyard 4,654/4,032–4,052/1,928; every sector keeps all 1,610/1,203/1,798 v7 blocks.
+3. **Verified**: `raid-environment.mjs` renders road/sidewalk/plaza/window/awning/powerPole/sandbag/checkpoint/lamp/bench/dumpster/sign tangibles; `maps.js` renders the same cases with `solid:false`/shared non-solid primitives, so offline vision matches online without adding phantom collision.
+4. **Verified**: `getWorld(id,7)` and `getWorld(id,8)` deep-equal spawns, caches, exits, ramps and world size (1,440 m); spawn/cache/exit route suites pass.
+5. **Verified**: `node tests/raid-browser-worlds.mjs` passes 3/3 consecutive runs (`{"maps":3,"jump":true,"touchAim":true,"rendered":true,"browserErrors":[]}`). The test now aims by touch before jumping and polls `/api/raid` from Node every 80 ms: a post-screenshot headless throttle otherwise hid the ~0.85 s jump arc from the in-page wait. Screenshots at `/tmp/headshotz-{relay,reservoir,switchyard}.png` show settlement buildings, lit windows, trees, lamps, roads and vehicles at first-person spawn.
+6. **Verified**: `tests/raid-browser-legacy.mjs` boots offline extra/BR/FFA with bots and zero browser errors, preserving legacy wallet/skin/weapon/upgrade data and the separate persistent raid economy; `tests/raid-browser-smoke.mjs` passes account/recovery/render/movement/reconnect with zero exceptions.
+
+Focused commands: `node --test tests/raid-worlds.test.mjs tests/raid-content-migration.test.mjs` (14 pass); `node --test tests/raid-cover.test.mjs tests/raid-sectors.test.mjs tests/raid-encounters.test.mjs tests/raid-pilot.test.mjs tests/raid-input.test.mjs` (663 pass); `node --test tests/*.test.*` (1,084 pass, 0 fail). Remaining limitation: visual/“real world” quality is subjective; objective coverage is density, per-spawn settlement statistics, unchanged routes and clean runtime. No known blocker.
+
+## Extraction Raid visual dressing — November 5, 2026
+
+Request: the Extraction Raid maps are plain, with no buildings, trees or assets; make them densely authored and dramatically populated while preserving every existing mode and raid rule.
+
+Acceptance criteria (recorded before implementation, objectively checkable):
+
+1. Current deployments use a new v7 authoring layer; v5 authored and v6 massive layouts stay frozen and retrievable for in-flight checkpoints.
+2. The layer adds authored compounds, ruins, container yards, outcrops, groves, tents, fires, vehicles and clutter across the sector, with deliberately denser wilderness. Coverage must include each spawn approach, landmark halo, satellite district and outer ground — not only the map centre.
+3. Existing spawn/cache/extraction coordinates and ramps remain unchanged; every cache and exit retains a reachable approach.
+4. The online environment renderer and the offline `maps.js` builder understand every new material (`concrete`, `planks`, `barrier`, `crate`, `rock`, `metal`, `container`, `roof`) and prop kind (`bush`, `rock`, `barrel`, `crate`, `tank`, `tent`, `campfire`, `car`, colored `tree` leaves).
+5. Runtime evidence: headless Chrome deploys and renders all three raid sectors with zero console errors.
+
+### Current status — verified
+
+- `shared/raid-worlds.mjs`: v7 dressing built deterministically from each sector seed. Counts versus frozen v6: relay 1,610 blocks/1,067 props (v6 114/90), reservoir 1,203/1,383 (v6 97/89), switchyard 1,798/1,139 (v6 111/91). Trees: 268/669/277. Every spawn gets four compound hamlets, trees, camp props, a floodlight and (relay/switchyard) an antenna; landmarks get a halo of warehouses/houses/sheds/containers/tank farms; satellites and groves fill open ground.
+- Collision queries now use a cached spatial block grid (`blockGrids`/`nearbyBlocks`), keeping dense-world pathfinding fast (relay path suite 0.84 s vs 45 s before).
+- `raid-environment.mjs`: palette and texture mapping updated, tree leaf colors honored, and prop cases added for bush/rock/barrel/crate/tank/tent/campfire/car.
+- `maps.js`: matching `planks` themes/texture, leaf colors, and visual-only dressing props so offline sectors do not invent phantom collision that the server does not have.
+- `server/raids.mjs`: initial deployment yaw points at the sector centre so the first view shows the dressed districts instead of the empty outer fringe.
+- Version compatibility at the time of v7: `RAID_WORLDS` was v7; `getWorld(id,6)` remains the frozen massive layout and `getWorld(id,5)` the authored 720 m layout. Current deployments are v8 (see above); unknown versions reject.
+- Tests passed: `node --test tests/raid-worlds.test.mjs` (10), `tests/raid-cover.test.mjs` (12), `tests/raid-sectors.test.mjs` + `tests/raid-encounters.test.mjs` (29 in that group, 41 total with cover), `tests/raid-pilot.test.mjs` + `tests/raid-content-migration.test.mjs` (619), and key raid regression suites (125). Syntax checks pass for all modified modules.
+- Runtime: `RAID_TEST_URL=http://127.0.0.1:8021 CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-worlds.mjs` reported `{"maps":3,"jump":true,"touchAim":true,"rendered":true,"browserErrors":[]}`; screenshots at `/tmp/headshotz-relay.png`, `/tmp/headshotz-reservoir.png`, `/tmp/headshotz-switchyard.png`. Browser smoke test also passes with zero exceptions.
+- Remaining limitation: accepted visual quality is subjective; the objective proxy is density, route preservation and clean runtime rendering. No known blocker.
+
+
 ## Issue #2 (ISSUES LIST) — acceptance criteria recorded before implementation
 
 Work item: fix all 8 problems listed in jdubb357/headshotz issue #2. Branch stays `cypert/dev`; commit and push to PR #4 was requested on October 31, 2026.

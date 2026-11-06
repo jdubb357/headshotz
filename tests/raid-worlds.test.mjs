@@ -21,15 +21,24 @@ test('old checkpoints retain their original world layout version',()=>{
 test('v2 roof landings remain archived while v3 keeps corrected landings',()=>{
  for(const old of ARCHIVED_RAID_WORLDS){const next=getWorld(old.id,3);assert.equal(getWorld(old.id,2),old);assert.equal(old.version,2);assert.equal(next.version,3);assert.notStrictEqual(next.blocks,old.blocks);for(const ramp of old.ramps.filter(r=>r.axis==='z'&&r.w===4&&r.d===16)){assert.ok(old.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+7&&w===7&&d===4&&h===.18));assert.ok(next.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+9&&w===7&&d===4&&h===.18))}}
 });
-test('new deployments use massive v6 sectors while v5 checkpoints keep their authored 720 m layout',()=>{
+test('new deployments use settlement v8 sectors while v7, v6 and v5 checkpoints keep their layouts',()=>{
  for(const world of RAID_WORLDS){
-  assert.equal(world.version,6);assert.equal(world.size,1440);assert.ok(world.blocks.length>=50);
+  assert.equal(world.version,8);assert.equal(world.size,1440);assert.ok(world.blocks.length>=50);
   assert.ok(Math.max(...world.spawns.flatMap(p=>p.map(Math.abs)))+0>=600,'spawns reach the massive sector edges');
   assert.ok(Math.max(...world.caches.flatMap(c=>[Math.abs(c[0]),Math.abs(c[2])]))+0>=450,'caches spread across the massive sector');
   assert.ok(world.ramps.length>0);assert.ok(world.exits.every(e=>Math.abs(e.x)>640||Math.abs(e.z)>640),'exits sit at the outer sector edge');
-  const previous=getWorld(world.id,5);assert.equal(previous.version,5);assert.equal(previous.size,720);assert.notStrictEqual(previous.blocks,world.blocks);
-  assert.deepEqual(previous.blocks.map(([x,z,w,d,h,base=0,kind])=>[x*2,z*2,w*2,d*2,h,base,kind]),world.blocks);
+  const v7=getWorld(world.id,7);assert.equal(v7.version,7);assert.equal(v7.size,1440);
+  for(const [x,z,w,d,h,base=0,kind='concrete']of v7.blocks)assert.ok(world.blocks.some(([bx,bz,bw,bd,bh,bb=0,bk='concrete'])=>bx===x&&bz===z&&bw===w&&bd===d&&bh===h&&bb===base&&bk===kind),'v8 retains every v7 dressing block');
+  assert.ok(world.blocks.length>v7.blocks.length,'v8 adds settlement buildings');
+  assert.ok(world.props.length>v7.props.length,'v8 adds roads, windows, lamps and street furniture');
+  for(const kind of ['road','sidewalk','plaza','window','lamp','powerPole','bench','dumpster','sandbag','checkpoint','awning'])assert.ok(world.props.some(p=>p.kind===kind),`v8 includes ${kind}`);
+  assert.ok(world.props.filter(p=>p.kind==='window').length>600,'settlements have a real facade window count');
+  assert.notStrictEqual(world.blocks,v7.blocks);
+  const v6=getWorld(world.id,6);assert.equal(v6.version,6);assert.equal(v6.size,1440);
+  const previous=getWorld(world.id,5);assert.equal(previous.version,5);assert.equal(previous.size,720);assert.notStrictEqual(previous.blocks,v6.blocks);
+  assert.deepEqual(previous.blocks.map(([x,z,w,d,h,base=0,kind])=>[x*2,z*2,w*2,d*2,h,base,kind]),v6.blocks);
   assert.equal(getWorld(world.id),world);
+  assert.equal(getWorld(world.id,7),v7);
   assert.equal(getWorld(world.id,4).version,4);assert.equal(getWorld(world.id,4).size,480);
  }
 });
