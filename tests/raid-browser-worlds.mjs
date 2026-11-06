@@ -20,16 +20,25 @@ try{
   await p.evaluate(`document.getElementById('map').value=${JSON.stringify(map)};document.getElementById('map').dispatchEvent(new Event('change'));document.getElementById('recovery').checked=true;document.getElementById('deploy').click()`);
   await p.wait("document.getElementById('play').style.display==='block' && document.body.getAttribute('aria-busy')==='false' && document.getElementById('hud').textContent.includes('HP')");
   const before=await p.evaluate("fetch('/api/raid').then(r=>r.json())");
-  assert.equal(before.mapVersion,5,'new deployments use the authored large-sector layout');
+  assert.equal(before.mapVersion,8,'new deployments use the settlement-sector layout');
   assert.ok(Array.isArray(before.machines),'machine snapshots are visibility-filtered');
-  await p.command('Input.dispatchKeyEvent',{type:'keyDown',code:'Space',key:' '});
-  await p.command('Input.dispatchKeyEvent',{type:'keyUp',code:'Space',key:' '});
-  await p.wait("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.y>.25)");
   const aimPoint=await p.evaluate("(()=>{for(let y=160;y<innerHeight-70;y+=35)for(let x=150;x<innerWidth-50;x+=35)if(document.elementFromPoint(x,y)?.id==='view'&&document.elementFromPoint(x+30,y-30)?.id==='view')return {x,y};return null})()");assert.ok(aimPoint,'A visible canvas area supports touch aiming');
   await p.command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[aimPoint]});
   await p.command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:aimPoint.x+30,y:aimPoint.y-30}]});
   await p.command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   await p.wait("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.pitch>.1)");
+  // Real Space binding: focus the canvas, then poll from Node because a
+  // headless page throttles timers/evaluation after the prior screenshot.
+  await p.command('Page.bringToFront');
+  await p.evaluate("window.focus();document.getElementById('view').focus()");
+  await p.command('Input.dispatchKeyEvent',{type:'keyDown',code:'Space',key:' '});
+  await p.command('Input.dispatchKeyEvent',{type:'keyUp',code:'Space',key:' '});
+  let jumpSeen=false;
+  for(let i=0;i<60&&!jumpSeen;i++){
+   jumpSeen=await p.evaluate("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.y>.25)");
+   if(!jumpSeen)await new Promise(r=>setTimeout(r,80));
+  }
+  assert.ok(jumpSeen,`Space jump lifts the operator on ${map}`);
   // Let the first animation render complete before inspecting pixels.
   await p.evaluate("Promise.race([new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Animation frames did not resume')),5000))])");
   const shot=await p.command('Page.captureScreenshot',{format:'png'});

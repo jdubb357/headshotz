@@ -266,14 +266,14 @@ DEFS.push(brDef({G,rng,_c}));export const BR_I=DEFS.length-1;export const BR_INF
 // offline map definitions, so peer/offline raids and online raids share one
 // 1,440 m x 1,440 m sector (2x the v5 authored footprint, 4x its area).
 const RAID_THEMES={
- industrial:{ground:['gravel',0x6c7469,.22],concrete:0x9ba0a0,brick:0x92968b,roof:0x354951,metal:0x748889,container:0x426a72,rock:0x6d6a60,crate:0x9c7b4d,barrier:0xc6ab65,
+ industrial:{ground:['gravel',0x6c7469,.22],concrete:0x9ba0a0,planks:0x8a6f52,brick:0x92968b,roof:0x354951,metal:0x748889,container:0x426a72,rock:0x6d6a60,crate:0x9c7b4d,barrier:0xc6ab65,
   fog:0xa9bacb,sky:[0x27436f,0x83b7da,0xffe4bf],hemi:[0xe4efff,0x5c615c,1.35],sun:[0xffedcf,1.75,[-.45,.62,-.5]]},
- wilderness:{ground:['forest',0x6c795b,.2],concrete:0x9d9d8f,brick:0x9a9a7e,roof:0x455f5b,metal:0x7e9292,container:0x716645,rock:0x8a8777,crate:0x8d7850,barrier:0x9c956c,
+ wilderness:{ground:['forest',0x6c795b,.2],concrete:0x9d9d8f,planks:0x82684e,brick:0x9a9a7e,roof:0x455f5b,metal:0x7e9292,container:0x716645,rock:0x8a8777,crate:0x8d7850,barrier:0x9c956c,
   fog:0xb3c6b0,sky:[0x27628b,0x8fc6d8,0xe6f1e9],hemi:[0xe7f3f0,0x627a54,1.3],sun:[0xfff2d6,1.7,[-.35,.7,-.55]]},
- settlement:{ground:['dirt',0x756a60,.24],concrete:0x9f9b95,brick:0xb08063,roof:0x50505b,metal:0x7e8a90,container:0x6d5751,rock:0x766f64,crate:0x9b744a,barrier:0xc4a86e,
+ settlement:{ground:['dirt',0x756a60,.24],concrete:0x9f9b95,planks:0x946f4f,brick:0xb08063,roof:0x50505b,metal:0x7e8a90,container:0x6d5751,rock:0x766f64,crate:0x9b744a,barrier:0xc4a86e,
   fog:0xcfae99,sky:[0x343f7a,0xe08e5c,0xffd9bc],hemi:[0xffe8d6,0x6b5546,1.35],sun:[0xffcf9e,1.8,[-.4,.6,-.55]]}
 };
-const RAID_TEX={concrete:'concrete',plaster:'concrete',brick:'brick',metal:'metal',rock:'rock',container:'metal',roof:'concrete',crate:'crate',barrier:'hazard'};
+const RAID_TEX={concrete:'concrete',plaster:'concrete',planks:'planks',brick:'brick',metal:'metal',rock:'rock',container:'metal',roof:'concrete',crate:'crate',barrier:'hazard'};
 function raidMaterial(theme,kind){const t=RAID_THEMES[theme]||RAID_THEMES.industrial;return{t,color:t[kind]??t.concrete,tex:RAID_TEX[kind]||'concrete'}}
 function raidRamp(B,ramp,t){
  const rise=Math.abs(ramp.to-ramp.from),count=Math.max(4,Math.ceil(rise/.34)),seg=ramp.w/count;
@@ -287,7 +287,17 @@ function raidProp(B,p,t){
  const x=p.x||0,z=p.z||0,y=p.y||0,s=p.scale||1;
  switch(p.kind){
   case 'floor':B.box(x,y,z,p.w||10,.03,p.d||10,p.color||t.ground[1],'tiles',{solid:false,shadow:false,us:.3});break;
-  case 'tree':B.tree(x,z,s);break;
+  case 'tree':B.tree(x,z,s,p.leaf);break;
+  // Dressing props are drawn for atmosphere only. The authoritative server
+  // collides with world.blocks; props must not add phantom obstacles offline.
+  case 'bush':{const c=p.color||0x3e9b4f;for(let i=0;i<3;i++)B.part('leaves',{g:G('ico',.7*s,1),p:[x+(i-1)*.55*s,y+.55*s,z+(i%2?-.35:.25)*s],s:[1.25,.85,1.1],c});break}
+  case 'rock':B.part('rock',{g:G('dode',1),p:[x,y+.55*s,z],s:[1.5*s*.6,.85*s*.6,1.2*s*.6],r:[0,(x*7+z)%3,0],c:p.color||0x8a8777});break;
+  case 'barrel':{const c=p.color||0x4b5344;B.part('metal',{g:G('cyl',.5*s,.5*s,1.3*s,12),p:[x,y+.65*s,z],c});B.part('metal',{g:G('cyl',.52*s,.52*s,.08*s,12),p:[x,y+1.3*s,z],c:_c.set(c).multiplyScalar(.6).getHex()});break}
+  case 'crate':B.part('crate',{g:G('box',1.15*s,1.1*s,1.15*s),p:[x,y+.55*s,z],c:p.color||0x9c7b4d});break;
+  case 'tank':{const c=p.color||0x748889;B.part('metal',{g:G('cyl',1.1*s,1.1*s,3*s,14),p:[x,y+1.5*s,z],c});B.part('metal',{g:G('cyl',1.1*s,1.1*s,.55*s,14),p:[x,y+3*s,z],c});B.part('metal',{g:G('box',2.5*s,.24*s,2.5*s),p:[x,y+.12*s,z],c:0x4d5f63});break}
+  case 'tent':B.part('plain',{g:G('cone',1.7*s,2.5*s,4),p:[x,y+1.22*s,z],c:p.color||0x8a9b7a});B.part('plain',{g:G('box',2.4*s,.06,2.4*s),p:[x,y+.02,z],c:0x5f6f5d});break;
+  case 'campfire':B.part('rock',{g:G('cyl',.75*s,.75*s,.16*s,10),p:[x,y+.08,z],c:0x5a4632});B.glow(x,y+.32,z,1.05*s,.08,.16*s,p.color||0xffb64d);B.glow(x,y+.42,z,.55*s,.55*s,.55*s,p.color||0xffb64d);break;
+  case 'car':{const c=p.color||0x647082,L=B.at(x,z,((x*3+z*7)|0)%4);L.box(0,y+.3,0,2.2*s,.9*s,1.1*s,c,'metal',{solid:false,shadow:false});L.box(-.1*s,y+1.1*s,0,.9*s,.55*s,.95*s,c,'metal',{solid:false,shadow:false});for(const a of[-.7*s,.7*s])for(const b of[-.5*s,.5*s])L.wheel(a,y+.25*s,b,.24*s,.2*s,0x222222);B.shadows.push([x,z,2.4*s,1.3*s]);break}
   case 'scrap':B.box(x,y+.45,z,1.8,.9,1.2,0x536368,'metal');B.barrel(x,z,0x977d58,y);break;
   case 'dish':B.cyl(x,y+1.2,z,2.8,.25,0xbdc5b6,'metal',{seg:18});B.box(x,y+1.35,z,.2,3,.2,0x415259,'metal');break;
   case 'turbine':B.cyl(x,y+1.1,z,1,2.2,0x7d8b87,'metal');for(let i=0;i<4;i++)B.box(x+Math.sin(i*Math.PI/2)*1.7,y+2.3,z+Math.cos(i*Math.PI/2)*1.7,.65,.18,3,0x424d52,'metal');break;
@@ -301,6 +311,15 @@ function raidProp(B,p,t){
   case 'antenna':B.cyl(x,y+7,z,.2,14,0x5f7075,'metal');B.box(x,y+12,z,2.4,.24,.24,0x26363b,'metal');B.glow(x,y+13,z,.7,.7,.7,0xdf6b4e);break;
   case 'wreck':B.wreck(x,z,0,0x6e4c38);break;
   case 'lamp':B.lamp(x,z,4.2,0);break;
+  case 'road':B.part(p.kind==='road'?'asphalt':p.kind==='sidewalk'?'concrete':'tiles',{g:G('box',p.w||20,.024,p.d||10),p:[x,y,z],r:[0,p.ry||0,0],c:p.kind==='road'?0x34393b:p.kind==='sidewalk'?0x9e9a90:0x7a7264});break;
+  case 'crosswalk':{const n=5,step=(p.w||20)/(n*2.2);for(let i=0;i<n;i++)B.part('concrete',{g:G('box',(p.w||20)/(n*3),.03,p.d||10),p:[x-(p.w||20)/2+step*(i+.5)*2.2,y,z],c:0xded7b5});break}
+  case 'window':{const w=p.w||.16,d=p.d||1.15,h=p.h||1.3;if(p.lit)B.glow(x,y+h/2,z,w,h,d,p.color||0xffd58b);else B.part('metal',{g:G('box',w,h,d),p:[x,y+h/2,z],c:0x11191d});break}
+  case 'awning':B.box(x,y,z,p.w||3,.14,p.d||2,p.color||0x8d382e,'metal',{solid:false,shadow:false});break;
+  case 'powerPole':B.cyl(x,y+3,z,.13,6,0x384349,'metal',{seg:6,solid:false,shadow:false});B.box(x,y+5.7,z,2.2,.16,.16,0x384349,'metal',{solid:false,shadow:false});for(const sx of[-.9,.9])B.part('metal',{g:G('sph',.13,6,4),p:[x+sx,y+6.1,z],c:0xd8d5c8});break;
+  case 'sandbag':{const c=0xb6a57a;for(const [a,d1]of[[0,0],[.38,.08],[.18,.24],[.55,.02]])B.box(x+a*s,y+d1*s,z+(a===.18? .24:0),.52*s,.28*s,.36*s,c,'concrete',{solid:false,shadow:false});break}
+  case 'checkpoint':B.box(x,y+1.15,z,3.4*s,2.3*s,2.4*s,0x77725f,'concrete',{solid:false,shadow:false});B.box(x,y+2.42*s,z,3.6*s,.16*s,2.6*s,0x2d3336,'metal',{solid:false,shadow:false});B.glow(x,y+2.32*s,z,.8*s,.16*s,.8*s,0xf0d18b);break;
+  case 'bench':B.box(x,y+.45,z,2.1,.12,.45,0xb07a45,'planks',{solid:false,shadow:false});B.box(x,y+.66,z-.18,2.1,.32,.08,0xb07a45,'planks',{solid:false,shadow:false});for(const sx of[-.8,.8])B.box(x+sx,y+.2,z,.08,.4,.4,0x31383c,'metal',{solid:false,shadow:false});break;
+  case 'dumpster':{const c=p.color||0x4e6550;B.box(x,y+.7*s,z,2.1*s,1.4*s,1.25*s,c,'metal',{solid:false,shadow:false});B.box(x,y+1.42*s,z,2.15*s,.1*s,1.3*s,0x333d3f,'metal',{solid:false,shadow:false});break}
   case 'sign':B.box(x,y,z,4,.5,.25,0x25373c,'metal');B.glow(x,y+.25,z,4.1,.12,.08,0xddbe7e);break;
   default:B.box(x,y,z,1.2,1.2,1.2,p.color||0x8d7850,'crate');
  }
