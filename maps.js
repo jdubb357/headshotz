@@ -283,8 +283,8 @@ function raidRamp(B,ramp,t){
   else B.box(ramp.x,0,ramp.z-ramp.d/2+ramp.d/count*(i+.5),ramp.w,Math.max(.12,level),ramp.d/count,t.metal,'metal');
  }
 }
-function raidProp(B,p,t){
- const x=p.x||0,z=p.z||0,y=p.y||0,s=p.scale||1;
+function raidProp(B,p,t,theme='industrial'){
+ const worldTheme=theme,x=p.x||0,z=p.z||0,y=p.y||0,s=p.scale||1;
  switch(p.kind){
   case 'floor':B.box(x,y,z,p.w||10,.03,p.d||10,p.color||t.ground[1],'tiles',{solid:false,shadow:false,us:.3});break;
   case 'tree':B.tree(x,z,s,p.leaf);break;
@@ -315,6 +315,18 @@ function raidProp(B,p,t){
   case 'crosswalk':{const n=5,step=(p.w||20)/(n*2.2);for(let i=0;i<n;i++)B.part('concrete',{g:G('box',(p.w||20)/(n*3),.03,p.d||10),p:[x-(p.w||20)/2+step*(i+.5)*2.2,y,z],c:0xded7b5});break}
   case 'window':{const w=p.w||.16,d=p.d||1.15,h=p.h||1.3;if(p.lit)B.glow(x,y+h/2,z,w,h,d,p.color||0xffd58b);else B.part('metal',{g:G('box',w,h,d),p:[x,y+h/2,z],c:0x11191d});break}
   case 'awning':B.box(x,y,z,p.w||3,.14,p.d||2,p.color||0x8d382e,'metal',{solid:false,shadow:false});break;
+  case 'field':B.part(worldTheme==='wilderness'?'forest':'dirt',{g:G('box',p.w||20,.02,p.d||20),p:[x,y+.01,z],r:[0,p.ry||0,0],c:p.color||(worldTheme==='wilderness'?0x5d7248:0x6d745f)});break;
+  case 'fence':{const ry=p.ry||0,fw=p.w||6,fd=p.d||.2,horiz=fw>=fd,len=Math.max(fw,fd),thick=Math.min(fw,fd),c=p.color||0x7e8a90;
+   for(const hh of[.55,1.15])B.part('metal',{g:G('box',horiz?len:thick,.1,horiz?thick:len),p:[x,y+hh,z],r:[0,ry,0],c});const posts=Math.max(2,Math.round(len/3)+1);
+   for(let i=0;i<posts;i++){const t=(i/(posts-1)-.5)*len,px=x+(horiz?Math.cos(ry)*t:-Math.sin(ry)*t),pz=z+(horiz?-Math.sin(ry)*t:Math.cos(ry)*t);B.part('metal',{g:G('box',.14,1.6,.14),p:[px,y+.8,pz],c})}break}
+  case 'hedge':B.part('forest',{g:G('box',p.w||2,1.05,p.d||2),p:[x,y+.52,z],r:[0,p.ry||0,0],c:p.color||0x4b7046});B.part('dirt',{g:G('box',(p.w||2)*.92,.18,(p.d||2)*.92),p:[x,y+.09,z],r:[0,p.ry||0,0],c:0x3d5c3a});break;
+  case 'billboard':{const c=p.color||0x6e8a7d;for(const sx of[-1,1])B.part('metal',{g:G('box',.22,4.4,.22),p:[x+sx*2.1,y+2.2,z],c:0x384349});
+   B.part('metal',{g:G('box',5.6,.28,1),p:[x,y+4.6,z],c:0x2b3539});B.part('plain',{g:G('box',5.2,2.8,.24),p:[x,y+3.1,z],c});if(p.name)B.glow(x,y+3.1,z,4.9,2.5,.3,0xcfb87c);break}
+  case 'truck':{const c=p.color||0x55606b;B.part('metal',{g:G('box',5.4*s,1.2*s,2.4*s),p:[x-.4*s,y+.35*s+s*.3,z],c:0x22282b});B.part('metal',{g:G('box',1.6*s,1.6*s,2.2*s),p:[x+2.2*s,y+.55*s+s*.3,z],c});for(const sx of[-1.8,.6,2.2])for(const sz of[-.9,.9])B.part('metal',{g:G('cyl',.28*s,.28*s,.55*s,8),p:[x+sx*s,y+.28*s+s*.3,z+sz*s*.8],r:[Math.PI/2,0,0],c:0x1f2420});break}
+  case 'pallet':{const c=0xb08c5a;for(let i=0;i<3;i++)B.part('planks',{g:G('box',1.4*s,.08,1.05*s),p:[x,y+.12+i*.22+s*.3,z],c});for(const px of[-.55,.55])B.part('planks',{g:G('box',1.35*s,.12,1.05*s),p:[x+px*s,y+.02+s*.3,z],c:0x8a6a45});break}
+  case 'hay':B.part('planks',{g:G('box',1.9*s,1.2*s,1.2*s),p:[x,y+.6*s+s*.3,z],c:0xb69a56});for(const yy of[.2,.55,.9])B.part('planks',{g:G('box',1.94*s,.06,1.24*s),p:[x,y+yy*s+s*.3,z],c:0x937a3d});break;
+  case 'planter':{const w=p.w||3*s,d=p.d||1.4*s;B.part('brick',{g:G('box',w,.56,d),p:[x,y+.28,z],r:[0,p.ry||0,0],c:0x7c6152});B.part('forest',{g:G('box',w*.82,.7,d*.82),p:[x,y+.6,z],r:[0,p.ry||0,0],c:0x4b7046});break}
+  case 'stall':{const c=p.color||0xff6b6b;B.part('planks',{g:G('box',2.8*s,.9*s,1.2*s),p:[x,y+.5*s+s*.3,z],c:0x8a603a});for(const sx of[-1.25,1.25])for(const sz of[-.5,.5])B.part('planks',{g:G('box',.1,2.4*s,.1),p:[x+sx*s,y+1.2*s+s*.3,z+sz*s],c:0x6b4423});B.part('hazard',{g:G('box',3.2*s,.12,1.8*s),p:[x,y+2.35*s+s*.3,z],c});break}
   case 'powerPole':B.cyl(x,y+3,z,.13,6,0x384349,'metal',{seg:6,solid:false,shadow:false});B.box(x,y+5.7,z,2.2,.16,.16,0x384349,'metal',{solid:false,shadow:false});for(const sx of[-.9,.9])B.part('metal',{g:G('sph',.13,6,4),p:[x+sx,y+6.1,z],c:0xd8d5c8});break;
   case 'sandbag':{const c=0xb6a57a;for(const [a,d1]of[[0,0],[.38,.08],[.18,.24],[.55,.02]])B.box(x+a*s,y+d1*s,z+(a===.18? .24:0),.52*s,.28*s,.36*s,c,'concrete',{solid:false,shadow:false});break}
   case 'checkpoint':B.box(x,y+1.15,z,3.4*s,2.3*s,2.4*s,0x77725f,'concrete',{solid:false,shadow:false});B.box(x,y+2.42*s,z,3.6*s,.16*s,2.6*s,0x2d3336,'metal',{solid:false,shadow:false});B.glow(x,y+2.32*s,z,.8*s,.16*s,.8*s,0xf0d18b);break;
@@ -336,12 +348,12 @@ function raidMassiveDef(world){
     B.box(0,.02,0,axis==='x'?size-8:7,.02,axis==='z'?size-8:7,0x3e4546,'asphalt',{solid:false,shadow:false});
     for(let i=-size/2+8;i<size/2;i+=12)B.box(axis==='x'?i:0,.035,axis==='z'?i:0,axis==='x'?4:.14,.015,axis==='z'?4:.14,0xc8ba79,'plain',{solid:false,shadow:false});
    }
-   for(const [x,z,w,d,h,base=0,kind='concrete']of world.blocks){
+   for(const [x,z,w,d,h,base=0,kind='concrete',tint]of world.blocks){
     const m=raidMaterial(world.theme,kind);
-    B.box(x,base,z,w,h,d,m.color,m.tex,{us:kind==='container'?.4:.22,gy:base});
+    B.box(x,base,z,w,h,d,tint??m.color,m.tex,{us:kind==='container'?.4:.22,gy:base});
    }
    for(const ramp of world.ramps||[])raidRamp(B,ramp,t);
-   for(const prop of world.props||[])raidProp(B,prop,t);
+   for(const prop of world.props||[])raidProp(B,prop,t,world.theme);
    for(const lm of world.landmarks||[]){B.glow(lm.x,2.8,lm.z,3,.12,3,0xffd23f);B.box(lm.x,0,lm.z,.28,2.8,.28,0x2b2f3a,'metal')}
    for(let i=0;i<24;i++){const a=i/24*Math.PI*2,r=size/2-8,x=Math.sin(a)*r,z=Math.cos(a)*r;
     B.cyl(x,0,z,.4,3.4,0x4a555c,'metal',{seg:6,shadow:false});B.glow(x,3.3,z,.9,.2,.9,0xffa43a)}

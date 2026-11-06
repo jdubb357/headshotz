@@ -21,26 +21,41 @@ test('old checkpoints retain their original world layout version',()=>{
 test('v2 roof landings remain archived while v3 keeps corrected landings',()=>{
  for(const old of ARCHIVED_RAID_WORLDS){const next=getWorld(old.id,3);assert.equal(getWorld(old.id,2),old);assert.equal(old.version,2);assert.equal(next.version,3);assert.notStrictEqual(next.blocks,old.blocks);for(const ramp of old.ramps.filter(r=>r.axis==='z'&&r.w===4&&r.d===16)){assert.ok(old.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+7&&w===7&&d===4&&h===.18));assert.ok(next.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+9&&w===7&&d===4&&h===.18))}}
 });
-test('new deployments use settlement v8 sectors while v7, v6 and v5 checkpoints keep their layouts',()=>{
+test('new deployments use full-sector v9 districts while archived checkpoints keep their layouts',()=>{
+ const clusterCenters=[-600,-360,-120,120,360,600],propKinds=new Set();
  for(const world of RAID_WORLDS){
-  assert.equal(world.version,8);assert.equal(world.size,1440);assert.ok(world.blocks.length>=50);
+  for(const p of world.props)propKinds.add(p.kind);
+  assert.equal(world.version,9);assert.equal(world.size,1440);assert.ok(world.blocks.length>=50);
   assert.ok(Math.max(...world.spawns.flatMap(p=>p.map(Math.abs)))+0>=600,'spawns reach the massive sector edges');
   assert.ok(Math.max(...world.caches.flatMap(c=>[Math.abs(c[0]),Math.abs(c[2])]))+0>=450,'caches spread across the massive sector');
   assert.ok(world.ramps.length>0);assert.ok(world.exits.every(e=>Math.abs(e.x)>640||Math.abs(e.z)>640),'exits sit at the outer sector edge');
+  const v8=getWorld(world.id,8);assert.equal(v8.version,8);assert.equal(v8.size,1440);
+  assert.deepEqual(world.blocks.slice(0,v8.blocks.length),v8.blocks,'v9 retains the entire frozen v8 settlement layer');
+  assert.ok(world.blocks.length>=v8.blocks.length*1.6,`v9 adds district buildings (${world.blocks.length} vs ${v8.blocks.length})`);
+  assert.ok(world.props.length>=v8.props.length*1.4,`v9 adds district props (${world.props.length} vs ${v8.props.length})`);
+  assert.ok(world.props.filter(p=>p.kind==='window').length>1000,'v9 districts have a dense facade window count');
+  for(const kind of ['road','sidewalk','window','lamp','powerPole','fence'])assert.ok(world.props.some(p=>p.kind===kind),`${world.id} has a readable street layer with ${kind}`);
+  const addedBlocks=world.blocks.slice(v8.blocks.length);
+  assert.ok(addedBlocks.filter(([, , , , ,base=0])=>base===0).length>=30,`v9 authors at least 30 ground structures in ${world.id}`);
+  for(const cx of clusterCenters)for(const cz of clusterCenters){
+   const cell=addedBlocks.filter(([x,z])=>x>=cx-120&&x<cx+120&&z>=cz-120&&z<cz+120);
+   assert.ok(cell.some(([,,,,,base=0])=>base===0),`${world.id} cell ${cx},${cz} is an authored district with ground-block geometry`);
+  }
   const v7=getWorld(world.id,7);assert.equal(v7.version,7);assert.equal(v7.size,1440);
-  for(const [x,z,w,d,h,base=0,kind='concrete']of v7.blocks)assert.ok(world.blocks.some(([bx,bz,bw,bd,bh,bb=0,bk='concrete'])=>bx===x&&bz===z&&bw===w&&bd===d&&bh===h&&bb===base&&bk===kind),'v8 retains every v7 dressing block');
-  assert.ok(world.blocks.length>v7.blocks.length,'v8 adds settlement buildings');
-  assert.ok(world.props.length>v7.props.length,'v8 adds roads, windows, lamps and street furniture');
-  for(const kind of ['road','sidewalk','plaza','window','lamp','powerPole','bench','dumpster','sandbag','checkpoint','awning'])assert.ok(world.props.some(p=>p.kind===kind),`v8 includes ${kind}`);
-  assert.ok(world.props.filter(p=>p.kind==='window').length>600,'settlements have a real facade window count');
-  assert.notStrictEqual(world.blocks,v7.blocks);
+  for(const [x,z,w,d,h,base=0,kind='concrete']of v7.blocks)assert.ok(v8.blocks.some(([bx,bz,bw,bd,bh,bb=0,bk='concrete'])=>bx===x&&bz===z&&bw===w&&bd===d&&bh===h&&bb===base&&bk===kind),'v8 retains every v7 dressing block');
+  assert.ok(v8.blocks.length>v7.blocks.length,'v8 adds settlement buildings');
+  assert.ok(v8.props.length>v7.props.length,'v8 adds roads, windows, lamps and street furniture');
+  assert.ok(world.props.length>v8.props.length,'v9 adds district roads, fields and street furniture');
+  assert.notStrictEqual(world.blocks,v8.blocks);assert.notStrictEqual(world.props,v8.props);
   const v6=getWorld(world.id,6);assert.equal(v6.version,6);assert.equal(v6.size,1440);
   const previous=getWorld(world.id,5);assert.equal(previous.version,5);assert.equal(previous.size,720);assert.notStrictEqual(previous.blocks,v6.blocks);
   assert.deepEqual(previous.blocks.map(([x,z,w,d,h,base=0,kind])=>[x*2,z*2,w*2,d*2,h,base,kind]),v6.blocks);
   assert.equal(getWorld(world.id),world);
   assert.equal(getWorld(world.id,7),v7);
+  assert.equal(getWorld(world.id,8),v8);
   assert.equal(getWorld(world.id,4).version,4);assert.equal(getWorld(world.id,4).size,480);
  }
+ for(const kind of ['field','fence','hedge','billboard','truck','pallet','hay','planter','stall'])assert.ok(propKinds.has(kind),`the v9 district layer uses a ${kind} prop`);
 });
 test('navigation cache invalidates when geometry changes',()=>{
  const world={version:3,size:20,blocks:[],ramps:[]},from={x:-5,y:0,z:0},to={x:5,y:0,z:0};assert.ok(findPath(world,from,to).length);world.blocks.push([0,0,2,20,4]);assert.equal(findPath(world,from,to).length,0);world.blocks.pop();assert.ok(findPath(world,from,to).length);

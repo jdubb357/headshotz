@@ -18,11 +18,11 @@ export const LEGACY_RAID_WORLDS=[
 function authored(id,name,theme){return {id,name,theme,version:2,size:160,blocks:[],ramps:[],props:[],landmarks:[],hazards:[],caches:[],cacheMeta:[],
  spawns:[[-68,-68],[0,-68],[68,-68],[68,-20],[68,38],[38,68],[-20,68],[-68,38],[-68,-20]],
  exits:[{id:'call',x:-70,y:0,z:0,kind:'call',name:'West evacuation beacon'},{id:'transport',x:48,y:0,z:70,kind:'timed',name:'South cargo lift'},{id:'hatch',x:0,y:0,z:-70,kind:'key',name:'North maintenance hatch'},{id:'freight',x:70,y:0,z:-48,kind:'resource',name:'Emergency freight winch'}],supply:{x:0,y:0,z:46}}}
-function box(m,x,z,w,d,h,y=0,material='concrete'){m.blocks.push([x,z,w,d,h,y,material])}
-function room(m,x,z,w,d,h,doors=['n','s'],wallKind='brick',roofKind='roof'){
+function box(m,x,z,w,d,h,y=0,material='concrete',color=undefined){m.blocks.push(color==null?[x,z,w,d,h,y,material]:[x,z,w,d,h,y,material,color])}
+function room(m,x,z,w,d,h,doors=['n','s'],wallKind='brick',roofKind='roof',tint=undefined){
  for(const side of ['n','s','e','w']){
   const horizontal=side==='n'||side==='s',length=horizontal?w:d,sign=side==='n'||side==='w'?-1:1;
-  const wall=(offset,size,height,base=0)=>box(m,x+(horizontal?offset:sign*w/2),z+(horizontal?sign*d/2:offset),horizontal?size:.45,horizontal?.45:size,height,base,wallKind);
+  const wall=(offset,size,height,base=0)=>box(m,x+(horizontal?offset:sign*w/2),z+(horizontal?sign*d/2:offset),horizontal?size:.45,horizontal?.45:size,height,base,wallKind,tint);
   if(doors.includes(side)){const segment=(length-3.4)/2;for(const s of [-1,1])wall(s*(length+3.4)/4,segment,h);wall(0,3.4,h-2.8,2.8)}
   else{wall(0,length,1.1);wall(0,length,h-2.2,2.2);for(let a=-length/2;a<=length/2;a+=3)wall(a,.45,h)}
  }
@@ -123,25 +123,25 @@ function rooftop(m,x,z,w,d,h,R){
  if(R()<.55)box(m,x+(R()-.5)*w*.6,z+(R()-.5)*d*.6,.22,4+R()*4,.22,h+.22,'metal');
  if(R()<.35)box(m,x+(R()-.5)*w*.7,z+(R()-.5)*d*.2,2.4,.18,.18,h+.24,'metal');
 }
-function warehouse(m,x,z,R){
+function warehouse(m,x,z,R,tint=undefined){
  const w=32+Math.round(R()*22),d=22+Math.round(R()*14),h=6+Math.round(R()*4);
  if(!clearFootprint(m,x,z,w,d,7))return false;
- room(m,x,z,w,d,h,R()<.5?['n','s']:['e','w'],'concrete','roof');rooftop(m,x,z,w,d,h,R);
+ room(m,x,z,w,d,h,R()<.5?['n','s']:['e','w'],'concrete','roof',tint);rooftop(m,x,z,w,d,h,R);
  for(let i=0;i<2+Math.round(R()*3);i++)box(m,x+(R()-.5)*w*.55,z+(R()-.5)*d*.55,1.6,1.6,1.1,.02,'crate');
  return true;
 }
-function house(m,x,z,R,wallKind='brick',roofKind='roof'){
+function house(m,x,z,R,wallKind='brick',roofKind='roof',tint=undefined){
  const w=14+Math.round(R()*12),d=12+Math.round(R()*8),h=3.6+Math.round(R()*2.4);
  if(!clearFootprint(m,x,z,w,d,6))return false;
- room(m,x,z,w,d,h,R()<.5?['s']:['n','e'],wallKind,roofKind);
+ room(m,x,z,w,d,h,R()<.5?['s']:['n','e'],wallKind,roofKind,tint);
  if(R()<.55)box(m,x+(R()-.5)*w*.35,z+d*.28,1.1,1.1,2.6,h+.22,'brick');
  return true;
 }
-function ruin(m,x,z,R,wallKind='brick'){
+function ruin(m,x,z,R,wallKind='brick',tint=undefined){
  const w=12+Math.round(R()*18),d=8+Math.round(R()*14),h=2+Math.round(R()*1.5);
  if(!clearFootprint(m,x,z,w,d,5))return false;
- box(m,x-w/3,z-d/2,w/3,.42,h,0,wallKind);box(m,x+w/4,z-d/2,w/3,.42,h-.4,0,wallKind);
- box(m,x-w/2,z+d*.15,.42,d*.55,h-.6,0,wallKind);
+ box(m,x-w/3,z-d/2,w/3,.42,h,0,wallKind,tint);box(m,x+w/4,z-d/2,w/3,.42,h-.4,0,wallKind,tint);
+ box(m,x-w/2,z+d*.15,.42,d*.55,h-.6,0,wallKind,tint);
  if(R()<.7)box(m,x+(R()-.5)*w*.4,z+(R()-.5)*d*.3,1.4+R()*2,1.2+R()*2,.5+R()*.8,0,'rock');
  return true;
 }
@@ -157,10 +157,10 @@ function containers(m,x,z,R){
  if(placed)box(m,x,z,cols*gx*.92,.32,rows*gz*.92,0,'barrier');
  return placed>1;
 }
-function shed(m,x,z,R,wallKind='metal',roofKind='metal'){
+function shed(m,x,z,R,wallKind='metal',roofKind='metal',tint=undefined){
  const w=12+Math.round(R()*10),d=10+Math.round(R()*8),h=3.2+Math.round(R()*2);
  if(!clearFootprint(m,x,z,w,d,5))return false;
- room(m,x,z,w,d,h,['s'],wallKind,roofKind);return true;
+ room(m,x,z,w,d,h,['s'],wallKind,roofKind,tint);return true;
 }
 function outcrop(m,x,z,R){
  const w=6+Math.round(R()*18),d=5+Math.round(R()*14),h=1.5+Math.round(R()*2.2);
@@ -443,6 +443,326 @@ function urbanizeWorld(world,seed){
  return m;
 }
 
+// ---------------------------------------------------------------------------
+// Version 9: full-sector district fabric. Version 8 turned spawn approaches
+// into street settlements, but most of the 1,440 m ground plane between them
+// still read as bare concrete. Version 9 fills every 240 m cell with authored
+// neighbourhoods and threads a road grid through the sector. Blocks are real
+// collision geometry (the server and offline builder cannot disagree); roads,
+// fences, fields, furniture and vegetation stay visual props.
+// ---------------------------------------------------------------------------
+function wallKindFor(theme,R){
+ const kinds=theme==='wilderness'?['planks','planks','brick']:theme==='settlement'?['brick','brick','concrete','planks']:['concrete','metal','brick','concrete'];
+ return kinds[Math.floor(R()*kinds.length)];
+}
+const BUILDING_TINTS={
+ industrial:[0xbfc3ba,0xa8b0ae,0xd0c7b4,0x9eaaa4,0xb99e7c,0x8e9a96,0xc7b49a],
+ wilderness:[0xa98f69,0xbb9b70,0x8c7a56,0xc0a379,0x9a865f,0x8a704f],
+ settlement:[0xc08862,0xb99673,0xd1a47b,0xaa8067,0xbfa088,0x9f8a74,0xc5b29a]
+};
+const ROOF_TINTS={
+ industrial:[0x3f4b4e,0x505a58,0x5e5d4c,0x465d5b],
+ wilderness:[0x4f5847,0x5f5f4c,0x6c5d49,0x45584a],
+ settlement:[0x53545e,0x6a5b50,0x5f6672,0x7a6b5c,0x4d4948]
+};
+function tintFor(theme,x,z){
+ const list=BUILDING_TINTS[theme]||BUILDING_TINTS.industrial;
+ return list[Math.round(Math.abs((x*7+z*13+(x+z)*3)))%list.length];
+}
+function roofTintFor(theme,x,z){
+ const list=ROOF_TINTS[theme]||ROOF_TINTS.industrial;
+ return list[Math.round(Math.abs((x*11+z*5+(x-z)*7)))%list.length];
+}
+function facadeWindows(m,x,z,w,d,base,h,R,axis,side,litChance=.5){
+ const first=base+1.2,last=base+h-1,colors=[0xffd58b,0xffc36f,0xffe8b0,0xcfe4ff];
+ const along=axis==='z'?w:d,n=Math.max(1,Math.min(3,Math.floor(along/6)));
+ for(let y=first;y<=last;y+=2.6)for(let i=0;i<n;i++){
+  const t=n===1?0:(i-(n-1)/2)*(along*.7/(n-1)),lit=R()<litChance,color=colors[Math.floor(R()*colors.length)];
+  if(axis==='z')m.props.push({kind:'window',x:x+t,y:y-.65,z:z+side*(d/2+.3),w:1.2,d:.16,h:1.35,lit,color});
+  else m.props.push({kind:'window',x:x+side*(w/2+.3),y:y-.65,z:z+t,w:.16,d:1.2,h:1.35,lit,color});
+ }
+}
+function fenceSegment(m,x,z,w,d,ry=0,color=0x7e8a90){m.props.push({kind:'fence',x,z,y:0,w,d,ry,color})}
+function hedgeSegment(m,x,z,w,d,ry=0,color=0x4b7046){m.props.push({kind:'hedge',x,z,y:0,w,d,ry,color})}
+function fieldPatch(m,x,z,w,d,color){m.props.push({kind:'field',x,z,y:.018,w,d,color:color??(m.theme==='wilderness'?0x5d7248:0x6d745f)})}
+function hayProp(m,x,z,scale=1){m.props.push({kind:'hay',x,z,y:0,scale})}
+function billboardProp(m,x,z,name,color=0x6e8a7d){m.props.push({kind:'billboard',name,x,y:0,z,color})}
+function truckProp(m,x,z,R,color){m.props.push({kind:'truck',x,z,y:0,scale:.8+R()*.5,color:color??[0x55606b,0x7a5d40,0x4c6b55,0x8b7048][Math.floor(R()*4)]})}
+function palletProp(m,x,z,scale=1){m.props.push({kind:'pallet',x,z,y:0,scale})}
+function binProp(m,x,z,scale=1,color=0x4e6550){m.props.push({kind:'dumpster',x,z,y:0,scale,color})}
+function addUnit(m,cx,cz,w,d,R,theme,height){
+ // Mixed heights make the district skyline read as a town rather than a row of
+ // identical flat boxes: shops/stables, mid-rise blocks and the occasional
+ // taller apartment or silo.
+ const h=height??(R()<.22?10+R()*7.5:R()<.45?7.4+R()*2.2:4.4+R()*2.2);
+ if(!clearFootprint(m,cx,cz,w,d,2.5))return false;
+ const wall=wallKindFor(theme,R),tint=tintFor(theme,cx,cz);
+ box(m,cx,cz,w,d,h,0,wall,tint);
+ box(m,cx,cz,w+.7,d+.7,.24,h,'roof',roofTintFor(theme,cx,cz));
+ facadeWindows(m,cx,cz,w,d,0,h,R,'z',1,.45);
+ facadeWindows(m,cx,cz,w,d,0,h,R,'z',-1,.4);
+ facadeWindows(m,cx,cz,w,d,0,h,R,'x',1,.35);
+ rooftop(m,cx,cz,w,d,h,R);
+ return true;
+}
+function rowHouses(m,cx,cz,units,R,theme,horiz=true){
+ const uw=8+Math.floor(R()*4),depth=12+Math.floor(R()*4);
+ const totalW=horiz?units*uw:depth,totalD=horiz?depth:units*uw;
+ const wall=wallKindFor(theme,R),h=R()<.35?7.2+R()*1.8:4.6+R()*2.2;
+ if(!clearFootprint(m,cx,cz,totalW,totalD,2))return 0;
+ for(let i=0;i<units;i++){
+  const x=horiz?cx+(i-(units-1)/2)*uw:cx,z=horiz?cz:cz+(i-(units-1)/2)*uw;
+  const uW=horiz?uw:depth,uD=horiz?depth:uw;
+  box(m,x,z,uW-.2,uD-.2,h,0,wall,tintFor(theme,x,z));
+  facadeWindows(m,x,z,uW-.2,uD-.2,0,h,R,horiz?'z':'x',1,.55);
+  facadeWindows(m,x,z,uW-.2,uD-.2,0,h,R,horiz?'z':'x',-1,.5);
+  if(R()<.22){
+   if(horiz)m.props.push({kind:'awning',x,y:2.2,z:z+(uD/2+.55),w:uW*.82,d:1.2,color:R()<.5?0x8d382e:0x41625c});
+   else m.props.push({kind:'awning',x:x+(uW/2+.55),y:2.2,z,w:1.2,d:uD*.82,color:R()<.5?0x8d382e:0x41625c});
+  }
+  if(R()<.12){
+   const name=TOWN_NAMES[m.id][Math.floor(R()*TOWN_NAMES[m.id].length)];
+   if(horiz)m.props.push({kind:'sign',name,x,y:3,z:z+uD/2+.42});
+   else m.props.push({kind:'sign',name,x:x+uW/2+.42,y:3,z});
+  }
+ }
+ box(m,cx,cz,totalW+.7,totalD+.7,.24,h,'roof',roofTintFor(theme,cx,cz));
+ rooftop(m,cx,cz,totalW,totalD,h,R);
+ return units;
+}
+function residentialCell(m,cx,cz,R){
+ fieldPatch(m,cx,cz,30,30,0x6f755c);
+ for(const row of [[0,-48,4+Math.round(R()*2),true],[0,48,4+Math.round(R()*2),true],[-48,0,3+Math.round(R()*2),false],[48,0,3+Math.round(R()*2),false]])rowHouses(m,cx+row[0],cz+row[1],row[2],R,'settlement',row[3]);
+ for(const [dx,dz] of [[-82,-82],[82,-82],[-82,82],[82,82],[0,-92],[0,92]])if(R()<.8)addUnit(m,cx+dx,cz+dz,14+R()*9,12+R()*7,R,'settlement');
+ for(const [dx,dz] of [[-72,-72],[72,-72],[-72,72],[72,72],[0,74],[0,-74]])if(R()<.9)addUnit(m,cx+dx,cz+dz,12+R()*8,11+R()*7,R,'settlement');
+ addUnit(m,cx-84,cz+4,11+R()*6,10+R()*5,R,'settlement');addUnit(m,cx+84,cz-4,11+R()*6,10+R()*5,R,'settlement');
+ // Keep the district fabric dense out to the cell edges instead of leaving a
+ // bare ring between neighbourhoods.
+ for(const [dx,dz] of [[-96,0],[96,0],[0,-96],[0,96],[-96,-96],[96,-96],[-96,96],[96,96]])if(R()<.86)addUnit(m,cx+dx,cz+dz,12+R()*7,11+R()*6,R,'settlement');
+ if(R()<.35)m.props.push({kind:'basin',x:cx+3,y:.02,z:cz,w:20,d:13,color:0x4d7d86});
+ for(const dx of [-26,26])for(const dz of [-22,22])if(R()<.4)m.props.push({kind:'bench',x:cx+dx,z:cz+dz,y:0,scale:.9});
+ for(let i=0;i<7;i++){
+  const a=R()*Math.PI*2,r=16+R()*24,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r,roll=R();
+  if(roll<.32)m.props.push({kind:'bench',x,z,y:0,scale:1});
+  else if(roll<.58)m.props.push({kind:'planter',x,z,y:0,scale:.8+R()*.4});
+  else if(roll<.75)m.props.push({kind:'tent',x,z,y:0,scale:.72+R()*.3,color:0x8a9b7a});
+  else binProp(m,x,z,.7+R()*.3,0x4e6550);
+ }
+ for(let i=0;i<3;i++){const side=i%2?-1:1,x=cx+side*(52+R()*44),z=cz+(R()*2-1)*70;if(clearFootprint(m,x,z,1.4,2.8,1))m.props.push({kind:'car',x,z,y:0,scale:.7+R()*.4,color:_car(R)})}
+ for(let i=0;i<4;i++){const side=i<2?-1:1;if(i%2)fenceSegment(m,cx+side*64,cz+(R()*2-1)*30,4,18,Math.PI/2,0x7b858c);else fenceSegment(m,cx+(R()*2-1)*30,cz+side*64,18,4,0,0x7b858c)}
+ for(let i=0;i<9;i++){const a=R()*Math.PI*2,r=26+R()*32,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r;if(R()<.45)hedgeSegment(m,x,z,2.4+R()*2.4,2.2,0,0x477045);else addTree(m,x,z,R,[0x556b4f,0x6d835f,0x47583d])}
+}
+function industrialCell(m,cx,cz,R){
+ warehouse(m,cx-28,cz-40,R,tintFor('industrial',cx-28,cz-40));shed(m,cx+40,cz-38,R,'metal','metal',tintFor('industrial',cx+40,cz-38));containers(m,cx-42,cz+38,R);containers(m,cx+42,cz+40,R);
+ const fw=30+Math.round(R()*16),fd=20+Math.round(R()*12),fh=7+Math.round(R()*4),fx=cx+15,fz=cz-4;
+ if(clearFootprint(m,fx,fz,fw,fd,3)){
+  box(m,fx,fz,fw,fd,fh,0,'concrete',tintFor('industrial',fx,fz));box(m,fx,fz,fw+.8,fd+.8,.28,fh,'roof',roofTintFor('industrial',fx,fz));
+  facadeWindows(m,fx,fz,fw,fd,0,fh,R,'z',1,.3);facadeWindows(m,fx,fz,fw,fd,0,fh,R,'z',-1,.25);
+  rooftop(m,fx,fz,fw,fd,fh,R);
+  m.props.push({kind:'floor',x:fx,y:.02,z:fz+fd/2+9,w:fw*.9,d:12,color:0x7b807a});
+ }
+ cratePile(m,cx+18,cz+24,R);cratePile(m,cx-62,cz-4,R);cratePile(m,cx-2,cz+64,R);
+ m.props.push({kind:'tank',x:cx+58,y:0,z:cz-6,scale:.9+R()*.5,color:0x7f8b84});
+ m.props.push({kind:'tank',x:cx-58,y:0,z:cz+58,scale:.8+R()*.4,color:0x6b7f72});
+ for(let i=0;i<4;i++){const a=R()*Math.PI*2,r=24+R()*54,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r,roll=R();
+  if(roll<.45){if(clearFootprint(m,x,z,1.5,1.5,.5))m.props.push({kind:'barrel',x,z,y:0,scale:.8+R()*.5,color:0x4b5344})}
+  else if(roll<.75)palletProp(m,x,z,.8+R()*.5);
+  else truckProp(m,x,z,R);
+ }
+ for(let i=0;i<4;i++)fenceSegment(m,cx+(R()*2-1)*80,cz+(R()*2-1)*80,12,3,0,0x666f74);
+ for(let i=0;i<6;i++)addTree(m,cx+(R()*2-1)*86,cz+(R()*2-1)*86,R,[0x556b4f,0x6d835f,0x47583d]);
+ fieldPatch(m,cx+(R()<.5?-1:1)*72,cz+(R()*2-1)*52,28,20,0x5e6a50);
+ for(let i=0;i<4;i++)hedgeSegment(m,cx+(R()*2-1)*72,cz+(R()*2-1)*66,2+R()*2.4,1.8,0,0x477045);
+ const chx=cx+(R()<.5?-1:1)*58,chz=cz+(R()<.5?-1:1)*58,ch=19+R()*9;
+ if(clearFootprint(m,chx,chz,5,5,7)){box(m,chx,chz,5,5,ch-1,0,'concrete');box(m,chx,chz,5.6,5.6,.5,0,'barrier');box(m,chx,chz,4.2,4.2,1.2,ch-1,'metal')}
+}
+function ruralCell(m,cx,cz,R){
+ if(R()<.5){
+  fieldPatch(m,cx-12,cz-8,116,78,0x5d7248);fieldPatch(m,cx+44,cz+44,54,38,0x6a7a52);
+  house(m,cx-48,cz-40,R,'planks','planks',tintFor('wilderness',cx-48,cz-40));shed(m,cx-22,cz-56,R,'planks','planks',tintFor('wilderness',cx-22,cz-56));shed(m,cx+54,cz-34,R,'planks','planks',tintFor('wilderness',cx+54,cz-34));
+  const bw=34+Math.round(R()*16),bd=20+Math.round(R()*10),bh=7+R()*2,bx=cx+12,bz=cz+12;
+  if(clearFootprint(m,bx,bz,bw,bd,4)){box(m,bx,bz,bw,bd,bh,0,'planks',tintFor('wilderness',bx,bz));box(m,bx,bz,bw+.9,bd+.9,.3,bh,'roof',roofTintFor('wilderness',bx,bz));facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',1,.45);facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',-1,.4)}
+  m.props.push({kind:'tank',x:cx+46,y:0,z:cz+2,scale:.8+R()*.5,color:0x9a9a8a});
+  m.props.push({kind:'tank',x:cx-56,y:0,z:cz+34,scale:.6+R()*.4,color:0x7b8b7c});
+  for(let i=0;i<9;i++)hayProp(m,cx+(R()*2-1)*70,cz+(R()*2-1)*58,.8+R()*.5);
+  truckProp(m,cx-24,cz+16,R,0x8a7350);
+  for(let i=0;i<3;i++)fenceSegment(m,cx+((i%2)*2-1)*72,cz+(R()*2-1)*40,5,28,Math.PI/2,0x79654e);
+  for(let i=0;i<4;i++)addTree(m,cx+(R()*2-1)*76,cz+(R()*2-1)*72,R,[0x3b6b40,0x4b7d49,0x2f5636,0x5b8a4f]);
+ }else{
+  fieldPatch(m,cx,cz,26,26,0x6a704f);
+  for(const [dx,dz] of [[-58,-42],[56,-40],[-54,42],[52,44],[-18,-62],[24,58]]){
+   const roll=R(),tint=tintFor('wilderness',cx+dx,cz+dz);if(roll<.55)house(m,cx+dx,cz+dz,R,'planks','planks',tint);else if(roll<.8)ruin(m,cx+dx,cz+dz,R,'planks',tint);else shed(m,cx+dx,cz+dz,R,'planks','planks',tint);
+  }
+  m.props.push({kind:'campfire',x:cx,z:cz,y:0,scale:.8,color:0xffb64d});
+  for(const [dx,dz] of [[-11,-7],[11,7],[-9,10],[10,-9]])m.props.push({kind:'tent',x:cx+dx,z:cz+dz,y:0,scale:.75+R()*.3,color:0x8a9b7a});
+  for(let i=0;i<4;i++){const a=R()*Math.PI*2,r=14+R()*16,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r;m.props.push({kind:R()<.5?'barrel':'crate',x,z,y:0,scale:.7+R()*.4,color:R()<.5?0x4b5344:0x9c7b4d})}
+  for(let i=0;i<3;i++)fenceSegment(m,cx+(R()*2-1)*52,cz+(R()*2-1)*52,2,18,0,0x79654e);
+  for(let i=0;i<6;i++)hedgeSegment(m,cx+(R()*2-1)*66,cz+(R()*2-1)*60,2+R()*3,2.4,0,0x477045);
+  for(let i=0;i<16;i++)addTree(m,cx+(R()*2-1)*82,cz+(R()*2-1)*76,R,[0x3b6b40,0x4b7d49,0x2f5636,0x5b8a4f]);
+ }
+}
+function marketCell(m,cx,cz,R){
+ townBuilding(m,cx-38,cz-34,R,'settlement',R()<.5?'s':'n',TOWN_NAMES[m.id]);
+ townBuilding(m,cx+38,cz-34,R,'settlement',R()<.5?'s':'n',TOWN_NAMES[m.id]);
+ townBuilding(m,cx-38,cz+36,R,'settlement',R()<.5?'n':'s',TOWN_NAMES[m.id]);
+ townBuilding(m,cx+38,cz+36,R,'settlement',R()<.5?'n':'s',TOWN_NAMES[m.id]);
+ fieldPatch(m,cx,cz,32,26,0x7d7868);
+ for(let i=0;i<8;i++){
+  const a=R()*Math.PI*2,r=8+R()*24,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r,roll=R(),col=[0xff6b6b,0x4dabf7,0xffd43b,0x69db7c][Math.floor(R()*4)];
+  if(roll<.55)m.props.push({kind:'stall',x,z,y:0,scale:.8+R()*.4,color:col});
+  else if(roll<.75)palletProp(m,x,z,.8+R()*.4);
+  else if(roll<.9)m.props.push({kind:'crate',x,z,y:0,scale:.7+R()*.3,color:0x9c7b4d});
+  else binProp(m,x,z,.7+R()*.2,0x4e6550);
+ }
+ for(const [dx,dz] of [[-14,-12],[14,12],[-16,10],[12,-14]])m.props.push({kind:'bench',x:cx+dx,z:cz+dz,y:0,scale:1});
+ for(let i=0;i<4;i++){const x=cx+(R()*2-1)*64,z=cz+(R()*2-1)*58;if(clearFootprint(m,x,z,1.5,3,1))m.props.push({kind:'car',x,z,y:0,scale:.7+R()*.4,color:_car(R)})}
+ for(let i=0;i<12;i++)addTree(m,cx+(R()*2-1)*82,cz+(R()*2-1)*80,R,[0x556b4f,0x6d835f,0x47583d]);
+ for(let i=0;i<5;i++)hedgeSegment(m,cx+(R()*2-1)*72,cz+(R()*2-1)*72,2.4+R()*2,2.2,0,0x477045);
+}
+function parkCell(m,cx,cz,R){
+ fieldPatch(m,cx,cz,116,92,0x6a7a52);
+ m.props.push({kind:'basin',x:cx+14,y:.02,z:cz-8,w:46,d:26,color:0x4d7d86});
+ m.props.push({kind:'sidewalk',x:cx,y:.03,z:cz+34,w:100,d:7});
+ m.props.push({kind:'sidewalk',x:cx,y:.03,z:cz-34,w:100,d:7});
+ for(let i=0;i<20;i++){
+  const a=R()*Math.PI*2,r=22+R()*38,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r;
+  if(Math.abs(x-(cx+14))<28&&Math.abs(z-(cz-8))<18)continue;
+  addTree(m,x,z,R,[0x3b6b40,0x4b7d49,0x2f5636,0x5b8a4f]);
+ }
+ for(const [dx,dz] of [[-34,-14],[34,-14],[-34,10],[34,10],[-22,26],[24,26]])if(R()<.75)m.props.push({kind:'bench',x:cx+dx,z:cz+dz,y:0,scale:1});
+ for(const [dx,dz] of [[-48,-38],[48,-38],[0,40]])m.props.push({kind:'planter',x:cx+dx,z:cz+dz,y:0,scale:1.1,ry:R()*Math.PI/2});
+ for(let i=0;i<3;i++){const x=cx+(R()*2-1)*56,z=cz+(R()*2-1)*42;if(clearFootprint(m,x,z,1.4,2.8,1))m.props.push({kind:'car',x,z,y:0,scale:.7+R()*.35,color:_car(R)})}
+ m.props.push({kind:'sign',name:'NORTH PARK',x:cx,y:2.6,z:cz-44});
+}
+function districtTower(m,cx,cz,R,theme){
+ const w=14+Math.round(R()*8),d=12+Math.round(R()*6),h=18+Math.round(R()*14);
+ if(!clearFootprint(m,cx,cz,w,d,8))return false;
+ const wall=theme==='wilderness'?'planks':theme==='settlement'?'brick':'concrete';
+ box(m,cx,cz,w,d,h,0,wall,tintFor(theme,cx,cz));
+ box(m,cx,cz,w+.9,d+.9,.32,h,'roof',roofTintFor(theme,cx,cz));
+ facadeWindows(m,cx,cz,w,d,0,h,R,'z',1,.3);
+ facadeWindows(m,cx,cz,w,d,0,h,R,'z',-1,.28);
+ facadeWindows(m,cx,cz,w,d,0,h,R,'x',1,.24);
+ facadeWindows(m,cx,cz,w,d,0,h,R,'x',-1,.24);
+ rooftop(m,cx,cz,w,d,h,R);
+ m.props.push({kind:'sign',name:TOWN_NAMES[m.id][Math.floor(R()*TOWN_NAMES[m.id].length)].toUpperCase(),x:cx,y:3.2,z:cz+d/2+.55});
+ return true;
+}
+function districtCell(m,cx,cz,R,theme){
+ if(theme==='industrial')industrialCell(m,cx,cz,R);
+ else if(theme==='wilderness')ruralCell(m,cx,cz,R);
+ else if(R()<.78)residentialCell(m,cx,cz,R);else marketCell(m,cx,cz,R);
+}
+function groundCover(m,cx,cz,R){
+ const greens=m.theme==='wilderness'?[0x6a7a52,0x5d7248,0x71825a,0x556b47]:m.theme==='settlement'?[0x7d7663,0x6e6b5b,0x877e6c]:[0x747a70,0x6d736a,0x81877d];
+ for(let i=0;i<5;i++){
+  const x=cx+(R()*2-1)*86,z=cz+(R()*2-1)*84,w=14+R()*30,d=9+R()*22;
+  m.props.push({kind:'field',x,z,y:.017,w,d,color:greens[Math.floor(R()*greens.length)]});
+ }
+ if(m.theme==='wilderness'||R()<.35)for(let i=0;i<4;i++){const y=R()*Math.PI*2,r=18+R()*58,x=cx+Math.sin(y)*r,z=cz+Math.cos(y)*r;if(clearFootprint(m,x,z,1.5,1.5,.4))m.props.push({kind:m.theme==='wilderness'?'bush':'rock',x,z,y:0,scale:.5+R()*.9})}
+}
+// The spawn point itself is the first thing a player sees. A small formed-up
+// frontage either side of the approach road frames that view with rowhouses
+// instead of an empty field, while leaving the exact spawn coordinate and the
+// immediate walking lane clear.
+function spawnThreshold(m,R){
+ for(const [sx,sz] of m.spawns||[]){
+  const len=Math.hypot(sx,sz)||1,ux=-sx/len,uz=-sz/len,px=-uz,pz=ux;
+  for(const side of [-1,1]){
+   const f=15+R()*9,o=7+R()*8;
+   addUnit(m,sx+ux*f+px*side*o,sz+uz*f+pz*side*o,10+R()*7,10+R()*7,R,m.theme);
+   const far=38+R()*22,wide=9+R()*13;
+   addUnit(m,sx+ux*far+px*side*wide,sz+uz*far+pz*side*wide,12+R()*8,11+R()*7,R,m.theme);
+  }
+ }
+}
+// Buildings fronting the avenues give every street a continuous built edge
+// instead of scattered islands set back inside the cells. They are authored
+// collision blocks, so the gaps a player sees along a road are real.
+function avenueFrontage(m,R){
+ const half=m.size/2-10,lines=[-480,-240,0,240,480];
+ for(const x of lines)for(let z=-half+18;z<half-18;z+=42+R()*14)for(const side of [-1,1]){
+  if(R()<.82)addUnit(m,x+side*(20+R()*5),z+(R()-.5)*3,11+R()*7,12+R()*9,R,m.theme);
+ }
+ for(const z of lines)for(let x=-half+18;x<half-18;x+=42+R()*14)for(const side of [-1,1]){
+  if(R()<.82)addUnit(m,x+(R()-.5)*3,z+side*(20+R()*5),12+R()*9,11+R()*7,R,m.theme);
+ }
+}
+function cityRoadGrid(m,R){
+ const half=m.size/2-10,lines=[-480,-240,0,240,480];
+ for(const x of lines){
+  m.props.push({kind:'road',x,z:0,y:.026,w:14,d:half*2});
+  m.props.push({kind:'sidewalk',x:x+8.5,z:0,y:.03,w:3.5,d:half*2});
+  m.props.push({kind:'sidewalk',x:x-8.5,z:0,y:.03,w:3.5,d:half*2});
+ }
+ for(const z of lines){
+  m.props.push({kind:'road',x:0,z,y:.026,w:half*2,d:14});
+  m.props.push({kind:'sidewalk',x:0,z:z+8.5,y:.03,w:half*2,d:3.5});
+  m.props.push({kind:'sidewalk',x:0,z:z-8.5,y:.03,w:half*2,d:3.5});
+ }
+ for(const x of lines)for(const z of lines)m.props.push({kind:'crosswalk',x,z,y:.035,w:18,d:18});
+ for(let i=-half;i<=half;i+=62){
+  for(const x of lines){
+   const lx=x+9.2,lz=i;
+   if(clearFootprint(m,lx,lz,.7,.7,.4))m.props.push({kind:'lamp',x:lx,z:lz,y:0});
+   const lx2=x-9.2;if(clearFootprint(m,lx2,lz,.7,.7,.4))m.props.push({kind:'lamp',x:lx2,z:lz,y:0});
+  }
+  for(const z of lines){
+   const lx=i,lz=z+9.2;
+   if(clearFootprint(m,lx,lz,.7,.7,.4))m.props.push({kind:'lamp',x:lx,z:lz,y:0});
+   const lz2=z-9.2;if(clearFootprint(m,lx,lz2,.7,.7,.4))m.props.push({kind:'lamp',x:lx,z:lz2,y:0});
+  }
+ }
+ for(let i=-half;i<=half;i+=130){
+  for(const x of lines){const lx=x+9.2,lz=i;if(clearFootprint(m,lx,lz,.4,.4,.4))m.props.push({kind:'powerPole',x:lx,z:lz,y:0});const lx2=x-9.2;if(clearFootprint(m,lx2,lz,.4,.4,.4))m.props.push({kind:'powerPole',x:lx2,z:lz,y:0})}
+  for(const z of lines){const lx=i,lz=z-9.2;if(clearFootprint(m,lx,lz,.4,.4,.4))m.props.push({kind:'powerPole',x:lx,z:lz,y:0});const lz2=z+9.2;if(clearFootprint(m,lx,lz2,.4,.4,.4))m.props.push({kind:'powerPole',x:lx,z:lz2,y:0})}
+ }
+ // Street trees, benches and bins add life along the avenues. Like the lamps
+ // they are visual-only; the authoritative server still collides only with
+ // world.blocks.
+ for(let i=-half+16;i<half;i+=38){
+  for(const x of lines){
+   for(const side of [-1,1]){
+    const tx=x+side*(11.5+R()*2),tz=i+(R()*2-1)*6;
+    if(clearFootprint(m,tx,tz,1.8,1.8,.8))addTree(m,tx,tz,R,[m.theme==='wilderness'?0x3b6b40:m.theme==='settlement'?0x4b7d49:0x556b4f,m.theme==='settlement'?0x6d835f:0x6d835f,0x47583d]);
+    if(R()<.22){const bx=x+side*10.4,bz=i+(R()*2-1)*22;if(clearFootprint(m,bx,bz,2.4,1.1,.6))m.props.push({kind:'bench',x:bx,z:bz,y:0,scale:.9})}
+    if(R()<.18){const bx=x+side*11.2,bz=i+(R()*2-1)*30;if(clearFootprint(m,bx,bz,1.8,1.5,.6))binProp(m,bx,bz,.72,0x4e6550)}
+   }
+   if(R()<.5){const pz=i+(R()*2-1)*10;if(clearFootprint(m,x-4.6,pz,2.4,1.4,.8))m.props.push({kind:'car',x:x-4.6,z:pz,y:0,scale:.62+R()*.35,color:_car(R)})}
+  }
+  for(const z of lines){
+   for(const side of [-1,1]){
+    const tx=i+(R()*2-1)*6,tz=z+side*(11.5+R()*2);
+    if(clearFootprint(m,tx,tz,1.8,1.8,.8))addTree(m,tx,tz,R,[m.id==='reservoir'?0x3b6b40:0x4b7d49,m.id==='reservoir'?0x2f5636:0x6d835f,0x47583d]);
+    if(R()<.2){const bx=i+(R()*2-1)*22,bz=z+side*10.4;if(clearFootprint(m,bx,bz,1.1,2.4,.6))m.props.push({kind:'bench',x:bx,z:bz,y:0,scale:.9})}
+   }
+   if(R()<.5){const px=i+(R()*2-1)*10;if(clearFootprint(m,px,z-4.6,1.4,2.4,.8))m.props.push({kind:'car',x:px,z:z-4.6,y:0,scale:.62+R()*.35,color:_car(R)})}
+  }
+ }
+ // Occasional delivery trucks parked in the industrial and settlement depots.
+ if(m.theme!=='wilderness')for(let i=0;i<6;i++){const x=(R()*2-1)*(half-20),z=(R()*2-1)*(half-20);if(clearFootprint(m,x,z,5,2.6,1.5))truckProp(m,x,z,R)}
+}
+function cityBillboards(m,R){
+ const names={relay:['RELAY CONTROL','SECTOR 7','FREIGHT HALL','DRY RUN','NO SIGNAL'],reservoir:['RESERVOIR','RANGER POST','WATER NOTICE','NORTH SHORE','TRACE'],switchyard:['DEPOT','EMBERS','RAIL YARD','SIGNAL 4','CONTROL'],industrial:['RELAY','HAUL','SECTOR 7','FREIGHT','NO SIGNAL'],wilderness:['FOREST POST','RANGER','WATER','TRAIL'],settlement:['TOWN','DEPOT','MARKET','SIGNAL']}[m.id]||['SECTOR'];
+ for(const [x,z] of [[-700,-180],[-520,690],[150,-700],[700,520],[-270,250],[270,-255]]){
+  if(clearFootprint(m,x,z,3,1,1))billboardProp(m,x,z,names[Math.floor(R()*names.length)]);
+ }
+}
+function densifyWorld(world,seed){
+ const m=structuredClone(world);m.version=9;
+ const R=prng(seed),cells=[-600,-360,-120,120,360,600];
+ for(const cx of cells)for(const cz of cells){groundCover(m,cx,cz,R);districtCell(m,cx,cz,R,m.theme)}
+ // A handful of taller civic or industrial landmarks break the otherwise even
+ // roofline and give each sector a recognisable skyline.
+ for(const [cx,cz] of [[-360,120],[120,-360],[360,360],[-120,-120]])districtTower(m,cx,cz,R,m.theme);
+ spawnThreshold(m,R);
+ avenueFrontage(m,R);
+ cityRoadGrid(m,R);
+ for(let i=0;i<10;i++)truckProp(m,(R()*2-1)*(m.size/2-24),(R()*2-1)*(m.size/2-24),R);
+ cityBillboards(m,R);
+ return m;
+}
+
 const relay=authored('relay','Relay Graveyard','industrial');
 room(relay,-40,-30,24,18,5.2,['n','e']);room(relay,0,0,18,16,4);roofAccess(relay,0,0,4);room(relay,38,28,20,14,4.4,['w','s']);
 for(const x of [-40,-28]){box(relay,x,32,2,2,10,0,'metal');relay.props.push({kind:'dish',x,y:10,z:32})}
@@ -573,9 +893,13 @@ const V7_RAID_WORLDS=V6_RAID_WORLDS.map(world=>dressWorld(world,({relay:0x5ec1a3
 // and adds two interior town districts per sector. V7 is frozen for checkpoints
 // created before the settlement pass; V6 and V5 remain frozen as well.
 const V8_RAID_WORLDS=V7_RAID_WORLDS.map(world=>urbanizeWorld(world,({relay:0x8fca5b,reservoir:0x2a7d52,switchyard:0xd38b4a})[world.id]||24601));
-export const RAID_WORLDS=V8_RAID_WORLDS;
-// Old checkpoints still resolve their exact layouts for versions 1-8.
-export function getWorld(id,version=8){return (version===1?LEGACY_RAID_WORLDS:version===2?ARCHIVED_RAID_WORLDS:version===3?V3_RAID_WORLDS:version===4?V4_RAID_WORLDS:version===5?V5_RAID_WORLDS:version===6?V6_RAID_WORLDS:version===7?V7_RAID_WORLDS:version===8?V8_RAID_WORLDS:[]).find(w=>w.id===id)}
+// Version 9 fills the open ground between those settlements with a road grid
+// and authored neighbourhoods in every 240 m cell. V8 and earlier layouts stay
+// frozen so checkpoints created before the district pass keep their geometry.
+const V9_RAID_WORLDS=V8_RAID_WORLDS.map(world=>densifyWorld(world,({relay:0x2c91ef,reservoir:0x77c26b,switchyard:0xb85f21})[world.id]||42731));
+export const RAID_WORLDS=V9_RAID_WORLDS;
+// Old checkpoints still resolve their exact layouts for versions 1-9.
+export function getWorld(id,version=9){return (version===1?LEGACY_RAID_WORLDS:version===2?ARCHIVED_RAID_WORLDS:version===3?V3_RAID_WORLDS:version===4?V4_RAID_WORLDS:version===5?V5_RAID_WORLDS:version===6?V6_RAID_WORLDS:version===7?V7_RAID_WORLDS:version===8?V8_RAID_WORLDS:version===9?V9_RAID_WORLDS:[]).find(w=>w.id===id)}
 // Dressed sectors hold hundreds of building blocks; a spatial hash keeps
 // collision and floor queries proportional to nearby geometry instead of
 // scanning every block. Static game worlds never invalidate this cache, while

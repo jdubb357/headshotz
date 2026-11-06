@@ -12,7 +12,7 @@ export function buildEnvironment(world){
   position.set(x,y,z);scale.set(sx,sy,sz);euler.set(rx,ry,0);quaternion.setFromEuler(euler);matrix.compose(position,quaternion,scale);group.transforms.push(matrix.clone());
  }
  add('box',palette.ground,0,-.12,0,world.size,.2,world.size,0,world.theme==='wilderness'?'forest':'gravel');
- for(const [x,z,w,d,h,y=0,kind='concrete']of world.blocks)add('box',palette[kind]||palette.brick,x,y+h/2,z,w,h,d,0,blockTex(kind));
+ for(const [x,z,w,d,h,y=0,kind='concrete',tint]of world.blocks)add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
  for(const ramp of world.ramps||[]){const count=20;for(let i=0;i<count;i++){const t=(i+.5)/count,x=ramp.x+(ramp.axis==='x'?(t-.5)*ramp.w:0),z=ramp.z+(ramp.axis==='z'?(t-.5)*ramp.d:0),y=ramp.from+(ramp.to-ramp.from)*t;
   add('box',palette.metal,x,y-.08,z,ramp.axis==='x'?ramp.w/count:ramp.w,.16,ramp.axis==='z'?ramp.d/count:ramp.d,0,'metal');
   if(i%4===0)for(const side of [-1,1])add('box',palette.metal,x+(ramp.axis==='z'?side*ramp.w/2:0),y+.55,z+(ramp.axis==='x'?side*ramp.d/2:0),.1,1.1,.1);
@@ -55,6 +55,19 @@ export function buildEnvironment(world){
    add('box',prop.lit&&prop.color!=null?prop.color:0x11191d,x,y+h/2,z,w,h,d,0,prop.lit?'glow':'metal');
   }
   else if(prop.kind==='awning'){add('box',prop.color||0x8d382e,x,y+.18,z,prop.w||3,0.14,prop.d||2,0,'metal')}
+  else if(prop.kind==='field'){add('box',prop.color||(world.theme==='wilderness'?0x5d7248:0x6d745f),x,y+.01,z,prop.w||20,.02,prop.d||20,0,world.theme==='wilderness'?'forest':'dirt')}
+  else if(prop.kind==='fence'){const c=prop.color||0x7e8a90,ry=prop.ry||0,fw=prop.w||6,fd=prop.d||.2,horiz=fw>=fd,len=Math.max(fw,fd),thick=Math.min(fw,fd);
+   for(const hh of [.55,1.15])add('box',c,x,y+hh,z,horiz?len:thick,.1,horiz?thick:len,ry,'metal');
+   const posts=Math.max(2,Math.round(len/3)+1);
+   for(let i=0;i<posts;i++){const t=(i/(posts-1)-.5)*len,px=x+Math.cos(ry)*t,pz=z-Math.sin(ry)*t;add('box',c,px,y+.8,pz,.14,1.6,.14,ry,'metal')}}
+  else if(prop.kind==='hedge'){const c=prop.color||0x4b7046;add('box',c,x,y+.52,z,prop.w||2,1.05,prop.d||2,prop.ry||0,'forest');add('box',0x3d5c3a,x,y+.09,z,(prop.w||2)*.92,.18,(prop.d||2)*.92,prop.ry||0,'dirt')}
+  else if(prop.kind==='billboard'){const c=prop.color||0x6e8a7d;for(const sx of [-1,1])add('box',0x384349,x+sx*2.1,y+2.2,z,.22,4.4,.22,0,'metal');
+   add('box',0x2b3539,x,y+4.6,z,5.6,.28,1,0,'metal');add('box',c,x,y+3.1,z,5.2,2.8,.24,0,'plain');if(prop.name){const canvas=document.createElement('canvas');canvas.width=512;canvas.height=192;const ctx=canvas.getContext('2d');ctx.fillStyle='#1f3036';ctx.fillRect(0,0,512,192);ctx.fillStyle='#e8dfc4';ctx.font='bold 34px system-ui';ctx.textAlign='center';ctx.fillText(prop.name,256,105,470);ctx.strokeStyle='#cfb87c';ctx.lineWidth=8;ctx.strokeRect(4,4,504,184);const texture=new THREE.CanvasTexture(canvas),material=new THREE.SpriteMaterial({map:texture});material.userData.raidOwned=true;material.userData.raidOwnTexture=true;const sprite=new THREE.Sprite(material);sprite.position.set(x,y+3.1,z);sprite.scale.set(8.4,3.2,1);root.add(sprite)}}
+  else if(prop.kind==='truck'){const c=prop.color||0x55606b,s=prop.scale||1;add('box',0x22282b,x-.4*s,y+.35*s,z,5.4*s,1.2*s,2.4*s,0,'metal');add('box',c,x+2.2*s,y+.55*s,z,1.6*s,1.6*s,2.2*s,0,'metal');add('box',0xb9c3c4,x+2.2*s,y+1.65*s,z,1.5*s,.7*s,2*s,0,'concrete');for(const sx of [-1.8,.6,2.2])for(const sz of [-.9,.9])add('cylinder',0x1f2420,x+sx*s,y+.28*s,z+sz*s*.8,.28*s,.55*s,.28*s,0,'metal')}
+  else if(prop.kind==='pallet'){const s=prop.scale||1,c=0xb08c5a;for(let i=0;i<3;i++)add('box',c,x,y+.12+i*.22,z,1.4*s,.08,1.05*s,0,'planks');for(const px of [-.55,.55])add('box',0x8a6a45,x+px*s,y+.02,z,1.35*s,.12,1.05*s,0,'planks')}
+  else if(prop.kind==='hay'){const s=prop.scale||1;add('box',0xb69a56,x,y+.6*s,z,1.9*s,1.2*s,1.2*s,0,'planks');for(const yy of [.2,.55,.9])add('box',0x937a3d,x,y+yy*s,z,1.94*s,.06,1.24*s,0,'planks')}
+  else if(prop.kind==='planter'){const s=prop.scale||1,w=prop.w||3*s,d=prop.d||1.4*s;add('box',0x7c6152,x,y+.28,z,w,.56,d,prop.ry||0,'brick');add('box',0x4b7046,x,y+.6,z,w*.82,.7,d*.82,prop.ry||0,'forest')}
+  else if(prop.kind==='stall'){const c=prop.color||0xff6b6b,s=prop.scale||1;add('box',0x8a603a,x,y+.5,z,2.8*s,.9*s,1.2*s,0,'planks');for(const sx of [-1.25,1.25])for(const sz of [-.5,.5])add('box',0x6b4423,x+sx*s,y+1.2*s,z+sz*s,.1,2.4*s,.1,0,'planks');add('box',c,x,y+2.35*s,z,3.2*s,.12,1.8*s,0,'hazard')}
   else if(prop.kind==='powerPole'){add('cylinder',0x384349,x,y+3,z,.13,6,.13,0,'metal');add('box',0x384349,x,y+5.7,z,2.2,.16,.16,0,'metal');for(const s of [-.9,.9])add('sphere',0xd8d5c8,x+s,y+6.1,z,.13,.13,.13,0,'metal')}
   else if(prop.kind==='sandbag'){const s=prop.scale||1;for(const [dx,dy,dz] of [[0,0,0],[.38,0,.08],[.18,.34,.24],[.55,.34,.02]])add('box',0xb6a57a,x+dx*s,y+dy*s,z+dz*s,.52*s,.28*s,.36*s,0,'concrete')}
   else if(prop.kind==='checkpoint'){const s=prop.scale||1;add('box',0x77725f,x,y+1.15*s,z,3.4*s,2.3*s,2.4*s,0,'concrete');add('box',0x2d3336,x,y+2.42*s,z,3.6*s,.16*s,2.6*s,0,'metal');add('box',0xf0d18b,x,y+2.32*s,z,.8*s,.16*s,.8*s,0,'glow')}

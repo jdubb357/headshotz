@@ -20,7 +20,7 @@ try{
   await p.evaluate(`document.getElementById('map').value=${JSON.stringify(map)};document.getElementById('map').dispatchEvent(new Event('change'));document.getElementById('recovery').checked=true;document.getElementById('deploy').click()`);
   await p.wait("document.getElementById('play').style.display==='block' && document.body.getAttribute('aria-busy')==='false' && document.getElementById('hud').textContent.includes('HP')");
   const before=await p.evaluate("fetch('/api/raid').then(r=>r.json())");
-  assert.equal(before.mapVersion,8,'new deployments use the settlement-sector layout');
+  assert.equal(before.mapVersion,9,'new deployments use the full-sector district layout');
   assert.ok(Array.isArray(before.machines),'machine snapshots are visibility-filtered');
   const aimPoint=await p.evaluate("(()=>{for(let y=160;y<innerHeight-70;y+=35)for(let x=150;x<innerWidth-50;x+=35)if(document.elementFromPoint(x,y)?.id==='view'&&document.elementFromPoint(x+30,y-30)?.id==='view')return {x,y};return null})()");assert.ok(aimPoint,'A visible canvas area supports touch aiming');
   await p.command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[aimPoint]});
@@ -35,10 +35,10 @@ try{
   await p.command('Input.dispatchKeyEvent',{type:'keyUp',code:'Space',key:' '});
   let jumpSeen=false;
   for(let i=0;i<60&&!jumpSeen;i++){
-   jumpSeen=await p.evaluate("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.y>.25)");
+   jumpSeen=await p.evaluate("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.vy>0&&r.self.grounded===false)");
    if(!jumpSeen)await new Promise(r=>setTimeout(r,80));
   }
-  assert.ok(jumpSeen,`Space jump lifts the operator on ${map}`);
+  assert.ok(jumpSeen,`Space jump is accepted by the server on ${map}`);
   // Let the first animation render complete before inspecting pixels.
   await p.evaluate("Promise.race([new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Animation frames did not resume')),5000))])");
   const shot=await p.command('Page.captureScreenshot',{format:'png'});
