@@ -574,3 +574,64 @@ Test-transport caveat: the probes use the test-only `?net=local` BroadcastChanne
 Fresh rerun (November 5, 2026): `CDP_URL=http://127.0.0.1:9337 node /tmp/hsz-party-acceptance.mjs` exited 0 with `ok:true` and zero browser errors, re-confirming code prefill/`?join` auto-join, friend mid-match JOIN (`w:"match"`, `join:{room:"JJHC"}`), team party, Squad Royale same-squad party, and party invite into an in-progress bot-filled match.
 
 Next action: optional real-network PeerJS cloud verification; no known blocker for this acceptance scope.
+
+## Extraction Raid game-loop acceptance (2026-11-06)
+
+User request: make the Extraction Raid mode feel like ARC Raiders. Specifically: weapons lying on the ground, weapon caches, and robots that attack (not minutes of empty walking). North star: the core loop must be find loot -> fight/avoid machines -> upgrade weapon/ammo -> secure valuables -> extract with meaningful risk.
+
+Concrete acceptance criteria for this iteration:
+1. Ground loot exists in every sector near every authored spawn: at least 2 loot piles within 30 m of each spawn, at least one weapon-bearing pile within 40 m of each spawn, all on walkable floors, reachable by the authoritative pathfinder from the spawn, and deterministically seeded by the raid seed.
+2. Ground loot is discoverable/usable without a search timer: near loot appears in snapshots, is rendered in the 3D world and minimap, and can be taken through the existing `take` protocol action. Taking only `quantity` of a stack still works, weight/capacity rules remain authoritative, and taking a weapon while unarmed auto-equips it.
+3. At least 3 dedicated "weapon cache" containers per sector exist in addition to the original salvage caches, are reachable from spawn, contain 2+ weapon-class items plus matching ammunition, take longer to force open than ordinary caches, require the ordinary search interaction (still restricted by range and line of sight), and alert nearby guards when breached.
+4. Machines actually attack the operator during the first minutes of a raid: machine guards exist near weapon caches, a patrol machine is spawned/activated near every deployment insertion point (>=24 m from the operator and away from walls), patrol wander is visible over time, and the machines' existing sight/telegraph/damage rules remain authoritative. At least one hostile encounter is realistically triggerable within the first ~90 seconds of play.
+5. Machine kills drop useable weapons/ammunition in their salvage bag, and extraction activation draws machine patrols toward the exit, creating end-of-raid pressure. Drops retain the existing salvage bag id/shape expectations for tests.
+6. All original acceptance behaviour is preserved: other modes (BR, Squad Royale, FFA, arena, cooperative Extraction, hub) boot, raid sectors retain spawn/cache/exit coordinates and collision behaviour, every existing test passes, and new unit/integration tests cover criteria 1-5.
+7. Runtime evidence: an online authoritative server is started, an account deploys via the real API, nearby loot + armories + approach machines appear in snapshots, a weapon is taken and auto-equipped, a machine takes damage / drops loot, and a headless Chrome probe sees the game boot with zero browser errors. Progress is updated with commands/results; no false completion.
+
+### Status — November 6, 2026 — verified
+
+Implementation (working tree, no commit):
+- `server/raid-loot.mjs`: `createSectorGroundLoot` places three seeded piles near every authored spawn in each v9 sector (dropped weapon, field supply, fallen operator kit), each checked against walls/floor and the pathfinder; `createWeaponCaches` adds three armories per sector with 2+ weapons, matching ammunition, mods/valuables and a 3.4 s search time.
+- `server/raids.mjs`: `ensureRaidLoot` generates floor loot and armories and spawns hunter/heavy guards; `seedInsertionPatrol` spawns a scout >=24 m from the operator that investigates the arrival; `seedExitAmbush` activates patrols when extraction is called; armory breaches push noise and emit an event; snapshots expose nearby ground loot within 40 m/LOS.
+- `server/raid-inventory.mjs`: `take` accepts floor loot; picking up a weapon while unarmed auto-equips it. Quantity/weight/stack rules remain authoritative.
+- `server/raid-ai.mjs`: destroyed machines always drop a useable weapon, matching ammunition, and salvage (valuable/material; overlord mod).
+- `raid-view.mjs`, `raid-models.mjs`, `raid-online.mjs`: ground loot and armories render as 3D actors, minimap draws loot pale green and weapon caches purple, hints/pack rows are source-aware, and minimap markers use screen-space radii so the 1,440 m sectors stay legible.
+
+Verification:
+- `node --test tests/*.test.mjs` → **1078 pass, 0 fail** (58 s); `tests/raid-game-loop.test.mjs` → 8/8.
+- Live API probe against worker on `:8022` (`/tmp/hs-loop-probe.mjs`, reservoir): deployed `-600,-600`; snapshots showed 3 loot piles at 5/17/32 m, 3 weapon caches, and the insertion-signature warning. Took Pump Shotgun → auto-equipped, ammo 30. Insertion scout hit twice with the shotgun (75→15→destroyed); salvage bag `machine_11_salvage` provided weapon:pistol + ammo:light; both recovered.
+- Live browser probe (`:8022`, CDP 9337): hint `E / Interact: pick up ground loot · 2 items`, pack heading `On the ground`, weapon auto-equipped; 3D scene actors `{machine:1, cache:12, cache_armory:3, loot_ground:3, exit:4}`; minimap pixel scan found armory `#e07adf` and pale-green loot markers; machine attack observed (`Needle Scout is charging an attack`, HP 100→65→51); browser errors `[]`. Screenshots: `/tmp/hs-shot-ground-loot3.png`, `/tmp/hs-shot-machine3.png`.
+- `RAID_TEST_URL=http://127.0.0.1:8022 CDP_URL=http://127.0.0.1:9337 node tests/raid-browser-smoke.mjs` → account/recovery/render/movement/reconnect all true, `browserExceptions: []`.
+
+Criteria 1-7 are objectively verified by the tests and live probes above; no known blocker remains. No commit or push was made.
+
+## Extraction Raid next-loop acceptance (2026-11-06, iteration 2)
+
+User request: build the next parts toward an ARC Raiders-like extraction game: organic machine patrols and escalation, richer loot tables and cache variety, rival operators contesting caches/exits, and raid-space navigation around armories/exits.
+
+Concrete acceptance criteria for this iteration:
+1. Machine patrols are organic: every living base machine owns a deterministic, walkable route of 3+ waypoints within its patrol radius; idle machines traverse those waypoints with pathfinding, and sight/telegraph/damage rules stay authoritative.
+2. Escalation: destroying a machine alerts nearby patrols and schedules an inbound reinforcement (capped below the machine cap) with a clear event; breaching a weapon cache also schedules a reinforcement and announces both the breach and response.
+3. Loot depth: the three armories use three distinct archetypes with different search times and loot tables (2+ weapons and matching ammo in every armory; at least one modded/attachment-bearing weapon, armor, medical supply, utility/valuable). Ground loot adds an overrun outpost pile with mod/armor/valuable, while remaining deterministic, walkable and reachable.
+4. Rival operators: each sector spawns 2 deterministic hostile scavenger operators; they move between armories/caches and an exit, contest containers/exits, attack nearby players under clear sight/range rules, appear in snapshots and the 3D client, and can be damaged/killed through the existing fire action, dropping salvage with a weapon and matching ammo.
+5. Navigation: armories and exits are visible in the 3D world via beacon beams and remain distinct on the minimap; a bearing/distance objective hints toward the nearest armory when no interaction is available.
+6. Regression: all existing tests pass, the raid browser smoke test reports zero browser exceptions, and other game modes remain untouched.
+
+### Status — November 6, 2026 — verified
+
+Implementation (working tree, no commit):
+- `server/raid-ai.mjs`: each living machine gets a deterministic, pathfound 4-waypoint patrol route; idle machines walk it. Machine destruction alerts nearby patrols and queues a capped inbound reinforcement; breaching an armory queues a response and emits a clear event.
+- `server/raid-rivals.mjs`: two deterministic scavenger operators per sector, each routing through armories and an exit, contesting containers/exits, attacking sighted operators within weapon range, appearing in snapshots, and dropping salvaged weapon + matching ammunition when killed through the ordinary `fire` action.
+- `server/raid-loot.mjs`: three armory archetypes (`Assault pattern`, `Field pattern`, `Covert pattern`) with distinct search times and loot tables; every armory has 2+ weapons with matching ammo and at least one attachment-bearing weapon; armor/medical/utility/valuable coverage across the set. Ground loot adds a deterministic, reachable overrun outpost pile with mod/armor/valuable.
+- `server/raid-ballistics.mjs`, `server/raids.mjs`: rivals are authoritative fire targets; snapshots expose rivals and contested exit state.
+- Client: `raid-models.mjs` beacon helper; `raid-view.mjs` purple armory and cyan exit beacon shafts plus hostile human rival actors; `raid-online.mjs` distinct armory/rival minimap markers and a nearest-armory bearing/distance hint when no interaction is available.
+
+Verification:
+- `node --test tests/raid-game-loop.test.mjs` → 13 pass, 0 fail (5.8 s).
+- `node --test tests/*.test.mjs` → 1083 pass, 0 fail (59.5 s).
+- `RAID_TEST_URL=http://127.0.0.1:8022 CDP_URL=http://127.0.0.1:9337 node tests/raid-browser-smoke.mjs` → account/recovery/render/serverMovement/reconnect all true, `browserExceptions: []`.
+- Live browser probe on `:8022` / CDP `9337`, `reservoir`: hint rendered `Armory objective · … m … · bearing …°`; 3 armory beacon shafts and 4 exit beacon shafts present in the 3D scene; an injected hostile rival rendered through the normal human actor path holding `ar` and was removed by the next authoritative snapshot; minimap scan found armory markers; browser errors `[]`. Screenshot: `/tmp/hs-shot-armory-beacons3.png`.
+- `node /tmp/hsz-arena-modes-probe.mjs` → main menu boots; `duel`, `team`, `t3`, `t4`, `t5`, `ctf`, and `brs` all reach `phase:"play"` with bots and nonzero draw calls, `browserErrors: []`.
+- `git diff --name-only` → only raid server/client files, the raid game-loop test, and `RALPH_PROGRESS.md`. No commit, push, PR, or deployment; the temporary verification server was stopped.
+
+Criteria 1–6 are objectively verified with unit, authoritative-host, browser-render, and regression evidence. No known blocker remains.

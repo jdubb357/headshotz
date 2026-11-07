@@ -73,6 +73,9 @@ export function propModel(kind,color=0xe0aa4d){
  }else if(kind==='cache'){
   part(root,'box',0x35444b,0,.4,0,1.25,.75,.85);const lid=part(root,'box',color,0,.82,0,1.32,.12,.92);lid.material=lid.material.clone();lid.material.userData.raidOwned=true;root.userData.lid=lid;
   for(const x of [-.45,.45])part(root,'box',0x9ca4a0,x,.46,.44,.12,.6,.05);part(root,'box',0x8dc5b6,0,.54,.46,.25,.12,.03);
+ }else if(kind==='loot'){
+  part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]);part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]);part(root,'box',0x343933,.05,.22,0,.2,.2,.16);part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
+  part(root,'ring',color,0,.3,0,.58,.58,.58,[Math.PI/2,0,0]);part(root,'cylinder',color,0,.48,0,.035,.55,.035);
  }else if(kind==='bag'){
   part(root,'box',0x47534d,0,.22,0,.85,.4,.65);for(const x of [-.25,.25])part(root,'box',0xa89670,x,.25,0,.09,.45,.72);part(root,'ring',0x35444b,0,.45,0,.15,.15,.15);
  }else{
@@ -80,6 +83,19 @@ export function propModel(kind,color=0xe0aa4d){
   part(root,'box',0x53646b,2.3,.8,0,.45,1.6,.45);part(root,'box',color,2.3,1.6,0,.5,.2,.5);
  }
  root.userData.actor=kind;return root;
+}
+// Tall additive columns mark the armories and exits from a distance without
+// needing a label sprite. They are built from their own geometry/material so
+// the shared prop palette is never mutated.
+export function beaconModel(color=0x83efc2,height=16){
+ const root=new THREE.Group();
+ const shaftGeometry=new THREE.CylinderGeometry(.08,.28,height,8,1,true);shaftGeometry.userData.raidOwned=true;
+ const shaftMaterial=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.3,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});shaftMaterial.userData.raidOwned=true;
+ const shaft=new THREE.Mesh(shaftGeometry,shaftMaterial);shaft.position.y=height/2+1.6;root.add(shaft);
+ const ringGeometry=new THREE.TorusGeometry(1.6,.09,5,32);ringGeometry.userData.raidOwned=true;
+ const ringMaterial=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.7,depthWrite:false,blending:THREE.AdditiveBlending});ringMaterial.userData.raidOwned=true;
+ const ring=new THREE.Mesh(ringGeometry,ringMaterial);ring.rotation.x=Math.PI/2;ring.position.y=.2;root.add(ring);
+ root.userData.beacon=true;root.userData.beaconShaft=shaft;root.userData.beaconRing=ring;return root;
 }
 export function updateActor(root,state,dt,time){
  const previous=root.userData.last||{x:state.x,z:state.z,at:time-.15};
