@@ -33,7 +33,7 @@ export class RaidPilot {
   if(p.grounded===false){this.airborneSince??=now;this.stats.airborneDeferrals++;if(now-this.airborneSince>3&&!this.airborneReported){this.stats.airborneStalls++;this.stats.lastAirborne=routeContext(state,world,target);this.airborneReported=true}this.goal=null;this.path=[];this.progressAt=now;this.progressPoint={x:p.x,y:p.y,z:p.z};this.lastNavigationAt=now;return zero(p)}
   this.airborneSince=null;this.airborneReported=false;
   if(this.lastNavigationAt!=null&&now-this.lastNavigationAt>.6){this.progressAt=now;this.progressPoint={x:p.x,y:p.y,z:p.z}}this.lastNavigationAt=now;
-  if(this.path.length&&Math.abs((this.path[0].y||0)-(p.y||0))>.8){this.goal=null;this.path=[]}
+  if(world.version<10&&this.path.length&&Math.abs((this.path[0].y||0)-(p.y||0))>.8){this.goal=null;this.path=[]}
   while(this.path.length&&distance(p,this.path[0])<.35)this.path.shift();
   if(this.path.length&&!canWalkSegment(world,p,this.path[0],{radius:OPERATOR_RADIUS})){this.stats.offRouteReplans++;this.stats.replans++;this.goal=null;this.path=[]}
   if(this.goal!==key||!this.path.length){const at=performance.now();this.path=findPath(world,p,target,{radius:OPERATOR_RADIUS,maxNodes:world.version===2?40000:world.version===4?48000:world.version>=6?640000:world.version>=5?160000:16000});const elapsed=performance.now()-at;this.stats.paths++;this.stats.pathMs+=elapsed;this.stats.maxPathMs=Math.max(this.stats.maxPathMs,elapsed);this.goal=key;this.progressAt=now;this.progressPoint={x:p.x,y:p.y,z:p.z};if(!this.path.length){this.stats.unreachable++;if(this.stats.unreachableSamples.length<8)this.stats.unreachableSamples.push(routeContext(state,world,target));this.avoid.set(target.id,now+15);return zero(p)}}

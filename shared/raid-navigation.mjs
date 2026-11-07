@@ -1,4 +1,4 @@
-import {blocked,floorAt,rampLevel,supportAt} from './raid-worlds.mjs';
+import {blocked,floorAt,rampLevel,supportAt,terrainHeightAt} from './raid-worlds.mjs';
 const caches=new WeakMap();
 function navigationCache(world,step,radius,height){
  const signature=JSON.stringify([world.size,world.blocks,world.ramps||[]]);let cached=caches.get(world);if(!cached||cached.signature!==signature){cached={signature,profiles:new Map()};caches.set(world,cached)}
@@ -12,7 +12,7 @@ class Heap {
  get length(){return this.items.length}
 }
 function levels(world,x,z,radius,height){
- const values=[0];
+ const values=[terrainHeightAt(world,x,z)];
  for(const [bx,bz,w,d,h,base=0]of world.blocks)if(Math.abs(x-bx)<=w/2&&Math.abs(z-bz)<=d/2)values.push(base+h);
  for(const ramp of world.ramps||[]){const y=rampLevel(ramp,x,z),clear=ramp.axis==='x'?Math.abs(z-ramp.z)<=ramp.d/2-radius:Math.abs(x-ramp.x)<=ramp.w/2-radius;if(y!=null&&clear)values.push(y)}
  return [...new Set(values.map(y=>Math.round(y*100)/100))].filter(y=>!blocked(world,x,z,radius,y,height));

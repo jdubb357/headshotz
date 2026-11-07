@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {RAID_WORLDS,ARCHIVED_RAID_WORLDS,LEGACY_RAID_WORLDS,blocked,floorAt,getWorld} from '../shared/raid-worlds.mjs';
+import {RAID_WORLDS,ARCHIVED_RAID_WORLDS,LEGACY_RAID_WORLDS,blocked,floorAt,getWorld,terrainHeightAt} from '../shared/raid-worlds.mjs';
 import {findPath} from '../shared/raid-navigation.mjs';
 for(const world of RAID_WORLDS){
  test(`${world.name}: all spawns, caches and exits have walkable support`,()=>{
@@ -21,16 +21,30 @@ test('old checkpoints retain their original world layout version',()=>{
 test('v2 roof landings remain archived while v3 keeps corrected landings',()=>{
  for(const old of ARCHIVED_RAID_WORLDS){const next=getWorld(old.id,3);assert.equal(getWorld(old.id,2),old);assert.equal(old.version,2);assert.equal(next.version,3);assert.notStrictEqual(next.blocks,old.blocks);for(const ramp of old.ramps.filter(r=>r.axis==='z'&&r.w===4&&r.d===16)){assert.ok(old.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+7&&w===7&&d===4&&h===.18));assert.ok(next.blocks.some(([x,z,w,d,h])=>x===ramp.x-3&&z===ramp.z+9&&w===7&&d===4&&h===.18))}}
 });
-test('new deployments use full-sector v9 districts while archived checkpoints keep their layouts',()=>{
+test('new deployments use full-sector v10 terrain districts while archived checkpoints keep their layouts',()=>{
  const clusterCenters=[-600,-360,-120,120,360,600],propKinds=new Set();
  for(const world of RAID_WORLDS){
   for(const p of world.props)propKinds.add(p.kind);
-  assert.equal(world.version,9);assert.equal(world.size,1440);assert.ok(world.blocks.length>=50);
+  assert.equal(world.version,10);assert.equal(world.size,1440);assert.ok(world.blocks.length>=50);
+  const v9=getWorld(world.id,9);assert.equal(v9.version,9);assert.equal(v9.size,1440);
+  assert.deepEqual(world.blocks,v9.blocks,'v10 terrain leaves every v9 building block unchanged');
+  assert.deepEqual(world.props,v9.props,'v10 terrain leaves every v9 prop unchanged');
+  assert.deepEqual(world.spawns,v9.spawns);assert.deepEqual(world.caches,v9.caches);assert.deepEqual(world.exits,v9.exits);
+  assert.deepEqual(world.ramps,v9.ramps,'v10 terrain leaves every ramp unchanged');assert.deepEqual(world.hazards,v9.hazards,'v10 terrain leaves every hazard unchanged');
+  assert.deepEqual(world.landmarks,v9.landmarks,'v10 terrain leaves every landmark unchanged');assert.deepEqual(world.supply,v9.supply,'v10 terrain leaves the supply site unchanged');
+  for(const [x,z,w,d]of world.blocks)assert.ok(terrainHeightAt(world,x,z)<.26,`${world.id} block at ${x},${z} sits on a flat terrain pad (${terrainHeightAt(world,x,z).toFixed(2)} m)`);
+  for(const ramp of world.ramps)assert.ok(terrainHeightAt(world,ramp.x,ramp.z)<.26,`${world.id} ramp at ${ramp.x},${ramp.z} sits on a flat terrain pad`);
+  for(const [x,z]of world.spawns)assert.ok(terrainHeightAt(world,x,z)<.26,`${world.id} spawn at ${x},${z} sits on a flat terrain pad`);
+  for(const [x,z]of world.caches)assert.ok(terrainHeightAt(world,x,z)<.26,`${world.id} cache at ${x},${z} sits on a flat terrain pad`);
+  for(const exit of world.exits)assert.ok(terrainHeightAt(world,exit.x,exit.z)<.26,`${world.id} exit at ${exit.x},${exit.z} sits on a flat terrain pad`);
+  let maxHeight=0,deep=0,total=0;for(let x=-680;x<=680;x+=15)for(let z=-680;z<=680;z+=15){const height=terrainHeightAt(world,x,z);total++;maxHeight=Math.max(maxHeight,height);if(height>1)deep++}
+  assert.ok(maxHeight>=10,`${world.id} sculpts hills of at least 10 m (${maxHeight.toFixed(1)} m)`);
+  assert.ok(deep/total>=.2,`${world.id} lifts at least 20% of the sampled ground above 1 m (${(100*deep/total).toFixed(1)}%)`);
   assert.ok(Math.max(...world.spawns.flatMap(p=>p.map(Math.abs)))+0>=600,'spawns reach the massive sector edges');
   assert.ok(Math.max(...world.caches.flatMap(c=>[Math.abs(c[0]),Math.abs(c[2])]))+0>=450,'caches spread across the massive sector');
   assert.ok(world.ramps.length>0);assert.ok(world.exits.every(e=>Math.abs(e.x)>640||Math.abs(e.z)>640),'exits sit at the outer sector edge');
   const v8=getWorld(world.id,8);assert.equal(v8.version,8);assert.equal(v8.size,1440);
-  assert.deepEqual(world.blocks.slice(0,v8.blocks.length),v8.blocks,'v9 retains the entire frozen v8 settlement layer');
+  assert.deepEqual(world.blocks.slice(0,v8.blocks.length),v8.blocks,'v10 retains the entire frozen v8 settlement layer');
   assert.ok(world.blocks.length>=v8.blocks.length*1.6,`v9 adds district buildings (${world.blocks.length} vs ${v8.blocks.length})`);
   assert.ok(world.props.length>=v8.props.length*1.4,`v9 adds district props (${world.props.length} vs ${v8.props.length})`);
   assert.ok(world.props.filter(p=>p.kind==='window').length>1000,'v9 districts have a dense facade window count');

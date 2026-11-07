@@ -1,5 +1,30 @@
 # Ralph progress — Issue #1 Extraction Raids
 
+## Extraction Raid terrain and hills — November 6, 2026
+
+Request: the Extraction Raid sectors still read as flat ground planes; give all three sectors real topography and walkable hills without changing modes, raid rules or objective layout.
+
+Acceptance criteria (recorded before implementation, objectively checkable):
+1. Current deployments use a new v10 terrain layer built on the frozen v9 full-sector districts; v9 and all older layouts stay retrievable for existing checkpoints. Block tuples, props, spawns, caches, exits, ramps, hazards and sector size are unchanged by the terrain pass.
+2. Terrain is authored deterministically once in `shared/raid-worlds.mjs` and sampled through an exported `terrainHeightAt(world,x,z)`, yielding a continuous heightfield shared by server collision, online rendering, offline rendering and the raid minimap. Each sector has hills of ≥ 10 m relief and at least 20% of its playable ground sits above 1 m (measured on the terrain grid).
+3. `floorAt` and `supportAt` return terrain elevation, so authoritative movement, navigation (`findPath`) and bot/rival traversal walk on the terrain instead of y = 0. Every spawn/cache/exit stays walkable and reachable; `tests/raid-worlds.test.mjs`, the pilot route suite and the rest of `tests/*.test.*` pass.
+4. Structures, roads, fields, ramps, spawns, caches and exits sit on flattened terrain pads with feathered transitions; surrounding props are lifted to sampled terrain height, so no building floats, sinks or turns into a cliff wall.
+5. The online renderer (`raid-environment.mjs`) draws a shaded heightfield (including ridge/slope coloring) and props anchored to it; the raid minimap paints hill shading; the offline sector builder renders matching terrain.
+6. Runtime evidence in headless Chrome: all three sectors deploy with zero browser errors, and screenshots from spawn and a hill-top view show visible relief rather than a flat plane.
+7. Existing modes (Battle Royale, cooperative Extraction, FFA, arena/team modes, hub) still boot and play, and raid-only scope/separation is preserved.
+
+### Current status — verified November 6, 2026
+
+1. **Verified**: `RAID_WORLDS` is the v10 terrain layer produced by cloning the frozen v9 world. `tests/raid-worlds.test.mjs` deep-equals v10 blocks, props, spawns, caches, exits, ramps, hazards, landmarks and supply against v9; version 10 is the default and versions 1–9 remain retrievable; sector size stays 1,440 m and all other authored fixture arrays are unchanged.
+2. **Verified**: terrain is seeded per sector and sampled through the exported `terrainHeightAt`. Measured on the acceptance grid (15 m steps from −680 to 680): relay max 22.0 m / 27.0% of samples above 1 m; reservoir 27.2 m / 23.9%; switchyard 22.4 m / 23.0%. The browser-built offline terrain meshes peak at 27.0 / 30.9 / 22.5 m, confirming continuous relief beyond the sampled test points.
+3. **Verified**: `floorAt` starts at terrain height and `supportAt` composes terrain with block/ramp platforms; navigation `levels` includes terrain; `stepOperator` lands on terrain. The pilot suite and route suites pass: `node --test tests/raid-worlds.test.mjs tests/raid-content-migration.test.mjs tests/raid-pilot.test.mjs` → 629 pass, 0 fail. Every spawn, cache and exit route remains reachable.
+4. **Verified**: all block, ramp, spawn, cache and exit centers sit on flattened pads (`terrainHeightAt` < 0.26 m; measured maximum 0.0 m). Transitions from pads to open ground are continuous distance-capped slopes: the worst sampled rise is 0.543 m per 0.4 m step, below the navigation 0.6 m step limit, so there are no vertical pad walls. Visual props at y = 0 are lifted to sampled terrain in the online and offline builders; inspected screenshots show structures planted, not floating or sunk.
+5. **Verified**: `raid-environment.mjs` draws a shaded 160-segment heightfield with height/slope vertex coloring; the minimap paints hill-relief shading sampled from `terrainHeightAt`; `maps.js` builds the matching offline heightfield. A browser probe of all three offline raid maps returned 161×161 terrain meshes with `groundAt` matching shared values exactly (`matches:true`) and zero browser errors.
+6. **Verified**: `CDP_URL=http://127.0.0.1:9337 RAID_TEST_URL=http://127.0.0.1:8021 node tests/raid-browser-worlds.mjs` → `{"maps":3,"jump":true,"touchAim":true,"rendered":true,"browserErrors":[]}`. Fresh spawn and hilltop screenshots for all three sectors are at `/tmp/hs-{relay,reservoir,switchyard}-{spawn-relief,hilltop}.png`; the rendering scripts reported `BROWSER ERRORS: []` and the images show visible hills behind settlements.
+7. **Verified**: `tests/raid-browser-smoke.mjs` passes account/recovery/render/server-movement/reconnect with zero exceptions; `tests/raid-browser-legacy.mjs` boots offline Extraction, Battle Royale and FFA with bots, preserves wallet/skin/weapon/upgrade data and raid economy separation, and reports zero browser errors. A directed headless probe started every offline mode — duel, team, t3, t4, t5, CTF, FFA, Extraction, Battle Royale and Squad Royale — into active play with bots and positive draw calls, with zero browser errors; `tests/raid-browser-entry.mjs` also passes the hub/main-menu raid entry paths.
+
+Full suite: `node --test tests/*.test.*` → 1,097 pass, 0 fail. The isolated load runner now gives each fixture API request a 30 s bound rather than 2.5 s, so the suite is not sensitive to unrelated CPU contention on the workstation; request latency and tick budgets remain enforced by the report checks. No terrain assertion or browser check failed. Human visual quality remains subjective, but the objective terrain repair criteria are met with no known blocker.
+
 ## Extraction Raid full-sector city fabric — November 6, 2026
 
 Request: the Extraction Raid sectors still read as a huge, mostly empty ground plane with only a few buildings; fill the whole sector with authored districts and make the maps look amazing without changing any mode, raid rule or objective route.
