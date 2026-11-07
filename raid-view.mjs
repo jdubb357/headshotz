@@ -6,7 +6,7 @@ import {getWorld} from './shared/raid-worlds.mjs';
 import {mapConditions} from './shared/raid-enemies.mjs';
 import {exitColor} from './shared/raid-exits.mjs';
 import {buildEnvironment} from './raid-environment.mjs';
-import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,disposeOwned,part} from './raid-models.mjs';
+import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,disposeOwned,part,beaconModel} from './raid-models.mjs';
 
 import {RaidAudio} from './raid-audio.mjs';
 export {RaidAudio} from './raid-audio.mjs';
@@ -37,12 +37,21 @@ export class RaidView {
   this.snapshot=snapshot;this.audio.observe(snapshot);this.snapAt=performance.now();const live=new Set();
   const put=(key,type,data)=>{
    live.add(key);let entry=this.actors.get(key);
-   if(!entry){const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.team===snapshot.self.team,data.weapon??null):propModel(type,data.vault?0xc78bdb:data.open?0x87b89a:0xd8b062);entry={model,type,data};this.actors.set(key,entry);this.scene.add(model)}
+   if(!entry){
+    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):propModel(type,data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
+    // Armories carry purple beams; extraction beacons stay cyan/green. This
+    // gives both objectives a silhouette above the dense district roofs.
+    if(type==='cache'&&data.weaponCache){model.userData.beacon=beaconModel(0xe07adf,18);model.add(model.userData.beacon)}
+    if(type==='exit'){model.userData.beacon=beaconModel(0x83efc2,14);model.add(model.userData.beacon)}
+    entry={model,type,data};this.actors.set(key,entry);this.scene.add(model);
+   }
    entry.data=data;if(type==='human'&&entry.model.userData.heldWeapon!==(data.weapon??null))setHumanWeapon(entry.model,data.weapon??null);if(type==='cache')entry.model.userData.lid?.material.color.setHex(data.open?0x87b89a:data.vault?0xc78bdb:0xd8b062);
   };
   for(const p of snapshot.players)if(p.id!==snapshot.camera?.follow)put(p.id,'human',p);
   for(const m of snapshot.machines)put(m.id,'machine',m);
+  for(const r of snapshot.rivals||[])put(r.id,'human',r);
   for(const c of snapshot.caches)put(c.id,'cache',c);
+  for(const l of snapshot.loot||[])put(l.id,'loot',l);
   for(const b of snapshot.bags)put(b.id,'bag',b);
   for(const p of snapshot.pings||[])put('ping_'+p.id,'ping',p);
   for(const e of snapshot.exits)put(e.id,'exit',e);
@@ -97,7 +106,7 @@ export class RaidView {
   if(this.visualSelf.distanceTo(target)>5)this.visualSelf.copy(target);else this.visualSelf.lerp(target,Math.min(1,dt*16));this.camera.position.copy(this.visualSelf);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),targetFov=aiming&&held?aimFieldOfView(this.settings?.fov||75,weaponStats(held)):this.settings?.fov||75;this.camera.fov+=(targetFov-this.camera.fov)*(this.settings?.reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
   for(const {model,data,type}of this.actors.values()){
    if(type==='human'||type==='machine')updateActor(model,data,dt,seconds);
-   else{model.position.set(data.x,data.y||0,data.z);if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime))}
+   else{model.position.set(data.x,data.y||0,data.z);if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}
   }
   if(this.weather.visible){const positions=this.weather.geometry.attributes.position;for(let i=0;i<positions.count;i++){const speed=this.snapshot.conditions?.weather==='rain'?18:2;let y=positions.getY(i)-dt*speed;if(y<0)y=35;positions.setY(i,y)}positions.needsUpdate=true}
   for(const ring of this.effects.values())ring.material.opacity=this.settings?.reduced?.85:.6+.2*Math.sin(seconds*8);

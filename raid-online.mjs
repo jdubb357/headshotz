@@ -154,14 +154,15 @@ function updateUI(){
  if(seenEvents.size>200){const recent=[...seenEvents].slice(-100);seenEvents.clear();for(const id of recent)seenEvents.add(id)}
  $('conditions').textContent=`${RAID_WORLDS.find(w=>w.id===snapshot.map)?.name||snapshot.map} · ${snapshot.conditions?.clock? snapshot.conditions.clock+' · ':''}${snapshot.conditions?.name||snapshot.conditions?.weather||'clear'}`;
  drawMap($('minimap'),snapshot.map,snapshot);
- const sources=[...snapshot.caches,...snapshot.bags].filter(c=>distance(c,s)<3);
+ const sources=[...snapshot.caches.map(c=>({...c,source:'cache'})),...(snapshot.loot||[]).map(l=>({...l,source:'loot'})),...snapshot.bags.map(b=>({...b,source:'bag'}))].filter(c=>distance(c,s)<3);
  const downed=snapshot.players.filter(p=>p.team===s.team&&p.downed&&(distance(p,s)<=2||p.rescue?.carriedByYou));
- nearest=[...sources.map(c=>({...c,source:true})),...snapshot.exits.filter(e=>distance(e,s)<4)].sort((a,b)=>distance(a,s)-distance(b,s))[0];
+ nearest=[...sources,...snapshot.exits.filter(e=>distance(e,s)<4)].sort((a,b)=>distance(a,s)-distance(b,s))[0];
  updateInteraction(s);
  const nextPackKey=JSON.stringify([s.alive,s.downed,s.weaponId,s.equipment,s.pack,s.secure,sources.map(c=>[c.id,c.open,c.items]),downed.map(p=>[p.id,p.name,p.rescue]),[...s.equipment,...s.pack].filter(it=>it.kind==='med').map(it=>s.combatVersion!==2||!!medicalNeed(s,it,snapshot.serverTime)&&snapshot.serverTime>=s.nextMedicalAt)]);
  if(nextPackKey!==packKey){packKey=nextPackKey;renderPack(s,sources,downed)}
  for(const exit of snapshot.exits){const text=$('pack').querySelector('[data-exit="'+exit.id+'"]');if(text)text.textContent=(exit.name||exit.kind)+': '+exitDescription(exit,snapshot.serverTime)}
- $('hint').textContent=performance.now()<notice.until?notice.text:s.result?`${s.result.outcome.toUpperCase()} · ${s.result.items.length} items returned. Use Back to base.`:nearest?nearest.source?`${keyName(preferences.get().bindings.interact)} / Interact: search ${nearest.label||nearest.id}`:`${keyName(preferences.get().bindings.interact)} / Interact: ${nearest.kind} exit · ${exitDescription(nearest,snapshot.serverTime)}`: 'Move / aim · '+keyName(preferences.get().bindings.fire)+' fire · '+keyName(preferences.get().bindings.interact)+' interact · '+keyName(preferences.get().bindings.pack)+' backpack · '+keyName(preferences.get().bindings.help)+' field guide';
+ const interactKey=keyName(preferences.get().bindings.interact);
+ $('hint').textContent=performance.now()<notice.until?notice.text: s.result?`${s.result.outcome.toUpperCase()} · ${s.result.items.length} items returned. Use Back to base.`:nearest?(nearest.source==='cache'?`${interactKey} / Interact: ${nearest.open?'open':'search'} ${nearest.label||nearest.id}`:nearest.source?`${interactKey} / Interact: pick up ${nearest.source==='loot'?'ground loot':'salvage bag'} · ${nearest.items.length} item${nearest.items.length===1?'':'s'}`:`${interactKey} / Interact: ${nearest.kind} exit · ${exitDescription(nearest,snapshot.serverTime)}`): armoryObjective(s,snapshot)||('Move / aim · '+keyName(preferences.get().bindings.fire)+' fire · '+interactKey+' interact · '+keyName(preferences.get().bindings.pack)+' backpack · '+keyName(preferences.get().bindings.help)+' field guide');
 }
 async function chooseRaidQuantity(type,it,extra={}){const generation=raidGeneration,deployment=snapshot?.self.deploymentId,quantity=await chooseQuantity({label:(type==='take'?'Take ':'Split ')+label(it),max:type==='take'?it.quantity:it.quantity-1,initial:type==='take'?1:Math.floor(it.quantity/2)});if(quantity==null||!inRaid||generation!==raidGeneration||deployment!==snapshot?.self.deploymentId)return;return action({type,itemId:it.id,quantity,...extra})}
 function renderPack(s,sources,downed){
@@ -186,7 +187,11 @@ function renderPack(s,sources,downed){
  for(const p of downed){
   const row=document.createElement('div');row.dataset.rescue=p.id;row.setAttribute('role','group');row.setAttribute('aria-label',(p.name||'Squadmate')+' rescue controls');row.textContent=(p.name||'Squadmate')+' · DOWNED';const revive=button('Revive',()=>action({type:'revive',targetId:p.id})),carry=button(p.rescue?.carriedByYou?'Drop squadmate':'Carry squadmate',()=>action({type:'carry',targetId:p.id}));revive.dataset.rescueAction='revive';carry.dataset.rescueAction='carry';revive.disabled=!s.alive||s.downed||p.rescue?.revive===false;carry.disabled=!s.alive||s.downed||p.rescue?.carry===false;row.append(revive,carry);if(p.rescue&&!p.rescue.revive&&!p.rescue.carry){const reason=document.createElement('small');reason.textContent='Move within 2 m with clear access. Only one operator can carry a squadmate.';row.append(reason)}$('pack').append(row);
  }
- for(const c of sources){const heading=document.createElement('p');heading.textContent=(c.label||'Loot bag')+(c.open?' · searched':' · unsearched');$('pack').append(heading);if(!c.open&&!snapshot.bags.some(b=>b.id===c.id))$('pack').append(button('Search '+(c.label||'cache'),()=>action({type:'search',sourceId:c.id})));for(const it of c.items){const controls=[button('Inspect',()=>inspect(it)),button('Take',()=>action({type:'take',sourceId:c.id,itemId:it.id}))];if(stackable(it)&&it.quantity>1)controls.push(button('Take amount',()=>chooseRaidQuantity('take',it,{sourceId:c.id})));if(!canRecoverGrant(it,profile.id))for(const control of controls.slice(1)){control.disabled=true;control.title='Starter supplies can only be recovered by their original operator'}itemRow(it,$('pack'),controls)}}
+ for(const c of sources){
+  const heading=document.createElement('p');heading.textContent=c.source==='cache'?(c.label||'Salvage cache')+(c.open?' · searched':' · unsearched'):c.source==='loot'?'On the ground · '+(c.label||'Dropped gear'):'Salvage bag · fallen machine';$('pack').append(heading);
+  if(c.source==='cache'&&!c.open)$('pack').append(button('Search '+(c.label||'cache'),()=>action({type:'search',sourceId:c.id})));
+  for(const it of c.items){const controls=[button('Inspect',()=>inspect(it)),button('Take',()=>action({type:'take',sourceId:c.id,itemId:it.id}))];if(stackable(it)&&it.quantity>1)controls.push(button('Take amount',()=>chooseRaidQuantity('take',it,{sourceId:c.id})));if(!canRecoverGrant(it,profile.id))for(const control of controls.slice(1)){control.disabled=true;control.title='Starter supplies can only be recovered by their original operator'}itemRow(it,$('pack'),controls)}
+ }
  const exitTitle=document.createElement('h3');exitTitle.textContent='Extraction sites';$('pack').append(exitTitle);for(const exit of snapshot.exits){const text=document.createElement('p');text.dataset.exit=exit.id;$('pack').append(text)}restoreInventoryFocus($('pack'),priorFocus);
 }
 function movementInput(){const forward=Number(input.held('forward'))-Number(input.held('back')),side=Number(input.held('right'))-Number(input.held('left'));return {x:Math.sin(yaw)*forward-Math.cos(yaw)*side,z:Math.cos(yaw)*forward+Math.sin(yaw)*side}}
@@ -218,7 +223,17 @@ async function action(data){
 
 async function throwHeldUtility(item){if(!item)throw new Error('Bring or find a utility item first.');setPack(false);await action({type:'throw',itemId:item.id,yaw,pitch})}
 $('utility').onclick=()=>run(()=>throwHeldUtility([...snapshot.self.equipment,...snapshot.self.pack].find(i=>i.kind==='utility')));
-async function interact(){if(!nearest)return;if(nearest.source){setPack(true);return action({type:'search',sourceId:nearest.id})}const now=snapshot.serverTime;return action({type:nearest.openAt<=now&&nearest.closeAt>now?'extract':['key','resource'].includes(nearest.kind)?'unlock':nearest.kind==='call'?'call':'extract',exitId:nearest.id})}
+async function interact(){
+ if(!nearest)return;
+ if(nearest.source==='cache'){setPack(true);if(nearest.open)return;return action({type:'search',sourceId:nearest.id})}
+ if(nearest.source==='loot'||nearest.source==='bag'){
+  setPack(true);
+  const weapon=nearest.items.find(it=>it.kind==='weapon'&&canRecoverGrant(it,profile.id));
+  if(weapon)return action({type:'take',sourceId:nearest.id,itemId:weapon.id});
+  return;
+ }
+ const now=snapshot.serverTime;return action({type:nearest.openAt<=now&&nearest.closeAt>now?'extract':['key','resource'].includes(nearest.kind)?'unlock':nearest.kind==='call'?'call':'extract',exitId:nearest.id});
+}
 setInterval(async()=>{
  if(!inRaid||tickBusy)return;tickBusy=true;const generation=raidGeneration;
  try{
@@ -299,11 +314,29 @@ function mapBackground(world,n){
 }
 function drawMap(canvas,id,state){
  const world=state?getWorld(id,state.mapVersion===undefined?1:state.mapVersion):RAID_WORLDS.find(w=>w.id===id);if(!world)return;
- const ctx=canvas.getContext('2d'),n=canvas.width,k=n/world.size;ctx.clearRect(0,0,n,n);ctx.drawImage(mapBackground(world,n),0,0);ctx.save();ctx.translate(n/2,n/2);ctx.scale(k,k);
- const point=(x,z,color,r)=>{ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,z,r,0,Math.PI*2);ctx.fill()};
- for(const exit of state?.exits||world.exits){point(exit.x,exit.z,state?'#'+exitColor(exit,state.serverTime).toString(16).padStart(6,'0'):'#83efc2',3);ctx.fillStyle='#fff';ctx.font='5px system-ui';ctx.fillText('E',exit.x+2.8,exit.z+1.7)}
- if(state){for(const p of state.players.filter(p=>p.team===state.self.team))point(p.x,p.z,'#77c5ff',1.7);for(const ping of state.pings||[]){point(ping.x,ping.z,'#f3b9ff',2);ctx.fillStyle='#fff';ctx.font='5px system-ui';ctx.fillText(ping.kind==='danger'?'!':ping.kind==='needAmmo'?'A':ping.kind==='needMed'?'+':'P',ping.x+2,ping.z)}point(state.self.x,state.self.z,'#ffcf61',2.1)}
- ctx.restore();
+ const ctx=canvas.getContext('2d'),n=canvas.width,k=n/world.size;ctx.clearRect(0,0,n,n);ctx.drawImage(mapBackground(world,n),0,0);
+ // Markers are drawn in screen pixels so the 1,440 m raid sectors keep a
+ // legible minimap instead of sub-pixel dots.
+ const point=(x,z,color,r)=>{const px=n/2+x*k,py=n/2+z*k;ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(14,20,23,.72)';ctx.stroke()};
+ const ring=(x,z,color,r,width)=>{const px=n/2+x*k,py=n/2+z*k;ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);ctx.lineWidth=width;ctx.strokeStyle=color;ctx.stroke()};
+ const letter=(text,x,z,dy)=>{ctx.fillStyle='#fff';ctx.font='bold 7px system-ui';ctx.textAlign='center';ctx.fillText(text,n/2+x*k,n/2+z*k+dy)};
+ for(const exit of state?.exits||world.exits){point(exit.x,exit.z,state?'#'+exitColor(exit,state.serverTime).toString(16).padStart(6,'0'):'#83efc2',4);letter('E',exit.x,exit.z,2.5)}
+ if(state){
+  for(const c of state.caches||[])if(c.weaponCache){point(c.x,c.z,'#e07adf',4.2);letter('A',c.x,c.z,2.8)}else point(c.x,c.z,c.open?'#8fd59a':'#d6b15f',2.4);
+  for(const r of state.rivals||[]){point(r.x,r.z,'#ff7a52',3.2);letter(r.state==='engage'||r.state==='windup'?'!':'S',r.x,r.z,2.6)}
+  for(const m of state.machines||[])point(m.x,m.z,'#ff665b',3.2);
+  for(const l of state.loot||[])point(l.x,l.z,'#b6ee9b',2.3);
+  for(const p of state.players.filter(p=>p.team===state.self.team))point(p.x,p.z,'#77c5ff',2.8);
+  for(const ping of state.pings||[]){point(ping.x,ping.z,'#f3b9ff',2.8);letter(ping.kind==='danger'?'!':ping.kind==='needAmmo'?'A':ping.kind==='needMed'?'+':'P',ping.x,ping.z,2.6)}
+  point(state.self.x,state.self.z,'#ffcf61',2.2);ring(state.self.x,state.self.z,'#ffcf61',4.6,1.6)}
+}
+function armoryObjective(s,state){
+ if(!s?.alive)return '';
+ const caches=(state?.caches||[]).filter(c=>c.weaponCache);
+ if(!caches.length)return '';
+ const target=caches.map(c=>({cache:c,d:distance(c,s)})).sort((a,b)=>a.d-b.d)[0],dx=target.cache.x-s.x,dz=target.cache.z-s.z;
+ const bearing=((Math.atan2(dx,dz)*180/Math.PI)+360)%360,compass=['north','northeast','east','southeast','south','southwest','west','northwest'][Math.round(bearing/45)%8];
+ return `Armory objective · ${target.cache.label}: ${Math.round(target.d)} m ${compass} · bearing ${String(Math.round(bearing)%360).padStart(3,'0')}°`;
 }
 function deploymentExitPlan(){const world=getWorld($('map').value),sector=SECTORS[world.id],artifact=ARTIFACTS[sector.artifact];$('sectorPlan').textContent=sector.summary+' Recovery objective: '+artifact.name+' at '+artifact.site+'. Light and weather change during the raid; check the sector clock after deployment.';$('exitPlan').replaceChildren();for(const exit of createRaidExits(world,0)){const line=document.createElement('p');line.textContent=exit.name+': '+exitDescription(exit,0);$('exitPlan').append(line)}}
 $('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan()});deploymentExitPlan();

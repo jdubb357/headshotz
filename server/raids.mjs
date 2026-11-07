@@ -10,7 +10,7 @@ import {MATCH_POLICY,matchPreferences,squadPool} from '../shared/raid-matchmakin
 import {throwUtility,advanceUtilities} from './raid-utilities.mjs';
 import {stepOperator} from '../shared/raid-motion.mjs';
 import {createRaidExits,exitState} from '../shared/raid-exits.mjs';
-import {createSectorCaches} from './raid-loot.mjs';
+import {createSectorCaches,createSectorGroundLoot,createWeaponCaches} from './raid-loot.mjs';
 import {ARTIFACTS} from '../shared/raid-sectors.mjs';
 import {createConditionPlan,conditionsAt} from '../shared/raid-conditions.mjs';
 import {RAID_PROTOCOL,RECEIPT_LIMIT,validateAction} from '../shared/raid-protocol.mjs';
@@ -22,7 +22,8 @@ import {item,RuleError} from './store.mjs';
 import {RAID_WORLDS,getWorld,blocked,clearLine,floorAt} from '../shared/raid-worlds.mjs';
 import {safePoint} from '../shared/raid-navigation.mjs';
 import {MACHINES,hazardState} from '../shared/raid-enemies.mjs';
-import {populateMachines,hitMachine,advanceMachines,advanceEvents,event} from './raid-ai.mjs';
+import {populateMachines,hitMachine,advanceMachines,advanceEvents,event,spawnMachine,scheduleReinforcement} from './raid-ai.mjs';
+import {populateRivals,advanceRivals,rivalSnapshotData} from './raid-rivals.mjs';
 import {WEAPONS,weaponStats,itemWeight,maxStack} from '../shared/raid-catalog.mjs';
 const check=(v,m)=>{if(!v)throw new RuleError(m)};
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z,(a.y||0)-(b.y||0));
@@ -105,7 +106,7 @@ export class RaidService {
    const friends=[...raid.players.values()].filter(p=>p.alive&&p.team===team),leader=friends[0];check(leader,'Squad deployment anchor missing');const sign=friends.length%2?1:-1;
    for(const [dx,dz]of [[sign*1.5,1.5],[-sign*1.5,0],[0,-1.5],[sign*2.5,-1.5]]){const point=safePoint(map,leader.x+dx,leader.z+dz,{y:leader.y||0,avoid:friends,distance:1.1});if(point&&Math.hypot(point.x-leader.x,point.z-leader.z)<=6&&[...raid.players.values()].every(p=>!p.alive||p.team===team||Math.hypot(p.x-point.x,p.z-point.z)>=24)){at=point;break}}check(at,'No safe squad formation point');
   }
-  check(!raid.players.has(account),'An operator cannot redeploy into a raid they already entered');raid.region=region;
+  check(!raid.players.has(account),'An operator cannot redeploy into a raid they already entered');raid.region=region;this.ensureRaidLoot(raid,map);
   // Face the sector centre on insertion so operators see the authored district
   // instead of the empty outer fringe.
   const spawnYaw=Math.atan2(-at.x,-at.z);
@@ -115,12 +116,43 @@ export class RaidService {
   const weapon=player.equipment.find(it=>it.kind==='weapon');player.weaponId=weapon.id;weapon.loaded??=WEAPONS[weapon.weapon]?.mag||30;player.weapon=weaponStats(weapon);player.ammo=weapon.loaded;
   if(player.combatVersion!==2&&player.equipment.some(it=>it.kind==='armor'))player.hp=130;
   raid.players.set(account,player);this.byAccount.set(account,player);
+  this.seedInsertionPatrol(raid,at,this.now());
   if(raid.conditionPlan)raid.conditions=conditionsAt(raid.world,raid.conditionPlan,this.now()-raid.started);
   this.store.audit(account,'raid_joined',{raid:raid.id,deployment:deployment.id,map:map.id});return this.snapshot(account);
  }
  create(world){
   const started=this.now(),id=randomUUID(),lootSeed=randomUUID(),caches=createSectorCaches(world,id,lootSeed);
-  const raid={id,combatVersion:2,ballisticsVersion:1,contentVersion:2,lootSeed,conditionPlan:createConditionPlan(world,id),world,started,deadline:started+600,players:new Map(),caches,machines:[],bags:[],exits:createRaidExits(world,started),events:[],pings:[]};populateMachines(raid,started);return raid;
+  const raid={id,combatVersion:2,ballisticsVersion:1,contentVersion:2,lootSeed,conditionPlan:createConditionPlan(world,id),world,started,deadline:started+600,players:new Map(),caches,machines:[],bags:[],exits:createRaidExits(world,started),events:[],pings:[]};populateMachines(raid,started);this.ensureRaidLoot(raid,world);populateRivals(raid,started);return raid;
+ }
+ ensureRaidLoot(raid,world){
+  const seed=raid.lootSeed||raid.id;
+  if(!Array.isArray(raid.floorLoot)||!raid.floorLoot.length)raid.floorLoot=createSectorGroundLoot(world,seed);
+  raid.approachSpawns||={};
+  if(raid.caches.some(c=>c.weaponCache))return;
+  const armories=createWeaponCaches(world,seed);raid.caches.push(...armories);
+  for(const [index,cache]of armories.entries()){
+   const machine=spawnMachine(raid,index===1?'heavy':'hunter',cache.x+6,cache.z+6,this.now());
+   if(machine){machine.guard=cache.id;machine.home={x:cache.x,y:cache.y||0,z:cache.z};machine.patrolRadius=8;machine.state='guard';event(raid,this.now(),cache.label+' is guarded by a '+MACHINES[machine.kind].name+'.','warning')}
+  }
+ }
+ seedInsertionPatrol(raid,at,now){
+  raid.approachSpawns||={};
+  if(!at||at.index==null||raid.approachSpawns[at.index])return;
+  const bait=(raid.floorLoot||[]).filter(l=>l.spawn===at.index&&l.items.some(it=>it.kind==='weapon')).sort((a,b)=>Math.hypot(a.x-at.x,a.z-at.z)-Math.hypot(b.x-at.x,b.z-at.z))[0];
+  if(!bait)return;raid.approachSpawns[at.index]=1;
+  const machine=spawnMachine(raid,'scout',bait.x+3,bait.z+3,now);
+  if(!machine)return;
+  machine.approach=true;machine.home={x:bait.x,y:bait.y||0,z:bait.z};machine.patrolRadius=6;
+  machine.investigate={x:at.x,y:at.y||0,z:at.z,until:now+12};
+  event(raid,now,'A machine patrol picked up your insertion signature and is closing in.','warning');
+ }
+ seedExitAmbush(raid,exit,now){
+  if(raid.machines.some(m=>m.hp>0&&Math.hypot(m.x-exit.x,m.z-exit.z)<22))return;
+  for(const [kind,dx,dz]of [['scout',26,8],['hunter',-26,-8]]){
+   const machine=spawnMachine(raid,kind,exit.x+dx,exit.z+dz,now);
+   if(machine){machine.ambush=true;machine.patrolRadius=10;machine.investigate={x:exit.x,y:exit.y||0,z:exit.z,until:now+35}}
+  }
+  event(raid,now,'Machine patrols are converging on the extraction beacon.','extraction');
  }
  action(account,m){
   let canonical;try{canonical=validateAction(m)}catch(error){throw new RuleError(error.message,400)}
@@ -216,7 +248,7 @@ export class RaidService {
   if(m.type==='search'){
    const c=r.caches.find(c=>c.id===m.sourceId);check(c&&this.canInteract(r,p,c,3),'Cache out of reach');
    if(c.vault&&!c.open&&!c.searcher){const list=[p.equipment,p.pack,p.secure].find(list=>list.some(it=>it.kind==='key'));check(list,'A vault access key is required');list.splice(list.findIndex(it=>it.kind==='key'),1);p.facts.keysUsed=(p.facts.keysUsed||0)+1;c.vault=false;event(r,now,'A sealed vault has been opened. Machine patrols are investigating.','alarm');r.noises.push({x:p.x,y:p.y||0,z:p.z,radius:60,until:now+8})}
-   if(!c.open){check(!c.searcher||c.searcher===account,'Cache being searched');c.searcher=account;if(!c.searchUntil)c.searchUntil=now+2.4}return;
+   if(!c.open){check(!c.searcher||c.searcher===account,'Cache being searched');c.searcher=account;if(!c.searchUntil)c.searchUntil=now+(c.searchSeconds||2.4)}return;
   }
   if(m.type==='take'){const transfer=takeLoot(this,r,p,m);this.store.audit(account,'raid_transfer',{raid:r.id,kind:'take',...transfer});return}
   if(m.type==='secure'){
@@ -225,10 +257,10 @@ export class RaidService {
   }
   const exit=r.exits.find(e=>e.id===m.exitId);check(exit&&this.canInteract(r,p,exit,4),'Exit out of reach');
   if(m.type==='call'){
-   check(exit.kind==='call'&&now>=exit.closeAt,'Transport already inbound');check(exitState(exit,now).phase!=='exhausted','No transport calls remain');this.activateExit(exit,now);r.noises.push({x:exit.x,y:exit.y||0,z:exit.z,radius:65,until:now+20});event(r,now,'Evacuation beacon active. Machines and rival squads can hear the call.','extraction');return;
+   check(exit.kind==='call'&&now>=exit.closeAt,'Transport already inbound');check(exitState(exit,now).phase!=='exhausted','No transport calls remain');this.activateExit(exit,now);r.noises.push({x:exit.x,y:exit.y||0,z:exit.z,radius:65,until:now+20});event(r,now,'Evacuation beacon active. Machines and rival squads can hear the call.','extraction');this.seedExitAmbush(r,exit,now);return;
   }
   if(m.type==='unlock'){
-   check(['key','resource'].includes(exit.kind)&&now>=exit.closeAt,'Exit already open');check(exitState(exit,now).phase!=='exhausted','No emergency exit uses remain');this.payExit(p,exit);this.activateExit(exit,now);event(r,now,(exit.name||'Emergency exit')+' is open. Access cost has been consumed.','extraction');return;
+   check(['key','resource'].includes(exit.kind)&&now>=exit.closeAt,'Exit already open');check(exitState(exit,now).phase!=='exhausted','No emergency exit uses remain');this.payExit(p,exit);this.activateExit(exit,now);event(r,now,(exit.name||'Emergency exit')+' is open. Access cost has been consumed.','extraction');this.seedExitAmbush(r,exit,now);return;
   }
   if(m.type==='extract'){
    check(now>=exit.openAt&&now<exit.closeAt,'Exit is closed');this.pruneBoarding(r,now);const passengers=this.boardingParty(r,p),reserved=this.reservedSeats(r,exit,p.account);check(passengers.every(id=>this.canInteract(r,r.players.get(id),exit,4)),'Carried squadmate is outside the boarding area');check(exit.seats==null||(exit.usedSeats||0)+reserved+passengers.length<=exit.seats,'Not enough extraction seats for you and any carried squadmate');
@@ -320,8 +352,8 @@ export class RaidService {
     if(p.reviving){const target=r.players.get(p.reviving.target);if(p.hurtAt!==p.reviving.hurtAt||!this.canRescue(r,p,target,now)||target.hurtAt!==p.reviving.targetHurtAt)p.reviving=null;else if(now>=p.reviving.until){target.downed=false;target.hp=30;target.bleedUntil=0;if(target.carrier){const carrier=r.players.get(target.carrier);if(carrier?.carrying===target.account)this.releaseCarry(r,carrier)}target.carrier=null;p.reviving=null}}
     if(p.board){const e=r.exits.find(e=>e.id===p.board.exit);if(!this.validBoarding(r,p,now))p.board=null;else if(now>=p.board.until){const passengers=this.boardingParty(r,p),seats=passengers.length;if(e.seats!=null&&(e.usedSeats||0)+seats>e.seats)p.board=null;else{e.usedSeats=(e.usedSeats||0)+seats;for(const id of passengers)r.players.get(id).facts.extractionExit=e.id;this.end(r,p,'extract')}}}
    }
-   const searching=new Set();for(const c of r.caches)if(c.searcher){const p=r.players.get(c.searcher);if(!p?.alive||p.downed||p.reviving||p.board||searching.has(p.account)||!this.canInteract(r,p,c,3)){c.searcher=null;c.searchUntil=0}else{searching.add(p.account);if(now>=c.searchUntil){c.open=true;c.searcher=null;c.searchUntil=0}}}
-   r.bags=r.bags.filter(b=>b.items.length);advanceEvents(this,r,now);advanceUtilities(this,r,now);advanceMachines(this,r,dt,now);
+   const searching=new Set();for(const c of r.caches)if(c.searcher){const p=r.players.get(c.searcher);if(!p?.alive||p.downed||p.reviving||p.board||searching.has(p.account)||!this.canInteract(r,p,c,3)){c.searcher=null;c.searchUntil=0}else{searching.add(p.account);if(now>=c.searchUntil){c.open=true;c.searcher=null;c.searchUntil=0;if(c.weaponCache&&!c.breached){c.breached=true;r.noises||=[];r.noises.push({x:c.x,y:c.y||0,z:c.z,radius:60,until:now+10});event(r,now,'The weapons cache is breached. Nearby patrols are responding.','alarm');scheduleReinforcement(r,c.x,c.z,now,{kind:'hunter',delay:16,reason:'breach:'+c.id})}}}}
+   r.bags=r.bags.filter(b=>b.items.length);advanceEvents(this,r,now);advanceUtilities(this,r,now);advanceMachines(this,r,dt,now);advanceRivals(this,r,dt,now);
   }
  }
  snapshot(account,spectate=null){
@@ -335,7 +367,8 @@ export class RaidService {
   };
   return {camera:!p.alive&&observer?{follow:observer.account,name:observer.name||'Squadmate',x:observer.x,y:observer.y||0,z:observer.z,yaw:observer.yaw,pitch:observer.pitch||0}:null,protocol:RAID_PROTOCOL,raidId:r.id,map:r.world.id,mapVersion:r.world.version||1,region:r.region||'local',matchmaking:r.matchmaking||{version:0,pool:'mixed'},serverTime,pings:(r.pings||[]).filter(q=>q.until>serverTime&&q.team===p.team&&!blockedBetween(this.store,account,q.owner)),squad:[...r.players.values()].filter(q=>q.team===p.team).map(q=>({id:q.account,name:q.name||'Operator',alive:q.alive,downed:q.downed,hp:q.hp,outcome:q.result?.outcome,boarding:!!q.board,carrying:!!q.carrying,bleedLeft:Math.max(0,q.bleedUntil-serverTime),connected:serverTime-q.lastInput<5})),left:Math.max(0,r.deadline-serverTime),conditions:r.conditions,utilities:(r.utilities||[]).filter(e=>observer&&near(observer,e,65)&&raidLine(r,observer.x,observer.z,e.x,e.z,(observer.y||0)+1.5,e.y+1)).map(({id,kind,x,y,z,radius,activeAt,until,detonated})=>({id,kind,x,y,z,radius,activeAt,until,detonated})),events:r.events.slice(-10),telegraphs:(r.telegraphs||[]).filter(q=>visible(q)||observer&&near(observer,q,(q.radius||1)+5)&&raidLine(r,observer.x,observer.z,q.x,q.z,(observer.y||0)+1.5,(q.y||0)+1)),hazards:(r.world.hazards||[]).map(h=>hazardState(h,serverTime-r.started)),self:{deploymentId:p.deploymentId,x:p.x,y:p.y||0,z:p.z,yaw:p.yaw,pitch:p.pitch||0,combatVersion:p.combatVersion||1,ballisticsVersion:r.ballisticsVersion||0,wounds:p.wounds||{},nextMedicalAt:p.nextMedicalAt||0,nextFire:p.nextFire||0,armor:p.combatVersion===2&&p.equipment.some(it=>it.kind==='armor')?armorStats(p.equipment.find(it=>it.kind==='armor')):null,hp:p.hp,ammo:p.ammo,alive:p.alive,grounded:p.grounded,vy:p.vy||0,fallPeak:p.fallPeak??p.y??0,move:serverTime-p.lastMoveAt<.4?p.move:{x:0,z:0},carrier:p.carrier,reviving:p.reviving?{until:p.reviving.until}:null,carrying:p.carrying,pack:p.pack,secure:p.secure,equipment:p.equipment,cap:p.cap,secureCap:p.secureCap,weight:this.weight(p),weightCap:p.weightCap||40,weaponId:p.weaponId,seq:p.seq,board:p.board,result:p.result,downed:p.downed,bleedLeft:Math.max(0,p.bleedUntil-serverTime),team:p.team},
    players:[...r.players.values()].filter(q=>q!==p&&q.alive&&(q.team===p.team||visible(q))).map(q=>{const reachable=q.team===p.team&&this.canRescue(r,p,q,serverTime),carriedByYou=!!(p.alive&&!p.downed&&q.downed&&p.carrying===q.account&&q.carrier===p.account);return {id:q.account,name:q.name||'Operator',x:q.x,y:q.y||0,z:q.z,yaw:q.yaw,weapon:[...q.equipment,...q.pack].find(it=>it.id===q.weaponId&&it.kind==='weapon')?.weapon??null,hp:q.hp,team:q.team,downed:q.downed,...(q.team===p.team&&q.downed?{rescue:{revive:reachable,carry:carriedByYou||!!(reachable&&!p.carrying&&!q.carrier),carriedByYou}}:{})}}),
-   machines:r.machines.filter(q=>q.hp>0&&visible(q)).map(m=>({id:m.id,kind:m.kind,x:m.x,y:m.y||0,z:m.z,hp:m.hp,maxHp:m.maxHp||MACHINES[m.kind]?.hp,yaw:m.yaw||0,state:m.state,enraged:m.enraged,hurtUntil:m.hurtUntil})),caches:r.caches.map(c=>({id:c.id,x:c.x,y:c.y||0,z:c.z,open:c.open,tier:c.tier||0,label:c.label||'Salvage cache',vault:c.vault,searchRemaining:c.searcher===account?Math.max(0,c.searchUntil-serverTime):null,items:c.open&&this.canInteract(r,p,c,3)?c.items:[]})),
-   bags:r.bags.filter(b=>b.items.length).map(b=>({id:b.id,x:b.x,y:b.y||0,z:b.z,items:this.canInteract(r,p,b,3)?b.items:[]})),exits:r.exits.map(e=>({...e,reservedSeats:[...r.players.values()].filter(q=>q.board?.exit===e.id&&this.validBoarding(r,q,serverTime)).reduce((n,q)=>n+(q.board.passengers?.length||this.boardingParty(r,q).length),0),contested:[...r.players.values()].some(q=>q.alive&&q.team!==p.team&&near(q,e,8)&&visible(q))}))};
+   machines:r.machines.filter(q=>q.hp>0&&visible(q)).map(m=>({id:m.id,kind:m.kind,x:m.x,y:m.y||0,z:m.z,hp:m.hp,maxHp:m.maxHp||MACHINES[m.kind]?.hp,yaw:m.yaw||0,state:m.state,enraged:m.enraged,hurtUntil:m.hurtUntil})),rivals:rivalSnapshotData(r,observer,serverTime,r.conditions?.visibility||1,(q,o,at)=>!!o&&near(o,q,90)&&raidSight(r,o,q,{eye:SHOT_EYE_HEIGHT,body:1.15,head:1.7},at)),caches:r.caches.map(c=>({id:c.id,x:c.x,y:c.y||0,z:c.z,open:c.open,tier:c.tier||0,label:c.label||'Salvage cache',vault:c.vault,weaponCache:!!c.weaponCache,searchRemaining:c.searcher===account?Math.max(0,c.searchUntil-serverTime):null,items:c.open&&this.canInteract(r,p,c,3)?c.items:[]})),
+   loot:(r.floorLoot||[]).filter(l=>l.items.length&&observer&&near(observer,l,40)&&clearLine(r.world,observer.x,observer.z,l.x,l.z,(observer.y||0)+1.55,(l.y||0)+.5)).map(l=>({id:l.id,x:l.x,y:l.y||0,z:l.z,label:l.label||'Ground loot',ground:true,items:l.items})),
+   bags:r.bags.filter(b=>b.items.length).map(b=>({id:b.id,x:b.x,y:b.y||0,z:b.z,items:this.canInteract(r,p,b,3)?b.items:[]})),exits:r.exits.map(e=>({...e,reservedSeats:[...r.players.values()].filter(q=>q.board?.exit===e.id&&this.validBoarding(r,q,serverTime)).reduce((n,q)=>n+(q.board.passengers?.length||this.boardingParty(r,q).length),0),contested:[...r.players.values()].some(q=>q.alive&&q.team!==p.team&&near(q,e,8)&&visible(q))||(r.rivals||[]).some(q=>q.alive&&near(q,e,8)),rivalContestedUntil:e.rivalContestedUntil||0,rivalContestedBy:e.rivalContestedBy||null}))};
  }
 }
