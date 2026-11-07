@@ -3,9 +3,10 @@ import {newDefs} from './maps2.js';
 import {dress} from './mapdress.js';
 import {HQP} from './assets.js';
 import {brDef,BR_ZONES} from './br.js';
-import {RAID_WORLDS} from './shared/raid-worlds.mjs';
+import {RAID_WORLDS,terrainHeightAt} from './shared/raid-worlds.mjs';
 const useHQ=k=>HQP.ready&&HQP.models[k]&&GQ.level!=='low';
 import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng,WT} from './gfx.js';
+
 const _c=new THREE.Color();
 function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],links=[],nav=[];
  const add=(tex,pt)=>{(T[tex]=T[tex]||[]).push(pt)};
@@ -275,6 +276,28 @@ const RAID_THEMES={
 };
 const RAID_TEX={concrete:'concrete',plaster:'concrete',planks:'planks',brick:'brick',metal:'metal',rock:'rock',container:'metal',roof:'concrete',crate:'crate',barrier:'hazard'};
 function raidMaterial(theme,kind){const t=RAID_THEMES[theme]||RAID_THEMES.industrial;return{t,color:t[kind]??t.concrete,tex:RAID_TEX[kind]||'concrete'}}
+// Offline sibling of the shared terrain surface: same sampled heights, same
+// ridge colouring and a tiled ground texture, so local raid maps match online.
+function raidTerrainMesh(size,theme,sample){
+ const segments=160,step=size[0]/segments,vertices=segments+1,count=vertices*vertices,position=new Float32Array(count*3),uv=new Float32Array(count*2),index=[];
+ for(let j=0;j<vertices;j++)for(let i=0;i<vertices;i++){
+  const k=j*vertices+i,x=-size[0]/2+i*step,z=-size[1]/2+j*step;
+  position[k*3]=x;position[k*3+1]=sample(x,z);position[k*3+2]=z;uv[k*2]=i/segments;uv[k*2+1]=j/segments;
+ }
+ for(let j=0;j<segments;j++)for(let i=0;i<segments;i++){const a=j*vertices+i,above=a+vertices;index.push(a,above,a+1,a+1,above,above+1)}
+ const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(position,3));geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));geometry.setIndex(index);geometry.computeVertexNormals();
+ const normals=geometry.attributes.normal,colors=new Float32Array(count*3),low=new THREE.Color(theme==='wilderness'?0x566448:theme==='settlement'?0x716257:0x52564e),high=new THREE.Color(theme==='wilderness'?0x93a083:theme==='settlement'?0xa5917b:0x8c978d),rock=new THREE.Color(0x706f68),tint=new THREE.Color();
+ for(let i=0;i<count;i++){
+  tint.copy(low).lerp(high,Math.min(1,position[i*3+1]/34));
+  const slope=1-normals.array[i*3+1];if(slope>0)tint.lerp(rock,Math.min(.55,slope*1.5));
+  tint.multiplyScalar(1+Math.sin(position[i*3]*.23)*.075+Math.cos(position[i*3+2]*.19)*.075);
+  colors[i*3]=tint.r;colors[i*3+1]=tint.g;colors[i*3+2]=tint.b;
+ }
+ geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+ const map=getTex(theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel').clone();map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(54,54);map.anisotropy=2;map.needsUpdate=true;
+ const material=new THREE.MeshStandardMaterial({map,vertexColors:true,roughness:.97,metalness:0});
+ const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();return mesh;
+}
 function raidRamp(B,ramp,t){
  const rise=Math.abs(ramp.to-ramp.from),count=Math.max(4,Math.ceil(rise/.34)),seg=ramp.w/count;
  for(let i=0;i<count;i++){
@@ -283,8 +306,8 @@ function raidRamp(B,ramp,t){
   else B.box(ramp.x,0,ramp.z-ramp.d/2+ramp.d/count*(i+.5),ramp.w,Math.max(.12,level),ramp.d/count,t.metal,'metal');
  }
 }
-function raidProp(B,p,t,theme='industrial'){
- const worldTheme=theme,x=p.x||0,z=p.z||0,y=p.y||0,s=p.scale||1;
+function raidProp(B,p,t,theme='industrial',sample=null){
+ const worldTheme=theme,x=p.x||0,z=p.z||0,baseY=p.y||0,lift=(p.y==null||p.y===0)&&sample?sample(x,z):0,y=baseY+lift,s=p.scale||1;
  switch(p.kind){
   case 'floor':B.box(x,y,z,p.w||10,.03,p.d||10,p.color||t.ground[1],'tiles',{solid:false,shadow:false,us:.3});break;
   case 'tree':B.tree(x,z,s,p.leaf);break;
@@ -337,7 +360,7 @@ function raidProp(B,p,t,theme='industrial'){
  }
 }
 function raidMassiveDef(world){
- const t=RAID_THEMES[world.theme]||RAID_THEMES.industrial,size=world.size;
+ const t=RAID_THEMES[world.theme]||RAID_THEMES.industrial,size=world.size,terrainSample=world.terrain?(x,z)=>terrainHeightAt(world,x,z):null;
  return {
   name:world.name,desc:`Extraction Raid · ${size} m × ${size} m sector`,icon:world.id==='relay'?'📡':world.id==='reservoir'?'💧':'⚙️',
   br:true,noDress:true,wallH:8,size:[size,size],ground:t.ground,horizon:'city',
@@ -353,11 +376,13 @@ function raidMassiveDef(world){
     B.box(x,base,z,w,h,d,tint??m.color,m.tex,{us:kind==='container'?.4:.22,gy:base});
    }
    for(const ramp of world.ramps||[])raidRamp(B,ramp,t);
-   for(const prop of world.props||[])raidProp(B,prop,t,world.theme);
+   for(const prop of world.props||[])raidProp(B,prop,t,world.theme,terrainSample);
    for(const lm of world.landmarks||[]){B.glow(lm.x,2.8,lm.z,3,.12,3,0xffd23f);B.box(lm.x,0,lm.z,.28,2.8,.28,0x2b2f3a,'metal')}
    for(let i=0;i<24;i++){const a=i/24*Math.PI*2,r=size/2-8,x=Math.sin(a)*r,z=Math.cos(a)*r;
     B.cyl(x,0,z,.4,3.4,0x4a555c,'metal',{seg:6,shadow:false});B.glow(x,3.3,z,.9,.2,.9,0xffa43a)}
   },
+  terrainSample,
+  terrainTheme:world.theme,
   spawnsA:world.spawns.slice(0,3).map(s=>[s[0],s[1]]),
   spawnsB:world.spawns.slice(3,6).map(s=>[s[0],s[1]]),
   spawnsM:world.spawns.slice(6).map(s=>[s[0],s[1]])
@@ -393,6 +418,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  if(!d.hub&&!d.noDress)try{dress(B,d,GQ.level==='low'?0:GQ.level==='high'?2:1)}catch(e){console.warn('dress',e)}
  if(!d.pier&&!d.indoor){for(const s of[-1,1]){const wh=d.wallH||4;B.box(0,0,s*(sz/2+.5),sx+2,wh,1,0x000000,'plain',{shadow:false});B.box(s*(sx/2+.5),0,0,1,wh,sz,0x000000,'plain',{shadow:false})}for(let k=0;k<4;k++)B.T.plain.pop()}
  const group=new THREE.Group();const cells_=[];group.userData.cells=cells_;
+ if(d.terrainSample)group.add(raidTerrainMesh(d.size,d.terrainTheme,d.terrainSample));
  for(const t in B.T){if(!B.T[t].length)continue;if(d.br){// big map: split into 56 m cells so the GPU/frustum can cull far chunks (iPhone)
   const cells={};for(const pt of B.T[t]){const k=Math.floor((pt.p[0]+250)/56)+'_'+Math.floor((pt.p[2]+250)/56);(cells[k]=cells[k]||[]).push(pt)}
   for(const k in cells){const m=new THREE.Mesh(mergeParts(cells[k],{uv:true,ao:true}),texMat(t));m.userData.tm=t;m.castShadow=t!=='plain';m.receiveShadow=true;m.matrixAutoUpdate=false;group.add(m);
@@ -423,7 +449,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
  if(B.props.length){const by={};for(const q of B.props)(by[q.k]=by[q.k]||[]).push(q);const o=new THREE.Object3D(),col=new THREE.Color();for(const k in by){const M=HQP.models[k],L=by[k];const im=new THREE.InstancedMesh(M.geo,M.mat,L.length);
   L.forEach((q,j)=>{o.position.set(q.x,q.y,q.z);o.rotation.set(0,q.ry,0);if(k==='crate')o.scale.set(q.s/M.size.x,q.s/M.size.y,q.s/M.size.z);else o.scale.setScalar(q.s/M.size.y);o.updateMatrix();im.setMatrixAt(j,o.matrix);im.setColorAt(j,col.set(0xffffff).lerp(col.clone().set(q.c),k==='barrel'?.55:.15))});im.castShadow=im.receiveShadow=true;im.userData.hqProp=1;group.add(im)}}
- return cache[i]={lootSpots:B.brLoot||[],chestSpots:B.brChests||[],doors:B.brDoors||[],zones:d.zones||null,hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,doorsL:B.dl,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ return cache[i]={lootSpots:B.brLoot||[],chestSpots:B.brChests||[],doors:B.brDoors||[],zones:d.zones||null,hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,doorsL:B.dl,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,groundAt:d.terrainSample,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}

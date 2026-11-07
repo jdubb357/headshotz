@@ -763,6 +763,82 @@ function densifyWorld(world,seed){
  return m;
 }
 
+// Version 10 adds a shared, deterministic terrain heightfield to each sector.
+// The heightfield lives in shared world data so authoritative collision, the
+// online renderer, the offline map builder and the minimap all sample the same
+// surface. Its broad Gaussian ridges give every sector real relief, while
+// structures, roads, fields, ramps, spawns, caches and exits are cut-and-filled
+// onto flat pads and the surrounding ground is distance-capped so pad edges rise
+// gradually instead of forming a wall.
+const TERRAIN_RES=160;
+const TERRAIN_PAD=2;
+const TERRAIN_EDGE_RISE=1;
+function sculptTerrain(world,seed){
+ const m=structuredClone(world);m.version=10;
+ const res=TERRAIN_RES,cell=m.size/res,half=m.size/2,heights=new Float32Array(res*res),mask=new Float32Array(res*res),R=prng(seed);
+ const markRect=(x,z,w,d)=>{
+  const i0=Math.max(0,Math.floor((x-w/2+half)/cell-.5)),i1=Math.min(res-1,Math.ceil((x+w/2+half)/cell-.5));
+  const j0=Math.max(0,Math.floor((z-d/2+half)/cell-.5)),j1=Math.min(res-1,Math.ceil((z+d/2+half)/cell-.5));
+  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++)mask[j*res+i]=1;
+ };
+ const markCircle=(x,z,r)=>{
+  const i0=Math.max(0,Math.floor((x-r+half)/cell-.5)),i1=Math.min(res-1,Math.ceil((x+r+half)/cell-.5));
+  const j0=Math.max(0,Math.floor((z-r+half)/cell-.5)),j1=Math.min(res-1,Math.ceil((z+r+half)/cell-.5));
+  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const cx=-half+(i+.5)*cell-x,cz=-half+(j+.5)*cell-z;if(cx*cx+cz*cz<=r*r)mask[j*res+i]=1}
+ };
+ // Five ring-distributed ridges plus a low centre knoll give each sector relief
+ // across all quadrants instead of one hill in the middle.
+ const ridges=[];
+ for(let i=0;i<5;i++){
+  const angle=i/5*Math.PI*2+(R()-.5)*.55,distance=110+R()*430;
+  ridges.push({x:Math.cos(angle)*distance,z:Math.sin(angle)*distance,s:280+R()*180,h:30+R()*12});
+ }
+ ridges.push({x:(R()-.5)*220,z:(R()-.5)*220,s:320,h:24+R()*10});
+ for(let j=0;j<res;j++)for(let i=0;i<res;i++){
+  const x=-half+(i+.5)*cell,z=-half+(j+.5)*cell;let h=0;
+  for(const ridge of ridges){const dx=x-ridge.x,dz=z-ridge.z;h=Math.max(h,ridge.h*Math.exp(-(dx*dx+dz*dz)/(2*ridge.s*ridge.s)))}
+  heights[j*res+i]=h;
+ }
+ for(const block of m.blocks)markRect(block[0],block[1],block[2]+TERRAIN_PAD*2,block[3]+TERRAIN_PAD*2);
+ for(const prop of m.props||[]){
+  if(!['road','sidewalk','plaza','field','basin','rail'].includes(prop.kind))continue;
+  markRect(prop.x,prop.z,(prop.w||((prop.kind==='rail')?40:12))+4,(prop.d||6)+4);
+ }
+ for(const ramp of m.ramps||[])markRect(ramp.x,ramp.z,ramp.w+6,ramp.d+6);
+ for(const [x,z]of m.spawns)markCircle(x,z,15);
+ for(const [x,z]of m.caches)markCircle(x,z,15);
+ for(const exit of m.exits)markCircle(exit.x,exit.z,16);
+ for(const hazard of m.hazards||[])markCircle(hazard.x,hazard.z,(hazard.radius||6)+3);
+ for(const marker of m.landmarks||[])markCircle(marker.x,marker.z,(marker.radius||8)+4);
+ if(m.supply)markCircle(m.supply.x,m.supply.z,12);
+ // A heightfield pad needs a rise from the flattened footprint to open ground,
+ // not a vertical wall. Cap every surrounding cell by its distance from the pad
+ // so the transition is gradual, and keep the cap within the navigation step
+ // limit so hills remain walkable for floorAt/supportAt pathfinding.
+ const core=new Float32Array(mask);
+ const distance=new Float32Array(mask.length);distance.fill(255);
+ let frontier=[];
+ for(let k=0;k<core.length;k++)if(core[k]){distance[k]=0;frontier.push(k)}
+ for(let d=1;d<res*2&&frontier.length;d++){
+  const next=[];
+  for(const k of frontier){
+   const x=k%res,y=(k/res)|0;
+   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=res||ny>=res)continue;
+    const nk=ny*res+nx;if(distance[nk]!==255)continue;distance[nk]=d;next.push(nk);
+   }
+  }
+  frontier=next;
+ }
+ for(let k=0;k<heights.length;k++){
+  if(core[k]){heights[k]=0;continue}
+  if(distance[k]===255)continue;
+  heights[k]=Math.min(heights[k],distance[k]*cell*TERRAIN_EDGE_RISE);
+ }
+ m.terrain={cell,resolution:res,heights};
+ return m;
+}
+
 const relay=authored('relay','Relay Graveyard','industrial');
 room(relay,-40,-30,24,18,5.2,['n','e']);room(relay,0,0,18,16,4);roofAccess(relay,0,0,4);room(relay,38,28,20,14,4.4,['w','s']);
 for(const x of [-40,-28]){box(relay,x,32,2,2,10,0,'metal');relay.props.push({kind:'dish',x,y:10,z:32})}
@@ -897,9 +973,13 @@ const V8_RAID_WORLDS=V7_RAID_WORLDS.map(world=>urbanizeWorld(world,({relay:0x8fc
 // and authored neighbourhoods in every 240 m cell. V8 and earlier layouts stay
 // frozen so checkpoints created before the district pass keep their geometry.
 const V9_RAID_WORLDS=V8_RAID_WORLDS.map(world=>densifyWorld(world,({relay:0x2c91ef,reservoir:0x77c26b,switchyard:0xb85f21})[world.id]||42731));
-export const RAID_WORLDS=V9_RAID_WORLDS;
-// Old checkpoints still resolve their exact layouts for versions 1-9.
-export function getWorld(id,version=9){return (version===1?LEGACY_RAID_WORLDS:version===2?ARCHIVED_RAID_WORLDS:version===3?V3_RAID_WORLDS:version===4?V4_RAID_WORLDS:version===5?V5_RAID_WORLDS:version===6?V6_RAID_WORLDS:version===7?V7_RAID_WORLDS:version===8?V8_RAID_WORLDS:version===9?V9_RAID_WORLDS:[]).find(w=>w.id===id)}
+// Version 10 sculpts a shared terrain surface over the frozen v9 districts.
+// V9 and every earlier layout remain retrievable so existing checkpoints keep
+// their exact flat geometry.
+const V10_RAID_WORLDS=V9_RAID_WORLDS.map(world=>sculptTerrain(world,({relay:0x6d9f43,reservoir:0x2fb6a8,switchyard:0xd7558b})[world.id]||58231));
+export const RAID_WORLDS=V10_RAID_WORLDS;
+// Old checkpoints still resolve their exact layouts for versions 1-10.
+export function getWorld(id,version=10){return (version===1?LEGACY_RAID_WORLDS:version===2?ARCHIVED_RAID_WORLDS:version===3?V3_RAID_WORLDS:version===4?V4_RAID_WORLDS:version===5?V5_RAID_WORLDS:version===6?V6_RAID_WORLDS:version===7?V7_RAID_WORLDS:version===8?V8_RAID_WORLDS:version===9?V9_RAID_WORLDS:version===10?V10_RAID_WORLDS:[]).find(w=>w.id===id)}
 // Dressed sectors hold hundreds of building blocks; a spatial hash keeps
 // collision and floor queries proportional to nearby geometry instead of
 // scanning every block. Static game worlds never invalidate this cache, while
@@ -927,8 +1007,17 @@ export function blocked(world,x,z,r=.5,y=0,height=1.7){
  return (world.ramps||[]).some(ramp=>{const level=rampLevel(ramp,x,z);return level!=null&&y<level-.04&&y+height>level-.12});
 }
 export function rampLevel(r,x,z){if(Math.abs(x-r.x)>r.w/2||Math.abs(z-r.z)>r.d/2)return null;const t=r.axis==='x'?(x-r.x)/r.w+.5:(z-r.z)/r.d+.5;return r.from+(r.to-r.from)*t}
+// Bilinear sample of the shared terrain surface. Worlds before v10 have no
+// terrain and resolve to the historical flat ground at y = 0.
+export function terrainHeightAt(world,x,z){
+ const t=world.terrain;if(!t||!isFinite(x)||!isFinite(z))return 0;
+ const res=t.resolution,cell=t.cell,half=world.size/2;
+ let fx=Math.max(0,Math.min(res-1,(x+half)/cell-.5)),fz=Math.max(0,Math.min(res-1,(z+half)/cell-.5));
+ const x0=Math.floor(fx),z0=Math.floor(fz),x1=Math.min(res-1,x0+1),z1=Math.min(res-1,z0+1),ax=fx-x0,az=fz-z0,heights=t.heights,row0=z0*res,row1=z1*res;
+ return heights[row0+x0]*(1-ax)*(1-az)+heights[row0+x1]*ax*(1-az)+heights[row1+x0]*(1-ax)*az+heights[row1+x1]*ax*az;
+}
 export function floorAt(world,x,z,ceiling=Infinity){
- let y=0;
+ let y=terrainHeightAt(world,x,z);
  for(const [bx,bz,w,d,h,base=0]of nearbyBlocks(world,x,z))if(Math.abs(x-bx)<=w/2&&Math.abs(z-bz)<=d/2&&base+h<=ceiling+.01)y=Math.max(y,base+h);
  for(const ramp of world.ramps||[]){const level=rampLevel(ramp,x,z);if(level!=null&&level<=ceiling+.01)y=Math.max(y,level)}
  return y;

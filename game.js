@@ -245,7 +245,7 @@ function rayCols(o,d,t){if(!CG){for(const c of cols){const r=rayBox(o,d,c.x0,c.y
  for(let guard=0;guard<260;guard++){if(ix>=0&&ix<g.nx&&iz>=0&&iz<g.nz){const L=g.cells[ix+iz*g.nx];for(let k=0;k<L.length;k++){const c=L[k];if(c._s!==st){c._s=st;const r=rayBox(o,d,c.x0,c.y0,c.z0,c.x1,c.y1,c.z1,_n);if(r<t&&r>0){t=r;hitN.copy(_n);hitS=c.s||'concrete'}}}}
   else if((ix<0&&sx<0)||(ix>=g.nx&&sx>0)||(iz<0&&sz<0)||(iz>=g.nz&&sz>0))break;
   const tn=Math.min(nx,nz);if(tn>t)break;if(nx<nz){ix+=sx;nx+=tdx}else{iz+=sz;nz+=tdz}}return t}
-function supportAt(x,y,z){if(Math.abs(x)<groundHalf[0]&&Math.abs(z)<groundHalf[1]&&y<1.5)return true;for(const c of CN(x,z,.6,_cbA))if(x>c.x0-.2&&x<c.x1+.2&&z>c.z0-.2&&z<c.z1+.2&&c.y1<=y+.6&&c.y1>y-2.5)return true;return false}
+function supportAt(x,y,z){const terrain=cur&&cur.groundAt?cur.groundAt(x,z):0;if(Math.abs(x)<groundHalf[0]&&Math.abs(z)<groundHalf[1]&&Math.abs(y-terrain)<1.6)return true;for(const c of CN(x,z,.6,_cbA))if(x>c.x0-.2&&x<c.x1+.2&&z>c.z0-.2&&z<c.z1+.2&&c.y1<=y+.6&&c.y1>y-2.5)return true;return false}
 function onFloor(p){return Math.abs(p.x)<groundHalf[0]&&Math.abs(p.z)<groundHalf[1]}
 function physStep(e,dt){dt=Math.min(dt,.25);const n=Math.ceil(dt/(1/60)-1e-6);if(n>1){let b=0,l=0;for(let i=0;i<n;i++){physStep1(e,dt/n);b=b||e.bump;l=l||e.landed}e.bump=b;e.landed=l;return}physStep1(e,dt)}
 function physStep1(e,dt){const p=e.pos,v=e.vel;if(e.nc){p.x+=v.x*dt;p.y=Math.max(0,p.y+v.y*dt);p.z+=v.z*dt;e.ground=false;e.landed=false;return}const py0=p.y;if(!(isFinite(p.x)&&isFinite(p.y)&&isFinite(p.z))){const L=e.lastG||[0,0,0];p.x=L[0];p.y=L[1];p.z=L[2];v.x=v.y=v.z=0}if(!isFinite(v.x+v.y+v.z))v.x=v.y=v.z=0;v.y-=24*(e.gm==null?1:e.gm)*dt;if(v.y<-40)v.y=-40;const wasG=e.ground;if(e.ground)e.gy0=p.y;const cl=CN(p.x,p.z,Math.abs(v.x*dt)+Math.abs(v.z*dt)+PR+1.4,_cbB);
@@ -258,6 +258,13 @@ function physStep1(e,dt){const p=e.pos,v=e.vel;if(e.nc){p.x+=v.x*dt;p.y=Math.max
  if(v.y<=0){let top=-1e9;for(const c of cl){if(p.x+PR>c.x0&&p.x-PR<c.x1&&p.z+PR>c.z0&&p.z-PR<c.z1&&py0>=c.y1-.06&&p.y<c.y1&&c.y1>top)top=c.y1}if(top>-1e9){p.y=top;v.y=0;e.ground=true}}
  for(const c of cl){if(!overlaps(p,c,PH))continue;if(v.y<=0&&p.y>c.y1-.6){p.y=c.y1;e.ground=true}else if(v.y>0&&e.ladTop!=null&&c.y1<=e.ladTop+.7){p.y=c.y1;e.ground=true}else if(v.y>0){const ny=c.y0-PH-.001;if(ny>=py0-.05)p.y=ny;else p.y=Math.max(py0,c.y1)}v.y=Math.min(0,v.y)}
  if(e.ground&&v.y<0)v.y=0;
+ // Raid terrain: walk up sampled slopes and land on the sculpted surface. Older
+ // maps keep their flat y = 0 ground rule.
+ const groundY=onFloor(p)&&cur&&cur.groundAt?cur.groundAt(p.x,p.z):0;
+ if(groundY!==0&&onFloor(p)){
+  if(wasG&&groundY>p.y){const rise=groundY-p.y;if(rise<1.2){p.y=groundY;v.y=Math.max(0,v.y);e.ground=true}}
+  else if(v.y<=0&&p.y<groundY&&py0>=groundY-.12&&!(cur&&cur.def&&cur.def.indoor)){p.y=groundY;v.y=0;e.ground=true}
+ }
  if(p.y<0&&onFloor(p)&&p.y>-1){p.y=0;v.y=0;e.ground=true}
  // safety net: below the floor but over solid ground (not water/off-pier) -> snap back to last grounded spot
  if(p.y<-.5&&onFloor(p)){const L=e.lastG;if(L){p.x=L[0];p.y=L[1];p.z=L[2]}else p.y=0;v.x=v.y=v.z=0;e.ground=true;(window.__snaps=(window.__snaps||0)+1)}

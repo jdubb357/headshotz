@@ -1,7 +1,41 @@
 import * as THREE from './lib/three.module.min.js';
 import {getTex} from './gfx.js';
+import {terrainHeightAt} from './shared/raid-worlds.mjs';
 const palettes={industrial:{ground:0x6c7469,concrete:0x9ba0a0,brick:0x92968b,planks:0x8a6f52,roof:0x354951,metal:0x748889,container:0x426a72,rock:0x6d6a60,crate:0x9c7b4d,barrier:0xc6ab65},wilderness:{ground:0x6c795b,concrete:0x9d9d8f,brick:0x9a9a7e,planks:0x82684e,roof:0x455f5b,metal:0x7e9292,container:0x716645,rock:0x8a8777,crate:0x8d7850,barrier:0x9c956c},settlement:{ground:0x756a60,concrete:0x9f9b95,brick:0xb08063,planks:0x946f4f,roof:0x50505b,metal:0x7e8a90,container:0x6d5751,rock:0x766f64,crate:0x9b744a,barrier:0xc4a86e}};
 const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':kind==='crate'?'crate':kind==='rock'?'rock':kind==='barrier'?'hazard':kind==='planks'?'planks':kind==='brick'?'brick':'concrete';
+// The sector terrain is one vertex-shaded heightfield rather than a flat slab.
+// Heights are sampled from shared world data, so hills match authoritative
+// collision and offline/raid-minimap previews. Line tint keeps ridges readable
+// and a subtle noise modulation breaks up the texture tiling.
+function terrainMesh(world,palette){
+ const segments=160,step=world.size/segments,vertices=segments+1,count=vertices*vertices;
+ const position=new Float32Array(count*3),uv=new Float32Array(count*2),index=[];
+ for(let j=0;j<vertices;j++)for(let i=0;i<vertices;i++){
+  const k=j*vertices+i,x=-world.size/2+i*step,z=-world.size/2+j*step;
+  position[k*3]=x;position[k*3+1]=terrainHeightAt(world,x,z);position[k*3+2]=z;
+  uv[k*2]=i/segments;uv[k*2+1]=j/segments;
+ }
+ for(let j=0;j<segments;j++)for(let i=0;i<segments;i++){const a=j*vertices+i,above=a+vertices;index.push(a,above,a+1,a+1,above,above+1)}
+ const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(position,3));geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));geometry.setIndex(index);geometry.computeVertexNormals();
+ const normals=geometry.attributes.normal,colors=new Float32Array(count*3);
+ const low=new THREE.Color(palette.ground),high=new THREE.Color(world.theme==='wilderness'?0x93a083:world.theme==='settlement'?0xa5917b:0x8c978d),rock=new THREE.Color(0x706f68),tint=new THREE.Color();
+ for(let i=0;i<count;i++){
+  const height=position[i*3+1],slope=1-normals.array[i*3+1];
+  tint.copy(low).lerp(high,Math.min(1,height/34));
+  if(slope>0)tint.lerp(rock,Math.min(.55,slope*1.5));
+  const variation=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.075;
+  tint.multiplyScalar(1+variation);
+  colors[i*3]=tint.r;colors[i*3+1]=tint.g;colors[i*3+2]=tint.b;
+ }
+ geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+ geometry.userData.raidOwned=true;
+ const map=getTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel').clone();
+ map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(54,54);map.anisotropy=4;map.needsUpdate=true;
+ const material=new THREE.MeshStandardMaterial({map,vertexColors:true,roughness:.96,metalness:0,side:THREE.FrontSide});
+ material.userData.raidOwned=true;material.userData.raidOwnTexture=true;
+ const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
+ return mesh;
+}
 export function buildEnvironment(world){
  const root=new THREE.Group(),palette=palettes[world.theme]||palettes.industrial,groups=new Map(),materials=new Map();
  const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,4,20)};
@@ -12,6 +46,7 @@ export function buildEnvironment(world){
   position.set(x,y,z);scale.set(sx,sy,sz);euler.set(rx,ry,0);quaternion.setFromEuler(euler);matrix.compose(position,quaternion,scale);group.transforms.push(matrix.clone());
  }
  add('box',palette.ground,0,-.12,0,world.size,.2,world.size,0,world.theme==='wilderness'?'forest':'gravel');
+ const terrain=world.terrain?terrainMesh(world,palette):null;if(terrain)root.add(terrain);
  for(const [x,z,w,d,h,y=0,kind='concrete',tint]of world.blocks)add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
  for(const ramp of world.ramps||[]){const count=20;for(let i=0;i<count;i++){const t=(i+.5)/count,x=ramp.x+(ramp.axis==='x'?(t-.5)*ramp.w:0),z=ramp.z+(ramp.axis==='z'?(t-.5)*ramp.d:0),y=ramp.from+(ramp.to-ramp.from)*t;
   add('box',palette.metal,x,y-.08,z,ramp.axis==='x'?ramp.w/count:ramp.w,.16,ramp.axis==='z'?ramp.d/count:ramp.d,0,'metal');
@@ -19,7 +54,7 @@ export function buildEnvironment(world){
  }}
  // Roads and lane paint establish readable routes through every district.
  for(const axis of ['x','z']){add('box',0x3e4546,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
- for(const prop of world.props||[]){const{x,y=0,z,scale:s=1}=prop;
+ for(const prop of world.props||[]){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
   if(prop.kind==='floor')add('box',prop.color||palette.ground,x,y,z,prop.w,.03,prop.d,0,'tiles');
   else if(prop.kind==='tree'){const leaf=prop.leaf||0x3c5745;add('cylinder',0x6b5842,x,y+1.5*s,z,.23*s,3*s,.23*s,0,'planks');for(let i=0;i<3;i++)add('cone',leaf,x,y+(3+i)*s,z,(2-i*.4)*s,3*s,(2-i*.4)*s)}
   else if(prop.kind==='bush'){const c=prop.color||0x3e9b4f;for(let i=0;i<3;i++)add('sphere',c,x+(i-1)*.55*s,y+(.7+i*.1)*s,z+(i%2?-.4:.3)*s,1.25*s,.85*s,1.1*s)}

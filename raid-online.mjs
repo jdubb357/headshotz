@@ -19,7 +19,7 @@ import {raidInput} from './raid-input.mjs';
 import {keyName,aimDelta} from './shared/raid-settings.mjs';
 import {communicationUI} from './raid-comms-ui.mjs';
 import {RaidView,BasePreview} from './raid-view.mjs';
-import {RAID_WORLDS,getWorld} from './shared/raid-worlds.mjs';
+import {RAID_WORLDS,getWorld,terrainHeightAt} from './shared/raid-worlds.mjs';
 import {baseController} from './raid-base.mjs';
 import {WEAPONS,MODS,weaponStats,itemWeight} from './shared/raid-catalog.mjs';
 installDialogNavigation();
@@ -294,6 +294,16 @@ function mapBackground(world,n){
  const canvas=document.createElement('canvas');canvas.width=canvas.height=n;const ctx=canvas.getContext('2d'),k=n/world.size,theme=world.theme in MAP_PALETTES?world.theme:'industrial',pal=MAP_PALETTES[theme],blockColors=MAP_KIND_COLORS[theme];
  const rect=(x,z,w,d,color,ry=0)=>{ctx.save();ctx.translate(x,z);if(ry)ctx.rotate(ry);ctx.fillStyle=color;ctx.fillRect(-w/2,-d/2,w,d);ctx.restore()};
  ctx.fillStyle=pal.ground;ctx.fillRect(0,0,n,n);ctx.save();ctx.translate(n/2,n/2);ctx.scale(k,k);
+ // Relief shading: higher ground darkens gradually, so hills read on the
+ // overview map without hiding streets, fields or markers drawn above it.
+ if(world.terrain){
+  const step=world.size/72;ctx.globalAlpha=1;
+  for(let x=-world.size/2;x<world.size/2;x+=step)for(let z=-world.size/2;z<world.size/2;z+=step){
+   const height=terrainHeightAt(world,x+step/2,z+step/2);
+   if(height>1.5){ctx.globalAlpha=Math.min(.42,height/75);ctx.fillStyle='#1b241d';ctx.fillRect(x,z,step,step)}
+  }
+  ctx.globalAlpha=1;
+ }
  for(const p of world.props){
   if(p.kind==='field')rect(p.x||0,p.z||0,p.w||20,p.d||20,p.color||pal.field,p.ry||0);
   else if(p.kind==='basin')rect(p.x||0,p.z||0,p.w||40,p.d||20,'#487580',p.ry||0);
