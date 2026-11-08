@@ -16,7 +16,7 @@ function nearestEnemy(X,p,H,R){let best=null,bd=1e9;const t=H.t;
 // Passives from every buddy, plus a rotating active that does not lock out shooting (no bat form, no phase).
 export function hostOmni(X,p,S,H,pw,tr,dt){const t=H.t;
  if(t>=(S.g||0)&&!H.noFight){const best=nearestEnemy(X,p,H,5+pw);if(best){S.g=t+4.2;X.bcast({t:'pfx',k:'zap',id:p.id,v:best.id});X.damage(best,Math.round(8+4*pw),p.id,false,'fists')}else S.g=t+.35}
- if(p.hp<100&&t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+1.6*pw*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}
+ if(p.hp<100){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+omniHealRate(pw,t-(p.hurtT||0)>4)*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}
  if(t>=(S.shT||0)&&(p.sh||0)<25){S.shT=t+26/Math.max(.6,pw);p.sh=25;X.toPlayer(p.id,{t:'shd',sh:25});X.bcast({t:'pfx',k:'shield',id:p.id})}
  if(t>=(S.mag||0)){S.mag=t+.35;grabNearby(H.br,p,6.5+pw,[1,2],(who,id)=>X.take(who,id,true),4)}
  S.fl=S.fl||[];if(t>=(S.fd||8)){S.fl=S.fl.filter(x=>t-x<360);if(S.fl.length<4){S.fl.push(t);S.fd=t+60/Math.max(.6,pw);X.toPlayer(p.id,{t:'pdia',n:1})}else S.fd=t+20}
@@ -27,3 +27,14 @@ export function hostOmni(X,p,S,H,pw,tr,dt){const t=H.t;
   else if(step===2){S.fire={until:t+3.2,next:t+.3};X.bcast({t:'pfx',k:'fireon',id:p.id,d:3.2,cd:16})}
   else grabNearby(H.br,p,14,[1,2],(who,id)=>X.take(who,id,true),6)}}
 export function hostSpinGrab(X,p,S,H){const t=H.t;if(!p.ride||t<(S.sp||0))return 0;S.sp=t+.28;return grabNearby(H.br,p,7,[2],(who,id)=>X.take(who,id,true),4)}
+// Same rise-again numbers as the phoenix: tier HP, 150 s cooldown, 2.5 s protection.
+export const REBIRTH={hp:[35,50,65],cd:150,prot:2.5};
+export function tryRebirth(S,t,tier){if(!S||t<(S.rb||0))return null;const i=Math.max(0,Math.min(2,(tier|0)-1));S.rb=t+REBIRTH.cd;return{hp:REBIRTH.hp[i],prot:t+REBIRTH.prot,cd:REBIRTH.cd}}
+// Slow trickle while you are being shot, and the bigger medic rate after 4 s of calm.
+export function omniHealRate(pw,calm){return (calm?1.6:0.55)*Math.max(.2,pw||1)}
+// Secret pets. Each one is automatic and small so a Secret chest is not a second Chimera.
+export function hostSecret(X,p,S,H,ab,pw,dt){const t=H.t;
+ if(ab==='tide'){if(p.hp>=100)return;const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+.9*pw*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)});return}
+ if(ab==='lantern'){if(t<(S.a||0)||H.noFight)return;S.a=t+16;X.bcast({t:'pfx',k:'omniscan',id:p.id,d:3});return}
+ if(ab==='sting'){if(t<(S.a||0)||H.noFight)return;const best=nearestEnemy(X,p,H,6);if(!best){S.a=t+.45;return}S.a=t+7;X.damage(best,Math.round(6*pw),p.id,false,'fists');if(best.bot){best.slowT=t+1.2;best.slowF=.72}else X.toPlayer(best.id,{t:'slow',f:.72,d:1.2});return}
+ if(ab==='dazzle'){if(t<(S.a||0))return;S.a=t+22;p.decoy=Math.max(p.decoy||0,t+4);X.bcast({t:'pfx',k:'decoy',id:p.id,x:p.p[0],y:p.p[1],z:p.p[2],yaw:p.p[3]||0,d:4});if((p.sh||0)<15){p.sh=15;X.toPlayer(p.id,{t:'shd',sh:15});X.bcast({t:'pfx',k:'shield',id:p.id})}}}

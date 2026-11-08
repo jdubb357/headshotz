@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 //    still enter the match by taking a bot slot in another squad (squad cap stays 4).
 // 2. a duplicated BR roundEnd message pays the +300 victory bonus only once per match, and the
 //    guard resets for the next match.
-// 3. the shop pricing tiers match the issue: Legendary ("godly") 5,000, Secret 3,000, with the
-//    same amounts shown in the weapon shop and deducted on purchase.
+// 3. the shop pricing tiers: Godly chests and Godly weapons 50,000, Secret chests and Secret weapons 25,000,
+//    with the same amounts shown in the weapon shop and deducted on purchase.
 //
 // Run: node tests/issue2-regressions.mjs
 // Defaults: Chrome CDP 127.0.0.1:9337, local game server 127.0.0.1:8010.
@@ -277,34 +277,34 @@ try {
         }
       };
     })()`);
-    assert.deepEqual(catalog.chest, {godly: 5000, secret: 3000, common: 300}, 'chest tier prices: Godly 5,000, Secret 3,000');
+    assert.deepEqual(catalog.chest, {godly: 50000, secret: 25000, common: 300}, 'chest tier prices: Godly 50,000, Secret 25,000');
     assert.equal(catalog.weapons.gk.rar, 'GODLY', 'godly weapons carry the GODLY rarity');
-    assert.equal(catalog.weapons.gk.shop, 5000, 'godly weapons cost 5,000 in the shop');
+    assert.equal(catalog.weapons.gk.shop, 50000, 'godly weapons cost 50,000 in the shop');
     assert.equal(catalog.weapons.awp.rar, 'SECRET', 'secret-tier weapons carry the project rarity label');
-    assert.equal(catalog.weapons.awp.shop, 3000, 'secret-tier weapons cost 3,000 in the shop');
-    assert.equal(catalog.weapons.minigun.shop, 3000, 'secret-tier weapons cost 3,000 in the shop');
+    assert.equal(catalog.weapons.awp.shop, 25000, 'secret-tier weapons cost 25,000 in the shop');
+    assert.equal(catalog.weapons.minigun.shop, 25000, 'secret-tier weapons cost 25,000 in the shop');
     assert.equal(catalog.weapons.aa12.price, 1100, 'raid valuation retains the weapon base price');
 
-    await page.evaluate(`(() => {window.__hsz.PROG.dia = 5100; document.getElementById('openShop').click(); return true})()`);
+    await page.evaluate(`(() => {window.__hsz.PROG.dia = 50100; document.getElementById('openShop').click(); return true})()`);
     await page.wait(`!document.getElementById('arsenal').classList.contains('hidden')`);
     await page.evaluate(`document.querySelector('#arsTabs [data-c="${catalog.weapons.gk.cls}"]').click()`);
     await page.wait(`!!document.querySelector('#arsGrid [data-w="gk_ak47"]')`);
     const badge = await page.evaluate(`document.querySelector('#arsGrid [data-w="gk_ak47"]').innerText`);
-    assert.ok(/GODLY · 💎 5000/.test(badge), 'shop badge shows the rarity and 5,000 price: ' + JSON.stringify(badge));
+    assert.ok(/GODLY · 💎 50000/.test(badge), 'shop badge shows the rarity and 50,000 price: ' + JSON.stringify(badge));
     await page.evaluate(`document.querySelector('#arsGrid [data-w="gk_ak47"]').click()`);
-    await page.wait(`document.getElementById('arsEquip').textContent.includes('5000')`);
+    await page.wait(`document.getElementById('arsEquip').textContent.includes('50000')`);
     await page.evaluate(`document.getElementById('arsEquip').click()`);
     const boughtLegendary = await page.evaluate(`(() => ({dia: window.__hsz.PROG.dia, owned: window.__hsz.PROG.owned.includes('gk_ak47')}))()`);
-    assert.equal(boughtLegendary.dia, 100, 'buying a godly weapon deducts exactly 5,000 diamonds');
+    assert.equal(boughtLegendary.dia, 100, 'buying a godly weapon deducts exactly 50,000 diamonds');
     assert.equal(boughtLegendary.owned, true, 'godly weapon unlocked');
 
-    await page.evaluate(`(() => {window.__hsz.PROG.dia = 3100; document.querySelector('#arsTabs [data-c="sniper"]').click(); return true})()`);
+    await page.evaluate(`(() => {window.__hsz.PROG.dia = 25100; document.querySelector('#arsTabs [data-c="sniper"]').click(); return true})()`);
     await page.wait(`!!document.querySelector('#arsGrid [data-w="awp"]')`);
     await page.evaluate(`document.querySelector('#arsGrid [data-w="awp"]').click()`);
-    await page.wait(`document.getElementById('arsEquip').textContent.includes('3000')`);
+    await page.wait(`document.getElementById('arsEquip').textContent.includes('25000')`);
     await page.evaluate(`document.getElementById('arsEquip').click()`);
     const boughtSecret = await page.evaluate(`(() => ({dia: window.__hsz.PROG.dia, owned: window.__hsz.PROG.owned.includes('awp')}))()`);
-    assert.equal(boughtSecret.dia, 100, 'buying a secret weapon deducts exactly 3,000 diamonds');
+    assert.equal(boughtSecret.dia, 100, 'buying a secret weapon deducts exactly 25,000 diamonds');
     assert.equal(boughtSecret.owned, true, 'secret weapon unlocked');
     result.checks.pricing = {catalog, boughtLegendary, boughtSecret, errors: page.errors};
     assert.equal(page.errors.length, 0, 'console errors: ' + JSON.stringify(page.errors));

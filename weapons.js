@@ -40,8 +40,8 @@ export const W={
  deagle:{name:'Desert Eagle',cls:'pistol',price:650,rate:.45,mag:7,reload:1.9,body:36,head:60,fall:[25,60],min:14,spread:.007,rc:[.07,.015],snd:{f:900,d:.26,b:70,v:.88},desc:'.50 cal hand cannon.'},
  crossbow:{name:'Crossbow',cls:'marksman',price:900,rate:1,mag:1,reload:1.3,body:65,head:130,spread:.003,scope:45,rc:[.02,.004],snd:{f:700,d:.12,b:220,v:.5},noShell:1,desc:'Silent bolts. One-shot headshots.'},
  lmg:{name:'LMG',cls:'heavy',rar:'LEGENDARY',price:1200,auto:1,rate:.09,mag:100,reload:4,body:13,head:17,fall:[30,80],min:5,spread:.022,rc:[.011,.01],snd:{f:1600,d:.13,b:120,v:.62},desc:'100-round belt. Suppress everything.'},
- gl:{name:'Grenade Launcher',cls:'heavy',rar:'SECRET',price:1500,shop:3000,proj:'gl',rate:.9,mag:6,reload:3,body:0,head:0,splash:85,radius:5,spread:0,rc:[.06,.01],snd:{f:500,d:.2,b:60,v:.7},noShell:1,desc:'Lobs explosive rounds that pop on impact.'},
- rpg:{name:'Rocket Launcher',cls:'heavy',rar:'SECRET',price:1900,shop:3000,proj:'rpg',rate:1.4,mag:1,reload:2.6,body:0,head:0,splash:120,radius:5.5,spread:0,rc:[.09,.015],snd:{f:380,d:.45,b:50,v:.85},noShell:1,desc:'Rocket with big splash. Self-damage reduced.'},
+ gl:{name:'Grenade Launcher',cls:'heavy',rar:'SECRET',price:1500,shop:25000,proj:'gl',rate:.9,mag:6,reload:3,body:0,head:0,splash:85,radius:5,spread:0,rc:[.06,.01],snd:{f:500,d:.2,b:60,v:.7},noShell:1,desc:'Lobs explosive rounds that pop on impact.'},
+ rpg:{name:'Rocket Launcher',cls:'heavy',rar:'SECRET',price:1900,shop:25000,proj:'rpg',rate:1.4,mag:1,reload:2.6,body:0,head:0,splash:120,radius:5.5,spread:0,rc:[.09,.015],snd:{f:380,d:.45,b:50,v:.85},noShell:1,desc:'Rocket with big splash. Self-damage reduced.'},
  m16:{name:'M16A4',cls:'ar',price:550,burst:3,rate:.34,mag:30,reload:2.1,body:14,head:20,fall:[30,85],min:5,spread:.006,rc:[.012,.004],snd:{f:2000,d:.11,b:140,v:.58},desc:'3-round burst, long barrel, laser accurate.'},
  mk18:{name:'MK18 CQB',cls:'ar',price:600,auto:1,rate:.075,mag:30,reload:1.8,body:10,head:14,fall:[18,50],min:3,spread:.011,rc:[.009,.006],snd:{f:1500,d:.07,b:120,v:.32},desc:'Short suppressed carbine. Quiet and quick.'},
  mini14:{name:'Ranch Rifle',cls:'marksman',price:500,rate:.22,mag:20,reload:2,body:24,head:40,fall:[40,90],min:14,spread:.005,rc:[.025,.006],snd:{f:1700,d:.14,b:110,v:.62},desc:'Wood-stocked semi-auto. Classic.'},
@@ -50,8 +50,8 @@ export const W={
  saiga:{name:'Saiga-12',cls:'shotgun',price:900,rate:.3,mag:8,reload:2.3,body:9,head:12,pellets:8,fall:[7,22],min:1.5,spread:.08,rc:[.06,.014],snd:{f:1000,d:.22,b:80,v:.82},desc:'Semi-auto mag-fed shotgun.'},
  ksg:{name:'KSG',cls:'shotgun',price:1000,rate:.75,mag:14,reload:3.2,body:11,head:15,pellets:8,fall:[8,26],min:2,spread:.07,rc:[.07,.01],snd:{f:950,d:.26,b:75,v:.86},desc:'Bullpup pump with twin tubes: 14 shells.'},
  barrett:{name:'Barrett .50',cls:'sniper',rar:'LEGENDARY',price:1600,rate:.9,mag:5,reload:3.2,body:65,head:150,spread:.05,scope:16,rc:[.11,.02],snd:{f:600,d:.5,b:50,v:.95,crack:1},desc:'Semi-auto anti-materiel. Massive kick.'},
- awp:{name:'Arctic Magnum',cls:'sniper',rar:'SECRET',price:1900,shop:3000,rate:1.6,mag:5,reload:3.4,body:100,head:200,spread:.06,scope:18,rc:[.1,.015],snd:{f:650,d:.5,b:52,v:.95,crack:1},desc:'One shot, one elimination. Slow bolt.'},
- minigun:{name:'Minigun',cls:'heavy',rar:'SECRET',price:2000,shop:3000,auto:1,rate:.045,mag:150,reload:5,body:8,head:11,fall:[25,60],min:4,spread:.032,rc:[.006,.012],snd:{f:1800,d:.06,b:130,v:.5},desc:'6 spinning barrels. 150-round box.'},
+ awp:{name:'Arctic Magnum',cls:'sniper',rar:'SECRET',price:1900,shop:25000,rate:1.6,mag:5,reload:3.4,body:100,head:200,spread:.06,scope:18,rc:[.1,.015],snd:{f:650,d:.5,b:52,v:.95,crack:1},desc:'One shot, one elimination. Slow bolt.'},
+ minigun:{name:'Minigun',cls:'heavy',rar:'SECRET',price:2000,shop:25000,auto:1,rate:.045,mag:150,reload:5,body:8,head:11,fall:[25,60],min:4,spread:.032,rc:[.006,.012],snd:{f:1800,d:.06,b:130,v:.5},desc:'6 spinning barrels. 150-round box.'},
  // ---- fun & sci-fi (v7) ----
  paintball:{name:'Paintball Marker',cls:'fun',price:450,auto:1,rate:.11,mag:40,reload:2,body:7,head:10,fall:[15,45],min:3,spread:.02,rc:[.004,.004],paint:1,noShell:1,tracer:0xff4fd8,snd:{f:700,d:.05,b:320,v:.32,pop:1},desc:'Pop-pop! Low damage, splats paint everywhere.'},
  water:{name:'Water Blaster',cls:'fun',price:300,auto:1,rate:.06,mag:90,reload:2.5,body:1,head:1,fall:[8,18],min:1,spread:.03,rc:[.002,.002],push:3.2,noShell:1,tracer:0x6ab8ff,snd:{f:500,d:.05,b:200,v:.18,pop:1},desc:'Tiny damage, big knockback. Soak them!'},
@@ -64,6 +64,9 @@ export const W={
  scythe:{name:'Scythe',cls:'melee',price:900,melee:4.2,rate:1,body:58,head:75,desc:'Huge reach, slow reap.'},
  trident:{name:'Trident',cls:'melee',price:1000,melee:4.6,rate:.85,body:50,head:70,desc:'Longest reach of any melee.'},
  chainsaw:{name:'Chainsaw',cls:'melee',rar:'LEGENDARY',price:1300,melee:2.4,auto:1,rate:.1,body:9,head:12,saw:1,slowSelf:.82,desc:'Hold to rip (~90 dps). Loud and a bit heavy.'},
+ flamegun:{name:'Flamethrower',cls:'fun',price:900,auto:1,rate:.1,mag:70,reload:3.6,body:2,head:3,maxR:8,spread:.1,rc:[.004,.002],flame:1,noShell:1,snd:{f:180,d:.08,b:40,v:.35},desc:'Close flame stream, about 8 m. Each puff is small; staying in it burns. A full tank is not an instant win.'},
+ tknife:{name:'Throwing Knives',cls:'melee',price:480,throw:'knife',inf:1,auto:1,rate:.2,body:20,head:20,spd:42,grav:8,rc:[.01,.004],noShell:1,desc:'Hold to throw. 20 damage a knife, fast, and no reload.'},
+ star:{name:'Ninja Stars',cls:'melee',price:520,throw:'star',inf:1,auto:1,rate:.17,body:20,head:20,spd:48,grav:5,rc:[.008,.003],noShell:1,desc:'Hold to throw. 20 damage a star, a little faster than the knives, and no reload.'},
  grenade:{name:'Frag Grenade',cls:'util',count:2,desc:'Explodes after 1.8s. Up to ~100 damage.'},
  molotov:{name:'Molotov',cls:'util',count:1,desc:'Bursts into flames on impact. Burns over time.'},
  smoke:{name:'Smoke',cls:'util',count:2,desc:'Thick cloud that blocks vision for 12s.'},
@@ -71,9 +74,9 @@ export const W={
  decoy:{name:'Decoy',cls:'util',count:1,desc:'Non-lethal. Fakes gunfire from where it lands for 8s.'},
  medkit:{name:'Med Kit',cls:'util',count:1,heal:50,desc:'Instantly heal 50 HP.'},
 };
-// v62 GODLY weapons: gold-finished versions of existing models, 1.8x damage (Secret rarity is 1.6x). Sold in the weapon shop for 5000 and in the Godly chest (5000). price keeps them out of the 'owned by default' set.
+// v62 GODLY weapons: gold-finished versions of existing models, 1.8x damage (Secret rarity is 1.6x). Sold in the weapon shop for 50000, same as a Godly chest. Secret weapons use shop 25000, same as a Secret chest. price keeps them out of the 'owned by default' set.
 export const GODLY_BASE={gk_ak47:['ak47','Godly AK-47','Midas-plated AK. Hits 1.8x harder than stock.'],gk_deagle:['deagle','Godly Desert Eagle','Solid-gold .50. 1.8x damage.'],gk_katana:['katana','Godly Katana','Sun-forged blade. 1.8x damage.'],gk_awp:['awp','Godly Arctic Magnum','Gilded one-shot sniper. 1.8x damage.'],gk_aa12:['aa12','Godly AA-12','Golden auto-shotgun. 1.8x damage.']};
-for(const g in GODLY_BASE){const[b,n,d]=GODLY_BASE[g];const w=W[b];W[g]={...w,name:n,desc:d,godly:1,rar:'GODLY',price:99999,shop:5000,body:Math.round(w.body*1.8),head:Math.round(w.head*1.8)}}
+for(const g in GODLY_BASE){const[b,n,d]=GODLY_BASE[g];const w=W[b];W[g]={...w,name:n,desc:d,godly:1,rar:'GODLY',price:99999,shop:50000,body:Math.round(w.body*1.8),head:Math.round(w.head*1.8)}}
 for(const k in W){const w=W[k];w.id=k;w.slot=CLASSES.find(c=>c.id===w.cls).slot}
 export const STARTER=Object.keys(W).filter(k=>!W[k].price);
 export const LIMB=.85;
@@ -790,6 +793,25 @@ function CHAINSAW(){const O=0xff7a00,Od=0xc85a00,yb=0;matte();
  grp('chain');metal();const N=det()?17:8,sp=.44/N;for(let i=0;i<N;i++){const z=-.09-i*sp;rbox(.016,.008,.012,0,.024,z,0x3a3d42,.001);rbox(.016,.008,.012,0,-.044,z,0x3a3d42,.001);if(det()){rbox(.018,.006,.006,.004,.03,z-.003,0xd0d4da,.001);rbox(.018,.006,.006,-.004,-.05,z-.003,0xd0d4da,.001)}}grp(null);// chain links + cutter teeth
  const g=gripAR(-.02,.12,C.blk,.0,.1,.032);
  return{muzzle:[0,0,-.5],sight:[0,0,0],grip:g,lh:[0,.11,.04],lhT:'vert',hold:'axe',melee:1,saw:1,chainSp:sp}}
+function FLAMEG(){const R=0x3a2a22,N=0x2b2d31,yb=.04;matte();
+ prof([[.16,0],[.16,.07,.01],[-.08,.08,.012],[-.22,.05,.008],[-.24,.02],[-.1,0]],.055,0,R,{b:.005});
+ metal();barrel(-.22,-.42,.016,yb,N);lathe([[.028,0],[.02,-.04]],0,yb,-.42,0x1a1a1a,{seg:14});
+ for(let i=0;i<4;i++)rbox(.004,.004,.05,Math.cos(i*1.57)*.022,yb+Math.sin(i*1.57)*.022,-.46,0xff6a1a,.001);
+ mat('rubber');cyl(.012,.16,.05,.03,-.02,0x1a1a1a,{seg:8});cyl(.01,.1,.02,.06,.08,0x1a1a1a,{seg:8});
+ metal();cyl(.055,.22,.02,-.02,.16,0xc4552a,{seg:16});cyl(.02,.04,.02,.09,.16,N,{ax:'y',seg:10});
+ if(det()){for(let i=0;i<3;i++)tor(.056,.004,.02,-.02,.08+i*.06,0x6a3030,Math.PI*2,0,0,0,[4,14]);rbox(.02,.01,.04,.02,.04,.26,0xffd23f,.002)}
+ trig(-.02,.03,0,N);const g=gripAR(0,.05,0x2a241c,.3,.1,.034);gripAR(0,-.08,0x2a241c,0,.08,.03);
+ return{muzzle:[0,yb,-.5],sight:[0,.1,.12],grip:g,lh:[0,-.02,-.16],lhT:'under',lhR:.028,len:.7,rl:'mag',hold:'rifle',piv:{},boltBack:0,noShell:1}}
+function THROWKNIFE(){metal();mat('chrome');
+ prof([[-.008,.007],[-.15,.011],[-.21,0],[-.15,-.011],[-.008,-.007]],.0035,0,0xdfe3e8,{b:.001});
+ mat('rubber');rbox(.018,.01,.035,0,0,.018,0x2a241c,.003);
+ metal();sph(.011,0,0,.046,0x8a8f96,[1,1,1],10);lathe([[.012,0],[.008,.012]],0,0,.04,0x5a5e64,{seg:10});
+ return{muzzle:[0,0,-.21],sight:[0,0,0],grip:{c:[0,0,.02],a:0,w:.02},hold:'knife',noShell:1}}
+function SHURIKEN(){metal();mat('chrome');
+ for(let i=0;i<4;i++){const a=i*Math.PI/2;rbox(.1,.01,.022,Math.cos(a)*.045,Math.sin(a)*.045,0,0xd5dae0,.001,0,0,a)}
+ tor(.016,.004,0,0,0,0x8a9098,Math.PI*2,0,0,0,[5,14]);
+ if(det())for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/4;rbox(.03,.006,.01,Math.cos(a)*.02,Math.sin(a)*.02,0,0xff4a3a,.001,0,0,a)}
+ return{muzzle:[0,0,-.08],sight:[0,0,0],grip:{c:[0,0,.015],a:0,w:.018},hold:'knife',noShell:1}}
 const BUILD={
  ar:()=>AR({hg:'mlok',hgL:.25,bl:.37,optic:'t2',stock:'sopmod'}),
  m4:()=>AR({hg:'quad',hgL:.18,bl:.36,fsb:false,optic:'holo',stock:'m4'}),
@@ -811,7 +833,7 @@ const BUILD={
  aa12:AA12,lmg:M249,crossbow:XBOW,gl:MGL,rpg:RPG,
  proj_gl:()=>{metal();mat('brass');cyl(.02,.05,0,0,.0,C.brass,{seg:14});metal();sph(.02,0,0,-.025,C.od);return{util:1}},
  proj_rpg:()=>{metal();lathe([[.02,0],[.035,-.02],[.0425,-.06],[.0425,-.12],[.034,-.18],[.012,-.27],[.006,-.33]],0,0,.06,C.od,{seg:16});cyl(.018,.2,0,0,.16,0x3b3f2a,{seg:12});for(let i=0;i<4;i++)rbox(.003,.05,.06,0,0,.26,C.blk,.001,0,0,i*Math.PI/4);return{util:1}},
- paintball:PAINTBALL,laser:LASERR,freeze:FREEZER,water:WATERG,taser:TASER,flare:FLAREG,bat:BAT,pan:PAN,scythe:SCYTHE,trident:TRIDENT,chainsaw:CHAINSAW,
+ paintball:PAINTBALL,laser:LASERR,freeze:FREEZER,water:WATERG,taser:TASER,flare:FLAREG,flamegun:FLAMEG,bat:BAT,pan:PAN,scythe:SCYTHE,trident:TRIDENT,chainsaw:CHAINSAW,tknife:THROWKNIFE,star:SHURIKEN,
  proj_flare:()=>{metal();cyl(.016,.07,0,0,0,0xff3b1a,{seg:12});sph(.016,0,0,-.035,0xffd23f);return{util:1}},
  knife:KNIFE,katana:KATANA,axe:AXE,fists:()=>({sight:[0,0,0],hold:'fists',melee:1,fists:1}),
  grenade:NADE,molotov:MOLO,smoke:SMOKEC,flash:FLASHC,decoy:DECOY,medkit:MEDKIT,

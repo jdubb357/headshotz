@@ -52,6 +52,37 @@ raptor(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ear
  for(const s of[-1,1]){const a=G(b,s*.1,.48,.02);P(a,'cone',0,s*.08,-.02,0,.02,.12,.05,0,0,s*.8,{m:fe});rig.wings.push(a)}
  const tg=G(b,0,.4,-.2);rig.tail=tg;P(tg,'cyl',0,0,.02,-.16,.015,.2,.015,-1.15,0,0,{m:sc});
  for(const s of[-1,1]){const g=G(b,s*.06,.28,.04);P(g,'cyl',0,0,-.1,0,.02,.12,.02,.15,0,0,{m:dk});P(g,'cone',0,0,-.22,.04,.03,.04,.05,Math.PI/2,0,0,{m:bk});rig.legs.push({g,ph:s>0?0:Math.PI})}
+ root.userData.rig=rig;return root},
+novamoth(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.35,flap:1,glow:[],sc:1.05};
+ const bd=mat(0x6a2a88,{ro:.45}),wk=em(0xd456ff,1.1),gd=em(0xffd23f,.8);
+ P(b,'sph',0,0,.28,0,.1,.08,.16,0,0,0,{m:bd});P(b,'sph',0,0,.24,.04,.06,.05,.08,0,0,0,{m:mat(0xfff1c8,{ro:.5})});
+ const hd=G(b,0,.38,.12);rig.head=hd;P(hd,'sph',0,0,0,0,.07,.06,.08,0,0,0,{m:bd});
+ for(const s of[-1,1]){glowEye(hd,rig,0xfff3a0,s*.03,.01,.05,.016,false);P(hd,'cyl',0,s*.02,.08,-.02,.004,.06,.004,0,0,s*.4,{m:gd})}
+ for(const s of[-1,1]){const w=G(b,s*.08,.3,0);P(w,'cone',0,s*.12,0,-.02,.1,.18,.012,Math.PI/2,0,s*1.2,{m:wk});P(w,'cone',0,s*.08,.02,0,.05,.1,.008,Math.PI/2,0,s*1.1,{m:em(0x7cf0ff,.7)});rig.wings.push(w)}
+ root.userData.rig=rig;return root},
+seahorse(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.2,glow:[],sc:1.1};
+ const co=mat(0xff6b6b,{ro:.4}),tl=mat(0x2ee0c5,{ro:.35}),rb=em(0xffd1dc,.6);
+ for(let i=0;i<5;i++)P(b,'sph',0,0,.22+i*.045,-.02+i*.02,.07-.i*.006,.08,.06,0,0,0,{m:i%2?co:tl});
+ const hd=G(b,0,.46,.08);rig.head=hd;P(hd,'sph',0,0,0,.04,.06,.05,.07,0,0,0,{m:tl});P(hd,'cone',0,0,-.01,.08,.02,.05,.02,Math.PI/2,0,0,{m:co});
+ glowEye(hd,rig,0xfff6a0,.025,.02,.04,.014,false);glowEye(hd,rig,0xfff6a0,-.025,.02,.04,.014,false);
+ for(const s of[-1,1]){const w=G(b,s*.06,.32,0);P(w,'cone',0,s*.08,0,0,.04,.1,.02,0,0,s*.6,{m:rb});rig.wings.push(w)}
+ const tg=G(b,0,.18,-.08);rig.tail=tg;P(tg,'cyl',0,.02,-.02,-.08,.012,.16,.012,-1.2,0,.4,{m:tl});P(tg,'sph',0,.04,-.08,-.16,.03,0,0,0,{m:co});
+ root.userData.rig=rig;return root},
+scorpion(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:0,glow:[],sc:1.05};
+ const am=mat(0xffb703,{ro:.35,me:.2}),gl=em(0xc77dff,.8),dk=mat(0x5a3a10,{ro:.5});
+ P(b,'sph',0,0,.22,0,.1,.07,.14,0,0,0,{m:am});P(b,'sph',0,0,.2,.08,.07,.05,.08,0,0,0,{m:gl});
+ for(const s of[-1,1]){P(b,'cone',0,s*.1,.18,.1,.03,.04,.05,0,0,s*.8,{m:dk});glowEye(b,rig,0xfff3a0,s*.04,.24,.1,.012,true)}
+ for(const s of[-1,1])for(const q of[1,-1]){const g=G(b,s*.08,.16,q*.06);P(g,'cyl',0,s*.04,-.04,0,.012,.06,.012,0,0,s*.5,{m:dk});rig.legs.push({g,ph:s*q>0?0:Math.PI})}
+ const tg=G(b,0,.28,-.12);rig.tail=tg;P(tg,'cyl',0,0,.06,-.04,.012,.12,.012,-.8,0,0,{m:am});P(tg,'sph',0,0,.14,-.08,.028,0,0,0,{m:gl});P(tg,'cone',0,0,.16,-.1,.012,.04,.012,0,0,0,{m:em(0xff4d6a,1)});
+ root.userData.rig=rig;return root},
+peacock(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.05,glow:[],sc:1.08};
+ const bd=mat(0x1d4e89,{ro:.45}),nk=mat(0x3d7dff,{ro:.4});
+ const cols=[em(0x3d7dff,.7),em(0x2ee0c5,.7),em(0xffd23f,.8),em(0xff4d8d,.7)];
+ P(b,'sph',0,0,.32,0,.1,.12,.14,0,0,0,{m:bd});
+ const hd=G(b,0,.5,.12);rig.head=hd;P(hd,'sph',0,0,0,0,.06,.05,.07,0,0,0,{m:nk});P(hd,'cone',0,0,-.01,.06,.015,.04,.015,Math.PI/2,0,0,{m:em(0xffd23f,.6)});
+ for(const s of[-1,1])glowEye(hd,rig,0xfff6a0,s*.025,.01,.04,.012,false);
+ for(let i=0;i<7;i++){const a=(i-3)*.22;P(b,'cone',0,Math.sin(a)*.04,.34,-.08-Math.abs(i-3)*.01,.04,.16,.012,-.4,a,0,{m:cols[i%cols.length]})}
+ for(const s of[-1,1]){const g=G(b,s*.04,.2,0);P(g,'cyl',0,0,-.08,0,.012,.08,.012,0,0,0,{m:bd});rig.legs.push({g,ph:s>0?0:Math.PI})}
  root.userData.rig=rig;return root}
 };
 function whSafe(){return mat(0xf7f7f2,{ro:.4})}
