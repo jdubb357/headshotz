@@ -5,7 +5,7 @@ import {RaidService} from '../server/raids.mjs';
 import {MACHINES} from '../shared/raid-enemies.mjs';
 import {conditionsAt} from '../shared/raid-conditions.mjs';
 import {RAID_WORLDS,blocked} from '../shared/raid-worlds.mjs';
-import {populateMachines,spawnMachine,advanceMachines,advanceEvents,hitMachine} from '../server/raid-ai.mjs';
+import {populateMachines,spawnMachine,advanceMachines,advanceEvents,hitMachine,MACHINE_CAP} from '../server/raid-ai.mjs';
 function setup(t,mapId='relay'){
  const store=new RaidStore();t.after(()=>store.close());const {id}=store.register('encounter','a long test password');let now=1000;
  const service=new RaidService(store,{now:()=>now});service.deploy(id,{requestId:'encounter_001',mapId,recovery:true});
@@ -45,6 +45,72 @@ test('armor resists body damage while an exposed core rewards aimed shots',t=>{
  hitMachine(service,raid,m,20,def.core,p.team);assert.equal(m.hp,270);
  m.state='windup';hitMachine(service,raid,m,20,def.core,p.team);assert.equal(m.hp,220);
 });
+test('Warden phases advance once per threshold and keep responses inside the machine cap',t=>{
+ const {raid,service,p}=setup(t);raid.world={...raid.world,blocks:[],ramps:[]};raid.players=new Map([[p.account,p]]);
+ const boss={id:'warden',kind:'overlord',x:0,y:0,z:5,hp:760,maxHp:760,yaw:Math.PI,nextAttack:2000,state:'patrol',home:{x:0,y:0,z:5},bossPhase:'approach'};
+ const filler=Array.from({length:MACHINE_CAP-1},(_,i)=>({id:'cap_'+i,kind:'scout',x:40+i*4,y:0,z:40,hp:75,yaw:0,nextAttack:2000,state:'patrol',home:{x:40,y:0,z:40}}));
+ raid.machines=[boss,...filler];
+ boss.hp=381;hitMachine(service,raid,boss,20,0,p.team);
+ assert.equal(boss.bossPhase,'furnace');assert.equal(boss.enraged,true);
+ assert.equal(raid.events.filter(e=>e.kind==='boss'&&e.text.includes('furnace')).length,1,'one furnace event');
+ assert.equal(raid.machines.filter(m=>m.hp>0).length,MACHINE_CAP,'the cap blocks the furnace scout');
+ boss.hp=191;hitMachine(service,raid,boss,20,0,p.team);
+ assert.equal(boss.bossPhase,'meltdown');assert.equal(raid.events.filter(e=>e.kind==='boss').length,2,'one event per phase');
+ assert.equal(raid.machines.filter(m=>m.hp>0).length,MACHINE_CAP,'the cap blocks the meltdown heavy');
+ // A hit deep enough to cross both thresholds still steps through each phase.
+ raid.events=raid.events.filter(e=>e.kind!=='boss');
+ const next={id:'warden_next',kind:'overlord',x:20,y:0,z:5,hp:100,maxHp:760,yaw:Math.PI,nextAttack:2000,state:'patrol',home:{x:20,y:0,z:5},bossPhase:'approach'};
+ raid.machines=[next,...filler.slice(0,4)];
+ hitMachine(service,raid,next,20,0,p.team);
+ assert.equal(next.bossPhase,'meltdown');assert.equal(raid.events.filter(e=>e.kind==='boss').length,2,'no skipped milestone');
+ assert.equal(raid.events.filter(e=>e.kind==='boss')[0].text.includes('furnace'),true);
+ assert.ok(raid.machines.filter(m=>m.hp>0).length<=MACHINE_CAP,'phase responses never exceed the cap');
+});
+test('meltdown exposes the Warden core and softens body armor outside its windup',t=>{
+ const {raid,service,p}=setup(t);const def=MACHINES.overlord,m={id:'warden_core',kind:'overlord',x:0,y:0,z:5,hp:200,maxHp:760,state:'patrol',home:{x:0,y:0,z:5},bossPhase:'approach'};
+ raid.machines=[m];
+ hitMachine(service,raid,m,20,def.core,p.team);assert.equal(m.bossPhase,'furnace');assert.equal(m.hp,193,'furnace body armor still holds outside a windup');
+ m.bossPhase='meltdown';m.hp=100;hitMachine(service,raid,m,20,def.core,p.team);assert.equal(m.hp,50,'meltdown core takes 2.5x without a windup');
+ m.hp=100;hitMachine(service,raid,m,20,0,p.team);assert.equal(m.hp,86,'meltdown body armor is only .3');
+});
+test('boss attack cooldown tightens in furnace and again in meltdown',t=>{
+ const {raid,service,p,setTime}=setup(t);raid.world={...raid.world,blocks:[],ramps:[]};raid.conditions={...raid.conditions,visibility:1};p.x=0;p.y=0;p.z=5;
+ const m={id:'warden_cd',kind:'overlord',x:0,y:0,z:0,hp:760,maxHp:760,yaw:Math.PI,nextAttack:0,state:'pursue',home:{x:0,y:0,z:0},bossPhase:'furnace',enraged:true,attack:{at:1000,point:{x:100,y:0,z:0},radius:1}};
+ raid.machines=[m];
+ advanceMachines(service,raid,.02,1000);assert.ok(Math.abs(m.nextAttack-1002.8)<.01,'furnace cooldown is 70%');
+ m.bossPhase='meltdown';m.attack={at:2000,point:{x:100,y:0,z:0},radius:1};setTime(2000);
+ advanceMachines(service,raid,.02,2000);assert.ok(Math.abs(m.nextAttack-2002.2)<.01,'meltdown cooldown is 55%');
+});
+test('Warden phase transitions create one authoritative heat hazard each and hazards tick/expire',t=>{
+ const {raid,service,p,id,setTime}=setup(t);raid.world={...raid.world,blocks:[],ramps:[],hazards:[]};p.combatVersion=1;p.protectedUntil=0;
+ const boss={id:'warden_hz',kind:'overlord',x:0,y:0,z:5,hp:381,maxHp:760,yaw:0,nextAttack:2000,state:'patrol',home:{x:0,y:0,z:5},bossPhase:'approach'};
+ raid.machines=[boss];Object.assign(p,{x:0,y:0,z:5,hp:100,alive:true,downed:false,grounded:true});
+ hitMachine(service,raid,boss,20,0,p.team);
+ assert.equal(boss.bossPhase,'furnace');
+ const furnace=raid.phaseHazards.filter(h=>h.phase==='furnace');
+ assert.equal(furnace.length,1,'one furnace hazard');assert.equal(furnace[0].radius,9);assert.equal(furnace[0].damage,4);assert.equal(furnace[0].until,1014);
+ let snap=service.snapshot(id).hazards.find(h=>h.id===furnace[0].id);
+ assert.ok(snap,'the furnace hazard is in the snapshot');assert.equal(snap.active,true);assert.equal(snap.boss,'warden_hz');
+ boss.hp=375;hitMachine(service,raid,boss,20,0,p.team);
+ assert.equal(raid.phaseHazards.filter(h=>h.phase==='furnace').length,1,'ongoing furnace damage does not duplicate the hazard');
+ setTime(1000.1);advanceEvents(service,raid,1000.1);assert.equal(p.hp,96);
+ setTime(1000.6);advanceEvents(service,raid,1000.6);assert.equal(p.hp,96,'dynamic hazards keep the one-second cadence');
+ setTime(1001.2);advanceEvents(service,raid,1001.2);assert.equal(p.hp,92);
+ boss.hp=100;hitMachine(service,raid,boss,20,0,p.team);
+ assert.equal(boss.bossPhase,'meltdown');assert.equal(raid.phaseHazards.filter(h=>h.phase==='meltdown').length,1);
+ setTime(1015);assert.ok(service.snapshot(id).hazards.some(h=>h.phase==='meltdown'),'meltdown hazard is still active at 1015');
+ advanceEvents(service,raid,1015);assert.equal(p.hp,85,'meltdown damage hits once in its window');
+ setTime(1020);assert.equal(service.snapshot(id).hazards.some(h=>h.phase==='meltdown'),false,'expired dynamic hazards leave the snapshot');
+});
+test('client snapshots carry the boss phase only for living machines',t=>{
+ const {raid,service,p,id}=setup(t);raid.world={...raid.world,blocks:[],ramps:[]};p.x=0;p.y=0;p.z=2;
+ const m={id:'warden_snap',kind:'overlord',x:0,y:0,z:4.5,hp:100,maxHp:760,yaw:Math.PI,nextAttack:2000,state:'patrol',home:{x:0,y:0,z:4.5},bossPhase:'meltdown'};
+ raid.machines=[m];p.x=0;p.z=m.z+2;
+ const seen=service.snapshot(id).machines.find(q=>q.id==='warden_snap');
+ assert.ok(seen,'a visible living Warden is in the snapshot');assert.equal(seen.bossPhase,'meltdown');
+ m.bossPhase=undefined;assert.equal(service.snapshot(id).machines.find(q=>q.id==='warden_snap').bossPhase,null);
+ m.hp=0;assert.equal(service.snapshot(id).machines.length,0,'dead bosses leave the snapshot');
+});
 test('flying machines drop salvage on a supported ground surface',t=>{
  const {raid,service,p}=setup(t);raid.world={...raid.world,blocks:[],ramps:[]};const m={id:'skimmer',kind:'flyer',x:0,y:8,z:0,hp:1,state:'patrol'};
  hitMachine(service,raid,m,20,8.5,p.team);const bag=raid.bags.find(b=>b.id==='skimmer_salvage');assert.equal(bag.y,0);assert.ok(bag.items.length);
@@ -75,6 +141,17 @@ test('jump returns to the floor and long falls apply server damage',t=>{
  p.y=10;p.fallPeak=10;p.grounded=false;p.vy=0;
  for(let i=0;i<40;i++)service.movePlayer(raid,p,.05,1000);
  assert.equal(p.y,0);assert.equal(p.hp,28);
+});
+test('vault mantles a low authoritative ledge, rejects tall walls and keeps a cooldown',t=>{
+ const {raid,service,p,id,setTime}=setup(t);raid.machines=[];raid.world={...raid.world,blocks:[[0,1.4,4,1.4,1.05,0]],ramps:[],hazards:[]};
+ Object.assign(p,{x:0,y:0,z:0,yaw:0,move:{x:0,z:1},grounded:true,vault:null,nextVault:0,slideUntil:0,slideDir:null,vy:0});
+ setTime(1000);service.action(id,{type:'vault',yaw:0,seq:1});
+ assert.ok(p.vault,'a low crate directly ahead is vaultable');assert.equal(p.vault.y,1.05);assert.equal(p.grounded,false);
+ for(const n of [1000.1,1000.2,1000.3,1000.46]){setTime(n);service.movePlayer(raid,p,.1,n)}
+ assert.equal(p.y,1.05);assert.equal(p.grounded,true);assert.equal(p.vault,null);assert.ok(p.z>.9,'vault lands on the ledge');
+ raid.world={...raid.world,blocks:[[0,1.4,4,1.4,3.4,0]]};Object.assign(p,{x:0,y:0,z:0,move:{x:0,z:1},grounded:true});
+ setTime(1002);assert.throws(()=>service.action(id,{type:'vault',yaw:0,seq:2}),/No vaultable ledge ahead/);
+ const live=service.byAccount.get(id);assert.equal(live.grounded,true);Object.assign(live,{grounded:false});assert.throws(()=>service.action(id,{type:'vault',yaw:0,seq:3}),/Cannot vault now/);
 });
 test('spectating follows only a living squadmate and hidden enemies stay out of snapshots',t=>{
  const {raid,service,p,id,store}=setup(t);const friendId=store.register('friendly','a long friendly password').id,enemyId=store.register('opponent','a long opponent password').id;

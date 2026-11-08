@@ -689,3 +689,89 @@ Baseline at start of loop: branch `cypert/dev`, HEAD `0f4055a`, with the in-prog
 **Blockers/limitations**: none for the checked-in grader scope. These runs are headless Chrome/loopback only, so real-WAN, physical-device, human-balance and production acceptance remain outside this loop. macOS host contention (`mds_stores` and the local model) can still stall CDP replies for tens of seconds, which is why the fixtures above use page-side observation and foregrounding rather than changing thresholds. The verified changes are committed to `cypert/dev` and proposed in a draft PR targeting `main`; no merge or deployment is performed.
 
 **Next action**: review the draft PR with Austin; leave merging to the repository owner.
+
+## AAA Extraction Raid overhaul (2026-11-07, iteration 4)
+
+User request: transform the existing Extraction Raid mode into a polished, AAA-quality third-person PvPvE experience (ARC Raiders-inspired) without breaking existing modes or authoritative rules.
+
+Acceptance criteria for this iteration:
+1. **Third-person presentation is real, not cosmetic**: the raid renders through an over-the-shoulder chase camera with a visible, animated operator body holding the equipped weapon; the authoritative aim origin stays at eye height 1.55 m and all existing ballistic/network predictions still reconcile. The player can toggle first/third person in Settings; first-person hides the self body and shows the weapon overlay, third-person shows the body and hides the overlay. Chase camera never clips through authored walls (shortens its boom using world collision).
+2. **Sprint** is server-authoritative: holding the sprint binding (default X) while moving raises authoritative speed above the base, is included in the move packet, reflected in the snapshot and client prediction, and is visible in the HUD/touch controls.
+3. **Slide** is server-authoritative: pressing the slide binding (default Z) while sprinting and grounded commits a ~0.8 s lowered-profile dash along the current movement direction with a cooldown, then returns to normal movement; shot hit height while sliding is lower, the client prediction and snapshot expose it, and the HUD/touch controls/training guide describe it.
+4. **Visual polish**: sun-shadow mapping, tighter atmospheric fog and richer environmental light/particles improve readability and depth without exceeding the existing render/frame budgets; reduced-motion settings still apply.
+5. **Regression**: unit + raid game-loop + checked-in browser graders pass with zero browser exceptions; other modes boot (legacy smoke) and raid-only scope is untouched. Existing camera-based graders (ballistics eye height, network prediction reconciliation, render resource ownership) remain unchanged and passing.
+6. **Evidence**: commands, results and remaining blockers are recorded honestly in this progress file.
+
+### Current status — iteration criteria verified 2026-11-07
+
+1. **Verified**: the raid renders in third person with the operator body visible and the aim camera at eye height 1.55 m. `node /tmp/hsz-feature-probe.mjs` → `{"thirdPerson":{"selfVisible":true,"chase":{"x":-0.55,"y":2.15,"z":-3.1},"cameraEye":1.55,"shadow":true},"firstPersonToggle":true,"walk":4.870003330000002,"sprint":8.773300955749995,"slideDelta":5.617272110399998,"slideDir":{"x":0,"z":1},"hudSprint":true,"slideSurfaced":true,"browserErrors":[]}`. The checked-in camera grader `node tests/raid-browser-camera.mjs` exited 0 (`chaseAvoidsWalls:true`, `openBoomFullLength:true`, `shortenedZ:-1`, `browserErrors:[]`).
+2. **Verified**: sprint is authoritative and faster than walking (probe walk 4.87 m/s → sprint 8.77 m/s, 1.8×); the network unit test passes and the HUD shows `SPRINT`.
+3. **Verified**: the slide commits a server-authoritative lowered-profile dash (probe `slideDelta` 5.62 m along the matched movement direction) with cooldown, HUD `SLIDING`, touch control, and guide text; `tests/raid-network.test.mjs` slide assertions pass.
+4. **Verified**: terrain and instanced environment geometry now cast/receive sun shadows, the sun frustum follows the operator, fog is visibility-driven, and weather particles are condition-colored. The render-performance grader exited 0 with `allTargets:true` and `noBrowserErrors:true`; a day-lit capture (`/tmp/hsz-shadow-day.png`) shows the shadowed third-person field.
+5. **Verified**: `node --test tests/*.test.*` exited 0 with **1101 pass / 0 fail** (`/tmp/unit-final4.log`). The sequential browser batch against the live tree exited 0 for all eight graders: `smoke`, `camera`, `render-resources`, `render-lifecycle`, `worlds`, `ballistics`, `hud-layout`, `performance`, with zero browser exceptions.
+6. **Verified/evidence**: the ballistics grader occasionally failed because it dispatched `KeyF` down/up within one event-loop turn and the deliberately release-canceling trigger dropped the pending shot behind reliable traffic. The grader now holds fire until the authoritative pellet receipt arrives; all ballistics assertions (8 pellets, 1 shell consumed, bounded damage, touch/aim, mobile layout) are unchanged and the grader passed 3 consecutive isolated runs and the final batch. A transient `ECONNRESET` also appeared once in `tests/raid-network.test.mjs` under a loaded host; after rerun it passed 5 consecutive isolated runs and the full suite passed.
+
+**Blockers/limitations**: checked-in auto-graded parity is verified, but real-WAN/physical-device/human-balance acceptance is outside this loop. Broader AAA scope from the original request (vaulting/mantling, deeper boss/encounter variety, richer inventory/crafting/mission-polish, and final art/audio/HUD polish) is not yet fully exhausted. Performance evidence is headless loopback only. No completion promise is emitted until those remain verified.
+
+## Vault/mantle and grader stability (2026-11-07, iteration 5)
+
+User request: continue the AAA Extraction Raid overhaul with authentic, server-authoritative movement and re-verify the checked-in graders.
+
+Acceptance criteria for this iteration:
+1. Shallow authored ledges (0.65–1.3 m above the operator's feet) can be vaulted; detection rejects tall walls, ramps, terrain and thin supports, and requires clear headroom plus a landing on the ledge top.
+2. Vaulting is server-authoritative: one action begins a 0.46 s easing interpolation with a .28 m arc, a 1 s cooldown, grounded-length and carrying/downed restrictions; snapshots expose `vaulting`, `vaultLeft` and the active vault; local prediction starts it immediately, advances without movement input, and reconciles the server epoch.
+3. Vault is a bindable action (default `KeyJ`) with settings migration preserving existing bindings, a touch control, and guide text; the control is disabled and labeled while unavailable or already vaulting.
+4. Browser exercise of both the keyboard binding and touch control lands the operator on authored crate/barrier tops with HUD `VAULTING`, zero browser exceptions.
+5. Regressions: HUD layout, accessibility, smoke/worlds/performance, ballistics, render lifecycle/resources, network and full unit suites pass; the recurring network-test `ECONNRESET` is diagnosed and eliminated without weakening assertions.
+
+### Status — verified 2026-11-07
+
+1. **Verified**: `shared/raid-motion.mjs` implements pure `vaultDirection`/`vaultTarget`/`beginVault`/`stepOperator` handling; unit test `vault mantles a low authoritative ledge, rejects tall walls and keeps a cooldown` passes in `tests/raid-encounters.test.mjs` (17/17). A 1.05 m ledge is accepted and a 3.4 m wall is rejected with `/No vaultable ledge ahead/`; a non-grounded operator is rejected with `/Cannot vault now/`.
+2. **Verified in browser**: both paths land authoritatively — "keyboard" from the `-440,-520` barrier (8×4×1.2 m) lands y=1.2 and "touch" from the `434,-406` crate (3.6×3.6×1.1 m) lands y=1.1 with `grounded:true`, `vault:null`; the server-reported `vaulting:true`/`vaultLeft` mid-animation and HUD/button labels were captured; `browserErrors:[]`.
+3. **Verified**: `DEFAULT_BINDINGS.vault==='KeyJ'`, settings migration preserves existing keys and allocates a fresh key for collisions, and the touch/guide integration is in `raid-online.html`; `tests/raid-settings.test.mjs` 8/8 passes.
+4. **Verified**: `node tests/raid-browser-vault.mjs` exits 0 with `{"keyboardVault":true,"touchVault":true,"firstLedgeY":1.2,"secondLedgeY":1.1,"hudVaulting":true,"touchTarget":true,"browserErrors":[]}`.
+5. **Verified**: full unit/integration suite `node --test tests/*.test.*` exits 0 with **1103 pass / 0 fail** (60.9 s). Related browser graders exit 0 with zero browser errors: `vault`, `hud-layout` (all 11 viewport checks), `accessibility`, `network`, `render-resources`, `render-lifecycle`, `ballistics`, `camera`, `worlds`, `performance` (`allTargets:true`), and `smoke` (run against the isolated server on port 8031; the stale listener on 8021 rejected deployments). `tests/raid-network.test.mjs` passes 5 consecutive isolated runs; its wire case passes 12/12.
+6. **Flake diagnosed, not masked**: a minimal `fetch` harness reproduced `ECONNRESET` on the first request after a successful deployment when Node's fetch reused a pooled keep-alive socket; a raw `node:http` client never failed and response bodies alone did not explain the reset. The wire and service HTTP tests now request `connection: close` per call, with comments explaining the client-pool artifact; no assertion, status, packet, receipt, or response-content check was removed. The server keeps normal keep-alive behavior for the product.
+
+**Blockers/limitations**: vaulting is capped at the authored shallow-ledge range and does not cover waist-high dynamic cover; long-run physical-device/WAN acceptance remains outside the harness. No completion promise is emitted.
+
+## Foundry Warden boss phases and boss HUD (2026-11-07, iteration 6)
+
+User request: deepen encounter variety and premium raid HUD inside the existing Extraction Raid.
+
+Acceptance criteria for this iteration:
+1. The Overlord encounter is server-authoritative and phase-driven: HP crossing 50% enters `furnace` (enraged, faster attacks, scout response) and crossing 25% enters `meltdown` (exposed core, faster attacks, heavy response capped by the machine cap). Each transition emits exactly one boss event and is visible in the snapshot.
+2. Meltdown damage is meaningfully different: hits on the exposed core ignore most armor and the boss remains vulnerable without waiting for its windup.
+3. The client HUD shows a boss panel only for a living Overlord in the visible snapshot, with name, phase label, HP text and an accessible progress bar; the panel clears when the boss dies or is no longer in view and does not alter the game feed or controls.
+4. Evidence: a new unit test covers both thresholds, no double events, cap/responses and snapshot phase; a browser grader renders the panel, updates at phase changes, and reports zero browser exceptions; existing combat/HUD/accessibility graders and the full unit suite still pass.
+
+Status: **verified** (2026-11-07)
+- `shared/raid-enemies.mjs` now owns `BOSS_PHASES`/`bossPhaseFor`; `server/raid-ai.mjs` initializes `bossPhase:'approach'` and `advanceBossPhase` steps approach→furnace→meltdown on authoritative HP damage, emitting one `boss` event per threshold and adding a capped scout (furnace) / heavy (meltdown) response. Meltdown core hits skip the windup requirement and use 2.5× damage; body armor drops to .3. Attack cooldowns are 4 s×.7 in furnace and ×.55 in meltdown. `server/raids.mjs` machine snapshots include `bossPhase` (null when absent).
+- Client `raid-online.html`/`raid-online.mjs` render a `#bossPanel` (name, phase label, HP text, accessible `<progress aria-label="Foundry Warden health">`) from the visible living Overlord; it hides on death/absence and when the raid is left, and leaves the feed and controls untouched.
+- Unit evidence: `node --test tests/raid-encounters.test.mjs` **21/21 pass**, including thresholds/no duplicate events/cap/cooldown/snapshot-phase tests.
+- Browser evidence: `node tests/raid-browser-boss.mjs` exits 0 with `{"approachPanel":true,"meltdownPanel":true,"hpText":true,"phaseUpdate":true,"progressAccessible":true,"clearedOnDeath":true,"controlsIntact":true,"browserErrors":[]}`.
+- Regression evidence: full suite `node --test tests/*.test.*` exits 0 (**1107 pass / 0 fail**); `raid-browser-hud-layout` (11 viewports, no overlaps/undersized targets) and `raid-browser-accessibility` both pass with `browserErrors:[]`.
+
+**Blockers/limitations**: none for these criteria; balance/remote-device acceptance remains outside the harness. Continue with the next highest-impact unfinished item rather than claiming whole-project completion.
+
+## Warden phase battlefield presentation, heat hazards and audio (2026-11-07, iteration 7)
+
+User request: keep deepening encounter variety, animation/audio and premium raid presentation inside the existing Extraction Raid.
+
+Acceptance criteria for this iteration:
+1. Entering `furnace` or `meltdown` creates exactly one phase hazard at the Warden's position (amber furnace vent 9 m/14 s radius, red meltdown core 14 m/18 s), with unique ids so repeated damage during the same phase never duplicates it; hazards expire and are omitted from snapshots once their window passes.
+2. Dynamic phase hazards deal authoritative hazard damage to living operators inside the radius on the existing one-second cadence, and both damage and snapshot metadata (`phase`, `boss`, `left`) are observable; static map hazards are unchanged.
+3. The raid view stages the Warden by phase: approach core cool red, furnace amber pulsing core and beacon, meltdown white/red strobing core and red beacon; reduced-motion disables the strobe/beacon. Other machines keep their current windup core behavior and all actors still render/dispose cleanly.
+4. Raid audio emits one distinct synthesized cue for an observed transition to furnace and one for meltdown, never repeats for unchanged snapshots, and respects the existing volume/mute path.
+5. Evidence: unit tests cover hazard creation/no duplicates/expiry/damage, a browser grader observes the phase hazards in snapshots and the audio cues, and the full suite plus existing boss/HUD/audio/accessibility/render graders pass with zero browser exceptions.
+
+Status: **verified** (2026-11-08)
+- `server/raid-ai.mjs`: every furnace/meltdown arrival calls `addBossHazard`, which deduplicates by `warden_<phase>_<machineId>`. Furnace vent: 9 m radius, 4 damage, 14 s; meltdown core: 14 m radius, 7 damage, 18 s. `advanceEvents` ticks dynamic hazards with the same one-second `hazardTicks` cadence as static hazards. `server/raids.mjs` publishes non-expired phase hazards with `active:true`, `phase`, `boss` and `left` beside the unchanged static hazard states; `serialize`/`restore` preserves them across reconnects.
+- `raid-models.mjs`: the Overlord core renders cool red in approach, pulsing amber in furnace, and white/red strobe in meltdown; reduced motion holds the steady red core. The phase-colored beacon follows the same palette and hides under reduced motion. Ordinary machines keep the 0xffe28e windup core.
+- `raid-audio.mjs`: `BOSS_PHASE_CUES` adds distinct synthesized furnace and meltdown stings; `observe` plays one cue per newly observed Warden phase change (unchanged snapshots and first sightings do not retrigger), and `reset` clears phase tracking. Volume/mute behavior is unchanged through the shared `play()` path.
+- Unit evidence: `node --test tests/raid-encounters.test.mjs` **22/22 pass**, including the new hazard creation/no-duplicate/one-second/expiry test.
+- Browser evidence: `node tests/raid-browser-boss.mjs` exits 0 with `{"approachPanel":true,"furnacePanel":true,"meltdownPanel":true,"hpText":true,"phaseUpdate":true,"phaseHazards":true,"audioStings":true,"phaseVisuals":true,"reducedMotionRespected":true,"progressAccessible":true,"clearedOnDeath":true,"controlsIntact":true,"browserErrors":[]}`.
+- Audio evidence: `node tests/raid-browser-audio.mjs` exits 0; the two boss phase cues render distinct non-silent offline waveforms (`distinctBossPhaseCues:2`, `browserErrors:[]`).
+- Regression evidence: full suite `node --test tests/*.test.*` exits 0 (**1108 pass / 0 fail**); `raid-browser-hud-layout`, `raid-browser-accessibility`, `raid-browser-render-resources`, `raid-browser-render-lifecycle`, `raid-browser-camera` and `raid-browser-performance` all pass with zero browser exceptions (`allTargets:true` for performance). `RAID_TEST_URL=http://127.0.0.1:8031 node tests/raid-browser-smoke.mjs` passes account, recovery deployment, rendering, server movement, reconnect and zero browser exceptions.
+
+**Blockers/limitations**: no known blockers for these criteria. Real-WAN, physical-device, human balance and art-direction acceptance remain outside this harness, so no whole-project completion promise is emitted.

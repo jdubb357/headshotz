@@ -3,11 +3,11 @@ import {MACHINES} from '../shared/raid-enemies.mjs';
 import {hitMachine} from './raid-ai.mjs';
 import {hitRival} from './raid-rivals.mjs';
 export function resolveShot(service,raid,shooter,stats){
- const origin={x:shooter.x,y:(shooter.y||0)+SHOT_EYE_HEIGHT,z:shooter.z},targets=[...raid.players.values()].filter(p=>p!==shooter&&p.alive&&p.team!==shooter.team).concat(raid.machines.filter(m=>m.hp>0),(raid.rivals||[]).filter(r=>r.alive)),hits=[];
+ const origin={x:shooter.x,y:(shooter.y||0)+SHOT_EYE_HEIGHT,z:shooter.z},now=service.now(),targets=[...raid.players.values()].filter(p=>p!==shooter&&p.alive&&p.team!==shooter.team).concat(raid.machines.filter(m=>m.hp>0),(raid.rivals||[]).filter(r=>r.alive)),hits=[];
  for(const ray of shotRays(shooter.yaw,shooter.pitch||0,stats,shooter.facts.roundsFired)){
   const candidates=targets.map(target=>{
-   const human=!!target.account||target.rival;
-   return {target,point:intersectBody(origin,ray.yaw,ray.pitch,target,target.account?.5:target.rival?.58:MACHINES[target.kind]?.radius||.65,human?(target.downed?.65:1.8):MACHINES[target.kind]?.height||2,stats.range)};
+   const human=!!target.account||target.rival,sliding=human&&(target.slideUntil||0)>now;
+   return {target,point:intersectBody(origin,ray.yaw,ray.pitch,target,target.account?.5:target.rival?.58:MACHINES[target.kind]?.radius||.65,human?(target.downed?.65:sliding?1.1:1.8):MACHINES[target.kind]?.height||2,stats.range)};
   }).filter(hit=>hit.point).sort((a,b)=>a.point.distance-b.point.distance);
   const hit=candidates.find(({point})=>bulletClear(raid.world,origin,point));if(hit)hits.push(hit);
  }

@@ -66,8 +66,39 @@ test('visual prediction moves immediately, respects collision, freezes unconfirm
  let now=1000;const state=baseState(),prediction=new LocalPrediction(state,()=>now);prediction.world={size:160,blocks:[],ramps:[]};now+=16;assert.ok(prediction.frame({x:0,z:1},now).z>state.self.z);const frozenInventory=structuredClone(state.self);for(let i=0;i<12;i++){now+=40;prediction.frame({x:0,z:1},now)}const stopped=prediction.position.z;now+=1000;prediction.frame({x:0,z:1},now);assert.equal(prediction.position.z,stopped);assert.deepEqual(state.self,frozenInventory);
  prediction.reconcile({...state,self:{...state.self,x:0,z:0}});prediction.world={size:160,blocks:[[0,2,10,1,4]],ramps:[]};for(let i=0;i<7;i++){now+=40;prediction.frame({x:0,z:1},now)}assert.ok(prediction.position.z<1.05);prediction.reconcile({...state,self:{...state.self,x:8,z:9}});assert.equal(prediction.position.x,8);assert.equal(prediction.position.z,9);
 });
+function motionSetup(t){const {raids,id,player,packet,time}=setup(t),r=raids.raids.get(player().raidId);r.world={...r.world,blocks:[],ramps:[],hazards:[]};r.machines=[];r.rivals=[];let clock=1000;Object.assign(player(),{x:0,z:0,y:0,vy:0,grounded:true,lastMoveAt:1000,lastInput:1000});const reset=()=>{Object.assign(player(),{x:0,z:0,y:0,vy:0,grounded:true})}
+ const advance=(sprint,seconds)=>{const startZ=player().z,start=clock;for(let elapsed=0;elapsed<seconds;elapsed+=.1){raids.action(id,packet('move',player().seq+1,{x:0,z:1,yaw:0,sprint}));clock+=.1;time(clock);raids.tick(.1)}return {distance:player().z-startZ,at:start+seconds}}
+ return {raids,id,player,packet,time,advance,reset,clock:()=>clock}}
+test('sprint intent is authoritative, faster than walking, and cleared when released',t=>{
+ const m=motionSetup(t);
+ m.reset();const walk=m.advance(false,1);
+ m.reset();const sprint=m.advance(true,1);
+ assert.ok(walk.distance>4.5&&walk.distance<6.5,`walk ${walk.distance}`);
+ assert.ok(sprint.distance>walk.distance*1.4,`sprint ${sprint.distance} walk ${walk.distance}`);
+ assert.equal(m.raids.snapshot(m.id).self.sprint,true);
+ m.reset();const released=m.advance(false,1);
+ assert.ok(released.distance<=walk.distance*1.05,`released ${released.distance}`);
+ assert.equal(m.raids.snapshot(m.id).self.sprint,false);
+});
+test('slide is a sprint-only authoritative dash with a cooldown and lowered profile state',t=>{
+ const m=motionSetup(t);
+ m.advance(true,.3);assert.equal(m.player().sprint,true);
+ const slideAt=m.clock();
+ m.raids.action(m.id,m.packet('slide',m.player().seq+1,{sprint:true}));
+ assert.equal(m.player().slideUntil,slideAt+.8);
+ assert.ok(m.player().slideDir.z>.9,'slide follows the current movement direction');
+ const slide=m.advance(true,1);
+ assert.ok(slide.distance>8.2,`slide distance ${slide.distance}`);
+ assert.equal(m.raids.snapshot(m.id).self.sliding,false);
+ assert.throws(()=>m.raids.action(m.id,m.packet('slide',m.player().seq+1,{sprint:true})),/Slide momentum unavailable/);
+ m.advance(false,.4);
+ assert.throws(()=>m.raids.action(m.id,m.packet('slide',m.player().seq+1)),/Sprint first/);
+});
+// Each request opens a fresh socket: Node's fetch can reset a reused keep-alive
+// connection after a deployment response, which is a client-pool artifact rather
+// than a request/response failure in the service.
 test('wire protocol gates deployment before escrow and combines state with replay-safe action acknowledgements',async t=>{
- const store=new RaidStore(),{server}=createRaidServer(store);server.listen(0,'127.0.0.1');await once(server,'listening');t.after(async()=>{server.close();await once(server,'close');store.close()});const account=store.register('wire_user','a long network password'),auth=store.login(account.username,'a long network password'),base='http://127.0.0.1:'+server.address().port,post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{cookie:'raid_session='+auth.token,'content-type':'application/json'},body:JSON.stringify(data)});
+ const store=new RaidStore(),{server}=createRaidServer(store);server.listen(0,'127.0.0.1');await once(server,'listening');t.after(async()=>{server.close();await once(server,'close');store.close()});const account=store.register('wire_user','a long network password'),auth=store.login(account.username,'a long network password'),base='http://127.0.0.1:'+server.address().port,post=(path,data)=>fetch(base+'/api/'+path,{method:'POST',headers:{cookie:'raid_session='+auth.token,'content-type':'application/json',connection:'close'},body:JSON.stringify(data)});
  assert.equal((await post('deploy',{requestId:'old_client_deploy',mapId:'relay',recovery:true})).status,426);assert.equal(store.profile(account.id).activeDeployment,null);const before=store.profile(account.id);assert.equal((await post('deploy',{protocol:2,requestId:'old_geometry_client',mapId:'relay',itemIds:[before.items[0].id]})).status,426);assert.deepEqual(store.profile(account.id),before);assert.equal((await post('deploy',{protocol:RAID_PROTOCOL-1,requestId:'old_utility_client',mapId:'relay',itemIds:[before.items[0].id]})).status,426);assert.deepEqual(store.profile(account.id),before);const state=await(await post('deploy',{protocol:RAID_PROTOCOL,requestId:'new_client_deploy',mapId:'relay',recovery:true})).json();
  const packet={protocol:RAID_PROTOCOL,raidId:state.raidId,deploymentId:state.self.deploymentId,type:'fire',seq:1,includeState:true};const first=await(await post('action',packet)).json(),retry=await(await post('action',packet)).json();assert.equal(first.state.self.ammo,29);assert.equal(retry.state.self.ammo,29);assert.equal(retry.ack.duplicate,true);assert.equal((await post('action',{...packet,protocol:1})).status,426);assert.equal((await post('action',{...packet,deploymentId:'other'})).status,409);
 });

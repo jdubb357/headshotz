@@ -2,7 +2,7 @@ import {aimFieldOfView,SHOT_EYE_HEIGHT} from './shared/raid-ballistics.mjs';
 import {weaponStats,armorStats} from './shared/raid-catalog.mjs';
 import {smokeClear} from './shared/raid-utilities.mjs';
 import * as THREE from './lib/three.module.min.js';
-import {getWorld} from './shared/raid-worlds.mjs';
+import {getWorld,terrainHeightAt,blocked} from './shared/raid-worlds.mjs';
 import {mapConditions} from './shared/raid-enemies.mjs';
 import {exitColor} from './shared/raid-exits.mjs';
 import {buildEnvironment} from './raid-environment.mjs';
@@ -13,19 +13,21 @@ export {RaidAudio} from './raid-audio.mjs';
 export class RaidView {
  constructor(canvas){
   this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
-  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.snapAt=performance.now();
+  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';
  }
- applySettings(settings){this.settings=settings;this.audio.volume=settings.sfxVolume;if(this.camera){this.camera.fov=settings.fov;this.camera.updateProjectionMatrix()}if(this.weather)this.weather.visible=this.snapshot?.conditions?.weather!=='clear'&&!settings.reduced}
+ applySettings(settings){this.settings=settings;this.audio.volume=settings.sfxVolume;if(settings.viewMode)this.viewMode=settings.viewMode;if(this.selfActor)this.selfActor.visible=this.viewMode!=='first';if(this.camera){this.camera.fov=settings.fov;this.camera.updateProjectionMatrix()}if(this.renderCamera)this.renderCamera.fov=settings.fov;if(this.weather)this.weather.visible=this.snapshot?.conditions?.weather!=='clear'&&!settings.reduced}
  clear(){
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.lastWeapon=null;this.lastTime=0;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
-  for(const name of ['scene','overlay','snapshot','world','camera','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','sunOrb','moonOrb','stars','environmentTarget'])this[name]=null;
+  for(const name of ['scene','overlay','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','sunOrb','moonOrb','stars','environmentTarget'])this[name]=null;this.chase=null;
   this.renderer.renderLists.dispose();this.renderer.clear();this.renderer.info.reset();
  }
  start(snapshot){
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.lastWeapon=null;this.audio.reset();
-  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.scene.add(buildEnvironment(this.world));this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';
-  this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.scene.add(this.hemi,this.sun);
+  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.scene.add(buildEnvironment(this.world));this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
+  const selfWeapon=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId&&it.kind==='weapon')?.weapon??null;
+  this.selfActor=humanModel(snapshot.self.name||'Operator','raid_local_operator',true,selfWeapon);if(this.selfActor.userData.tag)this.selfActor.userData.tag.visible=false;this.selfActor.visible=this.viewMode!=='first';this.scene.add(this.selfActor);
+  this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.sun,this.sun.target);this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
   this.environmentTarget=null;this.buildSky();
   this.overlay=new THREE.Scene();this.weaponCamera=new THREE.PerspectiveCamera(58,1,.02,8);this.overlay.add(new THREE.HemisphereLight(0xe5f2ff,0x425059,2));const light=new THREE.DirectionalLight(0xffd4a4,2);light.position.set(2,3,4);this.overlay.add(light);
   this.gunRoot=new THREE.Group();this.gunRoot.position.set(.2,-.22,-.5);this.gunRoot.scale.setScalar(.65);this.overlay.add(this.gunRoot);
@@ -43,6 +45,10 @@ export class RaidView {
     // gives both objectives a silhouette above the dense district roofs.
     if(type==='cache'&&data.weaponCache){model.userData.beacon=beaconModel(0xe07adf,18);model.add(model.userData.beacon)}
     if(type==='exit'){model.userData.beacon=beaconModel(0x83efc2,14);model.add(model.userData.beacon)}
+    // The Warden carries a phase-colored column so squads can find the major
+    // threat above the district roofs; updateActor recolors it per snapshot.
+    if(type==='machine'&&data.kind==='overlord'){model.userData.beacon=beaconModel(0x9db6c4,18);model.add(model.userData.beacon)}
+    if(type==='human'||type==='machine')model.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
     entry={model,type,data};this.actors.set(key,entry);this.scene.add(model);
    }
    entry.data=data;if(type==='human'&&entry.model.userData.heldWeapon!==(data.weapon??null))setHumanWeapon(entry.model,data.weapon??null);if(type==='cache')entry.model.userData.lid?.material.color.setHex(data.open?0x87b89a:data.vault?0xc78bdb:0xd8b062);
@@ -66,9 +72,10 @@ export class RaidView {
   this.syncUtilities(snapshot);
   const observer=snapshot.camera||snapshot.self,eye={x:observer.x,y:(observer.y||0)+1.6,z:observer.z},insideSmoke=!smokeClear(snapshot.utilities,eye,eye,snapshot.serverTime);
   const conditions=insideSmoke?{...(snapshot.conditions||mapConditions(this.world)),fog:0x9aa6a1,visibility:.07}:snapshot.conditions||mapConditions(this.world);this.environmentTarget={sky:new THREE.Color(conditions.sky),fog:new THREE.Color(conditions.fog),visibility:conditions.visibility,light:conditions.light,ambient:conditions.ambient??1.8,daylight:conditions.daylight??1,sun:new THREE.Vector3((conditions.sun?.x??-30)*this.viewScale,(conditions.sun?.y??65)*this.viewScale,(conditions.sun?.z??35)*this.viewScale)};
-  if(!this.scene.background){this.scene.background=this.environmentTarget.sky.clone();this.scene.fog=new THREE.Fog(conditions.fog,28*this.viewScale*conditions.visibility,150*this.viewScale*conditions.visibility);this.updateEnvironment(1)}this.weather.visible=conditions.weather!=='clear'&&!this.settings?.reduced;
+  if(!this.scene.background){this.scene.background=this.environmentTarget.sky.clone();this.scene.fog=new THREE.Fog(conditions.fog,24*this.viewScale*conditions.visibility,125*this.viewScale*conditions.visibility);this.updateEnvironment(1)}this.weather.visible=conditions.weather!=='clear'&&!this.settings?.reduced;this.weather.material.color.setHex(conditions.weather==='ash'?0xd6a17b:conditions.weather==='mist'?0xc3d0c8:0xaecade);
   const item=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId);
-  this.gunRoot.visible=!!item;
+  this.gunRoot.visible=!!item&&this.viewMode==='first';
+  if(this.selfActor&&this.selfActor.userData.heldWeapon!==(item?.weapon??null))setHumanWeapon(this.selfActor,item?.weapon??null);
   if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun)}
  }
  smokeModel(){
@@ -95,16 +102,61 @@ export class RaidView {
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.userData.raidOwned=true;const material=new THREE.PointsMaterial({color:0xdfebff,size:.4*this.viewScale,transparent:true,opacity:0,fog:false,depthWrite:false});material.userData.raidOwned=true;this.stars=new THREE.Points(geometry,material);this.scene.add(this.stars);
  }
  updateEnvironment(blend){
-  const target=this.environmentTarget;if(!target)return;this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(28*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(150*this.viewScale*target.visibility-this.scene.fog.far)*blend;this.sun.intensity+=(target.light-this.sun.intensity)*blend;this.hemi.intensity+=(target.ambient-this.hemi.intensity)*blend;
-  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sun.position.lerp(lightPosition,blend);this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
+  const target=this.environmentTarget;if(!target)return;this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(24*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(125*this.viewScale*target.visibility-this.scene.fog.far)*blend;this.sun.intensity+=(target.light-this.sun.intensity)*blend;this.hemi.intensity+=(target.ambient-this.hemi.intensity)*blend;
+  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
  }
  fire(){this.recoil=this.settings?.reduced?0:.07;const s=this.snapshot?.self,item=s&&[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);this.audio.play(item?'shot:'+item.weapon:'shot')}
+ clearChase(eye,desired){
+  if(!this.world)return desired;
+  const delta=desired.clone().sub(eye);let last=eye.clone();
+  for(let i=1;i<=18;i++){
+   const p=eye.clone().addScaledVector(delta,i/18);
+   if(blocked(this.world,p.x,p.z,.24,p.y-.16,.32))break;
+   if(p.y<terrainHeightAt(this.world,p.x,p.z)+.36)break;
+   last=p;
+  }
+  return last;
+ }
  frame(time,yaw,pitch,predicted,aiming=false){
   if(!this.snapshot)return;const dt=Math.min(.05,(time-this.lastTime)/1000||.016);this.lastTime=time;const seconds=time/1000,s=this.snapshot.self;this.updateEnvironment(1-Math.exp(-dt*3));
   const pose=s.alive&&predicted?predicted:s,target=new THREE.Vector3(pose.x,(pose.y||0)+(s.downed?.65:s.ballisticsVersion===1?SHOT_EYE_HEIGHT:1.65),pose.z);
   if(!s.alive&&this.snapshot.camera)target.set(this.snapshot.camera.x,(this.snapshot.camera.y||0)+2,this.snapshot.camera.z);
-  if(this.visualSelf.distanceTo(target)>5)this.visualSelf.copy(target);else this.visualSelf.lerp(target,Math.min(1,dt*16));this.camera.position.copy(this.visualSelf);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),targetFov=aiming&&held?aimFieldOfView(this.settings?.fov||75,weaponStats(held)):this.settings?.fov||75;this.camera.fov+=(targetFov-this.camera.fov)*(this.settings?.reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
+  if(this.visualSelf.distanceTo(target)>5)this.visualSelf.copy(target);else this.visualSelf.lerp(target,Math.min(1,dt*16));this.camera.position.copy(this.visualSelf);
+  // Keep the 2048 shadow frustum centred on the player instead of the fixed
+  // map origin; without this, shadows disappear once the operator walks more
+  // than 80 m from centre. The light direction itself is kept at 90 m.
+  const anchor=s.alive?pose:this.snapshot.camera||pose;this.sunAnchor.set(anchor.x,(anchor.y||0),anchor.z);
+  this.sun.target.position.copy(this.sunAnchor);this.sun.position.copy(this.sunAnchor).addScaledVector(this.sunDirection,90);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),targetFov=aiming&&held?aimFieldOfView(this.settings?.fov||75,weaponStats(held)):this.settings?.fov||75;this.camera.fov+=(targetFov-this.camera.fov)*(this.settings?.reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
+  // The aim camera above stays at eye height for authoritative ballistics and
+  // network graders; the chase camera is the presentational third-person view.
+  const viewYaw=!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw,viewPitch=!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch;
+  const sliding=s.sliding===true||((predicted?.slideUntil||0)>seconds),eyeHeight=1.55+(s.downed?-.9:0);
+  if(this.selfActor&&this.selfActor.userData.actor==='human'){
+   const show=this.viewMode!=='first'&&!!s.alive;
+   this.selfActor.visible=show;
+   if(show)updateActor(this.selfActor,{x:pose.x,y:pose.y||0,z:pose.z,yaw:viewYaw,pitch:viewPitch,downed:!!(s.downed||s.down),air:pose.grounded===false,sliding},dt,seconds);
+   if(this.selfActor.userData.tag)this.selfActor.userData.tag.visible=false;
+  }
+  if(this.renderCamera){
+   if(this.viewMode==='third'&&s.alive&&!this.snapshot.camera){
+    const eye=new THREE.Vector3(pose.x,(pose.y||0)+eyeHeight,pose.z),fx=Math.sin(viewYaw),fz=Math.cos(viewYaw),cos=Math.cos(viewPitch);
+    const forward=new THREE.Vector3(fx*cos,Math.sin(viewPitch),fz*cos),look=eye.clone().addScaledVector(forward,26);
+    const desired=eye.clone().add(new THREE.Vector3(-fx*3.1,.6,fz*-3.1)).add(new THREE.Vector3(-Math.cos(viewYaw)*.55,0,Math.sin(viewYaw)*.55));
+    const safe=this.clearChase(eye,desired),follow=Math.min(1,1-Math.exp(-dt*20));
+    if(!this.chase)this.chase=safe.clone();
+    else{
+     const candidate=this.chase.clone().lerp(safe,follow);
+     // Smoothing must not cut a wall corner or settle below the terrain; if the
+     // interpolated point is invalid, snap straight to the sampled safe point.
+     const clear=candidate.y>=terrainHeightAt(this.world,candidate.x,candidate.z)+.36&&!blocked(this.world,candidate.x,candidate.z,.24,candidate.y-.16,.32);
+     this.chase.copy(clear?candidate:safe);
+    }
+    if(!this.settings?.reduced)this.chase.y+=Math.sin(seconds*6.4)*.015*Math.min(1,(this.selfActor?.userData.speed||0)/6);
+    this.renderCamera.position.copy(this.chase);this.renderCamera.lookAt(look);this.renderCamera.fov=this.camera.fov;
+   }else{this.renderCamera.position.copy(this.camera.position);this.renderCamera.rotation.copy(this.camera.rotation);this.renderCamera.fov=this.camera.fov}
+  }
   for(const {model,data,type}of this.actors.values()){
+   if(type==='machine')model.userData.motionReduced=!!this.settings?.reduced;
    if(type==='human'||type==='machine')updateActor(model,data,dt,seconds);
    else{model.position.set(data.x,data.y||0,data.z);if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}
   }
@@ -112,8 +164,9 @@ export class RaidView {
   for(const ring of this.effects.values())ring.material.opacity=this.settings?.reduced?.85:.6+.2*Math.sin(seconds*8);
   this.recoil=Math.max(0,this.recoil-dt*.5);this.gunRoot.position.set((aiming?0:.2)+(this.settings?.reduced||aiming?0:Math.sin(seconds*1.7)*.004),(aiming?-.17:-.22)+(this.settings?.reduced||aiming?0:Math.sin(seconds*2.1)*.004),-.5+this.recoil);this.gunRoot.rotation.x=-this.recoil;
   const width=innerWidth,height=innerHeight;if(this.canvas.width!==Math.round(width*this.renderer.getPixelRatio())||this.canvas.height!==Math.round(height*this.renderer.getPixelRatio()))this.renderer.setSize(width,height,false);
-  this.camera.aspect=width/height;this.camera.updateProjectionMatrix();this.weaponCamera.aspect=width/height;this.weaponCamera.updateProjectionMatrix();
-  this.renderer.clear();this.renderer.render(this.scene,this.camera);if(s.alive&&!s.downed){this.renderer.clearDepth();this.renderer.render(this.overlay,this.weaponCamera)}
+  this.camera.aspect=width/height;this.camera.updateProjectionMatrix();this.renderCamera.aspect=width/height;this.renderCamera.updateProjectionMatrix();this.weaponCamera.aspect=width/height;this.weaponCamera.updateProjectionMatrix();
+  const third=this.viewMode==='third'&&s.alive&&!this.snapshot.camera;
+  this.renderer.clear();this.renderer.render(this.scene,third?this.renderCamera:this.camera);this.gunRoot.visible=!!held&&!third;if(!third&&s.alive&&!s.downed){this.renderer.clearDepth();this.renderer.render(this.overlay,this.weaponCamera)}
  }
 }
 export class BasePreview {

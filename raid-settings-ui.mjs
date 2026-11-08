@@ -8,7 +8,7 @@ export function settingsUI({onChange}){
  function save(){try{localStorage.setItem(STORAGE,JSON.stringify(value));$('settingsStatus').textContent='Settings saved on this device.'}catch{$('settingsStatus').textContent='Browser storage unavailable. Settings apply for this visit.'}apply()}
  function render(){
   for(const [id,key]of Object.entries({sensitivity:'sensitivity',hudScale:'hudScale',fieldOfView:'fov',sfxVolume:'sfxVolume',settingsVoiceVolume:'voiceVolume'})){$(id).value=value[key];$(id+'Value').textContent=value[key]}
-  $('invertY').checked=value.invertY;$('reduceMotion').value=value.reducedMotion;$('captions').checked=value.captions;$('highContrast').checked=value.highContrast;
+  $('invertY').checked=value.invertY;$('viewMode').value=value.viewMode;$('reduceMotion').value=value.reducedMotion;$('captions').checked=value.captions;$('highContrast').checked=value.highContrast;
   for(const b of $('bindings').querySelectorAll('[data-bind]')){b.textContent=keyName(value.bindings[b.dataset.bind]);b.setAttribute('aria-label',ACTIONS[b.dataset.bind]+': '+b.textContent+'. Change key')}
   for(const e of document.querySelectorAll('[data-key-label]'))e.textContent=keyName(value.bindings[e.dataset.keyLabel]);
  }
@@ -19,6 +19,7 @@ export function settingsUI({onChange}){
  for(const [id,key]of Object.entries({sensitivity:'sensitivity',hudScale:'hudScale',fieldOfView:'fov',sfxVolume:'sfxVolume',settingsVoiceVolume:'voiceVolume'}))$(id).oninput=()=>{value=normalizeSettings({...value,[key]:Number($(id).value)});render();save()};
  for(const [id,key]of Object.entries({invertY:'invertY',captions:'captions',highContrast:'highContrast'}))$(id).onchange=()=>{value[key]=$(id).checked;save()};
  $('reduceMotion').onchange=()=>{value.reducedMotion=$('reduceMotion').value;save()};
+ $('viewMode').onchange=()=>{value=normalizeSettings({...value,viewMode:$('viewMode').value});save()};
  function open(){returnFocus=document.activeElement;document.exitPointerLock?.();dispatchEvent(new Event('raidmenuopen'));capture=null;render();$('settingsDialog').showModal();$('settingsClose').focus()}
  function close(){capture=null;$('settingsDialog').close();returnFocus?.focus();render()}
  $('settingsOpen').onclick=open;$('settingsClose').onclick=close;$('settingsDialog').addEventListener('cancel',()=>{capture=null});$('settingsDialog').addEventListener('close',()=>{capture=null;returnFocus?.focus()});

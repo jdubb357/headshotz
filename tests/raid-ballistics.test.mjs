@@ -28,3 +28,10 @@ test('simultaneous pellets cannot duplicate a machine kill or pass through its b
 test('a spread shell can hit two off-center rivals while counting one accurate shot',t=>{const f=setup(t,{shotgun:true}),other=f.store.register('spread_rival','a long spread rival password').id;f.service.deploy(other,{requestId:'spread_rival_deploy',mapId:'relay',recovery:true});const third=f.service.byAccount.get(other);assert.equal(third.raidId,f.p().raidId);Object.assign(f.q(),{x:-.65,z:8});Object.assign(third,{x:.65,y:0,z:8,protectedUntil:0});f.fire();assert.ok(f.q().hp<100);assert.ok(third.hp<100);assert.equal(f.p().facts.shotsHit,1);assert.ok(f.p().facts.pelletsHit>=2&&f.p().facts.pelletsHit<=8)});
 test('legacy active raids preserve their single-hit shotgun damage instead of adopting pellet rules',t=>{const f=setup(t,{shotgun:true});delete f.r().ballisticsVersion;f.q().z=18;f.fire();assert.equal(f.q().hp,35);assert.equal(f.p().facts.pelletsFired,undefined);assert.equal(f.service.snapshot(f.id).self.ballisticsVersion,0)});
 test('clients cannot supply pellet counts, spread seeds or damage multipliers',t=>{const f=setup(t,{shotgun:true});assert.throws(()=>f.fire({pellets:100,seed:7,damage:999}),/Unknown action field/);assert.equal(f.p().ammo,6);assert.equal(f.q().hp,100);assert.equal(f.p().facts.roundsFired||0,0)});
+test('sliding lowers the authoritative body profile so high shots sail over',t=>{
+ const f=setup(t),pitch=Math.atan2(1.7-1.55,4);f.q().z=4;f.q().slideUntil=1000.5;
+ f.fire({pitch});assert.equal(f.q().hp,100,'sliding operator should be missed by a high body shot');
+ assert.equal(f.p().facts.shotsHit||0,0);
+ f.time(1002);f.q().slideUntil=0;f.fire({pitch});
+ assert.ok(f.q().hp<100,'the same shot must hit the standing operator');
+});

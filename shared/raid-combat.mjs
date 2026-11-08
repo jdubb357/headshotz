@@ -11,5 +11,5 @@ export const MEDICAL={
 };
 export function armorStats(item){const def=ARMOR[item?.armor]||ARMOR.standard;return {...def,tier:ARMOR[item?.armor]?item.armor:'standard',protection:def.capacity*Math.max(0,Math.min(100,item?.condition??100))/100}}
 export function healthMaximum(p){return p.combatVersion===2?100:p.equipment.some(it=>it.kind==='armor'&&it.condition>0)?130:100}
-export function movementSpeed(p,now){const base=p.downed?1:p.carrying?3:5;if(p.combatVersion!==2||p.downed)return base;const armor=p.equipment.find(it=>it.kind==='armor'),mobility=armor?armorStats(armor).mobility:1;return base*mobility*(p.wounds?.limpUntil>now?.7:1)}
+export function movementSpeed(p,now){const base=p.downed?1:p.carrying?3:5;if(p.combatVersion!==2||p.downed)return base;const armor=p.equipment.find(it=>it.kind==='armor'),mobility=armor?armorStats(armor).mobility:1;let speed=base*mobility*(p.wounds?.limpUntil>now?.7:1);if((p.slideUntil||0)>now)speed=9.2*mobility;else if(p.sprint&&!p.carrying)speed*=1.55;return speed}
 export function medicalNeed(p,it,now){const def=MEDICAL[it?.medical]||MEDICAL.field;return p.hp<healthMaximum(p)&&def.heal>0||def.stopsBleed&&p.wounds?.bleedingUntil>now||def.treatsLimp&&p.wounds?.limpUntil>now}

@@ -103,10 +103,18 @@ export function updateActor(root,state,dt,time){
  const speed=root.userData.speed||0;
  const target=new THREE.Vector3(state.x,state.y||0,state.z);if(!root.userData.placed){root.position.copy(target);root.userData.placed=true}else root.position.lerp(target,Math.min(1,dt*14));
  root.rotation.y=(state.yaw||0)+(root.userData.actor==='human'?Math.PI:0);
- if(root.userData.actor==='human')animate(root,{speed,pitch:0,dist:10,down:!!state.downed,air:false,slide:false},dt);
+ if(root.userData.actor==='human')animate(root,{speed,pitch:state.pitch||0,dist:10,down:!!state.downed,air:!!state.air,slide:!!state.sliding,crouch:!!state.crouch},dt);
  else if(root.userData.actor==='machine'){
   for(const [i,leg]of root.userData.legs.entries())leg.rotation.x=Math.sin(time*7+i*Math.PI)*Math.min(.35,speed*.1);
-  const core=root.userData.core;if(core){core.material.color.setHex(state.state==='windup'?0xffe28e:0xff5038);core.scale.setScalar((root.userData.kind==='overlord'?.42:root.userData.kind==='heavy'?.2:.15)*(state.state==='windup'?1.2+.15*Math.sin(time*12):1))}
+  const phase=root.userData.kind==='overlord'&&state.bossPhase?state.bossPhase:null,reduced=root.userData.motionReduced===true;
+  const core=root.userData.core;if(core){
+   const strobe=!reduced&&phase==='meltdown'&&Math.sin(time*14)>0;
+   core.material.color.setHex(state.state==='windup'?0xffe28e:strobe?0xfff4ea:phase==='meltdown'?0xff2c1e:phase==='furnace'?0xff9a2f:phase==='approach'?0xff6a52:0xff5038);
+   const phasePulse=phase==='furnace'&&!reduced?1.12+.18*Math.sin(time*9):strobe?1.5:1;
+   core.scale.setScalar((root.userData.kind==='overlord'?.42:root.userData.kind==='heavy'?.2:.15)*phasePulse*(state.state==='windup'?1.2+.15*Math.sin(time*12):1));
+  }
+  const beacon=root.userData.beacon;
+  if(beacon){const color=phase==='meltdown'?0xff3a2e:phase==='furnace'?0xffb04a:0x9db6c4;beacon.userData.beaconShaft.material.color.setHex(color);beacon.userData.beaconRing.material.color.setHex(color);beacon.visible=!reduced}
  }
 }
 export function disposeOwned(root){root.traverse(node=>{releaseCharacterGeometry(node);if(node.isInstancedMesh&&node.geometry?.userData.raidOwned)node.dispose();if(node.geometry?.userData.raidOwned)node.geometry.dispose();const list=Array.isArray(node.material)?node.material:[node.material];for(const m of list)if(m?.userData.raidOwned){if(m.userData.raidOwnTexture)m.map?.dispose();m.dispose()}})}
