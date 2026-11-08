@@ -521,9 +521,10 @@ let DMTEX=null;function downMark(q,dn){if(!dn){if(q.dnM)q.dnM.visible=false;retu
 function isEnemy(q){if(q.id===me.id)return false;if(C.mode==='ffa')return true;const mt=C.players[me.id]?.team;return q.team!==mt}
 // ---------------- network ----------------
 const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},...TURN]};
-const PREFIX='headshotz-v1-';const conns={};
+const PREFIX='headshotz-v1-';const conns={};const outQ={};
 let __spyOn=null;function send(m){if(__spyOn){__spyOn(m);return}if(isHost)hostHandle(me.id,m);else if(conn&&conn.open)conn.send(m)}
-function sendTo(id,m){if(id===me.id)clientHandle(m);else if(conns[id]&&conns[id].open)conns[id].send(m)}
+function sendTo(id,m){if(id===me.id){clientHandle(m);return}const c=conns[id];if(c&&c.open){try{c.send(m);return}catch(e){}}if(!id)return;(outQ[id]=outQ[id]||[]).push(m);if(outQ[id].length>8)outQ[id].shift()}
+function flushOut(id){const c=conns[id],q=outQ[id];if(!c||!c.open||!q)return;delete outQ[id];for(const m of q){try{c.send(m)}catch(e){}}}
 function bcast(m,except){for(const id in conns)if(id!==except&&conns[id].open)conns[id].send(m);if(except!==me.id)clientHandle(m)}
 function genCode(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<4;i++)s+=a[Math.random()*a.length|0];return s}
 function myName(){let n=$('nameIn').value.trim().slice(0,12);if(!n)n='Player'+(Math.random()*900+100|0);LSS('name',n);return n}
@@ -531,22 +532,28 @@ function menuMsg(t){$('menuMsg').textContent=t}
 function createRoom(code,auto){audioInit();const name=myName();roomCode=code||genCode();menuMsg('Creating room…');if(auto)H.auto=auto;
  peer=new Peer(PREFIX+roomCode,{config:ICE,debug:0});
  peer.on('open',id=>{isHost=true;me.id=id;hostInit(name);if(H.auto)setupAuto();else if(H.pub)regRoom();if(!(H.auto&&H.auto.fromHub))partyGo(roomCode)});
- peer.on('connection',c=>{c.on('data',d=>hostHandle(c.peer,d));c.on('open',()=>{conns[c.peer]=c});c.on('close',()=>hostLeave(c.peer));c.on('error',()=>hostLeave(c.peer))});
- peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();if(code)joinRoom(code,auto);else createRoom()}else if(!isHost)menuMsg('Network error: '+e.type)});
+ peer.on('connection',c=>{c.on('data',d=>hostHandle(c.peer,d));c.on('open',()=>{conns[c.peer]=c;flushOut(c.peer)});c.on('close',()=>hostLeave(c.peer));c.on('error',()=>{if(!c.open)hostLeave(c.peer)})});
+ peer.on('error',e=>{if(e.type==='unavailable-id'){if(isHost&&plist().some(p=>!p.bot)){window.__idClash=(window.__idClash||0)+1;menuMsg('Reconnecting the room…');try{peer.reconnect()}catch(err){}return}try{peer.destroy()}catch(err){}if(code)joinRoom(code,auto);else createRoom()}else if(!isHost)menuMsg('Network error: '+e.type)});
  peer.on('disconnected',()=>{try{peer.reconnect()}catch(e){}})}
 // OFFLINE: host locally with no PeerJS object at all (zero network); all messages loop back in-process
 function startOffline(){audioInit();const name=myName();roomCode='OFFLINE';isHost=true;peer=null;me.id='me-offline';H.offline=true;H.fill=true;H.diff=H.diff||'normal';hostInit(name,true);for(let i=0;i<3;i++)send({t:'bot',add:1})}
-function joinRoom(code,auto){audioInit();code=(code||'').toUpperCase().trim();if(code.length<4){menuMsg('Enter a room code');return}
- const name=myName();roomCode=code;menuMsg('Joining '+code+'…');peer=new Peer({config:ICE,debug:0});
- peer.on('open',id=>{me.id=id;conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});
-  const to=setTimeout(()=>{if(!conn.open)menuMsg('Could not reach room '+code+'. Check the code or try again.')},12000);
-  conn.on('open',()=>{clearTimeout(to);conn.send({t:'hello',name,fit:curFit(),skin:PROG.skin,hid:hubSelfId,ws:wsOut(),cl:PROG.pc,party:PARTY?PARTY.id:null})});conn.on('data',clientHandle);conn.on('close',hostGone)});
- peer.on('error',e=>{if(e.type==='peer-unavailable'){menuMsg(auto?'Setting up the match…':'Room '+code+' not found — creating it so friends can join you!');peer.destroy();setTimeout(()=>createRoom(code,auto),auto?Math.random()*500:600)}else menuMsg('Network error: '+e.type)})}
-function hostGone(){if(isHost)return;if(C.fromHub){location.href=hubUrl();return}alert('The host left the game. Tap OK to go back to the room link.');location.href=location.pathname+'?room='+roomCode}
+let joinGen=0,rejoining=0;
+// A missed room is retried before anyone is allowed to claim the code. Party follows and Battle Royale reconnects never create a rival host.
+function joinMissPlan(attempt,locked){const n=attempt|0;if(locked)return n<8?'retry':'giveup';return n<4?'retry':'create'}
+function joinRoom(code,auto,attempt,opt){audioInit();code=(code||'').toUpperCase().trim();attempt=attempt|0;opt=opt||{};if(code.length<4){menuMsg('Enter a room code');return}
+ const name=myName();roomCode=code;const gen=++joinGen;const locked=!!(opt.locked||(window.__partyGo&&window.__partyGo===code)||window.__brRejoin);
+ menuMsg(attempt?'Still looking for room '+code+'…':'Joining '+code+'…');
+ try{if(peer&&!isHost){const old=peer;peer=null;conn=null;rejoining=1;try{old.destroy()}catch(e){}rejoining=0}}catch(e){}
+ peer=new Peer({config:ICE,debug:0});
+ peer.on('open',id=>{if(gen!==joinGen)return;me.id=id;conn=peer.connect(PREFIX+code,{reliable:true,serialization:'json'});
+  const to=setTimeout(()=>{if(gen!==joinGen||(conn&&conn.open))return;const plan=joinMissPlan(attempt,locked);if(plan==='retry'){menuMsg('Still looking for room '+code+'…');setTimeout(()=>{if(gen===joinGen)joinRoom(code,auto,attempt+1,opt)},500+attempt*400)}else menuMsg(plan==='giveup'?'Could not reach your party\'s room '+code+'. Stay with the leader and try again.':'Could not reach room '+code+'. Check the code or try again.')},12000);
+  conn.on('open',()=>{if(gen!==joinGen)return;clearTimeout(to);window.__brRejoin=0;conn.send({t:'hello',name,fit:curFit(),skin:PROG.skin,hid:hubSelfId,ws:wsOut(),cl:PROG.pc,party:PARTY?PARTY.id:null,fc:FR&&FR.code})});conn.on('data',m=>{if(gen===joinGen)clientHandle(m)});conn.on('close',()=>{if(gen===joinGen)hostGone()})});
+ peer.on('error',e=>{if(gen!==joinGen)return;if(e.type==='peer-unavailable'){const plan=joinMissPlan(attempt,locked);try{peer.destroy()}catch(x){}if(plan==='retry'){menuMsg(attempt?'Still looking for room '+code+'…':'Looking for room '+code+'…');setTimeout(()=>joinRoom(code,auto,attempt+1,opt),350+attempt*300)}else if(plan==='giveup'){menuMsg('Could not reach your party\'s room '+code+'. Ask the leader to stay in the match and try again.');window.__partyGo=''}else{menuMsg(auto?'Setting up the match…':'Room '+code+' not found — creating it so friends can join you!');setTimeout(()=>createRoom(code,auto),auto?Math.random()*500:600)}}else menuMsg('Network error: '+e.type)})}
+function hostGone(){if(isHost||rejoining)return;if(BRM(C.mode)&&(inGame||!$('lobby').classList.contains('hidden'))&&roomCode&&roomCode!=='OFFLINE'){const n=window.__brRejoin||0;if(n<4){window.__brRejoin=n+1;menuMsg('Reconnecting to the match…');const code=roomCode;rejoining=1;try{peer&&peer.destroy()}catch(e){}peer=null;conn=null;rejoining=0;setTimeout(()=>joinRoom(code,null,0,{locked:1}),400+n*400);return}}if(C.fromHub){location.href=hubUrl();return}alert('The host left the game. Tap OK to go back to the room link.');location.href=location.pathname+'?room='+roomCode}
 // ================= HOST =================
 const H={players:{},mode:'team',phase:'lobby',map:0,score:{},round:0,t:0,next:0,roundEnd:0,botN:0,order:0,fires:[],smokes:[],fireT:0,sideFlip:false};
 const BOTNAMES=['Bolt','Ziggy','Rex','Nova','Pip','Tank','Moxie','Echo','Juno','Blaze','Kit','Ace'];const BOTGUNS=['ar','smg','battle','bullpup','pdw','vector','paintball','laser','freeze','bat','chainsaw'];
-function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].fit=curFit();H.players[me.id].ws=cleanWS(wsOut());H.players[me.id].cl=clOf(PROG.pc);H.players[me.id].hid=hubSelfId;H.players[me.id].party=PARTY?PARTY.id:null;sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
+function hostInit(name,noUrl){C.hostId=me.id;H.players[me.id]=newP(me.id,name);H.players[me.id].skin=PROG.skin;H.players[me.id].fit=curFit();H.players[me.id].ws=cleanWS(wsOut());H.players[me.id].cl=clOf(PROG.pc);H.players[me.id].hid=hubSelfId;H.players[me.id].party=PARTY?PARTY.id:null;try{H.players[me.id].fc=normCode(FR&&FR.code)||''}catch(e){}sendLobby();showLobby();if(!noUrl)history.replaceState(null,'','?room='+roomCode)}
 function newP(id,name,bot){return{id,name,team:'A',color:0xffffff,hp:100,alive:false,kills:0,deaths:0,pts:0,hs:0,rk:0,vote:-1,bot:!!bot,p:[0,-50,0,0,0,0,0],respawn:0,ord:H.order++,gun:bot?BOTGUNS[(Math.random()*BOTGUNS.length)|0]:null,cl:bot?PCL_IDS[Math.random()*PCL_IDS.length|0]:'soldier',ws:bot&&Math.random()<.35?{'*':WSKIN_IDS[1+(Math.random()*(WSKIN_IDS.length-1))|0]}:{}}}
 function plist(){return Object.values(H.players).sort((a,b)=>a.ord-b.ord)}
 function assignTeams(){let i=0;const AT=H.auto&&H.auto.teams;if(RAIDM(H.mode)){raidAssignSquads();return}for(const p of plist()){if(AT&&p.hid&&AT[p.hid]&&H.mode!=='ffa'){p.team=AT[p.hid];p.color=TEAMCOL[p.team];i++;continue}if(H.mode==='ffa'){p.team=p.id;p.color=FFACOL[i%10]}else{p.team=i%2?'B':'A';p.color=TEAMCOL[p.team]}i++}}
@@ -557,18 +564,18 @@ function sendSB(){bcast(sbData())}
 // a bot takes over a leaver's spot (fill-with-bots rooms) so teams stay even and the match keeps its size
 function botTakeover(team){if(!H.fill||H.phase==='lobby'||H.phase==='starting')return;const want=MODEMAX[H.mode]||4;if(plist().length>=want)return;const id='bot'+(++H.botN);const b=H.players[id]=newP(id,BOTNAMES[H.botN%BOTNAMES.length]+'Bot',true);
  if(H.mode==='ffa'){b.team=id;b.color=FFACOL[plist().length%10]}else{b.team=team;b.color=TEAMCOL[team]}b.respawn=H.t+1.5;b.hp=100;bcast(lobbyData());bcast({t:'join',id,name:b.name,team:b.team,color:b.color,o:b.ord,sk:b.skin,ft:b.fit,ws:b.ws,cl:b.cl,bot:1});sendSB()}
-function hostLeave(id){const lp=H.players[id];if(!lp)return;if(H.br&&BRM(H.mode)&&H.phase==='play'&&!lp.elim&&!lp.bot){lp.alive=false;brElim(lp)}
+function hostLeave(id){const lp=H.players[id];if(!lp)return;if(BRM(H.mode)&&!lp.bot&&!lp.machine&&!H.offline&&H.phase!=='roundEnd'){if(lp.dc){delete conns[id];return}lp.dc=1;lp.gone=H.t||0;delete conns[id];window.__brGrace=(window.__brGrace||0)+1;return}if(H.br&&BRM(H.mode)&&H.phase==='play'&&!lp.elim&&!lp.bot){lp.alive=false;brElim(lp)}
  if(RAIDM(H.mode)&&H.raid&&H.phase==='play'&&lp&&!lp.bot&&!lp.machine&&!lp.settled&&!lp.extracted){
   if(!lp.raiGhost){lp.raiGhost=1;lp.raiGone=H.t;
    bcast({t:'rghost',id,name:lp.name,left:RAID.reconnect});
    bcast({t:'rfeed',msg:'OPERATOR DISCONNECTED: '+lp.name+' — reconnect window '+RAID.reconnect+'s'});}
   delete conns[id];sendSB();sendRaidStat(H.raid);return;
  }
- delete H.players[id];delete conns[id];bcast({t:'bye',id});if(H.phase==='lobby')sendLobby();else{if(!lp.bot&&H.phase!=='roundEnd'&&!BRM(H.mode)&&!RAIDM(H.mode))botTakeover(lp.team);sendSB();checkRound();remCheck()}}
+ delete H.players[id];delete conns[id];if(typeof outQ!=='undefined')delete outQ[id];bcast({t:'bye',id});if(H.phase==='lobby')sendLobby();else{if(!lp.bot&&H.phase!=='roundEnd'&&!BRM(H.mode)&&!RAIDM(H.mode))botTakeover(lp.team);sendSB();checkRound();remCheck()}}
 function hostHandle(from,m){const p=H.players[from];
  if(RAIDM(H.mode)&&p&&p.raiGhost&&m.t!=='hello'&&m.t!=='rsync'&&/^r/.test(m.t)){sendTo(from,{t:'rerr',msg:'Operator disconnected — reconnect within '+RAID.reconnect+'s to continue'});return}
  switch(m.t){
- case 'hello':{if(RAIDM(H.mode)&&H.phase!=='lobby'&&m.rv!==RAID.v){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'rerr',msg:'Raid protocol mismatch — reload the game to update.'});return}if(BRM(H.mode)&&H.phase==='roundEnd'){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}conns[from]?.send({t:'full'});return}const humMax=RAIDM(H.mode)?RAID.maxP:(BRM(H.mode)?MODEMAX[H.mode]:MAXP);
+ case 'hello':{if(!conns[from]){const c=peer&&peer.connections?.[from]?.[0];if(c)conns[from]=c}if(RAIDM(H.mode)&&H.phase!=='lobby'&&m.rv!==RAID.v){conns[from]?.send({t:'rerr',msg:'Raid protocol mismatch — reload the game to update.'});return}if(BRM(H.mode)&&H.phase==='roundEnd'){conns[from]?.send({t:'full'});return}if(BRM(H.mode)){const link=brLink(from,m);if(link){if(H.phase==='lobby')sendLobby();else brDeliver(from,H.players[from],link==='reclaim');return}if(H.phase!=='lobby'){brLateJoin(from,m);return}}const humMax=RAIDM(H.mode)?RAID.maxP:(BRM(H.mode)?MODEMAX[H.mode]:MAXP);
   const depId=RAIDM(H.mode)?String(m.deployId||'').slice(0,40):'';
   const ghost=RAIDM(H.mode)&&depId?plist().find(q=>q.raiGhost&&q.raiDeploy===depId):null;
   if(!ghost&&Object.values(H.players).filter(q=>!q.bot&&!q.machine&&!q.raiGhost).length>=humMax){conns[from]?.send({t:'full'});return}
@@ -592,6 +599,7 @@ function hostHandle(from,m){const p=H.players[from];
    np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
    np.raiDeploy=depId;
   }
+  if(np&&m.fc&&typeof normCode==='function')np.fc=normCode(m.fc)||np.fc||'';
   if(H.phase==='lobby')sendLobby();else{
    if(!ghost){
     if(RAIDM(H.mode)){if(!raidJoinTeam(np)){delete H.players[from];conns[from]?.send({t:'full'});return}}
@@ -664,7 +672,7 @@ function hostHandle(from,m){const p=H.players[from];
  case 'fit':if(p){p.fit=fitOf(m.fit);if(m.sk!=null)p.skin=cleanSkin(m.sk);bcast({t:'fit',id:from,ft:p.fit,sk:p.skin})}break;
  case 'emo':if(p&&p.alive!==false&&Number.isInteger(m.e)&&m.e>=-1&&m.e<EMOTES.length)bcast({t:'emo',id:from,e:m.e},from);break;
  case 'ping':conns[from]?.send({t:'pong',ts:m.ts,n:plist().length});break;
- case 'st':if(p&&Array.isArray(m.p))p.p=m.p;break;
+ case 'st':if(p&&Array.isArray(m.p)){p.p=m.p;if(p.dc){p.dc=0;p.gone=0}}break;
  case 'fx':if(p)p.shotT=H.t;bcast({t:'fx',id:from,a:m.a,b:m.b,w:m.w},from);break;
  case 'nade':if(H.br&&p&&p.inv){if(p.inv.u&&WIDS[p.inv.u[0]]===m.k&&p.inv.u[1]>0)p.inv.u[1]--;else if(p.inv.n&&WIDS[p.inv.n[0]]===m.k&&p.inv.n[1]>0)p.inv.n[1]--}bcast({t:'nade',id:from,k:m.k,p:m.p,v:m.v},from);break;
  case 'util':{if(!p||H.phase==='lobby')return;const pos=new THREE.Vector3(...m.p);if(m.kind==='molotov')H.fires.push({p:pos,r:m.small?2:3.4,t:0,life:m.small?4.5:7,owner:from});
@@ -732,7 +740,8 @@ function startMatch(){partyGo(roomCode);for(const p of plist())if(p.raider){dele
  H.score={};H.round=0;H.fires=[];H.smokes=[];for(const p of plist()){p.kills=p.deaths=p.pts=p.hs=p.as=0}const m=buildMap(H.map);doorReset(m);cols=m.cols;groundHalf=m.groundHalf;ladders=m.ladders||[];hides=m.hides||[];buildGrid();
  if(MISSION(H.mode))missionPrep();else if(RAIDM(H.mode))raidPrep(m);else if(BRM(H.mode))brPrep();else H.br=null;H.phase='starting';H.mid=(H.mid|0)+1;H.seed=Math.random()*2147483647|0;H.sack=null;if(BRM(H.mode)){H.sack={};H.sackT=H.t;H.sackN=0;for(const p of plist())if(!p.bot&&p.id!==me.id&&conns[p.id])H.sack[p.id]=0}bcast(lobbyData());bcast(startData());sendSB();setTimeout(startRound,900)}
 // v61b: every human gets the start message: clients ack {t:'sack',mid}; the host resends start (+ current round) to anyone who has not acked until they do
-function startResend(){if(!H.sack||H.phase==='lobby'||H.t-H.sackT<1.2)return;const miss=Object.keys(H.sack).filter(id=>H.sack[id]!==H.mid&&H.players[id]&&conns[id]&&conns[id].open);if(!miss.length){if(H.t-H.sackT>6)H.sack=null;return}if(H.t-H.sackT<1.2*(H.sackN+1)||H.sackN>=40)return;H.sackN++;window.__startResends=(window.__startResends||0)+1;const sd=startData();for(const id of miss){try{conns[id].send(sd);conns[id].send(BRM(H.mode)&&H.br&&H.phase!=='starting'?brLateMsg(H.players[id]):{t:'round',round:H.round,score:H.score,spawns:{},count:0,resync:1})}catch(e){}}}
+function noteSack(id){if(!BRM(H.mode)||!id||id===me.id||H.phase==='lobby')return;if(!H.sack){H.sack={};H.sackT=H.t;H.sackN=0}if(H.sack[id]!==H.mid)H.sack[id]=0}
+function startResend(){if(!H.sack||H.phase==='lobby'||H.t-H.sackT<1.2)return;const miss=Object.keys(H.sack).filter(id=>H.sack[id]!==H.mid&&H.players[id]&&conns[id]&&conns[id].open);if(!miss.length){if(H.t-H.sackT>6)H.sack=null;return}if(H.t-H.sackT<1.2*(H.sackN+1)||H.sackN>=40)return;H.sackN++;window.__startResends=(window.__startResends||0)+1;const sd=startData();for(const id of miss){try{conns[id].send(sd);if(!(H.players[id]&&H.players[id].brIn)){if(BRM(H.mode)&&H.br&&H.phase!=='starting'){conns[id].send(brLateMsg(H.players[id]));H.players[id].brIn=1}else conns[id].send({t:'round',round:H.round,score:H.score,spawns:{},count:0,resync:1})}}catch(e){}}}
 // ---- spawn selection ----
 function allSpawns(m){return[...m.spawnsA,...m.spawnsB,...m.spawnsM]}
 function faceCenter(s){return Math.atan2(s[0],s[1])}
@@ -770,7 +779,7 @@ function hostDecide(){if(!isHost||!H.matchOver)return;clearTimeout(H.remT);if(re
  H.matchOver=false;if(C.fromHub||sessionStorage.getItem('hsz_fromHub')){sessionStorage.removeItem('hsz_fromHub');location.href=hubUrl();return}
  if(H.phase==='roundEnd'){H.phase='lobby';for(const p of plist())p.vote=-1;sendLobby()}}
 function remCheck(){if(!isHost||!H.matchOver)return;const hs=humansOther();bcast({t:'remv',y:remYes(),n:hs.length});clearTimeout(H.remT);if(hs.length&&remYes()===hs.length&&H.rem[me.id]!==0)H.remT=setTimeout(()=>{if(H.matchOver)hostRematch()},3000)}
-function hostTick(dt){H.t+=dt;if(H.phase==='play'||H.phase==='starting')botDoors(dt);if(H.phase==='play')hostPets(PETX,dt);if(H.phase==='play')for(const p of plist()){const pc=PCL[p.cl];const maxp=p.machine?(p.raiMax||100):(RAIDM(H.mode)&&p.raiMax?p.raiMax:100);if(pc&&pc.regen&&p.alive&&!p.down&&p.hp<maxp&&H.t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(maxp,p.hp+pc.regen*dt);if(Math.floor(p.hp)!==o&&Math.floor(p.hp)%3===0||p.hp>=maxp)bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
+function hostTick(dt){H.t+=dt;if(BRM(H.mode))brSweepGone();if(H.phase==='play'||H.phase==='starting')botDoors(dt);if(H.phase==='play')hostPets(PETX,dt);if(H.phase==='play')for(const p of plist()){const pc=PCL[p.cl];const maxp=p.machine?(p.raiMax||100):(RAIDM(H.mode)&&p.raiMax?p.raiMax:100);if(pc&&pc.regen&&p.alive&&!p.down&&p.hp<maxp&&H.t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(maxp,p.hp+pc.regen*dt);if(Math.floor(p.hp)!==o&&Math.floor(p.hp)%3===0||p.hp>=maxp)bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
  if(H.auto&&H.phase==='lobby'&&H.autoAt){const humans=plist().filter(p=>!p.bot).length;if(humans>=H.auto.expect||H.t>H.autoAt){H.autoAt=0;startMatch()}else if(H.auto.expect>1&&H.t>=(H.wT||0)){H.wT=H.t+3;sendLobby();try{partyGo(roomCode)}catch(e){}}}startResend();
  if(H.phase==='count'&&H.t>=H.next){H.phase='play';bcast({t:'go'})}
  if(H.phase==='play'){
@@ -848,7 +857,7 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt)
 let lastLobby=null;
 function clientHandle(m){if(m.t==='pfx'){PETS&&PETS.onFx(m);return}if(m.t==='pdia'){if(m.n>0){addDia(m.n|0,'sidekick');center('🐾 '+((SK_BY[PROG.pet]||{}).name||'Buddy')+' found '+(m.n|0)+'💎!',1400)}return}if(BC&&brMsg(m))return;if(RC&&raidMsg(m))return;switch(m.t){
  case 'lobby':lastLobby=m;C.hostId=m.hostId;C.mode=m.mode;if(m.phase==='lobby'){if(RAIDM(m.mode)&&!inGame&&raidBaseVisible()){raidBaseSyncLobby(m);renderLobby();break}if(inGame)leaveToLobby();showLobby()}renderLobby();break;
- case 'full':menuMsg(m.started?'That Battle Royale already took off — wait for the next one.':'Room is full (10 players max).');break;
+ case 'full':menuMsg(m.started?'That Battle Royale already took off — wait for the next one.':((BRM(C.mode)||(typeof H!=='undefined'&&BRM(H.mode)))?'That Royale match is full (50 players).':'Room is full (10 players max).'));break;
  case 'start':if(window.__dropStartN>0){window.__dropStartN--;break}startGame(m);break;
  case 'ms':if(MS){MS.s=m.s;MS.at=performance.now();updMsHud()}break;
  case 'mev':missionEvent(m);break;
@@ -1586,7 +1595,7 @@ addEventListener('keydown',e=>{if(e.code!=='Tab'||!RC||!RC.modal||RC.final)retur
  if(e.shiftKey&&(i<=0)){e.preventDefault();f[f.length-1].focus()}
  else if(!e.shiftKey&&(i<0||i===f.length-1)){e.preventDefault();f[0].focus()}
 });
-{const q=new URLSearchParams(location.search);if(q.get('join')){const jc=q.get('join');setTimeout(()=>joinRoom(jc),300)}else if(q.get('hub'))setTimeout(enterHub,50);else if(q.get('offline'))setTimeout(()=>$('offlineBtn').click(),50)}
+{const q=new URLSearchParams(location.search);if(q.get('join')){const jc=q.get('join');setTimeout(()=>joinRoom(jc,null,0,{locked:1}),300)}else if(q.get('hub'))setTimeout(enterHub,50);else if(q.get('offline'))setTimeout(()=>$('offlineBtn').click(),50)}
 
 // ---- Class Booth: buy a class with 💎 and pick one before a match ----
 const CLTH={};function classThumb(k){if(CLTH[k])return CLTH[k];const R=r2();R.setSize(220,300);prevCam.aspect=220/300;prevCam.updateProjectionMatrix();const m=makeCharacter(0x3a7bd5,'',k,undefined,undefined,k);m.userData.tag.visible=false;m.rotation.y=Math.PI+.5;
@@ -1632,7 +1641,7 @@ function myStatus(){const lob=!$('lobby').classList.contains('hidden');
  if(C.hub)return{w:'hub',t:'In Hub',join:{hub:1}};
  if(inGame&&roomCode&&roomCode!=='OFFLINE'){const n=Object.values(C.players||{}).filter(q=>!q.bot).length,mx=MODEMAX[C.mode]||MAXP;return{w:'match',t:'In Match',mode:C.mode,map:cur&&cur.def?cur.def.name:'',n,mx,join:n<mx?{room:roomCode}:null}}
  if(inGame)return{w:'practice',t:'Practice vs Bots',mode:C.mode,map:cur&&cur.def?cur.def.name:'',join:null};
- if(lob&&roomCode&&roomCode!=='OFFLINE'){const n=Object.values((isHost?H.players:C.players)||{}).filter(q=>!q.bot).length;return{w:'lobby',t:'In Lobby',n,mx:MAXP,join:n<MAXP?{room:roomCode}:null}}
+ if(lob&&roomCode&&roomCode!=='OFFLINE'){const mode=(isHost&&H&&H.mode)||C.mode;const mx=BRM(mode)?(MODEMAX[mode]||50):MAXP;const n=Object.values((isHost?H.players:C.players)||{}).filter(q=>!q.bot).length;return{w:'lobby',t:'In Lobby',n,mx,join:n<mx?{room:roomCode}:null}}
  return{w:'menu',t:'In Menu',join:null}}
 function frServe(){if(frPeer||typeof Peer==='undefined')return;const p=new Peer(frPid(FR.code),{config:ICE,debug:0});frPeer=p;let ok=false;
  const retry=()=>{if(frPeer!==p)return;try{p.destroy()}catch(x){}frPeer=null;const d=frBack;frBack=Math.min(30000,frBack*2);setTimeout(frServe,d)};
@@ -1671,7 +1680,7 @@ function frAccept(code){const f=FR.inc.find(x=>x.code===code);if(!f)return;frSet
 function frDecline(code){if(frCat(code)!=='inc')return;frSet(code,null);frAsk(code,{t:'dec'})}
 function frRemove(code){if(!frCat(code))return;frSet(code,null);delete frStat[code];frAsk(code,{t:'rm'})}
 function frJoin(code){const s=frStat[code];if(!s||!s.join)return;const nl=/[?&]net=local/.test(location.search)?'&net=local':'';
- if(s.join.hub){if(C.hub)return frMsg('You are already in the hub');location.href=hubUrl();return}if(s.join.room){if(inGame||!$('lobby').classList.contains('hidden')){location.href=location.pathname+'?join='+s.join.room+nl}else{closeFriends();joinRoom(s.join.room)}}}
+ if(s.join.hub){if(C.hub)return frMsg('You are already in the hub');location.href=hubUrl();return}if(s.join.room){if(inGame||!$('lobby').classList.contains('hidden')){location.href=location.pathname+'?join='+s.join.room+nl}else{closeFriends();joinRoom(s.join.room,null,0,{locked:1})}}}
 function frMsg(t){const m=$('frMsg');if(m)m.textContent=t}
 const MODE_N={duel:'1v1',team:'2v2',t3:'3v3',t4:'4v4',t5:'5v5',ffa:'Free-for-all'};
 function stText(s){if(!s)return'<span class="off">● Offline</span>';let t=s.t;if(s.w==='match'||s.w==='practice')t+=` · ${MODE_N[s.mode]||s.mode||''}${s.map?' · '+s.map:''}`;if(s.n)t+=` · ${s.n}/${s.mx}`;return`<span class="on ${s.w}">● ${t}</span>`}
@@ -2025,7 +2034,7 @@ $('briefBtn')&&($('briefBtn').onclick=()=>{const m=MS&&MS.info.m;if(m)showBrief(
 Object.assign(window.__hsz,{MSX:()=>({MS,H,CTF,EXT}),damage:(...a)=>damage(...a),extCall,missionTick,endMission,addRaider});
 // ================= v44 BATTLE ROYALE (host side) =================
 const RAR=[{n:'COMMON',c:0xb8bcc4,d:1,m:1,rl:1,sp:1,fr:1},{n:'UNCOMMON',c:0x4cd964,d:1.1,m:1.06,rl:.95,sp:.95,fr:.98},{n:'RARE',c:0x3b9cff,d:1.2,m:1.12,rl:.9,sp:.9,fr:.96},{n:'EPIC',c:0xb35cff,d:1.32,m:1.2,rl:.85,sp:.84,fr:.94},{n:'LEGENDARY',c:0xffb81c,d:1.45,m:1.3,rl:.8,sp:.78,fr:.92},{n:'SECRET',c:0xff2b2b,d:1.6,m:1.4,rl:.75,sp:.7,fr:.9},{n:'GODLY',c:0xffd700,d:1.8,m:1.5,rl:.7,sp:.65,fr:.88}];
-const BRC={secret:7,god:2,pop:50,sq:4,heliY:230,busDur:52,chuteY:70,ft:48,cd:3};
+const BRC={secret:7,god:2,pop:50,sq:4,heliY:230,busDur:52,chuteY:70,ft:48,cd:3};const BR_RECONN=20;
 const AMN=['Light','Medium','Shells','Heavy'],AMV=[36,30,8,6];
 const CONS=['band','med','shd','mini'],CONN=['Bandage','Medkit','Shield Potion','Mini Shield'],CONMAX=[15,3,3,6],CONT=[2.5,6,4,2],CONI=['🩹','🧰','🧪','🧃'];
 const GUNW=[['ar',24],['smg',18],['shotgun',14],['pistol',14],['marksman',10],['sniper',8],['heavy',3]];
@@ -2131,27 +2140,47 @@ function brOpenSecret(p,c,cid){const E=H.br;const out=[];const slotOf=c=>c==='sm
 function brDeathDrop(v){const E=H.br;if(!v.inv)return;const out=[];for(const g of v.inv.g)if(g)out.push([0,g[0],g[1]]);for(const e of(v.inv.bp||[]))out.push([e[0],e[1],e[2]]);if(v.inv.m[0]!==WIDX.fists&&v.inv.m[1]>0)out.push([4,v.inv.m[0],v.inv.m[1]]);if(v.inv.u&&v.inv.u[1]>0)out.push([3,v.inv.u[0],v.inv.u[1]]);if(v.inv.n&&v.inv.n[1]>0)out.push([3,v.inv.n[0],v.inv.n[1]]);
  for(let i=0;i<4;i++)if(v.inv.c[i]>0)out.push([2,i,v.inv.c[i]]);for(let i=0;i<4;i++)if(v.inv.res[i]>=10)out.push([1,i,v.inv.res[i]]);
  const items=out.map((o,i)=>{const a=i/out.length*6.283,r=.8+Math.random()*.6;return brItem(o[0],o[1],o[2],v.p[0]+Math.cos(a)*r,Math.max(0,v.p[1]),v.p[2]+Math.sin(a)*r,-1).slice(0,7)});if(items.length)bcast({t:'ldm',it:items});v.inv=newInv()}
-// v61b: a real player joining a Battle Royale / Squad Royale that already took off. Humans always outrank bots: a bot is removed to make room
-// (Squad Royale: a bot in the joiner's party squad, else the host's squad, else any squad with bots; otherwise the bot farthest from every human)
-// and the player is slotted in: still on the bus if it has not left, else dropped from the bus height above a squadmate (or a random zone).
-function brLateJoin(from,m){if(!conns[from]){const c=peer.connections?.[from]?.[0];if(c)conns[from]=c}const E=H.br;
- if(!E||E.over||E.ph==='over'||!['starting','count','play'].includes(H.phase)||Object.values(H.players).filter(q=>!q.bot).length>=MAXP||H.players[from]){conns[from]?.send({t:'full',started:1});return}
- const live=plist().filter(q=>!q.bot&&q.alive&&!q.elim);const farFromHumans=b=>{let d=1e9;for(const q of live)d=Math.min(d,Math.hypot(q.p[0]-b.p[0],q.p[2]-b.p[2]));return d};
- const bots=plist().filter(q=>q.bot&&!q.elim);const dead=plist().filter(q=>q.bot&&q.elim);let team=null,rm=null;const pick=L=>L.slice().sort((a,b)=>farFromHumans(b)-farFromHumans(a))[0];
- if(H.mode==='brs'){const party=m.party?String(m.party).slice(0,12):null;const mate=plist().find(q=>!q.bot&&party&&q.party===party);const host=H.players[me.id];
-  const cand=[mate&&mate.team,host&&host.team].filter(Boolean);for(const t of cand){const L=bots.filter(b=>b.team===t);if(L.length){team=t;rm=pick(L);break}}
-  if(!rm){const L=bots.filter(b=>b.team);if(L.length){rm=pick(L);team=rm.team}}}
- else rm=bots.length?pick(bots):null;
- if(!rm&&dead.length)rm=dead[0],team=H.mode==='brs'?rm.team:null;
- if(!rm&&plist().length>=(MODEMAX[H.mode]||50)){conns[from]?.send({t:'full',started:1});return}
- if(rm){delete H.players[rm.id];bcast({t:'bye',id:rm.id})}
- const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));np.party=m.party?String(m.party).slice(0,12):null;np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
- if(H.mode==='brs'){np.team=team||'S'+(plist().length+1);np.color=rm?rm.color:SQCOL[0]}else{np.team=from;np.color=FFACOL[plist().length%10]}
- np.elim=0;np.sh=0;np.down=false;np.inv=newInv();np.prot=0;np.alive=true;np.hp=100;
- window.__brLate=(window.__brLate||0)+1;
- if(H.phase==='starting'){bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);sendSB();return}
- bcast(lobbyData());sendTo(from,startData());bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ws:np.ws,cl:np.cl},from);
- sendTo(from,brLateMsg(np));sendSB()}
+// A dropped Battle Royale human keeps their seat for BR_RECONN seconds. A new connection with the same friend code takes that seat back
+// and never removes another human. brLink returns 'same', 'reclaim', or ''.
+function brLink(from,m){const fc=normCode(m&&m.fc)||'';const cur=H.players[from];
+ if(cur&&!cur.bot){cur.gone=0;cur.dc=0;if(fc)cur.fc=fc;return 'same'}
+ if(!fc||!BRM(H.mode))return '';
+ const old=plist().find(q=>q&&!q.bot&&q.fc===fc&&q.id!==from&&q.id!==me.id);if(!old||(!old.dc&&conns[old.id]&&conns[old.id].open))return '';
+ const oldId=old.id;if(conns[oldId]){try{conns[oldId].close&&conns[oldId].close()}catch(e){}delete conns[oldId]}
+ delete H.players[oldId];delete outQ[oldId];old.id=from;old.gone=0;old.dc=0;old.fc=fc;H.players[from]=old;
+ bcast({t:'bye',id:oldId});if(H.phase==='lobby')bcast({t:'join',id:from,name:old.name,team:old.team,color:old.color,o:old.ord,sk:old.skin,ft:old.fit,ws:old.ws,cl:old.cl,bot:0},from);
+ window.__brReclaim=(window.__brReclaim||0)+1;return 'reclaim'}
+function brDeliver(from,np,full){if(!np)return;sendTo(from,startData());
+ if(full)bcast({t:'join',id:from,name:np.name,team:np.team,color:np.color,o:np.ord,sk:np.skin,ft:np.fit,ws:np.ws,cl:np.cl,bot:np.bot?1:0},from);
+ if(H.phase!=='lobby'){const cnt=H.phase==='count'?Math.max(1,Math.ceil((H.next||0)-H.t)):0;if(full)sendTo(from,{t:'round',round:H.round,score:H.score,spawns:{},count:cnt,late:H.phase==='play'?1:0});
+  if(np.air&&H.br&&(H.phase==='play'||H.phase==='count')){np.brIn=1;sendTo(from,{t:'brin',air:np.air,p:[+np.p[0].toFixed(2),+np.p[1].toFixed(2),+np.p[2].toFixed(2),+(np.p[3]||0).toFixed(3)],bt:+((H.t-(H.br.t0||0))).toFixed(2),st:H.br.storm?stormState():null,al:H.br.alive||plist().filter(q=>!q.elim).length,sq:H.br.squads||new Set(plist().filter(q=>!q.elim).map(q=>q.team)).size})}}
+ noteSack(from);sendSB()}
+function brForget(p){if(!p)return;const id=p.id;if(H.br&&BRM(H.mode)&&H.phase==='play'&&!p.elim&&!p.bot){p.alive=false;brElim(p)}delete H.players[id];delete conns[id];delete outQ[id];bcast({t:'bye',id});if(H.phase==='lobby')sendLobby();else sendSB()}
+ function brSweepGone(){if(!BRM(H.mode)||H.offline)return;for(const p of plist().slice()){if(!p||!p.dc||p.bot)continue;if(conns[p.id]&&conns[p.id].open){p.dc=0;p.gone=0;continue}if((H.t||0)-(p.gone||0)<BR_RECONN)continue;brForget(p)}}
+// v101: in-progress Battle Royale / Squad Royale join. Humans replace a bot (same squad when one is free, otherwise another squad) and never a real player.
+// Party members already on the bus stay on the bus together; anyone who has jumped is the drop anchor. Cap is the 50-player match, not the 10-player arena limit.
+function brLateJoin(from,m){if(!conns[from]){const c=peer&&peer.connections?.[from]?.[0];if(c)conns[from]=c}const E=H.br;
+ if(!E||E.over||E.ph==='over'||!['starting','count','play'].includes(H.phase)){sendTo(from,{t:'full',started:1});return}
+ if(plist().filter(q=>!q.bot&&!q.machine).length>=(MODEMAX[H.mode]||50)){sendTo(from,{t:'full'});return}
+ const np=H.players[from]=newP(from,String(m.name||'Player').slice(0,12));
+ np.party=m.party?String(m.party).slice(0,12):null;np.fc=normCode(m.fc)||'';np.skin=cleanSkin(m.skin);np.ws=cleanWS(m.ws);np.cl=clOf(m.cl);np.fit=fitOf(m.fit);np.hid=m.hid||null;
+ brJoinTeam(np);
+ let bt=null;
+ if(H.mode==='brs'){const inSq=plist().filter(q=>q.id!==from&&q.team===np.team);
+  if(inSq.length>=BRC.sq&&!inSq.some(q=>q.bot)){const alt=plist().filter(q=>q.id!==from&&q.bot&&q.team!==np.team);bt=alt.find(q=>!q.alive&&!q.machine)||alt[0];if(bt&&bt.bot)brTeam(np,bt.team);else bt=null;if(!bt){delete H.players[from];sendTo(from,{t:'full'});return}}}
+ if(!bt){const bs=plist().filter(q=>q.id!==from&&q.bot&&(H.mode==='br'||q.team===np.team));bt=bs.find(q=>!q.alive&&!q.machine)||bs[0]}
+ if((!bt||!bt.bot)&&plist().length>(MODEMAX[H.mode]||50)){const any=plist().filter(q=>q.id!==from&&q.bot);bt=any.find(q=>!q.alive&&!q.machine)||any[0]||null}
+ if(bt&&!bt.bot)bt=null;
+ if(bt){delete H.players[bt.id];delete conns[bt.id];delete outQ[bt.id];bcast({t:'bye',id:bt.id})}
+ else if(plist().length>(MODEMAX[H.mode]||50)){delete H.players[from];sendTo(from,{t:'full'});return}
+ if(E&&(H.phase==='play'||H.phase==='count')){np.alive=true;np.hp=100;np.down=false;np.elim=0;np.sh=0;np.prot=0;np.inv=newInv();
+  const mates=plist().filter(q=>q.id!==from&&!q.bot&&q.alive&&!q.elim&&(H.mode==='br'||q.team===np.team));
+  const busT=H.t-(E.t0||0);const busUp=E.ph==='bus'&&busT<BRC.busDur;
+  const anchor=mates.find(q=>q.air==='bus')||mates.find(q=>q.air==='fall'||q.air==='chute')||mates.find(q=>!q.air);
+  if(H.phase==='count'||busUp||(anchor&&anchor.air==='bus')){const hp=heliAt(Math.max(0,busT));np.air='bus';np.p=[hp[0],E.y,hp[1],Math.atan2(-(E.heli.b[0]-E.heli.a[0]),-(E.heli.b[1]-E.heli.a[1])),0,WIDX.fists,32]}
+  else if(anchor&&(anchor.air==='fall'||anchor.air==='chute')){np.air='fall';np.p=[anchor.p[0],Math.max(anchor.p[1],E.y-4),anchor.p[2],anchor.p[3]||0,0,WIDX.fists,16]}
+  else{const d=brJoinDrop(np);np.air='fall';np.p=[d[0],d[1],d[2],d[3],0,WIDX.fists,16]}}
+ window.__brLate=(window.__brLate||0)+1;bcast(lobbyData());brDeliver(from,np,true)}
 // the round message that slots a player into a BR already under way: still on the bus, or dropped from bus height above a squadmate / a random zone
 function brLateMsg(np){const E=H.br,from=np.id;const hs=heliAt(0),yaw=Math.atan2(-(E.heli.b[0]-E.heli.a[0]),-(E.heli.b[1]-E.heli.a[1]));np.air='bus';np.p=[hs[0],E.y,hs[1],yaw,0,WIDX.fists,32];
  const busGone=E.ph!=='bus'||H.t-E.t0>=BRC.busDur;let lp=null;
@@ -2601,13 +2630,14 @@ function partyInvite(code){if(frCat(code)!=='list')return;if(PARTY&&!partyLead()
 function partyAccept(){const v=PINV;PINV=null;if(!v){renderParty();return}PARTY={id:v.pid,lead:v.lead,m:v.m.filter(x=>x.code!==FR.code).concat([{code:FR.code,name:frName()}])};renderParty();frAsk(v.lead,{t:'pjoin',pid:v.pid})}
 function partyLeave(){if(!PARTY)return;if(partyLead()){for(const c of partyCodes())frAsk(c,{t:'pdis'})}else frAsk(PARTY.lead,{t:'plv'});PARTY=null;renderParty();if(frOpen)renderFriends()}
 function partyGo(room){if(!partyLead()||PARTY.m.length<2||!room||room==='OFFLINE')return;for(const c of partyCodes())frAsk(c,{t:'pgo',room})}
+function partyFollow(room){room=String(room||'').toUpperCase();if(!/^[A-Z0-9]{4,8}$/.test(room))return false;if(roomCode===room&&conn&&conn.open)return false;return true}
 function partyMsg(m,code,name,cat){
  if(m.t==='pinv'){if(cat!=='list'||(PARTY&&PARTY.m.length>1)){return{t:'busy'}}PINV={pid:String(m.pid).slice(0,12),lead:code,name,m:(Array.isArray(m.m)?m.m:[]).slice(0,4).map(x=>({code:normCode(x.code)||'',name:String(x.name||'').slice(0,12)})).filter(x=>x.code)};toast(`👥 ${name} invited you to a party`);renderParty();return{t:'ok'}}
  if(m.t==='pjoin'){if(partyLead()&&PARTY.id===m.pid&&cat==='list'&&PARTY.m.length<4&&!PARTY.m.some(x=>x.code===code)){PARTY.m.push({code,name});toast(`👥 ${name} joined your party`);partyPush();partyGo(roomCode)}return{t:'ok'}}
  if(m.t==='plv'){if(partyLead()&&PARTY.m.some(x=>x.code===code)){PARTY.m=PARTY.m.filter(x=>x.code!==code);toast(`👥 ${name} left the party`);if(PARTY.m.length<2){PARTY=null;renderParty()}else partyPush()}return{t:'ok'}}
  if(m.t==='pst'){if(PARTY&&PARTY.lead===code&&PARTY.id===m.pid){const mm=(Array.isArray(m.m)?m.m:[]).slice(0,4).map(x=>({code:normCode(x.code)||'',name:String(x.name||'').slice(0,12)})).filter(x=>x.code);if(mm.some(x=>x.code===FR.code))PARTY.m=mm;else PARTY=null;renderParty();if(frOpen)renderFriends()}return{t:'ok'}}
  if(m.t==='pdis'){if(PARTY&&PARTY.lead===code){PARTY=null;toast('👥 Party disbanded');renderParty();if(frOpen)renderFriends()}return{t:'ok'}}
- if(m.t==='pgo'){if(PARTY&&PARTY.lead===code&&/^[A-Z0-9]{4,8}$/.test(String(m.room))&&roomCode!==m.room&&(!inGame||C.hub||!$('endScr').classList.contains('hidden'))){toast(`👥 ${name} started a match — joining`);const nl=/[?&]net=local/.test(location.search)?'&net=local':'';window.__partyGo=m.room;if(!$('lobby').classList.contains('hidden')||inGame||C.hub)location.href=location.pathname+'?join='+m.room+nl+(PROF?'&prof='+PROF:'');else{closeFriends();joinRoom(m.room)}}return{t:'ok'}}
+ if(m.t==='pgo'){const room=String(m.room||'').toUpperCase();if(PARTY&&PARTY.lead===code&&partyFollow(room)){toast(`👥 ${name} started a match — joining`);const nl=/[?&]net=local/.test(location.search)?'&net=local':'';window.__partyGo=room;if(!$('lobby').classList.contains('hidden')||inGame||C.hub)location.href=location.pathname+'?join='+room+nl+(PROF?'&prof='+PROF:'');else{closeFriends();joinRoom(room,null,0,{locked:1})}}return{t:'ok'}}
  return{t:'ok'}}
 let partyKey='';function renderParty(){try{if(PARTY)sessionStorage.setItem('hsz_party',JSON.stringify(PARTY));else sessionStorage.removeItem('hsz_party')}catch(e){}if(isHost&&!H.offline&&H.players[me.id])H.players[me.id].party=PARTY?String(PARTY.id).slice(0,12):null;try{window.__hsz.royale&&window.__hsz.royale.refresh()}catch(e){}const b=$('partyBar');if(!b)return;const show=(PARTY||PINV)&&(!inGame||C.hub)&&!(PARTY&&PARTY.m.length<2&&!PINV&&false);
  let h='';if(PINV)h+=`<div class="pInv">👥 <b>${esc(PINV.name)}</b> invites you to a party <button data-p="acc" class="pill green sm">JOIN</button><button data-p="dec" class="pill red sm">✕</button></div>`;
@@ -2615,7 +2645,7 @@ let partyKey='';function renderParty(){try{if(PARTY)sessionStorage.setItem('hsz_
  const k=(show?'1':'0')+h;if(k===partyKey)return;partyKey=k;b.classList.toggle('hidden',!show);b.innerHTML=h}
 document.addEventListener('pointerdown',e=>{const b=e.target.closest&&e.target.closest('#partyBar [data-p]');if(!b)return;e.stopPropagation();const a=b.dataset.p;if(a==='acc')partyAccept();else if(a==='dec'){PINV=null;renderParty()}else if(a==='lv')partyLeave();else if(a==='inv')openFriends()},true);
 setInterval(renderParty,1200);
-window.__hsz.PARTY=()=>PARTY;window.__hsz.partyInvite=partyInvite;window.__hsz.partyAccept=partyAccept;window.__hsz.partyLeave=partyLeave;
+window.__hsz.PARTY=()=>PARTY;window.__hsz.partyInvite=partyInvite;window.__hsz.partyAccept=partyAccept;window.__hsz.partyLeave=partyLeave;window.__hsz.joinMissPlan=joinMissPlan;window.__hsz.partyFollow=partyFollow;window.__hsz.brSweepGone=()=>brSweepGone();
 
 // ================= v45 THIRD-PERSON CAMERA =================
 // Royale defaults to over-the-shoulder; the main game defaults to first person (V / button toggles, remembered per game).
