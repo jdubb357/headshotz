@@ -3,10 +3,10 @@
 // active ones (scout / decoy) use the ability button / X key, sprinter + tracker run on the client. Equipped pet id travels in the weapon-skin
 // object (ws.pet) so it syncs everywhere ws already syncs (join, lobby, 'ws' messages).
 import {THREE} from './gfx.js';
-import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {NB4,detailOriginal} from './petmodels4.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {RIDES,rideOf,shouldDismount,hostOmni,hostSpinGrab} from './petabil3.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
+import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {NB4,detailOriginal} from './petmodels4.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {RIDES,rideOf,shouldDismount,hostOmni,hostSpinGrab,hostSecret,tryRebirth} from './petabil3.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
 export {RIDES,rideOf,shouldDismount};
-export const RAR_N=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY','GODLY'];
-export const RAR_C=['#9aa4b2','#4cd964','#4dabff','#b37bff','#ffb020','#ffd700'];
+export const RAR_N=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY','GODLY','SECRET'];
+export const RAR_C=['#9aa4b2','#4cd964','#4dabff','#b37bff','#ffb020','#ffd700','#ff2b2b'];
 export const TM=[1,1.2,1.4];// passive-power multiplier per tier (T1/T2/T3)
 export const tierOf=ws=>Math.max(1,Math.min(3,((ws&&ws.pt)|0)||1));
 export const TV={batform:{dur:[3,6,10],cd:30},firebreath:{dur:[3.5,5,6.5],gap:[2.4,2,1.6],cd:38}};
@@ -23,7 +23,11 @@ export const AB={
  batform:{n:'Shadow Form',ic:'🦇',act:1,d:(p,t=1)=>`Ability button / X: turn into a small, fast flying bat for ${TV.batform.dur[t-1]} s (T1 3 s · T2 6 s · T3 10 s). You cannot shoot while a bat; walls still block you. ${TV.batform.cd} s cooldown.`},
  firebreath:{n:'Ember Strike',ic:'🔥',act:1,d:(p,t=1)=>`Ability button / X: your dragon hovers and spits fireballs at the nearest visible enemy within 50 m for 50 damage each, one every ${TV.firebreath.gap[t-1]} s for ${TV.firebreath.dur[t-1]} s. ${TV.firebreath.cd} s cooldown.`},
  finder:{n:'Diamond Finder',ic:'💎',act:0,d:p=>`Sniffs out 1 💎 every ${Math.round(85/p)} s while you play a match (max 4 per match).`},
- omni:{n:'Celestial',ic:'✨',act:0,d:()=>`Uses every safe buddy trick for you: zap, heal, shield, loot magnet, luck, diamonds, a decoy and a short flame. You can still shoot. Not rideable.`},
+ omni:{n:'Celestial',ic:'✨',act:0,d:()=>`Uses every safe buddy trick for you: a slow heal that speeds up when you are calm, a Phoenix rebirth when a hit would kill you (35/50/65 HP, 2.5 s protection, once every 150 s), plus zap, shield, loot magnet, luck, diamonds, a decoy and a short flame. You can still shoot. Not rideable.`},
+ lantern:{n:'Nova Pulse',ic:'🦋',act:0,d:()=>`Every 16 s, marks enemies through walls for 3 s. Secret chest only.`},
+ tide:{n:'Coral Mend',ic:'🪸',act:0,d:p=>`Always mends you for ${(0.9*p).toFixed(1)} HP per second. Secret chest only.`},
+ sting:{n:'Glass Sting',ic:'🦂',act:0,d:()=>`Every 7 s, stings the nearest enemy within 6 m for a small hit and a short slow. Secret chest only.`},
+ dazzle:{n:'Aurora Veil',ic:'🦚',act:0,d:()=>`Every 22 s, drops a decoy and refreshes a 15-point shield if yours is down. Secret chest only.`},
  spin:{n:'Spin Magnet',ic:'🌀',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. The capybara spins and pulls medkits and shields from 7 m. Tier ${t}: ${Math.round((RIDES.spincapy.spd[t-1]-1)*100)}% run speed, jump ×${RIDES.spincapy.jump[t-1]}. You can shoot. A hit of ${RIDES.spincapy.heavy}+ damage knocks you off.`},
  wolf:{n:'Storm Run',ic:'🐺',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. Tier ${t}: ${Math.round((RIDES.stormwolf.spd[t-1]-1)*100)}% speed, jump ×${RIDES.stormwolf.jump[t-1]}. You can shoot. Heavy hits (${RIDES.stormwolf.heavy}+) dismount you.`},
  ostrich:{n:'Rocket Hop',ic:'🚀',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. Tier ${t}: ${Math.round((RIDES.rocketrich.spd[t-1]-1)*100)}% speed, jump ×${RIDES.rocketrich.jump[t-1]}. Hands stay on the rocket, so you cannot shoot until you hop off. Heavy hits (${RIDES.rocketrich.heavy}+) dismount you.`},
@@ -58,16 +62,21 @@ export const SK_DEFS=[
  {id:'gravityowl',name:'Orbit',kind:'Gravity Owl',ab:'lowg',pw:1,rar:3,price:950,col:0x9a7fd0,orig:1,new:1},
  {id:'raccoon',name:'Bandit',kind:'Magnet Raccoon',ab:'pull',pw:1,rar:2,price:520,col:0x8a8f98,orig:1,new:1},
  {id:'magnetdrone',name:'Magnetron',kind:'Magnet Drone',ab:'vacuum',pw:1,rar:2,price:480,col:0xc8ccd6,orig:1,new:1},
- {id:'chimera',name:'Sol',kind:'Celestial Chimera',ab:'omni',pw:1.15,rar:5,price:5000,col:0xf0c14a,orig:1,new:1,godly:1},
+ {id:'chimera',name:'Sol',kind:'Celestial Chimera',ab:'omni',pw:1.15,rar:5,price:50000,col:0xf0c14a,orig:1,new:1,godly:1},
  {id:'spincapy',name:'Wheeler',kind:'Spin Capybara',ab:'spin',pw:1,rar:3,price:1800,col:0xc48a4a,orig:1,new:1,ride:1},
  {id:'stormwolf',name:'Gale',kind:'Storm Wolf',ab:'wolf',pw:1,rar:4,price:2200,col:0x8ecbff,orig:1,new:1,ride:1},
  {id:'rocketrich',name:'Comet',kind:'Rocket Ostrich',ab:'ostrich',pw:1,rar:4,price:2600,col:0xf4f7fb,orig:1,new:1,ride:1},
- {id:'raptor',name:'Dash',kind:'Raptor',ab:'raptor',pw:1,rar:4,price:2400,col:0x3ddc97,orig:1,new:1,ride:1}];
+ {id:'raptor',name:'Dash',kind:'Raptor',ab:'raptor',pw:1,rar:4,price:2400,col:0x3ddc97,orig:1,new:1,ride:1},
+ {id:'novamoth',name:'Lumen',kind:'Nova Moth',ab:'lantern',pw:1,rar:6,price:25000,col:0xd456ff,orig:1,new:1,secret:1},
+ {id:'seahorse',name:'Reef',kind:'Ribbon Seahorse',ab:'tide',pw:1,rar:6,price:25000,col:0x2ee0c5,orig:1,new:1,secret:1},
+ {id:'scorpion',name:'Amber',kind:'Glass Scorpion',ab:'sting',pw:1,rar:6,price:25000,col:0xffb703,orig:1,new:1,secret:1},
+ {id:'peacock',name:'Quilt',kind:'Aurora Peacock',ab:'dazzle',pw:1,rar:6,price:25000,col:0x3d7dff,orig:1,new:1,secret:1}];
 export const SK_BY=Object.fromEntries(SK_DEFS.map(d=>[d.id,d]));
 export const SK_IDS=SK_DEFS.map(d=>d.id);
 export const SK_FLAVOR={dog:'Loyal and a little bit grumpy.',cat:'Always lands on a good drop.',bunny:'Collects everything that bounces.',bat:'Hears enemies through the walls.',fox:'Never loses a trail.',penguin:'Waddles over with bandages.',bear:'Big hugs, bigger bubbles.',tiger:'Makes a very convincing double of you.',hedgehog:'Zoom zoom! Original speedy hedgehog.',lion:'Sniffs diamonds from across the map.',superdog:'Cape on, ears up, zap zap!',twohead:'Two heads, one very good nose.',robot:'Beep boop, scanning...',ghost:'Boo! Now you see me, now you don\'t.',dragon:'Hoards luck instead of gold.'};
 SK_FLAVOR.shadowbat='Becomes a bat when the lights go out.';SK_FLAVOR.emberdragon='Small, proud and very, very warm.';SK_FLAVOR.specter='Drifts through walls like they were fog.';SK_FLAVOR.frostfox='Leaves frost where it steps.';SK_FLAVOR.stonegolem='Small, sturdy, and very good at walls.';SK_FLAVOR.phoenix='Burns out, then bursts back brighter.';SK_FLAVOR.sharkpup='Swims through sand like it was the sea.';SK_FLAVOR.mirrormonkey='Which one is the real you?';SK_FLAVOR.gravityowl='Weightless wisdom with a mean hop.';SK_FLAVOR.raccoon='Steals the loot right off the floor.';SK_FLAVOR.magnetdrone='Vacuums up supplies, no strings attached.';SK_FLAVOR.thunderhawk='Calls the storm down on one unlucky target.';
-SK_FLAVOR.chimera='Lion, goat and serpent, all in gold, and every trick at once.';SK_FLAVOR.spincapy='A barrel-bodied rider that spins the loot off the ground.';SK_FLAVOR.stormwolf='Silver fur, blue sparks, and a very fast saddle.';SK_FLAVOR.rocketrich='Long legs and a small rocket. Hop first, shoot later.';SK_FLAVOR.raptor='Feathers, a hooked claw, and room to aim.';
+SK_FLAVOR.chimera='Lion, goat and serpent, all in gold. Heals you, and rises with you when a hit would end it.';
+SK_FLAVOR.novamoth='Violet wings and a pulse that finds people through walls.';SK_FLAVOR.seahorse='Coral ribbons and a steady mend.';SK_FLAVOR.scorpion='Amber glass and a patient sting.';SK_FLAVOR.peacock='A fan of teal, gold and magenta. The decoy is the pretty one.';SK_FLAVOR.spincapy='A barrel-bodied rider that spins the loot off the ground.';SK_FLAVOR.stormwolf='Silver fur, blue sparks, and a very fast saddle.';SK_FLAVOR.rocketrich='Long legs and a small rocket. Hop first, shoot later.';SK_FLAVOR.raptor='Feathers, a hooked claw, and room to aim.';
 export const abOf=(id,tier=1)=>{const d=SK_BY[id];return d?{...AB[d.ab],key:d.ab,pw:d.pw,text:AB[d.ab].d(d.pw*TM[tier-1],tier)}:null};
 // ---------------------------------------------------------------- models (shared geometry + cached materials: cheap on phones)
 const GE={sph:new THREE.SphereGeometry(1,10,8),box:new THREE.BoxGeometry(1,1,1),cone:new THREE.ConeGeometry(1,1,8),cyl:new THREE.CylinderGeometry(1,1,1,10),tor:new THREE.TorusGeometry(1,.18,6,14)};
@@ -240,6 +249,7 @@ export function luck(p){const d=SK_BY[p&&p.ws&&p.ws.pet];return d&&(d.ab==='luck
 export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;const t=H.t;
  for(const p of X.plist()){if(p.bot||!p.alive||p.down||p.air||p.elim)continue;const id=p.ws&&p.ws.pet;const d=SK_BY[id];if(!d)continue;const S=(p._pk&&p._pk.id===id)?p._pk:(p._pk={id,a:t+(d.ab==='magnet'||d.ab==='guard'||d.ab==='vacuum'?1:6),fl:[],dc:0});const pw=d.pw*TM[tierOf(p.ws)-1];const tr=tierOf(p.ws);
   if(d.ab==='omni'){hostOmni(X,p,S,H,pw,tr,dt);continue}
+  if(d.ab==='lantern'||d.ab==='tide'||d.ab==='sting'||d.ab==='dazzle'){hostSecret(X,p,S,H,d.ab,pw,dt);continue}
   if(d.ab==='spin'&&p.ride)hostSpinGrab(X,p,S,H);
   if(d.ab==='guard'){if(t<S.a||H.noFight)continue;const R=5+pw;let best=null,bd=1e9;for(const q of X.plist()){if(q.id===p.id||!q.alive||q.down||q.air||(q.prot&&t<q.prot)||!X.enemy(p,q))continue;const dd=Math.hypot(q.p[0]-p.p[0],q.p[1]-p.p[1],q.p[2]-p.p[2]);if(dd>R||dd>=bd||!X.los(p,q))continue;bd=dd;best=q}
    if(best){S.a=t+5.4-pw*1.2;X.bcast({t:'pfx',k:'zap',id:p.id,v:best.id});X.damage(best,Math.round(6+4*pw),p.id,false,'fists')}else S.a=t+.4}
@@ -260,4 +270,4 @@ export function hostAbility(X,p,m){const H=X.H();if(!H||!p||!p.alive||H.phase!==
  else if(NAB3[d.ab]&&m.k===d.ab)hostUse3(X,p,d,S,H,tr)
  else if(m.k==='ride'&&d.ride){p.ride=m.on?1:0;X.bcast({t:'pfx',k:m.on?'mount':'dismount',id:p.id})}}
 // Phoenix, and the Celestial Chimera, rise once when a hit would kill them.
-export function petSave(X,v){const H=X.H();const id=v.ws&&v.ws.pet;const d=SK_BY[id];if(!H||v.bot||!d||H.phase!=='play'||(id!=='phoenix'&&d.ab!=='omni'))return false;const tr=tierOf(v.ws),t=H.t;const S=(v._pk&&v._pk.id===id)?v._pk:(v._pk={id,a:t+6,fl:[],dc:0});if(t<(S.rb||0))return false;const V=TV3.rebirth;S.rb=t+V.cd;v.hp=V.hp[tr-1];v.sh=Math.max(v.sh||0,0);v.prot=t+V.prot;X.bcast({t:'hp',id:v.id,hp:Math.round(v.hp)});X.bcast({t:'pfx',k:'phx',id:v.id});return true}
+export function petSave(X,v){const H=X.H();const id=v.ws&&v.ws.pet;const d=SK_BY[id];if(!H||v.bot||!d||H.phase!=='play'||(id!=='phoenix'&&d.ab!=='omni'))return false;const t=H.t;const S=(v._pk&&v._pk.id===id)?v._pk:(v._pk={id,a:t+6,fl:[],dc:0});const r=tryRebirth(S,t,tierOf(v.ws));if(!r)return false;v.hp=r.hp;v.sh=Math.max(v.sh||0,0);v.prot=r.prot;X.bcast({t:'hp',id:v.id,hp:Math.round(v.hp)});X.bcast({t:'pfx',k:'phx',id:v.id});return true}

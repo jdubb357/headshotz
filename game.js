@@ -9,6 +9,7 @@ import {loadAssets,HQP} from './assets.js';import {photoItems,clearPhotoCache,PH
 import {TURN} from './ice.js';import {initBiomes,BIOMES} from './biomes.js';import {initAmbient} from './ambient.js';
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO,RAID_MAPS,MAP_COUNT,RAID_I,updateCells} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||RAID_MAPS.find(m=>m.index===i)||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
+import {isInfinite,needsReload,startBurn,burnStep} from './throwkit.js';
 import {makeCharacter,animate,LOOKS,HUM} from './chars.js';import {loadHumans} from './humans.js';
 // player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
 export const PCL={soldier:{n:'Soldier',p:0,ic:'🪖',perk:'No perk — the classic all-rounder.'},scout:{n:'Scout',p:700,ic:'🎯',perk:'Higher jump · slide recharges 2× faster.',jump:9.6,slideCd:.5},engineer:{n:'Engineer',p:800,ic:'🔧',perk:'+1 grenade / utility each life.',util:1},ninja:{n:'Ninja',p:900,ic:'🥷',perk:'+12% move speed · quiet footsteps · full 100 HP.',spd:1.12,quiet:1},medic:{n:'Medic',p:1100,ic:'⛑️',perk:'Revives teammates in 3 s (not 5) · regen 3 HP/s after 4 s unhurt.',rev:3,regen:3},juggernaut:{n:'Juggernaut',p:1500,ic:'🛡️',perk:'140 HP · 12% slower.',spd:.88,hp:140}};
@@ -416,7 +417,8 @@ function funFX(id,a,b){const w=W[id];if(!w)return;const lo=qLevel()==='low';
  else if(id==='freeze'){fx.sprite({p:b.clone(),s0:.2,s1:.9,life:.6,op:.55,color:0xc8f4ff,rise:.1});fx.spark(b,lo?3:7,0xe8fbff,2,.5);fx.sprite({p:b.clone(),tex:TX.flash,add:true,s0:.15,s1:.35,life:.12,op:.8,color:0x7fe0ff})}
  else if(id==='laser'){fx.sprite({p:b.clone(),tex:TX.flash,add:true,s0:.15,s1:.4,life:.12,op:1,color:0x40f0ff});fx.spark(b,lo?3:6,0x9ff8ff,3,.25)}
  else if(id==='taser'){const n=lo?3:5;let p0=a.clone();const d=b.clone().sub(a);for(let i=1;i<=n;i++){const p1=a.clone().addScaledVector(d,i/n);if(i<n)p1.add(_v.set((Math.random()-.5)*.25,(Math.random()-.5)*.25,(Math.random()-.5)*.25));addTracer(p0,p1,0x9fe8ff);p0=p1}fx.sprite({p:b.clone(),tex:TX.flash,add:true,s0:.2,s1:.5,life:.15,op:1,color:0x9fe8ff});fx.spark(b,6,0xcff4ff,3,.25)}
- else if(id==='paintball'){fx.spark(b,lo?3:6,PAINT[Math.random()*PAINT.length|0],2.5,.35)}}
+ else if(id==='paintball'){fx.spark(b,lo?3:6,PAINT[Math.random()*PAINT.length|0],2.5,.35)}
+ else if(id==='flamegun'){const steps=lo?4:8;for(let i=1;i<=steps;i++){const q=a.clone().lerp(b,i/steps);fx.sprite({p:q,tex:TX.fire,add:true,s0:.1,s1:.35,life:.16,op:.85,color:i%2?0xff5a12:0xffc14a,rise:.3})}}}
 // ---------------- throwables & utilities ----------------
 const thrownTpl={};function thrownMesh(kind){if(!thrownTpl[kind]){const PJ=W[kind]&&W[kind].proj;const g=gunGroup(PJ?'proj_'+PJ:kind,{lod:1});g.scale.setScalar(PJ?1.6:1.5);const G=g.userData.G||{};if(G.pin)G.pin.visible=false;if(G.spoon)G.spoon.visible=false;thrownTpl[kind]=g}return thrownTpl[kind].clone()}
 // spoon (lever) flying off a thrown grenade
@@ -432,19 +434,20 @@ function updThrow(dt){if(!TH)return;TH.t+=dt;if(window.__thrFreeze!=null)TH.t=Ma
  if(TH.G.pin){TH.G.pin.position.x=TH.G.pin.userData.base.x-pull*.06;TH.G.pin.position.y=TH.G.pin.userData.base.y+pull*.01;TH.G.pin.visible=pull<1||t<.24}
  if(t>=.26&&TH.go){TH.go();TH.go=null}if(TH.G.spoon)TH.G.spoon.visible=t<.26;g.visible=t<.36;if(t>.4){vmScene.remove(g);TH=null}}
 let nades=[];const FUSE={grenade:1.8,smoke:1.4,flash:1.3,decoy:1.2,molotov:9,gl:4,rpg:4};const NLK=['smoke','flash','decoy'];
-function spawnNade(owner,kind,p,v){const m=thrownMesh(kind);m.position.copy(p);scene.add(m);if(kind!=='molotov')spawnSpoon(kind,p,v);nades.push({owner,kind,m,v:v.clone(),t:FUSE[kind]||1.8,spin:new THREE.Vector3(Math.random()*8,Math.random()*8,0)})}
-function updNades(dt){for(const n of nades){n.t-=dt;const PJ=W[n.kind]&&W[n.kind].proj;n.v.y-=(PJ==='rpg'?0:PJ==='gl'?9:20)*dt;const p=n.m.position;let bounced=false;
-  if(PJ){if(n.v.lengthSq()>1)n.m.lookAt(_v.copy(p).add(n.v));if(PJ==='rpg'&&Math.random()<.7)fx.sprite({p:p.clone(),s0:.25,s1:1.2,life:.7,op:.5,color:0xcfcfcf,rise:.3});
-   for(const id in C.players){const q=C.players[id];if(!q.alive||id===n.owner)continue;const c=_v2.copy(q.rp);c.y+=1;if(c.distanceTo(p)<.9){n.t=0;break}}}
+function spawnNade(owner,kind,p,v){const m=thrownMesh(kind);m.position.copy(p);scene.add(m);const tw=W[kind]&&W[kind].throw;if(kind!=='molotov'&&!tw)spawnSpoon(kind,p,v);nades.push({owner,kind,m,v:v.clone(),t:tw?2.4:(FUSE[kind]||1.8),spin:new THREE.Vector3((tw==='star'?22:8)+Math.random()*6,Math.random()*8,tw==='star'?18:0)})}
+function updNades(dt){for(const n of nades){n.t-=dt;const WW=W[n.kind],PJ=WW&&WW.proj,THW=WW&&WW.throw;n.v.y-=(PJ==='rpg'?0:PJ==='gl'?9:THW?(WW.grav||8):20)*dt;const p=n.m.position;let bounced=false;
+  if(PJ||THW){if(n.v.lengthSq()>1)n.m.lookAt(_v.copy(p).add(n.v));if(THW==='star')n.m.rotateZ(16*dt);if(PJ==='rpg'&&Math.random()<.7)fx.sprite({p:p.clone(),s0:.25,s1:1.2,life:.7,op:.5,color:0xcfcfcf,rise:.3});
+   for(const id in C.players){const q=C.players[id];if(!q.alive||id===n.owner)continue;if(THW&&!isEnemy(q))continue;const c=_v2.copy(q.rp);c.y+=1;if(c.distanceTo(p)<(THW?.55:.9)){if(THW)n.hitId=id;n.t=0;break}}}
   for(const ax of['x','y','z']){const old=p[ax];p[ax]+=n.v[ax]*dt;let hit=false;for(const c of CN(p.x,p.z,1.2,_cbC))if(p.x>c.x0-.08&&p.x<c.x1+.08&&p.y>c.y0-.08&&p.y<c.y1+.08&&p.z>c.z0-.08&&p.z<c.z1+.08){hit=true;break}
    if(ax==='y'&&p.y<.1&&onFloor(p))hit=true;if(hit){p[ax]=old;n.v[ax]*=-.38;n.v.x*=.75;n.v.z*=.75;bounced=true}}
   n.m.rotation.x+=n.spin.x*dt;n.m.rotation.y+=n.spin.y*dt;if(bounced&&!PJ&&n.kind!=='molotov'&&n.v.lengthSq()>1){const dd=camera.position.distanceTo(p);if(dd<30)SFX.clink(p.clone(),Math.min(1,n.v.length()/8)*(1-dd/30))}
   if(n.kind==='molotov'&&Math.random()<(qLevel()==='low'?.35:.8)){fx.sprite({p:p.clone(),tex:TX.fire,add:true,s0:.25,s1:.6,life:.25,op:.9,color:0xff9a3a,rise:.6});if(Math.random()<.3)fx.sprite({p:p.clone(),s0:.15,s1:.6,life:.6,op:.3,color:0x444444,rise:.6})}
   if(PJ==='gl'&&Math.random()<.5)fx.sprite({p:p.clone(),s0:.08,s1:.4,life:.5,op:.35,color:0xcfcfcf,rise:.1});if(PJ==='rpg'&&Math.random()<.8)fx.sprite({p:p.clone(),tex:TX.flash,add:true,s0:.25,s1:.1,life:.08,op:1,color:0xffb050});
-  if(bounced){n.spin.multiplyScalar(.7);if(n.kind==='molotov'||PJ)n.t=0}
+  if(bounced){n.spin.multiplyScalar(.7);if(n.kind==='molotov'||PJ||THW)n.t=0}
   if(p.y<-8)n.t=-1;if(n.t<=0)detonate(n)}
  nades=nades.filter(n=>n.t>0)}
 function detonate(n){scene.remove(n.m);const p=n.m.position.clone();if(n.t<-.5)return;
+ const tw=W[n.kind]&&W[n.kind].throw;if(tw){if(n.owner===me.id&&n.hitId){const dmg=W[n.kind].body;send({t:'hit',id:n.hitId,dmg,head:false,w:n.kind});const q=C.players[n.hitId];if(q)showHit(q.rp.clone().setY(q.rp.y+1.2),dmg,false)}fx.spark(p,4,0xd0d4da,2,.2);return}
  const SPL=W[n.kind]&&W[n.kind].splash;if(n.kind==='grenade'||SPL)explosionFX(p);
  if(n.owner!==me.id)return; // utility effects are announced by the thrower
  if(SPL){const w=W[n.kind],Rr=w.radius;for(const id in C.players){const q=C.players[id];if(!q.alive)continue;const self=id===me.id;if(!self&&!isEnemy(q))continue;
@@ -678,7 +681,7 @@ function hostHandle(from,m){const p=H.players[from];
   if(m.kind==='flash')for(const b of plist())if(b.bot&&b.alive&&b.e){const e=_v.set(b.e.pos.x,b.e.pos.y+1.5,b.e.pos.z);if(e.distanceTo(pos)<26&&rayClearHost(pos,e))b.blind=2.8}
   bcast({t:'util',id:from,kind:m.kind,p:m.p});break}
  case 'hit':{const v=H.players[m.id];if(!p||!v||H.phase!=='play'||!p.alive||!v.alive||p.down)return;if(m.id===from){if(!m.splash||!W[m.w]||!W[m.w].splash)return;m.dmg=Math.min(40,m.dmg|0)}else if(H.mode!=='ffa'&&p.team===v.team)return;
-  damage(v,Math.min(220,Math.max(0,(H.br&&BRM(H.mode)?brScale(p,m):m.dmg)|0)),from,!!m.head,String(m.w||''));break}
+  damage(v,Math.min(220,Math.max(0,(H.br&&BRM(H.mode)?brScale(p,m):m.dmg)|0)),from,!!m.head,String(m.w||''));if(m.burn&&W[m.w]&&W[m.w].flame)v.burn=Object.assign(startBurn(H.t),{by:from});break}
  case 'dr':{const D=(cur&&cur.doorsL||[])[m.i|0];if(!p||!p.alive||H.phase==='lobby'||!D||p.air)return;if(Math.hypot(p.p[0]-D.x,p.p[2]-D.z)>3.8||Math.abs(p.p[1]-D.y)>2.8)return;const want=D.o?0:1;if(!want&&doorBlocked(D))return;bcast({t:'dor',i:D.id,o:want,w:from});break}
  case 'heal':if(p&&p.alive){p.hp=Math.min(100,p.hp+50);bcast({t:'hp',id:from,hp:p.hp})}break;
  case 'bj':case 'bl':case 'pk':case 'co':case 'rs':case 'use':case 'bpm':brHostMsg(from,m,p);break;
@@ -796,7 +799,8 @@ function hostTick(dt){H.t+=dt;if(BRM(H.mode))brSweepGone();if(H.phase==='play'||
   // molotov damage over time
   H.fireT+=dt;for(const f of H.fires)f.t+=dt;H.fires=H.fires.filter(f=>f.t<f.life);for(const s of H.smokes)s.t+=dt;H.smokes=H.smokes.filter(s=>s.t<s.life);
   if(H.fireT>=.5){H.fireT=0;for(const f of H.fires){const o=H.players[f.owner];for(const p of plist()){if(!p.alive)continue;if(o&&H.mode!=='ffa'&&p.team===o.team&&p.id!==f.owner)continue;if(p.id===f.owner)continue;
-    if(Math.hypot(p.p[0]-f.p.x,p.p[2]-f.p.z)<f.r&&Math.abs(p.p[1]-f.p.y)<1.6)damage(p,7,f.owner,false,'molotov')}}}}
+    if(Math.hypot(p.p[0]-f.p.x,p.p[2]-f.p.z)<f.r&&Math.abs(p.p[1]-f.p.y)<1.6)damage(p,7,f.owner,false,'molotov')}}}
+  for(const p of plist()){if(!p.alive||!p.burn)continue;const r=burnStep(p.burn,H.t);if(r.done){p.burn=null;continue}if(r.dmg){p.burn.next=r.next;damage(p,r.dmg,p.burn.by,false,'flamegun')}}}
  if(H.phase!=='lobby'){const ps=plist(),n=ps.length;const iv=n<=4?.05:n<=6?.066:n<=30?.083:.1;H.snapT=(H.snapT||0)+dt;if(H.snapT>=iv){H.snapT=0;H.snapN=(H.snapN||0)+1;
   const rows=ps.map(p=>{const a=p.p;return[p.ord,Math.round(a[0]*100),Math.round(a[1]*100),Math.round(a[2]*100),Math.round(a[3]*1000),Math.round(a[4]*100),a[5]|0,(a[6]|0)|(p.down?4:0),p.alive?1:0]});
   const rt=Math.max(0,H.roundEnd-H.t)|0;const odd=H.snapN&1;
@@ -825,7 +829,7 @@ function botTick(b,dt){const e=b.e;let tgt=null,td=1e9;if(b.air){brAirTick(b,dt)
  let wx=0,wz=0;b.st-=dt;if(b.st<=0){b.st=.5+Math.random()*1.2;b.strafe=Math.random()<.5?-1:1}
  if(tgt){const dx=tgt.p[0]-e.pos.x,dz=tgt.p[2]-e.pos.z;const ty=Math.atan2(-dx,-dz);let dy=ty-b.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.yaw+=dy*Math.min(1,dt*DIFF[H.diff||'normal'].turn);
   const fx2=-Math.sin(b.yaw),fz=-Math.cos(b.yaw);wx=-fz*b.strafe;wz=fx2*b.strafe;if(td>14||(w.melee&&td>w.melee*.7)){wx+=fx2*(w.melee?3:1);wz+=fz*(w.melee?3:1)}
-  b.react-=dt;b.cool-=dt;if(b.react<=0&&b.cool<=0&&!(w.melee&&td>w.melee+.4)){b.cool=w.rate*1.25;const D=DIFF[H.diff||'normal'];const hit=Math.random()<Math.max(.08,D.hit-td/100);const BS=window.__botStat||(window.__botStat={s:0,h:0,hd:0});BS.s++;if(hit)BS.h++;_o.set(e.pos.x,e.pos.y+1.4,e.pos.z);
+  b.react-=dt;b.cool-=dt;if(b.react<=0&&b.cool<=0&&!(w.melee&&td>w.melee+.4)&&!(w.throw&&td>12)&&!(w.flame&&td>(w.maxR||8))){b.cool=w.rate*1.25;const D=DIFF[H.diff||'normal'];const hit=Math.random()<Math.max(.08,D.hit-td/100);const BS=window.__botStat||(window.__botStat={s:0,h:0,hd:0});BS.s++;if(hit)BS.h++;_o.set(e.pos.x,e.pos.y+1.4,e.pos.z);
    const end=[tgt.p[0]+(hit?0:(Math.random()-.5)*2),tgt.p[1]+1.2+(hit?0:Math.random()),tgt.p[2]+(hit?0:(Math.random()-.5)*2)];
    bcast({t:'fx',id:b.id,a:[_o.x,_o.y,_o.z],b:end,w:b.gun});if(hit){const head=Math.random()<D.head;if(head)BS.hd++;damage(tgt,Math.round((head?w.head:w.body)*falloff(w,td)*(b.rarD||1)),b.id,head,b.gun)}}}
  else{b.react=DIFF[H.diff||'normal'].react;const m=buildMap(H.map);const og=MISSION(H.mode)&&!b.revT?botMission(b):(BRM(H.mode)&&H.br&&!b.revT?botBR(b,dt):(RAIDM(H.mode)?botRaid(b,dt):null));if(og){const g=b.goal;if(!g||Math.hypot(g[0]-og[0],g[1]-og[1])>3||Math.abs((g[2]||0)-(og[2]||0))>1.5){b.goal=og;b.via=null;b.hold=0}}if(b.goal&&b.hold>0&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)b.hold-=dt;if(!og&&!b.revT&&!(b.hold>0&&b.goal&&Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2.5)&&(!b.goal||(Math.hypot(b.goal[0]-e.pos.x,b.goal[1]-e.pos.z)<2&&Math.abs((b.goal[2]||0)-e.pos.y)<1.6)||(!H.noFight&&(Math.random()<dt*.05||(b.goalT=(b.goalT||0)+dt)>25)))){const all=allSpawns(m);const foes=plist().filter(q=>q.alive&&q.id!==b.id&&(H.mode==='ffa'||q.team!==b.team));const hi=m.nav?m.nav.filter(n=>(n[2]||0)>2):[];if(hi.length&&Math.random()<.4){b.goal=hi[Math.random()*hi.length|0].slice();b.hold=4+Math.random()*6}else if(foes.length&&Math.random()<.55){const f=foes[Math.random()*foes.length|0];b.goal=[f.p[0]+(Math.random()-.5)*3,f.p[2]+(Math.random()-.5)*3,f.p[1]]}else if(m.nav&&m.nav.length&&Math.random()<.5)b.goal=m.nav[Math.random()*m.nav.length|0].slice();else b.goal=all[Math.random()*all.length|0].slice();b.via=null;b.goalT=0}
@@ -1113,7 +1117,7 @@ function applyTouchLook(dt){if(!lookPX&&!lookPY)return;// light smoothing: consu
 // ================= LOCAL PLAYER =================
 function nxtSlot(){if(!BC)return(me.cur+1)%3;const n=BRORD.length,i0=Math.max(0,BRORD.indexOf(me.cur));for(let k=1;k<=n;k++){const i=BRORD[(i0+k)%n];if(brHas(i))return i}return me.cur}
 function switchTo(i){if(i===me.cur||!me.alive||(BC&&(BC.air||!brHas(i))))return;me.cur=i;me.reloadT=0;me.switchT=.32;me.zoomT=0;me.zoomOn=false;updZoomBtn();me.burst=0;setViewModel(me.load[i]);SFX.swap()}
-function reload(){const w=W[me.load[me.cur]];if(w.melee||me.reloadT>0||me.ammo[me.cur]>=magOf(w.id)||!me.alive)return;if(BC){const t=ammoOf(me.load[me.cur]);if(BC.res[t]<=0){if(performance.now()-(BC.noAmmoT||0)>1500){BC.noAmmoT=performance.now();center('No '+AMN[t]+' ammo',900)}return}}me.reloadT=reloadOf(w.id);me.reloadStage=0;me.burst=0;
+function reload(){const w=W[me.load[me.cur]];if(!needsReload(w)||me.reloadT>0||me.ammo[me.cur]>=magOf(w.id)||!me.alive)return;if(BC){const t=ammoOf(me.load[me.cur]);if(BC.res[t]<=0){if(performance.now()-(BC.noAmmoT||0)>1500){BC.noAmmoT=performance.now();center('No '+AMN[t]+' ammo',900)}return}}me.reloadT=reloadOf(w.id);me.reloadStage=0;me.burst=0;
  VA.emptyRl=me.ammo[me.cur]<=0;VA.inspect=0;VA.cyc=0;VA.shellN=Math.max(1,Math.min(8,magOf(w.id)-me.ammo[me.cur]));VA.cue=0;VA.cues=reloadCues(vmInfo.rl||'mag',VA.shellN,VA.emptyRl)}
 // timed reload events per action type: [progress, sound, side effect]
 function reloadCues(rl,n,empty){const c=[];const add=(k,f,x)=>c.push([k,f,x]);
@@ -1167,6 +1171,14 @@ function aimTarget(maxD){const o=camera.position,d=fwd();const wt=rayWorld(o,d,m
 let recoilP=0,recoilY=0,kick=0,meleeT=0,bob=0,stTimer=0,swayX=0,swayY=0,lastYaw=0,lastPitch=0;
 function fire(){if(me.down||me.pf)return;const id=me.load[me.cur],w=W[id];me.cool=w.rate*curRarFr();me.lastShot=performance.now();me.shots++;if(AMBL)AMBL.scare(me.pos.x,me.pos.z,90);
  const o=camera.position.clone();
+ if(w.throw){SFX.whoosh&&SFX.whoosh();kickImp(.35,w);const f=fwd();const p=vmToWorld(vmInfo.muzzle||[0,0,-.2],new THREE.Vector3());p.lerp(camera.position,.35).addScaledVector(f,.35);const v=f.clone().multiplyScalar(w.spd||40);spawnNade(me.id,id,p,v);send({t:'nade',k:id,p:p.toArray().map(x=>+x.toFixed(2)),v:v.toArray().map(x=>+x.toFixed(2))});return}
+ if(w.flame){me.ammo[me.cur]--;SFX.gun(id,.55,0);kickImp(.25,w);const o2=camera.position;const d=fwd();const sp=w.spread||.1;d.x+=(Math.random()-.5)*sp;d.y+=(Math.random()-.5)*sp;d.z+=(Math.random()-.5)*sp;d.normalize();const reach=w.maxR||8;const wt=rayWorld(o2,d,reach);let bt=Math.min(wt,reach),bq=null;
+  for(const k in C.players){const q=C.players[k];if(!q.alive||!isEnemy(q))continue;const r=rayPlayer(o2,d,q.rp,q.flags&69);if(r.t<bt){bt=r.t;bq=q}}
+  if(bq&&smokeBlock(o2,d,bt))bq=null;const mz=vmToWorld(vmInfo.muzzle||[0,0,-.5],new THREE.Vector3());const end=o2.clone().addScaledVector(d,bt);const steps=qLevel()==='low'?4:8;
+  for(let i=1;i<=steps;i++){const q=mz.clone().lerp(end,i/steps);fx.sprite({p:q,tex:TX.fire,add:true,s0:.1+.04*(i/steps),s1:.28+.2*(i/steps),life:.16,op:.9,color:i%2?0xff5a12:0xffc14a,rise:.35})}
+  send({t:'fx',a:mz.toArray().map(x=>+x.toFixed(2)),b:end.toArray().map(x=>+x.toFixed(2)),w:id});
+  if(bq){const dmg=w.body;send({t:'hit',id:bq.id,dmg,head:false,w:id,burn:1});showHit(bq.rp.clone().setY(bq.rp.y+1.2),dmg,false)}
+  if(me.ammo[me.cur]<=0)setTimeout(reload,180);return}
  if(w.melee){if(w.saw){SFX.saw();meleeT=Math.max(meleeT,.35)}else{SFX.melee();meleeT=1}const d=fwd();let best=null,bd=w.melee+.4,part='torso';for(const k in C.players){const q=C.players[k];if(!q.alive||!isEnemy(q))continue;
    const c=q.rp.clone();c.y+=1.2;const to=c.clone().sub(o);const dist=to.length();if(dist>w.melee+.4)continue;if(to.normalize().dot(d)<.78)continue;if(!losClear(o,c))continue;
    const r=rayPlayer(o,d,q.rp,q.flags&69);if(dist<bd){bd=dist;best=q;part=r.part==='head'?'head':'torso'}}
@@ -1282,11 +1294,11 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];if(BC&&me.air){brAirMe(dt
   if(!VA.ejected&&p1>=(c==='bolt'?.38:.35)&&c!=='gl'){VA.ejected=true;if(!vmInfo.noShell)ejectShell()}}
  VA.slide=Math.max(0,VA.slide-dt*14);if(vmInfo.spin&&vmCur){const Gc=vmCur.userData.G.cyl;VA.spin=Math.max(0,(VA.spin||0)-dt*1.2);if(performance.now()-me.lastShot<150)VA.spin=1;VA.spinA=((VA.spinA||0)+dt*VA.spin*40)%(Math.PI*2)}if(VA.inspect>0)VA.inspect-=dt;
  // auto-fire when crosshair is on an enemy (primary mobile control)
- const range=w.melee?w.melee:(w.pellets?32:250);const tgt=(me.alive&&!me.frozen)?aimTarget(range):null;$('cross').classList.toggle('on',!!tgt);
+ const range=w.melee?w.melee:w.flame?(w.maxR||8):(w.throw?28:(w.pellets?32:250));const tgt=(me.alive&&!me.frozen)?aimTarget(range):null;$('cross').classList.toggle('on',!!tgt);
  let trigger=(tgt||inp.fire)&&!paused&&me.alive&&!me.frozen&&C.phase==='play'&&!(RC&&RC.modal)&&!(PETS&&PETS.rideBlocks&&PETS.rideBlocks());
  if(me.burst>0){me.burstT-=dt;if(me.burstT<=0&&me.ammo[me.cur]>0&&me.reloadT<=0){me.burst--;me.burstT=.06;fire();me.cool=w.rate}}
- else if(trigger&&!C.hub&&me.cool<=0&&me.switchT<=0&&me.reloadT<=0&&throwT<=0&&(w.melee||me.ammo[me.cur]>0)){if(w.burst){me.burst=w.burst-1;me.burstT=.06}fire()}
- if(!w.melee&&me.ammo[me.cur]<=0&&me.reloadT<=0&&me.alive){if(trigger)SFX.dry();reload()}
+ else if(trigger&&!C.hub&&me.cool<=0&&me.switchT<=0&&me.reloadT<=0&&throwT<=0&&(w.melee||isInfinite(w)||me.ammo[me.cur]>0)){if(w.burst){me.burst=w.burst-1;me.burstT=.06}fire()}
+ if(needsReload(w)&&me.ammo[me.cur]<=0&&me.reloadT<=0&&me.alive){if(trigger)SFX.dry();reload()}
  updViewModel(dt,w,hs,sprint);
  stTimer+=dt;if(stTimer>=.05&&C.phase!=='lobby'&&me.alive){stTimer=0;send({t:'st',p:[+me.pos.x.toFixed(2),+me.pos.y.toFixed(2),+me.pos.z.toFixed(2),+me.yaw.toFixed(3),+me.pitch.toFixed(2),WIDX[me.load[me.cur]]|0,(me.slideT>0?1:0)|(me.ground?0:2)|(me.crouch&&me.slideT<=0?64:0)]})}
  updAmmo();$('timer').textContent=C.phase==='play'&&!BC?(Math.floor(C.roundT/60)+':'+String(C.roundT%60).padStart(2,'0')):''}
@@ -1785,7 +1797,7 @@ function swapCharModels(){for(const id in C.players){const q=C.players[id];if(!q
 window.__hsz.HUM=HUM;
 addEventListener('blur',()=>{inp.slideHold=false});
 // ---------------- v41 CHEST SHOP (diamonds only) ----------------
-const CHEST={price:300,cost:{common:300,rare:300,epic:300,legendary:1500,secret:3000,godly:5000},tiers:[['common','Common','#9aa3ad',45],['rare','Rare','#3b8bff',27],['epic','Epic','#a64dff',15],['legendary','Legendary','#ffc21a',8],['secret','Secret','#ff2b2b',5],['godly','Godly','#ffd700',0]],
+const CHEST={price:300,cost:{common:300,rare:300,epic:300,legendary:1500,secret:25000,godly:50000},tiers:[['common','Common','#9aa3ad',45],['rare','Rare','#3b8bff',27],['epic','Epic','#a64dff',15],['legendary','Legendary','#ffc21a',8],['secret','Secret','#ff2b2b',5],['godly','Godly','#ffd700',0]],
  // loot: [type,id|amount,weight]; higher tiers hold rarer items. Duplicates convert to diamonds (DUPE per tier).
  loot:{common:[['pet','dog',1.3],['pet','cat',1.3],['pet','bunny',1.2],['dia',80,4],['dia',120,3],['wsk','carbon',2],['wsk','tiger',2],['wpn','water',1],['wpn','bat',1],['skin','sky',1.5],['skin','sunset',1.5],['skin','lemon',1.5],['skin','forest',1.2],['skin','ocean',1.2]],
   rare:[['pet','sharkpup',1.1],['pet','raccoon',1.2],['pet','magnetdrone',1.2],['pet','bat',1.3],['pet','fox',1.3],['pet','penguin',1.3],['dia',200,3],['wsk','ice',2],['wsk','toxic',2],['wsk','neon',2],['wpn','m4',1],['wpn','mp5',1],['wpn','ump45',1],['wpn','pan',1],['cls','scout',1],['skin','rose',1.5],['skin','steel',1.5],['skin','jungle',1.3],['skin','tiger',1.3],['skin','ranger',1.2],['skin','cherry',1.2]],
@@ -1794,7 +1806,7 @@ const CHEST={price:300,cost:{common:300,rare:300,epic:300,legendary:1500,secret:
   secret:[['pet','emberdragon',1.6],['pet','phoenix',1.5],['pet','stonegolem',1.4],['pet','mirrormonkey',1.4],['pet','gravityowl',1.4],['pet','sharkpup',1.2],['pet','shadowbat',1.6],['pet','specter',1.5],['pet','frostfox',1.5],['pet','thunderhawk',1.5],['pet','ghost',2.2],['pet','dragon',2.2],['pet','superdog',1.4],['dia',1200,1],['wsk','galaxy',3],['wsk','galaxy_blue',2.2],['wsk','galaxy_red',2.2],['wsk','galaxy_gold',1.8],['skin','gxv',2.2],['skin','gxb',2.2],['skin','gxr',2.2],['skin','gxg',1.6],['wsk','fire',2],['wsk','lightning',2],['cls','juggernaut',3],['skin','dragon',2.5],['skin','aurora',2.5],['skin','void',2],['skin','solar',2],['wpn','minigun',1.5],['wpn','awp',1.5],['wpn','rpg',1.5],['wpn','gl',1.5]]},
  dupe:{common:40,rare:90,epic:160,legendary:280,secret:500,godly:1000}};
 // v98: Secret and Godly chests hold ONLY items of their own rarity (no diamonds, no lower-tier filler, nothing that also drops from a lower chest).
-CHEST.loot.secret=[['pet','ghost',3],['pet','dragon',3],['wsk','galaxy',3],['skin','gxr',2.6],['skin','dragon',2.6],['skin','aurora',2.6],['skin','void',2.4],['skin','solar',2.4],['cls','juggernaut',3],['wpn','minigun',2],['wpn','awp',2],['wpn','rpg',2],['wpn','gl',2]];
+CHEST.loot.secret=[['pet','novamoth',1],['pet','seahorse',1],['pet','scorpion',1],['pet','peacock',1],['wsk','galaxy',3],['skin','gxr',2.6],['skin','dragon',2.6],['skin','aurora',2.6],['skin','void',2.4],['skin','solar',2.4],['cls','juggernaut',3],['wpn','minigun',2],['wpn','awp',2],['wpn','rpg',2],['wpn','gl',2]];
 CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['wsk','galaxy_gold',2],['skin','gxg',2],['pet','chimera',1]];
 CHEST.exclusive={secret:new Set(CHEST.loot.secret.map(x=>x[0]+':'+x[1])),godly:new Set(CHEST.loot.godly.map(x=>x[0]+':'+x[1]))};
 for(const t of ['common','rare','epic','legendary'])CHEST.loot[t]=CHEST.loot[t].filter(x=>!CHEST.exclusive.secret.has(x[0]+':'+x[1])&&!CHEST.exclusive.godly.has(x[0]+':'+x[1]));
@@ -2044,7 +2056,7 @@ const AMN=['Light','Medium','Shells','Heavy'],AMV=[36,30,8,6];
 const CONS=['band','med','shd','mini'],CONN=['Bandage','Medkit','Shield Potion','Mini Shield'],CONMAX=[15,3,3,6],CONT=[2.5,6,4,2],CONI=['🩹','🧰','🧪','🧃'];
 const GUNW=[['ar',24],['smg',18],['shotgun',14],['pistol',14],['marksman',10],['sniper',8],['heavy',3]];
 const POOLS={ar:['ar','bullpup','battle','m4','ak47','scar','m16','mk18'],smg:['smg','vector','pdw','mp5','mp7','kriss','p90','ump45','tommy'],shotgun:['shotgun','autoshot','double','aa12','saiga','ksg'],pistol:['handgun','revolver','burst','cannon','glock18','deagle'],marksman:['dmr','lever','mini14','crossbow'],sniper:['sniper','heavy','light','barrett','awp'],heavy:['lmg','gl','rpg','minigun']};
-const MELEES=['knife','katana','axe','bat','pan'];
+const MELEES=['knife','katana','axe','bat','pan','tknife','star'];
 const SQCOL=[0x3fa9ff,0xff5a6b,0x2ee59d,0xffd23f,0xb06bff,0xff9f43,0x1dd1a1,0xff79c6];
 const STORM=[{wait:42,shrink:55,r:210,dmg:1},{wait:45,shrink:45,r:140,dmg:2},{wait:40,shrink:38,r:80,dmg:3},{wait:35,shrink:30,r:36,dmg:5},{wait:30,shrink:25,r:14,dmg:8},{wait:25,shrink:25,r:3,dmg:10}];
 const rrand=(a,b)=>a+Math.random()*(b-a);

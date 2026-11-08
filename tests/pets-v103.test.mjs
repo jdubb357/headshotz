@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { rideOf, shouldDismount, grabNearby, hostOmni } from '../petabil3.js';
+import { rideOf, shouldDismount, grabNearby, hostOmni, tryRebirth, omniHealRate } from '../petabil3.js';
 
 const game = readFileSync(new URL('../game.js', import.meta.url), 'utf8');
 const pets = readFileSync(new URL('../sidekicks.js', import.meta.url), 'utf8');
@@ -40,11 +40,11 @@ test('cache is v103 or newer', () => {
   assert.match(sw, /petmodels4\.js/);
 });
 
-test('Celestial Chimera is a 5000-diamond Godly pet and only the Godly chest rolls it', () => {
+test('Celestial Chimera is a 50000-diamond Godly pet and only the Godly chest rolls it', () => {
   const c = def('chimera');
   assert.equal(c.name, 'Sol');
   assert.equal(c.kind, 'Celestial Chimera');
-  assert.equal(c.price, 5000);
+  assert.equal(c.price, 50000);
   assert.equal(c.rar, 5);
   assert.equal(c.ab, 'omni');
   assert.equal(+c.godly, 1);
@@ -95,6 +95,38 @@ test('the spinning capybara magnet takes medkits and shields, not guns', () => {
   const n = grabNearby({ items }, { p: [0, 0, 0] }, 8, [2], (p, id) => { got.push(id); return true; }, 4);
   assert.equal(n, 1);
   assert.deepEqual(got, [2]);
+});
+
+test('Secret chests roll Secret pets and Secret weapons, and those pets cost 25000', () => {
+  const secret = lootLine('secret');
+  const godly = lootLine('godly');
+  for (const id of ['novamoth', 'seahorse', 'scorpion', 'peacock']) {
+    const p = def(id);
+    assert.equal(p.price, 25000, id);
+    assert.equal(p.rar, 6, id);
+    assert.match(secret, new RegExp(`\\['pet','${id}',1\\]`));
+    assert.doesNotMatch(godly, new RegExp(id));
+  }
+  for (const gun of ['awp', 'minigun', 'rpg', 'gl']) assert.match(secret, new RegExp(`'wpn','${gun}'`));
+  assert.doesNotMatch(secret, /chimera|gk_ak47|\['pet','ghost'\]|\['pet','dragon'\]/);
+  assert.match(game, /secret:25000,godly:50000/);
+});
+
+test('Sol rebirths on a killing hit and still heals while hurt', () => {
+  const calm = omniHealRate(1.15, true);
+  const hurt = omniHealRate(1.15, false);
+  assert.ok(hurt > 0 && hurt < calm);
+  const S = {};
+  const first = tryRebirth(S, 10, 1);
+  assert.equal(first.hp, 35);
+  assert.equal(first.prot, 12.5);
+  assert.equal(tryRebirth(S, 20, 1), null);
+  assert.equal(tryRebirth(S, 10 + 150, 3).hp, 65);
+  const p = { id: 'me', alive: true, hp: 40, sh: 25, hurtT: 20, p: [0, 0, 0, 0] };
+  hostOmni({ plist: () => [p], enemy: () => false, los: () => false, bcast() {}, toPlayer() {}, damage() {}, take: () => false }, p, { fl: [], shT: 99, mag: 99, fd: 99, auto: 99 }, { t: 20, phase: 'play', br: { items: {} } }, 1.15, 1, 1);
+  assert.ok(p.hp > 40 && p.hp < 40 + calm);
+  assert.match(pets, /d\.ab!=='omni'/);
+  assert.match(pets, /tryRebirth/);
 });
 
 test('the chimera uses heal, shield, magnet and a diamond automatically', () => {
