@@ -93,6 +93,9 @@ No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunde
 ## v96 — Pet batch 3
 No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
 
+## v104 — animated Galaxy gun skins
+No third-party assets. Galaxy, Galaxy Azure, Galaxy Crimson and Galaxy Gold weapon skins are the original `wskins.js` shader. v104 adds a gun-only pass: a faster object-space nebula swirl, a shifting palette, traveling energy bands, and stars that scroll across the body, magazine, barrel and attachments. Low quality keeps that motion with one noise octave and one star layer. It is not an Epic or Fortnite asset.
+
 ## v103 — Celestial Chimera, rides, sidekick detail
 No third-party assets. Sol the Celestial Chimera, Wheeler the Spin Capybara, Gale the Storm Wolf, Comet the Rocket Ostrich and Dash the Raptor are original in-code models (`petmodels4.js`). The original 15 sidekicks get extra fur, feather or scale accents from the same file. Abilities and riding rules are original code in `petabil3.js`. Nothing here is based on a copyrighted character.
 
