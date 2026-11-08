@@ -18,8 +18,10 @@ import {settingsUI} from './raid-settings-ui.mjs';
 import {raidInput} from './raid-input.mjs';
 import {keyName,aimDelta} from './shared/raid-settings.mjs';
 import {communicationUI} from './raid-comms-ui.mjs';
+import {BOSS_PHASES} from './shared/raid-enemies.mjs';
 import {RaidView,BasePreview} from './raid-view.mjs';
 import {RAID_WORLDS,getWorld,terrainHeightAt} from './shared/raid-worlds.mjs';
+import {vaultTarget,vaultDirection} from './shared/raid-motion.mjs';
 import {baseController} from './raid-base.mjs';
 import {WEAPONS,MODS,weaponStats,itemWeight} from './shared/raid-catalog.mjs';
 installDialogNavigation();
@@ -35,7 +37,7 @@ syncTouchHeight();syncRaidDock();
 let baseUI,previewLoadout={primary:null,secondary:null,armor:null};
 let profile,party,snapshot,view,preview,yaw=0,pitch=0,seq=0,busy=false,tickBusy=false,inRaid=false,nearest=null,awaitingParty=false,notice={text:'',until:0};
 let latencyProof=null,probeWork=null,matchInfo=null;
-let aimMouse=false,aimTouch=false,aiming=false;
+let aimMouse=false,aimTouch=false,aiming=false,touchSprint=false;
 let trigger,weaponWork=null,stateAt=performance.now();
 let identityUI,authChecking=false,raidGeneration=0,authGeneration=0,wire,prediction;
 
@@ -48,7 +50,7 @@ addEventListener('raidsettingschange',()=>{if(inRaid)setPack(!$('pack').hidden)}
 
 identityUI=accountUI({api,run,getProfile:()=>profile,onRotated:async()=>{authGeneration++;await comms.voice.leave('Voice off after account security update.');await refresh()},onRecovered:async()=>{await signedOut('Account recovered. Sign in with your new password.')},onSignOut:async()=>{await api('logout',{});await signedOut('Signed out.')}});
 async function signedOut(text){
- const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';
+ const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;
  view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();$('identity').textContent='';
  for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','hint','interactionStatus'])$(id).replaceChildren();
  $('restoreReady').hidden=true;$('readyMismatch').hidden=true;latencyProof=null;$('latencyStatus').textContent='Check connection before deploying.';
@@ -124,8 +126,9 @@ for(const w of RAID_WORLDS){const o=document.createElement('option');o.value=w.i
 $('deploy').onclick=()=>run(async()=>{const generation=authGeneration,measured=selectedMatch().maxRttMs?await measureLatency():null;if(generation!==authGeneration||!profile)throw new Error('Deployment canceled after account change');const deployed=await api('deploy',{protocol:RAID_PROTOCOL,requestId:crypto.randomUUID(),mapId:$('map').value,match:selectedMatch(),latencyProof:measured?.proofId,...selectedLoadout()});if(generation!==authGeneration||!profile)return;snapshot=deployed;awaitingParty=false;start()});
 $('resume').onclick=()=>run(async()=>{const generation=authGeneration,resumed=await api('raid');if(generation!==authGeneration||!profile)return;snapshot=resumed;start()});
 let packKey='',frame=0,controlsDisabled=false;
-function stopHeldInput(){aimMouse=aimTouch=aiming=false;$('aim').setAttribute('aria-pressed','false');trigger?.clear();comms.voice.quiet();if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send({type:'move',x:0,z:0,yaw,pitch}).catch(()=>{})}
-function sendHeldMovement(){if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send(()=>({type:'move',...movementInput(),yaw,pitch})).catch(()=>{})}
+function sprintIntent(){return touchSprint||input.held('sprint')}
+function stopHeldInput(){aimMouse=aimTouch=aiming=false;$('aim').setAttribute('aria-pressed','false');trigger?.clear();comms.voice.quiet();if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send({type:'move',x:0,z:0,yaw,pitch,sprint:false}).catch(()=>{})}
+function sendHeldMovement(){if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send(()=>({type:'move',...movementInput(),yaw,pitch,sprint:sprintIntent()})).catch(()=>{})}
 function start(){
  if(snapshot.protocol!==RAID_PROTOCOL)throw new Error('Client update required. Reload to reconnect safely.');
  if(!getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion))throw new Error('Map update required. Reload to reconnect safely.');
@@ -142,16 +145,32 @@ function renderFrame(time){
 requestAnimationFrame(renderFrame);
 const distance=(a,b)=>Math.hypot(a.x-b.x,(a.y||0)-(b.y||0),a.z-b.z);
 const seenEvents=new Set();let spectateId='';
+// The boss panel renders only the living, snapshot-visible Overlord. Phase
+// progression stays authoritative; the client just labels it.
+function updateBossUI(snapshot){
+ const boss=(snapshot.machines||[]).find(m=>m.kind==='overlord'&&m.hp>0),panel=$('bossPanel');
+ if(!boss){panel.hidden=true;return}
+ const max=boss.maxHp||760,hp=Math.max(0,Math.min(max,Math.ceil(boss.hp)));
+ panel.hidden=false;panel.dataset.phase=boss.bossPhase||'approach';
+ $('bossName').textContent='Foundry Warden';
+ $('bossPhase').textContent=' · '+(BOSS_PHASES[boss.bossPhase]||BOSS_PHASES.approach);
+ $('bossHpText').textContent='HP '+hp+'/'+max;
+ $('bossHp').max=max;$('bossHp').value=hp;
+}
 $('spectate').onclick=()=>{const teammates=snapshot.players.filter(p=>p.team===snapshot.self.team);if(!teammates.length)return;const i=teammates.findIndex(p=>p.id===(spectateId||snapshot.camera?.follow));spectateId=teammates[(i+1)%teammates.length].id};
 function updateUI(){
  if(!snapshot)return;const s=snapshot.self,disabled=!s.alive||s.downed;if(disabled&&!controlsDisabled)input.clear();controlsDisabled=disabled;comms.update(snapshot);
  $('fire').disabled=!s.weaponId;$('reload').disabled=!s.weaponId;
- $('hud').textContent=`${s.downed?'DOWNED · bleed '+Math.ceil(s.bleedLeft)+'s':'HP '+Math.max(0,Math.ceil(s.hp))}${s.armor?' · Armor '+Math.ceil(s.armor.protection)+'/'+s.armor.capacity:''}${s.wounds?.bleedingUntil>snapshot.serverTime?' · BLEEDING':''}${s.wounds?.limpUntil>snapshot.serverTime?' · LEG INJURY':''} · ${s.weaponId?'Ammo '+s.ammo:'UNARMED'} · ${Math.ceil(snapshot.left)}s · Pack ${s.pack.length}/${s.cap} · ${(s.weight||0).toFixed(1)}/${s.weightCap||40} kg`;
+ const vaultBody={...({x:s.x,y:s.y||0,z:s.z,grounded:s.grounded!==false,downed:s.downed,carrying:s.carrying,vault:s.vault||null}),...(prediction?.position||{}),yaw,move:movementInput()};
+ const vaultWorld=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);const vaultAhead=!!(!s.vaulting&&s.alive&&!s.downed&&!s.carrying&&vaultWorld&&vaultTarget(vaultWorld,vaultBody,vaultDirection(vaultBody)));
+ $('vault').disabled=!s.alive||s.downed||s.vaulting||!vaultAhead;$('vault').textContent=s.vaulting?'Vaulting…':'Vault';
+ $('hud').textContent=`${s.downed?'DOWNED · bleed '+Math.ceil(s.bleedLeft)+'s':'HP '+Math.max(0,Math.ceil(s.hp))}${s.armor?' · Armor '+Math.ceil(s.armor.protection)+'/'+s.armor.capacity:''}${s.wounds?.bleedingUntil>snapshot.serverTime?' · BLEEDING':''}${s.wounds?.limpUntil>snapshot.serverTime?' · LEG INJURY':''} · ${s.weaponId?'Ammo '+s.ammo:'UNARMED'}${s.vaulting?' · VAULTING':s.sliding?' · SLIDING':s.sprint&&Math.hypot(s.move?.x||0,s.move?.z||0)>.01?' · SPRINT':''} · ${Math.ceil(snapshot.left)}s · Pack ${s.pack.length}/${s.cap} · ${(s.weight||0).toFixed(1)}/${s.weightCap||40} kg`;
  view?.sync(snapshot);$('spectate').hidden=s.alive||!snapshot.camera;if(snapshot.camera)$('spectate').textContent='Watching '+snapshot.camera.name+' · next squadmate';
  for(const event of snapshot.events||[])if(!seenEvents.has(event.id)){
   seenEvents.add(event.id);$('events').textContent=event.text||event.message||event.kind||event.type;view?.audio.play('warning');
  }
  if(seenEvents.size>200){const recent=[...seenEvents].slice(-100);seenEvents.clear();for(const id of recent)seenEvents.add(id)}
+ updateBossUI(snapshot);
  $('conditions').textContent=`${RAID_WORLDS.find(w=>w.id===snapshot.map)?.name||snapshot.map} · ${snapshot.conditions?.clock? snapshot.conditions.clock+' · ':''}${snapshot.conditions?.name||snapshot.conditions?.weather||'clear'}`;
  drawMap($('minimap'),snapshot.map,snapshot);
  const sources=[...snapshot.caches.map(c=>({...c,source:'cache'})),...(snapshot.loot||[]).map(l=>({...l,source:'loot'})),...snapshot.bags.map(b=>({...b,source:'bag'}))].filter(c=>distance(c,s)<3);
@@ -237,7 +256,7 @@ async function interact(){
 setInterval(async()=>{
  if(!inRaid||tickBusy)return;tickBusy=true;const generation=raidGeneration;
  try{
-  if(snapshot.self.alive){if(!deferIdleMovement({input:movementInput(),confirmed:snapshot.self.move,engaged:trigger.engaged,sampleAgeMs:performance.now()-stateAt}))await action(()=>({type:'move',...movementInput(),yaw,pitch}))}
+  if(snapshot.self.alive){if(!deferIdleMovement({input:movementInput(),confirmed:snapshot.self.move,engaged:trigger.engaged,sampleAgeMs:performance.now()-stateAt,sprint:sprintIntent()}))await action(()=>({type:'move',...movementInput(),yaw,pitch,sprint:sprintIntent()}))}
   else{const updated=await api('raid'+(spectateId?'?spectate='+encodeURIComponent(spectateId):''));if(!inRaid||generation!==raidGeneration)return;snapshot=updated;stateAt=performance.now();prediction?.reconcile(updated);updateUI()}
  }catch(e){if(inRaid&&!snapshot?.self.result)$('hint').textContent=e.message}finally{tickBusy=false}
 },150);
@@ -246,7 +265,16 @@ function controlAction(kind){
  if(kind==='settings')return preferences.open();if(kind==='help')return $('helpOpen').click();if(kind==='communications')return $('commsToggle').click();if(kind==='pack')return setPack($('pack').hidden,true);
  if(kind==='status'){$('statusAnnouncement').textContent=$('hud').textContent+'. '+$('conditions').textContent+'. '+$('hint').textContent+'. '+$('interactionStatus').textContent+'. '+$('networkStatus').textContent;return}
  if(kind==='ping')return run(()=>action({type:'ping',kind:$('pingKind').value}));
- if(kind==='fire')return trigger.press('keyboard');if(kind==='jump'){prediction?.jump();return run(()=>action({type:'jump'}))}if(kind==='reload')return run(()=>action({type:kind}));if(kind==='interact')return run(interact);
+ if(kind==='fire')return trigger.press('keyboard');if(kind==='jump'){prediction?.jump();return run(()=>action({type:'jump'}))}
+ if(kind==='vault'){
+  if(!snapshot?.self.alive||snapshot.self.downed||snapshot.self.carrying||snapshot.self.vaulting)return;
+  prediction?.vault(yaw);return run(()=>action({type:'vault',yaw}));
+ }
+ if(kind==='slide'){
+  if(!(sprintIntent()||snapshot.self.sprint)){notice={text:'Sprint first: hold Sprint or tap Sprint, then Slide.',until:performance.now()+3000};return}
+  prediction?.slide(movementInput());return run(()=>action({type:'slide',sprint:true}));
+ }
+ if(kind==='reload')return run(()=>action({type:kind}));if(kind==='interact')return run(interact);
  const items=[...snapshot.self.equipment,...snapshot.self.pack];if(kind==='slot1'||kind==='slot2'){const item=items.filter(i=>i.kind==='weapon')[kind==='slot1'?0:1];if(item)run(()=>action({type:'equip',itemId:item.id}))}
  if(kind==='utility')return run(()=>throwHeldUtility(items.find(i=>i.kind==='utility')));
  if(kind==='heal'){const item=items.find(i=>i.kind==='med'&&(snapshot.self.combatVersion!==2||medicalNeed(snapshot.self,i,snapshot.serverTime)));if(item)run(()=>action({type:'use',itemId:item.id}))}
@@ -258,9 +286,11 @@ $('packToggle').onclick=()=>setPack($('pack').hidden,true);
 $('view').onclick=e=>{if(e.pointerType==='touch'||preferences.isModal()||!$('communications').hidden)return;if(inRaid){if(document.pointerLockElement!==$('view')){const request=$('view').requestPointerLock();request?.catch(()=>{notice={text:'Mouse capture was unavailable. Use arrow keys, touch aim, or click the view to retry.',until:performance.now()+5000}})}}};
 addEventListener('mousemove',e=>{if(document.pointerLockElement===$('view'))aim(e.movementX,e.movementY,.003)});
 function aim(dx,dy,multiplier){const settings=preferences.get();if(aiming)multiplier*=view?.camera.fov/settings.fov||.45;({yaw,pitch}=aimDelta({yaw,pitch},dx*multiplier,dy*multiplier,settings))}
-$('jump').onclick=()=>controlAction('jump');
+$('jump').onclick=()=>controlAction('jump');$('vault').onclick=()=>controlAction('vault');
+$('sprint').onclick=()=>{touchSprint=!touchSprint;$('sprint').setAttribute('aria-pressed',String(touchSprint));if(touchSprint&&inRaid&&wire&&!wire.closed)sendHeldMovement()};
+$('slide').onclick=()=>controlAction('slide');
 $('fire').onclick=e=>{if(e.detail===0)trigger.tap()};$('reload').onclick=()=>run(()=>action({type:'reload'}));$('interact').onclick=()=>run(interact);
-$('leave').onclick=()=>run(async()=>{const alive=snapshot.self.alive;inRaid=false;wire?.close();wire=null;prediction=null;raidGeneration++;document.body.dataset.inRaid='false';document.querySelector('main').inert=false;await comms.voice.leave();comms.update(null);input.clear();document.exitPointerLock?.();$('play').style.display='none';view?.clear();snapshot=null;message(alive?'Your operator remains in the raid. Reconnect within 45 seconds to continue.':'Raid recorded.');await refresh()});
+$('leave').onclick=()=>run(async()=>{const alive=snapshot.self.alive;inRaid=false;wire?.close();wire=null;prediction=null;raidGeneration++;document.body.dataset.inRaid='false';document.querySelector('main').inert=false;await comms.voice.leave();comms.update(null);input.clear();document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;view?.clear();snapshot=null;message(alive?'Your operator remains in the raid. Reconnect within 45 seconds to continue.':'Raid recorded.');await refresh()});
 const MAP_PALETTES={
  industrial:{ground:'#404643',road:'#2c3233',sidewalk:'#85857b',plaza:'#6f6b5e',field:'#56634a',window:'#f6cf7e',tree:'#3c6b3d',hedge:'#355934'},
  wilderness:{ground:'#566448',road:'#3d4438',sidewalk:'#898b79',plaza:'#6f6b58',field:'#617650',window:'#f5d78b',tree:'#2f6235',hedge:'#2f5431'},

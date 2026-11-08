@@ -1,5 +1,5 @@
 import {raidLine,raidSight} from './raid-cover.mjs';
-import {MACHINES,hazardState,mapConditions} from '../shared/raid-enemies.mjs';
+import {MACHINES,hazardState,mapConditions,bossPhaseFor} from '../shared/raid-enemies.mjs';
 import {WEAPONS,MODS} from '../shared/raid-catalog.mjs';
 import {blocked,floorAt,supportAt} from '../shared/raid-worlds.mjs';
 import {findPath,safePoint} from '../shared/raid-navigation.mjs';
@@ -43,7 +43,7 @@ export function scheduleReinforcement(raid,x,z,now,{kind='hunter',delay=12,reaso
 export function spawnMachine(raid,kind,x,z,now){
  const def=MACHINES[kind]||MACHINES.scout,point=safePoint(raid.world,x,z,{radius:def.radius,height:def.height,avoid:[...raid.world.spawns.map(([x,z])=>({x,z})),...[...raid.players.values()].filter(p=>p.alive)],distance:24});if(!point)return null;
  raid.machineSeq=(raid.machineSeq||0)+1;
- const machine={id:'machine_'+raid.machineSeq,kind,x:point.x,z:point.z,y:def.flight||point.y,hp:def.hp,maxHp:def.hp,yaw:0,nextAttack:now+5,state:'patrol',home:point,path:[],pathAt:0};raid.machines.push(machine);return machine;
+ const machine={id:'machine_'+raid.machineSeq,kind,x:point.x,z:point.z,y:def.flight||point.y,hp:def.hp,maxHp:def.hp,yaw:0,nextAttack:now+5,state:'patrol',home:point,path:[],pathAt:0,bossPhase:kind==='overlord'?'approach':null};raid.machines.push(machine);return machine;
 }
 const V5_MACHINE_POSITIONS={relay:[[-120,-80],[80,80],[100,-80],[-120,60],[0,160],[60,-180],[-80,140]],reservoir:[[-100,-80],[60,100],[100,-40],[-100,40],[0,180],[80,-200],[-100,180]],switchyard:[[-120,-40],[60,60],[120,-40],[-100,60],[-40,180],[80,-160],[-100,200]]};
 export function populateMachines(raid,now){
@@ -57,11 +57,40 @@ export function populateMachines(raid,now){
 function ratio(seed){let value=2166136261;for(const c of seed)value=Math.imul(value^c.charCodeAt(0),16777619)>>>0;value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296}
 const MACHINE_WEAPONS={scout:['pistol','smg'],hunter:['smg','ar','shotgun'],heavy:['shotgun','lmg'],flyer:['sniper','smg'],overlord:['ar','sniper','lmg']};
 const MACHINE_AMMO_ROUNDS={light:30,medium:30,heavy:18,shell:12};
+const bossCapLeft=raid=>raid.machines.filter(m=>m.hp>0).length<MACHINE_CAP;
+function addBossHazard(raid,machine,phase,now){
+ const hazards=raid.phaseHazards||=[],id='warden_'+phase+'_'+machine.id;
+ if(hazards.some(h=>h.id===id))return;
+ const shape=phase==='furnace'?{name:'Furnace vent',radius:9,damage:4,until:now+14}:{name:'Meltdown core',radius:14,damage:7,until:now+18};
+ hazards.push({id,name:shape.name,x:machine.x,y:machine.y||0,z:machine.z,radius:shape.radius,damage:shape.damage,until:shape.until,phase,boss:machine.id});
+}
+export function advanceBossPhase(raid,machine,now){
+ if(machine.kind!=='overlord'||machine.hp<=0)return;
+ const order=['approach','furnace','meltdown'],target=bossPhaseFor(machine),goal=order.indexOf(target);
+ let index=order.indexOf(machine.bossPhase||'approach');
+ // A single overwhelming hit still steps through every threshold so clients never
+ // miss a phase, and each arrival emits exactly one event.
+ while(index<goal){
+  index++;machine.bossPhase=order[index];addBossHazard(raid,machine,machine.bossPhase,now);
+  if(machine.bossPhase==='furnace'){
+   machine.enraged=true;
+   event(raid,now,'The Warden has opened its furnace core. Reinforcements inbound.','boss');
+   if(bossCapLeft(raid))spawnMachine(raid,'scout',machine.x+8,machine.z+4,now);
+  }else{
+   machine.enraged=true;
+   event(raid,now,"The Warden's core is exposed. Meltdown venting — heavy response inbound.",'boss');
+   if(bossCapLeft(raid))spawnMachine(raid,'heavy',machine.x-9,machine.z-5,now);
+  }
+ }
+}
 export function hitMachine(service,raid,machine,damage,hitY,team){
- const def=MACHINES[machine.kind]||MACHINES.scout,now=service.now();
- const weak=Math.abs(hitY-(machine.y||0)-def.core)<.35&&(machine.state==='windup'||!def.armor);
- machine.hp-=damage*(weak?2.5:1-def.armor);machine.hurtUntil=now+.15;
- if(machine.hp>0){if(machine.kind==='overlord'&&machine.hp<def.hp*.5&&!machine.enraged){machine.enraged=true;event(raid,now,'The Warden has opened its furnace core. Reinforcements inbound.','boss');spawnMachine(raid,'scout',machine.x+8,machine.z+4,now)}return}
+ const def=MACHINES[machine.kind]||MACHINES.scout,now=service.now(),phase=machine.kind==='overlord'?(machine.bossPhase||'approach'):null;
+ // The meltdown core is exposed: core hits always count as weak and body hits
+ // keep less armor, so the boss is vulnerable without waiting for a windup.
+ const armor=phase==='meltdown'?.3:phase==='furnace'?.55:def.armor;
+ const weak=Math.abs(hitY-(machine.y||0)-def.core)<.35&&(phase==='meltdown'||machine.state==='windup'||!def.armor);
+ machine.hp-=damage*(weak?2.5:1-armor);machine.hurtUntil=now+.15;
+ if(machine.hp>0){advanceBossPhase(raid,machine,now);return}
  const roll=ratio((raid.id||'raid')+':'+machine.id),pool=MACHINE_WEAPONS[machine.kind]||['pistol'],weapon=pool[Math.floor(roll*pool.length)%pool.length],ammo=WEAPONS[weapon].ammo;
  const salvage=[item('valuable',{value:machine.kind==='overlord'?150:20,rarity:machine.kind==='overlord'?4:1}),item('material',{material:machine.kind==='flyer'?'wire':'steel',quantity:machine.kind==='overlord'?8:2}),item('weapon',{weapon,condition:35+Math.floor(roll*50),rarity:Math.max(1,Math.floor(roll*3)),loaded:WEAPONS[weapon].mag}),item('ammo',{ammo,quantity:Math.max(6,Math.round(MACHINE_AMMO_ROUNDS[ammo]*(.5+roll)))})];
  if(machine.kind==='overlord')salvage.push(item('mod',{mod:Object.keys(MODS)[Math.floor(roll*3)%3],rarity:3}));
@@ -109,7 +138,7 @@ export function advanceMachines(service,raid,dt,now){
   }
   if(m.attack){
    m.state='windup';if(now<m.attack.at)continue;
-   const shot=m.attack;m.attack=null;m.nextAttack=now+def.cooldown*(m.enraged?.7:1);m.state='recover';
+   const shot=m.attack;m.attack=null;m.nextAttack=now+def.cooldown*(m.bossPhase==='meltdown'?.55:m.enraged?.7:1);m.state='recover';
    if(def.attack==='pounce'&&raidLine(raid,m.x,m.z,shot.point.x,shot.point.z,(m.y||0)+1,(shot.point.y||0)+1)){
     const at=safePoint(raid.world,shot.point.x,shot.point.z,{radius:def.radius,height:def.height,y:shot.point.y||0});if(at){m.x=at.x;m.y=at.y;m.z=at.z}
    }
@@ -152,6 +181,12 @@ export function advanceEvents(service,raid,now){
  }
  if(raid.weatherAt&&now>=raid.weatherAt){raid.weatherAt=0;if(raid.conditionPlan)event(raid,now,'Weather front arrived: '+raid.conditions.name+'.','weather');else{raid.conditions={...mapConditions(raid.world,1),name:'Nightfall front',light:.85,visibility:.65};event(raid,now,'Nightfall front incoming. Visibility is falling.','weather')}}
  for(const h of raid.world.hazards||[]){const state=hazardState(h,now-raid.started);if(!state.active)continue;
+  for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard'})}
+ }
+ // Boss phase hazards are authored by authoritative phase transitions rather
+ // than the world; each id is ticked once a second like a static hazard.
+ for(const h of raid.phaseHazards||[]){
+  if(h.until<=now)continue;
   for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard'})}
  }
 }

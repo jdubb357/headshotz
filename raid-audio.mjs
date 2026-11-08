@@ -7,6 +7,10 @@ export const MACHINE_CUES={
  flyer:{wave:'sine',start:1250,end:330,duration:.45,pulses:2},
  overlord:{wave:'sawtooth',start:65,end:155,duration:1.1,pulses:3}
 };
+export const BOSS_PHASE_CUES={
+ furnace:{wave:'triangle',start:120,end:520,duration:.7,pulses:2},
+ meltdown:{wave:'sine',start:560,end:60,duration:1.1,pulses:3}
+};
 export const UTILITY_CUES={decoy:{wave:'square',start:700,end:1000,duration:.18,pulses:2},smoke:{wave:'triangle',start:210,end:55,duration:.5,pulses:1},frag:{wave:'sine',start:420,end:900,duration:.3,pulses:2},blast:{wave:'sawtooth',start:130,end:30,duration:.4,pulses:3}};
 export const WEAPON_CUES={
  ar:{wave:'sawtooth',start:230,end:48,duration:.13,pulses:1},
@@ -37,11 +41,11 @@ export function spatialCue(listener,source){
  return {gain:1/(1+(distance/12)**2),pan:distance?Math.max(-1,Math.min(1,(-dx*Math.cos(listener.yaw||0)+dz*Math.sin(listener.yaw||0))/distance)):0};
 }
 export class RaidAudio {
- constructor(){this.enabled=true;this.volume=.7;this.context=null;this.active=0;this.seen=new Map();this.fieldCues=new Map();this.previousSelf=null}
+ constructor(){this.enabled=true;this.volume=.7;this.context=null;this.active=0;this.seen=new Map();this.fieldCues=new Map();this.bossPhases=new Map();this.previousSelf=null}
  resume(){if(!this.context)try{this.context=new (window.AudioContext||window.webkitAudioContext)()}catch{}this.context?.resume().catch(()=>{})}
  play(kind='warning',spatial=null){
   const ctx=this.context;if(!this.enabled||this.volume<=0||!ctx||ctx.state!=='running'||this.active>=12)return false;
-  const cue=MACHINE_CUES[kind]||UTILITY_CUES[kind]||ACTION_CUES[kind]||WEAPON_CUES[kind.replace(/^shot:/,'')]||{wave:kind==='shot'?'sawtooth':kind==='hit'?'triangle':'sine',start:kind==='shot'?180:kind==='hit'?70:600,end:kind==='shot'?45:kind==='hit'?35:350,duration:.16,pulses:1};
+  const cue=MACHINE_CUES[kind]||BOSS_PHASE_CUES[kind]||UTILITY_CUES[kind]||ACTION_CUES[kind]||WEAPON_CUES[kind.replace(/^shot:/,'')]||{wave:kind==='shot'?'sawtooth':kind==='hit'?'triangle':'sine',start:kind==='shot'?180:kind==='hit'?70:600,end:kind==='shot'?45:kind==='hit'?35:350,duration:.16,pulses:1};
   const at=ctx.currentTime,output=ctx.createGain(),pan=ctx.createStereoPanner();output.gain.value=.045*Math.min(1,Math.max(0,this.volume))*(spatial?.gain??1);pan.pan.value=spatial?.pan??0;output.connect(pan).connect(ctx.destination);this.active++;
   let remaining=cue.pulses;
   for(let i=0;i<cue.pulses;i++){
@@ -72,6 +76,18 @@ export class RaidAudio {
   for(const [id,until]of this.seen)if(until<now)this.seen.delete(id);
   if(!snapshot.self.alive)return;
   const listener={...snapshot.self,...(snapshot.camera||{})};
+  const bossAlive=new Set();
+  for(const machine of snapshot.machines||[]){
+   if(machine.kind!=='overlord')continue;
+   bossAlive.add(machine.id);const phase=machine.bossPhase||null,prior=this.bossPhases.get(machine.id);
+   // The cue marks an observed phase change; unchanged phases and first sightings
+   // never retrigger it, and a lost poll cannot replay a stale sting.
+   if(phase&&phase!=='approach'&&prior&&prior!==phase){
+    const spatial=spatialCue(listener,machine);if(spatial)this.play(phase==='meltdown'?'meltdown':'furnace',spatial);
+   }
+   if(phase)this.bossPhases.set(machine.id,phase);else this.bossPhases.delete(machine.id);
+  }
+  for(const id of this.bossPhases.keys())if(!bossAlive.has(id))this.bossPhases.delete(id);
   for(const machine of snapshot.machines||[]){
    if(machine.state!=='windup'||!Object.hasOwn(MACHINE_CUES,machine.kind))continue;
    const prior=this.seen.get(machine.id);if(prior!=null)continue;
@@ -88,5 +104,5 @@ export class RaidAudio {
   const charging=new Set((snapshot.machines||[]).filter(m=>m.state==='windup').map(m=>m.id));
   for(const id of this.seen.keys())if(!charging.has(id))this.seen.delete(id);
  }
- reset(){this.seen.clear();this.fieldCues.clear();this.previousSelf=null}
+ reset(){this.seen.clear();this.fieldCues.clear();this.bossPhases.clear();this.previousSelf=null}
 }

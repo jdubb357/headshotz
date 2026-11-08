@@ -52,7 +52,9 @@ test('HTTP enforces authentication, origin checks and private source boundaries'
  const store=new RaidStore();const {server}=createRaidServer(store);server.listen(0,'127.0.0.1');await once(server,'listening');
  t.after(async()=>{server.close();await once(server,'close');store.close()});
  const base=`http://127.0.0.1:${server.address().port}`;
- const post=(route,data,extra={})=>fetch(base+route,{method:'POST',headers:{'content-type':'application/json',...extra},body:JSON.stringify(route==='/api/deploy'?{...data,protocol:RAID_PROTOCOL}:data)});
+ // Force a fresh socket per request. Node fetch's pooled keep-alive socket can be
+ // reset after a deployment response; that pool artifact is unrelated to the API.
+ const post=(route,data,extra={})=>fetch(base+route,{method:'POST',headers:{'content-type':'application/json',connection:'close',...extra},body:JSON.stringify(route==='/api/deploy'?{...data,protocol:RAID_PROTOCOL}:data)});
  assert.equal((await fetch(base+'/api/profile')).status,401);
  const response=await post('/api/register',{username:'http_user',password:'a long test password'});assert.equal(response.status,200);
  const cookie=response.headers.get('set-cookie').split(';')[0];assert.match(response.headers.get('set-cookie'),/HttpOnly/);

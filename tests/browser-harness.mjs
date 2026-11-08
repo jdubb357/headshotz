@@ -20,6 +20,11 @@ export async function browserHarness(){
    p.evaluate=async expression=>{const result=await p.command('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));return result.result.value};
    p.wait=async expression=>{const until=Date.now()+20000;while(Date.now()<until){try{if(await p.evaluate(expression))return}catch(error){if(!/Execution context.*destroyed|Cannot find context|Inspected target navigated/.test(error.message))throw error}await new Promise(r=>setTimeout(r,100))}throw new Error('Timed out: '+expression)};
    await p.command('Runtime.enable');await p.command('Page.enable');await p.command('Emulation.setFocusEmulationEnabled',{enabled:true});await p.command('Page.navigate',{url:(process.env.RAID_TEST_URL||'http://127.0.0.1:8021')+path});
+   // Pointer lock and other user-activation APIs refuse a target that headless
+   // Chrome created in the background. Activate every fresh page before a test
+   // starts interacting with it; tests that need a background tab still use
+   // p.background() explicitly afterwards.
+   await p.command('Page.bringToFront');
    return p;
   },
   async close(){for(const {p,browserContextId}of pages){p.socket.close();await root.command('Target.disposeBrowserContext',{browserContextId})}root.socket.close()}

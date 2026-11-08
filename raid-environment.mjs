@@ -33,7 +33,7 @@ function terrainMesh(world,palette){
  map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(54,54);map.anisotropy=4;map.needsUpdate=true;
  const material=new THREE.MeshStandardMaterial({map,vertexColors:true,roughness:.96,metalness:0,side:THREE.FrontSide});
  material.userData.raidOwned=true;material.userData.raidOwnTexture=true;
- const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
+ const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.castShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
  return mesh;
 }
 export function buildEnvironment(world){
@@ -117,7 +117,7 @@ export function buildEnvironment(world){
  // Perimeter hills and warning posts frame the playable region without blocking routes.
  for(let i=0;i<24;i++){const angle=i*Math.PI/12,x=Math.sin(angle)*(world.size/2+15),z=Math.cos(angle)*(world.size/2+15);add('cone',palette.rock,x,7,z,15,18,15,angle,'rock')}
  for(const {type,transforms,material}of groups.values()){
-  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
+  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
  }
  root.userData.materials=materials;return root;
 }
