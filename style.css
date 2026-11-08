@@ -480,15 +480,18 @@ body.brAirOn #bNL,body.brAirOn #bNLc{opacity:.15}
 #adminBan button[data-s=done]{opacity:.6}
 #adminBan.aaGame .aaPill{padding:2px 8px;font-size:10px;opacity:.88;animation:aaSlide 3s linear infinite}#adminBan.aaGame .aaT{font-size:10px}
 @keyframes aaSlide{to{background-position:300% 0}}@keyframes aaPulse{50%{box-shadow:0 0 24px rgba(255,200,0,1),0 0 44px rgba(255,40,100,.8)}}
-/* v62 GODLY: gold chest + labels */
-#chStage.t-godly{--c:#ffd700}#chStage.go.t-godly .box{animation:shake .06s linear infinite,grow 2.3s ease-in forwards}#chStage.open.t-godly .rays{animation-duration:.9s;opacity:1;filter:drop-shadow(0 0 18px #ffd700)}
-#chStage.t-godly .body{background:linear-gradient(180deg,#fff3a0,#ffd700 40%,#8a5a00 160%);box-shadow:0 0 22px #ffd700,inset 0 0 0 4px rgba(120,70,0,.5)}#chStage.t-godly .lid{background:linear-gradient(180deg,#fff,#ffe36a 35%,#a06a00 170%)}
-#chStage .res em.gd,#chStage.t-godly .res em{color:#ffd700;text-shadow:0 0 12px #ffd700,0 0 28px #ff9a00}
+/* v102 GODLY: rainbow chest, shop icon, and labels. Secret stays red. */
+#chStage.t-godly{--c:#ff4d6a;animation:godHue 2.8s linear infinite}#chStage.go.t-godly .box{animation:shake .06s linear infinite,grow 2.3s ease-in forwards}#chStage.open.t-godly .rays{animation-duration:.7s;opacity:1}
+#chStage.t-godly .body{background:linear-gradient(90deg,#ff4d4d,#ffd60a,#5cff8a,#4cc9f0,#c77dff,#ff4d4d);background-size:300% 100%;animation:aaSlide 2.2s linear infinite;box-shadow:0 0 22px #fff,inset 0 0 0 4px rgba(0,0,0,.35)}#chStage.t-godly .lid{background:linear-gradient(90deg,#fff,#ffd60a,#4cc9f0,#c77dff,#fff);background-size:300% 100%;animation:aaSlide 2.2s linear infinite}
+#chStage.t-godly .res em{background:linear-gradient(90deg,#ff4d4d,#ffd60a,#5cff8a,#4cc9f0,#c77dff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:aaSlide 1.8s linear infinite}
+@keyframes godHue{to{filter:hue-rotate(360deg)}}
 #chFree{margin-top:8px;background:linear-gradient(90deg,#ff1f6b,#ff8a00,#ffd700);color:#2a1600;font-weight:900;box-shadow:0 0 16px rgba(255,170,0,.7)}
-#chOdds .odd[style*="ffd700"] b{color:#ffd700;text-shadow:0 0 8px #ffa800}
-.godlyTxt{color:#ffd700;text-shadow:0 0 8px #ffa800;font-weight:900}
+#chOdds .odd.godly{border-color:#fff;box-shadow:0 0 14px rgba(255,255,255,.45)}
+#chOdds .odd.godly i{background:linear-gradient(90deg,#ff4d4d,#ffd60a,#5cff8a,#4cc9f0,#c77dff,#ff4d4d);background-size:300% 100%;animation:aaSlide 1.6s linear infinite;box-shadow:0 0 10px #fff}
+#chOdds .odd.godly b{background:linear-gradient(90deg,#ff4d4d,#ffd60a,#5cff8a,#4cc9f0,#c77dff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:aaSlide 1.8s linear infinite}
+.godlyTxt{background:linear-gradient(90deg,#ff4d4d,#ffd60a,#5cff8a,#4cc9f0,#c77dff,#ff4d4d);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:aaSlide 2s linear infinite;font-weight:900;text-shadow:none}
 
-.wc.godly{border-color:#ffd700!important;box-shadow:0 0 12px rgba(255,215,0,.55),inset 0 0 10px rgba(255,215,0,.18)}
+.wc.godly{border-color:#fff!important;box-shadow:0 0 12px rgba(255,255,255,.55),inset 0 0 10px rgba(180,120,255,.28);animation:godHue 3s linear infinite}
 /* ================= v62 EXTRACTION RAIDS ================= */
 .raidBanner{display:flex;align-items:center;gap:12px;width:min(760px,96%);margin:6px auto 10px;padding:10px 16px;border:3px solid #111;border-radius:20px;color:#fff;text-align:left;cursor:pointer;background:linear-gradient(100deg,#141b3a,#7a1524 55%,#c4323b);box-shadow:0 6px 0 #111,0 0 22px rgba(210,60,70,.5);position:relative;overflow:hidden;touch-action:manipulation}
 .raidBanner::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.25),transparent);transform:skewX(-20deg);animation:rbShine 3.2s infinite}
@@ -557,5 +560,5 @@ body.phasing::after{content:'';position:fixed;inset:0;pointer-events:none;z-inde
 @keyframes phz{50%{opacity:.6}}
 
 /* v96 purple Godly chest prompt vs red Secret */
-#brNear .nb.chest.god{border-color:#c27bff;background:rgba(48,8,92,.9);box-shadow:0 0 18px rgba(176,80,255,.85);animation:swPulse 1s ease-in-out infinite}
-#brNear .nb.chest.god b{color:#e3c4ff;text-shadow:0 0 8px #b050ff}
+#brNear .nb.chest.god{border-color:#fff;background:linear-gradient(90deg,#ff4d4d,#ffd60a,#5cff8a,#4cc9f0,#c77dff,#ff4d4d);background-size:300% 100%;box-shadow:0 0 18px rgba(255,255,255,.75);animation:aaSlide 1.8s linear infinite,swPulse 1s ease-in-out infinite}
+#brNear .nb.chest.god b{background:linear-gradient(90deg,#fff,#ffe38a,#fff);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:#fff;text-shadow:0 0 8px #000}
