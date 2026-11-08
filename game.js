@@ -1857,9 +1857,16 @@ setTimeout(giftCheck,1500);
 const GIFT2={key:'gift_100k_nov3',n:100000,from:1793753795551,to:1793757785551};
 function gift2Due(){try{if(localStorage.getItem(GIFT2.key)||(PROG.gifts||[]).includes(GIFT2.key))return false}catch(e){}const t=window.__mockNow!=null?window.__mockNow:Date.now();return t>=GIFT2.from&&t<GIFT2.to}
 function gift2Check(){if(!gift2Due())return false;try{localStorage.setItem(GIFT2.key,'1')}catch(e){}PROG.gifts=(PROG.gifts||[]).concat(GIFT2.key).slice(-20);PROG.dia=(PROG.dia|0)+GIFT2.n;saveProg();try{window.__dlog&&window.__dlog.push([GIFT2.n,'gift from the devs (100k)'])}catch(e){}giftPopup(GIFT2.n);return true}
-setTimeout(gift2Check,2500);setInterval(gift2Check,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(gift2Check,300)});addEventListener('pageshow',()=>setTimeout(gift2Check,300));
+// v100: one-time 100,000 diamond gift for Sunday Nov 8, 2026 America/Chicago
+// (00:00 inclusive through Nov 9 00:00 exclusive, DST-safe via ctYMD). New key so a claimed Nov 3 gift still pays.
+const GIFT3={key:'gift_100k_nov8',n:100000,from:[2026,11,8],until:[2026,11,9]};
+const ymdN=a=>a[0]*10000+a[1]*100+a[2];
+function gift3Due(){try{if(localStorage.getItem(GIFT3.key)||(PROG.gifts||[]).includes(GIFT3.key))return false}catch(e){}const t=window.__mockNow!=null?window.__mockNow:Date.now(),n=ymdN(ctYMD(t));return n>=ymdN(GIFT3.from)&&n<ymdN(GIFT3.until)}
+function gift3Check(){if(!gift3Due())return false;try{localStorage.setItem(GIFT3.key,'1')}catch(e){}PROG.gifts=(PROG.gifts||[]).concat(GIFT3.key).slice(-20);PROG.dia=(PROG.dia|0)+GIFT3.n;saveProg();try{window.__dlog&&window.__dlog.push([GIFT3.n,'gift from the devs (100k nov8)'])}catch(e){}giftPopup(GIFT3.n);return true}
+function giftLater(){gift2Check();gift3Check()}
+setTimeout(giftLater,2500);setInterval(giftLater,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(giftLater,300)});addEventListener('pageshow',()=>setTimeout(giftLater,300));
 
-Object.assign(window.__hsz,{aa:AA,giftCheck,gift2Check,gift2Due,GIFT2,giftDue,GIFT,chestFree,CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,endMatchTest:(win)=>{if(!isHost)return false;H.score[win]=WIN_ROUNDS-1;H.phase='play';endRound(win);return true},hostDecide,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
+Object.assign(window.__hsz,{aa:AA,giftCheck,gift2Check,gift2Due,GIFT2,gift3Check,gift3Due,GIFT3,giftDue,GIFT,chestFree,CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,endMatchTest:(win)=>{if(!isHost)return false;H.score[win]=WIN_ROUNDS-1;H.phase='play';endRound(win);return true},hostDecide,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
 
 // ================= v42 MISSION MODES: Capture the Flag + Extraction (host side) =================
 const MISSION=m=>m==='ctf'||m==='ext';
