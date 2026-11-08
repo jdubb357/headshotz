@@ -1,7 +1,7 @@
 // HeadShotz v57 SIDEKICK BOOTH screen: buy buddies with diamonds, equip one at a time, rotating 3D preview + shopkeeper chat.
 import {THREE} from './gfx.js';
 import {SK_DEFS,SK_BY,AB,RAR_N,RAR_C,SK_FLAVOR,makePet,animPet,TM} from './sidekicks.js';
-const FIL=[['all','ALL'],['owned','OWNED'],['0','COMMON'],['1','UNCOMMON'],['2','RARE'],['3','EPIC'],['4','LEGENDARY']];
+const FIL=[['all','ALL'],['owned','OWNED'],['0','COMMON'],['1','UNCOMMON'],['2','RARE'],['3','EPIC'],['4','LEGENDARY'],['5','GODLY']];
 const KEEPER=['Welcome to my Sidekick Booth! Every buddy has one special trick.','Pick one to take along. You can only bring one buddy at a time!','Buddies also drop from chests. Doubles turn into diamonds.','Tap EQUIP and your buddy will trot along behind you.'];
 export function initSidekickShop(A){
  const $=A.$;const el=$('pkShop');if(!el)return null;const P=A.PROG;

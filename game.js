@@ -3,7 +3,7 @@ import {THREE,FX,TX,MC,G,mergeParts,GQ,texMat,swapMats,WT,GRASS_T,scatterGrass,m
 import {WSKINS,WSKIN_IDS,WSKIN_FEAT,applySkin,tickSkins,clearSkinCache} from './wskins.js';
 import {SKIN_DEFS,SKIN_BY,SKIN_IDS,humanOutfit,splitSkin,joinSkin} from './skins.js';
 import {BASE_N} from './toon.js';
-import {initSkinShop} from './skinshop.js';import {initSidekicks,hostPets,hostAbility,luck as petLuck,petSave,SK_BY,SK_DEFS} from './sidekicks.js';import {initSidekickShop} from './sidekickshop.js';
+import {initSkinShop} from './skinshop.js';import {initSidekicks,hostPets,hostAbility,luck as petLuck,petSave,SK_BY,SK_DEFS,rideOf,shouldDismount} from './sidekicks.js';import {initSidekickShop} from './sidekickshop.js';
 import {Post} from './post.js';import {initAdminAbuse,AA_DIA,AA_CHESTS} from './adminabuse.js';
 import {loadAssets,HQP} from './assets.js';import {photoItems,clearPhotoCache,PHOTO} from './photoguns.js';import {initRoyale} from './royale.js';import {chestKit,TIERC,CHEST_HINGE} from './chests.js';import {EMOTES,EMOTE_DUR} from './toon.js';import {makeBus,makeGlider,makeWind,makeCloudField} from './airship.js';import * as ASSETS from './assets.js';
 import {TURN} from './ice.js';import {initBiomes,BIOMES} from './biomes.js';import {initAmbient} from './ambient.js';
@@ -718,7 +718,7 @@ const AS_WIN=10,AS_MIN=25;
 function asRec(v,dmg,by,w){if(!by||by===v.id||w==='fall'||w==='bleed'||!H.players[by])return;const D=v.dmgBy||(v.dmgBy={});const e=D[by]||(D[by]={d:0,t:-99});if(H.t-e.t>AS_WIN)e.d=0;e.d+=v.down?dmg*.5:dmg;e.t=H.t}
 function asTake(v,k){const D=v.dmgBy||{};v.dmgBy={};const tm=isTeamMode(H.mode);const out=Object.entries(D).filter(([id,e])=>id!==k&&id!==v.id&&e.d>=AS_MIN&&H.t-e.t<=AS_WIN&&H.players[id]&&!(tm&&H.players[id].team===v.team)).sort((a,b)=>b[1].d-a[1].d).slice(0,2).map(x=>x[0]);
  for(const id of out){const a=H.players[id];a.as=(a.as||0)+1;a.pts+=50}return out}
-function damage(v,dmg,by,head,w){if(!v.alive)return;if(v.raiGhost)return;if(v.air&&w!=='storm'&&w!=='bleed')return;if(v.prot&&H.t<v.prot&&w!=='fall'&&w!=='bleed')return;asRec(v,dmg,by,w);{const pc=PCL[v.cl];if(pc&&pc.hp&&w!=='fall'&&w!=='bleed')dmg=Math.max(1,Math.round(dmg*100/pc.hp));v.hurtT=H.t;if(v.bot&&v.flag&&H.mode==='ctf'&&w!=='fall')dmg=Math.max(1,Math.round(dmg*.28))}{const ww=W[w];if(ww&&(ww.slow||ww.push)&&by!==v.id)hitFX(v,ww,by)}
+function damage(v,dmg,by,head,w){if(!v.alive)return;if(v.raiGhost)return;if(v.air&&w!=='storm'&&w!=='bleed')return;if(v.prot&&H.t<v.prot&&w!=='fall'&&w!=='bleed')return;if(!v.bot&&v.ride&&v.ws&&SK_BY[v.ws.pet]){const rd=rideOf(v.ws.pet,((v.ws.pt)|0)||1);if(rd&&shouldDismount(dmg,rd.heavy)){v.ride=0;bcast({t:'pfx',k:'dismount',id:v.id,heavy:1})}}asRec(v,dmg,by,w);{const pc=PCL[v.cl];if(pc&&pc.hp&&w!=='fall'&&w!=='bleed')dmg=Math.max(1,Math.round(dmg*100/pc.hp));v.hurtT=H.t;if(v.bot&&v.flag&&H.mode==='ctf'&&w!=='fall')dmg=Math.max(1,Math.round(dmg*.28))}{const ww=W[w];if(ww&&(ww.slow||ww.push)&&by!==v.id)hitFX(v,ww,by)}
  if(v.down){if(by===v.id&&w!=='fall'&&w!=='bleed')return;v.dhp-=dmg;bcast({t:'hp',id:v.id,hp:0,by,dmg,head,d:1});if(v.dhp>0&&w!=='fall'&&w!=='bleed')return;
   v.down=false;v.rev=null;v.alive=false;const k=H.players[by];const fin=k&&by!==v.id;if(fin)k.pts+=25;v.dmgBy={};bcast({t:'kill',k:by,v:v.id,head,w,fin:fin?1:0,bleed:w==='bleed'?1:0});{const rd=respawnDelay(v);if(rd&&H.phase==='play')v.respawn=H.t+rd}sendSB();if(BRM(H.mode)&&H.br)brElim(v,by);if(RAIDM(H.mode))raidOnDeath(v,by);checkRound();return}
  if(v.sh>0&&w!=='storm'&&w!=='fall'&&w!=='bleed'){const a=Math.min(v.sh,dmg);v.sh-=a;dmg-=a;if(!v.bot)toPlayer(v.id,{t:'shd',sh:Math.round(v.sh)});if(dmg<=0){bcast({t:'hp',id:v.id,hp:Math.max(0,v.hp),by,dmg:0,head,sh:1});return}}
@@ -1245,14 +1245,14 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];if(BC&&me.air){brAirMe(dt
  else if(me.slideCd>2)me.slideCd=(myC.slideCd||1)*.7;
  else if(me.ground){const a=Math.min(1,dt*13);me.vel.x+=(wx*speed-me.vel.x)*a;me.vel.z+=(wz*speed-me.vel.z)*a}
  else{me.vel.x+=wx*speed*dt*2.5;me.vel.z+=wz*speed*dt*2.5;const n=Math.hypot(me.vel.x,me.vel.z);const cap=Math.max(hs,speed);if(n>cap){me.vel.x*=cap/n;me.vel.z*=cap/n}}
- if(inp.jump&&me.pf&&(me.pf.bat||me.pf.ph))me.pf.up=.45;if(me.down){inp.jump=false;inp.slide=false}if(inp.jump&&me.ground&&me.alive&&!me.frozen&&!me.pf){me.crouch=false;me.vel.y=(myC.jump||8.3)*(me.jm||1);if(me.slideT>0){me.vel.x*=1.08;me.vel.z*=1.08;me.slideT=0}SFX.jump()}inp.jump=false;
+ if(inp.jump&&me.pf&&(me.pf.bat||me.pf.ph))me.pf.up=.45;if(me.down){inp.jump=false;inp.slide=false}if(inp.jump&&me.ground&&me.alive&&!me.frozen&&!me.pf){me.crouch=false;me.vel.y=(myC.jump||8.3)*(me.jm||1)*(PETS&&PETS.jumpMul?PETS.jumpMul():1);if(me.slideT>0){me.vel.x*=1.08;me.vel.z*=1.08;me.slideT=0}SFX.jump()}inp.jump=false;
  if(!(me.pf&&me.pf.ph))ladderMe(dt,mx,mz);if(me.mountT>0){me.mountT-=dt;const k=1-Math.max(0,me.mountT)/me.mountD;const a=me.mountA,b=me.mountB;me.pos.set(a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*Math.min(1,k*2),a[2]+(b[2]-a[2])*k);me.vel.set(0,0,0);if(me.mountT<=0){me.pos.set(b[0],b[1],b[2]);me.ground=true;me.lastG=[b[0],b[1],b[2]]}}
  if(me.pf&&me.pf.ph&&!me.alive)phaseEnd();if(me.nc&&!(me.pf&&me.pf.ph))me.nc=false;
  if(me.alive&&!(me.mountT>0)){if(me.pf&&me.pf.bat)batMove(dt,wx,wz,mz);else if(me.pf&&me.pf.ph){if(!me.alive||performance.now()>me.pf.until)phaseEnd();else phaseMove(dt,wx,wz,mz)}physStep(me,dt);if(me.landed){SFX.land();landDip=.08}}
  if(me.alive&&me.pos.y<-3){me.alive=false;send({t:'fall'})}
  if(me.ground&&hs>2&&me.slideT<=0){me.stepT-=dt*hs;if(me.stepT<=0){me.stepT=sprint?3.3:2.9;if(!myC.quiet||(me.qStep=!me.qStep))SFX.step()}}
  bob+=dt*hs*(me.ground&&me.slideT<=0?1.55:0);landDip=Math.max(0,landDip-dt*.4);
- me.camH+=((me.slideT>0?.95:me.crouch?1.2:1.62)-me.camH)*Math.min(1,dt*12);
+ me.camH+=(((me.slideT>0?.95:me.crouch?1.2:1.62)+(me.ride&&me.ride.on?.5:0))-me.camH)*Math.min(1,dt*12);
  // recoil recovery
  const since=(performance.now()-me.lastShot)/1000;const rec=since>.08?Math.min(1,dt*7):Math.min(1,dt*1.2);recoilP-=recoilP*rec;recoilY-=recoilY*rec;if(since>.25)me.shots=0;
  shake=Math.max(0,shake-dt*2.6);const sh=shake*shake*.035;
@@ -1283,7 +1283,7 @@ function updateMe(dt){const id=me.load[me.cur],w=W[id];if(BC&&me.air){brAirMe(dt
  VA.slide=Math.max(0,VA.slide-dt*14);if(vmInfo.spin&&vmCur){const Gc=vmCur.userData.G.cyl;VA.spin=Math.max(0,(VA.spin||0)-dt*1.2);if(performance.now()-me.lastShot<150)VA.spin=1;VA.spinA=((VA.spinA||0)+dt*VA.spin*40)%(Math.PI*2)}if(VA.inspect>0)VA.inspect-=dt;
  // auto-fire when crosshair is on an enemy (primary mobile control)
  const range=w.melee?w.melee:(w.pellets?32:250);const tgt=(me.alive&&!me.frozen)?aimTarget(range):null;$('cross').classList.toggle('on',!!tgt);
- let trigger=(tgt||inp.fire)&&!paused&&me.alive&&!me.frozen&&C.phase==='play'&&!(RC&&RC.modal);
+ let trigger=(tgt||inp.fire)&&!paused&&me.alive&&!me.frozen&&C.phase==='play'&&!(RC&&RC.modal)&&!(PETS&&PETS.rideBlocks&&PETS.rideBlocks());
  if(me.burst>0){me.burstT-=dt;if(me.burstT<=0&&me.ammo[me.cur]>0&&me.reloadT<=0){me.burst--;me.burstT=.06;fire();me.cool=w.rate}}
  else if(trigger&&!C.hub&&me.cool<=0&&me.switchT<=0&&me.reloadT<=0&&throwT<=0&&(w.melee||me.ammo[me.cur]>0)){if(w.burst){me.burst=w.burst-1;me.burstT=.06}fire()}
  if(!w.melee&&me.ammo[me.cur]<=0&&me.reloadT<=0&&me.alive){if(trigger)SFX.dry();reload()}
@@ -1795,7 +1795,7 @@ const CHEST={price:300,cost:{common:300,rare:300,epic:300,legendary:1500,secret:
  dupe:{common:40,rare:90,epic:160,legendary:280,secret:500,godly:1000}};
 // v98: Secret and Godly chests hold ONLY items of their own rarity (no diamonds, no lower-tier filler, nothing that also drops from a lower chest).
 CHEST.loot.secret=[['pet','ghost',3],['pet','dragon',3],['wsk','galaxy',3],['skin','gxr',2.6],['skin','dragon',2.6],['skin','aurora',2.6],['skin','void',2.4],['skin','solar',2.4],['cls','juggernaut',3],['wpn','minigun',2],['wpn','awp',2],['wpn','rpg',2],['wpn','gl',2]];
-CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['wsk','galaxy_gold',2],['skin','gxg',2]];
+CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['wsk','galaxy_gold',2],['skin','gxg',2],['pet','chimera',1]];
 CHEST.exclusive={secret:new Set(CHEST.loot.secret.map(x=>x[0]+':'+x[1])),godly:new Set(CHEST.loot.godly.map(x=>x[0]+':'+x[1]))};
 for(const t of ['common','rare','epic','legendary'])CHEST.loot[t]=CHEST.loot[t].filter(x=>!CHEST.exclusive.secret.has(x[0]+':'+x[1])&&!CHEST.exclusive.godly.has(x[0]+':'+x[1]));
 const GODLY_CHEST_P=.04,GODLY_AA_P=.06;// Godly upgrade chance: 4% of Secret chests, 6% of Admin Abuse Secret chests (Godly itself has 0% base weight)

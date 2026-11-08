@@ -3,9 +3,10 @@
 // active ones (scout / decoy) use the ability button / X key, sprinter + tracker run on the client. Equipped pet id travels in the weapon-skin
 // object (ws.pet) so it syncs everywhere ws already syncs (join, lobby, 'ws' messages).
 import {THREE} from './gfx.js';
-import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
-export const RAR_N=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY'];
-export const RAR_C=['#9aa4b2','#4cd964','#4dabff','#b37bff','#ffb020'];
+import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {NB4,detailOriginal} from './petmodels4.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {RIDES,rideOf,shouldDismount,hostOmni,hostSpinGrab} from './petabil3.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
+export {RIDES,rideOf,shouldDismount};
+export const RAR_N=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY','GODLY'];
+export const RAR_C=['#9aa4b2','#4cd964','#4dabff','#b37bff','#ffb020','#ffd700'];
 export const TM=[1,1.2,1.4];// passive-power multiplier per tier (T1/T2/T3)
 export const tierOf=ws=>Math.max(1,Math.min(3,((ws&&ws.pt)|0)||1));
 export const TV={batform:{dur:[3,6,10],cd:30},firebreath:{dur:[3.5,5,6.5],gap:[2.4,2,1.6],cd:38}};
@@ -21,7 +22,12 @@ export const AB={
  decoy:{n:'Decoy',ic:'🎭',act:1,d:p=>`Ability button / X: drops a hologram of you; bots farther than 8 m lose you for ${Math.round(6*p)} s (${Math.round(32/p)} s cooldown).`},
  batform:{n:'Shadow Form',ic:'🦇',act:1,d:(p,t=1)=>`Ability button / X: turn into a small, fast flying bat for ${TV.batform.dur[t-1]} s (T1 3 s · T2 6 s · T3 10 s). You cannot shoot while a bat; walls still block you. ${TV.batform.cd} s cooldown.`},
  firebreath:{n:'Ember Strike',ic:'🔥',act:1,d:(p,t=1)=>`Ability button / X: your dragon hovers and spits fireballs at the nearest visible enemy within 50 m for 50 damage each, one every ${TV.firebreath.gap[t-1]} s for ${TV.firebreath.dur[t-1]} s. ${TV.firebreath.cd} s cooldown.`},
- finder:{n:'Diamond Finder',ic:'💎',act:0,d:p=>`Sniffs out 1 💎 every ${Math.round(85/p)} s while you play a match (max 4 per match).`}};
+ finder:{n:'Diamond Finder',ic:'💎',act:0,d:p=>`Sniffs out 1 💎 every ${Math.round(85/p)} s while you play a match (max 4 per match).`},
+ omni:{n:'Celestial',ic:'✨',act:0,d:()=>`Uses every safe buddy trick for you: zap, heal, shield, loot magnet, luck, diamonds, a decoy and a short flame. You can still shoot. Not rideable.`},
+ spin:{n:'Spin Magnet',ic:'🌀',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. The capybara spins and pulls medkits and shields from 7 m. Tier ${t}: ${Math.round((RIDES.spincapy.spd[t-1]-1)*100)}% run speed, jump ×${RIDES.spincapy.jump[t-1]}. You can shoot. A hit of ${RIDES.spincapy.heavy}+ damage knocks you off.`},
+ wolf:{n:'Storm Run',ic:'🐺',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. Tier ${t}: ${Math.round((RIDES.stormwolf.spd[t-1]-1)*100)}% speed, jump ×${RIDES.stormwolf.jump[t-1]}. You can shoot. Heavy hits (${RIDES.stormwolf.heavy}+) dismount you.`},
+ ostrich:{n:'Rocket Hop',ic:'🚀',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. Tier ${t}: ${Math.round((RIDES.rocketrich.spd[t-1]-1)*100)}% speed, jump ×${RIDES.rocketrich.jump[t-1]}. Hands stay on the rocket, so you cannot shoot until you hop off. Heavy hits (${RIDES.rocketrich.heavy}+) dismount you.`},
+ raptor:{n:'Raptor Dash',ic:'🦖',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. Tier ${t}: ${Math.round((RIDES.raptor.spd[t-1]-1)*100)}% speed, jump ×${RIDES.raptor.jump[t-1]}. You can shoot from the saddle. Heavy hits (${RIDES.raptor.heavy}+) dismount you.`}};
 // pw = power multiplier of the ability (kept modest so nothing is overpowered)
 Object.assign(AB,NAB,NAB3);Object.assign(TV,TV2,TV3);
 export const SK_DEFS=[
@@ -51,11 +57,17 @@ export const SK_DEFS=[
  {id:'mirrormonkey',name:'Mirra',kind:'Mirror Monkey',ab:'mirror',pw:1,rar:3,price:850,col:0xb8bcc8,orig:1,new:1},
  {id:'gravityowl',name:'Orbit',kind:'Gravity Owl',ab:'lowg',pw:1,rar:3,price:950,col:0x9a7fd0,orig:1,new:1},
  {id:'raccoon',name:'Bandit',kind:'Magnet Raccoon',ab:'pull',pw:1,rar:2,price:520,col:0x8a8f98,orig:1,new:1},
- {id:'magnetdrone',name:'Magnetron',kind:'Magnet Drone',ab:'vacuum',pw:1,rar:2,price:480,col:0xc8ccd6,orig:1,new:1}];
+ {id:'magnetdrone',name:'Magnetron',kind:'Magnet Drone',ab:'vacuum',pw:1,rar:2,price:480,col:0xc8ccd6,orig:1,new:1},
+ {id:'chimera',name:'Sol',kind:'Celestial Chimera',ab:'omni',pw:1.15,rar:5,price:5000,col:0xf0c14a,orig:1,new:1,godly:1},
+ {id:'spincapy',name:'Wheeler',kind:'Spin Capybara',ab:'spin',pw:1,rar:3,price:1800,col:0xc48a4a,orig:1,new:1,ride:1},
+ {id:'stormwolf',name:'Gale',kind:'Storm Wolf',ab:'wolf',pw:1,rar:4,price:2200,col:0x8ecbff,orig:1,new:1,ride:1},
+ {id:'rocketrich',name:'Comet',kind:'Rocket Ostrich',ab:'ostrich',pw:1,rar:4,price:2600,col:0xf4f7fb,orig:1,new:1,ride:1},
+ {id:'raptor',name:'Dash',kind:'Raptor',ab:'raptor',pw:1,rar:4,price:2400,col:0x3ddc97,orig:1,new:1,ride:1}];
 export const SK_BY=Object.fromEntries(SK_DEFS.map(d=>[d.id,d]));
 export const SK_IDS=SK_DEFS.map(d=>d.id);
 export const SK_FLAVOR={dog:'Loyal and a little bit grumpy.',cat:'Always lands on a good drop.',bunny:'Collects everything that bounces.',bat:'Hears enemies through the walls.',fox:'Never loses a trail.',penguin:'Waddles over with bandages.',bear:'Big hugs, bigger bubbles.',tiger:'Makes a very convincing double of you.',hedgehog:'Zoom zoom! Original speedy hedgehog.',lion:'Sniffs diamonds from across the map.',superdog:'Cape on, ears up, zap zap!',twohead:'Two heads, one very good nose.',robot:'Beep boop, scanning...',ghost:'Boo! Now you see me, now you don\'t.',dragon:'Hoards luck instead of gold.'};
 SK_FLAVOR.shadowbat='Becomes a bat when the lights go out.';SK_FLAVOR.emberdragon='Small, proud and very, very warm.';SK_FLAVOR.specter='Drifts through walls like they were fog.';SK_FLAVOR.frostfox='Leaves frost where it steps.';SK_FLAVOR.stonegolem='Small, sturdy, and very good at walls.';SK_FLAVOR.phoenix='Burns out, then bursts back brighter.';SK_FLAVOR.sharkpup='Swims through sand like it was the sea.';SK_FLAVOR.mirrormonkey='Which one is the real you?';SK_FLAVOR.gravityowl='Weightless wisdom with a mean hop.';SK_FLAVOR.raccoon='Steals the loot right off the floor.';SK_FLAVOR.magnetdrone='Vacuums up supplies, no strings attached.';SK_FLAVOR.thunderhawk='Calls the storm down on one unlucky target.';
+SK_FLAVOR.chimera='Lion, goat and serpent, all in gold, and every trick at once.';SK_FLAVOR.spincapy='A barrel-bodied rider that spins the loot off the ground.';SK_FLAVOR.stormwolf='Silver fur, blue sparks, and a very fast saddle.';SK_FLAVOR.rocketrich='Long legs and a small rocket. Hop first, shoot later.';SK_FLAVOR.raptor='Feathers, a hooked claw, and room to aim.';
 export const abOf=(id,tier=1)=>{const d=SK_BY[id];return d?{...AB[d.ab],key:d.ab,pw:d.pw,text:AB[d.ab].d(d.pw*TM[tier-1],tier)}:null};
 // ---------------------------------------------------------------- models (shared geometry + cached materials: cheap on phones)
 const GE={sph:new THREE.SphereGeometry(1,10,8),box:new THREE.BoxGeometry(1,1,1),cone:new THREE.ConeGeometry(1,1,8),cyl:new THREE.CylinderGeometry(1,1,1,10),tor:new THREE.TorusGeometry(1,.18,6,14)};
@@ -126,9 +138,10 @@ B.bat=()=>{const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,e
  for(const s of[-1,1]){P(hd,'cone',C,s*.07,.13,-.02,.05,.13,.025,0,0,-s*.15);P(hd,'cone',0xf0b8d8,s*.07,.12,0,.025,.08,.015,0,0,-s*.15);P(hd,'cone',0xffffff,s*.02,-.1,.1,.012,.03,.012,Math.PI)}
  for(const s of[-1,1]){const w=G(b,s*.1,.34,0);P(w,'cone',C2,s*.18,0,-.02,.1,.28,.01,0,0,-s*Math.PI/2);P(w,'cone',C,s*.1,.02,-.02,.05,.16,.012,0,0,-s*Math.PI/2);rig.wings.push(w)}
  rig.sc=1.45;root.userData.rig=rig;return root};
-Object.assign(B,NB,NB2,NB3);
+Object.assign(B,NB,NB2,NB3,NB4);
 const LITE=typeof window!=='undefined'&&('ontouchstart' in window||(navigator.maxTouchPoints|0)>0);
-export function makePet(id,tier=1){const f=B[id];const g=new THREE.Group();if(!f)return g;const m=f();m.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false}});const sc=(m.userData.rig&&m.userData.rig.sc)||1;m.scale.setScalar(sc*1.15);g.add(m);g.userData.rig=m.userData.rig;g.userData.inner=m;g.userData.id=id;g.userData.tier=tier;decorate(g,(SK_BY[id]||{}).col||0xffffff,tier,LITE);return g}
+const ORIG15=new Set(['dog','cat','bunny','bat','fox','penguin','bear','tiger','hedgehog','lion','superdog','twohead','robot','ghost','dragon']);
+export function makePet(id,tier=1){const f=B[id];const g=new THREE.Group();if(!f)return g;const m=f();const def=SK_BY[id]||{};if(ORIG15.has(id))detailOriginal(m,id,def.col,tier);m.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false}});const sc=(m.userData.rig&&m.userData.rig.sc)||1;m.scale.setScalar(sc*1.15);g.add(m);g.userData.rig=m.userData.rig;g.userData.inner=m;g.userData.id=id;g.userData.tier=tier;decorate(g,def.col||0xffffff,tier,LITE);return g}
 export function animPet(g,t,mv,dt){const r=g.userData.rig;if(!r)return;const m=Math.min(1,mv);const ph=t*(r.speedy?20:r.waddle?10:12);
  for(const l of r.legs)l.g.rotation.x=Math.sin(ph+l.ph)*.8*m*(r.waddle?.6:1);
  if(r.tail)r.tail.rotation.y=Math.sin(t*(m>.1?11:6))*(r.waddle?0:.55);if(r.tail&&r.speedy)r.tail.rotation.x=Math.sin(t*15)*.2;
@@ -159,30 +172,35 @@ export function initSidekicks(A){
  // ---- ability state
  let cdUntil=0,dur=0;const btn=document.getElementById('bPet');
  const myDef=()=>SK_BY[P0.pet];const myTier=()=>tierOf({pt:P0.pt&&P0.pt[P0.pet]});const myPw=d=>d.pw*TM[myTier()-1];
- function activeDef(){const d=myDef();return d&&AB[d.ab].act?d:null}
- function setBtn(){if(!btn)return;const d=activeDef();const show=!!d&&A.inGame()&&!C.hub&&me.alive;btn.classList.toggle('hidden',!show);if(!show)return;const nowMs=performance.now();const left=Math.max(0,cdUntil-nowMs);btn.innerHTML=`<span class="pi">${AB[d.ab].ic}</span>`;btn.style.setProperty('--cd',left?String(Math.round(100*(1-left/(dur||1)))):'100');btn.classList.toggle('cool',left>0);btn.title=AB[d.ab].n}
- function use(){const d=activeDef();if(!d||!A.inGame()||C.hub||!me.alive)return false;const now=performance.now();if(now<cdUntil||now<(use.t||0))return false;const pw=myPw(d);
+ function mounted(){return me.ride&&me.ride.on?me.ride:null}
+ function toggleRide(){const d=myDef();if(!d||!d.ride||!A.inGame()||!me.alive)return false;const on=!(me.ride&&me.ride.on);const st=on?rideOf(d.id,myTier()):null;me.ride=st&&on?{on:1,...st}:null;A.send({t:'pab',k:'ride',on:on?1:0});A.toast&&A.toast(on?`Riding ${d.name}`:`${d.name} hops down`);return true}
+ function activeDef(){const d=myDef();if(d&&d.ride)return d;return d&&AB[d.ab]&&AB[d.ab].act?d:null}
+ function setBtn(){if(!btn)return;const d=activeDef();const show=!!d&&A.inGame()&&!C.hub&&me.alive;btn.classList.toggle('hidden',!show);if(!show)return;const nowMs=performance.now();const left=d.ride?0:Math.max(0,cdUntil-nowMs);btn.innerHTML=`<span class="pi">${d.ride?(mounted()?'⬇':'🏇'):AB[d.ab].ic}</span>`;btn.style.setProperty('--cd',left?String(Math.round(100*(1-left/(dur||1)))):'100');btn.classList.toggle('cool',left>0);btn.title=d.ride?(mounted()?'Dismount (R)':'Ride (R)'):AB[d.ab].n}
+ function use(){const d=activeDef();if(!d||!A.inGame()||C.hub||!me.alive)return false;if(d.ride)return toggleRide();const now=performance.now();if(now<cdUntil||now<(use.t||0))return false;const pw=myPw(d);
   if(d.ab==='scout'){markers();scan={t:now,d:5000*pw};dur=26000/pw;cdUntil=now+dur;A.toast&&A.toast(`${d.name} scans the area 📡`)}
   else if(d.ab==='decoy'){dur=32000/pw;cdUntil=now+dur;A.send({t:'pab',k:'decoy'});A.toast&&A.toast(`${d.name} drops a decoy 🎭`)}
   else if(d.ab==='batform'||d.ab==='firebreath'||NAB[d.ab]||NAB3[d.ab]){use.t=now+700;A.send({t:'pab',k:d.ab})}
   A.sfx&&A.sfx('ping');return true}
  if(btn){const dn=e=>{e.stopPropagation();e.preventDefault();btn.classList.add('down');use()};btn.addEventListener('pointerdown',dn);const up=()=>btn.classList.remove('down');btn.addEventListener('pointerup',up);btn.addEventListener('pointercancel',up);btn.addEventListener('pointerleave',up)}
- addEventListener('keydown',e=>{if(e.code==='KeyX'&&!e.repeat&&!/INPUT|TEXTAREA/.test((e.target&&e.target.tagName)||'')&&A.canAct()){use()}});
+ addEventListener('keydown',e=>{if((e.code==='KeyX'||e.code==='KeyR')&&!e.repeat&&!/INPUT|TEXTAREA/.test((e.target&&e.target.tagName)||'')&&A.canAct()){if(e.code==='KeyR'){const d=myDef();if(d&&d.ride){toggleRide();return}}use()}});
  function onFx(m){if(!m)return;if(m.k==='zap'){const o=F.get(m.id===me.id?'me':m.id),q=m.v===me.id?{rp:me.pos}:C.players[m.v];if(!o||!q)return;const g=new THREE.Mesh(beamG,new THREE.MeshBasicMaterial({color:0xffe45a,transparent:true,opacity:.95,depthWrite:false,blending:THREE.AdditiveBlending}));g.userData={t:performance.now(),a:o,v:q};root.add(g);zaps.push(g)}
   else if(m.k==='batform'){const key=m.id===me.id?'me':m.id;const u=performance.now()+m.d*1000;MO.set(key,{until:u,mesh:null,id:m.id});if(m.id===me.id){me.pf={bat:1,until:u,up:0};cdUntil=performance.now()+m.cd*1000;dur=m.cd*1000;A.toast&&A.toast('🦇 Shadow Form!')}A.sfx&&m.id===me.id&&A.sfx('ping')}
   else if(m.k==='fireon'){const f=F.get(m.id===me.id?'me':m.id);if(f)f.hoverUntil=performance.now()+m.d*1000;if(m.id===me.id){cdUntil=performance.now()+m.cd*1000;dur=m.cd*1000;A.toast&&A.toast('🔥 Ember Strike!')}}
   else if(m.k==='fball'){const f=F.get(m.id===me.id?'me':m.id),q=m.v===me.id?{rp:me.pos}:C.players[m.v];if(!f||!q)return;f.g.updateMatrixWorld();const a=new THREE.Vector3();const rg=f.g.userData.rig;(rg&&rg.mouth?rg.mouth:f.g).getWorldPosition(a);const s=new THREE.Sprite(spriteMat(0xff8a1a,1));s.scale.setScalar(.55);s.position.copy(a);root.add(s);FB.push({s,a,b:new THREE.Vector3(q.rp.x,q.rp.y+1.1,q.rp.z),t:performance.now(),q:m.v});f.aim=new THREE.Vector3(q.rp.x,q.rp.y,q.rp.z);f.aimT=performance.now()+700}
+  else if(m.k==='dismount'&&m.id===me.id){me.ride=null;if(m.heavy)A.toast&&A.toast('Knocked off your buddy')}
+  else if(m.k==='omniscan'&&m.id===me.id){markers();scan={t:performance.now(),d:(m.d||4)*1000}}
   else if(m.k==='phase'||m.k==='frost'||m.k==='mark'||m.k==='bolt'||m.k==='nomark')clientFx2(m,FXX);
   else if(m.k==='wall'||m.k==='swim'||m.k==='mirror'||m.k==='lowg'||m.k==='pullring'||m.k==='nopull'||m.k==='phx')clientFx3(m,FXX);
   else if(m.k==='decoy'){const h=holoMk();h.position.set(m.x,m.y,m.z);h.rotation.y=m.yaw||0;h.userData.t=performance.now();h.userData.d=(m.d||6)*1000;root.add(h);holos.push(h)}}
  // ---- followers
- function ownersNow(){const out=[];const mine=P0.pet;if(mine&&SK_BY[mine]&&(me.alive||C.hub)&&!me.air&&!(A.spectating&&A.spectating()))out.push({key:'me',pet:mine,tier:myTier(),pos:me.pos,ground:me.ground,vel:me.vel,own:1});
+ function ownersNow(){const out=[];const mine=P0.pet;if(mine&&SK_BY[mine]&&(me.alive||C.hub)&&!me.air&&!(A.spectating&&A.spectating()))out.push({key:'me',pet:mine,tier:myTier(),pos:me.pos,ground:me.ground,vel:me.vel,own:1,mount:mounted(),yaw:me.yaw});
   for(const id in C.players){if(id===me.id)continue;const q=C.players[id];const pet=q.ws&&q.ws.pet;if(!pet||!SK_BY[pet]||!q.rp||!q.model||!q.model.visible||(!q.alive&&!C.hub)||q.air)continue;out.push({key:id,pet,tier:tierOf(q.ws),pos:q.rp,ground:true,vel:null,q})}return out}
  function mk(o){const g=makePet(o.pet,o.tier||1);g.userData.blob=new THREE.Mesh(blobGeo,blobMat);g.userData.blob.rotation.x=-Math.PI/2;root.add(g.userData.blob);root.add(g);const f={key:o.key,pet:o.pet,tier:o.tier||1,hy:0,g,pos:new THREE.Vector3(o.pos.x-1,o.pos.y,o.pos.z+1),vel:new THREE.Vector3(),yaw:0,home:0,gy:o.pos.y,age:0,lp:new THREE.Vector3(o.pos.x,o.pos.y,o.pos.z),mv:0};f.hp=new THREE.Vector3();F.set(o.key,f);return f}
  function drop(f){root.remove(f.g);root.remove(f.g.userData.blob);F.delete(f.key)}
  function pushOut(f,cols){if(!cols)return;const r=.22,y=f.gy;for(let i=0;i<cols.length;i++){const c=cols[i];if(c.y0>y+.45||c.y1<y+.08)continue;if(f.pos.x+r<c.x0||f.pos.x-r>c.x1||f.pos.z+r<c.z0||f.pos.z-r>c.z1)continue;
    const l=f.pos.x+r-c.x0,rr=c.x1-(f.pos.x-r),u=f.pos.z+r-c.z0,d=c.z1-(f.pos.z-r);const m=Math.min(l,rr,u,d);if(m===l)f.pos.x=c.x0-r;else if(m===rr)f.pos.x=c.x1+r;else if(m===u)f.pos.z=c.z0-r;else f.pos.z=c.z1+r}}
  function step(f,o,dt,cols){const O=o.pos;f.age+=dt;
+  if(o.mount){f.pos.set(O.x,O.y,O.z);f.gy=O.y;f.vel.set(0,0,0);const g=f.g;g.position.set(O.x,O.y+.05,O.z);g.rotation.y=o.yaw||0;g.scale.setScalar(1.2);const inn=g.userData.inner;if(inn&&o.mount.spin)inn.rotation.y+=dt*16;const bl=g.userData.blob;if(bl){bl.position.set(O.x,O.y+.02,O.z);bl.scale.set(.15,.15,.15)}animPet(g,clock,o.mount.spin?1.2:.4,dt);return}
   // heading = owner's movement direction (smoothed), so the buddy trails behind instead of orbiting when you look around
   let hx=0,hz=0;if(o.vel){hx=o.vel.x;hz=o.vel.z}else{hx=(O.x-f.lp.x)/Math.max(dt,.001);hz=(O.z-f.lp.z)/Math.max(dt,.001)}f.lp.set(O.x,O.y,O.z);const hs=Math.hypot(hx,hz);if(hs>1.2){let da=Math.atan2(hx,hz)-f.home;da=Math.atan2(Math.sin(da),Math.cos(da));f.home+=da*Math.min(1,dt*2.2)}
   const sh=Math.sin(f.home),ch=Math.cos(f.home);const tx=O.x-sh*1.5+ch*1.05,tz=O.z-ch*1.5-sh*1.05;
@@ -209,18 +227,20 @@ export function initSidekicks(A){
   if(scan){const e=now-scan.t;if(e>scan.d){scan=null;for(const s of MK)s.visible=false;if(ring)ring.visible=false}else{let i=0;for(const id in C.players){const q=C.players[id];if(i>=MK.length)break;if(!q.alive||!q.rp||q.air||!A.isEnemy(q))continue;const s=MK[i++];s.visible=true;const d=Math.hypot(q.rp.x-me.pos.x,q.rp.z-me.pos.z);s.position.set(q.rp.x,q.rp.y+2.25,q.rp.z);const sz=.55+Math.min(d,80)*.028;s.scale.set(sz,sz,1);s.material.opacity=Math.min(1,(scan.d-e)/600)}for(;i<MK.length;i++)MK[i].visible=false;
     if(e<900){ring.visible=true;const r=1+e/900*40;ring.position.set(me.pos.x,me.pos.y+.3,me.pos.z);ring.scale.set(r,r,r);ring.material.opacity=.9*(1-e/900)}else ring.visible=false}}
   // tracker: footprints of enemies near you
-  const d0=myDef();if(d0&&d0.ab==='tracker'&&me.alive&&!C.hub){prints();const life=5000*myPw(d0);for(const id in C.players){const q=C.players[id];if(id===me.id||!q.alive||!q.rp||q.air||!A.isEnemy(q))continue;if(Math.hypot(q.rp.x-me.pos.x,q.rp.z-me.pos.z)>45)continue;const L=q._pl||(q._pl={x:q.rp.x,z:q.rp.z,s:1});if(Math.hypot(q.rp.x-L.x,q.rp.z-L.z)>.95&&q.rp.y<me.pos.y+8){const o=PRN[prI=(prI+1)%PRN.length];const hd=Math.atan2(q.rp.x-L.x,q.rp.z-L.z);L.s=-L.s;o.position.set(q.rp.x+Math.cos(hd)*.12*L.s,q.rp.y+.045,q.rp.z-Math.sin(hd)*.12*L.s);o.rotation.y=hd;o.userData.t=now;o.userData.life=life;o.visible=true;L.x=q.rp.x;L.z=q.rp.z}}
+  const d0=myDef();if(d0&&(d0.ab==='tracker'||d0.ab==='omni')&&me.alive&&!C.hub){prints();const life=5000*(d0.ab==='omni'?myPw(d0):myPw(d0));for(const id in C.players){const q=C.players[id];if(id===me.id||!q.alive||!q.rp||q.air||!A.isEnemy(q))continue;if(Math.hypot(q.rp.x-me.pos.x,q.rp.z-me.pos.z)>45)continue;const L=q._pl||(q._pl={x:q.rp.x,z:q.rp.z,s:1});if(Math.hypot(q.rp.x-L.x,q.rp.z-L.z)>.95&&q.rp.y<me.pos.y+8){const o=PRN[prI=(prI+1)%PRN.length];const hd=Math.atan2(q.rp.x-L.x,q.rp.z-L.z);L.s=-L.s;o.position.set(q.rp.x+Math.cos(hd)*.12*L.s,q.rp.y+.045,q.rp.z-Math.sin(hd)*.12*L.s);o.rotation.y=hd;o.userData.t=now;o.userData.life=life;o.visible=true;L.x=q.rp.x;L.z=q.rp.z}}
    for(const o of PRN)if(o.visible){const a=1-(now-o.userData.t)/(o.userData.life||5000);if(a<=0)o.visible=false;else o.material.opacity=Math.min(1,a*1.4)*.85}}
   else if(PRN.length)for(const o of PRN)o.visible=false;
   // zap beams + holograms
   for(let i=zaps.length-1;i>=0;i--){const z=zaps[i],e=(performance.now()-z.userData.t)/1000;if(e>.28){root.remove(z);z.material.dispose();zaps.splice(i,1);continue}const a=z.userData.a.g.position,v=z.userData.v.rp;z.position.set(a.x,a.y+.3,a.z);_v.set(v.x,v.y+1.1,v.z);z.lookAt(_v);z.scale.set(1+Math.random()*.6,1+Math.random()*.6,z.position.distanceTo(_v));z.material.opacity=.95*(1-e/.28)}
   for(let i=holos.length-1;i>=0;i--){const h=holos[i],e=performance.now()-h.userData.t;if(e>h.userData.d){root.remove(h);holos.splice(i,1);continue}h.userData.m.opacity=.45*Math.min(1,(h.userData.d-e)/500)*(.8+.2*Math.sin(e/90));h.position.y+=0}
   updateFx2(FXX,dt);updateFx3(FXX,dt);if(!me.alive&&((me.jm!=null&&me.jm!==1)||me.spb)){resetFx3(me);if(!me.pf)me.gm=1}setBtn()}
- return{update,use,onFx,phaseOff(id){phaseClear();unghost(id)},post(){const n=performance.now();for(const [k,mo] of MO){if(k==='me')continue;const q=C.players[k];if(q&&q.model)q.model.visible=false}for(const id in C.players){if(id!==me.id&&ghosted(id)){const q=C.players[id];if(q&&q.model)q.model.visible=false}}if(me.pf&&me.pf.bat){A.hideVm&&A.hideVm()}},speedMul:()=>{const d=myDef();const sb=me.spb&&performance.now()<me.spb.until?me.spb.mul:1;return(d&&d.ab==='sprinter'&&A.inGame()?1+.06*myPw(d):1)*sb},root,followers:F,morphMesh:k=>{const o=MO.get(k);return o&&o.mesh},state:()=>({morphs:MO.size,scan:!!scan,cd:Math.max(0,cdUntil-performance.now())|0,holos:holos.length,zaps:zaps.length,prints:PRN.filter(o=>o.visible).length,markers:MK.filter(s=>s.visible).length}),def:myDef,reset(){scan=null;cdUntil=0}}}
+ return{update,use,onFx,phaseOff(id){phaseClear();unghost(id)},post(){const n=performance.now();for(const [k,mo] of MO){if(k==='me')continue;const q=C.players[k];if(q&&q.model)q.model.visible=false}for(const id in C.players){if(id!==me.id&&ghosted(id)){const q=C.players[id];if(q&&q.model)q.model.visible=false}}if(me.pf&&me.pf.bat){A.hideVm&&A.hideVm()}},speedMul:()=>{const d=myDef();const sb=me.spb&&performance.now()<me.spb.until?me.spb.mul:1;const ride=mounted();const base=d&&(d.ab==='sprinter'||d.ab==='omni')&&A.inGame()?1+.06*myPw(d):1;return base*sb*(ride?ride.spd:1)},jumpMul:()=>{const r=mounted();if(r)return r.jump;const d=myDef();return d&&d.ab==='omni'&&A.inGame()?1.15:1},rideBlocks:()=>{const r=mounted();return !!(r&&!r.atk)},root,followers:F,morphMesh:k=>{const o=MO.get(k);return o&&o.mesh},state:()=>({morphs:MO.size,scan:!!scan,cd:Math.max(0,cdUntil-performance.now())|0,holos:holos.length,zaps:zaps.length,prints:PRN.filter(o=>o.visible).length,markers:MK.filter(s=>s.visible).length,ride:!!mounted()}),def:myDef,reset(){scan=null;cdUntil=0;me.ride=null}}}
 // ---------------------------------------------------------------- host side (passive abilities, resolved for every human with a sidekick)
-export function luck(p){const d=SK_BY[p&&p.ws&&p.ws.pet];return d&&d.ab==='lucky'?.18*d.pw*TM[tierOf(p.ws)-1]:0}
+export function luck(p){const d=SK_BY[p&&p.ws&&p.ws.pet];return d&&(d.ab==='lucky'||d.ab==='omni')?.18*d.pw*TM[tierOf(p.ws)-1]:0}
 export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;const t=H.t;
  for(const p of X.plist()){if(p.bot||!p.alive||p.down||p.air||p.elim)continue;const id=p.ws&&p.ws.pet;const d=SK_BY[id];if(!d)continue;const S=(p._pk&&p._pk.id===id)?p._pk:(p._pk={id,a:t+(d.ab==='magnet'||d.ab==='guard'||d.ab==='vacuum'?1:6),fl:[],dc:0});const pw=d.pw*TM[tierOf(p.ws)-1];const tr=tierOf(p.ws);
+  if(d.ab==='omni'){hostOmni(X,p,S,H,pw,tr,dt);continue}
+  if(d.ab==='spin'&&p.ride)hostSpinGrab(X,p,S,H);
   if(d.ab==='guard'){if(t<S.a||H.noFight)continue;const R=5+pw;let best=null,bd=1e9;for(const q of X.plist()){if(q.id===p.id||!q.alive||q.down||q.air||(q.prot&&t<q.prot)||!X.enemy(p,q))continue;const dd=Math.hypot(q.p[0]-p.p[0],q.p[1]-p.p[1],q.p[2]-p.p[2]);if(dd>R||dd>=bd||!X.los(p,q))continue;bd=dd;best=q}
    if(best){S.a=t+5.4-pw*1.2;X.bcast({t:'pfx',k:'zap',id:p.id,v:best.id});X.damage(best,Math.round(6+4*pw),p.id,false,'fists')}else S.a=t+.4}
   else if(d.ab==='medic'){if(p.hp<100&&t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+1.4*pw*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}
@@ -237,6 +257,7 @@ export function hostAbility(X,p,m){const H=X.H();if(!H||!p||!p.alive||H.phase!==
  else if(d.ab==='batform'&&m.k==='batform'){if(H.t<(S.cd||0)||p.down||p.air)return;const du=TV.batform.dur[tr-1];S.cd=H.t+du+TV.batform.cd;X.bcast({t:'pfx',k:'batform',id:p.id,d:du,cd:du+TV.batform.cd})}
  else if(d.ab==='firebreath'&&m.k==='firebreath'){if(H.t<(S.cd||0)||p.down||p.air)return;const du=TV.firebreath.dur[tr-1];S.cd=H.t+du+TV.firebreath.cd;S.fire={until:H.t+du,next:H.t+.7};X.bcast({t:'pfx',k:'fireon',id:p.id,d:du,cd:du+TV.firebreath.cd})}
  else if(NAB[d.ab]&&m.k===d.ab)hostUse2(X,p,d,S,H,tr)
- else if(NAB3[d.ab]&&m.k===d.ab)hostUse3(X,p,d,S,H,tr)}
-// v96 Phoenix Rebirth: called from damage() when a hit would kill a human; true = saved
-export function petSave(X,v){const H=X.H();if(!H||v.bot||!v.ws||v.ws.pet!=='phoenix'||H.phase!=='play')return false;const tr=tierOf(v.ws),t=H.t;const S=(v._pk&&v._pk.id==='phoenix')?v._pk:(v._pk={id:'phoenix',a:t+6,fl:[],dc:0});if(t<(S.rb||0))return false;const V=TV3.rebirth;S.rb=t+V.cd;v.hp=V.hp[tr-1];v.sh=Math.max(v.sh||0,0);v.prot=t+V.prot;X.bcast({t:'hp',id:v.id,hp:Math.round(v.hp)});X.bcast({t:'pfx',k:'phx',id:v.id});return true}
+ else if(NAB3[d.ab]&&m.k===d.ab)hostUse3(X,p,d,S,H,tr)
+ else if(m.k==='ride'&&d.ride){p.ride=m.on?1:0;X.bcast({t:'pfx',k:m.on?'mount':'dismount',id:p.id})}}
+// Phoenix, and the Celestial Chimera, rise once when a hit would kill them.
+export function petSave(X,v){const H=X.H();const id=v.ws&&v.ws.pet;const d=SK_BY[id];if(!H||v.bot||!d||H.phase!=='play'||(id!=='phoenix'&&d.ab!=='omni'))return false;const tr=tierOf(v.ws),t=H.t;const S=(v._pk&&v._pk.id===id)?v._pk:(v._pk={id,a:t+6,fl:[],dc:0});if(t<(S.rb||0))return false;const V=TV3.rebirth;S.rb=t+V.cd;v.hp=V.hp[tr-1];v.sh=Math.max(v.sh||0,0);v.prot=t+V.prot;X.bcast({t:'hp',id:v.id,hp:Math.round(v.hp)});X.bcast({t:'pfx',k:'phx',id:v.id});return true}
