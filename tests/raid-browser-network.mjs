@@ -16,6 +16,9 @@ try{
  const profile=await p.evaluate("fetch('/api/profile').then(r=>r.json())");
  await p.evaluate("document.getElementById('recovery').checked=true;document.getElementById('deploy').click()");
  await p.wait("document.getElementById('play').style.display==='block' && window.__networkCamera && document.body.getAttribute('aria-busy')==='false'");
+ // Local prediction is rendered by requestAnimationFrame; a target created in the
+ // background tab never animates, so bring this page forward before measuring it.
+ await p.command('Page.bringToFront');await p.wait("document.visibilityState==='visible'");
  const operator=raids.byAccount.get(profile.id);operator.protectedUntil=Date.now()/1000+60;
  let mode='movement',resolveMovement,resolveShot;const movement=new Promise(r=>resolveMovement=r),shot=new Promise(r=>resolveShot=r),shots=[],interceptErrors=[];
  const listener=event=>{const message=JSON.parse(event.data);if(message.method!=='Fetch.requestPaused')return;const paused=message.params;
@@ -23,7 +26,7 @@ try{
    if(mode==='movement'&&packet.type==='move'){mode='holding';resolveMovement(paused.requestId);return}
    if(packet.type==='fire'){shots.push(packet);if(mode==='shot'){mode='shot-lost';await p.command('Fetch.failRequest',{requestId:paused.requestId,errorReason:'ConnectionReset'});resolveShot();return}}
    await p.command('Fetch.continueRequest',{requestId:paused.requestId});
-  };handle().catch(error=>interceptErrors.push(error.message));
+  };handle().catch(error=>{if(!/Fetch domain is not enabled/.test(error.message))interceptErrors.push(error.message)});
  };
  p.socket.addEventListener('message',listener);await p.command('Fetch.enable',{patterns:[{urlPattern:'*/api/action',requestStage:'Request'}]});
  const held=await bounded(movement,'Movement did not pause'),before={x:operator.x,z:operator.z},cameraBefore=await p.evaluate('window.__networkCamera');

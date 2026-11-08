@@ -96,7 +96,7 @@ export class RaidView {
  }
  updateEnvironment(blend){
   const target=this.environmentTarget;if(!target)return;this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(28*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(150*this.viewScale*target.visibility-this.scene.fog.far)*blend;this.sun.intensity+=(target.light-this.sun.intensity)*blend;this.hemi.intensity+=(target.ambient-this.hemi.intensity)*blend;
-  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sun.position.lerp(lightPosition,blend);this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=this.stars.material.opacity>.01;
+  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sun.position.lerp(lightPosition,blend);this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
  }
  fire(){this.recoil=this.settings?.reduced?0:.07;const s=this.snapshot?.self,item=s&&[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);this.audio.play(item?'shot:'+item.weapon:'shot')}
  frame(time,yaw,pitch,predicted,aiming=false){
