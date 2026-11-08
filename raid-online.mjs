@@ -173,7 +173,7 @@ function renderPack(s,sources,downed){
   if(it.kind==='utility')controls.push(button('Throw toward aim',()=>throwHeldUtility(it)));
   if(it.kind==='med'){const use=button('Use',()=>action({type:'use',itemId:it.id}));use.disabled=s.downed||!s.alive||s.combatVersion===2&&(!medicalNeed(s,it,snapshot.serverTime)||snapshot.serverTime<s.nextMedicalAt);controls.push(use)}
   if(it.kind==='armor'&&s.combatVersion===2)controls.push(button(s.equipment.some(e=>e.id===it.id)?'Remove armor':'Wear armor',()=>action({type:s.equipment.some(e=>e.id===it.id)?'removeArmor':'wear',...(s.pack.some(e=>e.id===it.id)?{itemId:it.id}:{})})));
-  if(it.kind==='weapon'&&it.id!==s.weaponId)controls.push(button('Equip',()=>action({type:'equip',itemId:it.id})));
+  if(it.kind==='weapon'){const equip=button('Equip',()=>action({type:'equip',itemId:it.id}));if(it.id===s.weaponId)equip.title='This weapon is already equipped';controls.push(equip)}
   if(!(it.kind==='armor'&&s.equipment.some(p=>p.id===it.id)))controls.push(button('Drop',()=>action({type:'drop',itemId:it.id})));
   if(stackable(it)&&it.quantity>1)controls.push(button('Split stack',()=>chooseRaidQuantity('split',it)));
   if(s.pack.some(p=>p.id===it.id)){
@@ -202,7 +202,7 @@ async function action(data){
   const result=await actor.send(data);
   if(inRaid&&wire===actor&&raidGeneration===generation){
    const caption={reload:'Reloading. Wait for the weapon cooldown.',equip:'Weapon equipped.',search:'Searching. Keep still.',take:'Item recovered.',use:'Medical supplies used.'}[data?.type];
-   if(caption){view?.audio.play(data.type);$('statusAnnouncement').textContent=caption;if(preferences.get().captions)$('events').textContent=caption}
+   if(caption){view?.audio.play(data.type);$('statusAnnouncement').textContent=data?.type==='use'?(woundStatus(snapshot.self)||'No active bleeding or leg injury.'):caption;if(preferences.get().captions)$('events').textContent=caption}
   }
   return result;
  };
@@ -239,7 +239,6 @@ setInterval(async()=>{
  try{
   if(snapshot.self.alive){if(!deferIdleMovement({input:movementInput(),confirmed:snapshot.self.move,engaged:trigger.engaged,sampleAgeMs:performance.now()-stateAt}))await action(()=>({type:'move',...movementInput(),yaw,pitch}))}
   else{const updated=await api('raid'+(spectateId?'?spectate='+encodeURIComponent(spectateId):''));if(!inRaid||generation!==raidGeneration)return;snapshot=updated;stateAt=performance.now();prediction?.reconcile(updated);updateUI()}
-
  }catch(e){if(inRaid&&!snapshot?.self.result)$('hint').textContent=e.message}finally{tickBusy=false}
 },150);
 
@@ -262,6 +261,17 @@ function aim(dx,dy,multiplier){const settings=preferences.get();if(aiming)multip
 $('jump').onclick=()=>controlAction('jump');
 $('fire').onclick=e=>{if(e.detail===0)trigger.tap()};$('reload').onclick=()=>run(()=>action({type:'reload'}));$('interact').onclick=()=>run(interact);
 $('leave').onclick=()=>run(async()=>{const alive=snapshot.self.alive;inRaid=false;wire?.close();wire=null;prediction=null;raidGeneration++;document.body.dataset.inRaid='false';document.querySelector('main').inert=false;await comms.voice.leave();comms.update(null);input.clear();document.exitPointerLock?.();$('play').style.display='none';view?.clear();snapshot=null;message(alive?'Your operator remains in the raid. Reconnect within 45 seconds to continue.':'Raid recorded.');await refresh()});
+const MAP_PALETTES={
+ industrial:{ground:'#404643',road:'#2c3233',sidewalk:'#85857b',plaza:'#6f6b5e',field:'#56634a',window:'#f6cf7e',tree:'#3c6b3d',hedge:'#355934'},
+ wilderness:{ground:'#566448',road:'#3d4438',sidewalk:'#898b79',plaza:'#6f6b58',field:'#617650',window:'#f5d78b',tree:'#2f6235',hedge:'#2f5431'},
+ settlement:{ground:'#716257',road:'#33393b',sidewalk:'#9c968a',plaza:'#87786b',field:'#5d6c4b',window:'#ffd386',tree:'#3a6b38',hedge:'#315e31'}
+};
+const MAP_KIND_COLORS={
+ industrial:{concrete:'#90968d',plaster:'#a1988d',planks:'#7a6047',brick:'#9c6d53',metal:'#6b7a7b',container:'#696048',rock:'#7c7a6c',crate:'#8a6d48',barrier:'#b39b63',roof:'#4e5558'},
+ wilderness:{concrete:'#9b9d8e',plaster:'#aaa192',planks:'#81684e',brick:'#8f8d73',metal:'#728a89',container:'#6e6448',rock:'#858273',crate:'#867049',barrier:'#958f6b',roof:'#4a615d'},
+ settlement:{concrete:'#aaa29b',plaster:'#bdb1a1',planks:'#93704f',brick:'#b47d60',metal:'#6e7d82',container:'#665650',rock:'#726d63',crate:'#9a7449',barrier:'#c3a66c',roof:'#505260'}
+};
+const MAP_BACKGROUNDS=new Map();
 busy=true;document.body.setAttribute('aria-busy','true');try{await refresh()}catch(error){message(error.status===401?'Sign in or create an account.':error.message)}finally{busy=false;document.body.setAttribute('aria-busy','false')}
 
 $('aim').onclick=()=>{if(inRaid&&snapshot?.self.alive&&!snapshot.self.downed)aimTouch=!aimTouch};
@@ -277,17 +287,6 @@ let look=null;
 $('view').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){e.preventDefault();look={id:e.pointerId,x:e.clientX,y:e.clientY};$('view').setPointerCapture(e.pointerId);view?.audio.resume()}});
 $('view').addEventListener('pointermove',e=>{if(preferences.isModal()||!$('communications').hidden){look=null;return}if(look?.id===e.pointerId){aim(e.clientX-look.x,e.clientY-look.y,.006);look={id:e.pointerId,x:e.clientX,y:e.clientY}}});
 for(const type of ['pointerup','pointercancel'])$('view').addEventListener(type,()=>look=null);
-const MAP_PALETTES={
- industrial:{ground:'#404643',road:'#2c3233',sidewalk:'#85857b',plaza:'#6f6b5e',field:'#56634a',window:'#f6cf7e',tree:'#3c6b3d',hedge:'#355934'},
- wilderness:{ground:'#566448',road:'#3d4438',sidewalk:'#898b79',plaza:'#6f6b58',field:'#617650',window:'#f5d78b',tree:'#2f6235',hedge:'#2f5431'},
- settlement:{ground:'#716257',road:'#33393b',sidewalk:'#9c968a',plaza:'#87786b',field:'#5d6c4b',window:'#ffd386',tree:'#3a6b38',hedge:'#315e31'}
-};
-const MAP_KIND_COLORS={
- industrial:{concrete:'#90968d',plaster:'#a1988d',planks:'#7a6047',brick:'#9c6d53',metal:'#6b7a7b',container:'#696048',rock:'#7c7a6c',crate:'#8a6d48',barrier:'#b39b63',roof:'#4e5558'},
- wilderness:{concrete:'#9b9d8e',plaster:'#aaa192',planks:'#81684e',brick:'#8f8d73',metal:'#728a89',container:'#6e6448',rock:'#858273',crate:'#867049',barrier:'#958f6b',roof:'#4a615d'},
- settlement:{concrete:'#aaa29b',plaster:'#bdb1a1',planks:'#93704f',brick:'#b47d60',metal:'#6e7d82',container:'#665650',rock:'#726d63',crate:'#9a7449',barrier:'#c3a66c',roof:'#505260'}
-};
-const MAP_BACKGROUNDS=new Map();
 function mapBackground(world,n){
  const key=world.id+':'+world.version+':'+n; // keeps cached layouts versioned and canvas-sized
  let cached=MAP_BACKGROUNDS.get(key);if(cached)return cached;
@@ -353,11 +352,12 @@ $('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);
 drawMap($('mapPreview'),$('map').value);
 
 let lastHealth=100,lastOutcome='',lastBoard=false,lastWounds='';
+function woundStatus(s,at=snapshot.serverTime){return s.alive&&!s.downed?[s.wounds?.bleedingUntil>at?'Bleeding: use a dressing or medkit.':'',s.wounds?.limpUntil>at?'Leg injury: use a splint or trauma pack.':''].filter(Boolean).join(' '):''}
 function updateInteraction(s){
  const searching=snapshot.caches.find(c=>c.searchRemaining!=null),text=s.board?'Boarding · '+Math.max(0,Math.ceil(s.board.until-snapshot.serverTime))+'s · keep still in the exit':s.reviving?'Reviving squadmate · '+Math.max(0,Math.ceil(s.reviving.until-snapshot.serverTime))+'s · keep still':searching?'Searching '+searching.label+' · '+Math.ceil(searching.searchRemaining)+'s · keep still':s.downed?'Downed · wait for a squadmate to revive or carry you':'';
  if($('interactionStatus').textContent!==text)$('interactionStatus').textContent=text;
  if(s.hp<lastHealth){if(preferences.get().captions)$('events').textContent='Taking damage · '+Math.max(0,Math.ceil(s.hp))+' health';if(s.hp<=30||s.downed)$('statusAnnouncement').textContent=s.downed?'You are downed. Call for help.':'Low health. '+Math.ceil(s.hp)+' remaining.'}
- const wounds=s.alive&&!s.downed?[s.wounds?.bleedingUntil>snapshot.serverTime?'Bleeding: use a dressing or medkit.':'',s.wounds?.limpUntil>snapshot.serverTime?'Leg injury: use a splint or trauma pack.':''].filter(Boolean).join(' '):'';if(wounds&&wounds!==lastWounds){$('statusAnnouncement').textContent=wounds;if(preferences.get().captions)$('events').textContent=wounds}else if(!wounds&&lastWounds&&s.alive&&!s.downed){$('statusAnnouncement').textContent='No active bleeding or leg injury.';if(preferences.get().captions)$('events').textContent='No active bleeding or leg injury.'}lastWounds=wounds;
+ const wounds=woundStatus(s);if(wounds&&wounds!==lastWounds){$('statusAnnouncement').textContent=wounds;if(preferences.get().captions)$('events').textContent=wounds}else if(!wounds&&lastWounds&&s.alive&&!s.downed){$('statusAnnouncement').textContent='No active bleeding or leg injury.';if(preferences.get().captions)$('events').textContent='No active bleeding or leg injury.'}lastWounds=wounds;
  if(s.result?.outcome&&s.result.outcome!==lastOutcome){lastOutcome=s.result.outcome;$('statusAnnouncement').textContent='Raid '+lastOutcome+'. Back to base is available.';$('leave').focus()}
  if(!!s.board!==lastBoard){lastBoard=!!s.board;$('statusAnnouncement').textContent=s.board?'Boarding started. Stay in the exit.':'Boarding ended.'}
  lastHealth=s.hp;

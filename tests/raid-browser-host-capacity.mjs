@@ -25,7 +25,17 @@ try{
  assert.equal(store.profile(profile.id).insurance.length,1);assert.equal(store.profile(profile.id).credits,profile.credits-20);
  await p.evaluate("document.getElementById('leave').click()");await p.wait("document.getElementById('play').style.display==='none' && document.body.getAttribute('aria-busy')==='false'");
  await p.evaluate("document.getElementById('resume').click()");await p.wait("document.getElementById('play').style.display==='block' && document.body.getAttribute('aria-busy')==='false'");assert.equal(actor().deploymentId,deployment);
- await p.evaluate("document.getElementById('view').focus()");await p.command('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyF',key:'f'});await new Promise(r=>setTimeout(r,80));await p.command('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyF',key:'f'});
+ // Native held fire is driven by requestAnimationFrame; this automation tab must
+ // be visible for the trigger to engage.
+ await p.command('Page.bringToFront');await p.wait("document.visibilityState==='visible'");
+ await p.evaluate("document.getElementById('view').focus()");
+ // Release the native key from inside the page as soon as the authoritative fire
+ // response arrives. Input.dispatchKeyEvent replies can lag behind the renderer
+ // on a loaded host, which would turn this tap into an automatic burst.
+ await p.evaluate("(()=>{const original=window.fetch.bind(window);window.fetch=(url,options)=>{const response=original(url,options);try{const type=JSON.parse(options?.body||'{}').type;if(type==='fire')response.then(()=>{window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyF',key:'f'}))}).catch(()=>{})}catch{}return response}})()");
+ await p.command('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyF',key:'f'});
+ await p.wait("document.getElementById('hud').textContent.includes('Ammo 29')");
+ await p.command('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyF',key:'f'});
  await p.wait("document.getElementById('hud').textContent.includes('Ammo 29')");assert.equal(store.db.prepare('SELECT count(*) n FROM deployments WHERE account=?').get(profile.id).n,1);assert.deepEqual(p.errors,[]);
  console.log(JSON.stringify({runtimeRoot:root.href,fullMessageVisible:true,rejectedGearCurrencyInsuranceUnchanged:true,selectionPreserved:true,retryAfterSlotFrees:true,sameBodyResumeAtCapacity:true,existingFireAtCapacity:true,noDuplicateDeployment:true,browserErrors:p.errors,scope:'Isolated one-slot service with actual paid/insured UI deployment and native fire; blocker outcome is a controlled server fixture.'}));
 }finally{await h.close();runtime.server.close();await once(runtime.server,'close');store.close();if(prior===undefined)delete process.env.RAID_TEST_URL;else process.env.RAID_TEST_URL=prior}
