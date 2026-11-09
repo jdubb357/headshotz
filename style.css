@@ -15,6 +15,8 @@ input{font-family:inherit;touch-action:auto;user-select:text;-webkit-user-select
 .logo .l1{color:#fff;-webkit-text-stroke:3px #111}.logo .l2{color:#ffd23f;-webkit-text-stroke:3px #111;margin-left:6px}
 .card{background:rgba(12,18,48,.72);border:3px solid rgba(255,255,255,.9);border-radius:22px;padding:14px;box-shadow:0 6px 0 rgba(0,0,0,.35)}
 .cardHead{font-size:22px;font-style:italic;margin-bottom:8px;letter-spacing:.5px}.cardHead.sm{font-size:16px;margin:6px 0}
+#menu .card.play .cardHead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#menu .card.play .cardHead .dia{margin-left:auto;max-width:100%;font-style:normal;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.2;white-space:nowrap}
 .homeGrid{display:flex;gap:14px;width:100%;justify-content:center;flex-wrap:wrap}
 .play{flex:1 1 300px;max-width:430px;display:flex;flex-direction:column;gap:8px}
 .side{flex:1 1 240px;max-width:340px;display:flex;flex-direction:column;gap:10px}
@@ -22,7 +24,7 @@ input{font-family:inherit;touch-action:auto;user-select:text;-webkit-user-select
 .nav:not(.static):active{transform:scale(.97)}.nav .ico{font-size:30px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#ffd23f;border-radius:14px;border:3px solid #111}
 .nav b{display:block;font-style:italic}.nav small{display:block;font-family:system-ui,sans-serif;font-weight:700;font-size:12px;opacity:.8}
 .lbl{font-size:12px;opacity:.85;letter-spacing:1px}
-#nameIn,#codeIn{font-size:20px;padding:10px 14px;border-radius:14px;border:3px solid #111;text-align:center;font-weight:900;background:#fff;color:#111;width:100%}
+#nameIn,#codeIn{font-size:20px;padding:10px 14px;border-radius:14px;border:3px solid #111;text-align:center;font-weight:900;background:#fff;color:#111;-webkit-text-fill-color:#111;caret-color:#111;opacity:1;width:100%}
 #codeIn{text-transform:uppercase;width:130px;flex:none}
 .joinRow{display:flex;gap:8px}.joinRow .btnBig{flex:1}
 .btnBig{font-size:22px;font-style:italic;padding:12px 20px;border-radius:16px;border:3px solid #111;color:#111;background:#fff;box-shadow:0 5px 0 #111;transition:transform .08s,box-shadow .08s}
@@ -160,7 +162,10 @@ body[data-q=high] #lensV{display:none}
 .btn.green,button.green{background:linear-gradient(180deg,#3ee07a,#16a34a)!important;color:#fff}
 details.priv{margin-top:8px;background:rgba(255,255,255,.05);border-radius:12px;padding:6px 10px}
 details.priv summary{cursor:pointer;font-weight:800;padding:6px 0;opacity:.85}
-.dia,.diaBal{color:#7ff3ff;font-weight:900}.dia{display:inline-flex;align-items:center;gap:4px;background:rgba(80,220,255,.12);border:1px solid rgba(120,240,255,.35);padding:4px 10px;border-radius:99px}
+.dia,.diaBal{color:#7ff3ff;font-weight:900;font-variant-numeric:tabular-nums}.dia{display:inline-flex;align-items:center;gap:4px;background:rgba(80,220,255,.12);border:1px solid rgba(120,240,255,.35);padding:4px 10px;border-radius:99px;white-space:nowrap}
+.arsBar .dia,.royDia,.ssDiaBox{flex:none;min-width:max-content;font-family:system-ui,-apple-system,sans-serif}
+.arsTitle{min-width:0}
+.royDia{font-size:clamp(13px,3.6vw,16px)}
 #diaToast{position:fixed;top:70px;left:50%;transform:translate(-50%,-20px);opacity:0;transition:.3s;background:rgba(10,40,60,.85);border:2px solid #7ff3ff;color:#bff9ff;font-weight:900;padding:8px 16px;border-radius:99px;z-index:40;pointer-events:none;font-size:18px}
 #diaToast.show{opacity:1;transform:translate(-50%,0)}
 #arsUpg{display:flex;flex-direction:column;gap:10px}

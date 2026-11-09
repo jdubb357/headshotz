@@ -504,7 +504,9 @@ function tier(id,k){return(PROG.upg[id]||{})[k]||0}
 const curRarFr=()=>{if(!BC)return 1;const t=S2T[me.cur],g=t!=null?BC.inv.g[t]:BC.inv.m;return g&&RAR[g[1]|0]?RAR[g[1]|0].fr:1};
 function magOf(id){const w=W[id];let m=w.mag?Math.max(w.mag,Math.round(w.mag*(1+UPG.mag.per*tier(id,'mag')))):0;if(BC&&m){const si=me.load.indexOf(id),g=si>=0&&S2T[si]!=null?BC.inv.g[S2T[si]]:null;if(g)m=Math.max(1,Math.round(m*RAR[g[1]].m))}return m}
 function reloadOf(id){const w=W[id];let r=+(w.reload*(1-UPG.reload.per*tier(id,'reload'))).toFixed(2);if(BC){const si=me.load.indexOf(id),g=si>=0&&S2T[si]!=null?BC.inv.g[S2T[si]]:null;if(g)r=+(r*RAR[g[1]].rl).toFixed(2)}return r}
-function updDiaUI(){for(const e of document.querySelectorAll('.diaBal'))e.textContent=PROG.dia}
+function fmtDia(n){const v=Math.max(0,n|0);try{return v.toLocaleString('en-US')}catch(e){return String(v)}}
+function updDiaUI(){const t=fmtDia(PROG.dia);for(const e of document.querySelectorAll('.diaBal,#chDia,#clDia,#ssDia,#pkDia,#raidDia'))e.textContent=t}
+updDiaUI();
 let diaToastT=null;
 const BR_WIN_BONUS=300;// v62: flat bonus for every squad member of the winning BR squad (alive or already eliminated); the weekend x2 in addDia doubles it too
 function addDia(n,why){if(n>0&&isWknd()){n*=2;why=(why||'')+' ×2 weekend'}(window.__dlog||(window.__dlog=[])).push([n,why]);if(!n)return;PROG.dia+=n;C.matchDia=(C.matchDia||0)+n;saveProg();const t=$('diaToast');if(t){t.textContent=`+${n} 💎 ${why||''}`;t.classList.remove('show');void t.offsetWidth;t.classList.add('show')}}

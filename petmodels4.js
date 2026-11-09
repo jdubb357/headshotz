@@ -62,7 +62,7 @@ novamoth(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,e
  root.userData.rig=rig;return root},
 seahorse(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.2,glow:[],sc:1.1};
  const co=mat(0xff6b6b,{ro:.4}),tl=mat(0x2ee0c5,{ro:.35}),rb=em(0xffd1dc,.6);
- for(let i=0;i<5;i++)P(b,'sph',0,0,.22+i*.045,-.02+i*.02,.07-.i*.006,.08,.06,0,0,0,{m:i%2?co:tl});
+ for(let i=0;i<5;i++)P(b,'sph',0,0,.22+i*.045,-.02+i*.02,.07-i*.006,.08,.06,0,0,0,{m:i%2?co:tl});
  const hd=G(b,0,.46,.08);rig.head=hd;P(hd,'sph',0,0,0,.04,.06,.05,.07,0,0,0,{m:tl});P(hd,'cone',0,0,-.01,.08,.02,.05,.02,Math.PI/2,0,0,{m:co});
  glowEye(hd,rig,0xfff6a0,.025,.02,.04,.014,false);glowEye(hd,rig,0xfff6a0,-.025,.02,.04,.014,false);
  for(const s of[-1,1]){const w=G(b,s*.06,.32,0);P(w,'cone',0,s*.08,0,0,.04,.1,.02,0,0,s*.6,{m:rb});rig.wings.push(w)}
