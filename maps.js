@@ -3,9 +3,9 @@ import {newDefs} from './maps2.js';
 import {dress} from './mapdress.js';
 import {HQP} from './assets.js';
 import {brDef,BR_ZONES} from './br.js';
-import {RAID_WORLDS,terrainHeightAt} from './shared/raid-worlds.mjs';
+import {RAID_WORLDS,terrainHeightAt,raidScenery} from './shared/raid-worlds.mjs';
 const useHQ=k=>HQP.ready&&HQP.models[k]&&GQ.level!=='low';
-import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeWater,getTex,rng,WT} from './gfx.js';
+import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeRaidHorizon,makeWater,getTex,rng,WT} from './gfx.js';
 
 const _c=new THREE.Color();
 function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],links=[],nav=[];
@@ -314,6 +314,49 @@ function raidProp(B,p,t,theme='industrial',sample=null){
   // Dressing props are drawn for atmosphere only. The authoritative server
   // collides with world.blocks; props must not add phantom obstacles offline.
   case 'bush':{const c=p.color||0x3e9b4f;for(let i=0;i<3;i++)B.part('leaves',{g:G('ico',.7*s,1),p:[x+(i-1)*.55*s,y+.55*s,z+(i%2?-.35:.25)*s],s:[1.25,.85,1.1],c});break}
+  // Deterministic presentation-only scenery from raidScenery(); none of these
+  // cases has solid collision, matching the authoritative server's world.
+  case 'fern':{const c=p.color||0x587446,n=5;for(let i=0;i<n;i++){const a=(p.ry||0)+i*Math.PI*2/n;B.part('forest',{g:G('cone',1,1,5),p:[x+Math.sin(a)*.32*s,y+.32*s,z+Math.cos(a)*.32*s],s:[.24*s,1.15*s,.24*s],r:[Math.PI*.3,a,0],c});}break}
+  case 'shrub':{const c=p.color||0x45673d;for(let i=0;i<4;i++){const a=(p.ry||0)+i*1.65;B.part('forest',{g:G('ico',1,1),p:[x+Math.sin(a)*.42*s,y+(.5+i*.1)*s,z+Math.cos(a)*.38*s],s:[(1.15-i*.08)*s,(.85-i*.05)*s,(1.05-i*.06)*s],c});}break}
+  case 'stump':{B.part('planks',{g:G('cyl',.28*s,.28*s,1.24*s,7),p:[x,y+.62*s,z],c:0x5b4936});B.part('planks',{g:G('cyl',.31*s,.31*s,.08*s,7),p:[x,y+1.24*s,z],c:0x7c6a4f});B.part('planks',{g:G('box',1.1*s,.16*s,.18*s),p:[x+(p.ry?Math.sin(p.ry)*.55*s:.55*s),y+.28*s,z+(p.ry?Math.cos(p.ry)*.55*s:0)],r:[0,p.ry||0,.12*Math.PI],c:0x6b5842});break}
+  case 'moss':{const c=p.color||0x5d7248;B.part('forest',{g:G('ico',1,1),p:[x,y+.025,z],s:[1.55*s,.055*s,1.25*s],r:[0,p.ry||0,0],c});if(s>.9)B.part('forest',{g:G('ico',1,1),p:[x+.55*s,y+.022,z-.35*s],s:[.9*s,.04*s,.8*s],r:[0,p.ry||0,0],c});break}
+  case 'ruin':{
+   // Devastated masonry reads as a collapsed two-storey block: a stepped,
+   // gapped frontage, a lower rear wing, pitched floor slabs, toppled girders
+   // and exposed reinforcement. Everything uses the existing brick/metal/rock
+   // texture groups and is presentation-only (no collision, no textures).
+   const c=p.color||0x8b8c84,ry=p.ry||0,cy=Math.cos(ry),sy=Math.sin(ry);
+   const tint=_c.set(c),dark=tint.clone().multiplyScalar(.82).getHex(),mid=tint.clone().multiplyScalar(.94).getHex(),light=tint.clone().lerp(_c.set(0xffffff),.22).getHex();
+   const q=(lx,lz)=>({x:x+cy*lx+sy*lz,z:z-sy*lx+cy*lz});
+   const brick=(lx,lz,w,h,d,ryOff,col)=>B.part('brick',{g:G('box',w*s,h*s,d*s),p:[q(lx*s,lz*s).x,y+h*s/2,q(lx*s,lz*s).z],r:[0,ry+ryOff,0],c:col});
+   // Frontage: alternating uprights, low gaps and a collapsed bay.
+   brick(-2.2,0,.6,2.5,.55,0,dark);brick(-1.48,.1,.65,1.15,.5,-.1,mid);
+   brick(-.66,-.06,.54,2.1,.55,.06,c);brick(.14,.06,.5,.68,.5,-.04,mid);
+   brick(.83,-.04,.74,2.25,.56,.03,light);brick(1.72,.12,.56,1.35,.5,-.08,dark);
+   // A continuous shattered footing ties the panels into one broken wall rather
+   // than a row of detached columns.
+   brick(-.25,-.02,4.9,.9,.68,0,dark);
+   // Dark recessed apertures keep the frontage reading as habitable masonry.
+   for(const[lx,wy]of[[-2.2,1.05],[.83,1.20]]){const g=q(lx*s,.28*s);B.part('metal',{g:G('box',.34*s,.62*s,.03*s),p:[g.x,y+wy*s,g.z],r:[0,ry,0],c:0x1a2225})}
+   // Rear wing traces the original footprint and hides the paper-thin rear.
+   brick(-1.35,1.0,.65,1.6,.55,.15,mid);brick(-.4,1.1,.55,.85,.55,.1,dark);brick(1.0,1.05,.75,1.25,.55,.08,c);
+   // Pitched, collapsed floor slab and a toppled girder bridging the gap.
+   {const g=q(-.5*s,.95*s);B.part('brick',{g:G('box',1.8*s,.26*s,1.0*s),p:[g.x,y+.3*s,g.z],r:[0,ry,-.26],c:dark})}
+   {const g=q(.55*s,1.15*s);B.part('metal',{g:G('box',2.4*s,.14*s,.14*s),p:[g.x,y+.86*s,g.z],r:[0,ry,.55],c:0x4f5a5e})}
+   // Exposed reinforcement leans out of the broken wall tops.
+   for(const[lx,ht,rz]of[[-2.1,2.6,.16],[-.6,2.15,-.22],[.9,2.35,.2],[1.72,1.4,-.14]]){
+    const g=q(lx*s,.08*s);B.part('metal',{g:G('box',.055*s,.9*s,.055*s),p:[g.x,y+(ht+.28)*s,g.z],r:[0,ry,rz],c:0x626d70});
+   }
+   // Scattered masonry chunks and a weathered ground stain anchor the ruin.
+   B.part('rock',{g:G('box',2.8*s,.025,1.8*s),p:[x,y+.012,z],r:[0,ry,0],c:0x635f57});
+   const chunks=[0x8a8777,0x6d6a60,0x9a9689];
+   for(let i=0;i<4;i++){
+    const a=ry+i*1.62,dist=(1.3+(i%2)*.9)*s,chx=x+Math.sin(a)*dist,chz=z+Math.cos(a)*dist;
+    B.part('rock',{g:G('box',(.48+(i%3)*.1)*s,.2*s,.6*s),p:[chx,y+.16*s,chz],r:[0,a,0],c:chunks[i%3]});
+   }
+   break;
+  }
+  case 'rubble':{const c=p.color||0x8a8777,ry=p.ry||0;for(let i=0;i<3;i++){const a=ry+i*2.1;B.part('rock',{g:G('box',.55*s*(1-i*.12),.22*s*(1+i*.35),.68*s*(1-i*.18)),p:[x+Math.cos(a)*.38*s,y+(.18+i*.11)*s,z+Math.sin(a)*.44*s],r:[0,a,.08*Math.PI],c});}B.part('rock',{g:G('ico',1,1),p:[x-.3*s,y+.12*s,z+.25*s],s:[.34*s,.18*s,.28*s],c:0x777268});break}
   case 'rock':B.part('rock',{g:G('dode',1),p:[x,y+.55*s,z],s:[1.5*s*.6,.85*s*.6,1.2*s*.6],r:[0,(x*7+z)%3,0],c:p.color||0x8a8777});break;
   case 'barrel':{const c=p.color||0x4b5344;B.part('metal',{g:G('cyl',.5*s,.5*s,1.3*s,12),p:[x,y+.65*s,z],c});B.part('metal',{g:G('cyl',.52*s,.52*s,.08*s,12),p:[x,y+1.3*s,z],c:_c.set(c).multiplyScalar(.6).getHex()});break}
   case 'crate':B.part('crate',{g:G('box',1.15*s,1.1*s,1.15*s),p:[x,y+.55*s,z],c:p.color||0x9c7b4d});break;
@@ -377,12 +420,14 @@ function raidMassiveDef(world){
    }
    for(const ramp of world.ramps||[])raidRamp(B,ramp,t);
    for(const prop of world.props||[])raidProp(B,prop,t,world.theme,terrainSample);
+   for(const prop of raidScenery(world))raidProp(B,prop,t,world.theme,terrainSample);
    for(const lm of world.landmarks||[]){B.glow(lm.x,2.8,lm.z,3,.12,3,0xffd23f);B.box(lm.x,0,lm.z,.28,2.8,.28,0x2b2f3a,'metal')}
    for(let i=0;i<24;i++){const a=i/24*Math.PI*2,r=size/2-8,x=Math.sin(a)*r,z=Math.cos(a)*r;
     B.cyl(x,0,z,.4,3.4,0x4a555c,'metal',{seg:6,shadow:false});B.glow(x,3.3,z,.9,.2,.9,0xffa43a)}
   },
   terrainSample,
   terrainTheme:world.theme,
+  raidWorld:world,
   spawnsA:world.spawns.slice(0,3).map(s=>[s[0],s[1]]),
   spawnsB:world.spawns.slice(3,6).map(s=>[s[0],s[1]]),
   spawnsM:world.spawns.slice(6).map(s=>[s[0],s[1]])
@@ -418,6 +463,9 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  if(!d.hub&&!d.noDress)try{dress(B,d,GQ.level==='low'?0:GQ.level==='high'?2:1)}catch(e){console.warn('dress',e)}
  if(!d.pier&&!d.indoor){for(const s of[-1,1]){const wh=d.wallH||4;B.box(0,0,s*(sz/2+.5),sx+2,wh,1,0x000000,'plain',{shadow:false});B.box(s*(sx/2+.5),0,0,1,wh,sz,0x000000,'plain',{shadow:false})}for(let k=0;k<4;k++)B.T.plain.pop()}
  const group=new THREE.Group();const cells_=[];group.userData.cells=cells_;
+ // Metadata mirrors the online environment so browser graders can prove that
+ // the offline raid builder consumed the same deterministic scenery placement.
+ if(d.raidWorld){const sc=raidScenery(d.raidWorld),scKinds={};for(const item of sc)scKinds[item.kind]=(scKinds[item.kind]||0)+1;group.userData.raidScenery={count:sc.length,kinds:scKinds}}
  if(d.terrainSample)group.add(raidTerrainMesh(d.size,d.terrainTheme,d.terrainSample));
  for(const t in B.T){if(!B.T[t].length)continue;if(d.br){// big map: split into 56 m cells so the GPU/frustum can cull far chunks (iPhone)
   const cells={};for(const pt of B.T[t]){const k=Math.floor((pt.p[0]+250)/56)+'_'+Math.floor((pt.p[2]+250)/56);(cells[k]=cells[k]||[]).push(pt)}
@@ -444,7 +492,10 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const sunDir=new THREE.Vector3(...d.sun[2]).normalize();
  if(water){water.userData.lo=water.material;water.userData.hi=makeWater(d.water,d.sky[0],d.sky[2],sunDir,d.sun[0])}
  const sky=d.indoor?null:makeSky(d.sky[0],d.sky[1],d.sky[2],sunDir,d.sun[0],d.br?{cloudN:34}:{});
- if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
+ if(sky&&d.raidWorld){// Massive raid sectors swap the sparse city ring for layered ruined districts and dust plumes that stay painted in the sector's fog tint.
+  const theme=RAID_THEMES[d.raidWorld.theme]||RAID_THEMES.industrial,horizonDepth=makeRaidHorizon(d.raidWorld.id,d.fog[0],{radius:320,scale:1,base:theme.roof});
+  sky.add(horizonDepth);group.userData.raidHorizonDepth=horizonDepth.userData.raidHorizonDepth}
+ else if(sky&&d.horizon){const hz=makeHorizon(d.horizon,d.fog[0],i*7+3);if(hz)sky.add(hz)}
  doorMeshes(B.dl,group);
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
  if(B.props.length){const by={};for(const q of B.props)(by[q.k]=by[q.k]||[]).push(q);const o=new THREE.Object3D(),col=new THREE.Color();for(const k in by){const M=HQP.models[k],L=by[k];const im=new THREE.InstancedMesh(M.geo,M.mat,L.length);

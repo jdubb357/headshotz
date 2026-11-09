@@ -1,8 +1,16 @@
 import * as THREE from './lib/three.module.min.js';
-import {getTex} from './gfx.js';
-import {terrainHeightAt} from './shared/raid-worlds.mjs';
+import {getTex,normalTex,TX} from './gfx.js';
+import {terrainHeightAt,raidScenery} from './shared/raid-worlds.mjs';
 const palettes={industrial:{ground:0x6c7469,concrete:0x9ba0a0,brick:0x92968b,planks:0x8a6f52,roof:0x354951,metal:0x748889,container:0x426a72,rock:0x6d6a60,crate:0x9c7b4d,barrier:0xc6ab65},wilderness:{ground:0x6c795b,concrete:0x9d9d8f,brick:0x9a9a7e,planks:0x82684e,roof:0x455f5b,metal:0x7e9292,container:0x716645,rock:0x8a8777,crate:0x8d7850,barrier:0x9c956c},settlement:{ground:0x756a60,concrete:0x9f9b95,brick:0xb08063,planks:0x946f4f,roof:0x50505b,metal:0x7e8a90,container:0x6d5751,rock:0x766f64,crate:0x9b744a,barrier:0xc4a86e}};
 const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':kind==='crate'?'crate':kind==='rock'?'rock':kind==='barrier'?'hazard':kind==='planks'?'planks':kind==='brick'?'brick':'concrete';
+// Per-surface physical response: [roughness, metalness, normalScale]. Asphalt and
+// barriers keep a wet sheen so the sky environment map reads as surface reflection,
+// while concrete/rock stay diffuse. The table also feeds terrain shading.
+const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.72,.12,.4],crate:[.8,.02,.55],plain:[.86,0,0],glow:[.35,.1,0]};
+// How strongly each surface responds to rain: roofs/asphalt/stone wet hardest,
+// vegetation and timber only dampen. The value scales the shared wetness state
+// against a material's authored dry baseline.
+const WET_RESPONSE={asphalt:1,gravel:.92,tiles:.88,concrete:.78,rock:.7,brick:.62,dirt:.5,forest:.38,planks:.55,crate:.42};
 // The sector terrain is one vertex-shaded heightfield rather than a flat slab.
 // Heights are sampled from shared world data, so hills match authoritative
 // collision and offline/raid-minimap previews. Line tint keeps ridges readable
@@ -31,39 +39,269 @@ function terrainMesh(world,palette){
  geometry.userData.raidOwned=true;
  const map=getTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel').clone();
  map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(54,54);map.anisotropy=4;map.needsUpdate=true;
- const material=new THREE.MeshStandardMaterial({map,vertexColors:true,roughness:.96,metalness:0,side:THREE.FrontSide});
- material.userData.raidOwned=true;material.userData.raidOwnTexture=true;
+ // The terrain grid is large enough that a single normal tile would smear; tile
+ // the relief texture at the same density as the albedo so sun-lit ridges and
+ // gravel keep readable surface detail at first-person range.
+ const normal=normalTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel',1.6).clone();
+ normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.set(54,54);normal.anisotropy=4;normal.needsUpdate=true;
+ const material=new THREE.MeshStandardMaterial({map,normalMap:normal,normalScale:new THREE.Vector2(.55,.55),vertexColors:true,roughness:.93,metalness:.04,envMapIntensity:.4,side:THREE.FrontSide});
+ material.userData.raidOwned=true;material.userData.raidOwnTexture=true;material.userData.raidOwnNormalTexture=true;
+ material.userData.raidDry={roughness:.93,metalness:.04,envMapIntensity:.4,normalScale:.55};material.userData.raidWet=1;
  const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.castShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
  return mesh;
 }
+// Tangent-plane normal of the authored height field at a fixture position. The
+// finite difference spans several terrain cells so wet glints follow the broad
+// street/hill relief instead of the first triangle's normal.
+export function terrainNormalAt(world,x,z,target=new THREE.Vector3()){
+ const step=Math.max(1.2,(world.terrain?.cell||2.4)*.9);
+ const dx=(terrainHeightAt(world,x+step,z)-terrainHeightAt(world,x-step,z))/(step*2);
+ const dz=(terrainHeightAt(world,x,z+step)-terrainHeightAt(world,x,z-step))/(step*2);
+ // Malformed/degenerate samples (NaN heights, exhausted seams) fall back to the
+ // horizon so no glint or pool ever receives a non-finite orientation.
+ if(!Number.isFinite(dx)||!Number.isFinite(dz))return target.set(0,1,0);
+ return target.set(-dx,1,-dz).normalize();
+}
+// Soft vertical sheen used for wet-ground glints. The radial gradient is drawn
+// with a narrow x scale so filtered reads stay smooth, while the instanced quad
+// applies the authored stretch without per-frame billboarding.
+function wetGlintTexture(){
+ const canvas=document.createElement('canvas');canvas.width=64;canvas.height=128;
+ const context=canvas.getContext('2d');
+ context.save();context.translate(32,64);context.scale(.34,1);context.translate(-32,-64);
+ const gradient=context.createRadialGradient(32,64,0,32,64,54);
+ gradient.addColorStop(0,'rgba(255,252,236,1)');
+ gradient.addColorStop(.32,'rgba(255,245,218,.62)');
+ gradient.addColorStop(.72,'rgba(255,219,160,.16)');
+ gradient.addColorStop(1,'rgba(255,205,140,0)');
+ context.fillStyle=gradient;context.fillRect(0,0,64,128);context.restore();
+ const texture=new THREE.CanvasTexture(canvas);
+ texture.colorSpace=THREE.SRGBColorSpace;
+ return texture;
+}
+// Wind response: foliage-only instanced groups get a small vertex-shader sway.
+// The phase comes from each instance's world position, so it is deterministic
+// and rebuilds identically; it never changes bases, routes or actor data.
+const WIND_VERTEX=`
+#ifdef USE_INSTANCING
+ float windPhase=instanceMatrix[3][0]*.11+instanceMatrix[3][2]*.13;
+ float windHeight=max(0.,position.y+.5);
+ transformed.x+=sin(uWindTime*1.5+windPhase)*.055*windHeight;
+ transformed.z+=cos(uWindTime*1.15+windPhase*1.37)*.045*windHeight;
+#endif`;
 export function buildEnvironment(world){
- const root=new THREE.Group(),palette=palettes[world.theme]||palettes.industrial,groups=new Map(),materials=new Map();
+ const root=new THREE.Group(),palette=palettes[world.theme]||palettes.industrial,groups=new Map(),materials=new Map(),windMaterials=[];
+ // Authored practicals: lamp heads, floodlights and campfires each contribute a
+ // warm halo. One additive Points field keeps hundreds of glows in a single draw
+ // call; the field is presentation-only and derives strictly from authored props.
+ const glowPositions=[],glowColors=[],poolPositions=[],poolColors=[],poolRadii=[];
+ // Wet reflections share the fixture palette but are a separate presentation
+ // field: one elongated additive glint per ground lamp/campfire, floodlight and
+ // lit window, anchored to the sampled terrain beneath the source. Static,
+ // deterministic streak directions keep the field view-independent and free of
+ // per-frame matrix work; wetness alone controls the whole field's opacity.
+ const reflectPositions=[],reflectColors=[],reflectWidths=[],reflectLengths=[];
+ const wetReflect=(x,z,color,width,length)=>{
+  reflectPositions.push(x,terrainHeightAt(world,x,z)+.06,z);
+  const c=new THREE.Color(color);reflectColors.push(c.r,c.g,c.b);
+  reflectWidths.push(Math.max(.55,width));reflectLengths.push(Math.max(1.5,length));
+ };
+ const glow=(x,y,z,color)=>{glowPositions.push(x,y,z);const c=new THREE.Color(color);glowColors.push(c.r,c.g,c.b)};
+ const lightPool=(prop,color,radius)=>{
+  if(prop.y!=null&&prop.y!==0)return;
+  poolPositions.push(prop.x,terrainHeightAt(world,prop.x,prop.z)+.04,prop.z);
+  poolColors.push(...new THREE.Color(color).toArray());poolRadii.push(radius);
+  wetReflect(prop.x,prop.z,color,Math.max(1.4,radius*.65),Math.min(10,Math.max(4.4,radius*2.8)));
+ };
  const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,4,20)};
  const matrix=new THREE.Matrix4(),position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3(),euler=new THREE.Euler();
- function add(type,color,x,y,z,sx,sy,sz,ry=0,texture='plain',rx=0){const key=type+'|'+color+'|'+texture;let group=groups.get(key);if(!group){
-   const glow=texture==='glow',mat=new THREE.MeshStandardMaterial({color,roughness:.88,metalness:texture==='metal'?.4:0,map:glow?null:getTex(texture),...(glow?{emissive:color,emissiveIntensity:1.1}:{})});mat.userData.raidOwned=true;materials.set(key,mat);group={type,transforms:[],material:mat};groups.set(key,group);
+ function add(type,color,x,y,z,sx,sy,sz,ry=0,texture='plain',rx=0,rz=0,wind=false,tag=''){const key=type+'|'+color+'|'+texture+(wind?'|wind':'')+(tag?'|'+tag:'');let group=groups.get(key);if(!group){
+   const glow=texture==='glow',spec=SURFACE_PBR[texture]||SURFACE_PBR.plain;
+  const mat=new THREE.MeshStandardMaterial(glow
+    ?{color,emissive:color,emissiveIntensity:1.7,roughness:spec[0],metalness:spec[1]}
+    :{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:spec[1]>.1?1.3:.55,...(spec[2]>0?{normalMap:normalTex(texture),normalScale:new THREE.Vector2(spec[2],spec[2])}:{})});
+  mat.userData.raidOwned=true;mat.userData.raidDry={roughness:mat.roughness,metalness:mat.metalness,envMapIntensity:mat.envMapIntensity??1,normalScale:mat.normalScale?mat.normalScale.x:null};mat.userData.raidWet=glow?0:(WET_RESPONSE[texture]||0);
+  if(tag)mat.userData.raidStructure=tag;
+  // Only the foliage groups sway; the uniform is exposed through the root so
+  // RaidView can advance it without touching foliage/world transform data.
+  if(wind){mat.userData.raidWind=true;mat.onBeforeCompile=shader=>{shader.uniforms.uWindTime={value:0};shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uWindTime;').replace('#include <begin_vertex>','#include <begin_vertex>'+WIND_VERTEX);mat.userData.raidShader=shader};windMaterials.push(mat)}
+  materials.set(key,mat);group={type,transforms:[],material:mat,tag};groups.set(key,group);
   }
-  position.set(x,y,z);scale.set(sx,sy,sz);euler.set(rx,ry,0);quaternion.setFromEuler(euler);matrix.compose(position,quaternion,scale);group.transforms.push(matrix.clone());
+  position.set(x,y,z);scale.set(sx,sy,sz);euler.set(rx,ry,rz);quaternion.setFromEuler(euler);matrix.compose(position,quaternion,scale);group.transforms.push(matrix.clone());
  }
  add('box',palette.ground,0,-.12,0,world.size,.2,world.size,0,world.theme==='wilderness'?'forest':'gravel');
  const terrain=world.terrain?terrainMesh(world,palette):null;if(terrain)root.add(terrain);
+ root.userData.raidTerrainMaterial=terrain?terrain.material:null;
  for(const [x,z,w,d,h,y=0,kind='concrete',tint]of world.blocks)add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
+ // Presentation-only structure weathering derived from the frozen block layer:
+ // solid street-level buildings gain a dark foundation plinth and an overhanging
+ // roof cornice, then a deterministic share of roof vents, antenna masts and
+ // tilted debris. These groups add silhouette depth at first-person range and
+ // never alter blocks, props, collision, navigation, routes or actor data.
+ const structureDetail={structures:0,plinths:0,cornices:0,vents:0,antennas:0,debris:0,beacons:0};const roofPlantList=[],groundGritList=[],shutterSites=[];let shutteredWindows=0;
+ const hash01=n=>{const v=Math.sin(n)*43758.5453123;return v-Math.floor(v)};
+ for(const block of world.blocks){
+  const [x,z,w,d,h,y=0,kind='concrete']=block;
+  if(y>0.4||h<2.6||w<5||d<5)continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  const hash=hash01(x*12.9898+z*78.233+world.id.length*1.7+h*3.7),roofY=y+h;
+  // Weather staining at the base reads as a damp foundation band; the cornice
+  // overhangs slightly so rooflines cast a crisp shadow instead of a flat cap.
+  add('box',0x474b44,x,y+.18,z,w+.22,.36,d+.22,0,'concrete',0,0,false,'plinth');
+  add('box',0x303a3b,x,roofY+.10,z,w+.34,.22,d+.34,0,'metal',0,0,false,'cornice');
+  structureDetail.structures++;structureDetail.plinths++;structureDetail.cornices++;
+  if(hash>.3){
+   const vx=x+(hash-.5)*w*.55,vz=z+((hash*11)%1-.5)*d*.55;
+   add('box',0x4e625f,vx,roofY+.34,vz,.95,.44,.8,0,'metal',0,0,false,'vent');
+   structureDetail.vents++;
+  }
+  if(h>=6&&hash>.68){
+   const ax=x+((hash*7)%1-.5)*w*.5,az=z+((hash*13)%1-.5)*d*.5;
+   add('cylinder',0x5f7075,ax,roofY+1.35,az,.08,2.7,.08,0,'metal',0,0,false,'antenna');
+   structureDetail.antennas++;
+   // A single hazard beacon marks tall abandoned masts for readability at night.
+   if(hash>.86){add('sphere',0xd86d4d,ax,roofY+2.78,az,.22,.18,.22,0,'glow',0,0,false,'beacon');structureDetail.beacons++}
+  }
+  if(hash<.18){
+   add('box',0x77746a,x+(hash-.5)*w*.6,roofY+.22,z+((hash*17)%1-.5)*d*.6,1.7,.16,1,.15,'rock',.16,.08,false,'debris');
+   if(hash<.08)add('box',0x8a8777,x+((hash*19)%1-.5)*w*.7,roofY+.12,z+((hash*23)%1-.5)*d*.7,.6,.34,.7,0,'rock',0,0,false,'debris');
+   structureDetail.debris++;
+  }
+  // Rooftop mechanical plant: a deterministic share of standing blocks keeps a
+  // galvanised water tank, an HVAC condenser or a bolted exhaust stack above the
+  // cornice, adding an industrial silhouette at skyline range. Each plant is
+  // inset from the parapet so it never overhangs the footprint, uses the PBR
+  // metal/concrete maps, and derives only from the frozen block dimensions.
+  const plantHash=hash01(x*31.7+z*91.3+world.id.length*7.1+h*5.3);
+  if(h>=5&&plantHash<.34){
+   const px2=hash01(plantHash*3.13)>.5?1:-1,pz2=hash01(plantHash*8.27)>.5?1:-1;
+   const cx2=x+px2*(w/2-1.05),cz2=z+pz2*(d/2-1.05),baseY=roofY+.24,pk=hash01(plantHash*53.1+world.id.length*.7);
+   if(pk<.40){
+    for(const [sx2,sz2] of [[-.55,-.55],[.55,-.55],[-.55,.55],[.55,.55]])add('box',0x545e5e,cx2+sx2,baseY+.45,cz2+sz2,.11,.90,.11,0,'metal',0,0,false,'roofPlant');
+    add('cylinder',0x8c9594,cx2,baseY+1.66,cz2,.70,1.52,.70,0,'metal',0,0,false,'roofPlant');
+    for(const yy of [baseY+1.06,baseY+2.02])add('cylinder',0x5d5445,cx2,yy,cz2,.717,.13,.717,0,'metal',0,0,false,'roofPlant');
+    add('cylinder',0x929b99,cx2,baseY+2.59,cz2,.72,.16,.72,0,'metal',0,0,false,'roofPlant');
+    add('box',0x717b79,cx2,baseY+2.72,cz2,.40,.12,.40,0,'metal',0,0,false,'roofPlant');
+    // A ladder rail and inlet pipe on one flank make the tank read as serviced.
+    add('box',0x6b7773,cx2+.74,baseY+1.72,cz2-.19,.08,1.16,.08,0,'metal',0,0,false,'roofPlant');
+    add('box',0x6b7773,cx2+.74,baseY+1.72,cz2+.19,.08,1.16,.08,0,'metal',0,0,false,'roofPlant');
+    for(const yy of [.34,1.32,2.28])add('box',0x8a9693,cx2+.74,baseY+yy,cz2,.06,.05,.46,0,'metal',0,0,false,'roofPlant');
+    add('box',0x606a68,cx2+.55,baseY+.55,cz2-.74,.14,.10,.42,0,'metal',0,0,false,'roofPlant');
+    add('box',0x606a68,cx2+.86,baseY+.55,cz2-.74,.10,1.28,.10,0,'metal',0,0,false,'roofPlant');
+    roofPlantList.push({x:cx2,y:baseY,z:cz2,roof:roofY,h,kind:'tank',ox:px2,oz:pz2,top:baseY+2.78});
+   }else if(pk<.72){
+    add('box',0x6c6f68,cx2,baseY+.11,cz2,1.80,.22,1.40,0,'concrete',0,0,false,'roofPlant');
+    add('box',0x818d8c,cx2,baseY+.63,cz2,1.55,1.00,1.15,0,'metal',0,0,false,'roofPlant');
+    add('box',0x4c5657,cx2,baseY+1.16,cz2,1.60,.06,1.20,0,'metal',0,0,false,'roofPlant');
+    for(let i=0;i<5;i++)add('box',0x5a6664,cx2-.52+i*.26,baseY+.64,cz2+.585,.07,.82,.04,0,'metal',0,0,false,'roofPlant');
+    add('box',0x56605e,cx2-.86,baseY+.48,cz2,.20,.16,.20,0,'metal',0,0,false,'roofPlant');
+    add('box',0x7c8885,cx2-.86,baseY+.30,cz2,.42,.10,.10,0,'metal',0,0,false,'roofPlant');
+    add('box',0x7c8885,cx2-.65,baseY+.10,cz2,.10,.50,.10,0,'metal',0,0,false,'roofPlant');
+    roofPlantList.push({x:cx2,y:baseY,z:cz2,roof:roofY,h,kind:'condenser',ox:px2,oz:pz2,top:baseY+1.24});
+   }else{
+    add('cylinder',0x6e7b7a,cx2,baseY+1.28,cz2,.28,2.20,.28,0,'metal',0,0,false,'roofPlant');
+    for(const yy of [baseY+.36,baseY+2.16])add('cylinder',0x55605f,cx2,yy,cz2,.37,.11,.37,0,'metal',0,0,false,'roofPlant');
+    add('box',0x8b9592,cx2,baseY+2.42,cz2,.70,.10,.70,0,'metal',0,0,false,'roofPlant');
+    for(const a of [-.7,.7])add('box',0x5b6564,cx2+a*.36,baseY+1.0,cz2,.06,1.7,.06,0,'metal',0,0,false,'roofPlant');
+    roofPlantList.push({x:cx2,y:baseY,z:cz2,roof:roofY,h,kind:'stack',ox:px2,oz:pz2,top:baseY+2.50});
+   }
+   structureDetail.roofPlants=(structureDetail.roofPlants||0)+1;
+  }
+  // Tall street-level blocks carry a deterministic fire-escape frame: a deck,
+  // railing and ladder add readable industrial silhouette depth at street
+  // range. Presentation-only, derived only from the frozen block layer.
+  if(h>=5&&hash>.52){
+   const face=Math.floor(hash*4)%4,onZ=face<2,nx=face===2?-1:face===3?1:0,nz=face===0?1:face===1?-1:0;
+   const pw=Math.min(3.2,Math.max(2,(onZ?w:d)*.55)),deck=.78,yaw=onZ?0:Math.PI/2,levels=h>=7.5?2:1;
+   const cx=x+nx*(w/2+.52),cz=z+nz*(d/2+.52);
+   for(let level=0;level<levels;level++){
+    const py=y+2.3+level*2.5;if(py>roofY-.5)break;
+    add('box',0x6b797c,cx,py,cz,pw,.1,deck,yaw,'metal',0,0,false,'fireEscape');
+    add('box',0x879499,cx+nx*deck*.37,py+.86,cz+nz*deck*.37,pw,.06,.10,yaw,'metal',0,0,false,'fireEscape');
+    for(const side of [-1,1])add('box',0x516165,cx+(onZ?side*pw*.42:0),py+.5,cz+(onZ?0:side*pw*.42),.08,1,.08,yaw,'metal',0,0,false,'fireEscape');
+    if(level===0){
+     const lx=cx+nx*.22+(onZ?pw*.38:0),lz=cz+nz*.22+(onZ?0:pw*.38);
+     add('box',0x3f4e52,lx,(y+py)/2,lz,.09,py-y,.09,yaw,'metal',0,0,false,'fireEscape');
+     for(let rung=0;rung<4;rung++)add('box',0x819196,lx,y+.35+rung*.4,lz,.36,.05,.36,yaw,'metal',0,0,false,'fireEscape');
+    }
+   }
+   structureDetail.fireEscapes=(structureDetail.fireEscapes||0)+1;
+  }
+  // A deterministic share of facades is reclaimed by climbing vines: a damp
+  // foundation mat plus staggered leafy clumps reaching up the wall. The
+  // spheres reuse the foliage wind shader so they sway with the world
+  // and freeze under reduced motion. Presentation-only, block-data derived.
+  const vineHash=hash01(x*4.71+z*9.13+world.id.length*.61+h*2.3);
+  if(vineHash<.30){
+   const face=Math.floor(hash01(vineHash*7.13)*4)%4,onZ=face<2,nx=face===2?-1:face===3?1:0,nz=face===0?1:face===1?-1:0;
+   const span=onZ?w:d,wallX=x+nx*(w/2+.11),wallZ=z+nz*(d/2+.11);
+   const baseAlong=(hash01(vineHash*9.7)-.5)*span*.6;
+   // A damp, spreading moss mat seeds the growth along the foundation.
+   for(let i=0;i<4;i++){
+    const t=hash01(vineHash*11.17+i*4.31),along=baseAlong+(t-.5)*1.5;
+    add('sphere',0x3d5834,wallX+(onZ?along:0),y+.20+hash01(vineHash*5.7+i)*.22,wallZ+(onZ?0:along),(.95+t*.55),.42,.62,0,'forest',0,0,true,'vines');
+   }
+   // Overlapping clumps climb a single column, forming a continuous ivy strip
+   // instead of disconnected balls. Slight jitter keeps it organic.
+   const reach=Math.min(h-.3,4.6),steps=7+Math.floor(hash01(vineHash*19.1)*3);
+   for(let i=0;i<steps;i++){
+    const t=i/(steps-1),along=baseAlong+(hash01(vineHash*23.7+i*2.73)-.5)*.5*(1-t*.4)+Math.sin(i*1.4)*.14;
+    add('sphere',t>.66?0x41603a:0x4f6f45,wallX+(onZ?along:0)-nx*.08,Math.max(y+.45,y+.55+t*(reach-.4)),wallZ+(onZ?0:along)-nz*.08,.86-t*.18,.9,.38,0,'forest',0,0,true,'vines');
+   }
+   structureDetail.vines=(structureDetail.vines||0)+1;
+  }
+  // Street-level ground grit: loose masonry, a plank splinter and weed tufts
+  // settle on the pavement at one deterministic outer corner. Pieces are seated
+  // on sampled terrain height outside the footprint, derive only from the frozen
+  // block dimensions, and the weeds share the frozen wind clock.
+  const gritHash=hash01(x*19.3+z*61.7+world.id.length*9.1+h*.8);
+  if(gritHash<.62){
+   const gc1=hash01(gritHash*5.71)>.5?1:-1,gc2=hash01(gritHash*13.17)>.5?1:-1;
+   const gx=x+gc1*(w/2+.34),gz=z+gc2*(d/2+.34),gy=terrainHeightAt(world,gx,gz);
+   for(let i=0;i<3;i++){
+    const a=hash01(gritHash*21.7+i*3.9)*Math.PI*2,r=hash01(gritHash*3.1+i*.73)*.42;
+    const cw=.26+hash01(gritHash*4.71+i)*.24,ch=.10+hash01(gritHash*9.13+i)*.16,cd=.22+hash01(gritHash*7.37+i)*.18;
+    add('box',i===2?0x7c6a4f:0x837f74,gx+Math.cos(a)*r,gy+ch/2,gz+Math.sin(a)*r,cw,ch,cd,hash01(gritHash*8.3+i)*1.4,'rock',.12,.05,false,'groundGrit');
+   }
+   add('box',0x6f5a3f,gx+.55,gy+.14,gz+.17,.72,.06,.14,gritHash*1.9,'planks',.1,0,false,'groundGrit');
+   for(let i=0;i<2;i++){
+    const a=hash01(gritHash*31.3+i*5.1)*Math.PI*2,r=.18+hash01(gritHash*6.7+i)*.34;
+    add('cone',0x4e6b46,gx+Math.cos(a)*r,gy+.30,gz+Math.sin(a)*r,.30+hash01(gritHash*8.9+i)*.14,.52,.30,0,'forest',.18,0,true,'groundGrit');
+   }
+   add('sphere',0x3d5834,gx,gy+.045,gz,1.15,.05,.95,0,'forest',0,0,true,'groundGrit');
+   groundGritList.push({x:gx,y:gy,z:gz,ox:gc1,oz:gc2,h});
+   structureDetail.streetGritClusters=(structureDetail.streetGritClusters||0)+1;
+  }
+ }
+ root.userData.raidStructureDetail=structureDetail;root.userData.raidRoofPlants=roofPlantList;root.userData.raidStreetGrit=groundGritList;root.userData.raidWindowShutters=shutterSites;
  for(const ramp of world.ramps||[]){const count=20;for(let i=0;i<count;i++){const t=(i+.5)/count,x=ramp.x+(ramp.axis==='x'?(t-.5)*ramp.w:0),z=ramp.z+(ramp.axis==='z'?(t-.5)*ramp.d:0),y=ramp.from+(ramp.to-ramp.from)*t;
   add('box',palette.metal,x,y-.08,z,ramp.axis==='x'?ramp.w/count:ramp.w,.16,ramp.axis==='z'?ramp.d/count:ramp.d,0,'metal');
   if(i%4===0)for(const side of [-1,1])add('box',palette.metal,x+(ramp.axis==='z'?side*ramp.w/2:0),y+.55,z+(ramp.axis==='x'?side*ramp.d/2:0),.1,1.1,.1);
  }}
  // Roads and lane paint establish readable routes through every district.
  for(const axis of ['x','z']){add('box',0x3e4546,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
- for(const prop of world.props||[]){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
+ const scenery=raidScenery(world);
+ for(const prop of [...(world.props||[]),...scenery]){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
   if(prop.kind==='floor')add('box',prop.color||palette.ground,x,y,z,prop.w,.03,prop.d,0,'tiles');
-  else if(prop.kind==='tree'){const leaf=prop.leaf||0x3c5745;add('cylinder',0x6b5842,x,y+1.5*s,z,.23*s,3*s,.23*s,0,'planks');for(let i=0;i<3;i++)add('cone',leaf,x,y+(3+i)*s,z,(2-i*.4)*s,3*s,(2-i*.4)*s)}
-  else if(prop.kind==='bush'){const c=prop.color||0x3e9b4f;for(let i=0;i<3;i++)add('sphere',c,x+(i-1)*.55*s,y+(.7+i*.1)*s,z+(i%2?-.4:.3)*s,1.25*s,.85*s,1.1*s)}
+  // Trees use the swappable foliage texture plus three offset crown blobs; the
+  // layered silhouette reads as an organic canopy instead of stacked cones.
+  else if(prop.kind==='tree'){const leaf=prop.leaf||0x3c5745;add('cylinder',0x6b5842,x,y+1.5*s,z,.23*s,3*s,.23*s,0,'planks');for(let i=0;i<3;i++)add('cone',leaf,x,y+(3+i)*s,z,(2-i*.4)*s,3*s,(2-i*.4)*s,0,'forest',0,0,true);for(let i=0;i<3;i++){const a=i*2.1;add('sphere',leaf,x+Math.sin(a)*.8*s,y+(3.1+i*.9)*s,z+Math.cos(a)*.7*s,(1.2-i*.12)*s,.72*s,(1.1-i*.1)*s,0,'forest',0,0,true)}}
+  else if(prop.kind==='bush'){const c=prop.color||0x3e9b4f;for(let i=0;i<3;i++)add('sphere',c,x+(i-1)*.55*s,y+(.7+i*.1)*s,z+(i%2?-.4:.3)*s,1.25*s,.85*s,1.1*s,0,'forest',0,0,true)}
+  // Presentation-only undergrowth and building ruins derived from
+  // raidScenery(); they never add collision and use fixed offsets so the
+  // online and offline builders agree.
+  else if(prop.kind==='fern'){const c=prop.color||0x587446,n=5;for(let i=0;i<n;i++){const a=(prop.ry||0)+i*Math.PI*2/n;add('cone',c,x+Math.sin(a)*.32*s,y+.32*s,z+Math.cos(a)*.32*s,.24*s,1.15*s,.24*s,a,'forest',Math.PI*.3,0,true)}}
+  else if(prop.kind==='shrub'){const c=prop.color||0x45673d;for(let i=0;i<4;i++){const a=(prop.ry||0)+i*1.65;add('sphere',c,x+Math.sin(a)*.42*s,y+(.5+i*.1)*s,z+Math.cos(a)*.38*s,(1.15-i*.08)*s,(.85-i*.05)*s,(1.05-i*.06)*s,0,'forest',0,0,true)}}
+  else if(prop.kind==='stump'){const s2=prop.scale||1;add('cylinder',0x5b4936,x,y+.62*s2,z,.28*s2,1.24*s2,.28*s2,0,'planks');add('cylinder',0x7c6a4f,x,y+1.24*s2,z,.31*s2,.08*s2,.31*s2,0,'planks');add('box',0x6b5842,x+(prop.ry?Math.sin(prop.ry)*.55*s2:.55*s2),y+.28*s2,z+(prop.ry?Math.cos(prop.ry)*.55*s2:0),1.1*s2,.16*s2,.18*s2,prop.ry||0,'planks',0,Math.PI*.12)}
+  else if(prop.kind==='moss'){const c=prop.color||0x5d7248;add('sphere',c,x,y+.025,z,1.55*s,.055*s,1.25*s,prop.ry||0,'forest');if(s>.9)add('sphere',c,x+.55*s,y+.022,z-.35*s,.9*s,.04*s,.8*s,prop.ry||0,'forest')}
+  else if(prop.kind==='ruin'){const c=prop.color||0x8b8c84,ry=prop.ry||0,off=1.25*s,px=x+Math.sin(ry)*off,pz=z+Math.cos(ry)*off;add('box',c,x,y+.85*s,z,.55*s,1.7*s,2.4*s,ry,'brick',0,0);add('box',c,px,y+.58*s,pz,.5*s,1.16*s,1.5*s,ry,'brick',0,0);add('box',0x74736c,x-Math.cos(ry)*.95*s,y+.12*s,z+Math.sin(ry)*.95*s,1.9*s,.2*s,.62*s,ry+.35,'rock',0,Math.PI*.06)}
+  else if(prop.kind==='rubble'){const c=prop.color||0x8a8777,ry=prop.ry||0;for(let i=0;i<3;i++){const a=ry+i*2.1;add('box',c,x+Math.cos(a)*.38*s,y+(.18+i*.11)*s,z+Math.sin(a)*.44*s,.55*s*(1-i*.12),.22*s*(1+i*.35),.68*s*(1-i*.18),a,'rock',0,Math.PI*.08)}add('sphere',0x777268,x-.3*s,y+.12*s,z+.25*s,.34*s,.18*s,.28*s,0,'rock')}
   else if(prop.kind==='rock'){add('sphere',prop.color||0x8a8777,x,y+.55*s,z,1.5*s,.85*s,1.2*s,0,'rock',0)}
   else if(prop.kind==='barrel'){add('cylinder',prop.color||0x4b5344,x,y+.6*s,z,.5*s,1.3*s,.5*s,0,'metal');add('cylinder',0x1f2420,x,y+1.24*s,z,.52*s,.08*s,.52*s,0,'metal')}
   else if(prop.kind==='crate'){add('box',prop.color||0x9c7b4d,x,y+.55*s,z,1.15*s,1.1*s,1.15*s,0,'crate')}
   else if(prop.kind==='tank'){const c=prop.color||0x748889;add('cylinder',c,x,y+1.5*s,z,1.1*s,3*s,1.1*s,0,'metal');add('sphere',c,x,y+3*s,z,1.1*s,.55*s,1.1*s,0,'metal');add('box',0x4d5f63,x,y+.25,z,2.5*s,.3*s,2.5*s,0,'metal')}
   else if(prop.kind==='tent'){add('cone',prop.color||0x8a9b7a,x,y+1.25*s,z,1.7*s,2.5*s,1.7*s)}
-  else if(prop.kind==='campfire'){add('cylinder',0x5a4632,x,y+.12,z,.75*s,.18*s,.75*s,0,'rock');add('sphere',prop.color||0xffb64d,x,y+.42*s,z,.42*s,.55*s,.42*s,0,'glow');add('box',0x3e342c,x,y+.1,z,1.1*s,.12*s,.16*s,0,'planks',0,Math.PI/5)}
+  else if(prop.kind==='campfire'){add('cylinder',0x5a4632,x,y+.12,z,.75*s,.18*s,.75*s,0,'rock');add('sphere',prop.color||0xffb64d,x,y+.42*s,z,.42*s,.55*s,.42*s,0,'glow');add('box',0x3e342c,x,y+.1,z,1.1*s,.12*s,.16*s,0,'planks',0,Math.PI/5);glow(x,y+.42*s,z,prop.color||0xff9b52);lightPool(prop,0xff9444,2.2*s)}
   else if(prop.kind==='car'){add('box',prop.color||0x647082,x,y+.5*s,z,2.2*s,1*s,1.1*s,0,'metal');add('box',prop.color||0x647082,x-.1*s,y+1.25*s,z,.9*s,.55*s,.95*s,0,'metal');for(const sx of [-1,1])for(const sz of [-1,1])add('cylinder',0x1f2420,x+sx*.7*s,y+.28*s,z+sz*.45*s,.24*s,.5*s,.24*s,0,'metal')}
   else if(prop.kind==='scrap'){add('box',0x536368,x,.45,z,1.8,.9,1.2,.3,'metal');add('cylinder',0x977d58,x+.5,.8,z,.4,1.2,.4,0,'metal')}
   else if(prop.kind==='dish'){add('sphere',0xbdc5b6,x,y+1.2,z,2.8,.5,2.8,0,'metal');add('box',0x415259,x,y+2,z,.2,3,.2)}
@@ -73,7 +311,7 @@ export function buildEnvironment(world){
   else if(prop.kind==='basin')add('box',0x547776,x,y,z,prop.w,.03,prop.d,0,'tiles');
   else if(prop.kind==='rail'){for(const side of [-1,1])add('box',0x6c7778,x,y+.1,z+side*.8,prop.w,.2,.12,0,'metal');for(let i=-prop.w/2;i<prop.w/2;i+=2)add('box',0x5d4b3d,x+i,y+.02,z,.3,.14,2.6,0,'planks')}
   else if(prop.kind==='signal'){add('cylinder',0x53646a,x,2.4,z,.12,4.8,.12);add('box',0x29383d,x,4.4,z,.65,1.2,.4);add('sphere',0xc67b4e,x,4.5,z+.25,.18,.18,.1)}
-  else if(prop.kind==='floodlight'){add('cylinder',0x3e4c53,x,y+3.2,z,.16,6.4,.16,0,'metal');add('box',0xf4e3ac,x,y+6.4,z,1.4,.2,.7,0,'glow')}
+  else if(prop.kind==='floodlight'){add('cylinder',0x3e4c53,x,y+3.2,z,.16,6.4,.16,0,'metal');add('box',0xf4e3ac,x,y+6.4,z,1.4,.2,.7,0,'glow');glow(x,y+6.4,z,0xf6ecd4);if(prop.y==null||prop.y===0)wetReflect(x,z,0xf6ecd4,2.6,9.2)}
   else if(prop.kind==='crane'){add('box',0x4d5f63,x,y+2,z,.5,4,.5,0,'metal');add('box',0x4d5f63,x+8,y+4,z,.5,.35,9,0,'metal');add('box',0x2c3a40,x+12,y+3.4,z,.15,1.2,.15,0,'metal');add('box',0xa08a59,x+8,y+3.8,z,3,.18,.5,0,'metal')}
   else if(prop.kind==='antenna'){add('cylinder',0x5f7075,x,y+7,z,.2,14,.2,0,'metal');add('box',0x26363b,x,y+12,z,2.4,.24,.24,0,'metal');add('sphere',0xdf6b4e,x,y+13,z,.35,.35,.35,0,'glow')}
   else if(prop.kind==='wreck'){add('box',0x3d302c,x,y+.8,z,6,1.4,2.4,0,'metal');add('box',0x6e4c38,x+1.6,y+1.6,z-.4,2.6,.4,1.6,0,'metal');add('cylinder',0x24201f,x-1.8,y+.5,z+.9,.45,.6,.45,0,'metal');add('box',0x3f4446,x+2.4,y+1.1,z+.2,2.2,.5,2.2,0,'metal')}
@@ -86,8 +324,96 @@ export function buildEnvironment(world){
    for(let i=0;i<n;i++)add('box',0xded7b5,x-prop.w/2+step*(i+.5)*2.2,y,z,prop.w/(n*3),.03,prop.d,0,'concrete');
   }
   else if(prop.kind==='window'){
-   const w=prop.w||.16,d=prop.d||1.15,h=prop.h||1.3;
-   add('box',prop.lit&&prop.color!=null?prop.color:0x11191d,x,y+h/2,z,w,h,d,0,prop.lit?'glow':'metal');
+   const w=prop.w||.16,d=prop.d||1.15,h=prop.h||1.3,lit=!!(prop.lit&&prop.color!=null);
+   add('box',lit?prop.color:0x11191d,x,y+h/2,z,w,h,d,0,lit?'glow':'metal');
+   // Presentation-only masonry reveal: a sill, a lintel and two jambs turn the
+   // flat opening into an authored window frame. The trim faces outward by a
+   // few centimetres so rain wetness and lamplight catch it, and it is derived
+   // only from the frozen window prop.
+   const onZ=w>=d,wide=onZ?w:d,thick=onZ?d:w,frame=onZ?[wide+.30,.09,thick+.16]:[thick+.16,.09,wide+.30];
+   add('box',0x746e63,x,y-.045,z,frame[0],frame[1],frame[2],0,'concrete',0,0,false,'framing');
+   add('box',0x746e63,x,y+h+.045,z,frame[0],frame[1],frame[2],0,'concrete',0,0,false,'framing');
+   const jamb=onZ?[.15,h+.18,thick+.16]:[thick+.16,h+.18,.15];
+   add('box',0x746e63,x-(onZ?wide/2+.075:0),y+h/2,z-(onZ?0:wide/2+.075),jamb[0],jamb[1],jamb[2],0,'concrete',0,0,false,'framing');
+   add('box',0x746e63,x+(onZ?wide/2+.075:0),y+h/2,z+(onZ?0:wide/2+.075),jamb[0],jamb[1],jamb[2],0,'concrete',0,0,false,'framing');
+   structureDetail.frames=(structureDetail.frames||0)+4;
+   // Abandoned dark openings are sealed with nailed planks from the frozen prop
+   // data: a broad horizontal board plus two crossed diagonals. The overlay sits
+   // outside the glazing on both sides so it reads from any approach; lit windows
+   // stay clear to preserve the practical-light budget. Presentation-only.
+   if(!lit){
+    const boardSeed=hash01(prop.x*127.1+prop.z*311.7+world.id.length*4.3);
+    if(boardSeed<.22){
+     const blen=wide*(1.06+boardSeed*.18),boardDepth=thick+.03;
+     for(let i=0;i<4;i++){
+      const dy=h*[-.43,-.14,.14,.43][i],len=blen*(.96+boardSeed*.06),sx=onZ?len:boardDepth,sz=onZ?boardDepth:len;
+      add('box',i%2?0x8a6f52:0x745d43,x,y+h/2+dy,z,sx,.17,sz,0,'planks',0,0,false,'boarding');
+     }
+     // Two crossed braces sit just proud of the stacked planks so the seal is
+     // legible at street range without washing out the window-framing trim.
+     for(const angle of [-.58,.58]){
+      const len=blen*1.14,sx=onZ?len:boardDepth+.03,sz=onZ?boardDepth+.03:len;
+      add('box',0x8f7455,x,y+h/2,z,sx,.14,sz,0,'planks',onZ?0:angle,onZ?angle:0,false,'boarding');
+     }
+     structureDetail.boardedWindows=(structureDetail.boardedWindows||0)+1;
+    }
+   }
+   // Presentation-only weathered shutters: a deterministic share of dark
+   // openings keep plank panels hung outside the frame on both sides (or one,
+   // when a leaf has rotted away), each with louver slats and two metal hinges.
+   // Panels sit proud of the masonry on the verified façade side so they can
+   // never z-fight, cover the glazing or overlap the window trim. Derived only
+   // from the frozen window prop and its parent block.
+   if(!lit&&wide>0&&thick>0){
+    const shutterSeed=hash01(prop.x*111.7+prop.z*203.9+(prop.y||0)*47.1+world.id.length*9.3);
+    if(shutterSeed<.22){
+     let outward=0;
+     for(const b of world.blocks||[]){
+      const bx=b[0],bz=b[1],bw=b[2],bd=b[3];
+      if(onZ){
+       if(Math.abs(prop.x-bx)>bw/2+.2)continue;
+       if(prop.z>bz&&Math.abs(prop.z-(bz+bd/2+.27))<.6){outward=1;break}
+       if(prop.z<bz&&Math.abs(prop.z-(bz-bd/2-.27))<.6){outward=-1;break}
+      }else{
+       if(Math.abs(prop.z-bz)>bd/2+.2)continue;
+       if(prop.x>bx&&Math.abs(prop.x-(bx+bw/2+.27))<.6){outward=1;break}
+       if(prop.x<bx&&Math.abs(prop.x-(bx-bw/2-.27))<.6){outward=-1;break}
+      }
+     }
+     if(outward){
+      const outX=onZ?0:outward,outZ=onZ?outward:0;
+      const dims=(sx,sy,sz)=>onZ?[sx,sy,sz]:[sz,sy,sx];
+      const sides=shutterSeed<.07?[(hash01(shutterSeed*5.3+1.1)>.5?1:-1)]:[-1,1];
+      for(const side of sides){
+       const pw=.54+hash01(shutterSeed*3.7+side+1)*.16;
+       const ph=Math.max(.55,h*(.86+hash01(shutterSeed*7.1+side+1.7)*.12));
+       const off=side*(wide/2+.21+pw/2);
+       const px=onZ?prop.x+off+outX*.15:prop.x+outX*.15;
+       const pz=onZ?prop.z+outZ*.15:prop.z+off+outZ*.15;
+       const midY=prop.y+h/2;
+       const board=side>0?0x7d6548:0x65543f;
+       add('box',board,px,midY,pz,...dims(pw,ph,.055),0,'planks',0,0,false,'windowShutter');
+       // Three horizontal louvres give the panel a readable slatted silhouette.
+       for(let i=0;i<3;i++){
+        const dy=ph*(i/2-.5)*.36;
+        add('box',side>0?0x6d5840:0x5e4c38,px+outX*.049,midY+dy,pz+outZ*.049,...dims(pw*.88,.055,.032),0,'planks',0,0,false,'windowShutter');
+       }
+       // Two oxidized hinge plates pin the leaf to the frame reveal.
+       for(const hy of [-ph*.34,ph*.34]){
+        const hx=onZ?prop.x+side*(wide/2+.23)+outX*.19:prop.x+outX*.19;
+        const hz=onZ?prop.z+outZ*.19:prop.z+side*(wide/2+.23)+outZ*.19;
+        add('box',0x4a4b44,hx,midY+hy,hz,...dims(.11,.22,.06),0,'metal',0,0,false,'windowShutter');
+       }
+      }
+      shutteredWindows++;shutterSites.push({x:prop.x,y:prop.y+h/2,z:prop.z,onZ,outX,outZ,wide,h,panels:sides.length});
+      structureDetail.windowShutters=(structureDetail.windowShutters||0)+1;
+     }
+    }
+   }
+   // Lit windows join the shared practical halo budget so night facades bloom
+   // cohesively. Halos are depth-tested (with a fixture bias) rather than depth-
+   // independent, so a window behind a solid wall no longer ghosts through it.
+   if(lit){glow(x,y+h/2,z,prop.color||0xffd79a);wetReflect(x,z,prop.color||0xffd79a,Math.max(.82,d*.72),h*1.8)}
   }
   else if(prop.kind==='awning'){add('box',prop.color||0x8d382e,x,y+.18,z,prop.w||3,0.14,prop.d||2,0,'metal')}
   else if(prop.kind==='field'){add('box',prop.color||(world.theme==='wilderness'?0x5d7248:0x6d745f),x,y+.01,z,prop.w||20,.02,prop.d||20,0,world.theme==='wilderness'?'forest':'dirt')}
@@ -106,7 +432,7 @@ export function buildEnvironment(world){
   else if(prop.kind==='powerPole'){add('cylinder',0x384349,x,y+3,z,.13,6,.13,0,'metal');add('box',0x384349,x,y+5.7,z,2.2,.16,.16,0,'metal');for(const s of [-.9,.9])add('sphere',0xd8d5c8,x+s,y+6.1,z,.13,.13,.13,0,'metal')}
   else if(prop.kind==='sandbag'){const s=prop.scale||1;for(const [dx,dy,dz] of [[0,0,0],[.38,0,.08],[.18,.34,.24],[.55,.34,.02]])add('box',0xb6a57a,x+dx*s,y+dy*s,z+dz*s,.52*s,.28*s,.36*s,0,'concrete')}
   else if(prop.kind==='checkpoint'){const s=prop.scale||1;add('box',0x77725f,x,y+1.15*s,z,3.4*s,2.3*s,2.4*s,0,'concrete');add('box',0x2d3336,x,y+2.42*s,z,3.6*s,.16*s,2.6*s,0,'metal');add('box',0xf0d18b,x,y+2.32*s,z,.8*s,.16*s,.8*s,0,'glow')}
-  else if(prop.kind==='lamp'){add('cylinder',0x2d3436,x,y+2.3,z,.1,4.6,.1,0,'metal');add('box',0x2d3436,x,y+4.65,z,.7,.1,.1,0,'metal');add('box',0xffe4a3,x,y+4.76,z,.34,.16,.34,0,'glow')}
+  else if(prop.kind==='lamp'){add('cylinder',0x2d3436,x,y+2.3,z,.1,4.6,.1,0,'metal');add('box',0x2d3436,x,y+4.65,z,.7,.1,.1,0,'metal');add('box',0xffe4a3,x,y+4.76,z,.34,.16,.34,0,'glow');glow(x,y+4.76,z,0xffcf8a);lightPool(prop,0xffc487,3.2)}
   else if(prop.kind==='bench'){add('box',0xb07a45,x,y+.45,z,2.1,.12,.45,0,'planks');add('box',0xb07a45,x,y+.66,z-.18,2.1,.32,.08,0,'planks');for(const s of [-.8,.8])add('box',0x31383c,x+s,y+.2,z,.08,.4,.4,0,'metal')}
   else if(prop.kind==='dumpster'){const s=prop.scale||1,c=prop.color||0x4e6550;add('box',c,x,y+.7*s,z,2.1*s,1.4*s,1.25*s,0,'metal');add('box',0x333d3f,x,y+1.42*s,z,2.15*s,.1*s,1.3*s,0,'metal');for(const s2 of [-.7,.7])add('cylinder',0x1f2420,x+s2*s,y+.22*s,z+.52*s,.2*s,.2*s,.2*s,0,'metal')}
   else if(prop.kind==='sign'){
@@ -114,10 +440,328 @@ export function buildEnvironment(world){
    const texture=new THREE.CanvasTexture(canvas),material=new THREE.SpriteMaterial({map:texture});material.userData.raidOwned=true;material.userData.raidOwnTexture=true;const sprite=new THREE.Sprite(material);sprite.position.set(x,y,z);sprite.scale.set(7,1.32,1);root.add(sprite);
   }
  }
+ // Presentation-only street-level doorways derived from the frozen block and
+ // window layers: a recessed dark opening framed by masonry, an entry stoop,
+ // and a weathered plank door hung ajar. The façade is chosen deterministically
+ // and the door is centred in a verified gap between authored window openings,
+ // so trim never overlaps a window. No world/actor/collision data is touched.
+ const doorwayWindows=(world.props||[]).filter(p=>p.kind==='window');
+ const doorwayList=[];let doorways=0;const doorwaySigns=[];
+ for(const block of world.blocks){
+  const [x,z,w,d,h,y=0,kind='concrete']=block;
+  if(y>.4||h<2.8||w<6||d<6)continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  const doorHash=hash01(x*57.1+z*37.7+world.id.length*3.3+h*1.9);
+  if(doorHash>=.45)continue;
+  const primary=Math.floor(hash01(doorHash*7.31)*4)%4;
+  for(let attempt=0;attempt<4;attempt++){
+   const face=(primary+attempt)%4,onZ=face<2,nx=face===2?-1:face===3?1:0,nz=face===0?1:face===1?-1:0;
+   const minA=(onZ?x:z)-(onZ?w:d)/2+1.5,maxA=(onZ?x:z)+(onZ?w:d)/2-1.5;
+   const faceWins=[];
+   for(const p of doorwayWindows){
+    if(onZ){if(Math.abs(p.z-(z+nz*(d/2+.27)))<.8&&p.x>=x-w/2-.1&&p.x<=x+w/2+.1)faceWins.push({a:p.x,width:p.w||1.2})}
+    else if(Math.abs(p.x-(x+nx*(w/2+.27)))<.8&&p.z>=z-d/2-.1&&p.z<=z+d/2+.1)faceWins.push({a:p.z,width:p.d||1.2});
+   }
+   faceWins.sort((a,b)=>a.a-b.a);
+   const gaps=[];let cursor=minA;
+   for(const win of faceWins){const s=win.a-win.width/2-.18,e=win.a+win.width/2+.18;if(s-cursor>=1.8)gaps.push([cursor,s]);cursor=Math.max(cursor,e)}
+   if(maxA-cursor>=1.8)gaps.push([cursor,maxA]);
+   if(!gaps.length)continue;
+   gaps.sort((a,b)=>(b[1]-b[0])-(a[1]-a[0]));
+   const a=(gaps[0][0]+gaps[0][1])/2,wallX=x+nx*w/2,wallZ=z+nz*d/2,ddx=onZ?a:wallX,ddz=onZ?wallZ:a;
+   const doorBase=y+.38,doorW=1.12,doorH=Math.min(2.15,h-.5);
+   const since=(sx,sy,sz)=>onZ?[sx,sy,sz]:[sz,sy,sx];
+   // Dark recess and masonry trim.
+   add('box',0x12191a,ddx,doorBase+doorH/2,ddz,...since(doorW,doorH,.08),0,'metal',0,0,false,'doorway');
+   add('box',0x6c6a64,ddx,doorBase+doorH+.06,ddz,...since(doorW+.38,.12,.30),0,'concrete',0,0,false,'doorway');
+   add('box',0x777368,ddx,doorBase-.05,ddz,...since(doorW+.38,.10,.30),0,'concrete',0,0,false,'doorway');
+   for(const side of [-1,1]){
+    add('box',0x6c6a64,ddx+(onZ?side*(doorW/2+.08):0),doorBase+doorH/2,ddz+(onZ?0:side*(doorW/2+.08)),...since(.16,doorH+.18,.30),0,'concrete',0,0,false,'doorway');
+   }
+   // A weathered plank door hangs slightly ajar on one jamb; a dull metal
+   // handle catches the light and makes the entry legible at night.
+   const outX=onZ?0:nx,outZ=onZ?nz:0,swing=(outZ||outX)*.24;
+   add('box',0x4a3824,ddx+outX*.12,doorBase+doorH/2-.06,ddz+outZ*.12,...since(doorW-.14,doorH-.24,.08),swing,'planks',0,0,false,'doorway');
+   add('sphere',0xa9aca9,ddx+(onZ?doorW/2-.2:0)+outX*.18,doorBase+doorH*.46,ddz+(onZ?0:doorW/2-.2)+outZ*.18,.055,.055,.055,0,'metal',0,0,false,'doorway');
+   // Two descending steps make the threshold read as a lived-in stoop.
+   add('box',0x777368,ddx+outX*.34,doorBase-.26,ddz+outZ*.34,...since(doorW+.7,.18,.68),0,'concrete',0,0,false,'doorway');
+   add('box',0x6c6a64,ddx+outX*.22,doorBase-.14,ddz+outZ*.22,...since(doorW+.5,.18,.46),0,'concrete',0,0,false,'doorway');
+   const awningSeed=hash01(doorHash*29.3+face*4.2),awn=awningSeed<.55;
+   if(awn){
+    const depth=.92,awW=doorW+1.1,awY=Math.min(doorBase+doorH+.38,y+h-.22),awOut=.05+depth/2;
+    add('box',0x7d5f42,ddx+outX*awOut,awY,ddz+outZ*awOut,...since(awW,.14,depth),0,'planks',onZ?outZ*.19:0,onZ?0:-outX*.19,false,'doorAwning');
+    // A lighter outer fascia lip catches the key light, so the canopy reads as
+    // a distinct silhouette instead of a shadow band above the doorway.
+    add('box',0x9a7958,ddx+outX*(.05+depth-.02),awY-.07+outZ*.012,ddz+outZ*(.05+depth-.02)+outX*.012,...since(awW+.18,.16,.12),0,'planks',onZ?outZ*.19:0,onZ?0:-outX*.19,false,'doorAwning');
+    for(const side of [-1,1]){
+     add('box',0x6b5137,onZ?ddx+side*(awW/2-.3):ddx+outX*(.05+depth*.35),awY-.30,onZ?ddz+outZ*(.05+depth*.35):ddz+side*(awW/2-.3),...since(.12,.52,.12),0,'planks',0,0,false,'doorAwning');
+     add('box',0x7b837d,onZ?ddx+side*(awW/2-.3):ddx+outX*.04,awY-.26,onZ?ddz+outZ*.04:ddz+side*(awW/2-.3),...since(.14,.40,.10),0,'metal',0,0,false,'doorAwning');
+    }
+   }
+   if(awn)structureDetail.awningDoors=(structureDetail.awningDoors||0)+1;
+   // Storefront blade signs: a thin painted board projects from the façade on a
+   // short metal bracket, adding readable commercial silhouette above the door.
+   // The board is centred on the door and edge-on to the wall, so it never
+   // covers an authored window; a deterministic share of doors qualifies only
+   // where the lintel/canopy leave at least 0.93 m of headroom below the roof.
+   const awningTop=awn?Math.min(doorBase+doorH+.38,y+h-.22)+.07:doorBase+doorH+.06;
+   const signHash=hash01(doorHash*43.7+face*11.3);
+   if(signHash<.44&&y+h-awningTop>=.93){
+    const teal=signHash<.22,panel=teal?0x4d6159:0x6b5238,band=teal?0xb9a878:0xc8a87b,frame=teal?0x6f7e7c:0x7b8580;
+    const sy=awningTop+.50,sD=.84,sT=.07,sH=.60,sX=ddx+outX*.52,sZ=ddz+outZ*.52;
+    add('box',panel,sX,sy,sZ,...since(sT,sH,sD),0,'planks',0,0,false,'facadeSign');
+    // Faded paint bands and metal rail trim read as a weathered shop sign.
+    add('box',band,sX+outX*.006,sy-.11,sZ+outZ*.006,...since(sT+.018,.12,sD*.58),0,'concrete',0,0,false,'facadeSign');
+    add('box',band,sX+outX*.007,sy+.10,sZ+outZ*.007,...since(sT+.018,.07,sD*.72),0,'concrete',0,0,false,'facadeSign');
+    add('box',frame,sX,sy+sH/2-.02,sZ,...since(sT+.03,.05,sD+.05),0,'metal',0,0,false,'facadeSign');
+    add('box',frame,sX,sy-sH/2+.02,sZ,...since(sT+.03,.05,sD+.05),0,'metal',0,0,false,'facadeSign');
+    // Corner rivets sit proud of the painted board on both blade faces.
+    for(const along of [-.36,.36])for(const dy of [-.21,.21]){
+     add('box',0xa7afa5,sX+(onZ?0:along*outX),sy+dy,sZ+(onZ?along*outZ:0),...since(.10,.055,.055),0,'metal',0,0,false,'facadeSign');
+    }
+    // Bracket arm and wall anchor plate; the arm passes above the canopy.
+    add('box',frame,ddx+outX*.30,sy+.18,ddz+outZ*.30,...since(.10,.09,.60),0,'metal',0,0,false,'facadeSign');
+    add('box',0x4b5657,ddx+outX*.05,sy-.02,ddz+outZ*.05,...since(.10,.34,.10),0,'metal',0,0,false,'facadeSign');
+    doorwaySigns.push({x:sX,y:sy,z:sZ,face,onZ,outX,outZ,panel});
+   }
+   doorwayList.push({x:ddx,y:doorBase,z:ddz,face,onZ,outX,outZ,w:doorW,h:doorH,windows:faceWins.length,awning:awn});
+   doorways++;
+   break;
+  }
+ }
+ structureDetail.doorways=doorways;root.userData.raidDoorways=doorwayList;
+ structureDetail.facadeSigns=doorwaySigns.length;root.userData.raidFacadeSigns=doorwaySigns;
+ // Façade weathering: rain/oxide streaks below dark windows, a ragged damp
+ // foundation band and faded efflorescence drips beneath the cornice settle on
+ // one deterministic wall plane. Every piece is a thin box proud of the masonry
+ // so it can never z-fight, overlap window glass or door trim, and uses the
+ // rock/concrete PBR maps plus normal maps. Presentation-only, derived from
+ // frozen blocks and authored window props.
+ const weatherList=[];let facadeStains=0;
+ for(const block of world.blocks){
+  const [x,z,w,d,h,y=0,kind='concrete']=block;
+  if(y>.4||h<2.8||w<6||d<6)continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  const weatherHash=hash01(x*29.7+z*67.3+world.id.length*4.1+h*7.9);
+  if(weatherHash>=.62)continue;
+  let face=-1,onZ=false,nx=0,nz=0,wallX=0,wallZ=0,span=0,wins=null,outX=0,outZ=0;
+  for(let attempt=0;attempt<4;attempt++){
+   const f=(Math.floor(hash01(weatherHash*9.17+x*2.1)*4)%4+attempt)%4;
+   const oZ=f<2,nx2=f===2?-1:f===3?1:0,nz2=f===0?1:f===1?-1:0;
+   const wx=oZ?x:x+nx2*w/2,wz=oZ?z:z+nz2*d/2;
+   const onFace=doorwayWindows.filter(p=>{
+    if(p.kind!=='window'||p.lit||p.y==null)return false;
+    if(nx2)return Math.abs(p.x-(x+nx2*(w/2+.27)))<.8&&p.z>=z-d/2-.1&&p.z<=z+d/2+.1;
+    return Math.abs(p.z-(z+nz2*(d/2+.27)))<.8&&p.x>=x-w/2-.1&&p.x<=x+w/2+.1;
+   });
+   if(onFace.length){face=f;onZ=oZ;nx=nx2;nz=nz2;wallX=wx;wallZ=wz;span=onZ?w:d;outX=onZ?0:nx2;outZ=onZ?nz2:0;wins=onFace;break}
+  }
+  if(face<0)continue;
+  const since=(sx,sy,sz)=>onZ?[sx,sy,sz]:[sz,sy,sx];
+  const roofY=y+h,streakCount=1+Math.floor(hash01(weatherHash*17.3+1.7)*3);
+  wins.sort((a,b)=>(onZ?a.x:b.z)-(onZ?b.x:b.z));
+  for(let i=0;i<Math.min(streakCount,wins.length);i++){
+   const p=wins[i],along=(onZ?p.x:p.z)+(hash01(weatherHash*31.1+i*5.3)-.5)*.18;
+   const top=Math.min(p.y-.10,roofY-.30),bot=Math.max(y+.30,top-(.55+hash01(weatherHash*7.7+i*3.1)*.9));
+   if(top-bot<.28)continue;
+   const sw=.15+hash01(weatherHash*11.9+i*2.7)*.13;
+   add('box',i%2?0xb5ae9b:0x77806b,onZ?along:wallX+outX*.014,(top+bot)/2,onZ?wallZ+outZ*.014:along,...since(sw,top-bot,.024),0,i%2?'concrete':'rock',0,0,false,'facadeWeather');
+  }
+  // A ragged damp foundation instead of one flat slab: overlapping stains of
+  // varying width and shallow height key the wall to the pavement above the plinth.
+  for(let i=0;i<5;i++){
+   const t=hash01(weatherHash*13.7+i*2.93),sw2=.55+t*.35,sh2=.18+hash01(weatherHash*5.3+i)*.38;
+   const off=(i/4-.5)*Math.min(span*.55,2.4)+(hash01(weatherHash*7.1+i*1.9)-.5)*.16;
+   add('box',i%2?0x59614e:0x495646,onZ?wallX+off:wallX+outX*.012,y+.37+sh2/2,onZ?wallZ+outZ*.012:wallZ+off,...since(sw2,sh2,.02),0,'rock',0,0,false,'facadeWeather');
+  }
+  // Faded efflorescence drips under the cornice weep onto the masonry.
+  for(let i=0;i<4;i++){
+   const t=hash01(weatherHash*23.9+i*3.1),sw2=.12+t*.16,sh2=.34+hash01(weatherHash*6.7+i)*.86;
+   const off=(i/3-.5)*Math.min(span*.42,1.9)+(hash01(weatherHash*11.3+i)-.5)*.12,top=roofY-.22;
+   add('box',i%2?0x928c78:0x616956,onZ?wallX+off:wallX+outX*.014,top-sh2/2,onZ?wallZ+outZ*.014:wallZ+off,...since(sw2,sh2,.02),0,i%2?'concrete':'rock',0,0,false,'facadeWeather');
+  }
+  weatherList.push({x:wallX,z:wallZ,y:y+.62,face,onZ,outX,outZ,span,h:roofY});
+  facadeStains++;
+ }
+ structureDetail.facadeStains=facadeStains;root.userData.raidFacadeWeather=weatherList;
+ // Façade utilities: corner downpipes and wall cabinets make the abandoned
+ // blocks read as built, serviced infrastructure. Both placements are derived
+ // from frozen blocks and authored window/door positions, use the same façade
+ // coordinate logic as doors, and are presentation-only.
+ const utilityList=[];let facadeUtilities=0,downpipes=0,utilityBoxes=0;
+ for(const block of world.blocks){
+  const [x,z,w,d,h,y=0,kind='concrete']=block;
+  if(y>.4||h<3||w<6||d<6)continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  const uHash=hash01(x*41.3+z*73.9+world.id.length*5.1+h*2.7);
+  const pipeShare=uHash<.40,boxShare=hash01(uHash*17.3+x*3.7-z*5.9)<.28;
+  if(!pipeShare&&!boxShare)continue;
+  facadeUtilities++;
+  const face=Math.floor(hash01(uHash*5.13)*4)%4,onZ=face<2,nx=face===2?-1:face===3?1:0,nz=face===0?1:face===1?-1:0;
+  const span=onZ?w:d,outX=onZ?0:nx,outZ=onZ?nz:0,wallX=onZ?x:x+nx*(w/2),wallZ=onZ?z+nz*(d/2):z;
+  const since=(sx,sy,sz)=>onZ?[sx,sy,sz]:[sz,sy,sx];
+  if(pipeShare){
+   const side=hash01(uHash*11.1)>.5?1:-1,along=side*(span/2-.32);
+   const pipeX=onZ?x+along:wallX+nx*.10,pipeZ=onZ?wallZ+nz*.10:z+along;
+   add('box',0x5f5548,pipeX,y+.12+h*.5,pipeZ,...since(.20,h-.24,.22),0,'metal',0,0,false,'facadeUtility');
+   // Two rust bands plus the floor shoe and roof elbow break the pipe into
+   // readable weathered segments against the masonry.
+   for(let i=0;i<2;i++){
+    add('box',0x524130,pipeX,y+.32+h*(.24+.44*i),pipeZ,...since(.225,.16,.245),0,'metal',0,0,false,'facadeUtility');
+   }
+   add('box',0x574f45,pipeX+outX*.09,y+.20,pipeZ+outZ*.09,...since(.30,.30,.46),0,'metal',0,0,false,'facadeUtility');
+   add('box',0x79735f,pipeX+outX*.26,y+h-.12,pipeZ+outZ*.26,...since(.22,.22,.62),0,'metal',onZ?outZ*.22:0,onZ?0:-outX*.22,false,'facadeUtility');
+   for(let i=0;i<3;i++){
+    add('box',0x8c8578,pipeX,y+.35+h*(.17+.31*i),pipeZ,...since(.15,.10,.26),0,'metal',0,0,false,'facadeUtility');
+   }
+   downpipes++;
+   utilityList.push({kind:'downpipe',x:pipeX,z:pipeZ,face,onZ,y,height:h});
+  }
+  if(boxShare){
+   const minA=(onZ?x:z)-span/2+.60,maxA=(onZ?x:z)+span/2-.60,occupied=[];
+   for(const p of doorwayWindows){
+    if(onZ){if(Math.abs(p.z-wallZ-nz*.27)<.75&&p.x>=x-w/2-.1&&p.x<=x+w/2+.1)occupied.push([p.x-(p.w||1.2)/2,p.x+(p.w||1.2)/2])}
+    else if(Math.abs(p.x-wallX-nx*.27)<.75&&p.z>=z-d/2-.1&&p.z<=z+d/2+.1)occupied.push([p.z-(p.d||1.2)/2,p.z+(p.d||1.2)/2]);
+   }
+   for(const door of doorwayList){
+    if(door.onZ!==onZ)continue;
+    if(onZ&&Math.abs(door.z-wallZ)<.8)occupied.push([door.x-door.w/2,door.x+door.w/2]);
+    if(!onZ&&Math.abs(door.x-wallX)<.8)occupied.push([door.z-door.w/2,door.z+door.w/2]);
+   }
+   occupied.sort((a,b)=>a[0]-b[0]);
+   const gaps=[];let cursor=minA;
+   for(const [s,e] of occupied){if(s-.35-cursor>=.95)gaps.push([cursor,s-.35]);cursor=Math.max(cursor,e+.35)}
+   if(maxA-cursor>=.95)gaps.push([cursor,maxA]);
+   if(gaps.length){
+    gaps.sort((a,b)=>(b[1]-b[0])-(a[1]-a[0]));
+    const gx=(gaps[0][0]+gaps[0][1])/2,boxX=onZ?x+gx:wallX+nx*.12,boxZ=onZ?wallZ+nz*.12:z+gx;
+    const boxY=y+1.05,boxW=.82,boxH=.92;
+    add('box',0x4a5450,boxX,boxY,boxZ,...since(boxW,boxH,.26),0,'metal',0,0,false,'facadeUtility');
+    // Cabinet plate seam and faded hazard plate sit proud of the front plane so
+    // they remain readable at night; the conduit rises to a small roof elbow.
+    add('box',0x202724,boxX+outX*.14+(onZ?.18:0),boxY-.02,boxZ+outZ*.14+(onZ?0:.18),...since(.05,boxH*.72,.05),0,'metal',0,0,false,'facadeUtility');
+    add('box',0xbfa96d,boxX+outX*.15,boxY+boxH*.26,boxZ+outZ*.15,...since(.30,.13,.04),0,'concrete',0,0,false,'facadeUtility');
+    const conduitY=boxY+boxH*.5+.55;
+    add('box',0x6b675d,boxX+outX*.14,conduitY,boxZ+outZ*.14,...since(.10,1.15,.10),0,'metal',0,0,false,'facadeUtility');
+    add('box',0x6b675d,boxX+outX*.34,conduitY+.45,boxZ+outZ*.34,...since(.10,.10,.48),0,'metal',onZ?outZ*.2:0,onZ?0:-outX*.2,false,'facadeUtility');
+    for(const dy of [-.22,.22]){
+     add('box',0x8c8578,boxX+outX*.16,conduitY+dy,boxZ+outZ*.16,...since(.18,.10,.18),0,'metal',0,0,false,'facadeUtility');
+    }
+    utilityBoxes++;
+    utilityList.push({kind:'cabinet',x:boxX,z:boxZ,face,onZ,y:boxY,height:boxH});
+   }
+  }
+ }
+ structureDetail.facadeUtilities=facadeUtilities;structureDetail.downpipes=downpipes;structureDetail.utilityBoxes=utilityBoxes;
+ root.userData.raidFacadeUtilities=utilityList;
  // Perimeter hills and warning posts frame the playable region without blocking routes.
  for(let i=0;i<24;i++){const angle=i*Math.PI/12,x=Math.sin(angle)*(world.size/2+15),z=Math.cos(angle)*(world.size/2+15);add('cone',palette.rock,x,7,z,15,18,15,angle,'rock')}
- for(const {type,transforms,material}of groups.values()){
-  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
+ const sceneryCounts={};for(const item of scenery)sceneryCounts[item.kind]=(sceneryCounts[item.kind]||0)+1;
+ root.userData.raidScenery={count:scenery.length,kinds:sceneryCounts};
+ // One additive dust-sprite field supplies every warm practical halo. Because
+ // all points share geometry and material, the entire glow budget is one draw
+ // call; the parent group inherits scene fog so far lamps blend into the night.
+ if(glowPositions.length){
+  const glowGeometry=new THREE.BufferGeometry();
+  glowGeometry.setAttribute('position',new THREE.Float32BufferAttribute(glowPositions,3));
+  glowGeometry.setAttribute('color',new THREE.Float32BufferAttribute(glowColors,3));
+  glowGeometry.userData.raidOwned=true;
+  const glowMaterial=new THREE.PointsMaterial({map:TX.soft,size:1.7,transparent:true,opacity:0,vertexColors:true,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:true,sizeAttenuation:true,fog:true});
+  glowMaterial.userData.raidOwned=true;glowMaterial.userData.raidGlowBias=.9;
+  // Fixture geometry (lamp head boxes, window quads) sits a few tenths of a
+  // metre inside its own halo centre, so a plain depth test clips the glow.
+  // Bias the sprite toward the camera by a small fixed distance: the fixture
+  // no longer occludes its own bloom, while walls and ruins with real depth
+  // separation still hide it. Depth writes remain off for additive blending.
+  glowMaterial.onBeforeCompile=shader=>{shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n {float glowDepth=-mvPosition.z;mvPosition.xyz*=max(1.0,glowDepth-.9)/max(glowDepth,1.0);gl_Position=projectionMatrix*mvPosition;}')};
+  const glowPoints=new THREE.Points(glowGeometry,glowMaterial);
+  glowPoints.frustumCulled=false;glowPoints.renderOrder=2;glowPoints.visible=false;glowPoints.userData.raidGlow=true;
+  root.add(glowPoints);root.userData.raidGlowPoints=glowPoints;
+ }
+ // Ground light pools keep the practicals anchored to the street instead of
+ // floating sparks. One instanced plane per lamp/campfire shares a single soft
+ // radial additive material, so the whole pool budget remains one draw call.
+ if(poolPositions.length){
+  const poolGeometry=new THREE.PlaneGeometry(1,1);poolGeometry.rotateX(-Math.PI/2);poolGeometry.userData.raidOwned=true;
+  const poolMaterial=new THREE.MeshBasicMaterial({map:TX.soft,color:0xffffff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+  poolMaterial.userData.raidOwned=true;
+  const poolMesh=new THREE.InstancedMesh(poolGeometry,poolMaterial,poolRadii.length);
+  const poolPosition=new THREE.Vector3(),poolQuaternion=new THREE.Quaternion(),poolScale=new THREE.Vector3(),poolMatrix=new THREE.Matrix4(),poolColor=new THREE.Color(),poolUp=new THREE.Vector3(0,1,0),poolNormal=new THREE.Vector3();
+  for(let i=0;i<poolRadii.length;i++){
+   poolPosition.set(poolPositions[i*3],poolPositions[i*3+1],poolPositions[i*3+2]);
+   // Ground pools follow the same terrain tangent plane as the wet glints, so
+   // a lamp or campfire on a hillside casts a flush, ellipse-shaped pool rather
+   // than a horizontal disc embedded in the slope.
+   terrainNormalAt(world,poolPosition.x,poolPosition.z,poolNormal);
+   poolQuaternion.setFromUnitVectors(poolUp,poolNormal);
+   poolScale.set(poolRadii[i]*2,1,poolRadii[i]*2);
+   poolMatrix.compose(poolPosition,poolQuaternion,poolScale);
+   poolMesh.setMatrixAt(i,poolMatrix);
+   poolColor.setRGB(poolColors[i*3],poolColors[i*3+1],poolColors[i*3+2]);
+   poolMesh.setColorAt(i,poolColor);
+  }
+  poolMesh.instanceMatrix.needsUpdate=true;poolMesh.instanceColor.needsUpdate=true;
+  poolMesh.frustumCulled=false;poolMesh.renderOrder=1;poolMesh.userData.raidGlowPools=true;
+  root.add(poolMesh);root.userData.raidGlowPools=poolMesh;
+ }
+ // Wet-reflection companion field: the same practical fixtures but stretched
+ // along a deterministic ground axis. One instanced additive draw call, with
+ // the material opacity driven by RaidView's smoothed wetness state.
+ if(reflectPositions.length){
+  const glintGeometry=new THREE.PlaneGeometry(1,1);glintGeometry.rotateX(-Math.PI/2);glintGeometry.userData.raidOwned=true;
+  const glintMaterial=new THREE.MeshBasicMaterial({map:wetGlintTexture(),color:0xffffff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:true,fog:true,forceSinglePass:true});
+  glintMaterial.userData.raidOwned=true;glintMaterial.userData.raidOwnTexture=true;
+  // Distant glints shrink toward a single filtered texel and shimmer as the
+  // camera/point-of-view moves. Attenuate the additive colour when the
+  // projected streak footprint is below roughly 2 px, while keeping near
+  // streaks at full authored intensity. Resolution is fed by RaidView; the
+  // shader is deterministic for a fixed camera, size and instance block.
+  glintMaterial.onBeforeCompile=(shader,renderer)=>{
+   // Seed from the live drawing buffer so the first compiled frame already has
+   // the correct viewport height; RaidView refreshes it again on later frames.
+   const buffer=renderer&&renderer.getDrawingBufferSize?renderer.getDrawingBufferSize(new THREE.Vector2()):new THREE.Vector2(1,1);
+   shader.uniforms.uGlintResolution={value:new THREE.Vector2(Math.max(1,buffer.x||1),Math.max(1,buffer.y||1))};
+   shader.vertexShader=shader.vertexShader
+    .replace('#include <common>','#include <common>\nuniform vec2 uGlintResolution;varying float vGlintFade;')
+    .replace('#include <project_vertex>',`#include <project_vertex>
+     float glintFade=1.;
+     #ifdef USE_INSTANCING
+      float focus=.5*uGlintResolution.y*projectionMatrix[1][1];
+      float footprint=max(length(instanceMatrix[0].xyz),length(instanceMatrix[2].xyz))*focus/max(.001,-mvPosition.z);
+      glintFade=smoothstep(.6,2.6,footprint);
+     #endif
+     vGlintFade=glintFade;`);
+   shader.fragmentShader=shader.fragmentShader
+    .replace('#include <common>','#include <common>\nvarying float vGlintFade;')
+    .replace('#include <dithering_fragment>','#include <dithering_fragment>\n gl_FragColor.rgb*=vGlintFade;');
+   glintMaterial.userData.raidGlintShader=shader;
+  };
+  const glintMesh=new THREE.InstancedMesh(glintGeometry,glintMaterial,reflectWidths.length);
+  const glintPosition=new THREE.Vector3(),glintQuaternion=new THREE.Quaternion(),glintScale=new THREE.Vector3(),glintMatrix=new THREE.Matrix4(),glintColor=new THREE.Color(),glintAxis=new THREE.Vector3(0,1,0),glintUp=new THREE.Vector3(0,1,0),glintNormal=new THREE.Vector3(),glintTilt=new THREE.Quaternion(),glintSpin=new THREE.Quaternion();
+  for(let i=0;i<reflectWidths.length;i++){
+   const seed=Math.sin(reflectPositions[i*3]*12.9898+reflectPositions[i*3+2]*78.233)*43758.5453;
+   const angle=(seed-Math.floor(seed))*Math.PI;
+   glintPosition.set(reflectPositions[i*3],reflectPositions[i*3+1],reflectPositions[i*3+2]);
+   // Tilt the quad's local +Y onto the sampled terrain normal, then spin it
+   // around that normal. Streaks therefore lie flush on streets and hillsides
+   // instead of intersecting the ground on sloped sectors.
+   terrainNormalAt(world,glintPosition.x,glintPosition.z,glintNormal);
+   glintTilt.setFromUnitVectors(glintUp,glintNormal);
+   glintSpin.setFromAxisAngle(glintAxis,angle);
+   glintQuaternion.multiplyQuaternions(glintTilt,glintSpin);
+   glintScale.set(reflectWidths[i],1,reflectLengths[i]);
+   glintMatrix.compose(glintPosition,glintQuaternion,glintScale);
+   glintMesh.setMatrixAt(i,glintMatrix);
+   glintColor.setRGB(reflectColors[i*3],reflectColors[i*3+1],reflectColors[i*3+2]).multiplyScalar(.82);
+   glintMesh.setColorAt(i,glintColor);
+  }
+  glintMesh.instanceMatrix.needsUpdate=true;glintMesh.instanceColor.needsUpdate=true;
+  glintMesh.frustumCulled=false;glintMesh.renderOrder=1;glintMesh.visible=false;glintMesh.userData.raidWetReflections=true;
+  root.add(glintMesh);root.userData.raidWetReflections=glintMesh;
+ }
+ root.userData.raidWindMaterials=windMaterials;
+ for(const {type,transforms,material,tag}of groups.values()){
+  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;if(tag)mesh.userData.raidStructure=tag;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
  }
  root.userData.materials=materials;return root;
 }

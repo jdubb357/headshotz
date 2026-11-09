@@ -16,6 +16,177 @@ html[data-hud-large="true"] #hint{display:none}
 #play[data-pack-open=true] #pack{top:172px;max-height:none}
 #play[data-pack-open=true] #telemetry{display:none}
 }
+</style>
+<style>
+/* Tactical glass HUD theme. Kept as a late cascade layer so every selector
+   below only restyles existing markup and leaves the dynamic text and control
+   wiring untouched. */
+:root{--hud-scale:1;--hs-bg:#080e13;--hs-panel:rgba(12,20,27,.82);--hs-panel-solid:#101b24;--hs-border:rgba(174,196,209,.22);--hs-border-strong:rgba(174,196,209,.4);--hs-ink:#eef5f7;--hs-dim:#a8b9c1;--hs-faint:#768a94;--hs-amber:#ffb44a;--hs-amber-soft:rgba(255,180,74,.16);--hs-cyan:#63d9f2;--hs-cyan-soft:rgba(99,217,242,.14);--hs-red:#ff645f;--hs-green:#72e2b0;--hs-radius:14px;--hs-shadow:0 18px 50px rgba(0,0,0,.5),0 2px 0 rgba(255,255,255,.04) inset}
+html{background:radial-gradient(1100px 700px at 18% -10%,#1b2c38 0,#0b1319 52%,#080d12 100%) fixed}
+body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--hs-ink)}
+main{max-width:1020px}
+h1,h2,h3{letter-spacing:-.015em}
+h1{font-weight:760;background:linear-gradient(100deg,#fff 0,#ffce7b 60%,#ff9d4d);-webkit-background-clip:text;background-clip:text;color:transparent}
+a{color:var(--hs-cyan);text-decoration-thickness:.08em;text-underline-offset:.18em}
+.card{background:linear-gradient(180deg,rgba(22,34,44,.94),rgba(14,24,32,.96));border:1px solid var(--hs-border);border-radius:18px;box-shadow:var(--hs-shadow)}
+button,input,select,textarea{font:inherit;color:var(--hs-ink);border:1px solid var(--hs-border-strong);border-radius:10px;background:linear-gradient(180deg,#233642,#162631);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 6px 14px rgba(0,0,0,.18);transition:background .18s,border-color .18s,box-shadow .18s,transform .12s}
+button:hover:not(:disabled){border-color:rgba(255,180,74,.65);box-shadow:0 1px 0 rgba(255,255,255,.12) inset,0 0 0 3px rgba(255,180,74,.12)}
+button:active:not(:disabled){transform:translateY(1px)}
+button:disabled{opacity:.42;cursor:not-allowed}
+input:not([type=checkbox]):not([type=range]),select,textarea{background:#0d171e;border-color:var(--hs-border);padding:12px;box-shadow:0 0 0 1px rgba(0,0,0,.35) inset}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--hs-cyan);outline-offset:3px}
+input[type=range]{accent-color:var(--hs-amber)}
+dialog{background:linear-gradient(180deg,#182a35f6,#0d171ff6);border:1px solid var(--hs-border-strong);border-radius:18px;box-shadow:0 30px 100px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.08) inset;padding:22px}
+dialog::backdrop{background:rgba(3,7,10,.74);backdrop-filter:blur(6px)}
+dialog h2{margin-top:0;padding-bottom:10px;border-bottom:1px solid var(--hs-border);font-weight:720}
+#leave,#globalTools button,#packToggle,#spectate,#commsToggle{background:rgba(9,17,23,.82);border:1px solid var(--hs-border);border-radius:999px;color:var(--hs-ink);font-weight:650;letter-spacing:.02em;box-shadow:0 10px 30px rgba(0,0,0,.4),0 1px 0 rgba(255,255,255,.07) inset;backdrop-filter:blur(12px)}
+#leave{border-color:rgba(255,100,95,.45);color:#ffd9d7}
+#leave:hover:not(:disabled){border-color:var(--hs-red);box-shadow:0 0 0 3px rgba(255,100,95,.14)}
+#globalTools button:hover,#packToggle:hover:not(:disabled){border-color:var(--hs-amber)}
+/* Fixed header tools share one opaque glass capsule so scrolled menu content is
+   never glimpsed or clipped between/behind the floating buttons. */
+#globalTools{gap:4px;padding:5px 8px;border-radius:999px;border:1px solid var(--hs-border);background:linear-gradient(180deg,rgba(22,35,44,.95),rgba(10,18,24,.93));box-shadow:0 14px 34px rgba(0,0,0,.44),0 1px 0 rgba(255,255,255,.07) inset;backdrop-filter:blur(14px) saturate(120%)}
+#globalTools button{border-color:transparent;background:transparent;box-shadow:none;margin:0;border-radius:999px;font-weight:650}
+#globalTools button:hover:not(:disabled){border-color:transparent;background:var(--hs-amber-soft);box-shadow:none}
+#view{background:#070c10}
+#play::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 44%,transparent 42%,rgba(3,8,11,.38) 100%),linear-gradient(180deg,rgba(0,0,0,.15),transparent 18%,transparent 78%,rgba(0,0,0,.28));opacity:.82}
+#telemetry{background:linear-gradient(155deg,rgba(18,30,39,.86),rgba(9,16,22,.8) 58%,rgba(10,18,24,.84));border-radius:var(--hs-radius);box-shadow:0 16px 44px rgba(0,0,0,.38),0 0 0 1px var(--hs-border) inset,0 1px 0 rgba(255,255,255,.07) inset,3px 0 0 var(--hs-amber) inset;backdrop-filter:blur(14px) saturate(125%);text-shadow:none}
+#hud{font-weight:600;color:#f7fbfc;font-variant-numeric:tabular-nums}
+/* Telemetry scoreboard: small caps label + bold tabular value per metric; the
+   vitality tone is colour-coded but the number and wound words always remain. */
+#hud .hudScore{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;padding:1px 0}
+#hud .hudKey{font-size:.7em;letter-spacing:.12em;text-transform:uppercase;color:var(--hs-faint);font-weight:650}
+#hud .hudVal{font-weight:720;color:#f7fbfc;font-variant-numeric:tabular-nums}
+#hud .hudScore[data-metric=armor] .hudVal{color:#b9e6fb}
+#hud .hudScore[data-metric=time] .hudVal{color:#ffd493}
+#hud .hudScore[data-metric=ammo][data-state=unarmed] .hudVal{color:var(--hs-faint)}
+#hud .hudScore[data-metric=vital][data-state=ok] .hudVal{color:#a9f0c9}
+#hud .hudScore[data-metric=vital][data-state=warn] .hudVal{color:var(--hs-amber)}
+#hud .hudScore[data-metric=vital][data-state=critical] .hudVal,#hud .hudScore[data-metric=vital][data-state=downed] .hudVal{color:var(--hs-red)}
+#hud .hudAlert{font-size:.68em;font-weight:760;letter-spacing:.1em;padding:2px 6px;border-radius:999px;background:var(--hs-amber-soft);color:#ffd39c;line-height:1.35;white-space:nowrap}
+#hud .hudAlert[data-state=critical]{background:rgba(255,100,95,.2);color:#ffb3b0}
+/* Desktop telemetry is a compact glass card rather than a full-width strip; the
+   mobile breakpoints keep their existing dock geometry. */
+@media(min-width:601px){#telemetry{right:auto;width:min(700px,calc(100vw - 20px))}}
+/* Short desktop windows dock the minimap top-right; reserve its lane so the
+   capped telemetry card never crowds or covers it. */
+@media(min-width:601px) and (max-height:600px){#telemetry{width:min(700px,calc(100vw - 130px))}}
+#conditions{font-weight:650;color:var(--hs-cyan);text-shadow:0 1px 0 rgba(0,0,0,.6)}
+#networkStatus,#interactionStatus,#hint{color:var(--hs-dim);font-variant-numeric:tabular-nums}
+#networkStatus,#interactionStatus{color:var(--hs-faint)}
+#events{font-weight:600;color:#ffe0aa;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+#telemetry{scrollbar-color:rgba(255,180,74,.45) transparent}
+#bossPanel{background:linear-gradient(100deg,rgba(70,21,18,.92),rgba(41,15,14,.82));border:1px solid rgba(255,120,95,.55);border-left:4px solid var(--hs-red);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.35),0 0 22px rgba(255,64,48,.16);backdrop-filter:blur(10px)}
+#bossHp{height:8px;border-radius:99px;overflow:hidden}
+#minimap{border-radius:14px;border:1px solid var(--hs-border);box-shadow:0 10px 26px rgba(0,0,0,.48),0 0 0 1px rgba(0,0,0,.55) inset;background:rgba(4,10,14,.82);opacity:1;filter:saturate(1.08)}
+#hint{padding:8px;background:linear-gradient(100deg,rgba(12,21,28,.9),rgba(15,26,33,.78));border:0;border-radius:8px;box-shadow:0 0 0 1px var(--hs-border) inset,0 12px 30px rgba(0,0,0,.38),3px 0 0 var(--hs-amber) inset;backdrop-filter:blur(12px);font-weight:560}
+#pack{padding:10px;background:linear-gradient(170deg,rgba(20,32,41,.95),rgba(10,17,23,.9));border:0;border-radius:var(--hs-radius);box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 1px var(--hs-border) inset,0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(14px) saturate(125%);scrollbar-width:thin;scrollbar-color:rgba(255,180,74,.45) transparent}
+#pack>strong{color:var(--hs-amber);text-shadow:0 0 16px rgba(255,180,74,.24)}
+#pack .item{background:rgba(255,255,255,.045);border-radius:8px;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;padding:6px;margin:6px 0}
+#pack .item:hover{background:rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(99,217,242,.35) inset}
+#pack .item button{background:rgba(28,43,53,.9);border-color:rgba(174,196,209,.24);color:#f1f7f9;border-radius:9px;font-weight:620}
+#pack .item button:hover:not(:disabled){border-color:var(--hs-cyan);background:rgba(38,60,72,.95)}
+#pack .item span{flex:1 0 100%;line-height:1.35;color:#dce8ec}
+#pack>p{color:var(--hs-dim);border-top:1px solid rgba(174,196,209,.14);padding-top:7px;margin:10px 0 4px}
+#pack h3{color:var(--hs-amber);font-size:1rem;margin:12px 0 6px}
+#pack .packHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+#pack .packHead>strong{flex:1 1 100%;color:var(--hs-amber);text-shadow:0 0 16px rgba(255,180,74,.24);line-height:1.3}
+#pack .packMeters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%}
+#pack .packMeter{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;padding:5px 7px;border-radius:7px;background:linear-gradient(150deg,rgba(255,255,255,.06),rgba(255,255,255,.025));box-shadow:0 0 0 1px rgba(174,196,209,.12) inset}
+#pack .meterLabel{font-size:.58rem;line-height:1.2;letter-spacing:.1em;text-transform:uppercase;color:var(--hs-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pack .packMeter b{font-size:.7rem;line-height:1.25;color:#dce8ec;font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}
+#pack .meterTrack{height:3px;border-radius:99px;background:rgba(174,196,209,.16);overflow:hidden}
+#pack .meterTrack span{display:block;height:100%;width:var(--meter-fill,0);background:linear-gradient(90deg,var(--hs-cyan),var(--hs-green));border-radius:inherit;transition:width .45s ease}
+#pack .item{background:linear-gradient(90deg,rgba(255,255,255,.025),rgba(255,255,255,.055));box-shadow:0 0 0 1px rgba(255,255,255,.07) inset,3px 0 0 var(--item-accent,#94a6ae) inset}
+#pack .item[data-condition=critical]{background:linear-gradient(90deg,rgba(255,100,95,.13),rgba(255,255,255,.045))}
+#pack .itemHead{display:flex;align-items:flex-start;gap:8px;flex:1 0 100%;min-width:0}
+#pack .item span.itemLabel{flex:1 1 100%;min-width:0;overflow-wrap:anywhere}
+#pack .item span.itemCondition{flex:0 0 44px;height:4px;margin-top:11px;border-radius:99px;background:linear-gradient(90deg,var(--item-accent,#94a6ae) 0 var(--condition,100%),rgba(174,196,209,.18) var(--condition,100%) 100%);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+#pack .item[data-condition=critical] span.itemCondition{background:linear-gradient(90deg,var(--hs-red) 0 var(--condition,100%),rgba(174,196,209,.18) var(--condition,100%) 100%)}
+#pack .extractCard{--exitAccent:var(--hs-amber);--exitBadgeBg:rgba(255,180,74,.14);--exitBadgeInk:#ffe0aa;display:grid;gap:4px;margin:6px 0;padding:7px 9px 8px;border-radius:9px;background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));box-shadow:0 0 0 1px rgba(174,196,209,.14) inset,3px 0 0 var(--exitAccent) inset}
+#pack .extractCard[data-phase=open]{--exitAccent:var(--hs-green);--exitBadgeBg:rgba(114,226,176,.16);--exitBadgeInk:#baf5d7}
+#pack .extractCard[data-phase=full]{--exitAccent:var(--hs-red);--exitBadgeBg:rgba(255,100,95,.16);--exitBadgeInk:#ffd2cf}
+#pack .extractCard[data-phase=inbound]{--exitAccent:var(--hs-cyan);--exitBadgeBg:rgba(99,217,242,.15);--exitBadgeInk:#c5f3fc}
+#pack .extractCard[data-phase=departed],#pack .extractCard[data-phase=exhausted],#pack .extractCard[data-phase=locked]{--exitAccent:var(--hs-faint);--exitBadgeBg:rgba(118,138,148,.14);--exitBadgeInk:#c4d0d5}
+#pack .extractCard[data-contested=true]{box-shadow:0 0 0 1px rgba(255,128,91,.45) inset,3px 0 0 #ff805b inset,0 0 18px rgba(255,128,91,.1)}
+#pack .extractHead{display:flex;align-items:center;justify-content:space-between;gap:7px;min-width:0}
+#pack .extractName{flex:1 1 auto;min-width:0;font-weight:650;font-size:.86rem;line-height:1.3;color:#f4fafc}
+#pack .exitBadge{flex:0 0 auto;padding:2px 7px;border-radius:999px;background:var(--exitBadgeBg);color:var(--exitBadgeInk);font-size:.58rem;font-weight:760;line-height:1.4;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap}
+#pack .extractMeta{margin:0;padding:0;border:0;color:#c5d4da;font-size:.76rem;line-height:1.35}
+#pack .exitProgress{height:3px;border-radius:99px;background:rgba(174,196,209,.16);overflow:hidden}
+#pack .exitProgress span{display:block;height:100%;width:var(--exit-fill,0);border-radius:inherit;background:linear-gradient(90deg,var(--exitAccent),rgba(255,255,255,.74));transition:width .7s linear}
+#pack .extractFoot{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:.66rem;line-height:1.3}
+#pack .extractRule{color:var(--hs-faint)}
+#pack .extractSeats{color:#d8e7eb;font-variant-numeric:tabular-nums;font-weight:620}
+#pack .item small{color:var(--hs-dim)}
+#stashCapacity{color:var(--hs-dim);font-weight:500;letter-spacing:0}
+#stash .item{display:flex;align-items:flex-start;background:rgba(255,255,255,.035);border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;padding:10px 12px;margin:6px 0}
+#stash .item:hover{background:rgba(255,255,255,.065)}
+#stash .item span{flex:1 1 0;min-width:50%;padding-top:8px;line-height:1.4;color:#e2edf0}
+#stash .item small{color:var(--hs-dim);flex:1 0 100%}
+#stash .item input[type=checkbox]{flex:0 0 auto;margin-top:10px;accent-color:var(--hs-amber)}
+#stash .item label{display:flex;align-items:center;gap:5px;margin:4px;color:var(--hs-dim);font-size:.9rem}
+#stash .item label input{margin:0}
+details{background:rgba(255,255,255,.035);border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;padding:10px 12px;margin:6px 0}
+summary{cursor:pointer;color:#e2edf0;font-weight:600;line-height:1.4}
+summary:focus-visible{outline:2px solid var(--hs-cyan);outline-offset:3px;border-radius:4px}
+details p,details li{color:var(--hs-dim);line-height:1.5}
+details strong{color:#ffe0aa}
+#touch button{background:linear-gradient(180deg,rgba(34,49,59,.9),rgba(16,27,34,.92));border:1px solid rgba(174,196,209,.26);border-radius:12px;color:#eef5f7;font-weight:650;text-shadow:none;box-shadow:0 8px 20px rgba(0,0,0,.32),0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(10px)}
+#touch button:hover{background:linear-gradient(180deg,rgba(44,63,75,.95),rgba(20,33,41,.96));border-color:rgba(99,217,242,.55)}
+#touch button[data-move]{background:linear-gradient(180deg,rgba(27,43,54,.92),rgba(13,24,31,.94))}
+#touch [aria-pressed=true]{background:linear-gradient(180deg,rgba(34,96,112,.95),rgba(14,52,64,.95));border-color:var(--hs-cyan);color:#e8fdff;box-shadow:0 0 0 3px rgba(99,217,242,.12),0 8px 20px rgba(0,0,0,.35)}
+#touch #fire{background:linear-gradient(180deg,rgba(255,191,89,.96),rgba(217,131,31,.96));border-color:rgba(255,214,140,.8);color:#231604;font-weight:750;box-shadow:0 0 0 2px rgba(255,180,74,.12),0 8px 22px rgba(255,145,36,.2)}
+#touch #fire:active{background:linear-gradient(180deg,#ffd27f,#ffad52)}
+#touch #interact{border-color:rgba(99,217,242,.45);color:#bff1fb}
+#touch #vault{border-color:rgba(114,226,176,.4)}
+#reload,#touch #utility{color:#d8e4e8}
+nav#globalTools{gap:6px}
+#communications{border-radius:18px;background:linear-gradient(180deg,rgba(20,33,43,.97),rgba(10,18,24,.96));border:1px solid var(--hs-border-strong);box-shadow:0 30px 90px rgba(0,0,0,.7);backdrop-filter:blur(16px)}
+#communications h2{border-bottom:1px solid var(--hs-border);padding-bottom:8px}
+#packToggle[aria-expanded=true]{border-color:rgba(255,180,74,.5)}
+@media(max-width:600px){#telemetry{border-radius:10px}#pack{border-radius:12px}#touch button{border-radius:10px}}
+html[data-reduced-motion=true] *,html[data-reduced-motion=true] *::before,html[data-reduced-motion=true] *::after{transition:none!important;animation:none!important}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* Premium base command deck. Presentation-only composition: no control,
+   label, id or focus order changes; the same DOM still drives every action. */
+#base{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;padding:6px 0 36px}
+#base>#starterRules{grid-column:1/-1;margin:0;padding:12px 16px 12px 18px;border-radius:0 12px 12px 0;border-left:3px solid rgba(255,180,74,.55);background:linear-gradient(100deg,rgba(255,180,74,.09),rgba(255,255,255,.015) 62%),rgba(12,21,28,.55);color:#c6d3d9;font-size:.9rem;line-height:1.55;box-shadow:0 0 0 1px rgba(174,196,209,.12) inset}
+#base>.row{grid-column:1/-1;display:flex;align-items:center;gap:14px;margin:0;padding:12px 16px;border-radius:16px;border:1px solid var(--hs-border);background:linear-gradient(110deg,rgba(20,34,44,.95),rgba(11,19,26,.92) 55%,rgba(16,27,35,.94));box-shadow:0 14px 40px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.035) inset,3px 0 0 var(--hs-amber) inset}
+#base>.row>#identity{flex:1 1 auto;min-width:0;margin:0;padding:0 0 0 50px;position:relative;font-size:1rem;font-weight:720;letter-spacing:.005em;line-height:1.4;color:#f4fafb;background:none;background-clip:border-box;-webkit-background-clip:border-box;text-shadow:0 1px 0 rgba(0,0,0,.4);overflow-wrap:anywhere}
+#base>.row>#identity::before{content:"";position:absolute;left:0;top:50%;width:36px;height:36px;margin-top:-18px;border-radius:12px 12px 4px 4px;background:radial-gradient(circle at 50% 32%,#a8bdb3 0 5px,rgba(168,189,179,.32) 6px 13px,transparent 14px),linear-gradient(155deg,#41545c,#1a272e 68%);box-shadow:0 0 0 1px rgba(255,255,255,.14) inset,0 4px 14px rgba(0,0,0,.4),0 0 18px rgba(99,217,242,.08)}
+#base>.row>#identity::after{content:"";position:absolute;left:13px;top:calc(50% - 15px);width:10px;height:10px;border-radius:50%;background:var(--hs-green);box-shadow:0 0 1px 2px rgba(114,226,176,.22),0 0 10px rgba(114,226,176,.5)}
+#base>.row>#logout{flex:0 0 auto;margin:0;min-height:44px}
+#base>#message{margin:0;padding:2px 4px;color:var(--hs-dim);font-size:.88rem;letter-spacing:.01em}
+#base>.card{min-width:0;margin:0;padding:18px 18px 16px;background:linear-gradient(180deg,rgba(22,34,44,.94),rgba(14,24,32,.96));border-radius:18px}
+#base>.card>h2{position:relative;margin:0 0 10px;padding-left:15px;font-size:1.08rem;font-weight:720;letter-spacing:-.005em;line-height:1.3;color:#f2f9fb}
+#base>.card>h2::before{content:"";position:absolute;left:0;top:.2em;bottom:.2em;width:4px;border-radius:3px;background:linear-gradient(180deg,#ffd996,var(--hs-amber) 52%,rgba(255,180,74,.16));box-shadow:0 0 12px rgba(255,180,74,.25)}
+#base>.card>h2>small{display:inline-block;margin-left:6px;color:var(--hs-dim);font-size:.78rem;font-weight:500}
+#base>.card>h3{margin:16px 0 6px;padding-top:12px;border-top:1px solid rgba(174,196,209,.14);color:var(--hs-amber);font-size:.76rem;font-weight:720;text-transform:uppercase;letter-spacing:.1em}
+#base>.card[data-wide]{grid-column:1/-1}
+#base>.card:focus-within{border-color:rgba(99,217,242,.45);box-shadow:var(--hs-shadow),0 0 26px rgba(99,217,242,.08)}
+#base>.card>.row>label{flex:1 1 170px;margin:6px 0}
+#base .card input:not([type=checkbox]):not([type=range]),#base .card select,#base .card textarea{width:100%;margin-left:0}
+#base .card[data-wide] #mapPreview{display:block;margin:10px auto}
+#base #exitPlan{display:grid;gap:6px;margin:8px 0}
+#base #partyRoster>*, #base #trader>*, #base #workshop>*, #base #contracts>*, #base #insurance>*, #base #records>*, #base #overflow>*{min-width:0}
+#base>.card>p{color:var(--hs-dim);line-height:1.5}
+@media(max-width:820px){#base{grid-template-columns:minmax(0,1fr);gap:12px;padding-bottom:24px}}
+@media(max-width:600px){#base{padding:4px 0 24px}#base>.card{padding:14px 12px}#base>.row{padding:10px 12px}#base>.row>#identity{font-size:.86rem;padding-left:44px}#base>.row>#identity::before{width:32px;height:32px;margin-top:-16px;border-radius:10px 10px 3px 3px}#base>.row>#identity::after{left:11px;top:calc(50% - 13px);width:9px;height:9px}#base>.card>h2{font-size:1rem}}
+@media(prefers-reduced-motion:reduce){#base>.card,#base>.row{transition:none!important}}
+html[data-reduced-motion=true] #base>.card,html[data-reduced-motion=true] #base>.row{transition:none!important}
+/* Aim-aware reticle. Hip: an open four-tick pickup reticle with a soft center
+   dot; ADS: the same geometry tightens and brightens into a precision sight
+   picture. Pseudo-elements keep it resolution-independent and the existing
+   reduced-motion rules disable the cross-fade. */
+#cross{--reticle-spread:26px;--reticle-gap:6px;--reticle-tick:2px;--reticle-dot:1.6px;width:44px;height:44px;font-size:0;line-height:0;opacity:.78;filter:drop-shadow(0 0 2px #0009);transition:opacity .16s ease,transform .16s ease;transform:translate(-50%,-50%) scale(1)}
+#cross::before,#cross::after{content:"";position:absolute;left:50%;top:50%;background:currentColor;border-radius:var(--reticle-tick)}
+#cross::before{width:var(--reticle-spread);height:var(--reticle-tick);transform:translate(-50%,-50%);background:linear-gradient(90deg,currentColor 0 calc(50% - var(--reticle-gap)),transparent calc(50% - var(--reticle-gap)) calc(50% + var(--reticle-gap)),currentColor calc(50% + var(--reticle-gap)) 100%)}
+#cross::after{width:var(--reticle-tick);height:var(--reticle-spread);transform:translate(-50%,-50%);background:linear-gradient(180deg,currentColor 0 calc(50% - var(--reticle-gap)),transparent calc(50% - var(--reticle-gap)) calc(50% + var(--reticle-gap)),currentColor calc(50% + var(--reticle-gap)) 100%)}
+#cross{background:radial-gradient(circle at center,currentColor 0 var(--reticle-dot),transparent calc(var(--reticle-dot) + .5px))}
+#play[data-aiming=true] #cross{--reticle-spread:15px;--reticle-gap:2px;--reticle-tick:1px;--reticle-dot:1px;opacity:.96;transform:translate(-50%,-50%) scale(.86)}
+html[data-high-contrast=true] #cross{--reticle:#fff;opacity:1;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 3px #000)}
+@media(prefers-reduced-motion:reduce){#cross{transition:none}}
 </style></head><body aria-busy="false"><main>
 <a href="/">← HeadShotz home</a><h1>Persistent Extraction Raids</h1>
 <p>Server-owned equipment and rewards. Equipment you deploy is removed from your stash until you extract. Death loses carried items; a free recovery kit is always available.</p>
@@ -24,9 +195,9 @@ html[data-hud-large="true"] #hint{display:none}
 <section id="base" hidden><p id="starterRules">Starter credits and supplies help you get established. They cannot be handed to another operator. Earned credits are spent first; buying with starter credits creates a starter supply. Recycling and selling keep starter status. Starter parts or repairs bind the resulting equipment; detach wanted attachments before recycling. Contract deliveries need earned salvage. Normal raid loot remains transferable.</p><div class="row"><h2 id="identity"></h2><button id="logout">Sign out</button></div>
 <section class="card"><h2>Equipment bench</h2><canvas id="basePreview" aria-label="Preview of the chosen primary weapon, secondary weapon and armor" aria-describedby="basePreviewCaption"></canvas><button id="previewTurn">Rotate preview</button><p id="basePreviewCaption">Choose equipment to preview your loadout.</p></section><section class="card"><h2>Squad</h2><p id="partyState" role="status">Playing solo.</p><div id="partyRoster"></div><p id="readyMismatch" role="status" hidden></p><button id="restoreReady" hidden>Use my readied loadout</button><label>Squad size <select id="partyMode"><option value="solo">Solo</option><option value="duo">Duo</option><option value="trio" selected>Trio</option></select></label><button id="partyCreate">Create squad</button><label>Invite code <input id="partyCode" maxlength="10" autocomplete="off"></label><button id="partyJoin">Join squad</button><button id="partyReady" hidden>Ready with selected loadout</button><button id="partyLeave" hidden>Leave squad</button></section>
 <section class="card"><h2>Stash and loadout <small id="stashCapacity"></small></h2><p>Choose one or two owned weapons, optional armor, and supplies. Broken items cannot deploy. Insurance costs 20% of equipment price and returns only unclaimed items after the raid closes.</p><div class="row"><label>Search <input id="stashSearch" type="search"></label><label>Filter <select id="stashFilter"><option value="all">All items</option><option value="favorite">Favorites</option><option value="weapon">Weapons</option><option value="armor">Armor</option><option value="ammo">Ammunition</option><option value="material">Salvage</option><option value="mod">Attachments</option><option value="contract">Contract items</option><option value="utility">Utilities</option></select></label><label>Sort <select id="stashSort"><option value="name">Name</option><option value="condition">Condition</option><option value="favorite">Favorites first</option></select></label></div><div id="stash"></div><button id="bulkSell">Sell selected items</button><label>Preset name <input id="presetName" maxlength="32"></label><button id="savePreset">Save selected loadout</button><label>Saved preset <select id="presets"></select></label><button id="applyPreset">Select preset items</button><p id="presetStatus" role="status"></p><div id="overflow"></div></section>
-<section class="card"><h2>Deploy</h2><label>Map <select id="map"></select></label><label><input type="checkbox" id="allowMixed" checked> Allow mixed squad sizes if no same-size session is available</label><label>Maximum connection round trip <select id="maxRtt"><option value="150">150 ms</option><option value="250" selected>250 ms</option><option value="400">400 ms</option><option value="0">No limit</option></select></label><button id="checkLatency">Check connection</button><p id="latencyStatus" role="status">Check connection before deploying.</p><p id="matchSummary">Same-size squads are preferred. Gear and skill matching are open. If no compatible session exists, a fresh raid starts without a minimum human population.</p><canvas id="mapPreview" width="240" height="240" aria-label="Map overview with extraction sites"></canvas><p>Green markers show extraction sites. Each site has its own access rules.</p><p id="sectorPlan"></p><div id="exitPlan" aria-label="Extraction access costs and capacity"></div><label><input id="recovery" type="checkbox"> Free recovery kit (8 backpack slots; starter gear cannot be banked)</label><label>Primary weapon <select id="primaryWeapon" aria-describedby="weaponSlots"></select></label><p id="weaponSlots"></p><p id="riskSummary" role="status"></p><button id="deploy">Deploy selected equipment</button><button id="resume" hidden>Reconnect to active raid</button></section>
+<section class="card" data-wide><h2>Deploy</h2><label>Map <select id="map"></select></label><label><input type="checkbox" id="allowMixed" checked> Allow mixed squad sizes if no same-size session is available</label><label>Maximum connection round trip <select id="maxRtt"><option value="150">150 ms</option><option value="250" selected>250 ms</option><option value="400">400 ms</option><option value="0">No limit</option></select></label><button id="checkLatency">Check connection</button><p id="latencyStatus" role="status">Check connection before deploying.</p><p id="matchSummary">Same-size squads are preferred. Gear and skill matching are open. If no compatible session exists, a fresh raid starts without a minimum human population.</p><canvas id="mapPreview" width="240" height="240" aria-label="Map overview with extraction sites"></canvas><p>Green markers show extraction sites. Each site has its own access rules.</p><p id="sectorPlan"></p><div id="exitPlan" aria-label="Extraction access costs and capacity"></div><label><input id="recovery" type="checkbox"> Free recovery kit (8 backpack slots; starter gear cannot be banked)</label><label>Primary weapon <select id="primaryWeapon" aria-describedby="weaponSlots"></select></label><p id="weaponSlots"></p><p id="riskSummary" role="status"></p><button id="deploy">Deploy selected equipment</button><button id="resume" hidden>Reconnect to active raid</button></section>
 <section class="card"><h2>Traders</h2><div id="trader"></div></section><section class="card"><h2>Workshop and base</h2><div id="workshop"></div><div id="upgrades"></div><h3>Attachment bench</h3><label>Weapon <select id="attachmentWeapon"></select></label><label>Attachment <select id="attachmentMod"></select></label><button id="attach">Install attachment</button><div id="installedMods"></div></section><section class="card"><h2>Contracts</h2><div id="contracts"></div></section><section class="card"><h2>Insurance claims</h2><div id="insurance"></div></section><section class="card"><h2>Raid records</h2><div id="records"></div></section></section>
-</main><section id="play" aria-label="Active raid"><canvas id="view" tabindex="0" aria-label="Raid view"></canvas><div id="cross" aria-hidden="true">+</div><div id="telemetry"><div id="hud" aria-live="off"></div><div id="conditions"></div><div id="networkStatus" aria-live="off">Connecting…</div><div id="bossPanel" hidden aria-live="polite"><span id="bossName">Foundry Warden</span><span id="bossPhase"></span><span id="bossHpText"></span><progress id="bossHp" max="760" value="760" aria-label="Foundry Warden health"></progress></div><div id="events" role="status" aria-live="polite"></div><div id="interactionStatus" role="status"></div></div><div id="statusAnnouncement" class="srOnly" role="status" aria-live="polite"></div><canvas id="minimap" width="180" height="180" aria-label="Map showing your position, squad and exits"></canvas><button id="leave">Back to base</button><button id="spectate" hidden>Next squadmate</button><button id="packToggle" aria-controls="pack" aria-expanded="true">Backpack / B</button><section id="pack" aria-label="Backpack and nearby loot"></section><div id="hint" role="status"></div><div id="touch"><div><button data-move="forward" aria-label="Move forward">↑</button><button data-move="left" aria-label="Strafe left">←</button><button data-move="back" aria-label="Move back">↓</button><button data-move="right" aria-label="Strafe right">→</button></div><div><button data-look="lookLeft" aria-label="Look left">↶</button><button data-look="lookRight" aria-label="Look right">↷</button><button data-look="lookUp" aria-label="Look up">Aim ↑</button><button data-look="lookDown" aria-label="Look down">Aim ↓</button><button id="jump">Jump</button><button id="vault">Vault</button><button id="sprint" aria-pressed="false">Sprint</button><button id="slide">Slide</button><button id="fire">Fire</button><button id="aim" aria-pressed="false">Aim</button><button id="utility">Utility</button><button id="reload">Reload</button><button id="interact">Interact</button></div></div></section>
+</main><section id="play" aria-label="Active raid"><canvas id="view" tabindex="0" aria-label="Raid view"></canvas><div id="cross" aria-hidden="true">+</div><div id="telemetry"><div id="hud" aria-live="off"></div><div id="conditions"></div><div id="networkStatus" aria-live="off">Connecting…</div><div id="bossPanel" hidden aria-live="polite"><span id="bossName">Foundry Warden</span><span id="bossPhase"></span><span id="bossHpText"></span><progress id="bossHp" max="760" value="760" aria-label="Foundry Warden health"></progress></div><div id="events" role="status" aria-live="polite"></div><div id="interactionStatus" role="status"></div></div><div id="statusAnnouncement" class="srOnly" role="status" aria-live="polite"></div><canvas id="minimap" role="img" width="360" height="360" aria-label="Tactical map showing your position, squad and exits"></canvas><button id="leave">Back to base</button><button id="spectate" hidden>Next squadmate</button><button id="packToggle" aria-controls="pack" aria-expanded="true">Backpack / B</button><section id="pack" aria-label="Backpack and nearby loot"></section><div id="hint" role="status"></div><div id="touch"><div><button data-move="forward" aria-label="Move forward">↑</button><button data-move="left" aria-label="Strafe left">←</button><button data-move="back" aria-label="Move back">↓</button><button data-move="right" aria-label="Strafe right">→</button></div><div><button data-look="lookLeft" aria-label="Look left">↶</button><button data-look="lookRight" aria-label="Look right">↷</button><button data-look="lookUp" aria-label="Look up">Aim ↑</button><button data-look="lookDown" aria-label="Look down">Aim ↓</button><button id="jump">Jump</button><button id="vault">Vault</button><button id="sprint" aria-pressed="false">Sprint</button><button id="slide">Slide</button><button id="fire">Fire</button><button id="aim" aria-pressed="false">Aim</button><button id="utility">Utility</button><button id="reload">Reload</button><button id="interact">Interact</button></div></div></section>
 <button id="commsToggle" hidden aria-expanded="false" aria-controls="communications">Squad / voice</button>
 <aside id="communications" class="card" hidden aria-label="Squad communication">
 <h2>Squad communication</h2><button id="commsClose">Close communication panel</button><p id="squadPings" role="status" aria-live="polite"></p>

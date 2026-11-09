@@ -1016,6 +1016,60 @@ export function terrainHeightAt(world,x,z){
  const x0=Math.floor(fx),z0=Math.floor(fz),x1=Math.min(res-1,x0+1),z1=Math.min(res-1,z0+1),ax=fx-x0,az=fz-z0,heights=t.heights,row0=z0*res,row1=z1*res;
  return heights[row0+x0]*(1-ax)*(1-az)+heights[row0+x1]*ax*(1-az)+heights[row1+x0]*(1-ax)*az+heights[row1+x1]*ax*az;
 }
+// Presentation-only scenery. It is derived deterministically from frozen world
+// data instead of being stored in the versioned layout, so checkpoints, block
+// collision and spawn/cache/exit routes remain byte-for-byte unchanged.
+export function raidScenery(world){
+ const seedText=world.id+'|'+world.size+'|'+world.theme;
+ let seed=2166136261;for(let i=0;i<seedText.length;i++)seed=Math.imul(seed^seedText.charCodeAt(i),16777619)>>>0;
+ const R=prng(seed),half=world.size/2,props=world.props||[],out=[];
+ const roads=props.filter(p=>(p.kind==='road'||p.kind==='sidewalk'||p.kind==='crosswalk'||p.kind==='plaza')&&p.w&&p.d);
+ const clearRoad=(x,z,pad=2.4)=>{for(const p of roads){if(Math.abs(x-p.x)<(p.w||0)/2+pad&&Math.abs(z-p.z)<(p.d||0)/2+pad)return false}return true};
+ const points=[];for(const [x,z]of world.spawns)points.push([x,z,15]);
+ for(const [x,z]of world.caches)points.push([x,z,11]);
+ for(const exit of world.exits)points.push([exit.x,exit.z,13]);
+ if(world.supply)points.push([world.supply.x,world.supply.z,10]);
+ const nearPoint=(x,z)=>points.some(([px,pz,r])=>Math.hypot(x-px,z-pz)<r);
+ const usable=(x,z)=>Math.abs(x)<half-18&&Math.abs(z)<half-18&&!nearPoint(x,z)&&!blocked(world,x,z,1.2)&&clearRoad(x,z);
+ const foliage=world.theme==='wilderness'?[[0x3f6238,0x587446,0x688b52],[0x45673d,0x5e8248,0x36533a],[0x577a4a,0x6f8d54]]:
+   world.theme==='settlement'?[[0x4c7042,0x668550,0x3f5e39],[0x567748,0x6a8b58,0x45653f],[0x6f8753,0x5f7d49]]:
+   [[0x4f7048,0x64854d,0x38553a],[0x52744a,0x5d7f4f,0x3c5a40],[0x6a844f,0x5f7b47]];
+ const rubbleColors=[0x8a8777,0x6d6a60,0x9a9689];
+ const fernScale=()=>.55+R()*.85,shrubScale=()=>.6+R()*1.05,stumpScale=()=>.7+R()*.7;
+ // Dense undergrowth across the open ground: ferns/shrubs dominate, with moss
+ // cushions on the ground and dead trunks adding vertical silhouette.
+ const step=world.size>=1200?30:20;
+ for(let gx=-half+12;gx<half-12;gx+=step)for(let gz=-half+12;gz<half-12;gz+=step){
+  const x=Math.round(gx+R()*(step-18)),z=Math.round(gz+R()*(step-18));
+  if(!usable(x,z))continue;
+  const roll=R(),theme=world.theme,kind=theme==='wilderness'?(roll<.52?'fern':roll<.82?'shrub':roll<.9?'moss':'stump'):theme==='settlement'?(roll<.46?'fern':roll<.7?'shrub':roll<.87?'moss':'stump'):(roll<.4?'fern':roll<.65?'shrub':roll<.84?'moss':'stump');
+  const palette=foliage[kind==='fern'?0:kind==='shrub'?1:2];
+  out.push({kind,x,z,y:0,scale:kind==='fern'?fernScale():kind==='shrub'?shrubScale():stumpScale(),color:palette[Math.floor(R()*palette.length)],ry:R()*Math.PI*2});
+  // Moss cushions share a cell only occasionally; two nearby plants keep the
+  // cluster silhouette natural instead of a single repeated stamp.
+  if(R()<.28){const x2=Math.round(x+(R()-.5)*9),z2=Math.round(z+(R()-.5)*9);if(usable(x2,z2))out.push({kind:R()<.65?'fern':'shrub',x:x2,z:z2,y:0,scale:.5+R()*.75,color:foliage[0][Math.floor(R()*3)],ry:R()*Math.PI*2})}
+ }
+ // Standing ruin walls and rubble fields anchor destroyed structures around
+ // real blocks, then loose rubble draws the eye along their former footprints.
+ const structures=[];
+ for(const block of world.blocks){const [x,z,w,d,h,base=0,kind='concrete']=block;if(base<=.4&&h>=2.4&&w>=4&&d>=4&&kind!=='window')structures.push(block)}
+ let ruins=0;
+ for(let i=0;i<structures.length&&ruins<18;i+=Math.max(1,Math.floor(structures.length/18))){
+  const [bx,bz,w,d,h]=structures[i],angle=R()*Math.PI*2,offset=Math.max(w,d)/2+2.4+R()*2.5;
+  const x=Math.round(bx+Math.cos(angle)*offset),z=Math.round(bz+Math.sin(angle)*offset);
+  if(!usable(x,z))continue;
+  const scale=.8+R()*.55,ry=angle+Math.PI/2,rx=Math.round(x+(R()-.5)*4),rz=Math.round(z+(R()-.5)*4),rubbleOk=usable(rx,rz);
+  out.push({kind:'ruin',x,z,y:0,scale,color:rubbleColors[Math.floor(R()*rubbleColors.length)],ry});
+  out.push({kind:'rubble',x:rubbleOk?rx:x,z:rubbleOk?rz:z,y:0,scale:.6+R()*.8,color:rubbleColors[Math.floor(R()*3)],ry:R()*Math.PI*2});
+  ruins++;
+ }
+ for(let i=0;i<structures.length&&out.filter(p=>p.kind==='rubble').length<34;i+=Math.max(1,Math.floor(structures.length/30))){
+  const [bx,bz,w,d]=structures[i],angle=R()*Math.PI*2,offset=Math.max(w,d)/2+1.7+R()*1.6;
+  const x=Math.round(bx+Math.cos(angle)*offset),z=Math.round(bz+Math.sin(angle)*offset);
+  if(usable(x,z))out.push({kind:'rubble',x,z,y:0,scale:.5+R()*.7,color:rubbleColors[Math.floor(R()*3)],ry:R()*Math.PI*2});
+ }
+ return out;
+}
 export function floorAt(world,x,z,ceiling=Infinity){
  let y=terrainHeightAt(world,x,z);
  for(const [bx,bz,w,d,h,base=0]of nearbyBlocks(world,x,z))if(Math.abs(x-bx)<=w/2&&Math.abs(z-bz)<=d/2&&base+h<=ceiling+.01)y=Math.max(y,base+h);

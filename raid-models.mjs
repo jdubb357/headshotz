@@ -5,6 +5,7 @@ import {makeCharacterWithCache,animate} from './chars.js';
 import {WEAPONS} from './shared/raid-catalog.mjs';
 import {MACHINES} from './shared/raid-enemies.mjs';
 const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,12,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,5,24)};
+const HIT_FLASH_COLOR=new THREE.Color(0xffffff);
 const materials=new Map();
 const characterGeometryCache=Object.create(null),characterGeometryRefs=new Map(),idleCharacterGeometry=new Map(),IDLE_CHARACTER_GEOMETRY_LIMIT=112;
 function pruneCharacterGeometry(){
@@ -29,7 +30,8 @@ export function weaponModel(id,hands=false){
  const {parts,info}=gunParts(id==='pistol'?'handgun':id,1),all=hands?parts.concat(handParts(info,0x43565c)):parts,groups=new Map(),root=new THREE.Group();
  for(const p of all){const key=p.mat||'metal';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p)}
  for(const [key,parts]of groups){const geometry=mergeParts(parts,{uv:true});geometry.userData.raidOwned=true;
-  const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:key==='metal'?.35:.8,metalness:['metal','alu','chrome'].includes(key)?.6:.1});material.userData.raidOwned=true;
+  const metal=['metal','alu','chrome','brass'].includes(key),polished=key==='alu'||key==='chrome';
+  const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:metal?polished?.22:.38:key==='wood'?.88:.78,metalness:key==='brass'?.72:metal?.66:.1,envMapIntensity:metal?(polished?1.55:1.35):1});material.userData.raidOwned=true;
   root.add(new THREE.Mesh(geometry,material));
  }
  root.userData.info=info;return root;
@@ -101,20 +103,35 @@ export function updateActor(root,state,dt,time){
  const previous=root.userData.last||{x:state.x,z:state.z,at:time-.15};
  if(previous.x!==state.x||previous.z!==state.z){root.userData.speed=Math.min(8,Math.hypot(state.x-previous.x,state.z-previous.z)/Math.max(.1,time-previous.at));root.userData.last={x:state.x,z:state.z,at:time}}else if(time-previous.at>.4)root.userData.speed=(root.userData.speed||0)*.9;
  const speed=root.userData.speed||0;
+ // A visible HP drop is the only evidence of incoming damage, so unchanged
+ // snapshots never replay the reaction. Reduced motion keeps both a still pose
+ // and a stable machine core.
+ if(Number.isFinite(state.hp)){
+  const priorHp=root.userData.lastHp,actor=root.userData.actor;
+  if(Number.isFinite(priorHp)&&state.hp<priorHp&&!state.reduced){
+   const damage=priorHp-state.hp;
+   if(actor==='human')root.userData.flinch=Math.min(1,(root.userData.flinch||0)+.4+Math.min(.55,damage/110));
+   else if(actor==='machine')root.userData.hitFlash=1;
+  }
+  root.userData.lastHp=state.hp;
+ }
  const target=new THREE.Vector3(state.x,state.y||0,state.z);if(!root.userData.placed){root.position.copy(target);root.userData.placed=true}else root.position.lerp(target,Math.min(1,dt*14));
  root.rotation.y=(state.yaw||0)+(root.userData.actor==='human'?Math.PI:0);
- if(root.userData.actor==='human')animate(root,{speed,pitch:state.pitch||0,dist:10,down:!!state.downed,air:!!state.air,slide:!!state.sliding,crouch:!!state.crouch},dt);
+ if(root.userData.actor==='human')animate(root,{speed,pitch:state.pitch||0,dist:10,down:!!state.downed,air:!!state.air,slide:!!state.sliding,crouch:!!state.crouch,reduced:state.reduced===true},dt);
  else if(root.userData.actor==='machine'){
   for(const [i,leg]of root.userData.legs.entries())leg.rotation.x=Math.sin(time*7+i*Math.PI)*Math.min(.35,speed*.1);
-  const phase=root.userData.kind==='overlord'&&state.bossPhase?state.bossPhase:null,reduced=root.userData.motionReduced===true;
+  const phase=root.userData.kind==='overlord'&&state.bossPhase?state.bossPhase:null,reduced=root.userData.motionReduced===true||state.reduced===true;
+  const hitFlash=Math.max(0,(root.userData.hitFlash||0)-dt*3.6);root.userData.hitFlash=reduced?0:hitFlash;
   const core=root.userData.core;if(core){
    const strobe=!reduced&&phase==='meltdown'&&Math.sin(time*14)>0;
    core.material.color.setHex(state.state==='windup'?0xffe28e:strobe?0xfff4ea:phase==='meltdown'?0xff2c1e:phase==='furnace'?0xff9a2f:phase==='approach'?0xff6a52:0xff5038);
+   if(!reduced&&hitFlash>0)core.material.color.lerp(HIT_FLASH_COLOR,Math.min(1,hitFlash*.85));
    const phasePulse=phase==='furnace'&&!reduced?1.12+.18*Math.sin(time*9):strobe?1.5:1;
-   core.scale.setScalar((root.userData.kind==='overlord'?.42:root.userData.kind==='heavy'?.2:.15)*phasePulse*(state.state==='windup'?1.2+.15*Math.sin(time*12):1));
+   const hitPulse=reduced?0:1+hitFlash*.5;
+   core.scale.setScalar((root.userData.kind==='overlord'?.42:root.userData.kind==='heavy'?.2:.15)*phasePulse*(state.state==='windup'?1.2+.15*Math.sin(time*12):1)*hitPulse);
   }
   const beacon=root.userData.beacon;
   if(beacon){const color=phase==='meltdown'?0xff3a2e:phase==='furnace'?0xffb04a:0x9db6c4;beacon.userData.beaconShaft.material.color.setHex(color);beacon.userData.beaconRing.material.color.setHex(color);beacon.visible=!reduced}
  }
 }
-export function disposeOwned(root){root.traverse(node=>{releaseCharacterGeometry(node);if(node.isInstancedMesh&&node.geometry?.userData.raidOwned)node.dispose();if(node.geometry?.userData.raidOwned)node.geometry.dispose();const list=Array.isArray(node.material)?node.material:[node.material];for(const m of list)if(m?.userData.raidOwned){if(m.userData.raidOwnTexture)m.map?.dispose();m.dispose()}})}
+export function disposeOwned(root){root.traverse(node=>{releaseCharacterGeometry(node);if(node.isInstancedMesh&&node.geometry?.userData.raidOwned)node.dispose();if(node.geometry?.userData.raidOwned)node.geometry.dispose();const list=Array.isArray(node.material)?node.material:[node.material];for(const m of list)if(m?.userData.raidOwned){if(m.userData.raidOwnTexture)m.map?.dispose();if(m.userData.raidOwnNormalTexture)m.normalMap?.dispose();m.dispose()}})}

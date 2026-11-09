@@ -1,0 +1,461 @@
+// First-person view-model grader: proves the held weapon reads as a lit,
+// reflective PBR prop with damped look sway, a bounded locomotion bob,
+// an equip raise and a transient additive muzzle glow — all presentation-only
+// and frozen under reduced motion.
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+import {writeFile} from 'node:fs/promises';
+import {RaidStore} from '../server/store.mjs';
+import {createRaidServer} from '../server/main.mjs';
+import {browserHarness} from './browser-harness.mjs';
+const store=new RaidStore(),runtime=createRaidServer(store);runtime.server.listen(0,'127.0.0.1');await once(runtime.server,'listening');
+const prior=process.env.RAID_TEST_URL;process.env.RAID_TEST_URL='http://127.0.0.1:'+runtime.server.address().port;
+const h=await browserHarness();
+const shot=async(p,path)=>{const png=await p.command('Page.captureScreenshot',{format:'png'});await writeFile(path,Buffer.from(png.data,'base64'))};
+try{
+ const p=await h.page();await p.command('Emulation.setDeviceMetricsOverride',{width:1280,height:800,deviceScaleFactor:1,mobile:false});
+ await p.wait("document.getElementById('message')?.textContent.includes('Sign in') && document.body.getAttribute('aria-busy')==='false'");
+ await p.evaluate("document.querySelector('[name=username]').value='vm_'+Date.now().toString(36);document.querySelector('[name=password]').value='a long view model password';document.getElementById('register').click()");
+ await p.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
+ await p.evaluate("import('./raid-view.mjs').then(({RaidView})=>{const start=RaidView.prototype.start;RaidView.prototype.start=function(...args){const result=start.apply(this,args);window.__vmView=this;return result}})");
+ await p.evaluate("document.getElementById('recovery').checked=true;document.getElementById('deploy').click()");
+ await p.wait("document.getElementById('play').style.display==='block' && window.__vmView?.snapshot && document.body.getAttribute('aria-busy')==='false'");
+ // Keep a direct handle on the live renderer; the isolated grader view below
+ // will replace window.__vmView because the start wrapper reassigns it.
+ await p.evaluate("window.__vmLive=window.__vmView;true");
+ // Grade on an isolated, fully controlled RaidView so presentation state is
+ // deterministic and never fights the live render loop's clock.
+ const details=await p.evaluate(`(async()=>{
+  const {RaidView}=await import('./raid-view.mjs');
+  const state=await fetch('/api/raid').then(r=>r.json());
+  const v=new RaidView(document.createElement('canvas'));
+  v.start(state);
+  const miss=state.self;
+  const render=(t,yaw=0,pitch=0,p=miss,aim=false)=>{v.lastTime=t-16;v.frame(t,yaw,pitch,p,aim)};
+  v.applySettings({...v.settings,reduced:false,sfxVolume:0,fov:75,viewMode:'first'});
+  v.vmEquipAt=0;v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;v.recoil=0;
+  render(1000);
+  const lights=v.overlay.children.filter(n=>n.isLight).map(n=>({type:n.type,kind:n.isHemisphereLight?'hemisphere':'directional',intensity:n.intensity,color:[n.color.r,n.color.g,n.color.b]}));
+  const materials=[];v.gun&&v.gun.traverse(node=>{if(node.isMesh&&node.material&&!materials.includes(node.material))materials.push(node.material)});
+  const pbr=materials.map(m=>({type:m.type,metalness:m.metalness,roughness:m.roughness,envIntensity:m.envMapIntensity,vertexColors:m.vertexColors}));
+  const envSame=!!v.overlay.environment&&v.overlay.environment===v.scene.environment;
+  const first={gun:v.gunRoot.visible,actor:v.selfActor.visible};
+  // Damped look sway: several aim frames move the weapon, bounded by the budget.
+  v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;v.vmEquipAt=0;
+  render(1016);
+  const idle=v.gunRoot.position.clone();
+  render(1032,0.6,0.3);render(1048,1.2,0.6);render(1064,1.8,0.9);render(1080,2.4,1.2);
+  const sway=Math.hypot(v.gunRoot.position.x-idle.x,v.gunRoot.position.y-idle.y);
+  // Locomotion bob: server-reported motion swings the weapon vertically.
+  const moving={...state,self:{...miss,move:{x:0,z:1}}};
+  v.sync(moving);v.vmEquipAt=0;v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;v.vmStep=0;
+  let previous=null,maxBob=0,bounded=0;
+  for(let i=0;i<40;i++){
+   render(1100+i*16);
+   bounded=Math.max(bounded,Math.abs(v.gunRoot.position.x-.2),Math.abs(v.gunRoot.position.y+.22));
+   if(previous)maxBob=Math.max(maxBob,Math.hypot(v.gunRoot.position.x-previous.x,v.gunRoot.position.y-previous.y));
+   previous=v.gunRoot.position.clone();
+  }
+  // Reduced motion freezes sway, bob and breathing to an exact zero delta and
+  // also suppresses the firing particulate entirely.
+  v.applySettings({...v.settings,reduced:true});
+  v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;v.vmEquipAt=0;v.recoil=0;
+  v.fire();
+  const reducedCasing=v.caseFx?.some(sprite=>sprite.visible)||false;
+  const reducedSmoke=!!v.muzzleSmoke?.visible;
+  render(1300);
+  const reducedLight={visible:!!v.muzzleLight?.visible,intensity:v.muzzleLight?.intensity||0};
+  const reducedKick={pitch:v.camera.rotation.x,roll:v.camera.rotation.z,recoil:v.recoil};
+  const frozen=v.gunRoot.position.clone();
+  render(1316,0.6,0.2);
+  const frozenDelta=Math.hypot(v.gunRoot.position.x-frozen.x,v.gunRoot.position.y-frozen.y,v.gunRoot.position.z-frozen.z);
+  // Equip raise: a newly held weapon starts low and settles.
+  v.applySettings({...v.settings,reduced:false,viewMode:'first'});
+  v.sync(state);v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;v.recoil=0;
+  const synthetic={id:'vm-test-weapon',kind:'weapon',weapon:'smg',quantity:1,condition:100,loaded:30,rarity:1};
+  const changed={...state,self:{...miss,weaponId:synthetic.id,equipment:[...miss.equipment.filter(it=>it.kind!=='weapon'),synthetic]}};
+  v.sync(changed);v.vmEquipAt=2000;v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;v.recoil=0;
+  render(2020);
+  const early=v.gunRoot.position.y;
+  render(2420);
+  const settled=v.gunRoot.position.y;
+  // Muzzle bloom: a fired shot flashes briefly then clears. Firing timestamps
+  // are taken from performance.now, so drive these frames from the live clock.
+  v.sync(state);v.vmEquipAt=0;v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;v.recoil=0;
+  const ammoBefore=state.self.ammo;
+  const casingPool=v.caseFx?.length||0,casingMapUuid=v.caseFx?.[0]?.material?.map?.uuid;
+  const smokeParent=!!v.muzzleSmoke?.parent&&v.muzzleSmoke.parent===v.gunRoot;
+  const smokeTranslucent=!!v.muzzleSmoke?.material?.transparent;
+  v.fire();
+  const firedAt=performance.now();
+  const casingSpawned=v.caseFx?.filter(sprite=>sprite.visible).length||0;
+  render(firedAt+16,0,0,state.self);
+  const flashOn={visible:v.muzzleFlash.visible,opacity:v.muzzleFlash.material.opacity,scale:v.muzzleFlash.scale.x,materialType:v.muzzleFlash.material.type,blending:v.muzzleFlash.material.blending,position:{x:v.muzzleFlash.position.x,y:v.muzzleFlash.position.y,z:v.muzzleFlash.position.z}};
+  const muzzleLight=v.muzzleLight,lightOn=muzzleLight?{type:muzzleLight.type,visible:muzzleLight.visible,intensity:muzzleLight.intensity,color:muzzleLight.color.getHex(),distance:muzzleLight.distance,decay:muzzleLight.decay,parentGun:muzzleLight.parent===v.gunRoot,uuid:muzzleLight.uuid,position:{x:muzzleLight.position.x,y:muzzleLight.position.y,z:muzzleLight.position.z}}:null;
+  const kickEarly={pitch:v.camera.rotation.x,roll:v.camera.rotation.z,recoil:v.recoil,side:v.recoilSide};
+  // Render the overlay pass alone once so the muzzle light's warm falloff on the
+  // hands and receiver can be inspected without the world-space shot flash
+  // filling the frame. This capture has no assertion beyond human inspection.
+  const overlayFire=(()=>{const r=v.renderer;r.setRenderTarget(null);r.clear();r.render(v.overlay,v.weaponCamera);return r.domElement.toDataURL('image/png')})();
+  const casingFirst=v.caseFx?.find(sprite=>sprite.visible);
+  const eject=v.gun?.userData.info?.eject||[0,0,0];
+  const casingStart=casingFirst?{x:casingFirst.position.x,y:casingFirst.position.y,z:casingFirst.position.z,parent:casingFirst.parent===v.gunRoot,opacity:casingFirst.material.opacity}:null;
+  const smokeStart={visible:v.muzzleSmoke.visible,opacity:v.muzzleSmoke.material.opacity,scale:v.muzzleSmoke.scale.x};
+  const casingArc=[];
+  for(let i=2;i<=4;i++)render(firedAt+i*16,0,0,state.self);
+  const casingMoved=casingFirst?Math.hypot(casingFirst.position.x-eject[0],casingFirst.position.y-eject[1],casingFirst.position.z-eject[2]):0;
+  if(casingFirst)for(let i=5;i<=17;i++){render(firedAt+i*16,0,0,state.self);if(casingFirst.visible)casingArc.push(casingFirst.position.y)}
+  const smokeMid={visible:v.muzzleSmoke.visible,opacity:v.muzzleSmoke.material.opacity,scale:v.muzzleSmoke.scale.x};
+  const casingPeak=casingArc.length?Math.max(...casingArc):0,casingLast=casingArc.length?casingArc[casingArc.length-1]:0;
+  for(let i=18;i<=30;i++)render(firedAt+i*16,0,0,state.self);
+  const kickDecayed={pitch:v.camera.rotation.x,roll:v.camera.rotation.z,recoil:v.recoil};
+  const lightOff={visible:!!v.muzzleLight?.visible,intensity:v.muzzleLight?.intensity||0};
+  const casingsAfter=v.caseFx.filter(sprite=>sprite.visible).length;
+  const casingPoolAfter=v.caseFx.length,casingMapAfter=v.caseFx[0].material.map.uuid;
+  const smokeAfter=v.muzzleSmoke.visible;
+  for(let i=0;i<7;i++)v.fire();
+  const repeatedCasings=v.caseFx.filter(sprite=>sprite.visible).length,repeatedPool=v.caseFx.length;
+  const lightStable=!!v.muzzleLight&&v.muzzleLight.uuid===lightOn.uuid;
+  const lightRest={visible:!!v.muzzleLight?.visible,intensity:v.muzzleLight?.intensity||0};
+  const sideAfterBurst=v.recoilSide;
+  const flashOff=!v.muzzleFlash.visible;
+  const ammoAfter=state.self.ammo;
+  // Visibility: first-person carries the weapon, third-person and unarmed hide
+  // it, and re-equipping restores it.
+  v.applySettings({...v.settings,reduced:false,viewMode:'first'});
+  render(firedAt+170,0,0,state.self);
+  const equippedFirst={gun:v.gunRoot.visible,actor:v.selfActor.visible};
+  v.applySettings({...v.settings,reduced:false,viewMode:'third'});
+  render(firedAt+186,0,0,state.self);
+  const third={gun:v.gunRoot.visible,actor:v.selfActor.visible};
+  v.recoil=0;
+  render(1e6-32,0,0,state.self);
+  const thirdBase={pitch:v.renderCamera.rotation.x,roll:v.renderCamera.rotation.z};
+  v.fire();
+  render(1e6,0,0,state.self);
+  const thirdKick={pitch:v.renderCamera.rotation.x-thirdBase.pitch,roll:v.renderCamera.rotation.z-thirdBase.roll,recoil:v.recoil};
+  for(const casing of v.caseFx||[]){casing.visible=false;casing.material.opacity=0}
+  v.muzzleSmoke.visible=false;
+  v.fire();
+  const thirdCasing=v.caseFx?.some(sprite=>sprite.visible)||false,thirdSmoke=!!v.muzzleSmoke?.visible;
+  v.applySettings({...v.settings,reduced:false,viewMode:'first'});
+  render(firedAt+202,0,0,state.self);
+  const beforeUnarmed=v.gunRoot.visible;
+  const unarmed={...state,self:{...miss,weaponId:null,equipment:miss.equipment.filter(it=>it.id!==miss.weaponId),pack:miss.pack.filter(it=>it.id!==miss.weaponId)}};
+  v.sync(unarmed);render(firedAt+218,0,0,unarmed.self);
+  const unarmedVisible=v.gunRoot.visible;
+  for(const casing of v.caseFx||[]){casing.visible=false;casing.material.opacity=0}
+  v.muzzleSmoke.visible=false;
+  v.fire();
+  const unarmedCasing=v.caseFx?.some(sprite=>sprite.visible)||false,unarmedSmoke=!!v.muzzleSmoke?.visible;
+  v.sync(state);render(firedAt+234,0,0,state.self);
+  const restored=v.gunRoot.visible;
+  // Reload handling: an accepted reload dips/leans the weapon and exchanges a
+  // fixed PBR magazine, then restores the base pose exactly.
+  const station={...state,self:{...state.self,alive:true,move:{x:0,z:0}}};
+  v.applySettings({...v.settings,reduced:false,viewMode:'first'});
+  v.sync(station);v.recoil=0;v.vmEquipAt=0;v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;
+  const aimAmmoBefore=station.self.ammo;
+  // Aim-down-sights: smooth transition to the authored sight offset, damped look
+  // sway while aiming, and an exact return to the hip pose on release.
+  const aimScale=v.gunRoot.scale.x||.65;
+  const sight=Array.isArray(v.gun?.userData.info?.sight)?v.gun.userData.info.sight:[0,.06,.15];
+  const expectedAimX=-(sight[0]||0)*aimScale,expectedAimY=-(sight[1]||0)*aimScale;
+  const aimBase=6000;
+  v.vmAim=0;
+  render(aimBase,0,0,station.self,false);
+  const hipAim={x:v.gunRoot.position.x,y:v.gunRoot.position.y,z:v.gunRoot.position.z};
+  render(aimBase+16,0,0,station.self,true);
+  const aimEarly={x:v.gunRoot.position.x,y:v.gunRoot.position.y,blend:v.vmAim};
+  for(let i=2;i<=30;i++)render(aimBase+i*16,0,0,station.self,true);
+  const aimSettled={x:v.gunRoot.position.x,y:v.gunRoot.position.y,z:v.gunRoot.position.z,blend:v.vmAim};
+  const aimShot=v.renderer.domElement.toDataURL('image/png');
+  render(aimBase+31*16,2.4,.6,station.self,true);
+  const aimSway={dx:v.gunRoot.position.x-expectedAimX,dy:v.gunRoot.position.y-expectedAimY};
+  v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;
+  render(aimBase+32*16,0,0,station.self,false);
+  const aimReleaseEarly={x:v.gunRoot.position.x,y:v.gunRoot.position.y,blend:v.vmAim};
+  for(let i=33;i<=63;i++)render(aimBase+i*16,0,0,station.self,false);
+  const aimRestored={x:v.gunRoot.position.x,y:v.gunRoot.position.y,z:v.gunRoot.position.z,blend:v.vmAim};
+  const aimRestoreAt=aimBase+63*16,aimRestoreSeconds=aimRestoreAt/1000;
+  const aimRestoreDelta=Math.hypot(aimRestored.x-(.2+Math.sin(aimRestoreSeconds*1.7)*.004),aimRestored.y-(-.22+Math.sin(aimRestoreSeconds*2.1)*.004),aimRestored.z+.5);
+  v.applySettings({...v.settings,reduced:true});
+  v.vmAim=0;
+  render(aimBase+1100,0,0,station.self,true);
+  const reducedAim={x:v.gunRoot.position.x,y:v.gunRoot.position.y,z:v.gunRoot.position.z,blend:v.vmAim};
+  render(aimBase+1116,0,0,station.self,false);
+  const reducedAimRelease=v.vmAim;
+  const aimAmmoAfter=station.self.ammo;
+  v.applySettings({...v.settings,reduced:false});
+  v.vmAim=0;v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;
+  const ammoBeforeReload=station.self.ammo;
+  const reloadStarted=v.beginReload(1000);
+  const reloadStartAt=v.reloadStartedAt,reloadDuration=v.reloadDuration;
+  const reloadMagBase=v.reloadMagBase.clone();
+  const magGroup=v.reloadMag,magUuid=magGroup?magGroup.uuid:null,bodyMatUuid=magGroup?.children[0]?.material?.uuid,reloadChildCount=magGroup?.children.length||0;
+  const reloadTextures=[magGroup?.children[0]?.material?.map,magGroup?.children[1]?.material?.map].filter(Boolean).length;
+  render(reloadStartAt+80,0,0,station.self);
+  const reloadFirstDrop={visible:!!magGroup?.visible,dx:magGroup?magGroup.position.x-reloadMagBase.x:0,dy:magGroup?magGroup.position.y-reloadMagBase.y:0};
+  render(reloadStartAt+200,0,0,station.self);
+  const reloadMid={y:v.gunRoot.position.y,x:v.gunRoot.position.x,z:v.gunRoot.position.z,rotX:v.gunRoot.rotation.x,rotZ:v.gunRoot.rotation.z,magVisible:!!magGroup?.visible,magY:magGroup?magGroup.position.y-reloadMagBase.y:0,magX:magGroup?magGroup.position.x-reloadMagBase.x:0};
+  const reloadShot=v.renderer.domElement.toDataURL('image/png');
+  render(reloadStartAt+400,0,0,station.self);
+  const reloadExchangeHidden=!magGroup?.visible;
+  render(reloadStartAt+700,0,0,station.self);
+  const reloadReturn={visible:!!magGroup?.visible,magY:magGroup?magGroup.position.y-reloadMagBase.y:0,rotZ:magGroup?magGroup.rotation.z:0};
+  render(reloadStartAt+950,0,0,station.self);
+  const reloadSeated=!magGroup?.visible;
+  const reloadEndAt=reloadStartAt+1016;
+  render(reloadEndAt,0,0,station.self);
+  const reloadEnd={active:v.reloadStartedAt>0,visible:!!magGroup?.visible,x:v.gunRoot.position.x,y:v.gunRoot.position.y,z:v.gunRoot.position.z,rotX:v.gunRoot.rotation.x,rotZ:v.gunRoot.rotation.z};
+  const secondsEnd=reloadEndAt/1000;
+  const reloadEndDelta=Math.hypot(reloadEnd.x-(.2+Math.sin(secondsEnd*1.7)*.004),reloadEnd.y-(-.22+Math.sin(secondsEnd*2.1)*.004),reloadEnd.z+.5);
+  const reloadEndRotDelta=Math.hypot(reloadEnd.rotX,reloadEnd.rotZ);
+  // A second accepted reload reuses the same group and materials.
+  const startedAgain=v.beginReload(1000);
+  render(v.reloadStartedAt+200,0,0,station.self);
+  const reloadReuse={magUuid:magGroup?.uuid,bodyMatUuid:magGroup?.children[0]?.material?.uuid,childCount:magGroup?.children.length};
+  render(v.reloadStartedAt+1016,0,0,station.self);
+  // Suppressed modes never activate the handling beat.
+  v.applySettings({...v.settings,reduced:true});
+  render(reloadEndAt+32,0,0,station.self);
+  const reducedReload=v.beginReload(1000);
+  const reducedReloadState={startedAt:v.reloadStartedAt,duration:v.reloadDuration,magVisible:!!magGroup?.visible};
+  v.applySettings({...v.settings,reduced:false,viewMode:'third'});
+  render(reloadEndAt+48,0,0,station.self);
+  const thirdReload=v.beginReload(1000);
+  v.applySettings({...v.settings,reduced:false,viewMode:'first'});
+  v.sync(unarmed);render(reloadEndAt+64,0,0,unarmed.self);
+  const unarmedReload=v.beginReload(1000);
+  v.sync(station);render(reloadEndAt+80,0,0,station.self);
+  const reloadAmmoAfter=station.self.ammo;
+  // Defaults derive from the held weapon; explicit durations are clamped.
+  const heldItem=station.self.equipment.find(it=>it.id===station.self.weaponId)||null;
+  const {weaponStats}=await import('./shared/raid-catalog.mjs');
+  const expectedDefault=heldItem?Math.round(weaponStats(heldItem).reload*1000):1200;
+  const defaultStarted=v.beginReload();
+  const defaultReload={started:defaultStarted,duration:v.reloadDuration,expected:Math.max(350,Math.min(4000,expectedDefault))};
+  const lowerStarted=v.beginReload(1);
+  const lowerDuration=v.reloadDuration;
+  const upperStarted=v.beginReload(9999);
+  const upperDuration=v.reloadDuration;
+  render(v.reloadStartedAt+upperDuration+16,0,0,station.self);
+  const clampedReloads={lowerStarted,lowerDuration,upperStarted,upperDuration};
+  // Weapon replacement disposes the old fixed prop and builds a fresh one.
+  const replacedMag=v.reloadMag;
+  const replacedMats=[replacedMag?.children[0]?.material,replacedMag?.children[1]?.material].filter(Boolean);
+  let replacementDisposes=0;
+  for(const material of replacedMats)material.addEventListener('dispose',()=>replacementDisposes++);
+  v.sync(changed);
+  const reloadReplacement={disposes:replacementDisposes,removed:replacedMag.parent===null,newUuid:v.reloadMag?.uuid||null};
+  v.sync(station);
+  const freshMag=v.reloadMag;
+  const reloadFresh={newUuid:freshMag?.uuid||null,familyChanged:freshMag?.uuid!==magGroup?.uuid};
+  // Disposal: a single clear() releases the effect textures and drops the state.
+  const caseTexture=v.caseFx?.[0]?.material?.map,smokeTexture=v.muzzleSmoke?.material?.map;
+  let disposeEvents=0,materialDisposes=0;
+  caseTexture?.addEventListener('dispose',()=>{disposeEvents++});
+  smokeTexture?.addEventListener('dispose',()=>{disposeEvents++});
+  for(const material of [v.caseFx?.[0]?.material,v.muzzleSmoke?.material,v.muzzleFlash?.material])material?.addEventListener('dispose',()=>{materialDisposes++});
+  let reloadMaterialDisposes=0;
+  for(const material of [freshMag?.children[0]?.material,freshMag?.children[1]?.material])material?.addEventListener('dispose',()=>{reloadMaterialDisposes++});
+  v.clear();
+  const clearedCases=v.caseFx===null&&v.caseCursor===0,clearedSmoke=v.muzzleSmoke===null&&v.muzzleSmokeAt===-1e9,clearedReload=v.reloadMag===null&&v.reloadStartedAt===0&&v.reloadDuration===0;
+  v.renderer.dispose();
+  // Per-weapon flash silhouette and barrel heat, graded on a fresh controlled
+  // view so the long-held reload/aim probes cannot disturb the effect state.
+  const probe=new RaidView(document.createElement('canvas'));
+  probe.start(state);probe.settings={...v.settings};
+  const profileWeapons={rifle:'ar',smg:'smg',shotgun:'shotgun',sniper:'sniper',pistol:'pistol',heavy:'lmg'};
+  const categoryProfiles={};
+  for(const [key,weaponId] of Object.entries(profileWeapons)){
+   const syntheticWeapon={id:'vm-profile-'+key+'-'+Date.now().toString(36),kind:'weapon',weapon:weaponId,quantity:1,condition:100,loaded:10,rarity:1};
+   probe.sync({...state,self:{...state.self,weaponId:syntheticWeapon.id,equipment:[syntheticWeapon],pack:[]}});
+   categoryProfiles[key]={key:probe.flashProfile,spikes:probe.flashSpikes,scale:probe.muzzleBaseScale,texture:!!probe.muzzleFlash?.material?.map,uuid:probe.muzzleFlash?.material?.map?.uuid,color:probe.muzzleFlash?.material?.color.getHex()};
+  }
+  probe.applySettings({...probe.settings,reduced:false,sfxVolume:0,fov:75,viewMode:'first'});
+  probe.sync(state);probe.vmEquipAt=0;probe.vmYaw=0;probe.vmPitch=0;probe.vmLastYaw=0;probe.vmLastPitch=0;probe.recoil=0;probe.heat=0;
+  for(let i=0;i<6;i++)probe.fire();
+  const heatHot=probe.heat;
+  const heatStart=performance.now();
+  probe.frame(heatStart+200,0,0,state.self,false);
+  const heatResidual={flashVisible:probe.muzzleFlash.visible,flashOpacity:probe.muzzleFlash.material.opacity,scale:probe.muzzleFlash.scale.x,lightVisible:!!probe.muzzleLight?.visible,lightIntensity:probe.muzzleLight?.intensity||0,emissive:(()=>{const material=probe.gunHeatMaterials?.[0];return material?[material.emissive.r,material.emissive.g,material.emissive.b]:null})()};
+  const heatShot=(()=>{const r=probe.renderer;r.setRenderTarget(null);r.clear();r.render(probe.overlay,probe.weaponCamera);return r.domElement.toDataURL('image/png')})();
+  for(let i=1;i<=120;i++)probe.frame(heatStart+200+i*16,0,0,state.self,false);
+  const heatCold=probe.heat,heatColdVisible=!!probe.muzzleFlash?.visible;
+  probe.clear();probe.renderer.dispose();
+  return {lights,envSame,pbr,first,sway,maxBob,bounded,frozenDelta,equipRise:settled-early,flashOn,lightOn,kickEarly,kickDecayed,overlayFire,lightOff,lightStable,lightRest,sideAfterBurst,reducedLight,reducedKick,thirdKick,flashOff,equippedFirst,third,beforeUnarmed,unarmedVisible,restored,weaponId:miss.weaponId,sight,aimScale,expectedAimX,expectedAimY,hipAim,aimEarly,aimSettled,aimSway,aimReleaseEarly,aimRestored,aimRestoreDelta,reducedAim,reducedAimRelease,aimShot,aimAmmoBefore,aimAmmoAfter,ammoBefore,ammoAfter,casingPool,casingPoolAfter,casingMapUuid,casingMapAfter,casingSpawned,repeatedCasings,repeatedPool,casingStart,casingMoved,casingPeak,casingLast,casingsAfter,smokeParent,smokeTranslucent,smokeStart,smokeMid,smokeAfter,reducedCasing,reducedSmoke,thirdCasing,thirdSmoke,unarmedCasing,unarmedSmoke,reloadStarted,reloadStartAt,reloadDuration,reloadMagUuid:magUuid,reloadBodyMatUuid:bodyMatUuid,reloadChildCount,reloadTextures,reloadFirstDrop,reloadMid,reloadExchangeHidden,reloadReturn,reloadSeated,reloadEnd,reloadEndDelta,reloadEndRotDelta,reloadShot,startedAgain,reloadReuse,reducedReload,reducedReloadState,thirdReload,unarmedReload,reloadAmmoBefore:ammoBeforeReload,reloadAmmoAfter,defaultReload,clampedReloads,reloadReplacement,reloadFresh,disposeEvents,materialDisposes,reloadMaterialDisposes,categoryProfiles,heatHot,heatResidual,heatCold,heatColdVisible,heatShot,clearedCases,clearedSmoke,clearedReload,browserErrors:[]};
+ })()`);
+ const isolatedReloadBytes=Buffer.from((details.reloadShot||'').split(',')[1]||'','base64');if(isolatedReloadBytes.length>5000)await writeFile('/tmp/hs-viewmodel-reload-isolated.png',isolatedReloadBytes);
+ const isolatedFireBytes=Buffer.from((details.overlayFire||'').split(',')[1]||'','base64');if(isolatedFireBytes.length>5000)await writeFile('/tmp/hs-viewmodel-fire-overlay.png',isolatedFireBytes);
+ const heatBytes=Buffer.from((details.heatShot||'').split(',')[1]||'','base64');if(heatBytes.length>5000)await writeFile('/tmp/hs-viewmodel-heat.png',heatBytes);
+ const isolatedAimBytes=Buffer.from((details.aimShot||'').split(',')[1]||'','base64');if(isolatedAimBytes.length>5000)await writeFile('/tmp/hs-viewmodel-aim-isolated.png',isolatedAimBytes);
+ const dir=details.lights.filter(l=>l.kind==='directional'),hemi=details.lights.filter(l=>l.kind==='hemisphere');
+ assert.equal(hemi.length,1,'overlay gets a sky/ground hemisphere fill');
+ assert.equal(dir.length,2,'overlay gets a key and a rim light');
+ assert.ok(dir.some(l=>l.intensity>=3&&l.color[0]>l.color[2]),'warm key light reads the metal');
+ assert.ok(dir.some(l=>l.intensity>=1.5&&l.color[2]>l.color[0]),'cool rim separates the silhouette');
+ assert.equal(details.envSame,true,'the view-model pass reflects the deployment sky');
+ assert.ok(details.pbr.length>0,'the held weapon has built material groups');
+ assert.ok(details.pbr.every(p=>p.type==='MeshStandardMaterial'),'weapon materials are PBR standard materials');
+ assert.ok(details.pbr.some(p=>p.metalness>=.6&&p.roughness<=.45&&p.envIntensity>1),'at least one polished metal group');
+ assert.deepEqual(details.first,{gun:true,actor:false},'first-person shows the weapon and hides the full operator');
+ assert.ok(details.sway>.01&&details.sway<.2,'look input produces bounded damped sway ('+details.sway+')');
+ assert.ok(details.maxBob>.002,'locomotion produces visible bob ('+details.maxBob+')');
+ assert.ok(details.bounded<.22,'sway/bob stay within the presentation budget ('+details.bounded+')');
+ assert.equal(details.frozenDelta,0,'reduced motion freezes the view model');
+ assert.ok(details.equipRise>.05&&details.equipRise<.2,'a newly held weapon raises into place ('+details.equipRise+')');
+ assert.equal(details.flashOn.visible,true,'firing exposes the muzzle bloom');
+ assert.ok(details.flashOn.opacity>.5&&details.flashOn.scale>0,'muzzle bloom is bright and bounded');
+ assert.equal(details.flashOn.materialType,'SpriteMaterial','muzzle bloom is an additive sprite');
+ assert.equal(details.flashOn.blending,2,'muzzle bloom uses additive blending');
+ assert.equal(details.flashOff,true,'the muzzle bloom clears after the transient');
+ assert.ok(details.lightOn,'the held weapon owns a muzzle light');
+ assert.equal(details.lightOn.type,'PointLight','the muzzle pulse is a real point light');
+ assert.equal(details.lightOn.visible,true,'the light is live during the flash window');
+ assert.ok(details.lightOn.intensity>1,'the muzzle light starts with a visible intensity ('+details.lightOn.intensity+')');
+ assert.ok((details.lightOn.color>>16&255)>(details.lightOn.color>>8&255)&&(details.lightOn.color&255)<180,'the muzzle light is a warm hue');
+ assert.ok(details.lightOn.distance>0&&details.lightOn.distance<=4&&details.lightOn.decay===2,'the light uses short bounded physical falloff');
+ assert.equal(details.lightOn.parentGun,true,'the light rides the recoiling weapon root');
+ assert.ok(details.lightOn.position.z<0,'the light sits at the authored muzzle, ahead of the receiver');
+ assert.equal(details.lightOff.visible,false,'the muzzle light shuts off when the flash ends');
+ assert.equal(details.lightOff.intensity,0,'an idle muzzle light emits no intensity');
+ assert.equal(details.lightStable,true,'repeated fire reuses the same muzzle light');
+ assert.deepEqual(details.lightRest,{visible:false,intensity:0},'repeated fire leaves the muzzle light at rest');
+ assert.ok(details.kickEarly.recoil>0,'firing leaves a recoil impulse in presentation state');
+ assert.ok(details.kickEarly.pitch>0.005,'the camera pitches up from the kick ('+details.kickEarly.pitch+')');
+ assert.ok(Math.abs(details.kickEarly.roll)>0&&Math.abs(details.kickEarly.roll)<.1,'the camera rolls from the kick ('+details.kickEarly.roll+')');
+ assert.notEqual(details.sideAfterBurst,details.kickEarly.side,'recoil sides alternate across shots');
+ assert.ok(Math.abs(details.kickDecayed.pitch)<.001&&Math.abs(details.kickDecayed.roll)<.001,'the camera kick returns to neutral');
+ assert.ok(details.thirdKick.pitch>0&&Math.abs(details.thirdKick.roll)>0,'the third-person chase camera also kicks');
+ assert.ok(Math.abs(details.thirdKick.pitch)<.1&&Math.abs(details.thirdKick.roll)<.1,'the third-person kick stays bounded');
+ assert.equal(details.reducedLight.visible,false,'reduced motion suppresses the muzzle light wash');
+ assert.equal(details.reducedLight.intensity,0,'reduced-motion muzzle light emits no intensity');
+ assert.equal(details.reducedKick.recoil,0,'reduced motion suppresses the recoil impulse');
+ assert.equal(details.reducedKick.pitch,0,'reduced motion keeps the camera pitch neutral');
+ assert.equal(details.reducedKick.roll,0,'reduced motion keeps the camera roll neutral');
+ assert.ok(details.casingPool>=1&&details.casingPool<=8,'the casing pool is fixed and small ('+details.casingPool+')');
+ assert.equal(details.casingSpawned,1,'each first-person shot exposes exactly one brass casing');
+ assert.equal(details.casingPoolAfter,details.casingPool,'firing reuses the fixed casing pool');
+ assert.equal(details.casingMapAfter,details.casingMapUuid,'firing allocates no new casing texture');
+ assert.ok(details.repeatedCasings>1&&details.repeatedCasings<=8,'repeated fire recycles multiple casings without growing the pool');
+ assert.equal(details.repeatedPool,details.casingPool,'repeated fire keeps the pool fixed');
+ assert.ok(details.casingStart&&details.casingStart.parent&&details.casingStart.opacity>.5,'the casing is a lit sprite parented to the weapon');
+ assert.ok(details.casingMoved>.001,'the casing travels away from the ejection port ('+details.casingMoved+')');
+ assert.ok(details.casingPeak>details.casingLast,'the casing rises then falls on a gravity arc (peak '+details.casingPeak+', last '+details.casingLast+')');
+ assert.equal(details.casingsAfter,0,'all casings clear within 400 ms');
+ assert.equal(details.smokeParent,true,'muzzle smoke rides the weapon view model');
+ assert.equal(details.smokeTranslucent,true,'muzzle smoke is translucent');
+ assert.equal(details.smokeStart.visible,true,'firing exposes muzzle smoke');
+ assert.ok(details.smokeMid.visible&&details.smokeMid.scale>details.smokeStart.scale,'smoke expands while airborne');
+ assert.ok(details.smokeMid.opacity<details.smokeStart.opacity,'smoke fades as it dissipates');
+ assert.equal(details.smokeAfter,false,'muzzle smoke clears within 300 ms');
+ assert.equal(details.reducedCasing,false,'reduced motion spawns no casing');
+ assert.equal(details.reducedSmoke,false,'reduced motion spawns no smoke');
+ assert.equal(details.thirdCasing,false,'third person spawns no casing');
+ assert.equal(details.thirdSmoke,false,'third person spawns no smoke');
+ assert.equal(details.unarmedCasing,false,'unarmed first person spawns no casing');
+ assert.equal(details.unarmedSmoke,false,'unarmed first person spawns no smoke');
+ assert.equal(details.disposeEvents,2,'clear() releases the casing and smoke textures');
+ assert.equal(details.materialDisposes,3,'clear() releases the casing, smoke and flash materials');
+ assert.equal(details.reloadMaterialDisposes,2,'clear() releases both fixed magazine materials');
+ assert.equal(details.clearedCases,true,'clear() resets the casing pool');
+ assert.equal(details.clearedSmoke,true,'clear() resets muzzle smoke');
+ assert.equal(details.clearedReload,true,'clear() resets the reload presentation');
+ assert.deepEqual(details.equippedFirst,{gun:true,actor:false},'equipped first person keeps the weapon');
+ assert.deepEqual(details.third,{gun:false,actor:true},'third person hides the view weapon and shows the operator');
+ assert.equal(details.beforeUnarmed,true,'equipped before unarmed check');
+ assert.equal(details.unarmedVisible,false,'unarmed first person hides the weapon');
+ assert.equal(details.restored,true,'re-equipping restores the weapon');
+ assert.ok(Array.isArray(details.sight)&&details.sight.length===3,'the weapon exposes an authored sight position');
+ assert.ok(details.aimEarly.blend>.05&&details.aimEarly.blend<.95,'aiming begins a smooth transition rather than a snap ('+details.aimEarly.blend+')');
+ assert.ok(details.aimEarly.x>details.expectedAimX+.01,'the early aim frame is still moving toward the sight');
+ assert.equal(details.aimSettled.blend,1,'the aim transition settles fully');
+ assert.ok(Math.abs(details.aimSettled.x-details.expectedAimX)<.0001&&Math.abs(details.aimSettled.y-details.expectedAimY)<.0001,'the settled weapon is sight-aligned ('+details.aimSettled.x+','+details.aimSettled.y+')');
+ assert.ok(Math.abs(details.aimSettled.z+.435)<.001,'aiming pulls the weapon closer to the camera ('+details.aimSettled.z+')');
+ assert.ok(details.aimSway&&Math.hypot(details.aimSway.dx,details.aimSway.dy)>.001&&Math.abs(details.aimSway.dx)<=.0201&&Math.abs(details.aimSway.dy)<=.0201,'aimed look sway stays within the tighter budget');
+ assert.ok(details.aimReleaseEarly.blend>0&&details.aimReleaseEarly.blend<1&&details.aimReleaseEarly.x>details.expectedAimX,'releasing aim eases back out');
+ assert.equal(details.aimRestored.blend,0,'the release transition fully clears');
+ assert.ok(details.aimRestoreDelta<1e-6,'releasing aim restores the hip pose exactly ('+details.aimRestoreDelta+')');
+ assert.equal(details.reducedAim.blend,1,'reduced motion snaps to the aimed pose without interpolation');
+ assert.ok(Math.abs(details.reducedAim.x-details.expectedAimX)<1e-6&&Math.abs(details.reducedAim.y-details.expectedAimY)<1e-6,'reduced motion settles directly on the sight pose');
+ assert.equal(details.reducedAimRelease,0,'reduced motion snaps back to the hip pose without interpolation');
+ assert.equal(details.aimAmmoBefore,details.aimAmmoAfter,'the aim presentation never mutates ammunition');
+ assert.equal(details.reloadStarted,true,'an accepted reload starts the handling beat');
+ assert.ok(details.reloadStartAt>0,'the reload presentation is timestamped from the same clock');
+ assert.equal(details.reloadDuration,1000,'an explicit reload duration is honoured');
+ assert.equal(details.reloadChildCount,2,'the fixed magazine prop carries a body and a lip');
+ assert.equal(details.reloadTextures,0,'the reload prop allocates no textures');
+ assert.equal(details.reloadFirstDrop.visible,true,'the magazine prop is visible as it separates');
+ assert.ok(details.reloadFirstDrop.dy<-.02&&details.reloadFirstDrop.dx>0,'the magazine ejects down and to the side ('+details.reloadFirstDrop.dy+','+details.reloadFirstDrop.dx+')');
+ assert.ok(details.reloadMid.x<.2&&details.reloadMid.y<-.30,'the weapon dips during the handling beat ('+details.reloadMid.x+','+details.reloadMid.y+')');
+ assert.ok(details.reloadMid.rotX>.1&&details.reloadMid.rotZ>.1,'the weapon leans into the reload ('+details.reloadMid.rotX+','+details.reloadMid.rotZ+')');
+ assert.equal(details.reloadMid.magVisible,true,'a fresh magazine is presented mid-beat');
+ assert.ok(details.reloadMid.magY<-.1&&details.reloadMid.magX>0,'the magazine travels out of the receiver ('+details.reloadMid.magY+','+details.reloadMid.magX+')');
+ assert.equal(details.reloadExchangeHidden,true,'the magazine is hidden during the exchange gap');
+ assert.equal(details.reloadReturn.visible,true,'the fresh magazine returns into place');
+ assert.ok(details.reloadReturn.magY<0&&details.reloadReturn.rotZ<0,'the returning magazine seats down and tilts in ('+details.reloadReturn.magY+','+details.reloadReturn.rotZ+')');
+ assert.equal(details.reloadSeated,true,'the magazine prop clears before the beat ends');
+ assert.equal(details.reloadEnd.active,false,'the reload presentation ends at its duration');
+ assert.equal(details.reloadEnd.visible,false,'the magazine prop is hidden when the beat finishes');
+ assert.ok(details.reloadEndDelta<1e-6,'the base weapon pose is restored exactly ('+details.reloadEndDelta+')');
+ assert.ok(details.reloadEndRotDelta<1e-6,'the base weapon rotation is restored exactly ('+details.reloadEndRotDelta+')');
+ assert.equal(details.startedAgain,true,'a second accepted reload starts a new beat');
+ assert.equal(details.reloadReuse.magUuid,details.reloadMagUuid,'repeated reloads reuse the same magazine group');
+ assert.equal(details.reloadReuse.bodyMatUuid,details.reloadBodyMatUuid,'repeated reloads reuse the same magazine material');
+ assert.equal(details.reloadReuse.childCount,2,'repeated reloads allocate no new magazine children');
+ assert.equal(details.reducedReload,false,'reduced motion suppresses the reload handling beat');
+ assert.deepEqual(details.reducedReloadState,{startedAt:0,duration:0,magVisible:false},'reduced motion leaves the prop hidden');
+ assert.equal(details.thirdReload,false,'third person suppresses the reload handling beat');
+ assert.equal(details.unarmedReload,false,'unarmed first person suppresses the reload handling beat');
+ assert.equal(details.reloadAmmoBefore,details.reloadAmmoAfter,'the reload presentation never mutates ammunition');
+ assert.equal(details.defaultReload.started,true,'a reload with no explicit duration starts');
+ assert.equal(details.defaultReload.duration,details.defaultReload.expected,'the default reload duration derives from the held weapon and stays bounded');
+ assert.equal(details.clampedReloads.lowerStarted,true,'a too-short reload still starts a bounded beat');
+ assert.equal(details.clampedReloads.lowerDuration,350,'the reload duration clamps to at least 350 ms');
+ assert.equal(details.clampedReloads.upperDuration,4000,'the reload duration clamps to at most 4000 ms');
+ assert.equal(details.reloadReplacement.disposes,2,'weapon replacement disposes the old fixed magazine materials');
+ assert.equal(details.reloadReplacement.removed,true,'weapon replacement detaches the old magazine prop');
+ assert.equal(details.reloadFresh.familyChanged,true,'weapon replacement rebuilds a distinct magazine prop');
+ assert.notEqual(details.reloadFresh.newUuid,details.reloadReplacement.newUuid,'each weapon replacement builds a distinct prop');
+ assert.equal(details.ammoBefore,details.ammoAfter,'the presentation layer never mutates ammunition');
+ const profiles=details.categoryProfiles;
+ assert.deepEqual(Object.keys(profiles).sort(),['heavy','pistol','rifle','shotgun','smg','sniper'],'every catalog weapon family authors a muzzle profile');
+ const expectedProfiles={rifle:'rifle',smg:'smg',shotgun:'shotgun',sniper:'sniper',pistol:'pistol',heavy:'heavy'};
+ for(const [key,expected] of Object.entries(expectedProfiles))assert.equal(profiles[key].key,expected,'equipping '+key+' selects its '+expected+' flash silhouette');
+ assert.ok(new Set(Object.values(profiles).map(p=>p.spikes)).size>=5,'weapon families differ in flash spike count');
+ assert.ok(new Set(Object.values(profiles).map(p=>p.scale)).size>=5,'weapon families differ in flash footprint');
+ assert.equal(new Set(Object.values(profiles).map(p=>p.uuid)).size,6,'every weapon family authors a distinct flash texture');
+ assert.ok(Object.values(profiles).every(p=>p.texture&&p.uuid),'all profiles carry an authored flash canvas');
+ assert.equal(details.heatHot,1,'sustained fire saturates the barrel heat');
+ assert.equal(details.heatResidual.flashVisible,true,'heated barrels keep a residual muzzle glow after the flash window');
+ assert.ok(details.heatResidual.flashOpacity>0&&details.heatResidual.flashOpacity<.5,'the residual glow is a faint bloom ('+details.heatResidual.flashOpacity+')');
+ assert.ok(details.heatResidual.lightVisible&&details.heatResidual.lightIntensity>0&&details.heatResidual.lightIntensity<2,'the residual glow carries a bounded warm light ('+details.heatResidual.lightIntensity+')');
+ assert.ok(details.heatResidual.emissive&&details.heatResidual.emissive[0]>0&&details.heatResidual.emissive[0]>=details.heatResidual.emissive[1]&&details.heatResidual.emissive[1]>=details.heatResidual.emissive[2],'barrel heat tints the PBR metal with a warm emissive');
+ assert.equal(details.heatCold,0,'the barrel cool-down returns to neutral');
+ assert.equal(details.heatColdVisible,false,'the residual muzzle glow clears once the barrel is cold');
+ assert.deepEqual(p.errors,[]);
+ // Live first-person captures: idle view model, then the muzzle bloom.
+ await p.evaluate("document.getElementById('packToggle').click()");
+ await p.wait("document.getElementById('play').dataset.packOpen==='false'");
+ // Hide the touch deck for these captures so the bottom-right view-model is
+ // unobstructed; it is a capture-only change and does not persist after the run.
+ await p.evaluate("document.getElementById('touch').style.display='none';document.getElementById('hint').style.display='none'");
+ await p.evaluate(`(()=>{const v=window.__vmLive;v.applySettings({...(v.settings||{}),reduced:false,sfxVolume:0,fov:75,viewMode:'first'});v.frame(performance.now(),0,0,v.snapshot.self,false)})()`);
+ await new Promise(r=>setTimeout(r,120));
+ const dataUrl=await p.evaluate("(()=>{const v=window.__vmLive;v.frame(performance.now(),0,0,v.snapshot.self,false);return v.renderer.domElement.toDataURL('image/png')})()");
+ const canvasBytes=Buffer.from(dataUrl.split(',')[1]||'','base64');if(canvasBytes.length>5000)await writeFile('/tmp/hs-viewmodel.png',canvasBytes);
+ const liveFire=await p.evaluate("(()=>{const v=window.__vmLive;v.applySettings({...(v.settings||{}),reduced:false,sfxVolume:0,fov:75,viewMode:'first'});v.fire();v.frame(performance.now(),0,0,v.snapshot.self,false);return {data:v.renderer.domElement.toDataURL('image/png'),casings:(v.caseFx||[]).filter(c=>c.visible).length,smoke:!!v.muzzleSmoke&&v.muzzleSmoke.visible}})()");
+ const fireBytes=Buffer.from((liveFire.data||'').split(',')[1]||'','base64');if(fireBytes.length>5000)await writeFile('/tmp/hs-viewmodel-fire.png',fireBytes);
+ assert.equal(liveFire.casings,1,'live firing exposes a brass casing');
+ assert.equal(liveFire.smoke,true,'live firing exposes muzzle smoke');
+ // Live reload capture at the peak of the handling beat.
+ const liveReload=await p.evaluate("(()=>{const v=window.__vmLive;v.applySettings({...(v.settings||{}),reduced:false,sfxVolume:0,fov:75,viewMode:'first'});v.beginReload(1200);v.frame(performance.now()+180,0,0,v.snapshot.self,false);return {data:v.renderer.domElement.toDataURL('image/png'),active:!!(v.reloadStartedAt>0),mag:!!v.reloadMag&&v.reloadMag.visible,pose:v.gunRoot.position.y}})()");
+ const reloadBytes=Buffer.from((liveReload.data||'').split(',')[1]||'','base64');if(reloadBytes.length>5000)await writeFile('/tmp/hs-viewmodel-reload.png',reloadBytes);
+ assert.equal(liveReload.active,true,'the live view activates an accepted reload beat');
+ assert.equal(liveReload.mag,true,'the live reload exposes the magazine prop');
+ assert.ok(liveReload.pose<-.30,'the live weapon dips during reload ('+liveReload.pose+')');
+ await shot(p,'/tmp/hs-viewmodel-live.png');
+ assert.deepEqual(p.errors,[]);
+ console.log(JSON.stringify({lighting:true,reflections:true,pbr:true,sway:true,bob:true,reducedMotion:true,equipRaise:true,muzzleFlash:true,casings:true,muzzleSmoke:true,aimSight:true,reload:true,visibilityModes:true,screenshots:['/tmp/hs-viewmodel.png','/tmp/hs-viewmodel-fire.png','/tmp/hs-viewmodel-fire-overlay.png','/tmp/hs-viewmodel-heat.png','/tmp/hs-viewmodel-aim-isolated.png','/tmp/hs-viewmodel-reload.png','/tmp/hs-viewmodel-reload-isolated.png'],details:{sway:details.sway,maxBob:details.maxBob,equipRise:details.equipRise,flashOpacity:details.flashOn.opacity,casingPool:details.casingPool,casingMoved:details.casingMoved,smokeStart:details.smokeStart,smokeMid:details.smokeMid,profiles:details.categoryProfiles,heat:details.heatResidual,heatProduct:details.heatHot,heatCold:details.heatCold,reloadMid:details.reloadMid,reloadEndDelta:details.reloadEndDelta,reloadChildren:details.reloadChildCount,reloadMaterialDisposes:details.reloadMaterialDisposes,disposeEvents:details.disposeEvents,muzzleLight:details.lightOn,kickEarly:details.kickEarly,kickDecayed:details.kickDecayed,thirdKick:details.thirdKick},browserErrors:p.errors}));
+}finally{await h.close();runtime.server.close();await once(runtime.server,'close');store.close();if(prior===undefined)delete process.env.RAID_TEST_URL;else process.env.RAID_TEST_URL=prior}

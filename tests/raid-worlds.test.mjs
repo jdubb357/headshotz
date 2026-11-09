@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {RAID_WORLDS,ARCHIVED_RAID_WORLDS,LEGACY_RAID_WORLDS,blocked,floorAt,getWorld,terrainHeightAt} from '../shared/raid-worlds.mjs';
+import {RAID_WORLDS,ARCHIVED_RAID_WORLDS,LEGACY_RAID_WORLDS,blocked,floorAt,getWorld,terrainHeightAt,raidScenery} from '../shared/raid-worlds.mjs';
 import {findPath} from '../shared/raid-navigation.mjs';
 for(const world of RAID_WORLDS){
  test(`${world.name}: all spawns, caches and exits have walkable support`,()=>{
@@ -14,6 +14,30 @@ for(const world of RAID_WORLDS){
   for(const [x,z,y=0]of [...world.caches,...world.exits.map(e=>[e.x,e.z,e.y])])assert.ok(findPath(world,from,{x,y,z}).length,`No route to ${x},${y},${z}`);
  });
 }
+test('procedural scenery is deterministic, dense, non-colliding and evenly spread',()=>{
+ const foliage=new Set(['fern','shrub','moss','stump']),kinds=new Set(['fern','shrub','stump','moss','ruin','rubble']);
+ const roads=world=>world.props.filter(p=>['road','sidewalk','crosswalk','plaza'].includes(p.kind)&&p.w&&p.d);
+ for(const world of RAID_WORLDS){
+  const scenery=raidScenery(world),once=raidScenery(world);
+  assert.deepEqual(scenery,once,'scenery is deterministic for a sector');
+  assert.ok(scenery.length>=500,`${world.id} gains dense scenery (${scenery.length})`);
+  const counts={};for(const p of scenery)counts[p.kind]=(counts[p.kind]||0)+1;
+  assert.deepEqual(new Set(Object.keys(counts)),kinds,'all six scenery kinds render');
+  assert.ok(scenery.filter(p=>foliage.has(p.kind)).length/scenery.length>=.6,'foliage dominates the scenery pass');
+  assert.ok(counts.ruin>=1&&counts.rubble>=1,'ruin walls and rubble fields accompany destroyed structures');
+  const quadrants=[0,0,0,0];const roadProps=roads(world);
+  for(const p of scenery){
+   assert.ok(Math.abs(p.x)<world.size/2-17&&Math.abs(p.z)<world.size/2-17,`${world.id} scenery stays inside the sector edge`);
+   assert.equal(blocked(world,p.x,p.z,.1,0,.2),false,`${world.id} scenery never overlaps collision solids (${p.kind} at ${p.x},${p.z})`);
+   for(const road of roadProps)assert.ok(!(Math.abs(p.x-road.x)<road.w/2+2&&Math.abs(p.z-road.z)<road.d/2+2),`${world.id} scenery stays off roads and sidewalks`);
+   quadrants[(p.x>=0?1:0)+(p.z>=0?2:0)]++;
+  }
+  assert.ok(quadrants.every(n=>n>0),`${world.id} scenery covers every quadrant (${quadrants})`);
+  for(const [x,z]of world.spawns)assert.ok(scenery.every(p=>Math.hypot(p.x-x,p.z-z)>=15),`${world.id} spawn pad stays clear`);
+  for(const [x,z]of world.caches)assert.ok(scenery.every(p=>Math.hypot(p.x-x,p.z-z)>=11),`${world.id} cache pad stays clear`);
+  for(const exit of world.exits)assert.ok(scenery.every(p=>Math.hypot(p.x-exit.x,p.z-exit.z)>=13),`${world.id} exit pad stays clear`);
+ }
+});
 test('old checkpoints retain their original world layout version',()=>{
  for(const old of LEGACY_RAID_WORLDS){assert.equal(getWorld(old.id,1),old);assert.notEqual(getWorld(old.id,2),old)}
 });
