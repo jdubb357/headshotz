@@ -1,7 +1,8 @@
 // HeadShotz v57 SIDEKICK BOOTH screen: buy buddies with diamonds, equip one at a time, rotating 3D preview + shopkeeper chat.
 import {THREE} from './gfx.js';
 import {SK_DEFS,SK_BY,AB,RAR_N,RAR_C,SK_FLAVOR,makePet,animPet,TM} from './sidekicks.js';
-const FIL=[['all','ALL'],['owned','OWNED'],['0','COMMON'],['1','UNCOMMON'],['2','RARE'],['3','EPIC'],['4','LEGENDARY'],['5','GODLY'],['6','SECRET']];
+import {cmpRarity} from './rarorder.js';
+const FIL=[['all','ALL'],['owned','OWNED'],['0','COMMON'],['1','UNCOMMON'],['2','RARE'],['3','EPIC'],['4','LEGENDARY'],['6','SECRET'],['5','GODLY']];
 const KEEPER=['Welcome to my Sidekick Booth! Every buddy has one special trick.','Pick one to take along. You can only bring one buddy at a time!','Buddies also drop from chests. Doubles turn into diamonds.','Tap EQUIP and your buddy will trot along behind you.'];
 export function initSidekickShop(A){
  const $=A.$;const el=$('pkShop');if(!el)return null;const P=A.PROG;
@@ -28,7 +29,7 @@ export function initSidekickShop(A){
    setTimeout(step,S.on?25:200)};step()}
  const hex=c=>'#'+(c>>>0).toString(16).padStart(6,'0');
  function card(d){const o=own(d.id),e=eq()===d.id;return `<button class="ssCard${d.id===S.sel?' sel':''}${e?' eqd':''}" data-id="${d.id}" style="--rc:${RAR_C[d.rar]};--a:${hex(d.col)}"><span class="ph"><img alt="" src="${TH[d.id]||''}"></span><b>${A.esc(d.name)}</b><i style="background:${RAR_C[d.rar]}">${RAR_N[d.rar]}</i><s class="fxTag" style="color:#9ff">${AB[d.ab].ic} ${AB[d.ab].n}</s><em>${e?'✔ WITH YOU':o?'OWNED':'💎 '+d.price}</em></button>`}
- const list=()=>SK_DEFS.filter(d=>S.fil==='all'||(S.fil==='owned'?own(d.id):d.rar===+S.fil)).sort((a,b)=>a.rar-b.rar||a.price-b.price);
+ const list=()=>SK_DEFS.filter(d=>S.fil==='all'||(S.fil==='owned'?own(d.id):d.rar===+S.fil)).sort((a,b)=>cmpRarity(a,b,(x,y)=>x.price-y.price));
  function renderGrid(){const L=list();$('pkGrid').innerHTML=L.length?L.map(card).join(''):'<p class="ssEmpty">No buddies here yet — buy one or open a chest!</p>';$('pkCount').textContent=`${SK_DEFS.filter(d=>own(d.id)).length}/${SK_DEFS.length} owned`}
  function renderSide(){const d=SK_BY[S.sel],o=own(d.id),e=eq()===d.id;$('pkDia').textContent=P.dia;$('pkName').textContent=d.name+' · '+d.kind;$('pkRar').textContent=RAR_N[d.rar]+(d.orig?' · ORIGINAL':'');$('pkRar').style.background=RAR_C[d.rar];
   const ab=AB[d.ab];const ot=own(d.id)?tierOwned(d.id):1,vt=S.tv||ot;const nx=ot<3?ot+1:0;

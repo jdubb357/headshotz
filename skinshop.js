@@ -2,6 +2,7 @@
 // rotating 3D preview (Hero = Royale toon / Soldier = realistic main-game human). Same wallet as the rest of the game (PROG).
 import {THREE} from './gfx.js';
 import {SKIN_DEFS,SKIN_BY,TINTS,TINT_N,RAR_N,RAR_C,humanOutfit,skinColors} from './skins.js';
+import {cmpRarity} from './rarorder.js';
 import {makeToon,animToon,BASE_N} from './toon.js';
 import {tickSkins} from './wskins.js';
 import {makeCharacter,animate as animHum} from './chars.js';
@@ -43,7 +44,7 @@ export function initSkinShop(A){
    setTimeout(step,S.on?30:200)};step()}
  // ---------- UI
  function card(d){const o=own(d.id),eq=eqId()===d.id,k=skinColors(d,0);return `<button class="ssCard${d.id===S.sel?' sel':''}${eq?' eqd':''}" data-id="${d.id}" style="--rc:${RAR_C[d.rar]};--a:${hex(k.top)};--b:${hex(k.pants)};--c:${hex(k.acc)}"><span class="ph"><img alt="" src="${TH[d.id]||''}"></span><b>${A.esc(d.name)}</b><i style="background:${RAR_C[d.rar]}">${RAR_N[d.rar]}</i>${d.fx?'<s class="fxTag">✨ MOVING</s>':''}<em>${eq?'✔ WEARING':o?'OWNED':'💎 '+d.price}</em></button>`}
- function list(){return SKIN_DEFS.filter(d=>S.fil==='all'||(S.fil==='owned'?own(d.id):S.fil==='fx'?!!d.fx:d.rar===+S.fil)).sort((a,b)=>a.rar-b.rar||a.price-b.price)}
+ function list(){return SKIN_DEFS.filter(d=>S.fil==='all'||(S.fil==='owned'?own(d.id):S.fil==='fx'?!!d.fx:d.rar===+S.fil)).sort((a,b)=>cmpRarity(a,b,(x,y)=>x.price-y.price))}
  function renderGrid(){const L=list();$('ssGrid').innerHTML=L.length?L.map(card).join(''):'<p class="ssEmpty">Nothing here yet — buy a skin or open a chest!</p>';$('ssCount').textContent=`${SKIN_DEFS.filter(d=>own(d.id)).length}/${SKIN_DEFS.length} owned`}
  function renderSide(){const d=SKIN_BY[S.sel],o=own(d.id),eq=eqId()===d.id&&eqTint()===S.tint;$('ssDia').textContent=P.dia;
   $('ssName').textContent=d.name;$('ssRar').textContent=RAR_N[d.rar]+(d.fx?' · ✨ ANIMATED GALAXY':'');$('ssRar').style.background=RAR_C[d.rar];
