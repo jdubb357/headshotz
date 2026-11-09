@@ -159,7 +159,7 @@ export function animPet(g,t,mv,dt){const r=g.userData.rig;if(!r)return;const m=M
  if(r.tail)r.tail.rotation.y=Math.sin(t*(m>.1?11:6))*(r.waddle?0:.55);if(r.tail&&r.speedy)r.tail.rotation.x=Math.sin(t*15)*.2;
  if(r.head){r.head.rotation.y=Math.sin(t*1.3)*.25*(1-m);r.head.rotation.x=Math.sin(t*2.1)*.05}
  if(r.eyes){const blink=Math.sin(t*.7)>.93?.14:1;const ly=Math.sin(t*1.15)*.75,lx=Math.sin(t*.5)*.32;for(const e of r.eyes){e.rotation.y=ly;e.rotation.x=lx;e.scale.y=blink;const pu=e.userData.pupil;if(pu){pu.position.x=Math.sin(t*1.15)*.012*(e.userData.ph||1);pu.position.y=Math.sin(t*.5)*.008}}}
- if(r.tongue){let out=0;if(r.flick){const e=(performance.now()-r.flick)/280;out=e<1?Math.sin(Math.min(1,e)*Math.PI):0;if(e>=1)r.flick=0}if(out<.05){const idle=Math.max(0,Math.sin(t*4.2));out=idle>.72?(idle-.72)/.28*.4:0}r.tongue.scale.set(1,1,.15+out*2.8);r.tongue.position.z=.05+out*.5}
+ if(r.tongue){let out=0;if(r.flick){const e=(performance.now()-r.flick)/280;out=e<1?Math.sin(Math.min(1,e)*Math.PI):0;if(e>=1)r.flick=0}if(out<.05){const idle=Math.max(0,Math.sin(t*4.2));out=idle>.72?(idle-.72)/.28*.35:0}r.tongue.scale.set(1,1,.22+out*2.2);r.tongue.position.z=0}
  if(r.head2)r.head2.rotation.y=-.2-Math.sin(t*1.7+1)*.25*(1-m);
  for(let i=0;i<r.wings.length;i++){const w=r.wings[i],s=i?1:-1;if(r.flap||r.fly&&!r.spin&&!r.wob)w.rotation.z=s*(.1+Math.sin(t*(r.flap?22:14))*.7);else if(r.wob)w.rotation.z=s*Math.sin(t*5)*.25;else if(r.waddle)w.rotation.z=s*(.15+Math.abs(Math.sin(ph))*.4*m);else w.rotation.z=s*Math.sin(t*(m>.1?14:2))*.2*(m>.1?1:.4)}
  const inner=g.userData.inner;inner.position.y=(r.fly||0)+Math.abs(Math.sin(ph))*(r.hop?.09:.03)*m+Math.sin(t*2.2)*(r.fly?.035:.004);
