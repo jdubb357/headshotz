@@ -158,8 +158,8 @@ export function animPet(g,t,mv,dt){const r=g.userData.rig;if(!r)return;const m=M
  for(const l of r.legs)l.g.rotation.x=Math.sin(ph+l.ph)*.8*m*(r.waddle?.6:1);
  if(r.tail)r.tail.rotation.y=Math.sin(t*(m>.1?11:6))*(r.waddle?0:.55);if(r.tail&&r.speedy)r.tail.rotation.x=Math.sin(t*15)*.2;
  if(r.head){r.head.rotation.y=Math.sin(t*1.3)*.25*(1-m);r.head.rotation.x=Math.sin(t*2.1)*.05}
- if(r.eyes){const blink=Math.sin(t*1.35)>.965?.18:1;for(const e of r.eyes){e.rotation.y=Math.sin(t*1.7+(e.userData.ph||0))*.65;e.rotation.x=Math.cos(t*.85)*.28;e.scale.y=blink}}
- if(r.tongue){const flick=Math.max(0,Math.sin(t*4.2));const out=flick>.7?(flick-.7)/.3:0;r.tongue.scale.set(1,1,.18+out*2.6);r.tongue.position.z=.06+out*.42}
+ if(r.eyes){const blink=Math.sin(t*.7)>.93?.14:1;const ly=Math.sin(t*1.15)*.75,lx=Math.sin(t*.5)*.32;for(const e of r.eyes){e.rotation.y=ly;e.rotation.x=lx;e.scale.y=blink;const pu=e.userData.pupil;if(pu){pu.position.x=Math.sin(t*1.15)*.012*(e.userData.ph||1);pu.position.y=Math.sin(t*.5)*.008}}}
+ if(r.tongue){let out=0;if(r.flick){const e=(performance.now()-r.flick)/280;out=e<1?Math.sin(Math.min(1,e)*Math.PI):0;if(e>=1)r.flick=0}if(out<.05){const idle=Math.max(0,Math.sin(t*4.2));out=idle>.72?(idle-.72)/.28*.4:0}r.tongue.scale.set(1,1,.15+out*2.8);r.tongue.position.z=.05+out*.5}
  if(r.head2)r.head2.rotation.y=-.2-Math.sin(t*1.7+1)*.25*(1-m);
  for(let i=0;i<r.wings.length;i++){const w=r.wings[i],s=i?1:-1;if(r.flap||r.fly&&!r.spin&&!r.wob)w.rotation.z=s*(.1+Math.sin(t*(r.flap?22:14))*.7);else if(r.wob)w.rotation.z=s*Math.sin(t*5)*.25;else if(r.waddle)w.rotation.z=s*(.15+Math.abs(Math.sin(ph))*.4*m);else w.rotation.z=s*Math.sin(t*(m>.1?14:2))*.2*(m>.1?1:.4)}
  const inner=g.userData.inner;inner.position.y=(r.fly||0)+Math.abs(Math.sin(ph))*(r.hop?.09:.03)*m+Math.sin(t*2.2)*(r.fly?.035:.004);
@@ -202,13 +202,14 @@ export function initSidekicks(A){
   else if(m.k==='fireon'){const f=F.get(m.id===me.id?'me':m.id);if(f)f.hoverUntil=performance.now()+m.d*1000;if(m.id===me.id){cdUntil=performance.now()+m.cd*1000;dur=m.cd*1000;A.toast&&A.toast('🔥 Ember Strike!')}}
   else if(m.k==='fball'){const f=F.get(m.id===me.id?'me':m.id),q=m.v===me.id?{rp:me.pos}:C.players[m.v];if(!f||!q)return;f.g.updateMatrixWorld();const a=new THREE.Vector3();const rg=f.g.userData.rig;(rg&&rg.mouth?rg.mouth:f.g).getWorldPosition(a);const s=new THREE.Sprite(spriteMat(0xff8a1a,1));s.scale.setScalar(.55);s.position.copy(a);root.add(s);FB.push({s,a,b:new THREE.Vector3(q.rp.x,q.rp.y+1.1,q.rp.z),t:performance.now(),q:m.v});f.aim=new THREE.Vector3(q.rp.x,q.rp.y,q.rp.z);f.aimT=performance.now()+700}
   else if(m.k==='mount'||m.k==='dismount'){if(m.id===me.id){if(m.k==='dismount'){me.ride=null;if(m.heavy)A.toast&&A.toast('Knocked off your buddy')}}else{const q=C.players[m.id];if(q)q.rideOn=m.k==='mount'?1:0}}
+  else if(m.k==='tongue'){const f=F.get(m.id===me.id?'me':m.id);if(f&&f.g.userData.rig)f.g.userData.rig.flick=performance.now()}
   else if(m.k==='omniscan'&&m.id===me.id){markers();scan={t:performance.now(),d:(m.d||4)*1000}}
   else if(m.k==='phase'||m.k==='frost'||m.k==='mark'||m.k==='bolt'||m.k==='nomark')clientFx2(m,FXX);
   else if(m.k==='wall'||m.k==='swim'||m.k==='mirror'||m.k==='lowg'||m.k==='pullring'||m.k==='nopull'||m.k==='phx')clientFx3(m,FXX);
   else if(m.k==='decoy'){const h=holoMk();h.position.set(m.x,m.y,m.z);h.rotation.y=m.yaw||0;h.userData.t=performance.now();h.userData.d=(m.d||6)*1000;root.add(h);holos.push(h)}}
  // ---- followers
  function ownersNow(){const out=[];const mine=P0.pet;if(mine&&SK_BY[mine]&&(me.alive||C.hub)&&!me.air&&!(A.spectating&&A.spectating()))out.push({key:'me',pet:mine,tier:myTier(),pos:me.pos,ground:me.ground,vel:me.vel,own:1,mount:mounted(),yaw:me.yaw});
-  for(const id in C.players){if(id===me.id)continue;const q=C.players[id];const pet=q.ws&&q.ws.pet;const def=SK_BY[pet];const veiled=!!(q.rideOn&&def&&def.veil);if(!pet||!def||!q.rp||!q.model||(!q.model.visible&&!veiled)||(!q.alive&&!C.hub)||q.air)continue;out.push({key:id,pet,tier:tierOf(q.ws),pos:q.rp,ground:true,vel:null,q,mount:veiled?{on:1,veil:1,spin:0}:null,yaw:q.yaw})}return out}
+  for(const id in C.players){if(id===me.id)continue;const q=C.players[id];const pet=q.ws&&q.ws.pet;const def=SK_BY[pet];if(q.rideOn&&def&&def.veil)continue;if(!pet||!def||!q.rp||!q.model||!q.model.visible||(!q.alive&&!C.hub)||q.air)continue;out.push({key:id,pet,tier:tierOf(q.ws),pos:q.rp,ground:true,vel:null,q,yaw:q.yaw})}return out}
  function mk(o){const g=makePet(o.pet,o.tier||1);g.userData.blob=new THREE.Mesh(blobGeo,blobMat);g.userData.blob.rotation.x=-Math.PI/2;root.add(g.userData.blob);root.add(g);const f={key:o.key,pet:o.pet,tier:o.tier||1,hy:0,g,pos:new THREE.Vector3(o.pos.x-1,o.pos.y,o.pos.z+1),vel:new THREE.Vector3(),yaw:0,home:0,gy:o.pos.y,age:0,lp:new THREE.Vector3(o.pos.x,o.pos.y,o.pos.z),mv:0};f.hp=new THREE.Vector3();F.set(o.key,f);return f}
  function drop(f){root.remove(f.g);root.remove(f.g.userData.blob);F.delete(f.key)}
  function pushOut(f,cols){if(!cols)return;const r=.22,y=f.gy;for(let i=0;i<cols.length;i++){const c=cols[i];if(c.y0>y+.45||c.y1<y+.08)continue;if(f.pos.x+r<c.x0||f.pos.x-r>c.x1||f.pos.z+r<c.z0||f.pos.z-r>c.z1)continue;
@@ -256,7 +257,7 @@ export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;cons
   if(d.ab==='omni'){hostOmni(X,p,S,H,pw,tr,dt);continue}
   if(d.ab==='lantern'||d.ab==='tide'||d.ab==='sting'||d.ab==='dazzle'){hostSecret(X,p,S,H,d.ab,pw,dt);continue}
   if(d.ab==='spin'&&p.ride)hostSpinGrab(X,p,S,H);
-  if(d.ab==='veil'&&p.ride)hostTongue(X,p,S,H);
+  if(d.ab==='veil'&&p.ride){p.veil=1;p.decoy=H.t+1.2;hostTongue(X,p,S,H)}else if(p.veil)p.veil=0;
   if(d.ab==='guard'){if(t<S.a||H.noFight)continue;const R=5+pw;let best=null,bd=1e9;for(const q of X.plist()){if(q.id===p.id||!q.alive||q.down||q.air||(q.prot&&t<q.prot)||!X.enemy(p,q))continue;const dd=Math.hypot(q.p[0]-p.p[0],q.p[1]-p.p[1],q.p[2]-p.p[2]);if(dd>R||dd>=bd||!X.los(p,q))continue;bd=dd;best=q}
    if(best){S.a=t+5.4-pw*1.2;X.bcast({t:'pfx',k:'zap',id:p.id,v:best.id});X.damage(best,Math.round(6+4*pw),p.id,false,'fists')}else S.a=t+.4}
   else if(d.ab==='medic'){if(p.hp<100&&t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+1.4*pw*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}

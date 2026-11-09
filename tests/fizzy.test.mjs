@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { hostTongue, rideOf } from '../petabil3.js';
+import { hostTongue, rideOf, veilView } from '../petabil3.js';
 
 // Fizzy the Rainbow Chameleon: Godly, 50,000, Godly chest only, ride hides the player, tongue grabs loot.
 const root = new URL('..', import.meta.url);
@@ -41,21 +41,29 @@ test('Fizzy is the Godly Rainbow Chameleon at 50,000 and only in the Godly chest
   assert.match(game, /q\.rideOn&&q\.ws&&SK_BY\[q\.ws\.pet\]&&SK_BY\[q\.ws\.pet\]\.veil/);
 });
 
-test('riding Fizzy hides the body and the tongue takes nearby loot', () => {
+test('riding Fizzy is a full vanish and the tongue snatches loot and a close chest', () => {
   const t1 = rideOf('fizzy', 1), t3 = rideOf('fizzy', 3);
   assert.equal(t1.veil, true);
   assert.equal(t1.tongue, true);
   assert.equal(t1.atk, true);
   assert.ok(t3.spd > t1.spd && t3.jump > t1.jump);
-  const items = { 2: [2, 2, 1, 0, 1, 0, 0], 9: [9, 0, 0, 0, 40, 0, 0] };
+  const others = veilView(false), self = veilView(true);
+  assert.deepEqual(others, { body: false, gun: false, tag: false, chameleon: false });
+  assert.equal(self.chameleon, true);
+  assert.equal(self.body, false);
+  assert.equal(self.gun, false);
+  assert.equal(self.tag, false);
+  assert.match(game, /q\.veil\|\|/);
+  assert.match(pets, /p\.veil=1/);
+  const items = { 2: [2, 2, 1, 0, 1, 0, 0], 7: [7, 0, 4, 0, 2, 0, 1], 9: [9, 0, 0, 0, 40, 0, 0] };
   const got = [];
   const fx = [];
-  const X = { take(p, id) { got.push(id); return true; }, bcast(m) { fx.push(m.k); } };
+  const X = { take(p, id) { got.push(id); return true; }, bcast(m) { fx.push(m.k); }, openChest() { return true; } };
   const p = { id: 'me', ride: 1, p: [0, 0, 0] };
   const S = {};
   const H = { t: 3, br: { items } };
-  assert.equal(hostTongue(X, p, S, H), 1);
-  assert.deepEqual(got, [2]);
+  assert.equal(hostTongue(X, p, S, H), 3);
+  assert.deepEqual(got.sort((a, b) => a - b), [2, 7]);
   assert.deepEqual(fx, ['tongue']);
   assert.equal(hostTongue(X, p, S, H), 0, 'tongue waits before the next grab');
   p.ride = 0;

@@ -28,8 +28,12 @@ export function hostOmni(X,p,S,H,pw,tr,dt){const t=H.t;
   else if(step===2){S.fire={until:t+3.2,next:t+.3};X.bcast({t:'pfx',k:'fireon',id:p.id,d:3.2,cd:16})}
   else grabNearby(H.br,p,14,[1,2],(who,id)=>X.take(who,id,true),6)}}
 export function hostSpinGrab(X,p,S,H){const t=H.t;if(!p.ride||t<(S.sp||0))return 0;S.sp=t+.28;return grabNearby(H.br,p,7,[2],(who,id)=>X.take(who,id,true),4)}
-// Fizzy's tongue: while you are the chameleon, it lashes out and pulls nearby loot.
-export function hostTongue(X,p,S,H){const t=H.t;if(!p.ride||t<(S.tg||0))return 0;S.tg=t+1.15;const n=grabNearby(H.br,p,9,[1,2],(who,id)=>X.take(who,id,true),3);X.bcast&&X.bcast({t:'pfx',k:'tongue',id:p.id,n});return n}
+// Ground loot the tongue can snatch: guns, ammo, heals/shields, throwables, melee.
+export const TONGUE_KINDS=[0,1,2,3,4];
+// What each viewer sees while the veil is up. Other players see nothing. The rider still sees Fizzy.
+export function veilView(self){return{body:false,gun:false,tag:false,chameleon:!!self}}
+// Fizzy's tongue: while you are the chameleon, it lashes out and pulls nearby loot, and a close chest.
+export function hostTongue(X,p,S,H){const t=H.t;if(!p.ride||t<(S.tg||0))return 0;S.tg=t+1.15;const n=grabNearby(H.br,p,8.5,TONGUE_KINDS,(who,id)=>X.take(who,id,true),4);const chest=X.openChest&&X.openChest(p,3.6)?1:0;X.bcast&&X.bcast({t:'pfx',k:'tongue',id:p.id,n:n+chest});return n+chest}
 // Same rise-again numbers as the phoenix: tier HP, 150 s cooldown, 2.5 s protection.
 export const REBIRTH={hp:[35,50,65],cd:150,prot:2.5};
 export function tryRebirth(S,t,tier){if(!S||t<(S.rb||0))return null;const i=Math.max(0,Math.min(2,(tier|0)-1));S.rb=t+REBIRTH.cd;return{hp:REBIRTH.hp[i],prot:t+REBIRTH.prot,cd:REBIRTH.cd}}
