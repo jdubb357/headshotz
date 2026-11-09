@@ -12,6 +12,22 @@ export const BOSS_PHASE_CUES={
  meltdown:{wave:'sine',start:560,end:60,duration:1.1,pulses:3}
 };
 export const UTILITY_CUES={decoy:{wave:'square',start:700,end:1000,duration:.18,pulses:2},smoke:{wave:'triangle',start:210,end:55,duration:.5,pulses:1},frag:{wave:'sine',start:420,end:900,duration:.3,pulses:2},blast:{wave:'sawtooth',start:130,end:30,duration:.4,pulses:3}};
+export const IMPACT_CUES={
+ metal:{wave:'triangle',start:920,end:180,duration:.26,pulses:2},
+ planks:{wave:'square',start:260,end:88,duration:.17,pulses:2},
+ brick:{wave:'square',start:180,end:54,duration:.2,pulses:2},
+ rock:{wave:'sine',start:130,end:42,duration:.22,pulses:1},
+ forest:{wave:'triangle',start:240,end:72,duration:.24,pulses:2},
+ foliage:{wave:'triangle',start:300,end:110,duration:.2,pulses:1},
+ dirt:{wave:'sine',start:96,end:34,duration:.24,pulses:1},
+ gravel:{wave:'sawtooth',start:150,end:46,duration:.19,pulses:2},
+ container:{wave:'triangle',start:520,end:96,duration:.24,pulses:2},
+ crate:{wave:'square',start:348,end:102,duration:.16,pulses:1},
+ concrete:{wave:'sawtooth',start:170,end:50,duration:.18,pulses:1},
+ hazard:{wave:'sine',start:440,end:140,duration:.22,pulses:1},
+ tiles:{wave:'sine',start:660,end:230,duration:.2,pulses:2},
+ asphalt:{wave:'sawtooth',start:108,end:30,duration:.18,pulses:2}
+};
 export const WEAPON_CUES={
  ar:{wave:'sawtooth',start:230,end:48,duration:.13,pulses:1},
  smg:{wave:'square',start:330,end:85,duration:.075,pulses:1},
@@ -45,7 +61,7 @@ export class RaidAudio {
  resume(){if(!this.context)try{this.context=new (window.AudioContext||window.webkitAudioContext)()}catch{}this.context?.resume().catch(()=>{})}
  play(kind='warning',spatial=null){
   const ctx=this.context;if(!this.enabled||this.volume<=0||!ctx||ctx.state!=='running'||this.active>=12)return false;
-  const cue=MACHINE_CUES[kind]||BOSS_PHASE_CUES[kind]||UTILITY_CUES[kind]||ACTION_CUES[kind]||WEAPON_CUES[kind.replace(/^shot:/,'')]||{wave:kind==='shot'?'sawtooth':kind==='hit'?'triangle':'sine',start:kind==='shot'?180:kind==='hit'?70:600,end:kind==='shot'?45:kind==='hit'?35:350,duration:.16,pulses:1};
+  const cue=MACHINE_CUES[kind]||BOSS_PHASE_CUES[kind]||UTILITY_CUES[kind]||ACTION_CUES[kind]||IMPACT_CUES[kind.replace(/^impact:/,'')]||WEAPON_CUES[kind.replace(/^shot:/,'')]||{wave:kind==='shot'?'sawtooth':kind==='hit'?'triangle':'sine',start:kind==='shot'?180:kind==='hit'?70:600,end:kind==='shot'?45:kind==='hit'?35:350,duration:.16,pulses:1};
   const at=ctx.currentTime,output=ctx.createGain(),pan=ctx.createStereoPanner();output.gain.value=.045*Math.min(1,Math.max(0,this.volume))*(spatial?.gain??1);pan.pan.value=spatial?.pan??0;output.connect(pan).connect(ctx.destination);this.active++;
   let remaining=cue.pulses;
   for(let i=0;i<cue.pulses;i++){
