@@ -1,7 +1,7 @@
 // HeadShotz v103 pets, built in code (no third-party models): Celestial Chimera, Spin Capybara,
 // Storm Wolf, Rocket Ostrich, Raptor, plus fur/scale/feather detail on the original 15 sidekicks.
 import {THREE,GQ} from './gfx.js';
-import {P,G,mat,glowEye} from './petkit.js';
+import {P,G,mat,glowEye,GE} from './petkit.js';
 const em=(c,e)=>mat(c,{em:e,ro:.35,me:.25});
 function legs4(b,rig,x,z,y,m,dk,h=.12){for(const s of[-1,1])for(const q of[1,-1]){const g=G(b,s*x,y,q*z);P(g,'cyl',0,0,-h/2,0,.028,h/2,.028,0,0,0,{m});P(g,'sph',0,0,-h,.02,.04,.03,.055,0,0,0,{m:dk});rig.legs.push({g,ph:s*q>0?0:Math.PI})}}
 export const NB4={
@@ -84,21 +84,29 @@ peacock(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ea
  for(let i=0;i<7;i++){const a=(i-3)*.22;P(b,'cone',0,Math.sin(a)*.04,.34,-.08-Math.abs(i-3)*.01,.04,.16,.012,-.4,a,0,{m:cols[i%cols.length]})}
  for(const s of[-1,1]){const g=G(b,s*.04,.2,0);P(g,'cyl',0,0,-.08,0,.012,.08,.012,0,0,0,{m:bd});rig.legs.push({g,ph:s>0?0:Math.PI})}
  root.userData.rig=rig;return root},
-fizzy(){const root=new THREE.Group(),b=G(root);const lite=GQ.level==='low';const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.04,glow:[],eyes:[],tongue:null,sc:1.28};
- const bands=[mat(0xff4d4d,{ro:.32,me:.18}),mat(0xff8a1a,{ro:.32,me:.18}),mat(0xffd23f,{ro:.34,me:.16}),mat(0x3dff6a,{ro:.32,me:.18}),mat(0x3d7dff,{ro:.32,me:.18}),mat(0xb45cff,{ro:.32,me:.18})];
- const belly=mat(0xf4fff4,{ro:.45}),dk=mat(0x14301c,{ro:.4}),scale=mat(0x0e2418,{ro:.22,me:.55,em:.12,ec:0x7dffc0});
- const nBand=lite?4:7;
- for(let i=0;i<nBand;i++)P(b,'sph',0,0,.36+Math.sin(i)*.012,-.2+i*(lite?.1:.055),.09,.14,.075,0,0,0,{m:bands[i%bands.length]});
- P(b,'sph',0,0,.28,.02,.065,.09,.15,0,0,0,{m:belly});
- const scaleN=lite?6:16;
- for(let i=0;i<scaleN;i++){const s=i%2?1:-1;P(b,'cone',0,s*(lite?.11:.12),.30+(i%4)*.03,-.18+Math.floor(i/2)*(lite?.07:.04),.028,.012,.034,0,0,s*1.2,{m:i%3?scale:bands[i%bands.length]})}
- const crestN=lite?3:6;const crest=G(b,0,.5,-.02);for(let i=0;i<crestN;i++)P(crest,'cone',0,0,.04+i*.008,-.04+i*.035,.018,.11,.014,-.6,0,0,{m:bands[i%bands.length]});
- const hd=G(b,0,.48,.18);rig.head=hd;P(hd,'sph',0,0,.02,0,.1,.11,.12,0,0,0,{m:bands[2]});P(hd,'sph',0,0,-.02,.06,.055,.045,.05,0,0,0,{m:belly});
- P(hd,'cone',0,0,-.015,.16,.04,.045,.09,-Math.PI/2,0,0,{m:bands[3]});
- for(const s of[-1,1]){const e=G(hd,s*.07,.045,.03);e.userData.ph=s;P(e,'cyl',0,s*.02,0,0,.012,.04,.012,0,0,Math.PI/2,{m:bands[4]});const ball=G(e,s*.045,0,0);P(ball,'sph',0,0,0,0,.036,.034,.03,0,0,0,{m:mat(0xf7fbff,{ro:.16})});const iris=new THREE.MeshStandardMaterial({color:s<0?0x3dff6a:0x4d7dff,emissive:s<0?0x3dff6a:0x4d7dff,emissiveIntensity:.9,roughness:.22});P(ball,'sph',0,0,0,.022,.02,.022,.016,0,0,0,{m:iris});const pupil=P(ball,'sph',0,0,0,.036,.009,.016,.009,0,0,0,{m:mat(0x111418,{ro:.12})});P(ball,'sph',0,.012,.01,.042,.004,.004,.004,0,0,0,{m:mat(0xffffff,{ro:.08,em:.55,ec:0xffffff})});e.userData.pupil=pupil;rig.eyes.push(e);rig.glow.push(iris)}
- const mouth=G(hd,0,-.045,.18);const tongue=G(mouth,0,0,0);rig.tongue=tongue;P(tongue,'cyl',0,0,0,.24,.022,.48,.014,-Math.PI/2,0,0,{m:mat(0xff4d6a,{ro:.28})});P(tongue,'sph',0,0,0,.5,.028,.02,.026,0,0,0,{m:mat(0xff9aab,{ro:.22})});
- const tg=G(b,0,.3,-.28);rig.tail=tg;const tailN=lite?4:8;for(let i=0;i<tailN;i++){const a=i*.62;P(tg,'sph',0,Math.sin(a)*.06,.02+Math.cos(a)*.025,-.05-i*.042,.048-i*.003,.04,.042,0,0,0,{m:bands[i%bands.length]})}
- legs4(b,rig,.09,.13,.24,bands[1],dk,.11);
+fizzy(){const root=new THREE.Group(),b=G(root);const lite=GQ.level==='low';const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.02,glow:[],eyes:[],tongue:null,casque:1,curl:1,scales:1,sc:1.15};
+ const olive=mat(0x5a6b38,{ro:.78}),moss=mat(0x3c4a28,{ro:.82}),bark=mat(0x6e4e30,{ro:.8}),belly=mat(0xd7c4a0,{ro:.7}),lid=mat(0x2c3820,{ro:.6}),dark=mat(0x1a120c,{ro:.5});
+ const accents=[0xff3355,0xff8a1a,0xffe14a,0x3dff7a,0x3d8cff,0xc45cff].map(c=>{const m=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.95,roughness:.28,metalness:.12});rig.glow.push(m);return m});
+ // laterally compressed torso: tall and long, narrow through the sides, shingled in scales
+ P(b,'sph',0,0,.36,0,.07,.13,.2,0,0,0,{m:olive});
+ P(b,'sph',0,0,.29,.02,.05,.055,.15,0,0,0,{m:belly});
+ const rows=lite?3:7,cols=lite?5:11;
+ for(const side of[-1,1])for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const z=-.17+(c+(r%2?0:.5))*(.34/cols),y=.26+r*(.15/rows);const nz=z/.2,ny=(y-.36)/.13;const x=side*.074*Math.max(.45,Math.sqrt(Math.max(0,1-nz*nz-ny*ny)));const stripe=r===2||r===3;P(b,'sph',0,x,y,z,.012,.02,.026,0,0,side*.15,{m:stripe?accents[c%6]:(r+c)%3===0?bark:(r+c)%2?moss:olive})}
+ if(!lite)for(let i=0;i<9;i++){const z=-.15+i*.035;P(b,'cone',0,0,.48-z*z*.4,z,.01,.022,.008,-.2,0,0,{m:i%4===0?accents[i%6]:moss})}
+ const hd=G(b,0,.44,.2);rig.head=hd;
+ P(hd,'sph',0,0,.02,-.02,.068,.078,.078,0,0,0,{m:olive});
+ const casque=G(hd,0,.05,-.04);P(casque,'box',0,0,.02,-.015,.016,.07,.09,-.4,0,0,{m:olive});P(casque,'box',0,0,.045,-.035,.01,.035,.07,-.6,0,0,{m:moss});P(casque,'box',0,0,.05,-.02,.006,.01,.08,-.45,0,0,{m:accents[4]});
+ P(hd,'cone',0,0,-.004,.08,.026,.12,.02,-Math.PI/2,0,0,{m:olive});
+ P(hd,'cone',0,0,-.032,.065,.018,.085,.014,-Math.PI/2,0,0,{m:bark});
+ P(hd,'box',0,0,-.018,.145,.028,.006,.035,0,0,0,{m:dark});
+ P(hd,'sph',0,0,-.048,.015,.028,.022,.035,0,0,0,{m:belly});
+ if(!lite)for(const s of[-1,1])P(hd,'box',0,s*.028,0,.06,.008,.005,.07,0,0,0,{m:accents[s<0?2:1]});
+ for(const s of[-1,1]){const e=G(hd,s*.05,.04,0);e.userData.ph=s;e.userData.turret=1;P(e,'cone',0,s*.032,0,0,.036,.062,.036,0,0,s>0?-Math.PI/2:Math.PI/2,{m:lid});if(!lite)P(e,'sph',0,s*.02,.02,0,.012,.008,.01,0,0,0,{m:moss});P(e,'tor',0,s*.06,0,0,.022,.022,.022,0,s>0?Math.PI/2:-Math.PI/2,0,{m:accents[s<0?5:0]});const ball=G(e,s*.062,0,0);e.userData.lid=ball;P(ball,'sph',0,0,0,0,.016,.016,.012,0,0,0,{m:mat(0xf3f0e6,{ro:.18})});const iris=new THREE.MeshStandardMaterial({color:s<0?0x3dff6a:0xffc24a,emissive:s<0?0x3dff6a:0xffc24a,emissiveIntensity:1.25,roughness:.16});P(ball,'sph',0,0,0,s*.009,.009,.01,.006,0,0,0,{m:iris});const pupil=P(ball,'sph',0,0,0,s*.015,.005,.005,.0035,0,0,0,{m:mat(0x0c0e10,{ro:.12})});P(ball,'sph',0,0,.006,s*.017,.0028,.0028,.002,0,0,0,{m:mat(0xffffff,{ro:.05,em:.9,ec:0xffffff})});e.userData.pupil=pupil;rig.eyes.push(e);rig.glow.push(iris)}
+ const mouth=G(hd,0,-.02,.152);const tongue=G(mouth,0,0,0);rig.tongue=tongue;P(tongue,'cyl',0,0,0,.22,.009,.44,.006,-Math.PI/2,0,0,{m:mat(0xc44858,{ro:.35})});P(tongue,'sph',0,0,0,.46,.016,.011,.014,0,0,0,{m:mat(0xe07080,{ro:.3,em:.25,ec:0xff6688})});
+ const curl=G(b,0,.3,-.16);rig.tail=curl;const up=new THREE.Vector3(0,1,0),dir=new THREE.Vector3();const nCurl=lite?9:16;let prev=[0,.015,0];
+ for(let i=1;i<=nCurl;i++){const t=i/nCurl,ang=t*Math.PI*2*(lite?1.2:1.7),R=(lite?.05:.068)*(1-t*.22);const next=[Math.sin(ang)*R*.12,.01-(1-Math.cos(ang))*R,-.01-Math.sin(ang)*R*.8];const dx=next[0]-prev[0],dy=next[1]-prev[1],dz=next[2]-prev[2],L=Math.hypot(dx,dy,dz)||.001;const mesh=new THREE.Mesh(GE.cyl,i%5===0?accents[i%6]:(i%2?olive:moss));mesh.position.set((prev[0]+next[0])/2,(prev[1]+next[1])/2,(prev[2]+next[2])/2);mesh.scale.set(.022*(1-t*.65),L*1.08,.016*(1-t*.65));dir.set(dx/L,dy/L,dz/L);mesh.quaternion.setFromUnitVectors(up,dir);curl.add(mesh);prev=next}
+ P(curl,'sph',0,prev[0],prev[1],prev[2],.01,.008,.01,0,0,0,{m:accents[0]});
+ for(const sx of[-1,1])for(const sz of[1,-1]){const g=G(b,sx*.05,.22,sz*.1);P(g,'cyl',0,0,-.075,0,.012,.15,.012,0,0,0,{m:olive});P(g,'sph',0,sx*.006,-.08,sz*.01,.016,.014,.016,0,0,0,{m:moss});const foot=G(g,sx*.012,-.15,sz*.018);for(const bundle of[-1,1]){const bunch=G(foot,0,-.004,0);bunch.rotation.y=bundle>0?.7:Math.PI-.7;for(let k=0;k<2;k++){const toe=G(bunch,(k-.5)*.016,0,0);toe.rotation.y=(k-.5)*.42;P(toe,'cyl',0,0,0,.026,.008,.032,.008,-Math.PI/2,0,0,{m:bark});P(toe,'cone',0,0,0,.05,.006,.016,.006,-Math.PI/2,0,0,{m:olive})}}rig.legs.push({g,ph:sx*sz>0?0:Math.PI,zygodactyl:1})}
  root.userData.rig=rig;return root}
 };
 function whSafe(){return mat(0xf7f7f2,{ro:.4})}
