@@ -958,9 +958,11 @@ function buildSlots(){let h='';const bo=BC?BRORD:[0,1,2];$('slots').classList.to
  for(const i of bo){const id=me.load[i],w=W[id];const t=BC?S2T[i]:null;const emp=BC&&((t!=null&&!BC.inv.g[t])||(i===2&&BC.inv.m[0]===WIDX.fists));const gun=!w.melee;const a=i===me.cur&&gun?`<span>${me.reloadT>0?'⟳':me.ammo[i]}${BC&&t!=null?'<small>/'+BC.res[ammoOf(id)]+'</small>':''}</span>`:'';
   const tag=BC?`<b class="tp">${t!=null?TYS[t]:'MELEE'}</b>`:'';const k=BC?BRORD.indexOf(i)+1:i+1;
   h+=`<div class="sl${i===me.cur?' cur':''}${emp?' empty':''}" data-s="${i}">${tag}${emp&&BC?`<em>${t!=null?TYN[t]:'MELEE'}</em>`:`<img src="${ICON[id]||''}" alt="${w.name}">`}${a}${!isTouch&&BC?`<u>${k}</u>`:''}</div>`}
- h+=`<div class="sl util" data-s="3"><img src="${ICON[lethalK()]||''}" alt=""><span>×${me.utilN}</span></div>`;{const e=nlSel(),L=nlList();h+=`<div class="sl nl${e?'':' empty'}" data-nl="1" title="Non-lethal (X use, N cycle)">${e?nlIcon(e)+`<span>×${e.n}</span>`:'<em>NON-LETHAL</em>'}${L.length>1?`<i class="nlc">${L.length}</i>`:''}${!isTouch?'<u>X</u>':''}</div>`;const bn=$('bNL');if(bn){bn.innerHTML=e?nlIcon(e)+`<span>${e.n}</span>`:'<b class="nlI">·</b>';bn.style.opacity=e?1:.4;const bc=$('bNLc');if(bc){bc.textContent=L.length>1?'⟳'+L.length:'';bc.style.display=L.length>1?'':'none'}}}$('slots').innerHTML=h;if(BC)brSlotStyle();
- $('bNade').innerHTML=`<img src="${ICON[lethalK()]||''}" alt=""><span>${me.utilN}</span>`;$('bNade').style.opacity=me.utilN>0?1:.4}
-$('slots').addEventListener('pointerdown',e=>{const nl=e.target.closest('[data-nl]');if(nl){e.stopPropagation();e.preventDefault();if(e.target.closest('.nlc'))nlCycle();else nlUse();return}const d=e.target.closest('[data-s]');if(!d)return;e.stopPropagation();e.preventDefault();const s=+d.dataset.s;if(s!==3)switchTo(s);else useUtil()});
+ h+=`<div class="sl util" data-s="3"><img src="${ICON[lethalK()]||''}" alt=""><span>×${me.utilN}</span></div>`;{const e=nlSel(),L=nlList();h+=`<div class="sl nl${e?'':' empty'}" data-nl="1" title="Non-lethal (X use, N cycle)">${e?nlIcon(e)+`<span>×${e.n}</span>`:'<em>NON-LETHAL</em>'}${L.length>1?`<i class="nlc">${L.length}</i>`:''}${!isTouch?'<u>X</u>':''}</div>`;const bn=$('bNL');if(bn){bn.innerHTML=e?nlIcon(e)+`<span>${e.n}</span>`:'<b class="nlI">·</b>';bn.style.opacity=e?1:.4;const bc=$('bNLc');if(bc){bc.textContent=L.length>1?'⟳'+L.length:'';bc.style.display=L.length>1?'':'none'}}}
+ const mn=medCount();h+=`<div class="sl med${mn?'':' empty'}" data-med="1" title="Medkit (H)">${mn?`<b class="nlI">➕</b><span>×${mn}</span>`:'<em>MEDKIT</em>'}${!isTouch?'<u>H</u>':''}</div>`;$('slots').innerHTML=h;if(BC)brSlotStyle();
+ $('bNade').innerHTML=`<img src="${ICON[lethalK()]||''}" alt=""><span>${me.utilN}</span>`;$('bNade').style.opacity=me.utilN>0?1:.4;
+ const bm=$('bMed');if(bm){const ns=bm.querySelector('.n');if(ns)ns.textContent=mn;bm.style.opacity=mn>0?1:.45;bm.classList.toggle('empty',!mn);bm.disabled=!mn}}
+$('slots').addEventListener('pointerdown',e=>{const med=e.target.closest('[data-med]');if(med){e.stopPropagation();e.preventDefault();useMedkit();return}const nl=e.target.closest('[data-nl]');if(nl){e.stopPropagation();e.preventDefault();if(e.target.closest('.nlc'))nlCycle();else nlUse();return}const d=e.target.closest('[data-s]');if(!d)return;e.stopPropagation();e.preventDefault();const s=+d.dataset.s;if(s!==3)switchTo(s);else useUtil()});
 const dmgPool=[];function showHit(pos,dmg,head){const hx=$('hitX');hx.className=head?'head':'';hx.style.transition='none';hx.style.opacity=1;requestAnimationFrame(()=>{hx.style.transition='opacity .3s';hx.style.opacity=0});
  head?SFX.head():SFX.hit();shake=Math.min(1,shake+(head?.18:.08));const d=document.createElement('div');d.textContent=dmg;if(head)d.className='h';$('dmgLayer').appendChild(d);dmgPool.push({el:d,p:pos.clone().add(new THREE.Vector3((Math.random()-.5)*.4,.35,0)),t:.85})}
 function updDmg(dt){for(const n of dmgPool){n.t-=dt;n.p.y+=dt*.9;_v.copy(n.p).project(camera);if(_v.z>1||n.t<=0)n.el.style.display='none';else{n.el.style.left=((_v.x+1)/2*innerWidth)+'px';n.el.style.top=((1-_v.y)/2*innerHeight)+'px';n.el.style.opacity=Math.min(1,n.t*3)}}
@@ -1074,7 +1076,7 @@ addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(!(inGame&
  if(e.code==='Space'){inp.jump=true;e.preventDefault()}if(e.code==='KeyC'||e.code==='ControlLeft'){if(!e.repeat)inp.crouchP=true;inp.slideHold=true;e.preventDefault()}
  if(e.code==='KeyR')reload();if(e.code==='KeyQ')switchTo(nxtSlot());if(e.code.startsWith('Digit')){const n=+e.code.slice(5);if(BC){if(n>=1&&n<=BRORD.length)switchTo(BRORD[n-1])}else{if(n>=1&&n<=3)switchTo(n-1);if(n===4)useUtil()}}
  if(e.code==='Tab'&&RAIDM(C.mode)&&RC&&RC.modal)return;
- if(e.code==='KeyG'||e.code==='KeyF')useUtil();if(e.code==='KeyX'&&!e.repeat)nlUse();if(e.code==='KeyN'&&!e.repeat)nlCycle();if(e.code==='Tab'||e.code==='Escape'||e.code==='KeyP'){e.preventDefault();if(e.repeat)return;
+ if(e.code==='KeyG'||e.code==='KeyF')useUtil();if(e.code==='KeyH'&&!e.repeat)useMedkit();if(e.code==='KeyX'&&!e.repeat)nlUse();if(e.code==='KeyN'&&!e.repeat)nlCycle();if(e.code==='Tab'||e.code==='Escape'||e.code==='KeyP'){e.preventDefault();if(e.repeat)return;
   if(RAIDM(C.mode)&&e.code==='Tab'){raidPackToggle();return}
   if(RAIDM(C.mode)&&e.code==='Escape'&&RC&&RC.modal){raidCloseModal();return}
   if(!$('arsenal').classList.contains('hidden')){$('arsClose').click();return}if(!$('settings').classList.contains('hidden')){$('setClose').click();return}
@@ -1101,8 +1103,8 @@ function updZoomBtn(){$('bZoom').classList.toggle('on',!!me.zoomOn)}
 const touchEl=$('touch');let joyId=null,lookId=null,joyC=[0,0],lookL=[0,0];
 $('bZoom').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();$('bZoom').classList.add('down');zoomPress()});
 for(const ev of['pointerup','pointercancel'])$('bZoom').addEventListener(ev,e=>{$('bZoom').classList.remove('down');if(ev==='pointerup')zoomRelease()});
-for(const id of['bJump','bSwap','bNade','bSlide','bNL','bNLc']){const b=$(id);if(!b)continue;
- b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();audioInit();b.classList.add('down');if(id==='bSwap')switchTo(nxtSlot());else if(id==='bNade')useUtil();else if(id==='bNL')nlUse();else if(id==='bNLc')nlCycle();else if(id==='bSlide'){inp.crouchP=true;inp.slideHold=true}else inp.jump=true});
+for(const id of['bJump','bSwap','bNade','bMed','bSlide','bNL','bNLc']){const b=$(id);if(!b)continue;
+ b.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();audioInit();b.classList.add('down');if(id==='bSwap')switchTo(nxtSlot());else if(id==='bNade')useUtil();else if(id==='bMed')useMedkit();else if(id==='bNL')nlUse();else if(id==='bNLc')nlCycle();else if(id==='bSlide'){inp.crouchP=true;inp.slideHold=true}else inp.jump=true});
  const up=()=>{b.classList.remove('down');if(id==='bSlide')inp.slideHold=false};b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up)}
 touchEl.addEventListener('pointerdown',e=>{if(paused)return;if(e.target!==touchEl&&!e.target.closest('#joyBase'))return;audioInit();
  if(e.clientX<innerWidth*.42&&joyId===null){joyId=e.pointerId;joyC=[e.clientX,e.clientY];const jb=$('joyBase');const r=$('hud').getBoundingClientRect();jb.style.left=(e.clientX-r.left-62)+'px';jb.style.top=(e.clientY-r.top-62)+'px';jb.style.bottom='auto';jb.style.opacity=1}
@@ -1150,9 +1152,12 @@ function lethalK(){const k=me.load[3];return NLK.includes(k)||k==='medkit'?'gren
 function throwUtil(k){throwT=.55;SFX.pin&&SFX.pin();startThrow(k,()=>{if(!me.alive)return;const f=fwd();const p=camera.position.clone().addScaledVector(f,.6);const v=f.clone().multiplyScalar(k==='molotov'?15:17);v.y+=4;v.add(_v.copy(me.vel).multiplyScalar(.5));
  spawnNade(me.id,k,p,v);send({t:'nade',k,p:p.toArray().map(x=>+x.toFixed(2)),v:v.toArray().map(x=>+x.toFixed(2))});SFX.throw();window.__throws=(window.__throws||0)+1})}
 function useUtil(){if(C.hub||!me.alive||me.frozen||me.utilN<=0||me.pf)return;const k=lethalK();me.utilN--;buildSlots();throwUtil(k)}
-// v58b non-lethal slot: smoke, flash, decoy, med kit (non-BR) / smoke, flash, decoy + heals and shields (Royale). Separate from lethal grenades/molotovs.
-function nlList(){const o=[];if(BC){const n=BC.inv.n;if(n&&n[1]>0)o.push({k:WIDS[n[0]],n:n[1]});for(let i=0;i<4;i++)if(BC.inv.c[i]>0)o.push({k:'c'+i,c:i,n:BC.inv.c[i]})}
- else for(const k of['smoke','flash','decoy','medkit'])if((me.nl[k]|0)>0)o.push({k,n:me.nl[k]});return o}
+// v107: medkits have their own button. They are not behind the grenade or smoke/flash/decoy cycle.
+function medCount(){return BC?(BC.inv&&BC.inv.c?BC.inv.c[1]|0:0):(me.nl&&me.nl.medkit)|0}
+function useMedkit(){if(C.hub||!me.alive||me.frozen||me.down||me.air||me.pf)return;if(typeof RAIDM==='function'&&RAIDM(C.mode))return;if(BC){brUse(1);return}if((me.nl.medkit|0)<=0)return;if(me.hp>=100){center('Health is full',700);return}me.nl.medkit--;send({t:'heal'});SFX.heal&&SFX.heal();center('+50 HP',700);buildSlots()}
+// v58b non-lethal slot: smoke, flash, decoy (non-BR) / those plus bandages and shields (Royale). Medkits are useMedkit, not this cycle.
+function nlList(){const o=[];if(BC){const n=BC.inv.n;if(n&&n[1]>0)o.push({k:WIDS[n[0]],n:n[1]});for(let i=0;i<4;i++)if(i!==1&&BC.inv.c[i]>0)o.push({k:'c'+i,c:i,n:BC.inv.c[i]})}
+ else for(const k of['smoke','flash','decoy'])if((me.nl[k]|0)>0)o.push({k,n:me.nl[k]});return o}
 function nlSel(){const l=nlList();if(!l.length)return null;return l.find(e=>e.k===me.nlSel)||l[0]}
 function nlCycle(){const l=nlList();if(l.length<2){buildSlots();return}const i=l.findIndex(e=>e.k===(nlSel()||{}).k);me.nlSel=l[(i+1)%l.length].k;SFX.swap&&SFX.swap();buildSlots()}
 function nlUse(){if(C.hub||!me.alive||me.frozen||me.down||me.air)return;const e=nlSel();if(!e)return;
@@ -1379,7 +1384,7 @@ function updViewModel(dt,w,hs,sprint){if(!vmCur)return;const I=vmInfo,Gp=vmCur.u
   tz=hip[2]*A+adsP[2]*ads+RS.p*.032*(w.pellets?1.4:1)*(1-ads*.4);
  vmRoot.position.set(tx,ty,tz);
  vmRoot.rotation.set(RS.r*.032*(1-ads*.45)+rx-sp*(I.pistol?.5:.28)+meleeT*-.9+throwT*-1.5-dr*1.1+ix,swayX*1.5+A*.05+sp*(I.pistol?.2:.62)+meleeT*.6+RS.y*.01-dr*.3+iy,rz+(me.slideT>0?.25:0)+meleeT*.4+VA.roll*A+sp*.15+iz);
- vmRoot.visible=me.alive&&!me.down&&!TH&&!(w.cls==='sniper'&&me.zoomT>.8)&&!TPV.on;vmCam.fov=54;}
+ vmRoot.visible=me.alive&&!me.down&&!TH&&!(w.cls==='sniper'&&me.zoomT>.8)&&!TPV.on&&!(me.ride&&me.ride.veil);vmCam.fov=54;}
 function deathCam(dt){if(BC&&brSpec(dt))return;const q=me.killer&&C.players[me.killer];// spectate teammate in team modes, else look at killer
  const mates=Object.values(C.players).filter(p=>p.alive&&p.id!==me.id&&!isEnemy(p));
  if(C.mode!=='ffa'&&mates.length&&C.phase==='play'){const t=mates[0];const back=_v.set(Math.sin(t.yaw),0,Math.cos(t.yaw)).multiplyScalar(3.2);camera.position.lerp(_v2.copy(t.rp).add(back).setY(t.rp.y+2.2),Math.min(1,dt*6));camera.lookAt(t.rp.x,t.rp.y+1.4,t.rp.z);return}
@@ -1387,7 +1392,7 @@ function deathCam(dt){if(BC&&brSpec(dt))return;const q=me.killer&&C.players[me.k
 // animation LOD for remote players: full rate <70 m, every 2nd frame 70-150 m, every 3rd beyond (guns are NEVER culled by distance - v52 did, that made guns vanish at range)
 function lodRun(q,dt,d){q.ld=d;q.lacc=(q.lacc||0)+dt;if(!window.__noLod&&d>70&&q.lwait>0&&!q.eo){q.lwait--;return false}q.lwait=window.__noLod?0:d>150?2:d>70?1:0;q.ldt=q.lacc;q.lacc=0;return true}
 function updRemotes(dt){const a=Math.min(1,dt*14);for(const id in C.players){const q=C.players[id];if(!q.model)continue;const u=q.model.userData;
- if(!q.alive&&!u.dead){q.model.visible=false;continue}if(u.dead>3){q.model.visible=false;continue}q.model.visible=!(BC&&camera.position.distanceTo(q.rp)>240);
+ if(!q.alive&&!u.dead){q.model.visible=false;continue}if(u.dead>3){q.model.visible=false;continue}q.model.visible=!(BC&&camera.position.distanceTo(q.rp)>240);if(q.rideOn&&q.ws&&SK_BY[q.ws.pet]&&SK_BY[q.ws.pet].veil)q.model.visible=false;
  if(q.alive){if(q.rp.distanceTo(q.tp)>6)q.rp.copy(q.tp);else q.rp.lerp(q.tp,a);let dy=q.tyaw-q.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));q.yaw+=dy*a;q.pitch+=(q.tpitch-q.pitch)*a}
  const sp=Math.hypot(q.rp.x-q.lp.x,q.rp.z-q.lp.z)/Math.max(dt,.001);q.lp.copy(q.rp);q.spd=(q.spd||0)+(sp-(q.spd||0))*Math.min(1,dt*8);
  if(q.wid!=null)setRemoteGun(q,q.wid);q.model.position.copy(q.rp);{const eo=q.emo&&performance.now()<q.emo.until&&q.spd<1.5&&q.alive?q.emo.id:null;if(q.emo&&!eo)q.emo=null;q.ek=(q.ek||0)+((eo?1:0)-(q.ek||0))*a;q.model.rotation.y=q.yaw+Math.PI*q.ek;q.eo=eo}{const dn=!!(q.flags&4);const cl=!dn&&!!inVol(ladders,q.rp,.15);if(lodRun(q,dt,camera.position.distanceTo(q.rp)))animate(q.model,{emote:q.eo,pose:BC&&!(q.flags&32)?((q.flags&16)?'fall':(q.flags&8)?'glide':null):null,bank:0,shot:q.shotAt!==q.shotSeen,speed:q.spd,air:!!(q.flags&2)&&!cl,slide:!!(q.flags&1)&&!dn,crouch:!!(q.flags&64)&&!dn,pitch:q.pitch,climb:cl,down:dn,slope:dn?downSlope(q):null,dist:camera.position.distanceTo(q.rp)},q.ldt);q.shotSeen=q.shotAt;q.model.rotation.x=0;downMark(q,dn);if(BC)brRemote(q)}}}
@@ -1809,7 +1814,7 @@ const CHEST={price:300,cost:{common:300,rare:300,epic:300,legendary:1500,secret:
  dupe:{common:40,rare:90,epic:160,legendary:280,secret:500,godly:1000}};
 // v98: Secret and Godly chests hold ONLY items of their own rarity (no diamonds, no lower-tier filler, nothing that also drops from a lower chest).
 CHEST.loot.secret=[['pet','novamoth',1],['pet','seahorse',1],['pet','scorpion',1],['pet','peacock',1],['wsk','galaxy',3],['skin','gxr',2.6],['skin','dragon',2.6],['skin','aurora',2.6],['skin','void',2.4],['skin','solar',2.4],['cls','juggernaut',3],['wpn','minigun',2],['wpn','awp',2],['wpn','rpg',2],['wpn','gl',2]];
-CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['wsk','galaxy_gold',2],['skin','gxg',2],['pet','chimera',1]];
+CHEST.loot.godly=[['wpn','gk_ak47',3],['wpn','gk_deagle',3],['wpn','gk_katana',3],['wpn','gk_awp',2],['wpn','gk_aa12',2],['wsk','galaxy_gold',2],['skin','gxg',2],['pet','chimera',1],['pet','fizzy',1]];
 CHEST.exclusive={secret:new Set(CHEST.loot.secret.map(x=>x[0]+':'+x[1])),godly:new Set(CHEST.loot.godly.map(x=>x[0]+':'+x[1]))};
 for(const t of ['common','rare','epic','legendary'])CHEST.loot[t]=CHEST.loot[t].filter(x=>!CHEST.exclusive.secret.has(x[0]+':'+x[1])&&!CHEST.exclusive.godly.has(x[0]+':'+x[1]));
 const GODLY_CHEST_P=.04,GODLY_AA_P=.06;// Godly upgrade chance: 4% of Secret chests, 6% of Admin Abuse Secret chests (Godly itself has 0% base weight)
@@ -2626,7 +2631,7 @@ addEventListener('keydown',e=>{if(!BC||!inGame||paused||e.target.tagName==='INPU
  else if(e.code==='KeyE'&&BC.near.length&&me.alive&&!BC.air){const n=BC.near[0];brAct(n[1]==='c'?'c':'i',n[1]==='c'?n[2].id:n[2][0])}
  else if(e.code==='KeyM'){brMap(!BC.mapOn)}
  else if(e.code==='Digit6')brUse(0);else if(e.code==='Digit7')brUse(1);else if(e.code==='Digit8')brUse(2);else if(e.code==='Digit9')brUse(3);else if(e.code==='KeyI'||e.code==='Tab'){e.preventDefault();brBag(!BC.bagOn)}else if(e.code==='Escape'&&BC.bagOn)brBag(false);
- else if(e.code==='KeyH'){BC.inv.c[1]>0&&me.hp<75?brUse(1):brUse(0)}else if(e.code==='KeyJ'){BC.inv.c[2]>0&&BC.sh<=50?brUse(2):brUse(3)}});
+ else if(e.code==='KeyH'){if(!((BC.inv.c[1]|0)>0&&me.hp<100))brUse(0)}else if(e.code==='KeyJ'){BC.inv.c[2]>0&&BC.sh<=50?brUse(2):brUse(3)}});
 addEventListener('pointerdown',e=>{if(BC&&inGame&&!me.alive&&C.phase==='play'&&!e.target.closest('button'))brSpecNext()});
 // ---- host: BR messages ----
 function brHostMsg(from,m,p){if(!H.br||!p)return false;const E=H.br;
@@ -2705,7 +2710,7 @@ const _tv=new THREE.Vector3();
 let _cbk='';function tpBody(dt){{const k=inGame+'|'+C.hub+'|'+TPV.on;if(k!==_cbk){_cbk=k;updCamBtn()}}const m=me.model;if(!m)return;if(!TPV.on||!inGame||paused&&false){m.visible=false;return}
  const u=m.userData;const alive=me.alive;if(m.parent!==scene)scene.add(m);
  if(!alive){if(!u.dead)u.dead=.001}else if(u.dead){u.dead=0}
- m.visible=!(TPV.hide&&alive)&&!C.hub;if(!m.visible)return;const air=BC&&me.air;
+ m.visible=!(TPV.hide&&alive)&&!C.hub&&!(me.ride&&me.ride.veil);if(!m.visible)return;const air=BC&&me.air;
  const id=me.load[me.cur];const key=id+'|'+(me.ws&&me.ws[id]||'');if((me.gunKey!==key||me.gunMdl!==m)&&u.gunMount){me.gunKey=key;me.gunMdl=m;u.gunMount.clear();const g=tpGun(id,'',u.outfit&&u.outfit.glove);u.gunMount.add(g);u.gunMount.scale.setScalar(u.kind==='toon'?1:1)}
  emoTick(dt);m.position.set(me.pos.x,me.pos.y,me.pos.z);m.rotation.y=me.yaw+Math.PI*EM.k;
  const vx=me.vel.x,vz=me.vel.z,hs=Math.hypot(vx,vz);const fx=-Math.sin(me.yaw),fz=-Math.cos(me.yaw),rx=Math.cos(me.yaw),rz=-Math.sin(me.yaw);

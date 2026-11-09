@@ -83,6 +83,19 @@ peacock(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ea
  for(const s of[-1,1])glowEye(hd,rig,0xfff6a0,s*.025,.01,.04,.012,false);
  for(let i=0;i<7;i++){const a=(i-3)*.22;P(b,'cone',0,Math.sin(a)*.04,.34,-.08-Math.abs(i-3)*.01,.04,.16,.012,-.4,a,0,{m:cols[i%cols.length]})}
  for(const s of[-1,1]){const g=G(b,s*.04,.2,0);P(g,'cyl',0,0,-.08,0,.012,.08,.012,0,0,0,{m:bd});rig.legs.push({g,ph:s>0?0:Math.PI})}
+ root.userData.rig=rig;return root},
+fizzy(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.04,glow:[],eyes:[],tongue:null,sc:1.28};
+ const bands=[mat(0xff4d4d,{ro:.38}),mat(0xff8a1a,{ro:.38}),mat(0xffd23f,{ro:.4}),mat(0x3dff6a,{ro:.38}),mat(0x3d7dff,{ro:.38}),mat(0xb45cff,{ro:.38})];
+ const belly=mat(0xf4fff4,{ro:.5}),dk=mat(0x14301c,{ro:.45});
+ for(let i=0;i<6;i++)P(b,'sph',0,0,.3+Math.sin(i)*.01,-.16+i*.07,.11-i*.004,.09,.07,0,0,0,{m:bands[i]});
+ P(b,'sph',0,0,.26,.02,.08,.06,.16,0,0,0,{m:belly});
+ const crest=G(b,0,.4,0);for(let i=0;i<5;i++)P(crest,'cone',0,0,.06+i*.01,-.08+i*.04,.02,.07,.012,-.3,0,0,{m:bands[i%bands.length]});
+ const hd=G(b,0,.42,.22);rig.head=hd;P(hd,'sph',0,0,0,.04,.1,.09,.12,0,0,0,{m:bands[3]});P(hd,'sph',0,0,-.02,.08,.06,.04,.05,0,0,0,{m:belly});
+ P(hd,'cone',0,0,.1,-.02,.03,.08,.02,0,0,0,{m:bands[4]});
+ for(const s of[-1,1]){const e=G(hd,s*.055,.03,.07);e.userData.ph=s;P(e,'sph',0,0,0,0,.042,.038,.036,0,0,0,{m:mat(0xf7fbff,{ro:.22})});P(e,'sph',0,0,0,.018,.024,.026,.018,0,0,0,{m:em(0x3dff6a,.55)});P(e,'sph',0,0,0,.034,.011,.013,.01,0,0,0,{m:mat(0x111418,{ro:.18})});P(e,'sph',0,.008,.01,.04,.004,.004,.004,0,0,0,{m:mat(0xffffff,{ro:.1})});rig.eyes.push(e)}
+ const mouth=G(hd,0,-.03,.1);const tongue=G(mouth,0,0,0);rig.tongue=tongue;P(tongue,'cyl',0,0,0,.16,.011,.011,.2,Math.PI/2,0,0,{m:mat(0xff4d6a,{ro:.32})});P(tongue,'sph',0,0,0,.34,.018,.014,.016,0,0,0,{m:mat(0xff9aab,{ro:.28})});
+ const tg=G(b,0,.28,-.28);rig.tail=tg;for(let i=0;i<5;i++)P(tg,'sph',0,Math.sin(i*.7)*.03,.02-i*.01,-.06-i*.05,.05-i*.004,.04,.05,0,0,0,{m:bands[i%bands.length]});
+ legs4(b,rig,.09,.12,.2,bands[2],dk,.1);
  root.userData.rig=rig;return root}
 };
 function whSafe(){return mat(0xf7f7f2,{ro:.4})}
