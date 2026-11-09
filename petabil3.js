@@ -4,9 +4,10 @@ export const RIDES={
  spincapy:{spd:[1.35,1.5,1.7],jump:[1.25,1.4,1.55],atk:1,spin:1,heavy:40,grab:2},
  stormwolf:{spd:[1.45,1.65,1.9],jump:[1.35,1.55,1.75],atk:1,heavy:45},
  rocketrich:{spd:[1.7,1.95,2.2],jump:[1.8,2.1,2.4],atk:0,heavy:35},
- raptor:{spd:[1.55,1.8,2.05],jump:[1.5,1.75,2.0],atk:1,heavy:50}
+ raptor:{spd:[1.55,1.8,2.05],jump:[1.5,1.75,2.0],atk:1,heavy:50},
+ fizzy:{spd:[1.42,1.58,1.78],jump:[1.32,1.48,1.68],atk:1,heavy:42,veil:1,tongue:1}
 };
-export const rideOf=(id,tier=1)=>{const r=RIDES[id];if(!r)return null;const i=Math.max(0,Math.min(2,(tier|0)-1));return{id,spd:r.spd[i],jump:r.jump[i],atk:!!r.atk,spin:!!r.spin,heavy:r.heavy,grab:r.grab||0}};
+export const rideOf=(id,tier=1)=>{const r=RIDES[id];if(!r)return null;const i=Math.max(0,Math.min(2,(tier|0)-1));return{id,spd:r.spd[i],jump:r.jump[i],atk:!!r.atk,spin:!!r.spin,heavy:r.heavy,grab:r.grab||0,veil:!!r.veil,tongue:!!r.tongue}};
 export const shouldDismount=(dmg,heavy)=>dmg>=(heavy||40);
 // kinds: 1 ammo, 2 medkits and shields. take(player, itemId, far) is the host pickup.
 export function grabNearby(E,p,R,kinds,take,max=4){if(!E||!E.items||!p||!p.p)return 0;let n=0;
@@ -27,6 +28,12 @@ export function hostOmni(X,p,S,H,pw,tr,dt){const t=H.t;
   else if(step===2){S.fire={until:t+3.2,next:t+.3};X.bcast({t:'pfx',k:'fireon',id:p.id,d:3.2,cd:16})}
   else grabNearby(H.br,p,14,[1,2],(who,id)=>X.take(who,id,true),6)}}
 export function hostSpinGrab(X,p,S,H){const t=H.t;if(!p.ride||t<(S.sp||0))return 0;S.sp=t+.28;return grabNearby(H.br,p,7,[2],(who,id)=>X.take(who,id,true),4)}
+// Ground loot the tongue can snatch: guns, ammo, heals/shields, throwables, melee.
+export const TONGUE_KINDS=[0,1,2,3,4];
+// What each viewer sees while the veil is up. Other players see nothing. The rider still sees Fizzy.
+export function veilView(self){return{body:false,gun:false,tag:false,chameleon:!!self}}
+// Fizzy's tongue: while you are the chameleon, it lashes out and pulls nearby loot, and a close chest.
+export function hostTongue(X,p,S,H){const t=H.t;if(!p.ride||t<(S.tg||0))return 0;S.tg=t+1.15;const n=grabNearby(H.br,p,8.5,TONGUE_KINDS,(who,id)=>X.take(who,id,true),4);const chest=X.openChest&&X.openChest(p,3.6)?1:0;X.bcast&&X.bcast({t:'pfx',k:'tongue',id:p.id,n:n+chest});return n+chest}
 // Same rise-again numbers as the phoenix: tier HP, 150 s cooldown, 2.5 s protection.
 export const REBIRTH={hp:[35,50,65],cd:150,prot:2.5};
 export function tryRebirth(S,t,tier){if(!S||t<(S.rb||0))return null;const i=Math.max(0,Math.min(2,(tier|0)-1));S.rb=t+REBIRTH.cd;return{hp:REBIRTH.hp[i],prot:t+REBIRTH.prot,cd:REBIRTH.cd}}

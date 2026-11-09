@@ -1,6 +1,6 @@
 // HeadShotz v103 pets, built in code (no third-party models): Celestial Chimera, Spin Capybara,
 // Storm Wolf, Rocket Ostrich, Raptor, plus fur/scale/feather detail on the original 15 sidekicks.
-import {THREE} from './gfx.js';
+import {THREE,GQ} from './gfx.js';
 import {P,G,mat,glowEye} from './petkit.js';
 const em=(c,e)=>mat(c,{em:e,ro:.35,me:.25});
 function legs4(b,rig,x,z,y,m,dk,h=.12){for(const s of[-1,1])for(const q of[1,-1]){const g=G(b,s*x,y,q*z);P(g,'cyl',0,0,-h/2,0,.028,h/2,.028,0,0,0,{m});P(g,'sph',0,0,-h,.02,.04,.03,.055,0,0,0,{m:dk});rig.legs.push({g,ph:s*q>0?0:Math.PI})}}
@@ -83,6 +83,22 @@ peacock(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ea
  for(const s of[-1,1])glowEye(hd,rig,0xfff6a0,s*.025,.01,.04,.012,false);
  for(let i=0;i<7;i++){const a=(i-3)*.22;P(b,'cone',0,Math.sin(a)*.04,.34,-.08-Math.abs(i-3)*.01,.04,.16,.012,-.4,a,0,{m:cols[i%cols.length]})}
  for(const s of[-1,1]){const g=G(b,s*.04,.2,0);P(g,'cyl',0,0,-.08,0,.012,.08,.012,0,0,0,{m:bd});rig.legs.push({g,ph:s>0?0:Math.PI})}
+ root.userData.rig=rig;return root},
+fizzy(){const root=new THREE.Group(),b=G(root);const lite=GQ.level==='low';const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.04,glow:[],eyes:[],tongue:null,sc:1.28};
+ const bands=[mat(0xff4d4d,{ro:.32,me:.18}),mat(0xff8a1a,{ro:.32,me:.18}),mat(0xffd23f,{ro:.34,me:.16}),mat(0x3dff6a,{ro:.32,me:.18}),mat(0x3d7dff,{ro:.32,me:.18}),mat(0xb45cff,{ro:.32,me:.18})];
+ const belly=mat(0xf4fff4,{ro:.45}),dk=mat(0x14301c,{ro:.4}),scale=mat(0x0e2418,{ro:.22,me:.55,em:.12,ec:0x7dffc0});
+ const nBand=lite?4:7;
+ for(let i=0;i<nBand;i++)P(b,'sph',0,0,.36+Math.sin(i)*.012,-.2+i*(lite?.1:.055),.09,.14,.075,0,0,0,{m:bands[i%bands.length]});
+ P(b,'sph',0,0,.28,.02,.065,.09,.15,0,0,0,{m:belly});
+ const scaleN=lite?6:16;
+ for(let i=0;i<scaleN;i++){const s=i%2?1:-1;P(b,'cone',0,s*(lite?.11:.12),.30+(i%4)*.03,-.18+Math.floor(i/2)*(lite?.07:.04),.028,.012,.034,0,0,s*1.2,{m:i%3?scale:bands[i%bands.length]})}
+ const crestN=lite?3:6;const crest=G(b,0,.5,-.02);for(let i=0;i<crestN;i++)P(crest,'cone',0,0,.04+i*.008,-.04+i*.035,.018,.11,.014,-.6,0,0,{m:bands[i%bands.length]});
+ const hd=G(b,0,.48,.18);rig.head=hd;P(hd,'sph',0,0,.02,0,.1,.11,.12,0,0,0,{m:bands[2]});P(hd,'sph',0,0,-.02,.06,.055,.045,.05,0,0,0,{m:belly});
+ P(hd,'cone',0,0,-.015,.16,.04,.045,.09,-Math.PI/2,0,0,{m:bands[3]});
+ for(const s of[-1,1]){const e=G(hd,s*.07,.045,.03);e.userData.ph=s;P(e,'cyl',0,s*.02,0,0,.012,.04,.012,0,0,Math.PI/2,{m:bands[4]});const ball=G(e,s*.045,0,0);P(ball,'sph',0,0,0,0,.036,.034,.03,0,0,0,{m:mat(0xf7fbff,{ro:.16})});const iris=new THREE.MeshStandardMaterial({color:s<0?0x3dff6a:0x4d7dff,emissive:s<0?0x3dff6a:0x4d7dff,emissiveIntensity:.9,roughness:.22});P(ball,'sph',0,0,0,.022,.02,.022,.016,0,0,0,{m:iris});const pupil=P(ball,'sph',0,0,0,.036,.009,.016,.009,0,0,0,{m:mat(0x111418,{ro:.12})});P(ball,'sph',0,.012,.01,.042,.004,.004,.004,0,0,0,{m:mat(0xffffff,{ro:.08,em:.55,ec:0xffffff})});e.userData.pupil=pupil;rig.eyes.push(e);rig.glow.push(iris)}
+ const mouth=G(hd,0,-.045,.18);const tongue=G(mouth,0,0,0);rig.tongue=tongue;P(tongue,'cyl',0,0,0,.24,.022,.48,.014,-Math.PI/2,0,0,{m:mat(0xff4d6a,{ro:.28})});P(tongue,'sph',0,0,0,.5,.028,.02,.026,0,0,0,{m:mat(0xff9aab,{ro:.22})});
+ const tg=G(b,0,.3,-.28);rig.tail=tg;const tailN=lite?4:8;for(let i=0;i<tailN;i++){const a=i*.62;P(tg,'sph',0,Math.sin(a)*.06,.02+Math.cos(a)*.025,-.05-i*.042,.048-i*.003,.04,.042,0,0,0,{m:bands[i%bands.length]})}
+ legs4(b,rig,.09,.13,.24,bands[1],dk,.11);
  root.userData.rig=rig;return root}
 };
 function whSafe(){return mat(0xf7f7f2,{ro:.4})}

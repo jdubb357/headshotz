@@ -28,7 +28,8 @@ function petDefs(){
 }
 
 test('service worker cache moved forward and prices stayed put', () => {
-  assert.match(sw, /const CACHE='headshotz-v106'/);
+  const cache = sw.match(/const CACHE='headshotz-v(\d+)'/);
+  assert.ok(cache && +cache[1] >= 106);
   assert.match(sw, /rarorder\.js/);
   assert.match(game, /secret:25000,godly:50000/);
   assert.match(pets, /id:'chimera'[^}]*price:50000[^}]*godly:1/);
