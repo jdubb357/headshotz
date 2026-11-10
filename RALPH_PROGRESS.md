@@ -3862,3 +3862,79 @@ human loot excitement cannot be closed without a playtest cohort, so the next lo
 verifiable candidate is a deeper squad-coordination slice or a richer base-economy
 progression gap from the backlog; alternatively record any newly observed natural-run
 gap. Do not claim P5/P6/P7.
+
+## Gameplay audit iteration 21 — façade window sill ledges and flower-box planters (2026-11-10)
+
+### Acceptance criteria — iteration 21 (gritty façade close-range detail)
+
+1. Every authored window prop with a detected exterior parent face gains a
+   presentation-only projecting stone sill ledge; a deterministic share of those
+   windows (including lit and dark openings) also carries a soil planter with
+   sun-bleached wooden box, swaying foliage and warm flower clusters. Detail is
+   derived only from the frozen window prop and its parent block; no block, prop,
+   spawn, cache, exit, ramp, hazard or collision data changes.
+2. The new detail is split into instanced PBR groups tagged `windowSill` and
+   `flowerBox`, each with a texture and normal map, and published counts
+   (`windowSills`, `flowerBoxes`) are identical across two independent
+   `buildEnvironment()` calls and after a `RaidView` clear/start rebuild.
+3. `tests/raid-browser-structures.mjs` asserts the new counts, isolates the two
+   groups' changed-pixel contributions with a first-person hero pose, records a
+   screenshot, and reports `browserErrors: []`.
+4. Existing structure-detail evidence (plinth, cornice, vines, boarding, doorway,
+   awning, utility, sign, roof plant, ground grit, façade weather, shutters) stays
+   intact, reduced motion leaves the static layer unchanged, and the full unit
+   suite passes without touching the main menu or other modes.
+
+### Implementation — iteration 21 (completed)
+
+- `raid-environment.mjs`: added a presentation-only façade lookup grid (12 m cells,
+  built once from the frozen block layer) plus `windowOutward(prop,onZ)`, replacing
+  per-window full block scans at relay scale. Each detected opening gains a two-tier
+  projecting stone sill ledge (tag `windowSill`); a deterministic 22% share of broad
+  openings gains a hanging planter (tag `flowerBox`) with a sun-bleached wooden box,
+  thin soil, two wind-shared foliage clumps and three warm flower spheres. Sill sites
+  are published as `userData.raidWindowSills` with `planter` metadata. Counts
+  `windowSills`/`flowerBoxes` publish in `userData.raidStructureDetail`. No block,
+  prop, spawn, cache, exit, ramp, hazard, collision, navigation or actor data changed.
+- `tests/raid-browser-structures.mjs`: asserts the new counts, renders a close
+  first-person planter-site hero pose after the lifecycle restart, hides the
+  `windowSill` and `flowerBox` tag groups individually to isolate changed pixels,
+  adds `/tmp/hs-window-sills.png`, and includes `sillHero`/`sillPixels`/
+  `flowerBoxPixels` in the JSON report.
+
+**Commands/results (2026-11-10, isolated loopback service + headless Chrome 9336)**:
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-structures.mjs` → exit 0.
+  `windowSills: 8009`, `flowerBoxes: 1681` (deterministic rebuild and lifecycle
+  restart report identical counts). Tag instances `windowSill: 16018`,
+  `flowerBox: 11767`. Changed pixels: `sillPixels: 6153`, `flowerBoxPixels: 29542`;
+  `pbr: true`, `deterministic: true`, reduced motion `sameMatrices: true` /
+  `changed: true`, `stateUntouched: true`, `browserErrors: []`.
+- Screenshots inspected: `/tmp/hs-window-sills.png` shows a lit opening with a
+  projecting pale stone ledge and a wooden planter with green foliage and warm bloom
+  clusters beneath it; prior `/tmp/hs-window-shutters.png` shows the same façade
+  quality before sills/planters (openings had frame trim, shutters/boarding only).
+- Full unit suite `node --test tests/*.test.mjs` → 1172 pass, 0 fail, 0 skipped.
+- 8823 authored window props exist; 8009 match an exterior block face and receive
+  the ledge. The remaining 814 openings sit inside/floating in earlier district
+  fabric (prop position not on a block face), so no sill is invented for them; this
+  is recorded rather than hidden.
+
+**Criteria status**:
+1. PASS — detected exterior openings (8009) carry a stone sill ledge; 1681 broad
+   openings carry a planter derived only from the frozen window prop and block face.
+2. PASS — instanced PBR `windowSill`/`flowerBox` groups with textures and normal maps;
+   identical published counts on independent rebuild and after clear/start restart.
+3. PASS — structures grader asserts counts, builds an isolated hero pose, records the
+   screenshot and reports `browserErrors: []`.
+4. PASS — all prior detail groups and their pixel evidence remain green; reduced
+   motion stays static; unit suite 1172/1172; other modes untouched.
+
+**Status:** Iteration 21 façade sill ledges and flower boxes are COMPLETE in local
+presentation scope. Subjective ARC-readability/aesthetic acceptance, human balance,
+pacing, hosted multiplayer and physical-device acceptance remain UNVERIFIED. No false
+completion promise.
+
+Next action: choose the next local task; the visual/AI cycle has now covered façades,
+so prefer a gameplay slice next — a deep, locally verifiable base-economy progression
+choice (for example repair/condition services or a deeper vendor/upgrade path) or any
+newly observed natural-run raid gap. Do not claim P5/P6/P7 or human aesthetic acceptance.

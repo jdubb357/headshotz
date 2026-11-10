@@ -365,8 +365,12 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   Body/bag labels and map markers are now distinct by container kind (iteration 9, P4);
   the server now records a 1.6 s positioned incoming-damage bearing for every machine,
   rival, hazard, blast and operator shot, and the raid client draws a transient red
-  direction arrow with an accessible source/side label (iteration 16). Older screenshots
-  may still show the former generic "salvage bag" wording.
+  direction arrow with an accessible source/side label (iteration 16). Façade detail is
+  richer at street range: 8009 detected exterior window openings now carry projecting
+  stone sill ledges and 1681 carry hanging flower-box planters with foliage and blooms,
+  proven as instanced PBR `windowSill`/`flowerBox` groups with isolated pixel evidence
+  (iteration 21, presentation-only). Older screenshots may still show the former generic
+  "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.
@@ -639,6 +643,24 @@ and the full 1,172-test unit suite are green. Honest gaps: human playtest
 balance/pacing, hosted transport and physical-device acceptance remain UNVERIFIED; the
 probe only exercises the local loopback service, and loot/machine placement still varies
 per raid.
+
+## Completed in iteration 21
+
+**Façade window sill ledges and flower-box planters.** COMPLETE in local presentation
+scope. `raid-environment.mjs` builds a presentation-only 12 m footprint grid from the
+frozen block layer so each authored window prop can find its exterior parent face without
+quadratic block scans. Every detected opening (8009 of 8823) gains a two-tier projecting
+stone sill ledge (`windowSill`); a deterministic share (1681) of broad openings gains a
+sun-bleached wooden planter (`flowerBox`) with thin soil, two wind-shared foliage clumps
+and three warm flower spheres. Sites publish through `userData.raidWindowSills` with
+`planter` metadata and counts ship in `raidStructureDetail`. Evidence:
+`tests/raid-browser-structures.mjs` green (counts, deterministic rebuild, lifecycle
+restart, `sillPixels: 6153`, `flowerBoxPixels: 29542`, `pbr: true`,
+`stateUntouched: true`, `browserErrors: []`) with screenshot `/tmp/hs-window-sills.png`
+inspected; full unit suite `1172 pass / 0 fail`. Honest gap: the 814 window props authored
+inside/floating in earlier district fabric match no block face and receive no ledge;
+human aesthetic acceptance remains UNVERIFIED. This is visual detail only and changes no
+raid rules or other modes.
 
 ## Later items (not yet closed)
 

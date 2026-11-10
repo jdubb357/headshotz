@@ -138,7 +138,7 @@ export function buildEnvironment(world){
  // roof cornice, then a deterministic share of roof vents, antenna masts and
  // tilted debris. These groups add silhouette depth at first-person range and
  // never alter blocks, props, collision, navigation, routes or actor data.
- const structureDetail={structures:0,plinths:0,cornices:0,vents:0,antennas:0,debris:0,beacons:0};const roofPlantList=[],groundGritList=[],shutterSites=[];let shutteredWindows=0;
+ const structureDetail={structures:0,plinths:0,cornices:0,vents:0,antennas:0,debris:0,beacons:0};const roofPlantList=[],groundGritList=[],shutterSites=[],sillSites=[];let shutteredWindows=0;
  const hash01=n=>{const v=Math.sin(n)*43758.5453123;return v-Math.floor(v)};
  for(const block of world.blocks){
   const [x,z,w,d,h,y=0,kind='concrete']=block;
@@ -273,13 +273,46 @@ export function buildEnvironment(world){
    structureDetail.streetGritClusters=(structureDetail.streetGritClusters||0)+1;
   }
  }
- root.userData.raidStructureDetail=structureDetail;root.userData.raidRoofPlants=roofPlantList;root.userData.raidStreetGrit=groundGritList;root.userData.raidWindowShutters=shutterSites;
+ root.userData.raidStructureDetail=structureDetail;root.userData.raidRoofPlants=roofPlantList;root.userData.raidStreetGrit=groundGritList;root.userData.raidWindowShutters=shutterSites;root.userData.raidWindowSills=sillSites;
  for(const ramp of world.ramps||[]){const count=20;for(let i=0;i<count;i++){const t=(i+.5)/count,x=ramp.x+(ramp.axis==='x'?(t-.5)*ramp.w:0),z=ramp.z+(ramp.axis==='z'?(t-.5)*ramp.d:0),y=ramp.from+(ramp.to-ramp.from)*t;
   add('box',palette.metal,x,y-.08,z,ramp.axis==='x'?ramp.w/count:ramp.w,.16,ramp.axis==='z'?ramp.d/count:ramp.d,0,'metal');
   if(i%4===0)for(const side of [-1,1])add('box',palette.metal,x+(ramp.axis==='z'?side*ramp.w/2:0),y+.55,z+(ramp.axis==='x'?side*ramp.d/2:0),.1,1.1,.1);
  }}
  // Roads and lane paint establish readable routes through every district.
  for(const axis of ['x','z']){add('box',0x3e4546,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
+ // Window props are authored 0.27 m proud of their parent block face. Scanning
+ // every block for every window would be quadratic at relay scale (≈8.8k windows
+ // × 10k blocks), so a coarse footprint grid narrows each lookup to the blocks
+ // beside the opening. The grid is presentation-only and never mutates world data.
+ const FACADE_CELL=12,facadeGrid=new Map();
+ for(const b of world.blocks||[]){
+  const [bx,bz,bw,bd]=b;
+  const x0=Math.floor((bx-bw/2-1)/FACADE_CELL),x1=Math.floor((bx+bw/2+1)/FACADE_CELL);
+  const z0=Math.floor((bz-bd/2-1)/FACADE_CELL),z1=Math.floor((bz+bd/2+1)/FACADE_CELL);
+  for(let ix=x0;ix<=x1;ix++)for(let iz=z0;iz<=z1;iz++){
+   const key=ix+','+iz,list=facadeGrid.get(key);
+   if(list)list.push(b);else facadeGrid.set(key,[b]);
+  }
+ }
+ const windowOutward=(prop,onZ)=>{
+  const cx=Math.floor(prop.x/FACADE_CELL),cz=Math.floor(prop.z/FACADE_CELL);
+  for(let ix=cx-1;ix<=cx+1;ix++)for(let iz=cz-1;iz<=cz+1;iz++){
+   const list=facadeGrid.get(ix+','+iz);if(!list)continue;
+   for(const b of list){
+    const [bx,bz,bw,bd]=b;
+    if(onZ){
+     if(Math.abs(prop.x-bx)>bw/2+.2)continue;
+     if(prop.z>bz&&Math.abs(prop.z-(bz+bd/2+.27))<.6)return 1;
+     if(prop.z<bz&&Math.abs(prop.z-(bz-bd/2-.27))<.6)return -1;
+    }else{
+     if(Math.abs(prop.z-bz)>bd/2+.2)continue;
+     if(prop.x>bx&&Math.abs(prop.x-(bx+bw/2+.27))<.6)return 1;
+     if(prop.x<bx&&Math.abs(prop.x-(bx-bw/2-.27))<.6)return -1;
+    }
+   }
+  }
+  return 0;
+ };
  const scenery=raidScenery(world);
  for(const prop of [...(world.props||[]),...scenery]){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
   if(prop.kind==='floor')add('box',prop.color||palette.ground,x,y,z,prop.w,.03,prop.d,0,'tiles');
@@ -409,6 +442,37 @@ export function buildEnvironment(world){
       structureDetail.windowShutters=(structureDetail.windowShutters||0)+1;
      }
     }
+   }
+   // Presentation-only sill ledges and hanging flower boxes ground each façade
+   // opening: a two-tier stone ledge projects proud of the masonry, and a
+   // deterministic share carries a sun-bleached planter with soil, foliage that
+   // shares the frozen wind clock and warm flower clusters. Both sit outside the
+   // glazing plane and derive only from the frozen window prop and parent block.
+   const sillOutward=windowOutward(prop,onZ);
+   if(sillOutward){
+    const outX=onZ?0:sillOutward,outZ=onZ?sillOutward:0;
+    const since=(sx,sy,sz)=>onZ?[sx,sy,sz]:[sz,sy,sx];
+    add('box',0x8a8276,x+outX*.06,prop.y-.105,z+outZ*.06,...since(wide+.42,.08,.32),0,'concrete',0,0,false,'windowSill');
+    add('box',0x5b5750,x+outX*.02,prop.y-.16,z+outZ*.02,...since(wide+.30,.06,.28),0,'concrete',0,0,false,'windowSill');
+    structureDetail.windowSills=(structureDetail.windowSills||0)+1;
+    const planterSeed=hash01(prop.x*17.3+prop.z*29.7+prop.y*6.1+world.id.length*3.9);
+    const hasPlanter=planterSeed<.22&&wide>=.95;
+    if(hasPlanter){
+     const pw=Math.min(1.12,wide*.76),ph=.22,pd=.30;
+     const planX=prop.x+outX*.30,planZ=prop.z+outZ*.30,planY=prop.y-.21;
+     add('box',0x684d38,planX,planY,planZ,...since(pw,ph,pd),0,'planks',0,0,false,'flowerBox');
+     add('box',0x403327,planX+outX*.012,planY+ph/2-.015,planZ+outZ*.012,...since(pw*.90,.05,pd*.88),0,'dirt',0,0,false,'flowerBox');
+     for(let i=0;i<2;i++){
+      const along=(hash01(planterSeed*7.13+i*2.61)-.5)*pw*.46;
+      add('sphere',i?0x4c6c43:0x3f5c3a,planX+(onZ?along:0)+outX*.04,planY+.30,planZ+(onZ?0:along)+outZ*.04,...since(.19,.16,.17),0,'forest',0,0,true,'flowerBox');
+     }
+     for(const [fc,along] of [[0xb8583e,-.30],[0xd8a24f,.06],[0x8c5f82,.32]]){
+      const a=along*pw*.55;
+      add('sphere',fc,planX+(onZ?a:0)+outX*.10,planY+.34,planZ+(onZ?0:a)+outZ*.10,...since(.085,.065,.085),0,'forest',0,0,false,'flowerBox');
+     }
+     structureDetail.flowerBoxes=(structureDetail.flowerBoxes||0)+1;
+    }
+    sillSites.push({x:prop.x,z:prop.z,y:prop.y-.105,onZ,outX,outZ,wide,h,planter:hasPlanter});
    }
    // Lit windows join the shared practical halo budget so night facades bloom
    // cohesively. Halos are depth-tested (with a fixture bias) rather than depth-
