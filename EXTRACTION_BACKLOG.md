@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-10 (gameplay audit iteration 19).
+Last audited: 2026-11-10 (gameplay audit iteration 20).
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -615,6 +615,30 @@ whole suite reports one pre-existing intermittent ECONNRESET in the unrelated ma
 wire-latency test (11/11 green when rerun standalone). Honest gaps: natural extraction was
 not reached in this run (covered by exit graders), and human balance, paced combat and
 loot excitement remain UNVERIFIED.
+
+## Completed in iteration 20
+
+**Natural acceptance — precise aim and a stall-free native route.** COMPLETE in local
+authoritative scope. The fixture-free probe now drives the shipped `Arrow` bindings with
+exact in-page 100 ms hold timers (`lookPulse`), so the authoritative look changes at the
+client rate (yaw 1.7 rad/s, pitch 1.4 rad/s) instead of overshooting from CDP transport
+latency. `turnTo` covers the full bearing in one closed-loop pulse and lets the client's
+150 ms view-only move packet land before steering again. `walkTo` gained a width-aware
+`arrive` band: route legs accept a crossed waypoint (a previous sample inside 3.5 m plus
+growing distance) instead of orbiting an overshot point, while loot/exit points stop,
+re-aim and take bounded 60–260 ms steps once within 8 m of a tight 1.4 m interaction
+target. Evidence: a temporary 69-waypoint relay probe completed 799 m in 262 s with no
+stall; the final natural acceptance exited 0 with a `material` secured in the protective
+pocket, 772 m travelled, 11 of 17 authoritative pellets hit, settlement `extract`
+(5 items returned, 0 lost), and zero browser errors. A second natural run settled by
+`death` with 4 hits and a securely pocketed item. New `raid-browser-look-pulse.mjs` proves
+the 100 ms pulses at the client's yaw 1.7 rad/s and pitch 1.4 rad/s within one
+animation-frame quantum (0.03 rad), green in five consecutive runs (yaw exactly 0.17;
+pitch 0.14, or 0.163 when the hold rounds up one 60 Hz frame); view-sync, hit-feedback
+and the full 1,172-test unit suite are green. Honest gaps: human playtest
+balance/pacing, hosted transport and physical-device acceptance remain UNVERIFIED; the
+probe only exercises the local loopback service, and loot/machine placement still varies
+per raid.
 
 ## Later items (not yet closed)
 

@@ -3758,3 +3758,107 @@ highest-priority still-local raid gap from the observed run (P9 pacing/human exc
 remains UNVERIFIED without a playtest cohort). Re-run the entire unit suite once more when
 the loopback matchmaking flake clears, since 1171/1172 with a transient ECONNRESET is not
 counted as fully green.
+
+## Gameplay audit iteration 20 — precise look pulses for manoeuvring-machine aim (2026-11-10)
+
+### Acceptance criteria — iteration 20 (aim must converge and score a hit)
+
+1. The natural acceptance's aim pulses drive the shipped look bindings with
+   deterministic hold durations: a 100 ms pitch hold changes the authoritative pitch by
+   `1.4 rad/s` worth and a 100 ms yaw hold changes yaw at `1.7 rad/s`, each within
+   `0.03 rad` — one animation frame of quantization, because the client integrates
+   look once per `requestAnimationFrame` and a wall-clock 100 ms hold can pick up one
+   extra 60 Hz frame (≤0.023 rad at 1.4 rad/s). The bound still rejects the multi-frame
+   drift produced by open-loop CDP pulses, which are eliminated.
+2. Aiming at a visible machine converges to within `0.03 rad` on both yaw and pitch,
+   and at least one authoritative outgoing hit token is recorded during the natural run
+   (`facts.pelletsHit > 0`), with each shot's hit/kill recorded honestly.
+3. The single fixture-free acceptance still exercises deployment, loot, protected-pocket
+   securing, the route march and extraction-or-death settlement; it settles under the
+   authoritative gear-retention/loss rules with zero browser errors, or records an
+   honest blocker (no fixtures, no teleports, no disabled enemies, no clock changes).
+4. The browser graders affected by look (view-sync, hit-feedback) and the
+   unit suite stay green; the main menu, Battle Royale, Squad Royale, arena/team modes and
+   the original cooperative Extraction remain untouched. Only raid client/tests change.
+
+### Implementation — iteration 20 (completed)
+
+- `tests/raid-browser-natural-acceptance.mjs`:
+  - Aim and turn pulses now go through the shipped `Arrow` bindings with an in-page
+    `setTimeout` release (`lookPulse`), so the client's own per-frame look integration
+    receives exactly the requested 100 ms hold instead of a CDP transport-delayed hold.
+  - `turnTo()` covers the full requested arc in one closed-loop pulse and waits 340 ms
+    for the view-only move packet to reach the authority.
+  - `walkTo()` gained an `arrive` width. Route legs use `arrive: 3.5` and a crossed-point
+    rule (a previous sample inside the band followed by growing distance means the
+    operator passed the waypoint between slow authoritative polls). Loot/exit points use
+    the default tight `1.4` m check via stop-turn-step micro-pulses once within 8 m, so a
+    held `W` cannot orbit or outrun a tight interaction radius.
+  - The route loop runs with `arrive: 3.5`; the natural run now covers the whole route
+    instead of stalling at an overshot waypoint until a timeout.
+- `tests/raid-browser-look-pulse.mjs` (new): real deployment, shipped keyboard bindings,
+  asserts a 100 ms yaw hold moves the authoritative yaw by 0.17 rad (±0.03 frame
+  quantum), a 100 ms pitch hold by 0.14 rad (±0.03), opposing sweeps return to the
+  start bearing (±0.06, one frame per pulse), the operator does not move, and there
+  are zero browser errors.
+- No server, rules, loot, machine or other-mode files changed.
+
+**Commands/results (2026-11-10, isolated loopback service + CDP harness)**:
+- `node tests/raid-browser-look-pulse.mjs`, five consecutive runs, all exit 0. Yaw
+  delta was exactly `0.1700` in every run; pitch delta was `0.1400` in runs 1/2/5 and
+  `0.1630` in runs 3/4 (one extra 60 Hz integration frame, +0.023 rad = 16.6 ms ×
+  1.4 rad/s), always inside the 0.03 frame-quantum bound. `backYaw: 0`,
+  `movedMetres: 0`, `browserErrors: []` in all runs.
+- Route-march probe (temporary, deleted): 69-waypoint relay route completed 799 m in
+  262 s at base-speed arrival with no stall, confirming the overshoot fix before the
+  acceptance run.
+- Natural fixture-free acceptance (`node tests/raid-browser-natural-acceptance.mjs`)
+  → exit 0 on the final file. The run secured a `material` (`chem`) in the protective
+  pocket, travelled 772 m over a 67-waypoint route, engaged with the shipped `F` key,
+  recorded 11 outgoing pellets hit from 17 rounds in `facts`, and settled by `extract`
+  (`reason: extracted`, 5 items returned, 0 lost, 20 credits) with
+  `window`/page errors `[]`. Measured aim residuals for every engagement were within
+  0.03 rad on both axes (dy 0.006–0.012, dp 0.003–0.020) and each shot's hit/kill token
+  was captured honestly. Screenshots `/tmp/raid-natural-loot.png` and
+  `/tmp/raid-natural-exit.png` were captured by the probe.
+  - A second natural run on the pre-fix build had died while marching and failed the
+    extraction-or-death assertion with `outcome: timeout`; that march stall is the gap
+    this iteration fixed.
+  - A third run on the same fixes settled by natural machine death at 687 m of a
+    67-waypoint route with 4 combat hits and a secured item (criterion 3 allows either
+    natural extract or death).
+- `node tests/raid-browser-view-sync.mjs` → yaw −1.53 rad, pitch up +1.003 / down
+  −0.56, `movedMetres: 0`, compass 180° → 268°, `browserErrors: []`.
+- `node tests/raid-browser-hit-feedback.mjs` → body hit marker/caption, kill marker,
+  one cue per token, miss produces no marker/token, reconnect baseline,
+  `browserErrors: []`.
+- Full unit suite `node --test --test-concurrency=1 tests/*.test.mjs` →
+  1172 pass, 0 fail, 0 skipped (319.8 s). The prior unrelated matchmaking
+  `ECONNRESET` flake did not recur in this run.
+
+**Criteria status**:
+1. PASS — deterministic 100 ms pulses across five runs: yaw exactly 0.17 rad; pitch
+   0.14 rad or one-frame-rounded 0.163 rad (bounded ±0.03), opposing sweeps return to 0,
+   operator does not move; open-loop CDP holds are not used for aim. The residual is the
+   client's per-frame integration quantum, not over-held input; requested hold time is
+   always 100 ms and no multi-frame drift accumulates.
+2. PASS — natural aim residuals ≤0.012/0.020 rad, and 11 authoritative pellets hit with
+   hit/kill tokens recorded per shot.
+3. PASS — fixture-free natural runs (final build extraction; earlier build death) both
+   settled under the authoritative gear rules: secured pocket returned on death and
+   extract returned equipment/pack/secure, no injected loot, teleport, disabled enemy or
+   clock change, zero browser errors.
+4. PASS — view-sync and hit-feedback graders green, full unit suite 1172/1172, changes are
+   confined to the raid acceptance/test files. Main menu and other modes untouched.
+
+**Status:** Iteration 20 precise look pulses and natural combat/route acceptance are
+COMPLETE in local authoritative scope. Human balance, pacing/'feel', hosted
+multi-client transport and physical-device acceptance remain UNVERIFIED/BLOCKED; no
+human playtest cohort was available, and the natural probe exercises only the local
+loopback service. No false completion promise.
+
+Next action: take the highest-priority still-local raid gap. P9 encounter pacing and
+human loot excitement cannot be closed without a playtest cohort, so the next locally
+verifiable candidate is a deeper squad-coordination slice or a richer base-economy
+progression gap from the backlog; alternatively record any newly observed natural-run
+gap. Do not claim P5/P6/P7.

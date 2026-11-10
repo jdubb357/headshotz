@@ -40,25 +40,76 @@ async function waitFor(fn, timeout = 10000, interval = 120) {
   throw new Error('Timed out waiting for condition');
 }
 
-async function walkTo(x, z, {sprint = false, timeout = 60000} = {}) {
+// One precise turn-in-place through the shipped look bindings (see lookPulse
+// below). Unlike a CDP held arrow key, this pulse covers exactly the requested
+// arc, so the operator faces the waypoint instead of curving past it.
+async function turnTo(x, z, p, maxPulseMs = 1600) {
+  const diff = wrapped(Math.atan2(x - p.x, z - p.z) - (p.yaw || 0));
+  if (Math.abs(diff) <= 0.03) return;
+  await lookPulse(diff > 0 ? 'ArrowLeft' : 'ArrowRight', Math.min(maxPulseMs, Math.abs(diff) / 1.7 * 1000));
+  // Let the client ship the held look in its next move packet (150 ms cadence)
+  // and the authority reflect it before reading position again.
+  await sleep(340);
+}
+
+// Native march to a waypoint: turn to the bearing once, hold the shipped
+// forward and sprint keys, and re-turn only when terrain or a machine pushes
+// the heading meaningfully off the waypoint. Steering with held arrows the
+// whole way instead alternates above/below the bearing and effectively crawls.
+// `arrive` is deliberately wider for route legs than for loot/exit points: the
+// authoritative snapshot can lag a held key by several metres in headless
+// Chrome, so an exact check misses the point and the operator orbits it.
+async function walkTo(x, z, {sprint = false, timeout = 60000, arrive = 1.4} = {}) {
+  let snap = await state();
+  if (!snap?.self?.alive || snap.self.downed || snap.self.result) return snap?.self;
+  await turnTo(x, z, snap.self);
   await down('KeyW');
-  if (sprint) await down('KeyX');
-  let arrow = null;
+  let fast = sprint;
+  if (fast) await down('KeyX');
+  let lastTurn = Date.now();
+  let previous = null;
   try {
     const until = Date.now() + timeout;
     while (Date.now() < until) {
-      const snap = await state();
-      if (!snap?.self?.alive || snap.self.downed) return snap?.self;
+      snap = await state();
+      if (!snap?.self?.alive || snap.self.downed || snap.self.result) return snap?.self;
       const dx = x - snap.self.x, dz = z - snap.self.z, dist = Math.hypot(dx, dz);
-      if (dist <= 1.4) return snap.self;
-      const d = wrapped(Math.atan2(dx, dz) - (snap.self.yaw || 0));
-      const next = Math.abs(d) < 0.05 ? null : d > 0 ? 'ArrowLeft' : 'ArrowRight';
-      if (next !== arrow) { if (arrow) await up(arrow); if (next) await down(next); arrow = next; }
-      await sleep(110);
+      if (dist <= arrive) return snap.self;
+      // If the operator was inside the approach band and is now moving away,
+      // it crossed the point between slow authoritative samples. Accept the
+      // pass instead of turning back and orbiting it until the timeout. Precise
+      // loot/exit approaches are handled by the bounded-step branch below, so
+      // this pass rule only applies to the wider route-waypoint band.
+      if (arrive > 2.6 && previous !== null && previous <= arrive + 1 && dist > previous + 0.8) return snap.self;
+      previous = dist;
+      // Near a tight interaction radius, a held key outruns the poll cadence and
+      // overshoots. Stop, re-aim, and take one bounded step (at base walk speed)
+      // so the player settles inside the loot/exit radius rather than circling.
+      if (arrive <= 2.6 && dist <= 8) {
+        await up('KeyW');
+        if (fast) { await up('KeyX'); fast = false; }
+        await turnTo(x, z, snap.self);
+        const stepMs = Math.min(260, Math.max(60, (dist - arrive) / 5 * 1000));
+        await down('KeyW');
+        await sleep(stepMs);
+        await up('KeyW');
+        await sleep(180);
+        continue;
+      }
+      // A sprint stop takes a few hundred ms to reach the shipped input
+      // handler, so release sprint before the waypoint: at 9 m/s the operator
+      // would otherwise carry past a corner and jam against the terrain.
+      if (fast && dist <= 25) { await up('KeyX'); fast = false; }
+      if (Date.now() - lastTurn >= 500) {
+        const d = wrapped(Math.atan2(dx, dz) - (snap.self.yaw || 0));
+        if (Math.abs(d) > 0.05) await turnTo(x, z, snap.self);
+        lastTurn = Date.now();
+      }
+      await sleep(100);
     }
-    return (await state())?.self;
+    return snap?.self || (await state())?.self;
   } finally {
-    await up('KeyW'); if (sprint) await up('KeyX'); if (arrow) await up(arrow);
+    await up('KeyW'); if (sprint) await up('KeyX');
   }
 }
 
@@ -94,26 +145,47 @@ async function nearestThreat(maxDistance = 45) {
 
 const MACHINE_HEIGHT = {scout: 1.35, hunter: 1.8, heavy: 2.8, flyer: 1.1, overlord: 5.2};
 
-// Precise native aiming: tap a look key for a bounded moment, then wait for the
-// shipped client to sync the view to the server. Holding until a polling loop
-// observes a match overshoots because the server snapshot lags the local view.
+// Precise look pulse through the shipped key bindings. A CDP
+// Input.dispatchKeyEvent hold is not duration-accurate in this headless
+// environment: its transport lag varies by >100 ms per edge, so a requested
+// 150 ms pulse can turn the view by 0.54 rad instead of 0.21 rad and alternate
+// above/below a moving target. The raid input handler only needs keydown/keyup
+// events, so the pulse is dispatched in-page and released by an exact
+// setTimeout; the client's own per-frame look integration therefore receives
+// the duration the probe requested, and the 150 ms authoritative sync ships
+// that exact local look to the server.
+async function lookPulse(code, ms) {
+  await page.evaluate(`(() => new Promise(resolve => {
+    const target = document.getElementById('view') || document.activeElement || document.body;
+    const send = type => target.dispatchEvent(new KeyboardEvent(type, {bubbles: true, cancelable: true, code: ${JSON.stringify(code)}, key: ${JSON.stringify(code)}}));
+    send('keydown');
+    setTimeout(() => { send('keyup'); resolve(true); }, ${Math.max(1, Math.round(ms))});
+  }))()`);
+}
+
+// Closed-loop look convergence: one pulse covers the authoritative remainder
+// (or as much of the axis budget as is left) and is released exactly by the
+// in-page timer, then the probe waits for the client's next move packets so
+// the snapshot reflects the held view before checking the residual again.
+// Capping every pulse at 120 ms silently turned a 2 rad bearing correction into
+// a chase that never converged inside the short close-range aiming window.
 async function pulseLook(desired, axis, maxMs) {
   const rate = axis === 'yaw' ? 1.7 : 1.4;
   const until = Date.now() + maxMs;
-  while (Date.now() < until) {
+  for (;;) {
     const snap = await state();
     if (!snap?.self?.alive || snap.self.downed) return;
     const actual = axis === 'yaw' ? (snap.self.yaw || 0) : (snap.self.pitch || 0);
     const difference = axis === 'yaw' ? wrapped(desired - actual) : desired - actual;
-    if (Math.abs(difference) <= 0.03) return;
+    if (Math.abs(difference) <= 0.02) return;
+    const budget = until - Date.now();
+    if (budget <= 40) return;
+    const holdMs = Math.min(budget, Math.abs(difference) / rate * 1000);
     const code = axis === 'yaw' ? (difference > 0 ? 'ArrowLeft' : 'ArrowRight') : (difference > 0 ? 'ArrowUp' : 'ArrowDown');
-    const holdMs = Math.max(18, Math.min(150, Math.abs(difference) / rate * 1000));
-    await down(code, code);
-    await sleep(holdMs);
-    await up(code, code);
-    // The client sends its idle look in the next 150 ms move packet; leave
-    // enough time for that authoritative state to land before the next pulse.
-    await sleep(240);
+    await lookPulse(code, Math.max(12, holdMs));
+    // The client ships the held look in a 150 ms move packet. Waiting 300 ms
+    // covers two ticks so the next snapshot is not a stale bearing.
+    await sleep(300);
   }
 }
 
@@ -157,7 +229,7 @@ async function shootMachine(machine, maxRounds = 8) {
     const horizontal = Math.hypot(live.x - snap.self.x, live.z - snap.self.z);
     // Close machines manoeuvre quickly; shorten the aiming window so the shot
     // follows the bearing the player currently sees.
-    const aim = await aimAt(live, snap, horizontal < 14 ? 900 : 2600, horizontal < 14 ? 600 : 1400);
+    const aim = await aimAt(live, snap, horizontal < 14 ? 2200 : 2600, horizontal < 14 ? 1200 : 1400);
     if (!aim) break;
     record.distance = Math.round(aim.horizontal);
     record.aim = {
@@ -328,7 +400,7 @@ try {
     const s = await self();
     if (!s.alive || s.result) break;
     const before = {x: s.x, z: s.z};
-    const s2 = await walkTo(routePoints[i].x, routePoints[i].z, {sprint: true, timeout: 60000});
+    const s2 = await walkTo(routePoints[i].x, routePoints[i].z, {sprint: true, timeout: 60000, arrive: 3.5});
     travelled += Math.hypot((s2?.x ?? before.x) - before.x, (s2?.z ?? before.z) - before.z);
     if (!s2?.alive || s2.downed) break;
     if ((s2.result)) break;
@@ -424,6 +496,7 @@ try {
   assert.deepEqual(page.errors, [], 'the natural-play browser context has no errors');
   assert.ok(['extract', 'death'].includes(settled.outcome), 'the raid ended naturally by extraction or death');
   assert.ok((settled.facts?.roundsFired || 0) > 0, 'the player fired with native controls during the raid');
+  assert.ok((settled.facts?.pelletsHit || 0) > 0, 'the operator landed an authoritative hit against a machine');
   assert.ok(evidence.secured.length > 0, 'an item was secured in the protected pocket');
   console.log(JSON.stringify(evidence, null, 2));
 } catch (error) {
