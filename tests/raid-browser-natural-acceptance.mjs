@@ -40,38 +40,6 @@ async function waitFor(fn, timeout = 10000, interval = 120) {
   throw new Error('Timed out waiting for condition');
 }
 
-async function face(desiredYaw, maxMs = 4000) {
-  const until = Date.now() + maxMs;
-  let arrow = null;
-  try {
-    while (Date.now() < until) {
-      const snap = await state();
-      if (!snap?.self?.alive || snap.self.downed) return;
-      const d = wrapped(desiredYaw - (snap.self.yaw || 0));
-      if (Math.abs(d) < 0.04) return;
-      const next = d > 0 ? 'ArrowLeft' : 'ArrowRight';
-      if (arrow !== next) { if (arrow) await up(arrow); await down(next); arrow = next; }
-      await sleep(80);
-    }
-  } finally { if (arrow) await up(arrow); }
-}
-
-async function pitchTo(target, maxMs = 2000) {
-  const until = Date.now() + maxMs;
-  let arrow = null;
-  try {
-    while (Date.now() < until) {
-      const snap = await state();
-      if (!snap?.self?.alive || snap.self.downed) return;
-      const d = target - (snap.self.pitch || 0);
-      if (Math.abs(d) < 0.025) return;
-      const next = d > 0 ? 'ArrowUp' : 'ArrowDown';
-      if (arrow !== next) { if (arrow) await up(arrow); await down(next); arrow = next; }
-      await sleep(70);
-    }
-  } finally { if (arrow) await up(arrow); }
-}
-
 async function walkTo(x, z, {sprint = false, timeout = 60000} = {}) {
   await down('KeyW');
   if (sprint) await down('KeyX');
@@ -113,13 +81,6 @@ async function countpacked(itemId) {
   }, 4000);
 }
 
-async function activeLoot() {
-  const snap = await state();
-  const loot = (snap.loot || []).filter(l => l.items.length);
-  loot.sort((a, b) => Math.hypot(a.x - snap.self.x, a.z - snap.self.z) - Math.hypot(b.x - snap.self.x, b.z - snap.self.z));
-  return loot[0] || null;
-}
-
 async function nearestThreat(maxDistance = 45) {
   const snap = await state();
   if (!snap?.self?.alive || snap.self.downed) return null;
@@ -131,28 +92,111 @@ async function nearestThreat(maxDistance = 45) {
   return dist <= maxDistance ? {...nearest, distance: dist} : null;
 }
 
+const MACHINE_HEIGHT = {scout: 1.35, hunter: 1.8, heavy: 2.8, flyer: 1.1, overlord: 5.2};
+
+// Precise native aiming: tap a look key for a bounded moment, then wait for the
+// shipped client to sync the view to the server. Holding until a polling loop
+// observes a match overshoots because the server snapshot lags the local view.
+async function pulseLook(desired, axis, maxMs) {
+  const rate = axis === 'yaw' ? 1.7 : 1.4;
+  const until = Date.now() + maxMs;
+  while (Date.now() < until) {
+    const snap = await state();
+    if (!snap?.self?.alive || snap.self.downed) return;
+    const actual = axis === 'yaw' ? (snap.self.yaw || 0) : (snap.self.pitch || 0);
+    const difference = axis === 'yaw' ? wrapped(desired - actual) : desired - actual;
+    if (Math.abs(difference) <= 0.03) return;
+    const code = axis === 'yaw' ? (difference > 0 ? 'ArrowLeft' : 'ArrowRight') : (difference > 0 ? 'ArrowUp' : 'ArrowDown');
+    const holdMs = Math.max(18, Math.min(150, Math.abs(difference) / rate * 1000));
+    await down(code, code);
+    await sleep(holdMs);
+    await up(code, code);
+    // The client sends its idle look in the next 150 ms move packet; leave
+    // enough time for that authoritative state to land before the next pulse.
+    await sleep(240);
+  }
+}
+
+// Native aim helper. The authority records the operator's submitted yaw/pitch,
+// and terrain can raise either the operator or the machine, so the requested
+// pitch targets the machine's body centre in world space, not a flat-ground
+// approximation. Returns the residual alignment when the server accepted the
+// look input.
+async function aimAt(live, snap, yawMs = 2600, pitchMs = 1400) {
+  const height = MACHINE_HEIGHT[live.kind] || 1.8;
+  const dx = live.x - snap.self.x, dz = live.z - snap.self.z, horizontal = Math.hypot(dx, dz);
+  const eyeY = (snap.self.y || 0) + 1.55;
+  const desiredYaw = Math.atan2(dx, dz);
+  const desiredPitch = Math.atan2((live.y || 0) + height * 0.5 - eyeY, Math.max(1, horizontal));
+  await pulseLook(desiredYaw, 'yaw', yawMs);
+  await pulseLook(desiredPitch, 'pitch', pitchMs);
+  const aimed = await state();
+  if (!aimed?.self?.alive || aimed.self.downed) return null;
+  const yaw = aimed.self.yaw || 0, pitch = aimed.self.pitch || 0;
+  return {
+    desiredYaw, desiredPitch, yaw, pitch, horizontal, eyeY, machineY: live.y || 0,
+    dy: Math.abs(wrapped(desiredYaw - yaw)), dp: Math.abs(desiredPitch - pitch)
+  };
+}
+
 async function shootMachine(machine, maxRounds = 8) {
-  let before = machine.hp;
+  const record = {target: machine.kind, startHp: machine.hp, distance: null, aim: null, misaligned: 0, shots: [], killed: false, killedBy: null};
+  let lastToken = null;
   for (let round = 0; round < maxRounds; round++) {
     const snap = await state();
+    if (!snap?.self?.alive || snap.self.downed) break;
     const live = (snap.machines || []).find(m => m.id === machine.id && m.hp > 0);
-    if (!live) { evidence.combat.push({target: machine.kind, hpBefore: before, hpAfter: 0, killed: true}); return true; }
-    const dx = live.x - snap.self.x, dz = live.z - snap.self.z, dist = Math.hypot(dx, dz);
-    if (dist > 64) return false;
-    const height = {scout: 1.35, hunter: 1.8, heavy: 2.8, flyer: 1.1, overlord: 5.2}[live.kind] || 1.8;
-    await face(Math.atan2(dx, dz), 900);
-    await pitchTo(Math.atan2(height * 0.55 - 1.55, Math.max(1, dist)), 700);
+    if (!live) {
+      // Snapshot machines are visibility-filtered: absence can mean killed or
+      // merely out of sight. Only an authoritative salvage bag proves a kill.
+      record.killed = (snap.bags || []).some(b => b.id === machine.id + '_salvage');
+      record.killedBy = record.killed ? 'authoritative salvage bag' : 'left line of sight';
+      evidence.combat.push(record);
+      return record.killed;
+    }
+    const horizontal = Math.hypot(live.x - snap.self.x, live.z - snap.self.z);
+    // Close machines manoeuvre quickly; shorten the aiming window so the shot
+    // follows the bearing the player currently sees.
+    const aim = await aimAt(live, snap, horizontal < 14 ? 900 : 2600, horizontal < 14 ? 600 : 1400);
+    if (!aim) break;
+    record.distance = Math.round(aim.horizontal);
+    record.aim = {
+      dy: Math.round(aim.dy * 1000) / 1000,
+      dp: Math.round(aim.dp * 1000) / 1000,
+      machineY: Math.round(aim.machineY * 1000) / 1000,
+      operatorY: Math.round(((snap.self.y || 0)) * 1000) / 1000,
+      desiredPitch: Math.round(aim.desiredPitch * 1000) / 1000,
+      pitch: Math.round(aim.pitch * 1000) / 1000
+    };
+    // A player fires at the machine they see even while it manoeuvres. The
+    // shipped fire packet carries the client's local aim, not the slower
+    // authoritative snapshot, so only a badly mis-read bearing defers a shot.
+    if (aim.dy > Math.PI / 2) { record.misaligned++; continue; }
+    lastToken = snap.self.hit?.token ?? null;
     const hpBeforeShot = live.hp;
     await press('KeyF', 'f');
-    await sleep(240);
-    const after = (await state()).machines?.find(m => m.id === machine.id);
-    if (!after || after.hp < hpBeforeShot) {
-      evidence.combatHits = (evidence.combatHits || 0) + (after ? 1 : 0);
-      evidence.combat.push({target: machine.kind, distance: Math.round(dist), hpBefore: hpBeforeShot, hpAfter: after?.hp ?? 0});
-    }
-    if (!after || after.hp <= 0) return true;
+    await sleep(320);
+    const afterSnap = await state();
+    const hit = afterSnap?.self?.hit && afterSnap.self.hit.token !== lastToken ? afterSnap.self.hit : null;
+    record.shots.push({hpBefore: hpBeforeShot, hpAfter: (afterSnap.machines || []).find(m => m.id === machine.id)?.hp ?? null, hit: hit ? {zone: hit.zone, kill: !!hit.kill, target: hit.target} : null});
+    if (hit) { evidence.combatHits = (evidence.combatHits || 0) + 1; }
+    if (hit?.kill || (afterSnap.bags || []).some(b => b.id === machine.id + '_salvage')) { record.killed = true; record.killedBy = hit?.kill ? 'operator hit token' : 'authoritative salvage bag'; evidence.combat.push(record); return true; }
+    if (!afterSnap?.self?.alive || afterSnap.self.downed) break;
   }
-  return false;
+  evidence.combat.push(record);
+  return record.killed;
+}
+
+// Fight a machine that is already visible in an authoritative snapshot. The
+// natural probe uses this before the supply walk as well as during the march:
+// machines in sight of the operator are also in the snapshot, and waiting for
+// the route leg lets a nearby patrol shoot first.
+async function engageVisibleThreat(maxDistance) {
+  const threat = await nearestThreat(maxDistance);
+  if (!threat) return false;
+  evidence.events.push('engaged ' + threat.kind + ' at ' + Math.round(threat.distance) + ' m');
+  await shootMachine(threat, 6);
+  return true;
 }
 
 function settlement() {
@@ -198,8 +242,13 @@ try {
   const start = {x: snap.self.x, z: snap.self.z};
   evidence.deployed = {map: snap.map, x: start.x, z: start.z, hp: snap.self.hp, cap: snap.self.cap, secureCap: snap.self.secureCap, ammo: snap.self.ammo};
 
-  // Loot the nearest visible field pile with native movement and the E key.
-  const firstLoot = await activeLoot();
+  // Prefer a visible pile that actually carries a medical/material item: the
+  // protected pocket is the acceptance's proof that raid loot can be secured
+  // before combat, and ground piles are the only fixture-free source of it.
+  const visiblePiles = (snap.loot || []).filter(l => l.items.length)
+    .sort((a, b) => Math.hypot(a.x - snap.self.x, a.z - snap.self.z) - Math.hypot(b.x - snap.self.x, b.z - snap.self.z));
+  const supplyFirst = visiblePiles.find(l => l.items.some(it => it.kind === 'med' || it.kind === 'material'));
+  const firstLoot = supplyFirst || visiblePiles[0];
   assert.ok(firstLoot, 'a natural ground-loot pile is visible from insertion');
   evidence.events.push('walked to ' + firstLoot.label);
   await walkTo(firstLoot.x, firstLoot.z, {timeout: 30000});
@@ -216,6 +265,17 @@ try {
     if (it.kind === 'weapon') continue;
     try { await clickControl(it.id, 'Take'); evidence.lootTaken.push(it.id); } catch {}
   }
+  snap = await state();
+  const firstSecureable = (snap.self.pack || []).find(it => it.kind === 'med' || it.kind === 'material');
+  if (firstSecureable) {
+    await clickControl(firstSecureable.id, 'Secure');
+    const secured = await countpacked(firstSecureable.id);
+    evidence.secured = (secured.self.secure || []).map(it => ({id: it.id, kind: it.kind, label: it.label || it.medical || it.material}));
+    evidence.events.push('secured ' + JSON.stringify(evidence.secured));
+  }
+  // The insertion pile is the first natural contact point: fight any machine
+  // already in sight before moving on, rather than waiting for the route march.
+  await engageVisibleThreat(30);
 
   // Let the first pile clear server-side, then walk to the nearer field supply pile
   // that advertises a medical/material item. This keeps the acceptance's secure
@@ -230,7 +290,7 @@ try {
   const supplyLoot = (supplySnapshot.loot || [])
     .filter(l => l.id !== firstLootId && l.items.some(it => it.kind === 'med' || it.kind === 'material'))
     .sort((a, b) => Math.hypot(a.x - supplySnapshot.self.x, a.z - supplySnapshot.self.z) - Math.hypot(b.x - supplySnapshot.self.x, b.z - supplySnapshot.self.z))[0];
-  if (supplyLoot) {
+  if (!evidence.secured.length && supplyLoot) {
     evidence.events.push('walked to ' + supplyLoot.label);
     if ((await walkTo(supplyLoot.x, supplyLoot.z, {timeout: 40000}))?.alive) await press('KeyE', 'e');
     for (const it of supplyLoot.items) {
@@ -244,7 +304,15 @@ try {
       evidence.secured = (secured.self.secure || []).map(it => ({id: it.id, kind: it.kind, label: it.label || it.medical || it.material}));
       evidence.events.push('secured ' + JSON.stringify(evidence.secured));
     }
+    if (snap?.self?.alive && !snap.self.downed && !snap.self.result) await engageVisibleThreat(26);
   }
+
+  // Close the backpack with its shipped key before travelling. Leaving it open
+  // would hide the field view and is not what a player does when moving to the
+  // beacon; the native control also proves the panel toggle still works.
+  await press('KeyB', 'b');
+  await waitFor(() => page.evaluate("document.getElementById('pack').hidden"), 4000).catch(() => { throw new Error('the backpack did not close with the shipped B key'); });
+  evidence.packClosed = await page.evaluate("document.getElementById('pack').hidden");
 
   // Capture the field state before the long native walk to extraction.
   const fieldShot = await page.command('Page.captureScreenshot', {format: 'png'});

@@ -1,5 +1,14 @@
 import {weaponStats} from './shared/raid-catalog.mjs';
 export function deferIdleMovement({input,confirmed,engaged,sampleAgeMs}){return !!(engaged&&input?.x===0&&input.z===0&&confirmed?.x===0&&confirmed.z===0&&Number.isFinite(sampleAgeMs)&&sampleAgeMs>=0&&sampleAgeMs<350)}
+// Idle movement throttling may skip the periodic move packet, but looking while
+// standing still is still authoritative: the snapshot's self.yaw/self.pitch drive
+// the compass, minimap, interaction bearings and off-screen threat markers. Send
+// a view-only move packet whenever the local look has not yet reached the server.
+export function lookNeedsSync(yaw,pitch,synced,epsilon=0.002){
+ if(!Number.isFinite(yaw)||!Number.isFinite(pitch))return false;
+ if(!synced||!Number.isFinite(synced.yaw)||!Number.isFinite(synced.pitch))return true;
+ return Math.abs(Math.atan2(Math.sin(yaw-synced.yaw),Math.cos(yaw-synced.yaw)))>epsilon||Math.abs(pitch-synced.pitch)>epsilon;
+}
 // At most one outstanding shot. The authority still owns rounds and cadence.
 export class RaidTrigger {
  constructor({getState,allowed,send,onEffect=()=>{},onError=()=>{},now=()=>performance.now()}){Object.assign(this,{getState,allowed,send,onEffect,onError,now});this.sources=new Map();this.epoch=0;this.nextAt=0;this.pending=null;this.identity=null;this.tapped=false;this.pressSerial=0;this.useRtt=true}

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {RaidStore} from '../server/store.mjs';
 import {RaidService} from '../server/raids.mjs';
 import {ReliableActions} from '../raid-transport.mjs';
-import {RaidTrigger,deferIdleMovement} from '../raid-trigger.mjs';
+import {RaidTrigger,deferIdleMovement,lookNeedsSync} from '../raid-trigger.mjs';
 
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve()};
 async function run(t,{weapon='ar',latency=150,asymmetric=false,seconds=3,optimizedPolling=true}={}){
@@ -41,4 +41,15 @@ test('changing path asymmetry can defer a cooldown rejection without stopping he
 test('idle movement deferral never suppresses motion, a stop request or stale-state recovery',()=>{
  const base={input:{x:0,z:0},confirmed:{x:0,z:0},engaged:true,sampleAgeMs:150};assert.equal(deferIdleMovement(base),true);
  for(const patch of [{input:{x:1,z:0}},{input:{x:0,z:1}},{confirmed:{x:0,z:1}},{engaged:false},{sampleAgeMs:350},{sampleAgeMs:NaN},{sampleAgeMs:-1},{confirmed:null}])assert.equal(deferIdleMovement({...base,...patch}),false,JSON.stringify(patch));
+});
+test('look-only input must sync even while idle movement is deferred',()=>{
+ const synced={yaw:0.3,pitch:0.1};
+ assert.equal(lookNeedsSync(0.3,0.1,synced),false);
+ assert.equal(lookNeedsSync(0.3005,0.1,synced),false,'sub-threshold micro-jitter stays local');
+ assert.equal(lookNeedsSync(0.36,0.1,synced),true,'yaw turning is authoritative');
+ assert.equal(lookNeedsSync(0.3,0.18,synced),true,'pitch aiming is authoritative');
+ assert.equal(lookNeedsSync(0.3+Math.PI*2,0.1,synced),false,'a full turn maps to the same bearing');
+ assert.equal(lookNeedsSync(NaN,0,synced),false);
+ assert.equal(lookNeedsSync(0.36,0.1,null),true);
+ assert.equal(lookNeedsSync(0.36,0.1,{yaw:NaN,pitch:0}),true);
 });

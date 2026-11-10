@@ -3645,3 +3645,116 @@ can secure a supply item before the route (without fixtures), then retry the sin
 natural extract-or-die acceptance; verify the priority rule under a live open beacon
 when salvage is nearby. Choose the next locally verifiable combat-quality gap from that
 run.
+
+## Gameplay audit iteration 19 — authoritative look sync while idle (2026-11-10)
+
+### Acceptance criteria — iteration 19 (idle looking must reach the authority)
+
+1. Holding any look key (`ArrowLeft`/`Right`/`Up`/`Down`) while stationary and not firing
+   changes the authoritative snapshot's `self.yaw`/`self.pitch`; no movement input is
+   synthesized and the operator's position does not change.
+2. The compass bearing shown to the player, and the off-screen threat ring and incoming
+   hurt arrow that already derive from snapshot yaw, follow the synced bearing. Both
+   upward and downward pitch (including negative pitch below the deployed value) sync.
+   The isolated-Chrome grader reports zero browser errors.
+3. Idle deferral is preserved for pure standing still with no look change: no redundant
+   periodic packet is reintroduced; wrapped yaw, sub-threshold jitter, `NaN` input and a
+   missing authoritative sample are handled safely and unit-tested.
+4. The fixture-free natural acceptance run through the shipped UI/native controls can
+   secure a supply item in the protected pocket, fire authoritative rounds in a real
+   engagement, and settle by natural death or extraction, with the secure pocket's gear
+   retention/loss rule intact.
+5. Existing raid browser graders and all other unit tests stay green; the main menu,
+   Battle Royale, Squad Royale, arena/team modes and original cooperative Extraction are
+   untouched. Only raid client/trigger/tests change.
+
+### Implementation — iteration 19 (completed)
+
+- `raid-trigger.mjs`: added the pure exported helper `lookNeedsSync(yaw,pitch,synced,epsilon=0.002)`.
+  It treats a missing or non-finite authoritative look as unsynced, compares yaw with
+  `atan2(sin,cos)` so a full turn maps back to the same bearing, and compares pitch directly.
+- `raid-online.mjs`: the 150 ms tick now sends the shipped `move` packet when the local look
+  has not reached the authoritative snapshot, even if `deferIdleMovement` would otherwise
+  skip the packet for a stationary operator. This keeps the compass, minimap operator
+  bearing, interaction bearings, off-screen threat markers and incoming-hurt direction
+  driven by the same authoritative yaw; pure idle with unchanged look still defers.
+- `tests/raid-trigger-latency.test.mjs`: new unit test covers identity, sub-threshold
+  jitter, yaw turning, pitch aiming, a full-turn wrap, non-finite input, and a missing
+  stale sample while the existing idle-movement deferral test is unchanged.
+- `tests/raid-browser-view-sync.mjs`: new real-deployment grader. It registers/logs in,
+  deploys, focuses the view, holds `ArrowRight` while stationary and asserts snapshot yaw
+  changes > 0.12 rad with < 0.2 m displacement; it then syncs `ArrowUp` and `ArrowDown`
+  pitch (both directions, including a negative drop under the deployed pitch), checks the
+  visible compass against the synced authoritative yaw, captures `/tmp/raid-view-sync.png`,
+  and asserts zero browser errors. No loot, machine or operator fixtures are used.
+- `tests/raid-browser-natural-acceptance.mjs`: fixture-free probe improvements. It now
+  chooses the nearest visible supply pile carrying a med/material item first, secures it in
+  the protected pocket before the route, and then engages with real native fire. Aiming is
+  terrain-aware (operator height + machine body centre) with bounded pulse timing that
+  shortens at close range; idle look packets are waited for. Machine absence in the
+  visibility-filtered snapshot is no longer misread as a kill: kills require the
+  authoritative hit token or `${machine.id}_salvage` bag. The backpack is closed with the
+  shipped `B` key before travelling, and the fire gate now judges only grossly stale yaw
+  because the shipped fire packet carries the client's local aim.
+
+**Commands/results (2026-11-10, isolated service + CDP harness)**:
+- `node tests/raid-browser-view-sync.mjs` → `startYaw: 0`, `syncedYaw: -1.33161`,
+  `startPitch: 0`, `pitchUp: +0.86338`, `pitchDown: -0.53662`, `movedMetres: 0`,
+  compass "Facing south 180°" → "Facing west 256°", screenshot inspected,
+  `browserErrors: []`. Nearly identical numbers on a repeat run.
+- Browser regressions: `raid-browser-threats.mjs` and `raid-browser-hurt-direction.mjs`
+  green (threat markers right/left/behind and labeled incoming-machine-fire arrow still
+  correct under synced yaw), `browserErrors: []`.
+- Full unit suite `node --test --test-concurrency=1 tests/*.test.mjs` → 1171 pass, 1 fail
+  on two consecutive runs; the only failure is the unrelated wire-latency test in
+  `tests/matchmaking.test.mjs:41` ("fetch failed", cause `read ECONNRESET`) against its
+  own loopback server. That file reruns 11/11 green in a fresh process (2 of 3 runs; one
+  transient reset). No raid server/client module from this iteration is imported by the
+  failing test, and all other 1171 tests passed in both complete runs; this is recorded as
+  a pre-existing loopback transport flake, not a raid regression.
+- Natural fixture-free acceptance (`node tests/raid-browser-natural-acceptance.mjs`) →
+  exit 0 on two consecutive runs. Each deployed through the stash, walked and looted
+  `Field supply`, secured a medical item in the protected pocket (bandage, then trauma),
+  engaged a visible scout with six shipped `F` presses over native keys (18 authoritative
+  rounds in `facts.roundsFired`), planned a 67-waypoint route, and settled by a natural
+  machine death at approximately (-600, -599). Settlement `outcome: death`,
+  `reason: machine`: the returned-items list contains the secured med; `lostItems` are the
+  five carried starter/field items (weapon, armor, med, ammo, material), matching the
+  death gear-loss rule. `damageDealt: 0`, `pelletsHit: 0` are recorded honestly: the
+  snapshot-follow aim trailed the manoeuvring 5 m scout; `browserErrors: []`.
+  `/tmp/raid-natural-loot.png` inspected (pack closed, HP 5, 2/18 slots, field and minimap
+  visible).
+- Prior iteration's extra browser graders were not all rerun this session; the view-sync,
+  threat and hurt-direction graders are the ones whose yaw-derived output this change could
+  affect, and each was green.
+
+**Criteria status**:
+1. PASS — view-only yaw and pitch (up and down) reach the authoritative snapshot while
+   standing still; `movedMetres: 0`.
+2. PASS — visible compass and snapshot-derived threat/hurt layers read the synced yaw;
+   zero browser errors; screenshot inspected.
+3. PASS — idle deferral still omits pure standing-still packets; the new helper's wrap,
+   jitter, `NaN` and missing-sample cases are unit-tested; unit suite has no raid failures.
+4. PASS — two natural runs secured a supply item in the protected pocket, fired native
+   rounds, and settled by natural machine death; the secured med survived settlement and
+   the carried gear was lost. An extraction outcome was covered by the separate
+   exit/priority graders rather than reached in these natural runs.
+5. PARTIAL — all changed raid browser graders and all 1171 non-flaky unit tests pass, but
+   the whole suite reports one pre-existing intermittent `ECONNRESET` in the unrelated
+   matchmaking wire-latency test. That file is green when rerun in a fresh process.
+
+**Status:** Iteration 19 idle look synchronization is COMPLETE in local authoritative scope.
+Standing still no longer freezes the snapshot's look state: compass, minimap, threat ring
+and hurt direction all update while the operator is stationary, and the natural probe now
+secures loot before combat and records combat and settlement honestly. Human balance,
+pacing, hosted multiplayer, physical-device acceptance and subjective "feel" remain
+UNVERIFIED/BLOCKED; the loopback granularity on extraction (natural run reached death, not
+an extract) is recorded. No false completion promise.
+
+Next action: close the natural acceptance's remaining combat-quality gap by making its
+aim follow a manoeuvring machine well enough to score a real hit (or by getting a natural
+run that reaches an extract), then rerun the single natural acceptance; afterwards take the
+highest-priority still-local raid gap from the observed run (P9 pacing/human excitement
+remains UNVERIFIED without a playtest cohort). Re-run the entire unit suite once more when
+the loopback matchmaking flake clears, since 1171/1172 with a transient ECONNRESET is not
+counted as fully green.

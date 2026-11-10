@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-10 (gameplay audit iteration 17).
+Last audited: 2026-11-10 (gameplay audit iteration 19).
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -32,7 +32,7 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 | Loot | COMPLETE | Ground loot, deterministic random spawns, caches, rarity, inspection, take/drop and downed-body transfer are covered by server and browser graders. |
 | PvP | COMPLETE (local) | Downing, crawl, finish, revive, full-body looting, armor and death penalties are authoritative; live human-hosted balance is UNVERIFIED. |
 | Extraction | COMPLETE | Four exit kinds, markers, activation, countdown, contested states, boarding and gear retention have server/browser evidence. |
-| Navigation | COMPLETE | Minimap, full tactical map, compass, pings, waypoints and squad/extraction markers are driven by snapshots. |
+| Navigation | COMPLETE | Minimap, full tactical map, compass, pings, waypoints and squad/extraction markers are driven by snapshots, and idle look input now stays synchronized to the authority (iteration 19). |
 | Inventory | COMPLETE | Slots, backpack, stacks, weight/cap, consumables, drag/drop, give and persistent stash are enforced server-side. |
 | Combat | COMPLETE | Weapons, recoil, reload, switching, hit feedback, armor, healing, throwables and movement are complete; authoritative hit tokens, markers, captions and cues are graded. Balance is tracked under game feel. |
 | Enemy AI | COMPLETE | Patrols, detection, noise investigation, pursuit, five machine classes, weak points, boss phases and salvage drops exist and are graded. |
@@ -588,6 +588,33 @@ Honest gaps: the fixture-free natural acceptance run died to a machine after loo
 engaging at the insertion site; with an empty secure pocket because no supply item was
 reached, the natural "secure/extract" path is PARTIAL and its script assertion fails. Human
 balance, pacing and atmosphere judgments remain UNVERIFIED.
+
+## Completed in iteration 19
+
+**Client view — authoritative idle look synchronization.** COMPLETE in local
+authoritative scope. Holding a look key while stationary is still a real authoritative
+action: `raid-trigger.mjs` now exports the pure helper `lookNeedsSync(yaw,pitch,synced)`
+and the raid client's 150 ms tick uses it before the idle-movement deferral decision. When
+the local view has not reached the snapshot (`self.yaw`/`self.pitch`), a view-only move
+packet is sent; pure idle with unchanged look still defers the periodic packet. This keeps
+the compass, minimap operator bearing, interaction bearings, off-screen threat markers
+and incoming-hurt direction driven by authoritative yaw instead of frozen local state.
+Yaw comparison is wrap-safe; `NaN` input and missing samples are handled.
+
+Evidence: new unit test in `tests/raid-trigger-latency.test.mjs`; new isolated Chrome
+grader `tests/raid-browser-view-sync.mjs` (real deployment, no fixtures) syncs yaw −1.33161 rad
+and pitch up +0.86338/down −0.53662 rad with 0 m movement, matching compass 180° → 256°,
+zero browser errors, screenshot `/tmp/raid-view-sync.png`. Threat-ring and hurt-direction
+browser graders remain green. The fixture-free natural acceptance now locks the nearest
+medical/material supply pile, secures a bandage in the protected pocket before engaging a
+scout, fires 18 authoritative rounds with native keys, and settles by natural death with
+the secured bandage returned and the carried starter/field gear lost; it exits 0. The
+natural run's snapshot-driven aim did not land a hit (0 pelletsHit), so hit-rate quality in
+motion remains a probe gap. Affected regressions and 1171 other unit tests pass; the
+whole suite reports one pre-existing intermittent ECONNRESET in the unrelated matchmaking
+wire-latency test (11/11 green when rerun standalone). Honest gaps: natural extraction was
+not reached in this run (covered by exit graders), and human balance, paced combat and
+loot excitement remain UNVERIFIED.
 
 ## Later items (not yet closed)
 

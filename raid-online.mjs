@@ -1,5 +1,5 @@
 import {sameLoadout,describeLoadout} from './shared/raid-loadout.mjs';
-import {RaidTrigger,deferIdleMovement} from './raid-trigger.mjs';
+import {RaidTrigger,deferIdleMovement,lookNeedsSync} from './raid-trigger.mjs';
 import {reasonText,settlementText,insuranceText,objectiveText} from './shared/raid-report.mjs';
 import {grantBalance,canRecoverGrant} from './shared/raid-grants.mjs';
 import {lootPresentation,lootCelebrationText} from './shared/raid-loot-presentation.mjs';
@@ -620,7 +620,10 @@ async function interact(){
 setInterval(async()=>{
  if(!inRaid||tickBusy)return;tickBusy=true;const generation=raidGeneration;
  try{
-  if(snapshot.self.alive){if(!deferIdleMovement({input:movementInput(),confirmed:snapshot.self.move,engaged:trigger.engaged,sampleAgeMs:performance.now()-stateAt,sprint:sprintIntent()}))await action(()=>({type:'move',...movementInput(),yaw,pitch,sprint:sprintIntent()}))}
+  if(snapshot.self.alive){
+   const syncedLook={yaw:snapshot.self.yaw||0,pitch:snapshot.self.pitch||0};
+   if(lookNeedsSync(yaw,pitch,syncedLook)||!deferIdleMovement({input:movementInput(),confirmed:snapshot.self.move,engaged:trigger.engaged,sampleAgeMs:performance.now()-stateAt,sprint:sprintIntent()}))await action(()=>({type:'move',...movementInput(),yaw,pitch,sprint:sprintIntent()}));
+  }
   else{const updated=await api('raid'+(spectateId?'?spectate='+encodeURIComponent(spectateId):''));if(!inRaid||generation!==raidGeneration)return;snapshot=updated;stateAt=performance.now();prediction?.reconcile(updated);updateUI()}
  }catch(e){if(inRaid&&!snapshot?.self.result)$('hint').textContent=e.message}finally{tickBusy=false}
 },150);

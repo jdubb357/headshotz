@@ -78,8 +78,13 @@ Observed differences and gaps:
    radius remains the single E target even when ambush salvage is nearer; ordinary loot
    ordering still applies outside the open window (iteration 18, COMPLETE in local
    presentation scope; natural extract/secure acceptance still PARTIAL).
-7. Encounter pacing review with human playtesters (blocked: no playtest cohort).
-8. Hosted transport/reconnect and physical-device acceptance (blocked: no deployed WAN
+7. Authoritative idle look synchronization: while standing still, the client now sends
+   a view-only move packet when the local view has not reached `self.yaw`/`self.pitch`,
+   so the compass, minimap, threat ring and hurt arrow stay authoritative instead of
+   freezing on the last movement packet. Pure idle with unchanged look still defers
+   (iteration 19, COMPLETE in local authoritative scope).
+8. Encounter pacing review with human playtesters (blocked: no playtest cohort).
+9. Hosted transport/reconnect and physical-device acceptance (blocked: no deployed WAN
    or devices owned/testable here).
 
 Human balance, pacing and "fun" judgments are explicitly unverified by automated tests.
