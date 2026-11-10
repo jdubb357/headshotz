@@ -14,6 +14,7 @@ import {digest as hash,encodePassword,verifyPassword} from './credentials.mjs';
 import {RuleError,requireRule,item} from './rules.mjs';
 import {WEAPONS,MODS,UTILITIES,ARMOR,MEDICAL,armorStats,equipmentPrice,TRADERS,RECIPES,CONTRACTS,stashCapacity,maxStack,itemWeight,skuDefinition} from '../shared/raid-catalog.mjs';
 import {ARTIFACTS,contractItemReserved} from '../shared/raid-sectors.mjs';
+import {sellValue} from '../shared/raid-appraisal.mjs';
 
 export {RuleError,item} from './rules.mjs';
 const starter=account=>({credits:250,grantCredits:250,items:[item('weapon',{weapon:'ar'}),item('armor'),item('med'),item('med')].map(it=>bindGrant(it,account,true)),materials:{steel:0,wire:0,chem:0,fuel:0},upgrades:{stash:0,bay:0},revision:0});
@@ -335,7 +336,7 @@ export class RaidStore {
   s.items=s.items.filter(it=>it.quantity>0);return bound;
  }
  addItem(s,it){requireRule(s.items.length<stashCapacity(s),'Stash full; sell, recycle or expand storage');s.items.push(it)}
- value(it){return it.kind==='utility'?Math.floor((UTILITIES[it.utility]?.price||0)*.3)*(it.quantity||1):it.kind==='contract'?(ARTIFACTS[it.artifact]?.value||0):it.kind==='valuable'?(it.value||1):it.kind==='weapon'?Math.floor((WEAPONS[it.weapon]?.price||100)*.3):it.kind==='armor'?Math.floor(armorStats(it).price*.3):it.kind==='med'?Math.floor((MEDICAL[it.medical]?.price||25)*.2)*(it.quantity||1):it.kind==='mod'?Math.floor((MODS[it.mod]?.price||30)*.3):it.kind==='ammo'?Math.floor((it.quantity||1)*.1):Math.max(1,Math.floor((it.quantity||1)*(it.kind==='material'?2:5)))}
+ value(it){return sellValue(it)}
  trade(account,action){
   return this.transaction(()=>{
    const s=this.state(account);requireRule(!this.db.prepare('SELECT id FROM deployments WHERE account=? AND active=1').get(account),'Return from your raid before trading');

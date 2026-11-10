@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-09 (gameplay audit iteration 13).
+Last audited: 2026-11-10 (gameplay audit iteration 17).
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -363,7 +363,10 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 - **Visual/sound feedback** — PARTIAL. Muzzle/reload/boss/incoming-hurt cues exist, and
   authoritative outgoing hit/kill markers, captions and cues are COMPLETE (iteration 6).
   Body/bag labels and map markers are now distinct by container kind (iteration 9, P4);
-  older screenshots may still show the former generic "salvage bag" wording.
+  the server now records a 1.6 s positioned incoming-damage bearing for every machine,
+  rival, hazard, blast and operator shot, and the raid client draws a transient red
+  direction arrow with an accessible source/side label (iteration 16). Older screenshots
+  may still show the former generic "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.
@@ -476,6 +479,115 @@ engineer pick with zero key use; zero browser errors); squad-extraction, party, 
 comms, accessibility, HUD layout, doors, exits and extraction UI regressions green.
 Honest gaps: live hosted role coordination, human balance and richer role depth remain
 UNVERIFIED.
+
+## Completed in iteration 14
+
+**P10 — Field salvage appraisal.** COMPLETE in local authoritative scope.
+`shared/raid-appraisal.mjs` owns the single base sale-value calculation for weapons,
+armor, meds, mods, utilities, valuables, contracts, ammunition, materials and other
+kinds; `RaidStore.value()` delegates to it, so appraisals and payouts cannot drift.
+`raid-online.mjs` renders a compact `N kg · N cr` appraisal chip row on every backpack
+and nearby-loot item (from shared `itemWeight` and `sellValue`), exposes
+`data-weight`/`data-sell-value`, and includes both in the row accessible name. The
+backpack header adds `salvage N cr`, the total base sale value in pack and protected
+pocket, and refreshes on take/secure. Nearby container rows display an accessible
+`Backpack full` or `Over weight by N kg` warning before a whole-stack take would fail;
+buttons stay enabled so partial takes and squad hand-off remain valid. Evidence:
+`raid-appraisal.test.mjs` 2/2 (all item kinds, real store sale), full unit suite
+1,168/1,168 sequential; `raid-browser-appraisal.mjs` green (real deployment, chips,
+header 0 → 17 cr, Take then Secure, full and overweight warnings, zero browser
+errors, screenshot `/tmp/raid-appraisal.png`); inventory, accessibility, loot
+excitement, bag metadata, body loot and HUD layout regressions green; the inventory
+drag grader now scopes pointer drags to the real pack scrollport so hand-off zones
+below the fold stay exercised. Honest gaps: whether a player judges the salvage
+"worth it", human loot excitement and hosted multiplayer remain UNVERIFIED.
+
+## Completed in iteration 15
+
+**Combat awareness — directional off-screen threat readability.** COMPLETE in local
+authoritative scope. `raid-online.mjs` exports `threatIndicators(snapshot)`, which derives markers only
+from living snapshot machines at most 40 m away whose relative bearing is outside a 55°
+forward cone, nearest four; `renderThreatIndicators` places them around a fixed ring
+using the operator yaw and right-vector math (right/left/behind), exposes `data-machine-id`,
+`data-kind`, `data-state`, `data-elite` and an accessible name with machine name, rounded
+distance, side, degrees and `· charging`, and reuses a single labelled `#threats` group.
+A machine in `windup` gets a red pulsing `!` treatment; reduced motion suppresses the
+animation. Forward and >40 m machines produce nothing, and empty snapshots hide and empty
+the layer. Evidence: `raid-browser-threats.mjs` green with authoritative fixtures
+(forward excluded; three markers at right (+150, 0), left (−150, 0), behind (0, +150);
+labels "Prowler 7 m right 90°", "Needle Scout 9 m left 90°", "Bulwark 7 m behind 180° ·
+charging"; hidden empty state; zero browser errors; screenshot `/tmp/raid-threats.png`).
+Boss, crosshair, HUD layout, accessibility, HUD theme, appraisal and inventory browser
+regressions green; sequential unit suite 1,168/1,168. Honest gaps: real-combat readability,
+telegraph fairness and organic raid pacing are UNVERIFIED without human playtesters; P5
+human balance, P6 hosted transport and P7 physical-device touch remain BLOCKED.
+
+## Completed in iteration 16
+
+**Combat awareness — incoming damage direction.** COMPLETE in local authoritative scope.
+`RaidService.damage()` records `hurtFeedback` (`at`, attacker-relative `dx`/`dz`, source)
+whenever a finite `from` position is supplied; `snapshot()` exposes it as `self.hurt` for
+1.6 s and omits expired or unpositioned damage. Machine strikes (including hazards and
+pounce-safe displacement), rival fire, explosive utilities and operator shots pass true
+positions; fall and bleed intentionally pass none. The raid client exports
+`hurtIndicator()` and renders one transient red arrow inside the threat ring using operator
+yaw/right-vector math, with `data-source`/`data-side` and the accessible name
+"Incoming damage from behind · machine fire"; it hides and empties when the snapshot has no
+recent positioned damage, leaving the hitmarker and threat markers independent. Evidence:
+two new unit tests in `raid-hit-feedback.test.mjs` (positioned bearing and expiry; ambient
+damage invents none), full sequential suite 1170/1170; `raid-browser-hurt-direction.mjs`
+green through a real deployment and an authoritative behind mortar strike (HP 100 → 70 after
+armor absorption, single behind marker at (0, 90), label, arrow, cleared after a 3 s clock
+advance, zero browser errors, screenshot `/tmp/raid-hurt-direction.png`); hit-feedback,
+threats, boss, crosshair, HUD layout, accessibility, HUD theme, ballistics, medical,
+appraisal and inventory browser regressions green. Honest gaps: whether the cue feels fair
+and legible in live human combat, balance and hosted/device acceptance remain UNVERIFIED.
+
+## Completed in iteration 17
+
+**Combat readiness — ammunition visibility.** COMPLETE in local scope. The raid HUD now
+shows the equipped weapon's magazine and catalog capacity (`Ammo N/M`), derived from the
+authoritative `self.ammo` and the equipped weapon's catalog `mag`, with warn below 25%
+and critical at zero. Empty magazines add a visible, red-cased `EMPTY · RELOAD` alert; an
+`aria-label` announces total capacity and empty/low status. Unarmed keeps the existing
+`UNARMED` token, and fire/reload remain server-guarded without client-side blocking.
+Evidence: `raid-browser-ammo-readiness.mjs` green with a real deployment and native shot
+(30/30 → 29/30, exactly one server round), authoritative low/empty fixtures (`7/30` warn,
+`0/30` critical + alert), real Reload button restoring `30/30` and consuming a compatible
+stack, zero browser errors, screenshots `/tmp/raid-ammo-low.png` and
+`/tmp/raid-ammo-empty.png` inspected; 15 affected browser regressions green; sequential
+unit suite 1170/1170 on two consecutive runs. Honest gaps: human balance, pacing,
+loot-excitement, hosted multiplayer and physical-device acceptance remain UNVERIFIED.
+
+## Completed in iteration 18
+
+**Extraction interaction priority.** COMPLETE in local presentation scope. A natural
+acceptance run found that an open evacuation beacon could lose the shipped `E` press to
+nearby ambush salvage: the single interaction target was chosen purely by distance, so a
+closer machine bag could be looted instead of starting authoritative boarding. Added the
+pure shared helper `extractionInteractionTarget(exits,actor,now,radius)` and used it in
+`raid-online.mjs` before the ordinary source distance sort. When an exit window is open
+(and not full) and within 4 m, the exit is both the hint target and the interact target;
+when no window is open, the previous distance ordering and call/unlock/loot behaviour are
+unchanged. No server boarding, seat, wave, settlement or other-mode code changed; salvage
+remains reachable through its backpack source row, so nothing is silently removed.
+
+Evidence: new unit test in `tests/raid-exits.test.mjs` (reach boundary 3.9 m/4.1 m, window
+gating, full exit does not outrank loot); new isolated Chrome grader
+`tests/raid-browser-extraction-priority.mjs` — a real deployment, native E presses, labeled
+runtime fixture bags. With a locked hatch and nearer salvage, E took the bag SMG and did not
+board; with an open call beacon and nearer salvage, E started boarding on `call`, salvaged
+bag untouched, authoritative settlement `extract`, zero browser errors. Screenshots
+`/tmp/raid-extraction-priority-loot.png` and `/tmp/raid-extraction-priority-open.png`
+inspected. Green sequential browser set: exits, interactions, accessibility, bag-metadata,
+loot-excitement, ranks, squad-extraction, extraction-ui, doors, body-loot, inventory,
+appraisal, ballistics, medical, rescue, sectors, tactical-map, vault, grants, and
+loss-report (run against a fresh isolated data dir; the shared stale 8021 service returned a
+client-protocol mismatch and was left untouched). Sequential unit suite 1171/1171, all pass.
+Honest gaps: the fixture-free natural acceptance run died to a machine after looting and
+engaging at the insertion site; with an empty secure pocket because no supply item was
+reached, the natural "secure/extract" path is PARTIAL and its script assertion fails. Human
+balance, pacing and atmosphere judgments remain UNVERIFIED.
 
 ## Later items (not yet closed)
 

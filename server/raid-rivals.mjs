@@ -74,7 +74,7 @@ export function advanceRivals(service,raid,dt,now){
     const shot=rival.attack;rival.attack=null;rival.nextFire=now+rival.cooldown;
     const current=raid.players.get(shot.account);
     if(current&&rivalSees(raid,rival,current)&&distance(rival,current)<=rival.range){
-     service.damage(raid,current,rival.damage,{source:'rival',zone:'body'});
+     service.damage(raid,current,rival.damage,{source:'rival',zone:'body',from:{x:rival.x,z:rival.z}});
     }
     continue;
    }

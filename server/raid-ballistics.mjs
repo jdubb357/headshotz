@@ -21,7 +21,7 @@ export function resolveShot(service,raid,shooter,stats){
    const zone=point.y-(target.y||0)>1.6?'head':point.y-(target.y||0)<.65?'leg':'body',key=target.account+':'+zone;let group=groups.get(key);if(!group){group={target,zone,damage:0};groups.set(key,group)}group.damage+=distanceDamage(stats,point.distance)/(stats.pellets||1)*(zone==='head'?1.6:1);pelletsHit++;
   }else{pelletsHit++;if(target.hp>0){const before=Math.max(0,target.hp);hitMachine(service,raid,target,distanceDamage(stats,point.distance)/(stats.pellets||1),point.y,shooter.team);damageDealt+=before-Math.max(0,target.hp)}}
  }
- for(const {target,zone,damage}of groups.values())if(target.alive){const before=Math.max(0,target.hp),absorbed=target.facts?.damageAbsorbed||0;service.damage(raid,target,damage,{source:'operator',zone});damageDealt+=before-Math.max(0,target.hp)+Math.max(0,(target.facts?.damageAbsorbed||0)-absorbed)}
+ for(const {target,zone,damage}of groups.values())if(target.alive){const before=Math.max(0,target.hp),absorbed=target.facts?.damageAbsorbed||0;service.damage(raid,target,damage,{source:'operator',zone,from:{x:shooter.x,z:shooter.z}});damageDealt+=before-Math.max(0,target.hp)+Math.max(0,(target.facts?.damageAbsorbed||0)-absorbed)}
  // Record after damage resolution so kill/boss/elite flags describe the
  // authoritative outcome of this shot, not a guess from its input.
  recordShotHit(shooter,hits,now);
