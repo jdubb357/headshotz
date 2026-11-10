@@ -4,7 +4,7 @@ import {squadRole} from '../shared/raid-roles.mjs';
 import {outcomeReason} from '../shared/raid-report.mjs';
 import {stackPortion} from './raid-inventory.mjs';
 import {compatibleStacks,recyclingQuote} from '../shared/raid-inventory.mjs';
-import {grantBalance,spendCredits,awardCredits,bindGrant,canRecoverGrant,clearForeignGrantAmmo,repairCost} from '../shared/raid-grants.mjs';
+import {grantBalance,spendCredits,awardCredits,bindGrant,canRecoverGrant,clearForeignGrantAmmo,repairCost,patchTarget} from '../shared/raid-grants.mjs';
 import {matchPreferences} from '../shared/raid-matchmaking.mjs';
 import {SCHEMA_VERSION} from './schema.mjs';
 import {chmodSync,existsSync} from 'node:fs';
@@ -365,7 +365,14 @@ export class RaidStore {
     const it=s.items.find(it=>it.id===action.itemId);requireRule(it,'Item not owned');it.favorite=!!action.favorite;
    }else if(action.type==='repair'){
     const it=s.items.find(it=>it.id===action.itemId&&['weapon','armor'].includes(it.kind));requireRule(it,'Equipment not owned');
-    const cost=repairCost(s,it);requireRule(cost>0&&s.credits>=cost,'Repair unavailable');const bound=this.consumeMaterials(s,{steel:1}),grant=spendCredits(s,cost);if(bound||grant)it.grantOwner=account;it.condition=100;
+    const quality=action.quality||'full';requireRule(['full','patch'].includes(quality),'Unknown repair quality',400);
+    const target=quality==='patch'?patchTarget(it):100;
+    requireRule(target>it.condition,'Repair unavailable');
+    const cost=repairCost(s,it,target);requireRule(cost>0&&s.credits>=cost,'Repair unavailable');
+    const before=it.condition,bound=this.consumeMaterials(s,quality==='patch'?{wire:1}:{steel:1}),grant=spendCredits(s,cost);
+    if(bound||grant)it.grantOwner=account;
+    it.condition=target;
+    this.audit(account,'equipment_repair',{itemId:it.id,quality,from:before,to:target,credits:cost,grant:!!grant||bound});
    }else if(action.type==='craft'){
     requireRule(Object.hasOwn(RECIPES,action.recipe),'Unknown recipe');const recipe=RECIPES[action.recipe];requireRule(rankProgress(s.xp).level>=(recipe.rank||1),'Earn rank '+(recipe.rank||1)+' to unlock this blueprint');requireRule(s.upgrades.bench>=recipe.bench,'Upgrade the workbench for this recipe');requireRule(s.credits>=recipe.credits,'Insufficient credits');
     const bound=this.consumeMaterials(s,recipe.materials),grant=spendCredits(s,recipe.credits);this.addItem(s,bindGrant(item(recipe.output.kind,recipe.output),account,bound||grant>0));s.reputation.engineer=Math.min(20,s.reputation.engineer+1);
@@ -410,7 +417,7 @@ export class RaidStore {
     requireRule(Array.isArray(action.itemIds)&&action.itemIds.length<=8&&action.itemIds.every(id=>s.items.some(it=>it.id===id&&it.kind!=='contract')),'Preset items must be deployable items in your stash');requireRule(Object.keys(s.presets).length<12||Object.hasOwn(s.presets,action.name),'At most twelve presets');Object.defineProperty(s.presets,action.name,{value:action.itemIds,enumerable:true,configurable:true,writable:true});
    }else throw new RuleError('Unknown trade action',400);
    this.save(account,s);if(!['favorite','contract','preset'].includes(action.type)||(action.type==='contract'&&action.operation==='deliver'))this.db.prepare('UPDATE party_members SET ready=0 WHERE account=?').run(account);
-   const auditFields=['type','sku','trader','itemId','itemIds','weaponId','recipe','upgrade','contract','operation','favorite','name','quantity','targetId','expectedRevision'];
+   const auditFields=['type','sku','trader','itemId','itemIds','weaponId','recipe','upgrade','quality','contract','operation','favorite','name','quantity','targetId','expectedRevision'];
    this.audit(account,'trade',Object.fromEntries(auditFields.filter(key=>action[key]!==undefined).map(key=>[key,action[key]])));return s;
   });
  }

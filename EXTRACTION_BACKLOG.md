@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-10 (gameplay audit iteration 20).
+Last audited: 2026-11-10 (gameplay audit iteration 22).
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -91,8 +91,10 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
    celebration is now server-snapshot-driven and browser-graded (iteration 10). The
    loop's addictiveness and pacing are still not proven by humans.
 10. **P10 — Persistent richer home-base economy** (COMPLETE baseline, PARTIAL depth):
-    vendors/crafting/contracts/upgrades work; deeper equipment condition and
-    progression choices are not yet human-evaluated.
+    vendors/crafting/contracts/upgrades work, and damaged equipment now offers two
+    authoritative repair grades — a cheap partial field patch (+25 condition, one wire)
+    and a full workshop restoration (100%, one steel). The relative value of those
+    choices is not yet human-evaluated.
 
 ## 1. Loot
 
@@ -321,6 +323,12 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   incompatible with recovery boundary; loadout/accessibility/rewards graders.
 - **Post-raid rewards** — COMPLETE. `#rewards` card from `/api/results` plus sign-out/
   account isolation, focus/navigation and no invented state; rewards grader.
+- **Equipment repair grades** — COMPLETE local (iteration 22). Damaged weapons and armor
+  can receive an authoritative partial field patch (+25 condition, capped at 100, one
+  wire, credits priced per restored points) or a full workshop repair (100%, one steel,
+  existing formula); unknown grades and no-op repairs are rejected, and the stash renders
+  both costs and starter-binding hints. `raid-progression.test.mjs` and the real-UI
+  repair flow in `raid-browser-rewards.mjs` are green.
 - **Deeper human-evaluated economically meaningful choices** — PARTIAL (P10); baseline
   systems work, but depth/values are not human-accepted.
 
@@ -661,6 +669,25 @@ inspected; full unit suite `1172 pass / 0 fail`. Honest gap: the 814 window prop
 inside/floating in earlier district fabric match no block face and receive no ledge;
 human aesthetic acceptance remains UNVERIFIED. This is visual detail only and changes no
 raid rules or other modes.
+
+## Completed in iteration 22
+
+**Equipment repair grades — field patch vs workshop repair.** COMPLETE in local
+authoritative scope. `shared/raid-grants.mjs` now exposes `patchTarget` and a
+target-aware `repairCost`; the base `repair` trade action takes an optional
+`quality` (`full` default, or `patch`). A patch restores at most 25 condition points
+(capped at 100) and consumes one wire, while full repair restores to 100 with one
+steel. Unknown grades and repairs that would restore no condition are rejected, and
+the exact restored range/credits are recorded in an `equipment_repair` audit event.
+The stash renders both controls for damaged weapons/armor with authoritative costs
+and starter-binding hints. Evidence: `tests/raid-progression.test.mjs` proves a
+40→65 patch costs 15 credits and one wire, the following 65→100 repair costs 20
+credits and one steel, and invalid/no-op grades fail without changing inventory;
+`raid-browser-rewards.mjs` exercises both controls through the real post-extraction
+UI (`repairGrades`: patch→65%, full→100%, one wire and one steel consumed,
+`browserErrors: []`); full unit suite `1173 pass / 0 fail`. Honest gap: the relative
+balance/feel of paying partial vs full prices, and hosted/device behavior, remain
+UNVERIFIED (P5/P6/P10), so P10 depth stays PARTIAL as a human-acceptance question.
 
 ## Later items (not yet closed)
 

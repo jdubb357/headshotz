@@ -45,6 +45,21 @@ test('favorites prevent accidental sales and recycling; damaged equipment needs 
  fixture(store,id,s=>{s.items.find(it=>it.id===weapon.id).condition=50});
  const s=store.trade(id,{type:'repair',itemId:weapon.id});assert.equal(s.items.find(it=>it.id===weapon.id).condition,100);assert.equal(s.credits,975);
 });
+test('field patches trade wire and cash for partial condition while workshop repair restores fully',t=>{
+ const {store,id}=setup(t);salvage(store,id);const weapon=store.profile(id).items.find(it=>it.kind==='weapon');
+ fixture(store,id,s=>{s.items.find(it=>it.id===weapon.id).condition=40});
+ assert.throws(()=>store.trade(id,{type:'repair',itemId:weapon.id,quality:'salvage'}),/Unknown repair quality/);
+ const before=store.profile(id).credits,patch=store.trade(id,{type:'repair',itemId:weapon.id,quality:'patch'});
+ const patched=patch.items.find(it=>it.id===weapon.id);assert.equal(patched.condition,65,'a patch restores at most 25 points');
+ assert.equal(patch.credits,before-15,'patch credits match a 25-point field restoration');
+ assert.equal(patch.items.filter(it=>it.kind==='material'&&it.material==='wire').reduce((n,it)=>n+it.quantity,0),19,'a patch consumes one wire');
+ assert.equal(patch.items.filter(it=>it.kind==='material'&&it.material==='steel').reduce((n,it)=>n+it.quantity,0),20,'a patch leaves steel for the workshop');
+ const repaired=store.trade(id,{type:'repair',itemId:weapon.id});
+ assert.equal(repaired.items.find(it=>it.id===weapon.id).condition,100,'full repair restores the remaining condition');
+ assert.equal(repaired.credits,patch.credits-20,'full repair prices the remaining 35 points');
+ assert.equal(repaired.items.find(it=>it.material==='steel').quantity,19,'full repair consumes one steel');
+ assert.throws(()=>store.trade(id,{type:'repair',itemId:weapon.id,quality:'patch'}),/Repair unavailable/);
+});
 test('contracts use server facts, stage claims and inventory-backed deliveries',t=>{
  const {store,id}=setup(t);salvage(store,id);store.trade(id,{type:'contract',contract:'survey',operation:'accept'});
  const dep=store.deploy(id,{requestId:'deploy_0001',recovery:true});

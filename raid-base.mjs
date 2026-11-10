@@ -1,6 +1,6 @@
 import {orderedSelection,describeLoadout} from './shared/raid-loadout.mjs';
 import {rankProgress} from './shared/raid-progression.mjs';
-import {grantCost,repairCost,usesGrantMaterials} from './shared/raid-grants.mjs';
+import {grantCost,repairCost,patchTarget,usesGrantMaterials} from './shared/raid-grants.mjs';
 import {inventoryFocus,restoreInventoryFocus} from './raid-quantity-ui.mjs';
 import {stackable,compatibleStacks,recyclingQuote} from './shared/raid-inventory.mjs';
 import {WEAPONS,MODS,UTILITIES,ARMOR,MEDICAL,armorStats,equipmentPrice,maxStack,RECIPES,CONTRACTS,stashCapacity,itemWeight} from './shared/raid-catalog.mjs';
@@ -59,7 +59,12 @@ export function baseController({api,run,button,label,getProfile,refresh,selected
     if(it.kind==='contract'){const note=document.createElement('small');note.textContent=contractItemReserved(profile,it)?'Contract item · protected from sale/recycling until its contract is complete':'Contract complete · spare artifact';row.append(note)}
     if(['weapon','armor'].includes(it.kind)){
      const ins=document.createElement('input');ins.type='checkbox';ins.dataset.insure='1';ins.value=it.id;ins.checked=selected.insureIds.includes(it.id);ins.disabled=!!profile.activeDeployment;ins.setAttribute('aria-label','Insure '+label(it));const wrapper=document.createElement('label');wrapper.append(ins,document.createTextNode(' Insure'));row.append(wrapper);
-     if(it.condition<100){const cost=repairCost(profile,it),bound=grantCost(profile,cost)>0||usesGrantMaterials(profile,{steel:1});row.append(button('Repair · '+cost+' credits + 1 steel'+(bound?' · binds as starter supply':''),()=>execute({type:'repair',itemId:it.id})))}
+     if(it.condition<100){
+      const target=patchTarget(it),patch=repairCost(profile,it,target),patchBound=grantCost(profile,patch)>0||usesGrantMaterials(profile,{wire:1});
+      row.append(button('Field patch → '+target+'% · '+patch+' credits + 1 wire'+(patchBound?' · binds as starter supply':''),()=>execute({type:'repair',itemId:it.id,quality:'patch'})));
+      const cost=repairCost(profile,it),bound=grantCost(profile,cost)>0||usesGrantMaterials(profile,{steel:1});
+      row.append(button('Full repair · '+cost+' credits + 1 steel'+(bound?' · binds as starter supply':''),()=>execute({type:'repair',itemId:it.id})));
+     }
     }
     $('stash').append(row);
    }

@@ -3938,3 +3938,63 @@ Next action: choose the next local task; the visual/AI cycle has now covered fa�
 so prefer a gameplay slice next — a deep, locally verifiable base-economy progression
 choice (for example repair/condition services or a deeper vendor/upgrade path) or any
 newly observed natural-run raid gap. Do not claim P5/P6/P7 or human aesthetic acceptance.
+
+## Gameplay iteration 22 — equipment repair grades (field patch vs workshop repair) (2026-11-10)
+
+### Acceptance criteria — iteration 22 (deeper base-economy condition choice)
+
+1. The authoritative base `repair` action accepts a repair grade: `full` (default)
+   restores condition to 100 with one steel and the existing target-100 credits; `patch`
+   restores at most 25 points (capped at 100) with one wire and credits priced for the
+   restored points. Unknown grades and repairs that restore no condition are rejected
+   before any credits or materials are spent.
+2. The base stash exposes both grade controls for damaged weapons/armor, with costs and
+   starter-binding hints derived from the same shared functions; existing sell/favorite/
+   insurance/craft/upgrade controls and other modes are untouched.
+3. Local tests exercise partial then full restoration, material consumption, invalid
+   grade rejection, and the real post-extraction UI flow; no browser errors.
+4. The full unit suite passes and the affected progression/economy suites stay green.
+
+### Implementation — iteration 22 (completed)
+
+- `shared/raid-grants.mjs`: added `patchTarget(it)` (condition + 25, capped at 100) and a
+  target-aware `repairCost(s,it,target=100)` with a clamped deficit; existing callers
+  keep the 100 target and identical prices.
+- `server/store.mjs`: `repair` accepts `quality: 'full'|'patch'` (default full). Patch
+  spends one wire and sets condition to `patchTarget`; full spends one steel and sets
+  100. Invalid quality and no-op repairs are rejected; restored range/credits are
+  audited as `equipment_repair`, and `quality` now appears in the trade audit fields.
+- `raid-base.mjs`: damaged equipment rows render "Field patch → N% · C credits + 1 wire"
+  and "Full repair · C credits + 1 steel", each with an independent starter-binding hint.
+- `tests/raid-progression.test.mjs`: added the 40→65 patch (15 credits, one wire), then
+  65→100 repair (20 credits, one steel), invalid-grade rejection and no-op rejection.
+- `tests/raid-browser-rewards.mjs`: after an authoritative extraction, a real-UI fixture
+  damages the returned SMG to 40 and supplies wire/steel; both grade controls are found,
+  the patch is clicked (condition 65), then the full repair (condition 100); the JSON
+  report includes `repairGrades` and `browserErrors: []`.
+
+**Commands/results (2026-11-10)**:
+- `node --test tests/raid-progression.test.mjs tests/raid-grants.test.mjs tests/economy-model.test.mjs` → 34 pass, 0 fail.
+- `node tests/raid-browser-rewards.mjs` → exit 0. `repairGrades.labels`:
+  `Field patch → 65% · 15 credits + 1 wire`, `Full repair · 30 credits + 1 steel · binds as starter supply`;
+  `fieldPatchTo: 65`, `fullRepairTo: 100`; one wire and one steel consumed; `browserErrors: []`.
+- Full unit suite `node --test tests/*.test.mjs` → 1173 pass, 0 fail, 0 skipped.
+
+**Criteria status**:
+1. PASS — server-authoritative full/patch grades with material-specific costs; invalid
+   quality, no-op repairs and insufficient credits/materials reject before mutation.
+2. PASS — both controls render from shared cost/target functions; no other base controls
+   or modes changed.
+3. PASS — unit tests plus the real post-extraction UI flow drive both grades; the browser
+   grader reports no errors.
+4. PASS — full suite 1173/1173 and the targeted suites remain green.
+
+**Status:** Iteration 22 repair grades are COMPLETE in local authoritative scope. Human
+balance of the partial-vs-full price choice, loot excitement, hosted transport and
+physical-device acceptance remain UNVERIFIED; do not claim P5/P6/P7 or human aesthetic
+acceptance.
+
+Next action: prefer a visual/asset slice next (iteration 21 was visual, iteration 22 was
+gameplay): e.g. a readable equipment-condition meter and repair-grade chip in the base
+stash, or tiered cache/container prop detailing (straps, lids, loot-tier glow). Do not
+claim human acceptance.
