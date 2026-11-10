@@ -233,7 +233,7 @@ export class RaidView {
   const put=(key,type,data)=>{
    live.add(key);let entry=this.actors.get(key);
    if(!entry){
-    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):propModel(type,data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
+    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):propModel(type,type==='door'?(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b):data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
     // Armories carry purple beams; extraction beacons stay cyan/green. This
     // gives both objectives a silhouette above the dense district roofs.
     if(type==='cache'&&data.weaponCache){model.userData.beacon=beaconModel(0xe07adf,18);model.add(model.userData.beacon)}
@@ -254,6 +254,11 @@ export class RaidView {
   for(const b of snapshot.bags)put(b.id,'bag',b);
   for(const p of snapshot.pings||[])put('ping_'+p.id,'ping',p);
   for(const e of snapshot.exits)put(e.id,'exit',e);
+  for(const door of snapshot.doors||[])put('door_'+door.id,'door',door);
+  // Rebuild the collision overlay per snapshot. The frozen shared world is
+  // never mutated; the camera, projectile traces and prediction all read this
+  // authoritative door state instead.
+  this.activeWorld={...this.world,doors:(snapshot.doors||[]).map(door=>({...door,closed:!!door.closed,locked:!!door.locked}))};
   for(const [key,entry]of this.actors)if(!live.has(key)){this.scene.remove(entry.model);disposeOwned(entry.model);this.actors.delete(key)}
   const effects=new Set();
   for(const warning of [...(snapshot.telegraphs||[]),...(snapshot.hazards||[]).filter(h=>h.active||h.warning)]){
@@ -924,7 +929,7 @@ export class RaidView {
   const delta=desired.clone().sub(eye);let last=eye.clone();
   for(let i=1;i<=18;i++){
    const p=eye.clone().addScaledVector(delta,i/18);
-   if(blocked(this.world,p.x,p.z,.24,p.y-.16,.32))break;
+   if(blocked(this.activeWorld||this.world,p.x,p.z,.24,p.y-.16,.32))break;
    if(p.y<terrainHeightAt(this.world,p.x,p.z)+.36)break;
    last=p;
   }
@@ -987,7 +992,7 @@ export class RaidView {
      const candidate=this.chase.clone().lerp(safe,follow);
      // Smoothing must not cut a wall corner or settle below the terrain; if the
      // interpolated point is invalid, snap straight to the sampled safe point.
-     const clear=candidate.y>=terrainHeightAt(this.world,candidate.x,candidate.z)+.36&&!blocked(this.world,candidate.x,candidate.z,.24,candidate.y-.16,.32);
+     const clear=candidate.y>=terrainHeightAt(this.world,candidate.x,candidate.z)+.36&&!blocked(this.activeWorld||this.world,candidate.x,candidate.z,.24,candidate.y-.16,.32);
      this.chase.copy(clear?candidate:safe);
     }
     if(!this.settings?.reduced)this.chase.y+=Math.sin(seconds*6.4)*.015*Math.min(1,(this.selfActor?.userData.speed||0)/6);
@@ -997,7 +1002,14 @@ export class RaidView {
   for(const {model,data,type}of this.actors.values()){
    if(type==='machine')model.userData.motionReduced=!!this.settings?.reduced;
    if(type==='human'||type==='machine')updateActor(model,{...data,reduced:!!this.settings?.reduced},dt,seconds);
-   else{model.position.set(data.x,data.y||0,data.z);if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}
+   else{model.position.set(data.x,data.y||0,data.z);
+    if(type==='door'){
+     const w=data.w||3.4,h=Math.min(data.h||2.8,2.8),d=data.d||.32,leaf=model.userData.doorLeaf,sill=model.userData.doorSill;
+     if(leaf){leaf.visible=data.closed!==false;leaf.scale.set(w,h,d);leaf.position.set(0,h/2,0);leaf.material.color.setHex(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b)}
+     if(sill){sill.scale.set(w,.1,d);sill.position.set(0,.05,0);sill.material.color.setHex(data.locked?0xe07a5b:data.closed?0xd8b062:0x9fe0ad)}
+    }else{
+     if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}
+    }
   }
   if(this.weather?.visible&&this.weatherState){
    const state=this.weatherState,size=this.world?.size||1440,attr=this.weather.geometry.attributes.position,arr=attr.array;

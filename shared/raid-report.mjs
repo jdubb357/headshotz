@@ -3,6 +3,13 @@ const REASONS={extracted:'Successfully extracted.',raid_expired:'The raid deadli
 const DEATH=new Set(['operator','machine','blast','fall','hazard','bleed','finished_downed','downed_expired','combat']);
 export function outcomeReason(outcome,reason){return ({extract:'extracted',timeout:'raid_expired',disconnect:'connection_expired',aborted:'service_interrupted'})[outcome]||(outcome==='death'&&DEATH.has(reason)?reason:'unknown')}
 export function reasonText(result){return REASONS[outcomeReason(result.outcome,result.reason)]}
+const OBJECTIVE_FAIL={extracted_before_securing:'the raid ended before the hold completed',raid_expired:'the raid deadline passed',connection_expired:'the operator disconnected',service_interrupted:'the service interrupted the deployment',operator:'the operator was eliminated by gunfire',machine:'the operator was eliminated by a machine',blast:'the operator was eliminated by an explosive blast',fall:'the operator was eliminated by fall damage',hazard:'the operator was eliminated by an environmental hazard',bleed:'the operator bled out',finished_downed:'further damage exhausted the downed survival timer',downed_expired:'the downed survival timer expired',combat:'the operator was eliminated by combat damage'};
+export function objectiveText(result){
+ const o=result.facts?.objective;if(!o)return null;
+ if(o.completed)return 'Field objective secured: '+o.name+' at '+o.site+' (+'+o.rewardCredits+' credits, +'+o.rewardXp+' XP).';
+ const cause=OBJECTIVE_FAIL[o.failedReason]||'the raid did not end in extraction';
+ return 'Field objective incomplete: '+o.name+' at '+o.site+' was not secured because '+cause+'. No bonus was awarded.';
+}
 export function settlementText(result){
  const l=result.ledger;if(!l)return 'Detailed credit reconciliation was not recorded for this older raid.';
  return `Settlement credits: ${l.before.total} → ${l.after.total} (${l.after.total-l.before.total>=0?'+':''}${l.after.total-l.before.total}). Starter ${l.before.starter} → ${l.after.starter}; earned ${l.before.total-l.before.starter} → ${l.after.total-l.after.starter}. Raid reward +${l.reward} earned; premium refund +${l.refund} (${l.refundStarter} starter). Insurance premium ${l.premium} (${l.premiumStarter} starter) was charged at deployment and is already excluded from the starting balance. Purchases, sales and contract reward claims are separate base transactions.`;

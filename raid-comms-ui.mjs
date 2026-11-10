@@ -1,4 +1,5 @@
 import {PING_TYPES,REPORT_REASONS} from './shared/raid-comms.mjs';
+import {roleLabel} from './shared/raid-roles.mjs';
 import {RaidVoice} from './raid-voice.mjs';
 export function communicationUI({api,run,button,getProfile,action,getRaid}){
  const $=id=>document.getElementById(id);let prefs={controls:[],scope:'squad'},voicePeers=[],people=new Map(),rosterKey='';
@@ -22,7 +23,7 @@ export function communicationUI({api,run,button,getProfile,action,getRaid}){
    const row=document.createElement('div');row.className='item';row.dataset.person=p.id;row.setAttribute('role','group');row.setAttribute('aria-label',p.name+' communication controls');const text=document.createElement('span');row.append(text);
    const mode=control(p.id)?.mode;row.append(button(mode==='mute'?'Unmute':'Mute',()=>toggle(p.id,mode==='mute'?'unmute':'mute')),button(mode==='block'?'Unblock':'Block',()=>toggle(p.id,mode==='block'?'unblock':'block')),button('Report',()=>report(p.id)));$('commsRoster').append(row);
   }}
-  for(const row of $('commsRoster').children){const p=people.get(row.dataset.person),vp=voicePeers.find(q=>q.id===p.id);row.firstChild.textContent=`${p.name} · ${p.controlled?'saved control':p.preparing?p.ready?'ready':'preparing':p.alive===false?p.outcome||'eliminated':p.downed?'DOWNED · '+Math.ceil(p.bleedLeft||0)+'s':p.boarding?'boarding':p.connected===false?'connection lost':Math.ceil(p.hp||100)+' HP'}${vp?' · '+vp.channel+' voice '+vp.state:''}${control(p.id)?' · '+control(p.id).mode+'d':''}`}
+  for(const row of $('commsRoster').children){const p=people.get(row.dataset.person),vp=voicePeers.find(q=>q.id===p.id);row.firstChild.textContent=`${p.name}${p.role?' ('+roleLabel(p.role)+')':''} · ${p.controlled?'saved control':p.preparing?p.ready?'ready':'preparing':p.alive===false?p.outcome||'eliminated':p.downed?'DOWNED · '+Math.ceil(p.bleedLeft||0)+'s':p.boarding?'boarding':p.connected===false?'connection lost':Math.ceil(p.hp||100)+' HP'}${vp?' · '+vp.channel+' voice '+vp.state:''}${control(p.id)?' · '+control(p.id).mode+'d':''}`}
   const pings=raid?.pings||[],pingText=pings.map(p=>p.name+': '+PING_TYPES[p.kind]).join(' · ');if($('squadPings').textContent!==pingText)$('squadPings').textContent=pingText;
  }
  let lastParty=null;

@@ -33,7 +33,7 @@ try{
  for(const cue of [...Object.values(result.cues),...Object.values(result.utilities),...Object.values(result.weapons),...Object.values(result.actions)]){assert.ok(cue.rms.every(v=>v>.0001));assert.equal(cue.remaining,0)}
  assert.equal(new Set(Object.values(result.cues).map(c=>c.hash)).size,5,'each archetype renders a different original waveform');
  assert.equal(new Set(Object.values(result.weapons).map(c=>c.hash)).size,6,'each owned firearm has a distinct rendered signature');
- assert.equal(new Set(Object.values(result.actions).map(c=>c.hash)).size,12,'important actions/statuses have distinct rendered signatures');
+ assert.equal(new Set(Object.values(result.actions).map(c=>c.hash)).size,Object.keys(result.actions).length,'every authored action cue renders a distinct signature');
  for(const cue of Object.values(result.bossPhases)){assert.ok(cue.rms.every(v=>v>.0001));assert.equal(cue.remaining,0)}
  assert.equal(new Set(Object.values(result.bossPhases).map(c=>c.hash)).size,2,'furnace and meltdown stings render distinct signatures');
  assert.equal(Object.keys(result.bossPhases).length,2);
@@ -60,5 +60,5 @@ try{
  assert.equal(await game.evaluate("window.__reloadPresentations"),presentations,'a rejected reload starts no handling presentation');
  actor().hp-=10;await game.wait("window.__cues.includes('hurt')");assert.equal(await game.evaluate("window.__cues.includes('hit')"),false,'damage must not play both old and new cues');
  assert.deepEqual(game.errors,[]);
- console.log(JSON.stringify({runtimeRoot:root.href,distinctMachineCues:5,utilityCuesRendered:4,distinctWeaponCues:6,distinctActionCues:12,distinctBossPhaseCues:2,realWebAudioRendering:true,directionalStereo:true,muteSilent:true,boundedVoices:true,nodesReleased:true,nativeFireAndAcceptedReload:true,rejectedReloadSilent:true,damageCueNotDoubled:true,browserErrors:[...p.errors,...game.errors],scope:'Actual offline Web Audio rendering and local authoritative native-input integration; not human mix/readability acceptance.'}));
+ console.log(JSON.stringify({runtimeRoot:root.href,distinctMachineCues:5,utilityCuesRendered:4,distinctWeaponCues:6,distinctActionCues:Object.keys(result.actions).length,distinctBossPhaseCues:2,realWebAudioRendering:true,directionalStereo:true,muteSilent:true,boundedVoices:true,nodesReleased:true,nativeFireAndAcceptedReload:true,rejectedReloadSilent:true,damageCueNotDoubled:true,browserErrors:[...p.errors,...game.errors],scope:'Actual offline Web Audio rendering and local authoritative native-input integration; not human mix/readability acceptance.'}));
 }finally{await h.close();runtime.server.close();await once(runtime.server,'close');store.close();if(prior===undefined)delete process.env.RAID_TEST_URL;else process.env.RAID_TEST_URL=prior}

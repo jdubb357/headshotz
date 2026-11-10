@@ -1,4 +1,6 @@
 import {rankProgress} from '../shared/raid-progression.mjs';
+import {squadLinkBonus} from '../shared/raid-exits.mjs';
+import {squadRole} from '../shared/raid-roles.mjs';
 import {outcomeReason} from '../shared/raid-report.mjs';
 import {stackPortion} from './raid-inventory.mjs';
 import {compatibleStacks,recyclingQuote} from '../shared/raid-inventory.mjs';
@@ -205,7 +207,8 @@ export class RaidStore {
     if(location==='stash')state.items.push(it);
    }
    if(outcome==='aborted'){awardCredits(state,(deployed.premium||0)-(deployed.premiumGrant||0));awardCredits(state,deployed.premiumGrant||0,{grant:true})}else awardCredits(state,credits);
-   const xp=outcome==='aborted'?0:(outcome==='extract'?20:0)+Math.min(50,(facts.machines||0)*5+(facts.explorations||[]).length*3);
+   const objectiveXp=facts.objective?.completed?(facts.objective.rewardXp||0):0;
+   const xp=outcome==='aborted'?0:(outcome==='extract'?20:0)+objectiveXp+(outcome==='extract'?squadLinkBonus(facts.squadLink||0,'xp'):0)+Math.min(50,(facts.machines||0)*5+(facts.explorations||[]).length*3);
    state.xp+=xp;const previousContracts=structuredClone(state.contracts);this.applyContractFacts(state,facts);
    const contracts=Object.entries(state.contracts).filter(([id,p])=>p.progress>(previousContracts[id]?.progress||0)).map(([id,p])=>{const definition=CONTRACTS[id],stage=definition.stages[p.stage];return {id,name:definition.name,stage:p.stage,progress:p.progress,need:stage.need,delta:p.progress-(previousContracts[id]?.progress||0),requirementsMet:p.progress>=stage.need}});
    this.db.prepare("UPDATE insurance SET status=?,due=? WHERE deployment=? AND status='covered'").run(outcome==='aborted'?'not_needed':'pending',Date.now()+120000,deploymentId);
@@ -285,8 +288,12 @@ export class RaidStore {
    requireRule(current,'Create or join a party first');
    requireRule(typeof action.ready==='boolean','Invalid ready state',400);
    if(!action.ready)this.db.prepare('UPDATE party_members SET ready=0 WHERE account=?').run(account);
-   else{this.preflightLoadout(account,action.loadout);const {itemIds=[],recovery=false,insureIds=[]}=action.loadout||{};
-    this.db.prepare('UPDATE party_members SET ready=1,loadout=? WHERE account=?').run(JSON.stringify({itemIds,recovery,insureIds}),account)}
+   else{
+    const {itemIds=[],recovery=false,insureIds=[],role=null}=action.loadout||{};
+    requireRule(role==null||squadRole(role),'Unknown squad role',400);
+    this.preflightLoadout(account,{itemIds,recovery,insureIds});
+    const loadout={itemIds,recovery,insureIds};if(role)loadout.role=role;
+    this.db.prepare('UPDATE party_members SET ready=1,loadout=? WHERE account=?').run(JSON.stringify(loadout),account)}
   }else throw new RuleError('Unknown party action',400);
   this.audit(account,'party_changed',{type:action.type});return this.partyFor(account);
  })}

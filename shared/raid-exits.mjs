@@ -8,6 +8,10 @@ const RULES={
 export function createRaidExits(world,started){return world.exits.map(exit=>{
  const rule=structuredClone(RULES[exit.kind]);return {...exit,...rule,rulesVersion:1,activations:exit.kind==='timed'?1:0,wave:exit.kind==='timed'?1:0,usedSeats:0,openAt:exit.kind==='timed'?started+rule.arrival:0,closeAt:exit.kind==='timed'?started+rule.arrival+rule.duration:0};
 })}
+// Coordinated extraction: extra credits/XP when a departing operator shares the
+// same exit wave with squadmates (standing nearby, carried, or recently departed).
+export const SQUAD_LINK={radius:4,windowSeconds:60,credits:6,xp:10,maxCompanions:2};
+export function squadLinkBonus(count,field='credits'){const n=Math.min(SQUAD_LINK.maxCompanions,Math.max(0,Math.trunc(Number(count)||0)));return n*(field==='xp'?SQUAD_LINK.xp:SQUAD_LINK.credits)}
 export function exitState(exit,now){
  const capped=Number.isSafeInteger(exit.seats),remaining=capped?Math.max(0,exit.seats-(exit.usedSeats||0)):null,available=capped?Math.max(0,remaining-(exit.reservedSeats||0)):null;
  let phase;
@@ -22,7 +26,8 @@ export function exitCost(exit){const cost=exit.cost||(exit.kind==='key'?{kind:'k
 const counted=(n,word)=>n+' '+word+(n===1?'':'s');
 export function exitDescription(exit,now){
  const state=exitState(exit,now),capacity=state.remaining==null?'':` · ${state.available}/${exit.seats} ${exit.seats===1?'seat':'seats'} available${exit.reservedSeats?' · '+exit.reservedSeats+' boarding':''}`,contested=exit.contested?' · CONTESTED':'';
- if(state.phase==='open')return 'OPEN · departs in '+Math.ceil(exit.closeAt-now)+'s'+capacity+contested;
+ const squadLinked=exit.squadNear>0?' · squad link +'+squadLinkBonus(exit.squadNear)+' credits ('+counted(Math.min(SQUAD_LINK.maxCompanions,Math.max(0,Math.trunc(Number(exit.squadNear)||0))),'squadmate')+')':'';
+ if(state.phase==='open')return 'OPEN · departs in '+Math.ceil(exit.closeAt-now)+'s'+capacity+contested+squadLinked;
  if(state.phase==='full')return 'FULL · departure in '+Math.ceil(exit.closeAt-now)+'s'+capacity+contested;
  if(state.phase==='inbound')return (exit.kind==='call'?'Inbound':'Scheduled')+' · opens in '+Math.ceil(exit.openAt-now)+'s'+(exit.seats?' · '+counted(exit.seats,'seat'):'');
  if(state.phase==='departed')return 'DEPARTED · no further service';

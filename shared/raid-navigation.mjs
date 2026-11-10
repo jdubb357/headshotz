@@ -1,7 +1,7 @@
 import {blocked,floorAt,rampLevel,supportAt,terrainHeightAt} from './raid-worlds.mjs';
 const caches=new WeakMap();
 function navigationCache(world,step,radius,height){
- const signature=JSON.stringify([world.size,world.blocks,world.ramps||[]]);let cached=caches.get(world);if(!cached||cached.signature!==signature){cached={signature,profiles:new Map()};caches.set(world,cached)}
+ const signature=JSON.stringify([world.size,world.blocks,world.ramps||[],(world.doors||[]).filter(d=>d.closed).map(d=>d.id)]);let cached=caches.get(world);if(!cached||cached.signature!==signature){cached={signature,profiles:new Map()};caches.set(world,cached)}
  const key=[step,radius,height].join(':');let profile=cached.profiles.get(key);if(!profile){if(cached.profiles.size>=16)cached.profiles.delete(cached.profiles.keys().next().value);profile={levels:new Map(),edges:new Map()};cached.profiles.set(key,profile)}return profile;
 }
 const before=(a,b)=>a.score<b.score||(a.score===b.score&&a.depth>b.depth);

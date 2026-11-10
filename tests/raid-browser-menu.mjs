@@ -23,7 +23,7 @@ const deckExpr=`(()=>{
   before=getComputedStyle(document.getElementById('identity'),'::before'),
   rail=getComputedStyle(document.querySelector('#base .card>h2'),'::before');
  const buttons=[...base.querySelectorAll('button')].filter(b=>getComputedStyle(b).display!=='none'&&b.offsetWidth&&b.offsetHeight);
- const deploy=base.querySelector('.card[data-wide]');
+ const deploy=document.getElementById('deploy').closest('.card');
  return {columns:style.gridTemplateColumns.split(' ').length,display:style.display,gap:style.gap,
   scrollWidth:document.documentElement.scrollWidth,innerWidth:window.innerWidth,
   baseOverflow:base.scrollWidth>base.clientWidth+1,
