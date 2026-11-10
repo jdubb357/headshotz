@@ -41,8 +41,17 @@ export const ACTION_CUES={
  equip:{wave:'triangle',start:220,end:410,duration:.2,pulses:2},
  search:{wave:'triangle',start:170,end:260,duration:.24,pulses:2},
  take:{wave:'sine',start:620,end:850,duration:.12,pulses:1},
+ lootRare:{wave:'triangle',start:780,end:1360,duration:.34,pulses:2},
+ lootEpic:{wave:'triangle',start:660,end:1480,duration:.5,pulses:3},
+ lootLegendary:{wave:'sawtooth',start:520,end:1760,duration:.7,pulses:4},
  use:{wave:'sine',start:350,end:680,duration:.32,pulses:2},
+ door:{wave:'square',start:150,end:260,duration:.2,pulses:1},
+ objective:{wave:'sine',start:520,end:1180,duration:.32,pulses:2},
+ objectiveSecured:{wave:'triangle',start:680,end:1460,duration:.5,pulses:3},
  hurt:{wave:'triangle',start:90,end:35,duration:.18,pulses:1},
+ hit:{wave:'triangle',start:620,end:870,duration:.09,pulses:1},
+ headshot:{wave:'square',start:980,end:1420,duration:.11,pulses:2},
+ kill:{wave:'sawtooth',start:420,end:1080,duration:.22,pulses:2},
  downed:{wave:'sine',start:340,end:85,duration:.65,pulses:3},
  revived:{wave:'sine',start:260,end:780,duration:.48,pulses:3},
  boarding:{wave:'sine',start:520,end:1040,duration:.4,pulses:2},
@@ -77,7 +86,7 @@ export class RaidAudio {
   const self=snapshot.self,previous=this.previousSelf;
   // Compare copied facts, not mutable snapshot objects. Reconnect/reset starts
   // silently; only current operator transitions can produce these local cues.
-  const current={deploymentId:self.deploymentId,hp:self.hp,alive:self.alive,downed:!!self.downed,board:self.board?.exit||null,outcome:self.result?.outcome||null};
+  const current={deploymentId:self.deploymentId,hp:self.hp,alive:self.alive,downed:!!self.downed,board:self.board?.exit||null,outcome:self.result?.outcome||null,hit:self.hit?{token:self.hit.token,headshot:!!self.hit.headshot,kill:!!self.hit.kill}:null};
   this.previousSelf=current;
   if(previous&&previous.deploymentId===current.deploymentId){
    if(previous.alive&&!current.alive)this.play(current.outcome==='extract'?'extracted':'eliminated');
@@ -88,6 +97,9 @@ export class RaidAudio {
     if(current.board&&current.board!==previous.board)this.play('boarding');
     else if(previous.board&&!current.board)this.play('interrupted');
    }
+   // A hit cue follows the server's monotonic hit token. Repeating the same
+   // token on later polls never re-triggers it; a miss has no token at all.
+   if(current.hit&&current.hit.token!==(previous.hit?.token||0))this.play(current.hit.kill?'kill':current.hit.headshot?'headshot':'hit');
   }
   for(const [id,until]of this.seen)if(until<now)this.seen.delete(id);
   if(!snapshot.self.alive)return;

@@ -1,0 +1,490 @@
+# Extraction Raid gameplay backlog — full-mechanics audit
+
+Last audited: 2026-11-09 (gameplay audit iteration 13).
+
+This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
+and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
+original cooperative Extraction mode or the hub/main menu. Every item is closed
+only when the authoritative service and the playable raid client both support the
+behavior and it has been exercised; a passing unit test alone is not gameplay
+acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
+and raid progression.
+
+## How statuses are judged
+
+- `COMPLETE` — server-authoritative rule exists, the live client exposes the mechanic,
+  and at least one server/browser grader exercises the user-visible behavior.
+- `PARTIAL` — implemented and useful, but one required path or acceptance question
+  (often live-human, hosted network, or physical-device behavior) is not verified.
+- `BROKEN` — implemented path contradicts required gameplay or reliably fails a check.
+- `MISSING` — no authoritative mechanics or client affordance exists.
+- `UNVERIFIED` — behavior cannot be exercised with the tools available in this
+  checkout (for example hosted internet transport or physical-device touch feel).
+
+Evidence references are existing test names or recorded runtime verifications; they
+are pointers, not claims that every command was rerun in this iteration. Where a
+runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
+
+## Audit summary
+
+| Category | Overall status | One-line reason |
+| --- | --- | --- |
+| Loot | COMPLETE | Ground loot, deterministic random spawns, caches, rarity, inspection, take/drop and downed-body transfer are covered by server and browser graders. |
+| PvP | COMPLETE (local) | Downing, crawl, finish, revive, full-body looting, armor and death penalties are authoritative; live human-hosted balance is UNVERIFIED. |
+| Extraction | COMPLETE | Four exit kinds, markers, activation, countdown, contested states, boarding and gear retention have server/browser evidence. |
+| Navigation | COMPLETE | Minimap, full tactical map, compass, pings, waypoints and squad/extraction markers are driven by snapshots. |
+| Inventory | COMPLETE | Slots, backpack, stacks, weight/cap, consumables, drag/drop, give and persistent stash are enforced server-side. |
+| Combat | COMPLETE | Weapons, recoil, reload, switching, hit feedback, armor, healing, throwables and movement are complete; authoritative hit tokens, markers, captions and cues are graded. Balance is tracked under game feel. |
+| Enemy AI | COMPLETE | Patrols, detection, noise investigation, pursuit, five machine classes, weak points, boss phases and salvage drops exist and are graded. |
+| World | COMPLETE (local) | Exploration, terrain, caches, vaults, hazards, dynamic encounters, interactive doors, key-gated rooms and opt-in field objectives are server-authoritative and graded. Hosted/network acceptance is UNVERIFIED. |
+| Progression | COMPLETE | Base, crafting, vendors, contracts, upgrades, stash, loadout and post-raid rewards are connected with authoritative results. |
+| Multiplayer | PARTIAL (local complete) | Same-raid squads, PvP damage, revive, authoritative inventories, extraction and loot ownership pass twin-client graders; live hosted matchmaking/latency is UNVERIFIED. |
+| Game feel | PARTIAL | Tension/risk/reward support exists at the systems level, and hit/kill feedback is now complete; balance, loot-excitement and pacing are still not human-accepted. |
+
+## Dependency-aware priority list (highest gameplay impact first)
+
+1. **P1 — Authoritative outgoing hit feedback** — COMPLETE (iteration 6). The
+   server records a monotonic post-damage hit token (zone, headshot, target class,
+   kill/boss/elite), the snapshot exposes it only inside a bounded window, and the
+   client renders a visible hit/kill marker with an accessible caption and cue.
+   Unit and isolated-Chrome graders cover hits, misses and reconnect baselineing.
+2. **P2 — Interactive doors and locked areas** — COMPLETE (iteration 7, local authoritative
+   scope). Stable door ids at real wall openings, deterministic per-raid state, wire-valid
+   server `door` action with key consumption and rejection safety, closed-door collision/
+   LOS/ballistic blocking, per-sector key-gated room routes, client prompt/announcement/
+   cue plus world and map state, and reconnect baselineing. Endurance and Playwright-engine
+   suites are environmental gaps, recorded honestly.
+3. **P3 — Dynamic in-raid objectives** — COMPLETE (iteration 8, local authoritative
+   scope). The shared catalog is derived from authored landmarks; deployments opt in or
+   out; the server owns approach → hold → secured progression with pause/failure reasons;
+   settled extractions pay catalog credits and XP; the client shows an accessible panel,
+   bearing, hold progress and cyan/green markers on both maps with announcements,
+   reconnect authority and rewards/record reporting. Live hosted and human-accepted
+   objective play remains unverified.
+4. **P4 — Dead-body and bag persistence clarity** — COMPLETE (iteration 9, local
+   authoritative scope). Downed bodies remain independent searchable/revivable
+   containers; death creates exactly one operator salvage bag without protected or
+   recovery gear; machine, rival and dropped-gear containers carry stable kinds and
+   labels; snapshots preserve metadata but hide items out of range; the HUD/backpack
+   and both maps distinguish body (`B`/`L`), operator salvage (pink `C`), machine
+   salvage (amber `M`), rival salvage (orange `R`) and dropped gear (lavender `G`),
+   with updated legends. Unit and isolated-Chrome graders prove distinction, privacy,
+   cleanup and no phantom body. Live hosted readability remains unverified.
+5. **P5 — Live-human combat balance** (UNVERIFIED): tune machine aggro, weapon range,
+   armor and extraction pressure with actual repeated human play, not only fixtures.
+   Must preserve all existing modes and raid-only scoping.
+6. **P6 — Hosted multi-client and reconnect quality** (UNVERIFIED): run independent
+   clients over the deployed transport, verify reconnect, action replay, loot
+   ownership and extraction under real latency/network interruption.
+7. **P7 — Physical-device touch/pointer feel** (UNVERIFIED): verify drag/drop,
+   aim, fire and map gestures on real phones/tablets with reduced-motion settings.
+8. **P8 — Deeper squad coordination and roles** (PARTIAL, local slices COMPLETE):
+   squad revive/carry and give/trade exist; a squad link-up extraction bonus pays
+   +6 credits/+10 XP per linked squadmate (iteration 11); opt-in Scout/Medic/Engineer
+   roles now persist through party readiness, ship in snapshots, and grant longer pings,
+   3.5 s revives and keyless door picks (iteration 12), with role labels in Squad hand-off
+   and downed rescue panels and the medic revive timing exposed in the control (iteration
+   13). Live hosted coordination remains unverified and the role catalog may grow. Keep
+   additions opt-in to raids.
+9. **P9 — Encounter pacing and loot-excitement** (PARTIAL, celebration COMPLETE):
+   event cadence and reward feedback exist, and rarity-derived visual/audio pickup
+   celebration is now server-snapshot-driven and browser-graded (iteration 10). The
+   loop's addictiveness and pacing are still not proven by humans.
+10. **P10 — Persistent richer home-base economy** (COMPLETE baseline, PARTIAL depth):
+    vendors/crafting/contracts/upgrades work; deeper equipment condition and
+    progression choices are not yet human-evaluated.
+
+## 1. Loot
+
+- **Physical, scanned ground loot** — COMPLETE. `server/raid-loot.mjs` seeds piles per
+  spawn; `raid-online.mjs` resolves nearby ground loot; `tests/raid-game-loop.test.mjs`
+  verifies reachability, deterministic reproduction, stack rules and immediate loot at
+  every spawn; `raid-browser-interactions.mjs` drives Take through the real backpack UI.
+- **Randomized spawns without duplicates** — COMPLETE. Seeded deterministic generation
+  per raid (`createSectorGroundLoot`, `createSectorCaches`, `createWeaponCaches`);
+  no two takers can duplicate an item; `raid-browser-interactions.mjs` asserts exactly
+  one ownership row after two contexts take the same contested item.
+- **Searchable containers** — COMPLETE. Cache claim is exclusive, 2.4 s by default, and
+  cancels on movement/damage/fire; multiple cache archetypes and vaults exist; covered by
+  `tests/raid-interactions.test.mjs` and twin-client browser graders.
+- **Rarity/readability** — COMPLETE at mechanics/UI level. Item rarity and labels are
+  generated and rendered; `raid-browser-accessibility.mjs` asserts the inspect dialog
+  shows weapon damage and "Common". Rarity-differentiated visual excitement is PARTIAL
+  (see Game feel).
+- **Item inspection** — COMPLETE. Inspect dialog is a native dialog with focus management
+  and keyboard close; `raid-browser-accessibility.mjs`.
+- **Pickup / drop / stack / secure** — COMPLETE. `take`, `drop`, `stack`, `split` and
+  `secure` are server actions with weight/slot/ownership guards; tested in
+  `raid-game-loop.test.mjs`, `raid-transfers.test.mjs` and
+  `raid-browser-accessibility.mjs`; persistent stash returns on extraction.
+- **Persistent lootable downed bodies** — COMPLETE for raid lifetime. Downed opposing
+  bodies keep gear, claim/search state and opened state until the body dies or the raid
+  ends; `raid-body-loot.test.mjs` covers restart durability; `raid-browser-body-loot.mjs`
+  shows the live prompt/countdown/Take and minimap state. Death-bag readability is P4.
+- **AI/contract/valuable drops** — COMPLETE. Machine salvage bags, contract artifacts,
+  weapon armories and rare caches are generated and display; settlement returns/drops
+  them under existing ownership rules.
+
+## 2. PvP (human-vs-human raid contact)
+
+- **Downing without elimination when a squadmate lives** — COMPLETE. `damage()` sets
+  `downed` while an alive teammate exists; `raid-browser-body-loot.mjs` and
+  `raid-browser-rescue.mjs` exercise the result; `raid-game-loop.test.mjs` covers the
+  no-squadmate death path.
+- **Downed crawling** — COMPLETE. Downed operators may send `move`/`ping`; movement
+  speed is 1 versus base 5; server rejects non-crawl actions while downed.
+- **Finishing a downed enemy** — COMPLETE. Additional body damage subtracts the bleed
+  timer and ends the operator at zero; `raid-body-loot.test.mjs`/body-loot browser flow
+  covers open/closed body interactions and weapon extraction.
+- **Cooperative revive/carry** — COMPLETE (local). Revive is a timed 5 s interaction with
+  line-of-sight/reach checks; carry moves a downed squadmate; rescue browser grader and
+  rescue server suite are green. Failed revive is surfaced through the existing distance
+  rejection and is exercised in iteration 7.
+- **Stealing equipment / full-body looting** — COMPLETE. Opposing downed bodies expose
+  equipment and pack (never secure pocket or recovery items), exclusive search, one-owner
+  takes and cleared equipped weapon on weapon take.
+- **Armor damage and protection** — COMPLETE. Combat v2 absorbs body hits per armor
+  stats; head/leg hits bypass protection; armor condition degrades and can be removed/
+  worn; `raid-medical.test.mjs`, `raid-ballistics.test.mjs` and medical/accessibility
+  graders cover piece values and effects.
+- **Death penalties** — COMPLETE (local). Non-extraction deaths drop non-recovery
+  gear as a salvage bag, wear weapon condition, and only secure-pocket items return;
+  extraction returns equipment/pack/secure with condition wear. Rewards/loss-report
+  graders show returned/lost counts.
+- **Live PvP balance** — UNVERIFIED. No human-hosted fairness or latency acceptance is
+  claimed; this is P5/P6.
+
+## 3. Extraction
+
+- **Multiple functional zones** — COMPLETE. Every world has a call beacon (`call`),
+  timed cargo lift (`timed`), key hatch (`key`/`unlock`) and resource freight
+  (`resource`); created and cost-checked in `shared/raid-exits.mjs` and
+  `server/raids.mjs`; `tests/raid-exits.test.mjs` and `raid-browser-exits.mjs`.
+- **Markers** — COMPLETE. Exits are drawn on minimap and full tactical map from the
+  snapshot, with names/costs in exit cards; `raid-browser-tactical-map.mjs` and
+  `raid-browser-extraction-ui.mjs`.
+- **Activation** — COMPLETE. Call/unlock/pay rules are server-authoritative, consume the
+  cost only on success and publish events; browser exits grader activates and extracts.
+- **Countdown / state badges** — COMPLETE. Exit cards show open/inbound/departed/etc.
+  using server timestamps; `raid-browser-extraction-ui.mjs` checks phases and inventory
+  extraction panel.
+- **Contested extraction** — COMPLETE. Enemies/rivals/elites near an exit mark it contested;
+  late-raid elite ambushes and squeeze publish contested state; `raid-escalation.test.mjs`
+  and `raid-browser-escalation.mjs`.
+- **Evacuation (boarding and seats)** — COMPLETE. Boarding is a 2.2 s action, seats are
+  reserved, squadmates/rivals are handled independently, and movement cancels boarding;
+  `raid-browser-interactions.mjs` and server exit/rescue suites exercise start/restart.
+- **Squad link-up extraction** — COMPLETE local (iteration 11). A shared policy
+  (`shared/raid-exits.mjs`) caps the bonus at two companions; the authoritative snapshot
+  exposes living standing squadmates within 4 m; settle-time companions also include a
+  carried passenger and same-wave departures within 60 s. Server awards +6 credits/+10 XP
+  per companion. The client shows a snapshot-derived card chip, accessible bonus label,
+  boarding caption/announcement and settlement report. `raid-squad-extraction.test.mjs`
+  (6) and two-Context `raid-browser-squad-extraction.mjs`; hosted/human coordination
+  remains UNVERIFIED.
+- **Gear retention / loss** — COMPLETE. Extraction returns equipment+pack+secure
+  (minus recovery items) and records item/loss detail; death returns only secure and
+  creates a bag. `raid-browser-rewards.mjs` and `raid-browser-loss-report.mjs`.
+- **Persistence before settlement** — COMPLETE. Raid checkpoints serialize world/version,
+  operator fields and containers; `raid-checkpoints.test.mjs`, content migration and
+  restart durability in body-loot/transfer suites verify reload.
+
+## 4. Navigation
+
+- **Minimap** — COMPLETE. Snapshot markers for exits, caches, machines, rivals,
+  floor loot, bags, bodies, squad/self, pings, hazards and waypoints; `drawMap` and
+  `drawMinimapWaypoint`; graders `raid-browser-minimap.mjs`, `raid-browser-minimap-detail.mjs`.
+- **Full tactical map** — COMPLETE. M opens a pan/zoom overlay with forced clear
+  controls; detached canvas grading proves every marker and pan/zoom/recenter;
+  `raid-browser-tactical-map.mjs`.
+- **Compass and bearing readout** — COMPLETE. HUD compass shows facing degrees and
+  waypoint distance/direction/bearing; `raid-browser-tactical-map.mjs` asserts values.
+- **Pings / squad markers** — COMPLETE. Player pings are server-rate-limited, team-scoped,
+  temporary, optional exit mark; squad roster and map show friend state; tested in
+  `raid-comms.test.mjs`/`raid-browser-comms.mjs` and tactical-map grader.
+- **Waypoints** — COMPLETE. Map click sets/clears world-coordinate waypoint; distance
+  and bearing are shared by minimap/full map/HUD; no client-side loot invention.
+- **Exit/squad markers** — COMPLETE in map drawing; tactical-map browser grader checks
+  exits and squadmate markers via pixel deltas.
+
+## 5. Inventory
+
+- **Equipment slots** — COMPLETE. Server-backed equipment array and equip/wear/
+  removeArmor actions; `raid-browser-loadout.mjs`, `raid-browser-inventory.mjs`,
+  `raid-equipment.test.mjs`.
+- **Backpack / secure pocket** — COMPLETE. Pack cap and secure cap differ by recovery
+  deployment; secure focuses keys, materials, valuables, meds and mods; browser inventory
+  and accessibility flows pass.
+- **Stacking / splitting / merging** — COMPLETE. Stack rules in `shared/raid-items.mjs`,
+  unit tests for take/split/stack/partial transfer; `raid-browser-inventory.mjs` covers
+  merge and split controls.
+- **Weight/capacity** — COMPLETE. Authoritative `weight()` and `itemWeight`, pack cap
+  and weight cap enforcement; take/stack/weight tests and failure-message browser flow.
+- **Consumables/use** — COMPLETE. Medical use with two-second reuse delay, utility throw,
+  wound status; medical/utilities server tests and browser graders.
+- **Drag/drop reorder and trade** — COMPLETE. Row drag reorders local presentation only;
+  drag-to-squad and Give buttons perform server `give`; double-click equips; no server
+  item inventions; `raid-browser-inventory.mjs` plus `raid-inventory-give.test.mjs`.
+- **Persistent storage** — COMPLETE. Base stash + insurance + recovery items persist
+  across raid settlement; rewards/loss/recycling graders show returned/lost and existing
+  revision/ownership guards.
+
+## 6. Combat
+
+- **Weapon readiness / responsiveness** — COMPLETE. Reliable action queue, trigger
+  gating, prediction and authoritative cooldowns; trigger and trigger-latency suites
+  plus production browser grader.
+- **Recoil / viewmodel feedback** — COMPLETE (presentation). Bounded recoil impulse,
+  alternating side, reduced-motion suppression, viewmodel heat/muzzle/casing/reload
+  state; `raid-browser-viewmodel.mjs` and accessibility grader. This is not an aim
+  debuff on the server.
+- **Reloads and weapon switching** — COMPLETE. Server reload consumes compatible ammo,
+  magazine full/cooldown rejected; equip validates ownership and usability; browser
+  ballistics and viewmodel graders.
+- **Hit feedback (outgoing)** — COMPLETE (iteration 6). `server/raid-hit-feedback.mjs`
+  records a monotonic post-damage token on both ballistics and legacy shot paths:
+  body/head/leg zones, target class, and verified kill/boss/elite flags. The snapshot
+  carries `self.hit` only within 1.6 s; the client `#hitmarker` and sr-only caption
+  render new tokens once and play local hit/headshot/kill cues. Misses create no token.
+  Evidence: `tests/raid-hit-feedback.test.mjs` (7/7) and
+  `tests/raid-browser-hit-feedback.mjs` (real UI fire, marker/caption/cue, miss and
+  reconnect baseline, `browserErrors:[]`).
+- **Armor / healing / wounds** — COMPLETE. Absorption, head/leg bypass, bleeding, limp,
+  trauma and splints; `raid-medical.test.mjs` and `raid-browser-medical.mjs` pass.
+- **Throwables** — COMPLETE. Smoke, decoy, frag with armed/detonation states, hazard
+  warnings and spatial cues; `raid-utilities.test.mjs`; utilities browser grader is green.
+- **Tactical movement** — COMPLETE. Sprint, slide, jump, vault, ledge scan and server
+  collision; `raid-input.test.mjs`, pilot route tests, vault/accessibility browser graders.
+- **Weapon/armor condition and durability** — COMPLETE at rule level. Condition degrades
+  per shot and on settlement; condition excludes unusable weapons; browser viewmodel
+  and result summaries expose condition.
+
+## 7. Enemy AI
+
+- **Patrols / detection / sound investigation** — COMPLETE. `server/raid-ai.mjs` uses
+  machine state machine with patrol, investigate, chase, attack; noises from movement,
+  firing, vaults, slide, alarms, smoke/lures; unit encounter/escalation tests.
+- **Pursuit and combat** — COMPLETE. Machines path toward noise/target, telegraph attacks,
+  damage operators with line-of-sight rules; boss/medical/ballistics suites exercise.
+- **Varied machines** — COMPLETE. Five classes (scout, hunter, heavy, flyer, overlord)
+  with distinct stats/cues/models; common/escalation scenes.
+- **Weak points** — COMPLETE. Core/head hits deal 2.5x through `hitMachine`; body damage
+  otherwise normal; unit tests assert multipliers.
+- **Bosses** — COMPLETE. Foundry Warden with approach/furnace/meltdown phases, phase
+  hazards and HUD panel; `raid-boss.test.mjs`/`raid-browser-boss.mjs`.
+- **Loot drops** — COMPLETE. Destroyed machines drop salvage bags and fuel; elite and
+  boss variants have enhanced tables; game-loop/encounter tests assert salvage.
+- **Live difficulty/balance** — UNVERIFIED (P5); no human flavor judgment.
+
+## 8. World
+
+- **Meaningful exploration** — COMPLETE at authored geometry level. 1,440 m terrain
+  sectors with districts, roads, interiors, roofs, landmarks, hazards and elevated
+  caches; v10 terrain and v9 city tests, world browser grader and route suites.
+- **Interactive doors** — COMPLETE, P2. Authored stable ids per sector wall opening,
+  per-raid cloned state, wire-valid `door` action, collision/LOS/projectile/navigation
+  blocking while closed, open/close/unlock prompts, announcements, audio cue, minimap
+  and tactical-map markers, and reconnect baselineing. Unit and browser graders pass.
+- **Locked areas** — COMPLETE for door-gated rooms. Every sector has a key-gated room/
+  vault route that is genuinely unreachable while locked and walkable after consuming
+  one carried key; spawn and extraction routes stay reachable.
+- **Vaults** — COMPLETE as loot containers. Key requirement, alarm escalation, heavy armor
+  drop and hidden loot; vault/browser tests and content tests.
+- **Hidden loot** — COMPLETE. Ground loot, roof caches, interior caches, armory caches,
+  supply drop and boss salvage are hidden behind exploration/encounters.
+- **Dynamic events** — COMPLETE at time/event level. Supply drop, machine reinforcement
+  waves, elite patrols, weather, hazard windows and endgame squeeze publish events and
+  snapshot data; opt-in field objectives add an authoritative marker/hold/settlement chain (P3, iteration 8).
+- **Hazards** — COMPLETE. Sector hazard windows warning/active/expiry, geometry/pixel
+  rings, damage and safe cover guidance; escalation unit/browser tests.
+- **Dynamic in-raid objectives** — COMPLETE in local authoritative scope: deployment can opt
+  into a landmark objective, the server advances approach → hold → secured with pause and
+  explicit failure reasons, settlement pays only on secured extraction, and the client
+  shows panel/bearing/progress/map markers/announcements/reconnect. Live hosted and
+  human-accepted objective feel remain unverified.
+
+## 9. Progression and home base
+
+- **Home base** — COMPLETE. Auth/base screens, deploy/loadout/records/identity, low-RTT
+  readiness and reconnect entries; browser account/menu/readiness/entry/network graders.
+- **Crafting** — COMPLETE. Workshop crafts medkits, optics, weapons and mods with credits/
+  materials/blueprint checks; economy and progression suites and base UI.
+- **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
+  tests and browser grants/loadout/rewards.
+- **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress
+  derived from authoritative facts, claim flow and settlement summary; rewards grader.
+- **Upgrades** — COMPLETE. Bench tiers unlock based on blueprints/levels; progression
+  tests and browser progression/ranks graders.
+- **Persistent stash** — COMPLETE. Inventory checkpoints, insurance/recovery, sell/
+  recycle/craft/attach all preserve ownership and revision; loss/recycling tests.
+- **Loadout selection** — COMPLETE. Chosen gear is authoritative, earn-only and
+  incompatible with recovery boundary; loadout/accessibility/rewards graders.
+- **Post-raid rewards** — COMPLETE. `#rewards` card from `/api/results` plus sign-out/
+  account isolation, focus/navigation and no invented state; rewards grader.
+- **Deeper human-evaluated economically meaningful choices** — PARTIAL (P10); baseline
+  systems work, but depth/values are not human-accepted.
+
+## 10. Multiplayer
+
+- **Squads / same-raid team** — COMPLETE local. Party deployments share one authoritative
+  raid and team; `raid-parties.test.mjs`, `raid-browser-party.mjs`.
+- **Coordinated extraction (link-up bonus)** — COMPLETE local (iteration 11). Same-team
+  boarding through the same exit rewards credits/XP from the authoritative snapshot,
+  including carried and same-wave departures; card, captions, announcements and report
+  are driven by server facts (`raid-squad-extraction.test.mjs`,
+  `raid-browser-squad-extraction.mjs`). Live hosted and human-rated coordination remain
+  UNVERIFIED.
+- **Sync/reconnect** — COMPLETE local. ReliableActions sequence/receipts, snapshot sync
+  and prediction reconciliation; browser network/account/smoke and reload persistence.
+- **PvP damage** — COMPLETE local; singles/twin-client firing, teams and damage rules.
+- **Cooperative revive** — COMPLETE local; tests and browser rescue.
+- **Authoritative inventories** — COMPLETE local; body-loot/inventory/give graders prove
+  ownership and anti-duplication on the store.
+- **Extraction and loot persistence** — COMPLETE local; exits/rewards/loss and body-loot
+  flows through isolated Chrome contexts.
+- **Live hosted multi-client / independent clients over real transport** — UNVERIFIED/P6;
+  no WAN, coworker or long-run hosted acceptance is claimed.
+- **Twin-client FPS / timing under real people** — UNVERIFIED (P5/P6), though existing
+  body-loot/inventory/interactions graders use two independent Chrome contexts with
+  server-authoritative fixtures.
+
+## 11. Game feel (satisfaction, tension, UX)
+
+- **Tension and risk/reward** — PARTIAL. Mutually exclusive caches, fire/light/noise
+  consequences, armor loss, gear-loss on death and a ticking deadline create risk; no
+  human-paced acceptance.
+- **Pacing and encounter variety** — COMPLETE at system level. Five machine types,
+  rivals, crawlers, boss, hazard windows, supply drop, elite patrols and endgame squeeze;
+  not human-tuned.
+- **Loot excitement** — PARTIAL. Rarity, item values, inspect and returned/lost summaries
+  exist, and rare/epic/legendary pickups now have a distinct visual celebration, synthesized
+  cue and accessible live-region caption derived from the authoritative snapshot (iteration 10).
+  Encounter pacing and human-loot excitement remain unverified.
+- **Visual/sound feedback** — PARTIAL. Muzzle/reload/boss/incoming-hurt cues exist, and
+  authoritative outgoing hit/kill markers, captions and cues are COMPLETE (iteration 6).
+  Body/bag labels and map markers are now distinct by container kind (iteration 9, P4);
+  older screenshots may still show the former generic "salvage bag" wording.
+- **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
+  restoration, next-step announcement, native dialogs, mobile overflow and reduced
+  motion validated by accessibility/tactical-map/rewards graders.
+- **Replay reasons** — PARTIAL. Contracts, XP/rank, blueprints, insurance, extraction
+  rewards and gear retention create reasons to redeploy; long-term playtest retention
+  is unmeasured and must not be declared proven.
+- **Final subjective quality** — UNVERIFIED. Tests can prove mechanics, not "better than
+  ARC Raiders" or human fun/balance. Recorded honestly; no false completion promise.
+
+## Completed in iteration 6
+
+**P1 — Outgoing hit feedback.** COMPLETE. Acceptance criteria and evidence were recorded
+in `RALPH_PROGRESS.md` before implementation. Unit and isolated-Chrome graders prove the
+server token, marker, caption, cue, miss isolation and reconnect baseline; the prior
+ballistics/audio suites stay green. The next active gap was P3 dynamic objectives.
+
+## Completed in iteration 7
+
+**P2 — Interactive doors and locked areas.** COMPLETE in local authoritative scope.
+Stable door ids at authored wall openings, deterministic per-raid cloned state, wire-valid
+`door` action with key consumption and unchanged-state rejection paths, closed-door
+collision/LOS/projectile/navigation blocking, one genuinely gated key-openable room route
+per sector (spawn/extraction routes preserved), live prompt/announcement/cue and map
+markers, and reconnect baselineing. Evidence: door unit suite 9/9, browser doors grader
+green with reconnect authority and screenshots, full unit suite 1,132/1,132, and 34/36
+prior browser graders green after the dock layout repair. Environmental gaps: optional
+Playwright engine grader lacks its external module; default 1,800 s endurance not run
+(25 s smoke green). These are recorded, not hidden.
+
+## Completed in iteration 8
+
+**P3 — Dynamic in-raid field objectives.** COMPLETE in local authoritative scope.
+A deterministic catalog derives wire-safe objectives from authored sector landmarks;
+deployments explicitly opt in or remain unchanged; unsafe/unknown ids are rejected before
+the raid starts. The server owns the approach → secure → secured chain, advances hold only
+while alive, inside the radius and not downed, pauses on exit/down, publishes reached and
+secured events/noise escalation, and snapshots stage, progress, remaining hold and
+coordinates. Extracting after securing pays catalog credits/XP; death, timeout, disconnect
+and extracting-before-securing settle as failed with explicit reasons and no bonus. The
+client deploys the selected objective and shows an accessible panel (site, distance,
+bearing, hold progress and bonus), cyan/green markers on both maps, announcements,
+dedicated cues, reconnect authority and rewards/record lines. Evidence: objective unit
+suite 10/10; browser objectives grader green with screenshots and zero errors; full unit
+suite 1,142/1,142; affected prior browser regression sweep green. Honest gaps: live hosted
+multi-client objective play, physical-device feel, 1,800 s endurance and the optional
+Playwright engine module remain unverified.
+
+## Completed in iteration 9
+
+**P4 — Corpse bag and dead-body readability.** COMPLETE in local authoritative scope.
+Every authoritative container now carries a stable kind/label/owner: operator death
+salvage (pink C marker, "Operator salvage bag"/"Squadmate salvage bag"), machine salvage
+(amber M), rival salvage (orange R) and dropped gear (lavender G), independent of ground
+loot. Out-of-range snapshots keep that metadata while items stay private to the 3 m
+interaction range. HUD hints, backpack headings, minimap/tactical markers and legend/aria
+distinguish every class and the downed-body search (B, amber L once searched) without
+breaking the waypoint or door legend. Death salvage excludes recovery-protected pocket and
+temporary recovery gear, taking the last item prunes the container, and a downed operator
+remains a body with no phantom salvage bag. Evidence: `raid-bag-metadata.test.mjs` 6/6;
+affected unit suites 693/693; full unit suite 1,148/1,148; `raid-browser-body-loot.mjs`
+green; new `raid-browser-bag-metadata.mjs` green with zero errors. Honest gaps: hosted
+multi-client readability, physical-device feel and long endurance remain unverified.
+
+## Completed in iteration 10
+
+**P9 — Rarity-derived loot pickup celebration.** COMPLETE in local authoritative scope.
+Pickups now map the authoritative item rarity (0–5) to a deterministic tier, accent and
+synthesized cue in `shared/raid-loot-presentation.mjs`; rare/epic/legendary/special
+pickups raise a decorative, non-blocking card with the item name, self-clear in 2.4 s,
+honour reduced motion, and write the same tier words to the existing live-region status.
+Common/uncommon pickups stay on the plain caption path so the flourish keeps meaning.
+Evidence: `raid-loot-excitement.test.mjs` 4/4 plus audio cue unit checks (focused 9/9);
+browser `raid-browser-loot-excitement.mjs` green with zero errors (rare/epic/legendary
+tiers, distinct accents and cues, self-clear, reduced motion); full unit suite
+1,152/1,152; prior inventory/accessibility/hud-layout browser regressions green.
+Honest gaps: encounter cadence and human loot excitement are not proven; P5/P6/P7
+external gates remain BLOCKED; P8 and P10 remain PARTIAL.
+
+## Completed in iteration 11
+
+**P8 — Squad link-up extraction (coordinated extraction slice).** COMPLETE in local
+authoritative scope. `shared/raid-exits.mjs` owns the 4 m / 60 s / two-companion policy
+and the +6 credits and +10 XP per linked squadmate. `server/raids.mjs` records bounded
+per-wave departures, counts a carried passenger, adjacent living standing squadmates and
+recent same-wave teammates, exposes `squadNear` on exit snapshots, and writes
+`squadLink`/`squadLinkBonus`/`squadLinkXp` facts that settle through `end(..., exit)`.
+`server/store.mjs` adds the link XP to settlement. `raid-online.mjs`/`.html` add a
+visible snapshotted chip, accessible bonus label, boarding caption/announcement and a
+results line. Evidence: `raid-squad-extraction.test.mjs` 6/6; exits+link 16/16; full unit
+suite 1,158/1,158; `raid-browser-squad-extraction.mjs` green (one shared raid, both
+settlements 26 credits/30 XP, facts `squadLink=1`, zero errors); prior extraction UI,
+exits, rescue, rewards, accessibility and HUD layout green. Honest gaps: richer persistent
+squad roles, live hosted coordination, human balance and pacing remain UNVERIFIED.
+
+## Completed in iteration 12
+
+**P8 — Opt-in squad roles (Scout / Medic / Engineer).** COMPLETE in local
+authoritative scope. `shared/raid-roles.mjs` owns the role catalog and effect helpers.
+`server/store.mjs` validates the role on party readiness and persists it in the existing
+member loadout JSON. `server/raids.mjs` assigns each member only their own role, emits it
+in `self` and squad snapshots, extends scout ping life to 30 s, shortens medic revive to
+3.5 s, and lets engineers pick locked doors without a key (door event, noise, escalation,
+`doorsPicked`), while roleless operators still require a key. `raid-online.mjs`/`.html`
+add a party-role select with hints, roster summaries, an idle-HUD role label, the role in
+the ready payload, and an engineer-aware door control. Evidence:
+`raid-squad-roles.test.mjs` 8/8; full unit suite 1,166/1,166;
+`raid-browser-squad-roles.mjs` green (three isolated Chrome clients; roster and snapshot
+roles; 30 s scout ping; 3.4 s revive still in progress then complete at 3.6 s; keyless
+engineer pick with zero key use; zero browser errors); squad-extraction, party, rescue,
+comms, accessibility, HUD layout, doors, exits and extraction UI regressions green.
+Honest gaps: live hosted role coordination, human balance and richer role depth remain
+UNVERIFIED.
+
+## Later items (not yet closed)
+
+- P5 human balance and potency evaluation (BLOCKED: needs human playtesters).
+- P6 hosted multi-client transport/reconnect acceptance (BLOCKED: needs deployed transport/WAN).
+- P7 touch/pointer physical-device acceptance (BLOCKED: needs physical devices).
+- P8 live hosted role coordination and further role depth; local roles/link-up slices complete.
+- P9 celebration implemented; encounter pacing/human excitement still UNVERIFIED.
+- P10 richer persistent progression/economy depth.
+
+All mechanics in the original request are represented above; none is silently removed
+or downgraded. Items marked PARTIAL/MISSING/UNVERIFIED stay open until exercised.

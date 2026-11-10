@@ -7,6 +7,20 @@ import {item} from './rules.mjs';
 import {conditionsAt} from '../shared/raid-conditions.mjs';
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z,(a.y||0)-(b.y||0));
 export const MACHINE_CAP=12;
+// Encounter escalation tuning. Alarm responses are deliberately bounded: the
+// sector can only field MACHINE_CAP living machines, and every wave entry is
+// staggered so a single frame cannot spawn an arbitrary number of contacts.
+export const ESCALATION={alarmWaveCap:4,eliteInterval:180,eliteCap:3,hazardWindowInterval:150,hazardWarning:18,hazardDuration:22,hazardDamage:2,squeezeLead:180,squeezeWaveInterval:45};
+const HAZARD_WINDOWS={
+ relay:{name:'Ashfall squall',damage:2,radius:26},
+ reservoir:{name:'Acid rain cell',damage:2,radius:24},
+ switchyard:{name:'Arc-flash storm',damage:3,radius:22}
+};
+const machineDef=machine=>{
+ const base=MACHINES[machine.kind]||MACHINES.scout;
+ if(!machine.elite)return base;
+ return {...base,hp:machine.maxHp||Math.round(base.hp*1.4),maxHp:machine.maxHp||Math.round(base.hp*1.4),sight:(base.sight||0)+8,range:Math.round((base.range||0)*1.15),damage:Math.round((base.damage||0)*1.35),cooldown:Math.max(1,(base.cooldown||3)*.85),speed:(base.speed||0)*1.18,armor:Math.min(.7,(base.armor||0)+.1)};
+};
 export function event(raid,now,text,kind='info'){raid.eventSeq=(raid.eventSeq||0)+1;raid.events.push({id:raid.eventSeq,at:now,text,kind});if(raid.events.length>24)raid.events.shift()}
 // Each machine owns a fixed four-point sweep around its home. The route is
 // derived from the raid and machine ids, sampled on walkable support, and
@@ -32,18 +46,49 @@ export function machineRoute(raid,machine){
  }
  machine.route=route;return route;
 }
-export function scheduleReinforcement(raid,x,z,now,{kind='hunter',delay=12,reason='alert'}={}){
- const queue=raid.reinforcements||=[];const existing=queue.find(q=>q.reason===reason&&Math.hypot(q.x-x,q.z-z)<6);
- if(existing){existing.until=now+delay;return existing}
- const entry={at:now+delay,x,z,kind,reason,until:now+delay};
- queue.push(entry);
- event(raid,now,reason==='breach'?'Machine network response inbound to the breached armory.':'Machine network dispatching reinforcements to the contact.','alarm');
- return entry;
+export function scheduleReinforcement(raid,x,z,now,{kind='hunter',delay=12,reason='alert',count=1,elite=false}={}){
+ const queue=raid.reinforcements||=[];const existing=queue.find(q=>q.reason===reason||q.reason?.startsWith(reason+'#'));
+ if(existing){existing.at=now+delay;existing.until=existing.at;return existing}
+ const wave=Math.max(1,Math.min(ESCALATION.alarmWaveCap,count)),entries=[];
+ for(let i=0;i<wave;i++){
+  const entry={at:now+delay+i*3,x,z,kind:i===0?kind:(kind==='heavy'?'hunter':'scout'),reason:i?reason+'#'+i:reason,until:now+delay+i*3,elite:!!elite&&i===0};
+  queue.push(entry);entries.push(entry);
+ }
+ event(raid,now,(wave>1?'Machine network is dispatching a '+wave+'-unit response wave.':'Machine network dispatching reinforcements to the contact.'),(reason.startsWith('breach')?'alarm':'alarm'));
+ return entries[0];
 }
-export function spawnMachine(raid,kind,x,z,now){
+// Every alarm response grows one layer stronger, capped at four units. Elite
+// hunters replace the point unit on every third alarm so a contested sector
+// escalates instead of merely spawning more identical patrols.
+export function escalate(raid,now,x,z,reason){
+ raid.alarms=(raid.alarms||0)+1;
+ const level=Math.min(4,Math.ceil(raid.alarms/2));
+ if(level>(raid.alarmLevel||0)){raid.alarmLevel=level;event(raid,now,'Machine security response escalating to threat level '+level+'.','escalation')}
+ return scheduleReinforcement(raid,x,z,now,{kind:'hunter',delay:12+3*(level-1),reason,count:Math.min(ESCALATION.alarmWaveCap,Math.ceil(raid.alarms/2)+1),elite:raid.alarms>=3&&raid.alarms%3===0});
+}
+export function spawnMachine(raid,kind,x,z,now,options={}){
  const def=MACHINES[kind]||MACHINES.scout,point=safePoint(raid.world,x,z,{radius:def.radius,height:def.height,avoid:[...raid.world.spawns.map(([x,z])=>({x,z})),...[...raid.players.values()].filter(p=>p.alive)],distance:24});if(!point)return null;
  raid.machineSeq=(raid.machineSeq||0)+1;
- const machine={id:'machine_'+raid.machineSeq,kind,x:point.x,z:point.z,y:def.flight||point.y,hp:def.hp,maxHp:def.hp,yaw:0,nextAttack:now+5,state:'patrol',home:point,path:[],pathAt:0,bossPhase:kind==='overlord'?'approach':null};raid.machines.push(machine);return machine;
+ const elite=options.elite===true,hp=elite?Math.round(def.hp*1.4):def.hp;
+ const machine={id:'machine_'+raid.machineSeq,kind,x:point.x,z:point.z,y:def.flight||point.y,hp,maxHp:hp,yaw:0,nextAttack:now+5,state:'patrol',home:point,path:[],pathAt:0,bossPhase:kind==='overlord'?'approach':null,elite};
+ if(elite){machine.speed=(def.speed||0)*1.18;machine.sight=(def.sight||0)+8;machine.range=Math.round((def.range||0)*1.15);machine.damage=Math.round((def.damage||0)*1.35);machine.cooldown=Math.max(1,(def.cooldown||3)*.85)}
+ raid.machines.push(machine);return machine;
+}
+// Elite sweeps are periodic and bounded. They spawn at a cache or exit anchor
+// and investigate it, giving squads a recognisable patrol rather than a
+// nameless extra bot.
+export function spawnElitePatrol(raid,now){
+ const machines=raid.machines||[],cap=ESCALATION.eliteCap;
+ if(machines.filter(m=>m.hp>0&&m.elite).length>=cap)return null;
+ const anchors=[...(raid.caches||[]),...(raid.exits||[])];
+ if(!anchors.length)return null;
+ const pick=anchors[Math.floor(ratio((raid.id||'raid')+':elite:'+(raid.eliteSpawns||0))*anchors.length)%anchors.length];
+ const machine=spawnMachine(raid,'hunter',pick.x+14,pick.z-12,now,{elite:true});
+ if(!machine)return null;
+ raid.eliteSpawns=(raid.eliteSpawns||0)+1;
+ machine.sweeping=true;machine.investigate={x:pick.x,y:pick.y||0,z:pick.z,until:now+60};
+ event(raid,now,'An elite Prowler patrol is sweeping the sector.','elite');
+ return machine;
 }
 const V5_MACHINE_POSITIONS={relay:[[-120,-80],[80,80],[100,-80],[-120,60],[0,160],[60,-180],[-80,140]],reservoir:[[-100,-80],[60,100],[100,-40],[-100,40],[0,180],[80,-200],[-100,180]],switchyard:[[-120,-40],[60,60],[120,-40],[-100,60],[-40,180],[80,-160],[-100,200]]};
 export function populateMachines(raid,now){
@@ -53,6 +98,7 @@ export function populateMachines(raid,now){
  ['scout','hunter','heavy','flyer','overlord'].forEach((kind,i)=>spawnMachine(raid,kind,...positions[i],now));
  spawnMachine(raid,'scout',...positions[5],now);spawnMachine(raid,'hunter',...positions[6],now);
  raid.conditions=raid.conditionPlan?conditionsAt(raid.world,raid.conditionPlan,0):mapConditions(raid.world,raid.id.charCodeAt(0));raid.lastLightPhase=raid.conditions.period;raid.telegraphs=[];raid.noises=[];raid.nextSupply=now+180;raid.nextPatrol=now+150;raid.weatherAt=now+300;raid.hazardTicks={};
+ raid.alarms=0;raid.alarmLevel=0;raid.dynamicHazards=[];raid.nextElite=now+ESCALATION.eliteInterval;raid.nextHazardWindow=now+ESCALATION.hazardWindowInterval;raid.nextSqueeze=0;raid.squeezeAt=0;raid.eliteSpawns=0;raid.hazardWindows=0;
 }
 function ratio(seed){let value=2166136261;for(const c of seed)value=Math.imul(value^c.charCodeAt(0),16777619)>>>0;value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296}
 const MACHINE_WEAPONS={scout:['pistol','smg'],hunter:['smg','ar','shotgun'],heavy:['shotgun','lmg'],flyer:['sniper','smg'],overlord:['ar','sniper','lmg']};
@@ -84,7 +130,7 @@ export function advanceBossPhase(raid,machine,now){
  }
 }
 export function hitMachine(service,raid,machine,damage,hitY,team){
- const def=MACHINES[machine.kind]||MACHINES.scout,now=service.now(),phase=machine.kind==='overlord'?(machine.bossPhase||'approach'):null;
+ const def=machineDef(machine),now=service.now(),phase=machine.kind==='overlord'?(machine.bossPhase||'approach'):null;
  // The meltdown core is exposed: core hits always count as weak and body hits
  // keep less armor, so the boss is vulnerable without waiting for a windup.
  const armor=phase==='meltdown'?.3:phase==='furnace'?.55:def.armor;
@@ -94,11 +140,12 @@ export function hitMachine(service,raid,machine,damage,hitY,team){
  const roll=ratio((raid.id||'raid')+':'+machine.id),pool=MACHINE_WEAPONS[machine.kind]||['pistol'],weapon=pool[Math.floor(roll*pool.length)%pool.length],ammo=WEAPONS[weapon].ammo;
  const salvage=[item('valuable',{value:machine.kind==='overlord'?150:20,rarity:machine.kind==='overlord'?4:1}),item('material',{material:machine.kind==='flyer'?'wire':'steel',quantity:machine.kind==='overlord'?8:2}),item('weapon',{weapon,condition:35+Math.floor(roll*50),rarity:Math.max(1,Math.floor(roll*3)),loaded:WEAPONS[weapon].mag}),item('ammo',{ammo,quantity:Math.max(6,Math.round(MACHINE_AMMO_ROUNDS[ammo]*(.5+roll)))})];
  if(machine.kind==='overlord')salvage.push(item('mod',{mod:Object.keys(MODS)[Math.floor(roll*3)%3],rarity:3}));
- raid.bags.push({id:machine.id+'_salvage',x:machine.x,y:floorAt(raid.world,machine.x,machine.z,machine.y||0),z:machine.z,items:salvage});
- event(raid,now,def.name+' destroyed',machine.kind==='overlord'?'boss':'combat');
+ if(machine.elite)salvage.push(item('valuable',{value:75,rarity:3}),item('mod',{mod:Object.keys(MODS)[Math.floor(roll*5)%3],rarity:2}));
+ raid.bags.push({id:machine.id+'_salvage',x:machine.x,y:floorAt(raid.world,machine.x,machine.z,machine.y||0),z:machine.z,kind:'machine',label:def.name+' salvage',items:salvage});
+ event(raid,now,(machine.elite?'Elite ':'')+def.name+' destroyed',machine.kind==='overlord'?'boss':'combat');
  const contact={x:machine.x,y:machine.y||0,z:machine.z,until:now+9};
  for(const other of raid.machines)if(other!==machine&&other.hp>0&&distance(other,machine)<55){other.investigate={...contact};other.state='investigate'}
- scheduleReinforcement(raid,machine.x,machine.z,now,{kind:machine.kind==='overlord'?'scout':'hunter',delay:machine.kind==='overlord'?8:14,reason:'destroyed:'+machine.id});
+ escalate(raid,now,machine.x,machine.z,'destroyed:'+machine.id);
  for(const ally of raid.players.values())if(ally.alive&&ally.team===team&&distance(ally,machine)<60){ally.facts||={explorations:[],machines:0,bosses:0};ally.facts.machines++;ally.facts.mapMachines||={};ally.facts.mapMachines[raid.world.id]=(ally.facts.mapMachines[raid.world.id]||0)+1;if(machine.kind==='overlord')ally.facts.bosses++}
 }
 function visible(raid,m,p,def){
@@ -125,13 +172,13 @@ export function advanceMachines(service,raid,dt,now){
  const aliveMachines=()=>raid.machines.filter(m=>m.hp>0).length;
  for(const [index,order]of (raid.reinforcements||[]).entries())if(now>=order.at){
   if(aliveMachines()<MACHINE_CAP){
-   const spawn=spawnMachine(raid,order.kind,order.x+(order.reason.startsWith('destroyed')?6:0),order.z+(order.reason.startsWith('destroyed')?4:0),now);
+   const spawn=spawnMachine(raid,order.kind,order.x+(order.reason.startsWith('destroyed')?6:0),order.z+(order.reason.startsWith('destroyed')?4:0),now,{elite:order.elite});
    if(spawn){spawn.investigate={x:order.x,y:order.y||0,z:order.z,until:now+16};spawn.state='investigate';event(raid,now,'A machine response team arrived at the contact.','alarm')}
   }
   raid.reinforcements.splice(index,1);break;
  }
  for(const m of raid.machines){
-  if(m.hp<=0)continue;const def=MACHINES[m.kind]||MACHINES.scout;
+  if(m.hp<=0)continue;const def=machineDef(m);
   const target=[...raid.players.values()].filter(p=>visible(raid,m,p,def)).sort((a,b)=>distance(a,m)-distance(b,m))[0];
   if(target){m.lastSeen={x:target.x,y:target.y||0,z:target.z,until:now+6};m.target=target.account;m.yaw=Math.atan2(target.x-m.x,target.z-m.z);m.state=m.attack?'windup':'pursue';
    for(const other of raid.machines)if(other!==m&&other.hp>0&&distance(other,m)<18&&!other.lastSeen)other.investigate={...m.lastSeen,until:now+4};
@@ -166,8 +213,37 @@ export function advanceMachines(service,raid,dt,now){
   }
  }
 }
+function createHazardWindow(raid,now){
+ const def=HAZARD_WINDOWS[raid.world.id]||{name:'Containment breach',damage:2,radius:24};
+ const anchors=[...(raid.caches||[]).filter(c=>!c.open),...(raid.exits||[])];
+ const index=(raid.hazardWindows||0)%Math.max(1,anchors.length),base=anchors[index]||{x:0,z:0,y:0},sign=index%2?1:-1;
+ const at=safePoint(raid.world,base.x+12*sign,base.z-12*sign,{radius:.5,y:base.y||0,height:1.2})||{x:base.x,y:base.y||0,z:base.z};
+ raid.hazardWindows=(raid.hazardWindows||0)+1;
+ return {id:'front_'+raid.id+'_'+raid.hazardWindows,name:def.name,x:at.x,y:at.y||0,z:at.z,radius:def.radius,damage:def.damage,start:now+ESCALATION.hazardWarning,until:now+ESCALATION.hazardWarning+ESCALATION.hazardDuration,boss:null};
+}
 export function advanceEvents(service,raid,now){
  const alive=[...raid.players.values()].filter(p=>p.alive);if(!alive.length)return;
+ if(raid.nextElite&&now>=raid.nextElite){raid.nextElite=now+ESCALATION.eliteInterval;spawnElitePatrol(raid,now)}
+ if(raid.nextHazardWindow&&now>=raid.nextHazardWindow){
+  raid.nextHazardWindow=now+ESCALATION.hazardWindowInterval;
+  const hazard=createHazardWindow(raid,now);(raid.dynamicHazards||=[]).push(hazard);
+  event(raid,now,hazard.name+' warning. The front reaches the sector in '+Math.round(hazard.start-now)+' seconds.', 'hazard_warning');
+ }
+ const squeezeLeft=raid.deadline-now;
+ if(!raid.squeezeAt&&squeezeLeft>0&&squeezeLeft<=ESCALATION.squeezeLead){
+  raid.squeezeAt=now;raid.squeezeSeq=0;raid.nextSqueeze=now;
+  event(raid,now,'Containment is closing. Every extraction site is contested — chain of command movements are being detected.','squeeze');
+ }
+ if(raid.squeezeAt&&squeezeLeft>0&&now>=raid.nextSqueeze&&raid.machines.filter(m=>m.hp>0).length<MACHINE_CAP){
+  raid.nextSqueeze=now+ESCALATION.squeezeWaveInterval;
+  const exits=[...raid.exits].sort((a,b)=>String(a.id).localeCompare(String(b.id))),exit=exits[(raid.squeezeSeq||0)%Math.max(1,exits.length)];
+  raid.squeezeSeq=(raid.squeezeSeq||0)+1;
+  if(exit){
+   const machine=spawnMachine(raid,'hunter',exit.x+18,exit.z+12,now,{elite:true});
+   if(machine){machine.ambush=true;machine.patrolRadius=10;machine.investigate={x:exit.x,y:exit.y||0,z:exit.z,until:now+30}}
+   event(raid,now,'Sector collapse in '+Math.ceil(squeezeLeft)+'s. Extraction is contested · elite ambush inbound.','squeeze');
+  }
+ }
  if(raid.conditionPlan?.version===1&&raid.conditionsSecond!==Math.floor(now-raid.started)){
   raid.conditionsSecond=Math.floor(now-raid.started);raid.conditions=conditionsAt(raid.world,raid.conditionPlan,now-raid.started);
   if(raid.lastLightPhase!==raid.conditions.period){raid.lastLightPhase=raid.conditions.period;event(raid,now,raid.conditions.period[0].toUpperCase()+raid.conditions.period.slice(1)+' over the sector. Sight and machine detection follow visibility.','daylight')}
@@ -189,4 +265,11 @@ export function advanceEvents(service,raid,now){
   if(h.until<=now)continue;
   for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard'})}
  }
+ for(const h of raid.dynamicHazards||[]){
+  if(now>=h.until)continue;
+  if(now>=h.start&&!h.announced){h.announced=true;event(raid,now,h.name+' is active · '+Math.round(h.until-now)+' seconds.','hazard')}
+  if(now<h.start)continue;
+  for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard'})}
+ }
+ raid.dynamicHazards=(raid.dynamicHazards||[]).filter(h=>h.until>now);
 }

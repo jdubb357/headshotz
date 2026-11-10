@@ -30,6 +30,18 @@ function room(m,x,z,w,d,h,doors=['n','s'],wallKind='brick',roofKind='roof',tint=
  m.props.push({kind:'floor',x,y:.02,z,w:w-.5,d:d-.5,color:wallKind==='planks'?0x6b5137:0x62615d},{kind:'lamp',x,y:h-.5,z});
 }
 function cache(m,x,z,tier,name,y=0,vault=false){m.caches.push([x,z,y]);m.cacheMeta.push({tier,name,vault})}
+// Interactive doors are authored at the same wall gaps the room builder leaves
+// for movement. Descriptors remain axis-aligned boxes so shared collision, LOS
+// and ballistics can test them without knowing which wall side produced them.
+function doorsForRoom(m,x,z,w,d,h,sides,label,locked=false){
+ for(const side of sides){
+  if(!['n','s','e','w'].includes(side))continue;
+  const horizontal=side==='n'||side==='s',sign=side==='n'||side==='w'?-1:1;
+  m.doorSeq=(m.doorSeq||0)+1;
+  m.doors.push({id:m.id+'-door-'+String(m.doorSeq).padStart(2,'0'),x:horizontal?x:x+sign*w/2,y:0,z:horizontal?z+sign*d/2:z,
+   w:horizontal?3.4:.32,d:horizontal?.32:3.4,h,side,label,locked,closed:false});
+ }
+}
 function roofAccess(m,x,z,h){m.ramps.push({x:x+14,z,w:4,d:16,from:0,to:h+.22,axis:'z'});box(m,x+11,z+7,7,4,.18,h+.04,'metal')}
 function landmark(m,name,x,z,radius=16){m.landmarks.push({name,x,z,radius});m.props.push({kind:'sign',name,x,y:2.8,z:z+radius*.6})}
 function scatter(m,seed){
@@ -52,6 +64,7 @@ function enlargedWorld(world,factor,version=4){
  enlarged.landmarks=(enlarged.landmarks||[]).map(marker=>({...marker,x:marker.x*factor,z:marker.z*factor,radius:marker.radius*factor}));
  enlarged.hazards=(enlarged.hazards||[]).map(hazard=>({...hazard,x:hazard.x*factor,z:hazard.z*factor,radius:hazard.radius*factor}));
  enlarged.caches=enlarged.caches.map(([x,z,y=0])=>[x*factor,z*factor,y]);
+ enlarged.doors=(enlarged.doors||[]).map(door=>({...door,x:door.x*factor,z:door.z*factor,w:door.w*factor,d:door.d*factor,closed:!!door.closed}));
  enlarged.exits=enlarged.exits.map(exit=>({...exit,x:exit.x*factor,z:exit.z*factor}));
  enlarged.spawns=enlarged.spawns.map(([x,z])=>[x*factor,z*factor]);
  if(enlarged.supply)enlarged.supply={...enlarged.supply,x:enlarged.supply.x*factor,z:enlarged.supply.z*factor};
@@ -63,7 +76,7 @@ function enlargedWorld(world,factor,version=4){
 // decks, towers and terrain cuts so the larger ground area has distinct places
 // to explore instead of one stretched district.
 function arena(id,name,theme){
- return {id,name,theme,version:5,size:720,blocks:[],ramps:[],props:[],landmarks:[],hazards:[],caches:[],cacheMeta:[],
+ return {id,name,theme,version:5,size:720,blocks:[],ramps:[],props:[],landmarks:[],hazards:[],caches:[],cacheMeta:[],doors:[],doorSeq:0,
   spawns:[[-300,-300],[-80,-320],[140,-320],[320,-140],[320,160],[160,320],[-140,320],[-320,160],[-320,-120]],
   exits:[{id:'call',x:-330,y:0,z:0,kind:'call',name:'West evacuation beacon'},{id:'transport',x:200,y:0,z:330,kind:'timed',name:'South cargo lift'},{id:'hatch',x:0,y:0,z:-330,kind:'key',name:'North maintenance hatch'},{id:'freight',x:330,y:0,z:-180,kind:'resource',name:'Emergency freight winch'}],
   supply:{x:0,y:0,z:100}};
@@ -867,9 +880,9 @@ landmark(switchyard,'Freight Office',-36,-28);landmark(switchyard,'Dispatch',0,-
 for(const args of [[-36,-28,1,'Freight office'],[0,-25,2,'Dispatch console'],[34,30,2,'Depot stores'],[34,30,3,'Depot roof strongbox',4.42],[-22,30,2,'Bridge signal box',3.4],[-48,21,0,'Trackside salvage'],[20,-40,1,'Signal supplies'],[46,-26,1,'Burned carriage'],[-18,-45,0,'Worker camp'],[-1,48,0,'Evacuation stores'],[54,14,1,'Platform luggage'],[0,22,3,'Locked dispatch vault',0,true]])cache(switchyard,...args);
 switchyard.hazards.push({id:'live_rail',name:'Live rail discharge',x:8,z:8,y:0,radius:7,period:50,active:8,warning:4,damage:9});scatter(switchyard,2033);
 const relay5=arena('relay','Relay Graveyard','industrial');
-room(relay5,0,0,30,24,5.4);roofLink(relay5,0,0,5.4);
-room(relay5,-180,40,26,20,5.0);roofLink(relay5,-180,40,5.0);
-room(relay5,180,-40,24,18,4.6);
+room(relay5,0,0,30,24,5.4);doorsForRoom(relay5,0,0,30,24,5.4,['n','s'],'Relay control door',true);roofLink(relay5,0,0,5.4);
+room(relay5,-180,40,26,20,5.0);doorsForRoom(relay5,-180,40,26,20,5.0,['n','s'],'Freight hall door');roofLink(relay5,-180,40,5.0);
+room(relay5,180,-40,24,18,4.6);doorsForRoom(relay5,180,-40,24,18,4.6,['n','s'],'Turbine hall door');
 for(const [x,z]of [[-180,-160],[-160,-160]]){box(relay5,x,z,2,2,10,0,'metal');relay5.props.push({kind:'dish',x,y:10,z})}
 for(const [x,z]of [[80,-140],[100,-140],[120,-140],[-60,160],[-40,160],[-20,160]])box(relay5,x,z,6,12,2.4,0,'container');
 for(const [x,z]of [[-220,-260],[220,-260],[-180,240],[180,240]])box(relay5,x,z,4,2,1.2,0,'barrier');
@@ -894,9 +907,9 @@ relay5.hazards.push({id:'substation_arcs',name:'Substation discharge',x:240,y:0,
 scatterBig(relay5,9271);
 
 const reservoir5=arena('reservoir','Dry Reservoir','wilderness');
-room(reservoir5,-180,-160,24,20,5.0);roofLink(reservoir5,-180,-160,5.0);
-room(reservoir5,180,160,22,18,6.0);roofLink(reservoir5,180,160,6.0);
-room(reservoir5,180,-160,20,16,5.4);roofLink(reservoir5,180,-160,5.4);
+room(reservoir5,-180,-160,24,20,5.0);doorsForRoom(reservoir5,-180,-160,24,20,5.0,['n','s'],'Pump house door',true);roofLink(reservoir5,-180,-160,5.0);
+room(reservoir5,180,160,22,18,6.0);doorsForRoom(reservoir5,180,160,22,18,6.0,['n','s'],'Watch station door');roofLink(reservoir5,180,160,6.0);
+room(reservoir5,180,-160,20,16,5.4);doorsForRoom(reservoir5,180,-160,20,16,5.4,['n','s'],'Intake door');roofLink(reservoir5,180,-160,5.4);
 for(const [x,z,w,d,h]of [[-200,120,26,20,4.2],[220,220,22,18,3.8],[-260,-220,30,22,4.0]])box(reservoir5,x,z,w,d,h,0,'rock');
 deck(reservoir5,0,0,260,10,1.6);
 reservoir5.props.push({kind:'basin',x:0,y:.01,z:0,w:220,d:70},{kind:'pump',x:-220,y:0,z:-190},{kind:'waterTower',x:220,y:0,z:-200});
@@ -918,9 +931,9 @@ reservoir5.hazards.push({id:'coolant_vent',name:'Coolant vent',x:60,y:0,z:60,rad
 scatterBig(reservoir5,7719);
 
 const switchyard5=arena('switchyard','Ember Switchyard','settlement');
-room(switchyard5,-180,-120,26,20,5.0);roofLink(switchyard5,-180,-120,5.0);
-room(switchyard5,0,-140,22,20,4.6);
-room(switchyard5,160,140,30,24,5.2);roofLink(switchyard5,160,140,5.2);
+room(switchyard5,-180,-120,26,20,5.0);doorsForRoom(switchyard5,-180,-120,26,20,5.0,['n','s'],'Freight office door');roofLink(switchyard5,-180,-120,5.0);
+room(switchyard5,0,-140,22,20,4.6);doorsForRoom(switchyard5,0,-140,22,20,4.6,['n','s'],'Dispatch door',true);
+room(switchyard5,160,140,30,24,5.2);doorsForRoom(switchyard5,160,140,30,24,5.2,['n','s'],'Depot strongbox door',true);roofLink(switchyard5,160,140,5.2);
 for(const z of [-60,40])for(const x of [-220,-160,-100,60,120,200])box(switchyard5,x,z,14,4,2.5,0,'container');
 deck(switchyard5,-80,0,200,10,2.8);
 for(const z of [-100,100])switchyard5.props.push({kind:'rail',x:0,y:.02,z,w:600,d:2.2});
@@ -1004,6 +1017,7 @@ function nearbyBlocks(world,x,z,r=0){
 export function blocked(world,x,z,r=.5,y=0,height=1.7){
  if(Math.abs(x)>world.size/2-r||Math.abs(z)>world.size/2-r)return true;
  if(nearbyBlocks(world,x,z,r).some(([bx,bz,w,d,h,base=0])=>Math.abs(x-bx)<w/2+r&&Math.abs(z-bz)<d/2+r&&y+height>base+.04&&y<base+h-.04))return true;
+ if((world.doors||[]).some(door=>door.closed&&Math.abs(x-door.x)<door.w/2+r&&Math.abs(z-door.z)<door.d/2+r&&y+height>(door.y||0)+.04&&y<(door.y||0)+door.h-.04))return true;
  return (world.ramps||[]).some(ramp=>{const level=rampLevel(ramp,x,z);return level!=null&&y<level-.04&&y+height>level-.12});
 }
 export function rampLevel(r,x,z){if(Math.abs(x-r.x)>r.w/2||Math.abs(z-r.z)>r.d/2)return null;const t=r.axis==='x'?(x-r.x)/r.w+.5:(z-r.z)/r.d+.5;return r.from+(r.to-r.from)*t}

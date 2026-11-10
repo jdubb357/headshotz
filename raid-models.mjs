@@ -80,6 +80,11 @@ export function propModel(kind,color=0xe0aa4d){
   part(root,'ring',color,0,.3,0,.58,.58,.58,[Math.PI/2,0,0]);part(root,'cylinder',color,0,.48,0,.035,.55,.035);
  }else if(kind==='bag'){
   part(root,'box',0x47534d,0,.22,0,.85,.4,.65);for(const x of [-.25,.25])part(root,'box',0xa89670,x,.25,0,.09,.45,.72);part(root,'ring',0x35444b,0,.45,0,.15,.15,.15);
+ }else if(kind==='door'){
+  // A single authoritative slab plus a floor sill: closed doors read as a solid
+  // barrier, open ones as a lit threshold, and locks are colored red.
+  const leaf=part(root,'box',color,0,1.4,0,1,1,1);leaf.material=leaf.material.clone();leaf.material.userData.raidOwned=true;root.userData.doorLeaf=leaf;
+  const sill=part(root,'box',0x8dbb9b,0,.05,0,1,.1,1);sill.material=sill.material.clone();sill.material.userData.raidOwned=true;root.userData.doorSill=sill;
  }else{
   part(root,'cylinder',0x36474d,0,.07,0,3,.12,3);const ring=part(root,'ring',color,0,.15,0,2.6,2.6,2.6,[Math.PI/2,0,0]);ring.material=ring.material.clone();ring.material.userData.raidOwned=true;root.userData.exitRing=ring;
   part(root,'box',0x53646b,2.3,.8,0,.45,1.6,.45);part(root,'box',color,2.3,1.6,0,.5,.2,.5);
