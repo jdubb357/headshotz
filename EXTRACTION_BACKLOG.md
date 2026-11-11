@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (offline deploy plan iteration 58). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (first-person gun presentation iteration 63). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -77,6 +77,24 @@ no page scroll desktop/mobile, `/tmp/hs-menu-desktop.png`, `/tmp/hs-menu-mobile.
 `tests/raid-browser-static-account.mjs` now proves offline exposes no Account entry point.
 Honest gap: portrait 390x844 is usable but tabs scroll horizontally; 1024x720 base was
 not exercised on a physical iPad.
+
+First-person gun presentation shipped 2026-11-11 (iteration 63): offline raid now boots
+first-person instead of showing the operator's back, so the weapon — the thing the player
+actually controls — is visible within seconds of deploying. The viewmodel pose was raised
+and pulled closer/slightly larger (home x .2, y -.135, z -.46, scale .74) so both hands and
+the sight clear the bottom touch row at 1024x720 and 844x390. Recoil kick is stronger with
+a fast exponential settle and a bounded sustained climb; muzzle bloom, warm muzzle light
+and tracer are brighter and longer-lived, with a larger pooled world shot light, all still
+suppressed under reduced motion. Evidence: `tests/raid-browser-viewmodel.mjs` (pose/kick/
+flash/heat/casing/reload/visibility, screenshots `/tmp/hs-viewmodel*.png`), plus
+`tests/raid-browser-mobile-hud.mjs` and `tests/raid-browser-base-lobby.mjs` green on
+rerun and the full 1247-test unit suite. Gameplay screenshots
+`/tmp/hs-field-1024x720-after.png`, `/tmp/hs-field-844x390-after.png`,
+`/tmp/hs-combatfire-1024-0.png`, `/tmp/hs-combatfire-844-0.png` and
+`/tmp/hs-combat-aim-1024.png`, compared against
+`/tmp/hs-field-1024x720-baseline.png` and `/tmp/hs-field-844x390-baseline.png`. Honest gap:
+weapon/hand materials still read flat and plastic, the wood buildings remain boxy with soft
+lighting, and trigger-feel on a physical iPad is still unverified.
 
 Naming shipped 2026-11-11 (iteration 60): the mode is "THE SECTOR" in the page title, base
 heading and main-menu raid banner, with the original co-op raid kept as CLASSIC EXTRACTION.
@@ -675,10 +693,13 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 - **Weapon readiness / responsiveness** — COMPLETE. Reliable action queue, trigger
   gating, prediction and authoritative cooldowns; trigger and trigger-latency suites
   plus production browser grader.
-- **Recoil / viewmodel feedback** — COMPLETE (presentation). Bounded recoil impulse,
-  alternating side, reduced-motion suppression, viewmodel heat/muzzle/casing/reload
-  state; `raid-browser-viewmodel.mjs` and accessibility grader. This is not an aim
-  debuff on the server.
+- **Recoil / viewmodel feedback** — COMPLETE (presentation; iteration 63). Bounded recoil
+  impulse now snaps the camera and gun harder and settles exponentially faster, muzzle
+  bloom/light and tracer are brighter with a larger pooled world shot light, and the
+  first-person pose is raised so the weapon and hands clear the mobile touch row.
+  Alternating side, reduced-motion suppression, heat/muzzle/casing/reload state remain
+  graded by `raid-browser-viewmodel.mjs` and the accessibility grader. This is not an
+  aim debuff on the server.
 - **Reloads and weapon switching** — COMPLETE. Server reload consumes compatible ammo,
   magazine full/cooldown rejected; equip validates ownership and usability; browser
   ballistics and viewmodel graders.

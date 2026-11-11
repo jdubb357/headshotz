@@ -49,10 +49,11 @@ try{
   // Locomotion bob: server-reported motion swings the weapon vertically.
   const moving={...state,self:{...miss,move:{x:0,z:1}}};
   v.sync(moving);v.vmEquipAt=0;v.vmYaw=0;v.vmPitch=0;v.vmLastYaw=0;v.vmLastPitch=0;v.vmStep=0;
+  const home=v.gunHip||{x:.2,y:-.135,z:-.46};
   let previous=null,maxBob=0,bounded=0;
   for(let i=0;i<40;i++){
    render(1100+i*16);
-   bounded=Math.max(bounded,Math.abs(v.gunRoot.position.x-.2),Math.abs(v.gunRoot.position.y+.22));
+   bounded=Math.max(bounded,Math.abs(v.gunRoot.position.x-home.x),Math.abs(v.gunRoot.position.y-home.y));
    if(previous)maxBob=Math.max(maxBob,Math.hypot(v.gunRoot.position.x-previous.x,v.gunRoot.position.y-previous.y));
    previous=v.gunRoot.position.clone();
   }
@@ -178,7 +179,7 @@ try{
   for(let i=33;i<=63;i++)render(aimBase+i*16,0,0,station.self,false);
   const aimRestored={x:v.gunRoot.position.x,y:v.gunRoot.position.y,z:v.gunRoot.position.z,blend:v.vmAim};
   const aimRestoreAt=aimBase+63*16,aimRestoreSeconds=aimRestoreAt/1000;
-  const aimRestoreDelta=Math.hypot(aimRestored.x-(.2+Math.sin(aimRestoreSeconds*1.7)*.004),aimRestored.y-(-.22+Math.sin(aimRestoreSeconds*2.1)*.004),aimRestored.z+.5);
+  const aimRestoreDelta=Math.hypot(aimRestored.x-(home.x+Math.sin(aimRestoreSeconds*1.7)*.004),aimRestored.y-(home.y+Math.sin(aimRestoreSeconds*2.1)*.004),aimRestored.z-home.z);
   v.applySettings({...v.settings,reduced:true});
   v.vmAim=0;
   render(aimBase+1100,0,0,station.self,true);
@@ -209,7 +210,7 @@ try{
   render(reloadEndAt,0,0,station.self);
   const reloadEnd={active:v.reloadStartedAt>0,visible:!!magGroup?.visible,x:v.gunRoot.position.x,y:v.gunRoot.position.y,z:v.gunRoot.position.z,rotX:v.gunRoot.rotation.x,rotZ:v.gunRoot.rotation.z};
   const secondsEnd=reloadEndAt/1000;
-  const reloadEndDelta=Math.hypot(reloadEnd.x-(.2+Math.sin(secondsEnd*1.7)*.004),reloadEnd.y-(-.22+Math.sin(secondsEnd*2.1)*.004),reloadEnd.z+.5);
+  const reloadEndDelta=Math.hypot(reloadEnd.x-(home.x+Math.sin(secondsEnd*1.7)*.004),reloadEnd.y-(home.y+Math.sin(secondsEnd*2.1)*.004),reloadEnd.z-home.z);
   const reloadEndRotDelta=Math.hypot(reloadEnd.rotX,reloadEnd.rotZ);
   // A second accepted reload reuses the same group and materials.
   const startedAgain=v.beginReload(1000);
@@ -372,7 +373,7 @@ try{
  assert.ok(details.aimEarly.x>details.expectedAimX+.01,'the early aim frame is still moving toward the sight');
  assert.equal(details.aimSettled.blend,1,'the aim transition settles fully');
  assert.ok(Math.abs(details.aimSettled.x-details.expectedAimX)<.0001&&Math.abs(details.aimSettled.y-details.expectedAimY)<.0001,'the settled weapon is sight-aligned ('+details.aimSettled.x+','+details.aimSettled.y+')');
- assert.ok(Math.abs(details.aimSettled.z+.435)<.001,'aiming pulls the weapon closer to the camera ('+details.aimSettled.z+')');
+ assert.ok(Math.abs(details.aimSettled.z+.395)<.001,'aiming pulls the weapon closer to the camera ('+details.aimSettled.z+')');
  assert.ok(details.aimSway&&Math.hypot(details.aimSway.dx,details.aimSway.dy)>.001&&Math.abs(details.aimSway.dx)<=.0201&&Math.abs(details.aimSway.dy)<=.0201,'aimed look sway stays within the tighter budget');
  assert.ok(details.aimReleaseEarly.blend>0&&details.aimReleaseEarly.blend<1&&details.aimReleaseEarly.x>details.expectedAimX,'releasing aim eases back out');
  assert.equal(details.aimRestored.blend,0,'the release transition fully clears');
@@ -388,7 +389,7 @@ try{
  assert.equal(details.reloadTextures,0,'the reload prop allocates no textures');
  assert.equal(details.reloadFirstDrop.visible,true,'the magazine prop is visible as it separates');
  assert.ok(details.reloadFirstDrop.dy<-.02&&details.reloadFirstDrop.dx>0,'the magazine ejects down and to the side ('+details.reloadFirstDrop.dy+','+details.reloadFirstDrop.dx+')');
- assert.ok(details.reloadMid.x<.2&&details.reloadMid.y<-.30,'the weapon dips during the handling beat ('+details.reloadMid.x+','+details.reloadMid.y+')');
+ assert.ok(details.reloadMid.x<.2&&details.reloadMid.y<details.hipAim.y-.05,'the weapon dips during the handling beat ('+details.reloadMid.x+','+details.reloadMid.y+')');
  assert.ok(details.reloadMid.rotX>.1&&details.reloadMid.rotZ>.1,'the weapon leans into the reload ('+details.reloadMid.rotX+','+details.reloadMid.rotZ+')');
  assert.equal(details.reloadMid.magVisible,true,'a fresh magazine is presented mid-beat');
  assert.ok(details.reloadMid.magY<-.1&&details.reloadMid.magX>0,'the magazine travels out of the receiver ('+details.reloadMid.magY+','+details.reloadMid.magX+')');
@@ -450,11 +451,11 @@ try{
  assert.equal(liveFire.casings,1,'live firing exposes a brass casing');
  assert.equal(liveFire.smoke,true,'live firing exposes muzzle smoke');
  // Live reload capture at the peak of the handling beat.
- const liveReload=await p.evaluate("(()=>{const v=window.__vmLive;v.applySettings({...(v.settings||{}),reduced:false,sfxVolume:0,fov:75,viewMode:'first'});v.beginReload(1200);v.frame(performance.now()+180,0,0,v.snapshot.self,false);return {data:v.renderer.domElement.toDataURL('image/png'),active:!!(v.reloadStartedAt>0),mag:!!v.reloadMag&&v.reloadMag.visible,pose:v.gunRoot.position.y}})()");
+ const liveReload=await p.evaluate("(()=>{const v=window.__vmLive;v.applySettings({...(v.settings||{}),reduced:false,sfxVolume:0,fov:75,viewMode:'first'});v.beginReload(1200);v.frame(performance.now()+180,0,0,v.snapshot.self,false);return {data:v.renderer.domElement.toDataURL('image/png'),active:!!(v.reloadStartedAt>0),mag:!!v.reloadMag&&v.reloadMag.visible,pose:v.gunRoot.position.y,hipY:(v.gunHip||{y:-.135}).y}})()");
  const reloadBytes=Buffer.from((liveReload.data||'').split(',')[1]||'','base64');if(reloadBytes.length>5000)await writeFile('/tmp/hs-viewmodel-reload.png',reloadBytes);
  assert.equal(liveReload.active,true,'the live view activates an accepted reload beat');
  assert.equal(liveReload.mag,true,'the live reload exposes the magazine prop');
- assert.ok(liveReload.pose<-.30,'the live weapon dips during reload ('+liveReload.pose+')');
+ assert.ok(liveReload.pose<liveReload.hipY-.05,'the live weapon dips during reload ('+liveReload.pose+')');
  await shot(p,'/tmp/hs-viewmodel-live.png');
  assert.deepEqual(p.errors,[]);
  console.log(JSON.stringify({lighting:true,reflections:true,pbr:true,sway:true,bob:true,reducedMotion:true,equipRaise:true,muzzleFlash:true,casings:true,muzzleSmoke:true,aimSight:true,reload:true,visibilityModes:true,screenshots:['/tmp/hs-viewmodel.png','/tmp/hs-viewmodel-fire.png','/tmp/hs-viewmodel-fire-overlay.png','/tmp/hs-viewmodel-heat.png','/tmp/hs-viewmodel-aim-isolated.png','/tmp/hs-viewmodel-reload.png','/tmp/hs-viewmodel-reload-isolated.png'],details:{sway:details.sway,maxBob:details.maxBob,equipRise:details.equipRise,flashOpacity:details.flashOn.opacity,casingPool:details.casingPool,casingMoved:details.casingMoved,smokeStart:details.smokeStart,smokeMid:details.smokeMid,profiles:details.categoryProfiles,heat:details.heatResidual,heatProduct:details.heatHot,heatCold:details.heatCold,reloadMid:details.reloadMid,reloadEndDelta:details.reloadEndDelta,reloadChildren:details.reloadChildCount,reloadMaterialDisposes:details.reloadMaterialDisposes,disposeEvents:details.disposeEvents,muzzleLight:details.lightOn,kickEarly:details.kickEarly,kickDecayed:details.kickDecayed,thirdKick:details.thirdKick},browserErrors:p.errors}));

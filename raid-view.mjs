@@ -142,16 +142,20 @@ void main(){
 const IMPACT_PALETTE={concrete:[0xffcf82,0xb9b3a4],gravel:[0xffcf82,0xa8a394],dirt:[0xffc878,0xbfab7f],forest:[0x9ddf63,0x738b57],foliage:[0x9ddf63,0x738b57],brick:[0xe99b62,0xa57b64],planks:[0xffbf78,0x9b6b3f],metal:[0xfff1c6,0x8a8e93],rock:[0xffc890,0xa5a293],container:[0xa7d7df,0x778b8f],crate:[0xe4cf9b,0x9c8459],hazard:[0xffd75a,0xbfae7f],tiles:[0xcbd3d8,0x9a9d98],asphalt:[0xffc98d,0x8e8b8a]};
 // Authoritative recoil amplitude per weapon class; presenting the same kick to
 // the gun and camera keeps heavy weapons distinct without touching ballistics.
-const RECOIL_KICK={ar:.07,smg:.045,shotgun:.14,sniper:.12,pistol:.06,lmg:.09};
+const RECOIL_KICK={ar:.095,smg:.06,shotgun:.18,sniper:.16,pistol:.08,lmg:.13};
+// First-person view-model home pose. Raised and pulled closer than the earlier
+// low-slung pose so the weapon and both hands stay above the bottom touch row
+// at 844x390 and read as a held firearm rather than a sliver at the screen edge.
+const VIEW_HIP={x:.2,y:-.135,z:-.46},VIEW_SCALE=.74;
 // Authored first-person muzzle silhouettes per weapon family. Each profile is
 // painted once when the weapon is equipped; the draw path adds no objects.
 const FLASH_PROFILES={
- rifle:{spikes:4,core:44,tint:0xffe6b0,scale:.034,line:4},
- smg:{spikes:6,core:37,tint:0xffd898,scale:.028,line:3},
- shotgun:{spikes:8,core:57,tint:0xffcf76,scale:.062,line:9},
- sniper:{spikes:2,core:31,tint:0xfff0ca,scale:.044,line:4},
- pistol:{spikes:5,core:39,tint:0xffdc98,scale:.024,line:5},
- heavy:{spikes:10,core:51,tint:0xffc160,scale:.058,line:6}
+ rifle:{spikes:4,core:44,tint:0xffe6b0,scale:.048,line:4},
+ smg:{spikes:6,core:37,tint:0xffd898,scale:.04,line:3},
+ shotgun:{spikes:8,core:57,tint:0xffcf76,scale:.085,line:9},
+ sniper:{spikes:2,core:31,tint:0xfff0ca,scale:.062,line:4},
+ pistol:{spikes:5,core:39,tint:0xffdc98,scale:.036,line:5},
+ heavy:{spikes:10,core:51,tint:0xffc160,scale:.08,line:6}
 };
 function muzzleFlashTexture(profile){
  const p=FLASH_PROFILES[profile]||FLASH_PROFILES.rifle,size=128,center=64;
@@ -271,7 +275,7 @@ export class RaidView {
   this.overlayKey=new THREE.DirectionalLight(0xffd8a6,3.2);this.overlayKey.position.set(2.4,2.8,4.2);
   this.overlayRim=new THREE.DirectionalLight(0x9ddcff,1.75);this.overlayRim.position.set(-2.8,1.4,2.4);
   this.overlay.add(this.overlayFill,this.overlayKey,this.overlayRim);
-  this.gunRoot=new THREE.Group();this.gunRoot.position.set(.2,-.22,-.5);this.gunRoot.scale.setScalar(.65);this.overlay.add(this.gunRoot);
+  this.gunRoot=new THREE.Group();this.gunHip={x:VIEW_HIP.x,y:VIEW_HIP.y,z:VIEW_HIP.z};this.gunRoot.position.set(VIEW_HIP.x,VIEW_HIP.y,VIEW_HIP.z);this.gunRoot.scale.setScalar(VIEW_SCALE);this.overlay.add(this.gunRoot);
   this.buildCombatEffects();
   this.buildComposite();
   this.visualSelf=new THREE.Vector3(snapshot.self.x,(snapshot.self.y||0),snapshot.self.z);
@@ -358,7 +362,7 @@ export class RaidView {
   // The additive sprite reads as a bloom, but a real pooled point light is what
   // warms the hands and receiver around the muzzle. It shares the flash window,
   // carries no geometry/texture, and is rebuilt only when the weapon changes.
-  const light=new THREE.PointLight(0xffd49a,0,3,2);light.position.copy(this.muzzleLocal);light.visible=false;light.castShadow=false;this.muzzleLight=light;this.gunRoot.add(light);
+  const light=new THREE.PointLight(0xffd49a,0,3.5,2);light.position.copy(this.muzzleLocal);light.visible=false;light.castShadow=false;this.muzzleLight=light;this.gunRoot.add(light);
   // Track the held weapon's PBR materials so barrel heat can tint them. This
   // does not allocate or clone anything; the materials are already owned by
   // the weapon and disposed with it.
@@ -715,7 +719,7 @@ export class RaidView {
    muzzleMaterial.userData.raidOwned=true;
    const muzzle=new THREE.Sprite(muzzleMaterial);muzzle.visible=false;muzzle.renderOrder=4;this.scene.add(muzzle);
    const tracerGeometry=new THREE.BufferGeometry();tracerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(6),3));
-   const tracerMaterial=new THREE.LineBasicMaterial({color:0xffe3aa,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:true});
+   const tracerMaterial=new THREE.LineBasicMaterial({color:0xfff4d6,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:true});
    tracerGeometry.userData.raidOwned=tracerMaterial.userData.raidOwned=true;
    const tracer=new THREE.Line(tracerGeometry,tracerMaterial);tracer.visible=false;tracer.frustumCulled=false;tracer.renderOrder=3;this.scene.add(tracer);
    const sparkGeometry=new THREE.BufferGeometry();sparkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(sparkCount*3),3));
@@ -892,7 +896,7 @@ export class RaidView {
   const scale=.055;
   effect.muzzle.scale.set(scale,scale,1);
   effect.muzzle.visible=!this.settings?.reduced;effect.muzzle.material.opacity=0;
-  if(this.shotMuzzleLight){const reduced=!!this.settings?.reduced;this.shotMuzzleLight.position.copy(effect.origin);this.shotMuzzleLight.visible=!reduced;this.shotMuzzleLight.intensity=reduced?0:3.2;this.shotMuzzleLightAt=now}
+  if(this.shotMuzzleLight){const reduced=!!this.settings?.reduced;this.shotMuzzleLight.position.copy(effect.origin);this.shotMuzzleLight.visible=!reduced;this.shotMuzzleLight.intensity=reduced?0:5.4;this.shotMuzzleLightAt=now}
   const position=effect.tracer.geometry.attributes.position;
   position.setXYZ(0,effect.origin.x,effect.origin.y,effect.origin.z);
   position.setXYZ(1,effect.end.x,effect.end.y,effect.end.z);position.needsUpdate=true;
@@ -981,12 +985,12 @@ export class RaidView {
    if(age>=effect.shotDuration||reduced&&age>320){effect.started=null;effect.muzzle.visible=false;effect.tracer.visible=false;effect.sparks.visible=false;effect.trailRoot.visible=false;effect.dust.visible=false;effect.debris.visible=false;continue}
    const flash=Math.max(0,1-age/85);
    effect.muzzle.visible=!reduced&&flash>0;
-   effect.muzzle.material.opacity=reduced?0:flash*.65;
-   effect.muzzle.scale.setScalar(.045+.02*(1-flash));
-   effect.tracer.visible=!reduced&&age<170;
-   effect.tracer.material.opacity=reduced?.18:Math.min(1,fade*1.8)*.72;
-   effect.trailRoot.visible=!reduced&&age<190;
-   effect.trailMaterial.opacity=Math.min(1,fade*1.7)*.46;
+   effect.muzzle.material.opacity=reduced?0:flash*.9;
+   effect.muzzle.scale.setScalar(.07+.035*(1-flash));
+   effect.tracer.visible=!reduced&&age<190;
+   effect.tracer.material.opacity=reduced?.18:Math.min(1,fade*1.8)*1;
+   effect.trailRoot.visible=!reduced&&age<200;
+   effect.trailMaterial.opacity=Math.min(1,fade*1.7)*.62;
    effect.dust.visible=!reduced&&age<240;
    const dustAge=Math.min(1,age/240);effect.dust.material.opacity=reduced?0:.52*(1-dustAge);
    effect.dust.scale.setScalar((.22+.28*dustAge)*viewScale);
@@ -1018,7 +1022,7 @@ export class RaidView {
   if(this.shotMuzzleLight){
    const lightAge=now-this.shotMuzzleLightAt,lightActive=!reduced&&lightAge>=0&&lightAge<120;
    this.shotMuzzleLight.visible=lightActive;
-   this.shotMuzzleLight.intensity=lightActive?(1-lightAge/120)*3.2:0;
+   this.shotMuzzleLight.intensity=lightActive?(1-lightAge/120)*5.4:0;
   }
   // Weak-point bursts follow the authoritative core coordinate from the hit
   // token. Reduced motion keeps a readable static flash and ring while the
@@ -1271,7 +1275,9 @@ export class RaidView {
   const anchor=s.alive?pose:this.snapshot.camera||pose;this.sunAnchor.set(anchor.x,(anchor.y||0),anchor.z);
   this.sun.target.position.copy(this.sunAnchor);this.sun.position.copy(this.sunAnchor).addScaledVector(this.sunDirection,90);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),targetFov=aiming&&held?aimFieldOfView(this.settings?.fov||75,weaponStats(held)):this.settings?.fov||75;this.camera.fov+=(targetFov-this.camera.fov)*(this.settings?.reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
   // Presentation-only muzzle rise; authoritative ballistics still use the snapshot pose.
-  if(!this.settings?.reduced){this.camera.rotation.x+=this.recoil*.32;this.camera.rotation.z+=this.recoil*this.recoilSide*.34}
+  // The stronger pitch/roll split makes each discharge visibly punch the camera
+  // before the impulse recovers, without touching the aim or the shot ray.
+  if(!this.settings?.reduced){this.camera.rotation.x+=this.recoil*.52;this.camera.rotation.z+=this.recoil*this.recoilSide*.46}
   // The aim camera above stays at eye height for authoritative ballistics and
   // network graders; the chase camera is the presentational third-person view.
   const viewYaw=!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw,viewPitch=!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch;
@@ -1317,7 +1323,7 @@ export class RaidView {
      this.chase.copy(clear?candidate:safe);
     }
     if(!this.settings?.reduced)this.chase.y+=Math.sin(seconds*6.4)*.015*Math.min(1,(this.selfActor?.userData.speed||0)/6);
-    this.renderCamera.position.copy(this.chase);this.renderCamera.lookAt(look);if(!this.settings?.reduced){this.renderCamera.rotation.x+=this.recoil*.24;this.renderCamera.rotation.z+=this.recoil*this.recoilSide*.26}this.renderCamera.fov=this.camera.fov;
+    this.renderCamera.position.copy(this.chase);this.renderCamera.lookAt(look);if(!this.settings?.reduced){this.renderCamera.rotation.x+=this.recoil*.34;this.renderCamera.rotation.z+=this.recoil*this.recoilSide*.38}this.renderCamera.fov=this.camera.fov;
    }else{this.renderCamera.position.copy(this.camera.position);this.renderCamera.rotation.copy(this.camera.rotation);this.renderCamera.fov=this.camera.fov}
   }
   for(const {model,data,type}of this.actors.values()){
@@ -1369,7 +1375,10 @@ export class RaidView {
   this.updateRainSplashes(seconds,pose);
   for(const ring of this.effects.values())ring.material.opacity=this.settings?.reduced?.85:.6+.2*Math.sin(seconds*8);
   this.updateCombatEffects(time);
-  this.recoil=Math.max(0,this.recoil-dt*.5);
+  // Fast exponential settle rather than a linear fade: the kick lands in one
+  // frame and is gone before the next aimed shot, while sustained fire sets a
+  // visible bounded climb instead of compounding forever.
+  this.recoil=Math.min(.2,this.recoil*Math.exp(-dt*13));
   const motionReduced=!!this.settings?.reduced,swayX=motionReduced?0:this.vmYaw+bobX,swayY=motionReduced?0:this.vmPitch-bobY;
   // Aim-down-sights presentation: ease toward a sight-aligned pose instead of
   // snapping. The rear optic's authored local position is projected through the
@@ -1381,8 +1390,8 @@ export class RaidView {
    this.vmAim+=(aimTarget-this.vmAim)*Math.min(1,dt*18);
    if(Math.abs(this.vmAim-aimTarget)<.001)this.vmAim=aimTarget;
   }
-  const sight=this.gun?.userData.info?.sight||[0,.06,.15],gunScale=this.gunRoot.scale.x||.65;
-  const hipX=.2,hipY=-.22,aimX=-(sight[0]||0)*gunScale,aimY=-(sight[1]||0)*gunScale;
+  const sight=this.gun?.userData.info?.sight||[0,.06,.15],gunScale=this.gunRoot.scale.x||VIEW_SCALE;
+  const hip=this.gunHip||VIEW_HIP,hipX=hip.x,hipY=hip.y,hipZ=hip.z,aimX=-(sight[0]||0)*gunScale,aimY=-(sight[1]||0)*gunScale;
   const aimBlend=this.vmAim;
   const equipAge=this.vmEquipAt?time-this.vmEquipAt:1e9,equipDrop=motionReduced||equipAge>=260?0:-.1*Math.pow(1-Math.max(0,equipAge)/260,2);
   const breathX=motionReduced||aiming?0:Math.sin(seconds*1.7)*.004,breathY=motionReduced||aiming?0:Math.sin(seconds*2.1)*.004;
@@ -1402,7 +1411,7 @@ export class RaidView {
    else if(p<.92){const u=(p-.52)/.40,k=u*u*(3-2*u);this.reloadMag.visible=true;this.reloadMag.position.set(this.reloadMagBase.x+.06*(1-k),this.reloadMagBase.y-.19*(1-k),this.reloadMagBase.z+.02*(1-k));this.reloadMag.rotation.z=-.7*(1-k)}
    else this.reloadMag.visible=false;
   }
-  this.gunRoot.position.set(hipX+(aimX-hipX)*aimBlend+swayX+breathX*(1-aimBlend)-.035*reloadHold,hipY+(aimY-hipY)*aimBlend+swayY+equipDrop+breathY*(1-aimBlend)-.105*reloadHold,-.5+this.recoil+.025*reloadHold+.065*aimBlend);
+  this.gunRoot.position.set(hipX+(aimX-hipX)*aimBlend+swayX+breathX*(1-aimBlend)-.035*reloadHold,hipY+(aimY-hipY)*aimBlend+swayY+equipDrop+breathY*(1-aimBlend)-.105*reloadHold,hipZ+this.recoil+.025*reloadHold+.065*aimBlend);
   this.gunRoot.rotation.set(-this.recoil+.14*reloadHold,swayX*.55,swayY*.4+.22*reloadHold);
   // Additive muzzle bloom that rides the recoil; short-lived, bounded, and
   // suppressed under reduced motion like the world muzzle effects. Barrel heat
@@ -1419,7 +1428,7 @@ export class RaidView {
    if(flashActive){const fade=1-flashAge/120;this.muzzleFlash.material.opacity=Math.min(1,fade*.95+heatGlow*.22);this.muzzleFlash.scale.setScalar(this.muzzleBaseScale*(.9+.35*(1-fade)))}
    else if(barrelGlow){this.muzzleFlash.material.opacity=heatGlow*.3;this.muzzleFlash.scale.setScalar(this.muzzleBaseScale*.72)}
    else this.muzzleFlash.material.opacity=0;
-   if(this.muzzleLight){this.muzzleLight.visible=flashActive||barrelGlow;this.muzzleLight.intensity=flashActive?(1-flashAge/120)*3.2:barrelGlow?heatGlow*1.3:0}
+   if(this.muzzleLight){this.muzzleLight.visible=flashActive||barrelGlow;this.muzzleLight.intensity=flashActive?(1-flashAge/120)*6:barrelGlow?heatGlow*1.3:0}
    for(const material of this.gunHeatMaterials||[]){if(material.emissive)material.emissive.setRGB(heatGlow*.26,heatGlow*.094,heatGlow*.023)}
   }
   // Recycled brass casings: brief ballistic arcs that leave from the ejection

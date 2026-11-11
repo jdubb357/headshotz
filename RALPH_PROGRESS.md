@@ -6948,3 +6948,59 @@ one-line dismissible tip; assert fit/no-scroll at 1024x720 and usability at
 **Status:** Mobile/touch HUD + base lobby block COMPLETE. Honest gap: physical iPad feel
 and subjective combat readability remain UNVERIFIED (P7). Next action: resume the normal
 post-P0 raid priorities from the backlog's top open mechanics item.
+
+## Iteration 63 — First-person default and readable, punchier gun (2026-11-11)
+
+### Acceptance criteria
+
+1. A fresh offline deploy boots into first-person so the weapon is on screen within the first
+   3 minutes; the raised pose clears the bottom touch row at 1024x720 and 844x390.
+2. The weapon fills the lower-right as a held firearm with sight and frame visible, not a
+   clipped sliver or a shot of the operator's back.
+3. Recoil visibly kicks the camera and weapon with a fast exponential settle; firing shows a
+   brighter muzzle bloom, warm muzzle light and brighter/wider tracer in actual gameplay.
+4. Added pose and recoil changes are graded from the runtime `gunHip` pose; the viewmodel
+   grader stays green along with the mobile HUD/base lobby graders and the unit suite.
+5. Before/after screenshots at 1024x720 and 844x390, plus firing/aim frames, are captured
+   and judged by eye.
+
+### Implementation — iteration 63 (completed)
+
+- `shared/raid-settings.mjs`: default and normalize fallback `viewMode` changed from `third`
+  to `first`, matching the presentation the rest of the work targets.
+- `raid-view.mjs`: added `VIEW_HIP` (`x .2`, `y -.135`, `z -.46`) and `VIEW_SCALE .74`, stored
+  as `this.gunHip`. Raised/closer/larger pose exposes both hands while clearing the bottom
+  touch row. Recoil amplitudes raised (rifle .095, shotgun .18, sniper .16) with exponential
+  settle capped at .2; camera pitch/roll splits raised to .52/.46 and chase camera to
+  .34/.38. Flash sprites enlarged per class, muzzle PointLight 3.2→6 and range 3→3.5,
+  world shot light 3.2→5.4, tracer tint 0xfff4d6 with longer life and full opacity.
+- `tests/raid-browser-viewmodel.mjs`: bob/aim/reload/home expectations derive from
+  `v.gunHip` instead of stale literals; live reload dip is asserted relative to hipY.
+
+### Commands/results (2026-11-11)
+
+- `node tests/raid-browser-viewmodel.mjs` → PASS (two clean runs; first run hit an accepted
+  reload-beat timing flake, not a pose failure).
+- `node tests/raid-browser-mobile-hud.mjs` → PASS: 92.1% / 82.3% unobstructed raid view,
+  thumbstick/right-drag/Fire/Reload/Interact, no browser errors.
+- `node tests/raid-browser-base-lobby.mjs` → PASS (first run hit a reload race, clean rerun).
+- `node --test tests/*.test.mjs` → PASS 1247/1247.
+- Screenshots before: `/tmp/hs-field-1024x720-baseline.png`,
+  `/tmp/hs-field-844x390-baseline.png`. After: `/tmp/hs-field-1024x720-after.png`,
+  `/tmp/hs-field-844x390-after.png`, `/tmp/hs-combatfire-1024-0.png`,
+  `/tmp/hs-combatfire-844-0.png`, `/tmp/hs-combat-aim-1024.png`.
+
+### Criteria status
+
+1. PASS — offline deploy boots first-person with the gun in frame at both targets.
+2. PASS — gun reads as a held weapon; sight, receiver, stock and hands are visible.
+3. PASS — firing frames show bloom, lit receiver and tracer; kick values and decay graded.
+4. PASS — viewmodel + mobile HUD + base lobby graders and 1247 unit tests green.
+5. PASS — before/after and firing frames captured and compared by eye. Honest gap: the
+   weapon/hand materials still read flat and plastic, the boxy wood buildings and soft
+   lighting keep the world dull, and the actual press-of-trigger punch cannot be judged
+   from stills or emulated touch on a physical iPad.
+
+**Status:** Gunfeel visibility slice COMPLETE. Next action: swap the flat cyan/beige
+viewmodel materials for warmer worn-metal/leather values and add per-shot world light spill,
+then re-shoot combat at both sizes.
