@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-P0 vitality vignette iteration 53). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (post-settlement insurance refresh iteration 54). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,21 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 UX resumed 2026-11-11 (iteration 54): static offline insurance claims now
+update themselves. After a death settlement the base shows the authoritative pending
+claim copy (label, "pending", eligibility time); when the in-page RaidService tick
+resolves a claim through `MemoryRaidStore.processInsurance`, the 2 s base poll detects
+the authoritative insurance-list change and re-renders the card (for example
+"Assault Rifle · returned") without a reload, and the returned gear reappears in the
+stash. This is use of the existing authoritative store rules, not a client shortcut:
+no rules, rewards, loot, AI or `/api` transport changed and online keeps its previous
+deployment-only refresh behavior. Evidence: new
+`tests/raid-browser-static-insurance-refresh.mjs` (premium 20 debited, pending claim,
+due-only advance, returned + banked rifle, marker proves no reload, zero `/api`, zero
+browser errors; screenshots `/tmp/hs-insurance-pending.png` /
+`/tmp/hs-insurance-returned.png`), static P0 playability gate, static persistence
+grader and full suite 1240/1240. Physical-device readability remains UNVERIFIED (P7).
 
 Post-P0 look/feel resumed 2026-11-11 (iteration 53): the active raid now paints a
 presentation-only screen-edge vitality haze from the authoritative `self.hp`/`self.downed`
@@ -672,6 +687,12 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   that reuses the same guest account and stash; online account security is unchanged.
   Evidence: `tests/raid-browser-static-account.mjs`, static P0 and readiness graders,
   full suite 1240/1240; physical-device readability UNVERIFIED (P7).
+- **Offline insurance refresh** — COMPLETE (iteration 54). The static base's Insurance
+  claims card starts from the authoritative pending claim after a death settlement and
+  re-renders when the in-page tick's `MemoryRaidStore.processInsurance` returns,
+  destroys or invalidates it — no reload and no client rule duplication. Evidence:
+  `tests/raid-browser-static-insurance-refresh.mjs`, static P0 and persistence graders,
+  full suite 1240/1240; physical-device feel UNVERIFIED (P7).
 - **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
   tests and browser grants/loadout/rewards.
 - **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress

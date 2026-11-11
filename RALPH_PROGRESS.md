@@ -6304,3 +6304,70 @@ Next action: iteration 54 takes a gameplay/persistence slice on the offline path
 (for example the next offline results/records or post-settlement UX gap), then
 iteration 55 returns to a visual slice. Keep the vitality-vignette, static P0,
 static-account, exit-signal, readiness and base-economy graders green.
+
+## Iteration 54 — Offline insurance claim auto-refresh
+
+### Acceptance criteria
+
+1. In static offline mode the base's Insurance claims card renders the authoritative
+   pending claims after a death settlement (label, `pending`, eligibility time).
+2. When the in-page RaidService tick resolves a claim through
+   `MemoryRaidStore.processInsurance`, the base polling loop detects the authoritative
+   list change and re-renders the card (returned/destroyed/unavailable) with no page
+   reload and no player action; the resolved gear appears in the stash.
+3. The change is presentation/timing only: no client-side rule duplication, no new
+   `/api` traffic, no invented rewards, and the online/Node account and insurance
+   behavior is unchanged.
+4. A new isolated-Chrome static grader proves pending → returned, stash return and
+   no-reload; static P0 playability and static persistence graders and the full unit
+   suite stay green.
+
+### Implementation — iteration 54 (completed)
+
+- `raid-online.mjs`: the 2 s base poll now compares the authoritative `insurance`
+  list with the copy currently on screen when `offlineMode` is true. If they differ
+  it calls the existing `refresh()` and reports `Insurance claims updated.` instead of
+  only polling party state, so the card cannot keep showing "pending · eligible after…"
+  once the in-page tick has resolved the claim. Online keeps its deployment-only
+  refresh semantics and no new route or client rule was added.
+- New `tests/raid-browser-static-insurance-refresh.mjs`: serves the repo as plain
+  files with no `/api`, deploys the starter Assault Rifle with insurance through the
+  shipped controls (premium 20 debited), settles an authoritative death through
+  `MemoryRaidStore.settle`, leaves to base and verifies the authoritative pending
+  claim and card copies. It then advances only `claim.due` and the service's
+  `insuranceAt` (no UI shortcut), waits for the poll, and asserts the claim becomes
+  `returned`, the rifle returns to the stash, a marker proves no reload, no `/api`
+  requests, and no browser errors. Screenshots:
+  `/tmp/hs-insurance-pending.png` (pending + eligibility time) and
+  `/tmp/hs-insurance-returned.png` (returned; rifle visible again in the bench).
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-online.mjs tests/raid-browser-static-insurance-refresh.mjs` → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-insurance-refresh.mjs`
+  → PASS: `{"offline":true,"insured":true,"premium":20,"pendingClaims":1,
+  "pendingText":"Assault Rifle · pending · eligible after 3:46:59 AM and raid closure",
+  "resolved":"returned","returnedText":"Assault Rifle · returned","returnedToStash":true,
+  "noReload":true,"apiRequests":[],"browserErrors":[]}`. Screenshots inspected.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (deploy/move/machine hit/loot/extract 270 credits, zero `/api`, zero errors).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-persist.mjs` → PASS
+  (settled profile/stash, active checkpoint, localStorage fallback, zero `/api`).
+- `node --test tests/raid-offline.test.mjs tests/raid-store-memory.test.mjs` → 29/29.
+- `node --test tests/*.test.mjs` → 1240 pass, 0 fail (74.6 s).
+
+### Criteria status
+
+1. PASS — the card copies the authoritative pending claim after settlement.
+2. PASS — the poll re-renders the resolved claim and banked rifle without reload.
+3. PASS — UI-only timing change; no rules, rewards, loot, AI or `/api` change.
+4. PASS — new static grader green, static P0 and persistence gates green, full suite
+   1240/1240. Physical-device readability of the claim copy remains UNVERIFIED (P7).
+
+**Status:** Offline insurance claim auto-refresh is COMPLETE in local presentation
+scope. Human readability and device feel remain UNVERIFIED (P7).
+
+Next action: iteration 55 returns to the visual/look-feel alternation — a
+presentation-only Extraction Raids improvement (for example the base or in-raid HUD),
+keeping the insurance-refresh, static P0, static-account, exit-signal, readiness,
+vitality-vignette and base-economy graders green.
