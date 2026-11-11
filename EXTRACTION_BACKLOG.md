@@ -27,6 +27,11 @@ legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
 
+Post-P0 look/feel resumed 2026-11-10 (iteration 41): rain fronts are now a
+camera-local 620-drop streak volume instead of a sparse sector-wide field, so the
+static offline client reads rain near the operator. Presentation-only; the P0
+playability graders and the full suite remain green.
+
 Required pieces: (a) browser store adapter replacing `node:sqlite` — in-memory first
 if that unblocks play, then IndexedDB with localStorage fallback; (b) Web Crypto shims
 for `node:crypto` imports in `server/raids.mjs` and `server/raid-*.mjs`; (c) guest/local

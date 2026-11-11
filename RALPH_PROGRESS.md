@@ -5254,3 +5254,92 @@ remain unverified.
 Next action: resume the visual quality alternation — start with an Extraction Raids
 look/feel improvement (lighting/shadows/fog or machine feedback) and verify with a
 browser screenshot grader.
+
+## Visual iteration 41 — camera-local rain streaks (2026-11-10)
+
+### Acceptance criteria — iteration 41
+
+1. A rain front renders its ~620 streak drops inside a bounded disc/volume of
+   radius ≤ 26 m around the operator instead of spreading 360 drops across the
+   whole 1,440 m sector: every drop head lies within the authored radius of the
+   current operator position after a frame.
+2. Streaks are tail/head additive line pairs with a visible constant wind slant,
+   fogged but depth-tested, so rain reads around the player and not only on the
+   horizon.
+3. The field follows the operator as they move (offsets wrap at the volume edge),
+   respawns at the local ceiling after reaching ground, and remains hidden under
+   reduced motion or in clear weather.
+4. Presentation only: no snapshot, condition, AI, ballistics, loot or settlement
+   state changes. Weather switches still rebuild the field.
+5. A browser grader booting `raid-online.html?offline=1` from a plain static file
+   server (no `/api`) deploys, asserts the camera-local rain volume and streak
+   geometry, proves the volume re-anchors when the operator moves, and reports
+   zero `/api` traffic and browser errors. Screenshots are inspected before/after.
+6. Existing cinematics/weather-surface graders and the full unit suite pass.
+
+### Implementation — iteration 41 (completed)
+
+- `raid-view.mjs`: `buildWeather('rain')` now authors 620 drops as camera-local
+  offsets inside a 46 m × 32 m volume (`radius:23`, `ceiling:32`) instead of
+  dropping 360 streaks uniformly across the entire 1,440 m sector. `writeRain`
+  takes the operator anchor and draws a tail that leans +x with the authored wind
+  slant; `frame()` advances the drops, wraps their horizontal offsets at the
+  volume edge so the field follows the operator, and respawns them at the local
+  ceiling after ground contact. The rebuilt field remains one additive/fogged
+  `LineSegments` draw call with recycled geometry, and clear weather/reduced
+  motion still hide it. Snapshot, conditions, AI, ballistics, loot and
+  settlement code are untouched.
+
+### Tests added/updated
+
+- `tests/raid-browser-rain-volume.mjs` (new): serves the checkout as plain
+  static files (GitHub-Pages style, `/api/*` always 404), boots
+  `raid-online.html?offline=1`, deploys the starter kit, and measures the rain
+  field through a real `RaidView`: 620 drops, all offsets inside the authored
+  local radius, a dense near-camera population (41–52 drops at 10 m), tail/head
+  slant and descending segments on all 620 pairs, a rain-only render that paints
+  >300 changed pixels at the camera, clear/reduced-motion hiding, and the field
+  re-centering around an operator who moves 120 m. Zero `/api` requests and zero
+  browser errors.
+
+### Commands/results (2026-11-10)
+
+- `node --check raid-view.mjs tests/raid-browser-rain-volume.mjs` → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-rain-volume.mjs` → PASS,
+  `{"staticOfflineBoot":true,"deploy":true,"volume":{"radius":23,"ceiling":32,
+  "drops":620},"nearDrops":48,"rainPixels":1407,"clearHidden":true,
+  "reducedHidden":true,"volumeFollowsOperator":22.98,"noApiTraffic":true,
+  "browserErrors":[]}`; screenshot `/tmp/raid-rain-volume.png`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-cinematics.mjs` → PASS;
+  rain still renders as additive façade-fogged streaks, ash/mist unchanged,
+  reduced motion hides weather, `browserErrors:[]`.
+- Full suite `node --test tests/*.test.mjs` → 1225 pass, 0 fail.
+- Screenshots inspected: before `/tmp/hs-offline-spawn.png` (dry-looking dusk rain
+  hue, no visible near-camera streaks) and after `/tmp/hs-offline-rain.png` /
+  `/tmp/hs-cinema-rain.png` (slanted rain fills the first-person volume, with
+  warm city windows and the wet ground reading through it).
+
+### Criteria status
+
+1. PASS — all 620 rain heads sit inside the authored local volume; the measured
+   maximum axis offset is 22.98 m ≤ 23 m.
+2. PASS — 620 tail/head additive line pairs, all descending, with a constant
+   +x wind slant; fog/depth settings unchanged.
+3. PASS — the brief animates around the current operator, resets at the ceiling,
+   wraps horizontally, and is hidden by clear weather and reduced motion.
+4. PASS — presentation-only diff; no snapshot/rule files changed, weather kinds
+   still rebuild correctly.
+5. PASS — static-file boot with no meta/service markers, real deploy, offline only;
+   zero `/api` resources and empty browser error list. Screenshots inspected.
+6. PASS — cinematics grader green; weather-surface/composite remain unaffected by
+   this presentation-only change; full suite 1225/1225.
+
+**Status:** Camera-local rain is COMPLETE in local presentation scope. Rain now
+reads near the operator on a static GitHub Pages deployment instead of vanishing
+at sector scale. Human aesthetic acceptance and physical-device frame pacing
+remain UNVERIFIED; the effect adds one 620-segment line draw call and no per-frame
+allocations.
+
+Next action: alternate gameplay/UX with the visual goal — add a numeric/capacity
+gap reminder on the offline raid settlement panel (credits, XP, returned vs lost
+items) or pick the next non-human-verifiable gameplay slice; keep P0 green.

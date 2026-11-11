@@ -154,7 +154,10 @@ function muzzleFlashTexture(profile){
  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
  return texture;
 }
-function writeRain(arr,i,d){const k=i*6;arr[k]=d.x;arr[k+1]=d.y;arr[k+2]=d.z;arr[k+3]=d.x+Math.sin(d.y*.23+i)*.07;arr[k+4]=d.y-d.len;arr[k+5]=d.z}
+// Rain drops are authored as camera-local offsets (ox/oz around the operator,
+// y in world space), so a small streak field fills the near view instead of
+// scattering a handful of drops over the whole 1,440 m sector.
+function writeRain(arr,i,d,ax,az){const k=i*6,x=ax+d.ox,y=d.y,z=az+d.oz;arr[k]=x;arr[k+1]=y;arr[k+2]=z;arr[k+3]=x+d.len*.28;arr[k+4]=y-d.len;arr[k+5]=z}
 export class RaidView {
  constructor(canvas){
   this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
@@ -449,9 +452,14 @@ export class RaidView {
   const size=this.world?.size||1440;
   let geometry,material,state;
   if(kind==='rain'){
-   const count=360,arr=new Float32Array(count*6),colors=new Float32Array(count*6);
-   state={mode:'rain',drops:[]};
-   for(let i=0;i<count;i++){const d={x:(Math.random()-.5)*size,z:(Math.random()-.5)*size,y:Math.random()*38,len:1.1+Math.random()*1.9,speed:16+Math.random()*10};state.drops.push(d);writeRain(arr,i,d);
+   const count=620,arr=new Float32Array(count*6),colors=new Float32Array(count*6);
+   // The volume is a 46 m wide, 32 m tall local box: dense enough that a phone
+   // screen sees streaks at first-person range, sparse enough to stay one draw
+   // call and one small buffer. Drops drift with the wind so the authored slant
+   // stays coherent as they fall.
+   state={mode:'rain',drops:[],radius:23,ceiling:32,wind:.9};
+   for(let i=0;i<count;i++){const d={ox:(Math.random()-.5)*state.radius*2,oz:(Math.random()-.5)*state.radius*2,y:Math.random()*state.ceiling,len:1.15+Math.random()*2,speed:16+Math.random()*10,drift:.55+Math.random()*.75};
+    state.drops.push(d);writeRain(arr,i,d,0,0);
     colors[i*6]=.55;colors[i*6+1]=.7;colors[i*6+2]=.86;colors[i*6+3]=.06;colors[i*6+4]=.1;colors[i*6+5]=.16}
    geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(arr,3));geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
    material=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false,fog:true});
@@ -1088,8 +1096,16 @@ export class RaidView {
   if(this.weather?.visible&&this.weatherState){
    const state=this.weatherState,size=this.world?.size||1440,attr=this.weather.geometry.attributes.position,arr=attr.array;
    if(state.mode==='rain'){
-    for(let i=0;i<state.drops.length;i++){const d=state.drops[i];d.y-=d.speed*dt;d.x+=Math.sin(seconds*.9+i*.7)*.7*dt;
-     if(d.y<-1){d.y=38;d.x=(Math.random()-.5)*size;d.z=(Math.random()-.5)*size}writeRain(arr,i,d)}
+    const ax=pose.x,az=pose.z,reach=state.radius*2;
+    for(let i=0;i<state.drops.length;i++){const d=state.drops[i];d.y-=d.speed*dt;
+     // Keep the field centred on the operator: horizontal offsets wrap at the
+     // volume edge, which is invisible because every drop is interchangeable.
+     d.ox+=d.drift*dt;if(d.ox>state.radius)d.ox-=reach;else if(d.ox<-state.radius)d.ox+=reach;
+     if(d.y<-1){
+      d.y=state.ceiling;
+      d.ox=(Math.random()-.5)*reach;d.oz=(Math.random()-.5)*reach;
+     }
+     writeRain(arr,i,d,ax,az)}
    }else{
     for(let i=0;i<state.points.length;i++){const p=state.points[i];p.y-=p.speed*dt;
      if(p.y<-1){p.y=state.ceiling;p.x=(Math.random()-.5)*size;p.z=(Math.random()-.5)*size}
