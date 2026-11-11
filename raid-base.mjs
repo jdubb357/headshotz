@@ -6,6 +6,29 @@ import {stackable,compatibleStacks,recyclingQuote} from './shared/raid-inventory
 import {WEAPONS,MODS,UTILITIES,ARMOR,MEDICAL,armorStats,equipmentPrice,maxStack,RECIPES,CONTRACTS,stashCapacity,itemWeight} from './shared/raid-catalog.mjs';
 import {ARTIFACTS,contractItemReserved} from './shared/raid-sectors.mjs';
 import {sellValue} from './shared/raid-appraisal.mjs';
+
+// Owned salvage stock comes from the same authoritative stash items the store
+// consumes, so a recipe note cannot suggest an affordance the service rejects.
+function materialStock(items){
+ const stock={steel:0,wire:0,chem:0,fuel:0};
+ for(const it of items||[])if(it.kind==='material'&&Object.hasOwn(stock,it.material))stock[it.material]+=it.quantity||0;
+ return stock;
+}
+
+function recipeReadiness(profile,recipe,rank){
+ const stock=materialStock(profile.items);
+ const blockers=[];
+ if(rank.level<(recipe.rank||1))blockers.push('rank '+(recipe.rank||1)+' required');
+ if((profile.upgrades?.bench||0)<(recipe.bench||0))blockers.push('workbench '+(recipe.bench||0)+' required');
+ if(profile.activeDeployment)blockers.push('return from your raid first');
+ const missing=Object.entries(recipe.materials).filter(([material,amount])=>(stock[material]||0)<amount).map(([material,amount])=>`${amount-(stock[material]||0)} ${material}`);
+ if(missing.length)blockers.push('missing '+missing.join(', ')+' salvage');
+ const short=Math.max(0,(recipe.credits||0)-(profile.credits||0));
+ if(short)blockers.push(short+' credits short');
+ const held=Object.entries(recipe.materials).map(([material,amount])=>`${material} ${stock[material]||0}/${amount}`).join(' · ');
+ return {stock,blockers,held,ready:blockers.length===0};
+}
+
 export function baseController({api,run,button,label,getProfile,refresh,selectedLoadout,onLoadoutChanged,chooseQuantity,onPreviewLoadout=()=>{},onInspect=()=>{},onSelectionChanged=()=>{}}){
  const $=id=>document.getElementById(id);let selectionOrder=[];
  const heading=(parent,text,level='h3')=>{const el=document.createElement(level);el.textContent=text;parent.append(el);return el};
@@ -91,7 +114,18 @@ export function baseController({api,run,button,label,getProfile,refresh,selected
     $('trader').append(section);
    }
    $('workshop').replaceChildren();
-   for(const [id,recipe]of Object.entries(RECIPES)){const text=Object.entries(recipe.materials).map(([k,v])=>`${v} ${k}`).join(', '),b=button(`Craft ${recipe.name} · ${recipe.credits} credits + ${text}${recipe.rank?' · requires Rank '+recipe.rank:''}${recipe.bench?' · workbench '+recipe.bench:''}${grantCost(profile,recipe.credits)>0||usesGrantMaterials(profile,recipe.materials)?' · Starter supply':''}`,()=>execute({type:'craft',recipe:id}));b.dataset.recipe=id;b.disabled=rank.level<(recipe.rank||1)||profile.upgrades.bench<recipe.bench||!!profile.activeDeployment;$('workshop').append(b)}
+   for(const [id,recipe]of Object.entries(RECIPES)){
+    const text=Object.entries(recipe.materials).map(([k,v])=>`${v} ${k}`).join(', '),readiness=recipeReadiness(profile,recipe,rank),
+      b=button(`Craft ${recipe.name} · ${recipe.credits} credits + ${text}${recipe.rank?' · requires Rank '+recipe.rank:''}${recipe.bench?' · workbench '+recipe.bench:''}${grantCost(profile,recipe.credits)>0||usesGrantMaterials(profile,recipe.materials)?' · Starter supply':''}`,()=>execute({type:'craft',recipe:id})),
+      note=document.createElement('small'),row=document.createElement('div');
+    b.dataset.recipe=id;b.setAttribute('aria-describedby','recipeNote-'+id);
+    b.disabled=rank.level<(recipe.rank||1)||(profile.upgrades.bench||0)<(recipe.bench||0)||!!profile.activeDeployment;
+    if(readiness.blockers.length)b.title=readiness.blockers.join('; ');
+    else b.title=readiness.held+' · ready to craft';
+    note.id='recipeNote-'+id;note.className='recipeNote';note.dataset.recipe=id;
+    note.textContent=readiness.held+(readiness.ready?' · ready to craft':' · unavailable: '+readiness.blockers.join(' · '));
+    row.className='recipe';row.dataset.recipe=id;row.append(b,note);$('workshop').append(row);
+   }
    $('upgrades').replaceChildren();for(const type of ['stash','bay','bench']){const level=profile.upgrades[type],max=type==='stash'?3:2,b=button(`${type} ${level}/${max} · upgrade ${100+50*level} credits + ${2+level} steel + 1 wire`,()=>execute({type:'upgrade',upgrade:type}));b.disabled=level>=max||!!profile.activeDeployment;$('upgrades').append(b)}
    $('attachmentWeapon').replaceChildren();$('attachmentMod').replaceChildren();$('installedMods').replaceChildren();
    for(const it of profile.items){

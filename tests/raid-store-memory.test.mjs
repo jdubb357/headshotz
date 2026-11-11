@@ -172,3 +172,66 @@ test('a death settlement drops raid gear to lost inventory instead of returning 
   assert.equal(store.profile(guest.id).activeDeployment,null);
   service.close();
 });
+
+const stockGuest=(materials={},mutate=()=>{})=>{
+  const store=new MemoryRaidStore(),guest=store.createGuest();
+  const state=store.state(guest.id);
+  for(const [material,quantity]of Object.entries(materials))state.items.push(item('material',{material,quantity}));
+  mutate(state);
+  store.save(guest.id,state);
+  return {store,guest,revision:store.state(guest.id).revision};
+};
+
+test('offline trade crafts from salvage under the authoritative recipe rules', () => {
+  const {store,guest,revision}=stockGuest({steel:2,chem:1});
+  assert.throws(()=>store.trade(guest.id,{type:'craft',recipe:'med',expectedRevision:revision-1}),RuleError,'a stale stash revision is rejected');
+  const profile=store.trade(guest.id,{type:'craft',recipe:'med',expectedRevision:revision});
+  assert.equal(profile.credits,245,'the recipe cost is charged once');
+  assert.equal(profile.items.filter(it=>it.kind==='med').length,3,'the starter meds plus the crafted medkit');
+  assert.equal(profile.items.filter(it=>it.kind==='material'&&it.material==='steel').reduce((n,it)=>n+it.quantity,0),1);
+  assert.equal(profile.items.filter(it=>it.kind==='material'&&it.material==='chem').length,0,'consumed materials leave the stash');
+  assert.equal(store.profile(guest.id).items.filter(it=>it.kind==='med').length,3,'the craft persists through the profile');
+  assert.throws(()=>store.trade(guest.id,{type:'craft',recipe:'sniper_blueprint',expectedRevision:store.state(guest.id).revision}),RuleError,'rank gating still applies offline');
+});
+
+test('offline trade repairs damage through the shared repair rules', () => {
+  const {store,guest,revision}=stockGuest({steel:1,wire:1},state=>{state.items.find(it=>it.kind==='weapon').condition=40});
+  const weapon=store.state(guest.id).items.find(it=>it.kind==='weapon');
+  const repaired=store.trade(guest.id,{type:'repair',itemId:weapon.id,quality:'full',expectedRevision:revision});
+  assert.equal(repaired.items.find(it=>it.id===weapon.id).condition,100,'full repair restores the weapon');
+  assert.equal(repaired.credits,220,'the 30-credit repair cost is charged');
+  assert.equal(repaired.items.filter(it=>it.kind==='material'&&it.material==='steel').length,0,'one steel is consumed');
+  assert.throws(()=>store.trade(guest.id,{type:'repair',itemId:weapon.id,quality:'patch',expectedRevision:repaired.revision}),RuleError,'pristine equipment cannot be repaired');
+});
+
+test('offline trade upgrades the workbench when credits and salvage are available', () => {
+  const {store,guest,revision}=stockGuest({steel:2,wire:1});
+  const upgraded=store.trade(guest.id,{type:'upgrade',upgrade:'bench',expectedRevision:revision});
+  assert.equal(upgraded.upgrades.bench,1);
+  assert.equal(upgraded.credits,150,'the next workbench tier costs 100 credits');
+  assert.equal(upgraded.items.filter(it=>it.kind==='material').length,0,'the upgrade consumes two steel and one wire');
+});
+
+test('offline trade moves stackable salvage and persists favorites', () => {
+  const {store,guest,revision}=stockGuest({steel:5});
+  const steel=store.state(guest.id).items.find(it=>it.kind==='material'&&it.material==='steel');
+  const split=store.trade(guest.id,{type:'split',itemId:steel.id,quantity:2,expectedRevision:revision});
+  const stacks=split.items.filter(it=>it.kind==='material'&&it.material==='steel');
+  assert.equal(stacks.length,2,'splitting creates a second stack');
+  assert.deepEqual(stacks.map(it=>it.quantity).sort(),[2,3]);
+  const target=stacks.find(it=>it.quantity===3);
+  const merged=store.trade(guest.id,{type:'stack',itemId:stacks.find(it=>it.quantity===2).id,targetId:target.id,expectedRevision:split.revision});
+  assert.equal(merged.items.filter(it=>it.kind==='material'&&it.material==='steel').length,1);
+  const favorited=store.trade(guest.id,{type:'favorite',itemId:target.id,favorite:true,expectedRevision:merged.revision});
+  assert.equal(favorited.items.find(it=>it.id===target.id).favorite,true);
+});
+
+test('offline trade rejects trading during an active deployment and stubs online-only actions', () => {
+  const store=new MemoryRaidStore(),guest=store.createGuest();
+  assert.throws(()=>store.trade(guest.id,{type:'buy',trader:'outfitter',sku:'steel'}),error=>error.status===501,'traders stay unavailable offline');
+  assert.throws(()=>store.trade(guest.id,{type:'contract',contract:'survey',operation:'accept'}),error=>error.status===501,'contracts stay unavailable offline');
+  const service=new RaidService(store,{now:()=>1000,owner:'offline-owner'});
+  service.deploy(guest.id,deployRequest(store.profile(guest.id),'deploy-local-1'));
+  assert.throws(()=>store.trade(guest.id,{type:'favorite',itemId:'whatever',favorite:true}),/Return from your raid/);
+  service.close();
+});

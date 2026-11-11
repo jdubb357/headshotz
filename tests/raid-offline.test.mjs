@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {RAID_PROTOCOL} from '../shared/raid-protocol.mjs';
 import {RAID_WORLDS} from '../shared/raid-worlds.mjs';
+import {item} from '../shared/raid-rules.mjs';
 import {
   createOfflineRaidRuntime,
   offlineRaidRequest,
@@ -125,7 +126,7 @@ test('offline action rejects unknown fields and stale protocol with status codes
   }
 });
 
-test('offline multiplayer, trade, and voice probes are explicit stubs', async () => {
+test('offline multiplayer, trader/contract, and voice probes are explicit stubs', async () => {
   const rt = runtime();
   try {
     assert.equal(offlineRaidRoute(rt, 'party'), null);
@@ -133,7 +134,8 @@ test('offline multiplayer, trade, and voice probes are explicit stubs', async ()
     assert.equal(offlineRaidRoute(rt, 'voice').joined, false);
     assert.deepEqual(offlineRaidRoute(rt, 'market'), []);
     await assert.rejects(offlineRaidRequest(rt, 'party', {type: 'create'}), error => error.status === 501);
-    await assert.rejects(offlineRaidRequest(rt, 'trade', {type: 'buy'}), error => error.status === 501);
+    await assert.rejects(offlineRaidRequest(rt, 'trade', {type: 'buy', trader: 'outfitter', sku: 'steel'}), error => error.status === 501);
+    await assert.rejects(offlineRaidRequest(rt, 'trade', {type: 'contract', contract: 'survey', operation: 'accept'}), error => error.status === 501);
     await assert.rejects(offlineRaidRequest(rt, 'voice', {type: 'join'}), error => error.status === 501);
     assert.deepEqual(offlineRaidRoute(rt, 'matchmaking'), {region: 'local', policy: rt.matchInfo.policy});
     const probe = offlineRaidRoute(rt, 'matchmaking', {operation: 'probe'});
@@ -141,6 +143,30 @@ test('offline multiplayer, trade, and voice probes are explicit stubs', async ()
     const measured = offlineRaidRoute(rt, 'matchmaking', {operation: 'measure', nonce: probe.nonce});
     assert.equal(measured.rttMs, 0);
     assert.equal(measured.withinLimit, true);
+  } finally {
+    rt.dispose();
+  }
+});
+
+test('offline trade routes crafting and repairs through the authoritative store', async () => {
+  const rt = runtime({username: 'offline_workshop'});
+  try {
+    const account = rt.session.account;
+    const state = rt.store.state(account);
+    state.items.push(item('material', {material: 'steel', quantity: 3}), item('material', {material: 'wire', quantity: 1}), item('material', {material: 'chem', quantity: 1}));
+    rt.store.save(account, state);
+    const revision = rt.store.state(account).revision;
+    const crafted = await offlineRaidRequest(rt, 'trade', {type: 'craft', recipe: 'med', expectedRevision: revision});
+    assert.equal(crafted.credits, 245, 'the recipe charges through the offline store');
+    assert.equal(crafted.items.filter(it => it.kind === 'med').length, 3, 'a crafted medkit lands in the stash');
+    const damaged = rt.store.state(account), weapon = damaged.items.find(it => it.kind === 'weapon');
+    weapon.condition = 40;
+    rt.store.save(account, damaged);
+    const damagedRevision = rt.store.state(account).revision;
+    const repaired = await offlineRaidRequest(rt, 'trade', {type: 'repair', itemId: weapon.id, quality: 'patch', expectedRevision: damagedRevision});
+    assert.equal(repaired.items.find(it => it.id === weapon.id).condition, 65, 'field patch matches the shared repair target');
+    assert.equal(repaired.credits, 230, 'the patch is priced from the shared rule');
+    assert.deepEqual(rt.store.profile(account).items.filter(it => it.id === weapon.id)[0].condition, 65, 'repair persists');
   } finally {
     rt.dispose();
   }

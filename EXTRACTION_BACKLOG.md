@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-P0 UX iteration 44). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (post-P0 offline workshop iteration 46). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,17 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 economy resumed 2026-11-11 (iteration 46): the static offline base workshop now
+crafts, repairs, upgrades and moves stash stacks through `MemoryRaidStore.trade`, using
+the same shared recipe/repair/progression rules as the Node store; online-only traders
+and contracts stay explicit offline 501 stubs. Workshop recipe rows show owned versus
+required salvage, credit stock and human-readable blockers (rank, workbench, active
+deployment, missing stock, short credits) bound by `aria-describedby`. Evidence:
+`tests/raid-store-memory.test.mjs`/`tests/raid-offline.test.mjs` (28 targeted), new
+`tests/raid-browser-static-base-economy.mjs` (craft → upgrade → reload persisted, no
+`/api`, zero errors), static P0 playability gate and online progression grader green.
+Physical-device feel remains UNVERIFIED (P7).
 
 Post-P0 UX resumed 2026-11-11 (iteration 42): the post-raid rewards card now shows
 an authoritative settlement reconciliation line (credits before → after with raid
@@ -539,6 +550,14 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   readiness and reconnect entries; browser account/menu/readiness/entry/network graders.
 - **Crafting** — COMPLETE. Workshop crafts medkits, optics, weapons and mods with credits/
   materials/blueprint checks; economy and progression suites and base UI.
+- **Offline workshop parity** — COMPLETE (iteration 46). Static Pages `trade` is routed to
+  `MemoryRaidStore.trade`, which implements crafting, repair grades, bench/stash upgrades,
+  sell/recycle, stack/split, favorite/preset/attachment and overflow claim with the same
+  shared catalog rules as `server/store.mjs`; traders and contracts stay online-only.
+  Recipe rows show owned salvage, credits and unavailable reasons. Evidence:
+  `tests/raid-store-memory.test.mjs`, `tests/raid-offline.test.mjs`,
+  `raid-browser-static-base-economy.mjs` (craft/upgrade/reload, no `/api`), plus the P0
+  static playability gate and online progression grader. Live-device feel UNVERIFIED.
 - **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
   tests and browser grants/loadout/rewards.
 - **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress

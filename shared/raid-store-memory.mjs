@@ -8,12 +8,14 @@
 // RaidService rule code, not a client-trusted shortcut.
 import {randomUUID} from './raid-crypto.mjs';
 import {item,RuleError,requireRule} from './raid-rules.mjs';
-import {bindGrant,grantBalance,canRecoverGrant,spendCredits,awardCredits,clearForeignGrantAmmo} from './raid-grants.mjs';
+import {bindGrant,grantBalance,canRecoverGrant,spendCredits,awardCredits,clearForeignGrantAmmo,patchTarget,repairCost} from './raid-grants.mjs';
 import {sellValue} from './raid-appraisal.mjs';
 import {rankProgress} from './raid-progression.mjs';
 import {squadLinkBonus} from './raid-exits.mjs';
 import {outcomeReason} from './raid-report.mjs';
-import {WEAPONS,armorStats,equipmentPrice,maxStack,itemWeight,stashCapacity,RECIPES,CONTRACTS} from './raid-catalog.mjs';
+import {compatibleStacks,recyclingQuote,stackable} from './raid-inventory.mjs';
+import {WEAPONS,MODS,armorStats,equipmentPrice,maxStack,itemWeight,stashCapacity,RECIPES,CONTRACTS} from './raid-catalog.mjs';
+import {contractItemReserved} from './raid-sectors.mjs';
 
 const STARTER_CREDITS=250;
 const flatten=items=>items.flatMap(it=>[it,...flatten(it.attachments||[])]);
@@ -372,6 +374,150 @@ export class MemoryRaidStore {
   // inside RaidService.takeLoot and must exist offline for `take` to settle.
   claimLoot(itemId,account){
     for(const claim of this.insurance.values())if(claim.item===itemId&&claim.account!==account&&['covered','pending'].includes(claim.status))claim.status='claimed_by_other';
+  }
+
+  // Base economy parity with server/store.mjs.trade. Crafting, damage repair,
+  // workbench/storage upgrades and stash transfers use the same catalog rules as
+  // the hosted store, so the static client cannot mint items or bypass costs.
+  // Online-only authorities (traders, contracts) remain explicit stubs.
+  consumeMaterials(s,requirements,{earnedOnly=false}={}){
+    const sources=s.items.filter(it=>it.kind==='material'&&(!earnedOnly||!it.grantOwner))
+      .sort((a,b)=>Number(!!a.grantOwner)-Number(!!b.grantOwner));
+    let bound=false;
+    for(const [material,amount]of Object.entries(requirements)){
+      requireRule(sources.filter(it=>it.material===material).reduce((n,it)=>n+it.quantity,0)>=amount,'Missing '+(earnedOnly?'earned ':'')+material+' salvage');
+    }
+    for(const [material,amount]of Object.entries(requirements)){
+      let remaining=amount;
+      for(const it of sources)if(it.material===material&&remaining>0){
+        const n=Math.min(it.quantity,remaining);it.quantity-=n;remaining-=n;if(n&&it.grantOwner)bound=true;
+      }
+    }
+    s.items=s.items.filter(it=>it.quantity>0);
+    return bound;
+  }
+
+  addItem(s,it){requireRule(s.items.length<stashCapacity(s),'Stash full; sell, recycle or expand storage');s.items.push(it)}
+
+  trade(account,action){
+    return this.transaction(()=>{
+      const s=this.state(account);
+      requireRule(!this.activeDeployment(account),'Return from your raid before trading');
+      if(action.expectedRevision!==undefined){
+        requireRule(Number.isSafeInteger(action.expectedRevision)&&action.expectedRevision===s.revision,'Stash changed; review the refreshed balance and try again');
+      }
+      if(['split','stack'].includes(action.type)){
+        requireRule(Number.isSafeInteger(action.expectedRevision)&&action.expectedRevision===s.revision,'Stash changed; refresh before moving stacks');
+        const source=s.items.find(it=>it.id===action.itemId);
+        requireRule(source,'Item not owned');
+        if(action.type==='split'){
+          requireRule(stackable(source)&&Number.isSafeInteger(action.quantity)&&action.quantity>0&&action.quantity<source.quantity&&source.quantity<=maxStack(source),'Invalid split quantity');
+          requireRule(s.items.length<stashCapacity(s),'Stash full');
+          const child={...structuredClone(source),id:randomUUID(),quantity:action.quantity,splitFrom:source.splitFrom||source.id};
+          source.quantity-=action.quantity;s.items.push(child);
+          this.audit(account,'stash_transfer',{kind:'split',itemId:source.id,childId:child.id,quantity:child.quantity});
+        }else{
+          const target=s.items.find(it=>it.id===action.targetId);
+          requireRule(compatibleStacks(source,target),'Incompatible stacks');
+          requireRule(source.quantity+target.quantity<=maxStack(target),'Stack limit exceeded');
+          const quantity=source.quantity;
+          target.quantity+=quantity;target.favorite=!!(target.favorite||source.favorite);
+          s.items=s.items.filter(it=>it!==source);
+          this.audit(account,'stash_transfer',{kind:'stack',itemId:source.id,targetId:target.id,quantity});
+        }
+      }else if(action.type==='favorite'){
+        const it=s.items.find(it=>it.id===action.itemId);requireRule(it,'Item not owned');it.favorite=!!action.favorite;
+      }else if(action.type==='sell'){
+        const i=s.items.findIndex(it=>it.id===action.itemId&&!it.recovery);requireRule(i>=0,'Item not owned');
+        const it=s.items[i];
+        requireRule(!it.favorite||action.confirmFavorite===true,'Unfavorite this item before selling');
+        requireRule(!contractItemReserved(s,it),'Contract item reserved: deliver it or complete its contract before selling');
+        s.items.splice(i,1);awardCredits(s,sellValue(it),{grant:!!it.grantOwner});
+        for(const child of flatten(it.attachments||[]))this.inventory.delete(child.id);
+      }else if(action.type==='bulkSell'){
+        requireRule(Array.isArray(action.itemIds)&&action.itemIds.length>0&&action.itemIds.length<=64&&new Set(action.itemIds).size===action.itemIds.length,'Choose a valid item selection');
+        const sold=action.itemIds.map(id=>s.items.find(it=>it.id===id&&!it.favorite&&!it.recovery));
+        requireRule(sold.every(Boolean),'Selection contains unowned or favorited items');
+        requireRule(sold.every(it=>!contractItemReserved(s,it)),'Selection contains reserved contract items');
+        for(const it of sold){
+          awardCredits(s,sellValue(it),{grant:!!it.grantOwner});
+          for(const child of flatten(it.attachments||[]))this.inventory.delete(child.id);
+        }
+        s.items=s.items.filter(it=>!action.itemIds.includes(it.id));
+      }else if(action.type==='repair'){
+        const it=s.items.find(it=>it.id===action.itemId&&['weapon','armor'].includes(it.kind));requireRule(it,'Equipment not owned');
+        const quality=action.quality||'full';requireRule(['full','patch'].includes(quality),'Unknown repair quality',400);
+        const target=quality==='patch'?patchTarget(it):100;
+        requireRule(target>it.condition,'Repair unavailable');
+        const cost=repairCost(s,it,target);requireRule(cost>0&&s.credits>=cost,'Repair unavailable');
+        const before=it.condition,bound=this.consumeMaterials(s,quality==='patch'?{wire:1}:{steel:1}),grant=spendCredits(s,cost);
+        if(bound||grant)it.grantOwner=account;
+        it.condition=target;
+        this.audit(account,'equipment_repair',{itemId:it.id,quality,from:before,to:target,credits:cost,grant:!!grant||bound});
+      }else if(action.type==='craft'){
+        requireRule(Object.hasOwn(RECIPES,action.recipe),'Unknown recipe');
+        const recipe=RECIPES[action.recipe];
+        requireRule(rankProgress(s.xp||0).level>=(recipe.rank||1),'Earn rank '+(recipe.rank||1)+' to unlock this blueprint');
+        requireRule((s.upgrades.bench||0)>=(recipe.bench||0),'Upgrade the workbench for this recipe');
+        requireRule(s.credits>=recipe.credits,'Insufficient credits');
+        const bound=this.consumeMaterials(s,recipe.materials),grant=spendCredits(s,recipe.credits);
+        this.addItem(s,bindGrant(item(recipe.output.kind,recipe.output),account,bound||grant>0));
+        s.reputation.engineer=Math.min(20,s.reputation.engineer+1);
+      }else if(action.type==='recycle'){
+        const i=s.items.findIndex(it=>it.id===action.itemId&&!it.recovery&&!it.favorite);requireRule(i>=0,'Unfavorite an owned item before recycling');
+        const it=s.items[i];
+        requireRule(!contractItemReserved(s,it),'Contract item reserved: deliver it or complete its contract before recycling');
+        const quote=recyclingQuote(it);requireRule(quote,'Item cannot be recycled; use salvage directly');
+        requireRule(quote.quantity>0,'Need at least '+quote.batchSize+' rounds of this ammunition to recycle');
+        if(quote.remaining)it.quantity=quote.remaining;else s.items.splice(i,1);
+        for(const child of flatten(it.attachments||[]))this.inventory.delete(child.id);
+        const output=bindGrant(item('material',{material:quote.material,quantity:quote.quantity}),account,!!it.grantOwner);
+        this.addItem(s,output);
+        this.audit(account,'item_recycled',{itemId:action.itemId,outputId:output.id,...quote,condition:it.condition});
+      }else if(action.type==='upgrade'){
+        requireRule(['stash','bay','bench'].includes(action.upgrade),'Unknown base upgrade');
+        const level=s.upgrades[action.upgrade]||0,max=action.upgrade==='stash'?3:2;
+        requireRule(level<max,'Upgrade already at maximum');
+        const cost=100+50*level;requireRule(s.credits>=cost,'Insufficient credits');
+        this.consumeMaterials(s,{steel:2+level,wire:1});spendCredits(s,cost);s.upgrades[action.upgrade]=level+1;
+      }else if(action.type==='preset'){
+        requireRule(typeof action.name==='string'&&/^[a-zA-Z0-9 _-]{1,32}$/.test(action.name),'Invalid preset name');
+        requireRule(Array.isArray(action.itemIds)&&action.itemIds.length<=8&&action.itemIds.every(id=>s.items.some(it=>it.id===id&&it.kind!=='contract')),'Preset items must be deployable items in your stash');
+        requireRule(Object.keys(s.presets).length<12||Object.hasOwn(s.presets,action.name),'At most twelve presets');
+        Object.defineProperty(s.presets,action.name,{value:action.itemIds,enumerable:true,configurable:true,writable:true});
+      }else if(action.type==='claimOverflow'){
+        const entry=this.inventory.get(action.itemId);
+        requireRule(entry&&entry.account===account&&entry.location==='overflow'&&entry.payload,'Item not in overflow storage');
+        const it=structuredClone(entry.payload);
+        this.addItem(s,it);
+        this.inventory.set(it.id,{account,location:'stash',deployment:null,raid:null,payload:it});
+      }else if(action.type==='attach'){
+        const weapon=s.items.find(it=>it.id===action.weaponId&&it.kind==='weapon'),mod=s.items.find(it=>it.id===action.itemId&&it.kind==='mod');
+        requireRule(weapon&&mod,'Weapon or attachment not owned');
+        const definition=MODS[mod.mod];requireRule(definition?.classes.includes(WEAPONS[weapon.weapon]?.class),'Incompatible attachment');
+        weapon.attachments||=[];requireRule(!weapon.attachments.some(it=>MODS[it.mod]?.slot===definition.slot),'Attachment slot occupied');
+        if(mod.grantOwner)weapon.grantOwner=account;
+        weapon.attachments.push(mod);s.items=s.items.filter(it=>it!==mod);
+        this.inventory.set(mod.id,{account,location:'attached',deployment:weapon.id,raid:null,payload:structuredClone(mod)});
+      }else if(action.type==='detach'){
+        const weapon=s.items.find(it=>it.id===action.weaponId&&it.kind==='weapon');
+        const index=weapon?.attachments?.findIndex(it=>it.id===action.itemId);
+        requireRule(index>=0,'Attachment not owned');
+        const [mod]=weapon.attachments.splice(index,1);
+        this.addItem(s,mod);
+        this.inventory.set(mod.id,{account,location:'stash',deployment:null,raid:null,payload:structuredClone(mod)});
+      }else if(action.type==='buy'){
+        throw new RuleError('Traders are unavailable offline in this build. Craft from salvaged materials instead.',501);
+      }else if(action.type==='contract'){
+        throw new RuleError('Contracts are unavailable offline in this build.',501);
+      }else{
+        throw new RuleError('Unknown trade action',400);
+      }
+      this.save(account,s);
+      const auditFields=['type','sku','trader','itemId','itemIds','weaponId','recipe','upgrade','quality','contract','operation','favorite','name','quantity','targetId','expectedRevision'];
+      this.audit(account,'trade',Object.fromEntries(auditFields.filter(key=>action[key]!==undefined).map(key=>[key,action[key]])));
+      return s;
+    });
   }
 
   results(account){

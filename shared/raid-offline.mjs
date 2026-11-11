@@ -26,7 +26,9 @@ import {createGuestSession, offlineSessionRoute} from './raid-session.mjs';
 import {RaidService} from '../server/raids.mjs';
 
 const OFFLINE_PARTY_MESSAGE = 'Squads, parties, and voice are unavailable in offline raid mode.';
-const OFFLINE_TRADE_MESSAGE = 'Trading, crafting, and contracts are unavailable offline in this build.';
+// The base workshop (crafting, repairs, upgrades, stash transfers) runs on the
+// same authoritative MemoryRaidStore rules as the hosted store. Only online-only
+// authorities (traders and contracts) remain unavailable offline.
 
 function parsePath(path) {
   const raw = String(path ?? '');
@@ -168,7 +170,8 @@ export function offlineRaidRoute(runtime, path, body) {
       if (!payload) return null;
       throw new RuleError(OFFLINE_PARTY_MESSAGE, 501);
     case 'trade':
-      throw new RuleError(OFFLINE_TRADE_MESSAGE, 501);
+      requireRule(payload,'Trading needs an action',400);
+      return runtime.store.trade(runtime.account,payload);
     case 'matchmaking': {
       if (!payload) return runtime.matchInfo;
       if (payload.operation === 'probe') {

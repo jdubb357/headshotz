@@ -5617,3 +5617,101 @@ Next action: iteration 46 — alternate back to gameplay/UX on the offline path;
 example deepen post-raid rewards/crafting UX or another remaining post-P0 persistence/UX
 slice, keeping the cache-tiers, static P0 and dispatch graders green; then return to a
 visual slice.
+
+---
+
+## Iteration 46 — offline workshop economy and craft readiness (2026-11-11)
+
+### Task
+
+Make the base workshop usable in static offline mode and show at a glance whether a
+recipe is craftable. Offline `trade` currently rejects every action with 501, so the
+workshop buttons, repairs, upgrades, stash transfers and presets are dead on the static
+Pages path even though the authoritative store and UI already render them.
+
+### Acceptance criteria (recorded before implementation)
+
+1. `MemoryRaidStore.trade` implements authoritative parity for craft, repair (patch/full),
+   upgrade, favorite, split, stack, sell, bulkSell, recycle, attach, detach, preset and
+   claimOverflow; it rejects trading during an active deployment and stale revisions,
+   consumes materials and credits only on success, and applies the same rank/bench checks
+   as `server/store.mjs`.
+2. `offlineRaidRoute` routes `trade` to the store instead of a blanket 501, while the
+   offline-only unsupported actions (traders/buy, contracts) still fail explicitly.
+3. The workshop renders each recipe with owned/required material stock, the credit
+   requirement, and a human-readable reason when it is unavailable (rank, bench, missing
+   salvage, short credits, active deployment), bound with `aria-describedby`.
+4. Unit coverage proves craft/repair/upgrade/transfer and their rejections offline.
+5. A static-file browser grader (no Node `/api`) crafts a medkit and upgrades/shows the
+   recipe state through the shipped UI, survives a reload, and reports zero browser
+   errors; the existing static P0 playability grader stays green.
+6. Online/Node trade rules, settlement authority and all other modes are unchanged; no
+   client-trusted shortcuts are added.
+
+### Implementation — iteration 46 (completed)
+
+- `shared/raid-store-memory.mjs`: added `trade(account, action)` with server-store
+  parity for favorite, split, stack, sell, bulkSell, recycle, repair, craft, upgrade,
+  preset, claimOverflow, attach and detach. Shared `consumeMaterials` validates and
+  consumes salvaged stock, repair grades and skill/rank/bench/credit gates reuse the
+  existing shared rule functions (no client-authored prices), trading during an active
+  deployment is rejected, stale revisions are rejected, and items/attachments move
+  between stash, attached and consumed locations through the same inventory model.
+  Online-only actions (traders/buy, contracts) throw explicit 501 RuleErrors.
+- `shared/raid-offline.mjs`: the `trade` route now delegates to the in-page authoritative
+  store instead of rejecting every action with a blanket 501; unsupported action types
+  remain explicit stubs. The online `/api` transport is untouched.
+- `raid-base.mjs`: the workshop now renders one row per recipe with a readiness note
+  (owned steel/wire/chem/fuel versus requirements, credit balance, rank/workbench and
+  active-deployment blockers) bound through `aria-describedby`; buttons remain disabled
+  only for structural gates (rank, workbench, active deployment) so the authoritative
+  service's rejection is still reached for race/missing-stock cases. Added notes and
+  compact row styles in `raid-online.html`.
+- `tests/raid-store-memory.test.mjs`: craft, repair, upgrade, split/stack/favorite,
+  stale revision, active deployment and 501 stub coverage.
+- `tests/raid-offline.test.mjs`: dispatcher trade routing coverage for craft and patch
+  repair, plus explicit trader/contract stub assertions.
+- New `tests/raid-browser-static-base-economy.mjs`: serves plain files with no `/api`,
+  reads the recipe readiness notes, crafts Field Medkit, upgrades the workbench through
+  the shipped UI, reloads and proves the crafted item/upgrade persist in IndexedDB.
+
+### Commands/results (2026-11-11)
+
+- `node --test tests/raid-store-memory.test.mjs tests/raid-offline.test.mjs` → 28 pass, 0 fail.
+- `node --check` changed modules/grader → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-base-economy.mjs` → PASS:
+  workshop craft/upgrade/reload persisted, no `/api` traffic, zero browser errors;
+  screenshot `/tmp/raid-static-base-economy.png` inspected (recipe notes + crafted med).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS; the
+  deploy → move → hit → loot → extract P0 gate remains green with no `/api` traffic.
+- `CDP_URL=http://127.0.0.1:9336 RAID_TEST_URL=http://127.0.0.1:8031 node
+  tests/raid-browser-progression.mjs` → PASS against a fresh Node server; workshop
+  crafting, workbench upgrade, attachments, presets and insured deployment unchanged.
+  (The pre-existing long-running 8021 server is stale relative to the checkout and was
+  not used as evidence.)
+- `node --test tests/*.test.mjs` → one known intermittent matchmaking ECONNRESET in the
+  parallel run; isolated `node --test tests/matchmaking.test.mjs` → 11/11 pass. No new
+  failures tied to this slice.
+
+### Criteria status
+
+1. PASS — authoritative craft/repair/upgrade/transfer parity with the online store; stale
+   revisions and active deployments rejected.
+2. PASS — dispatcher routes trade to the store; trader/contract actions still explicit 501.
+3. PASS — recipe rows show owned/required stock, credit requirement and blockers in a
+   small note bound by `aria-describedby`.
+4. PASS — 28 targeted unit tests pass (craft, repair, upgrade, split/stack, rejections).
+5. PASS — static browser grader crafts, upgrades, reloads and persists with zero errors;
+   the P0 static playability grader remains green.
+6. PASS — no online store, transport or other-mode changes; Node server boot and online
+   progression grader re-verified.
+
+**Status:** Offline workshop economy and craft readiness are COMPLETE for the static
+Pages solo path. Trouble-free visual/aesthetic acceptance on Austin's phone and live
+human balance remain UNVERIFIED (P5/P7). Contracts and traders deliberately stay
+online-only; offline progress is earned from raid salvage rather than purchases.
+
+Next action: iteration 47 returns to a visual slice (per the alternating rule), for
+example improving raid presentation (loot-container motion, machine VFX readability or
+HUD clarity) while keeping the static P0 gate, base-economy grader and cache-tiers
+grader green.
