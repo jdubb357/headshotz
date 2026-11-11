@@ -18,7 +18,7 @@ import {createConditionPlan,conditionsAt} from '../shared/raid-conditions.mjs';
 import {RAID_PROTOCOL,RECEIPT_LIMIT,validateAction} from '../shared/raid-protocol.mjs';
 import {createHash} from 'node:crypto';
 import {PING_TYPES} from '../shared/raid-comms.mjs';
-import {squadRole,pingSecondsFor,reviveSecondsFor,engineerPicks} from '../shared/raid-roles.mjs';
+import {squadRole,pingSecondsFor,reviveSecondsFor,engineerPicks,packCapacityFor,weightCapacityFor} from '../shared/raid-roles.mjs';
 import {blockedBetween} from './comms.mjs';
 import {randomUUID} from 'node:crypto';
 import {item,RuleError} from './store.mjs';
@@ -117,7 +117,7 @@ export class RaidService {
   // graders; the server must not invent a spawn orientation the client would
   // then contradict with its first aim packet.
   const player={account,name:this.store.profile(account).username,requestId:request.requestId,deploymentId:deployment.id,raidId:raid.id,...at,vy:0,grounded:true,pitch:0,yaw:0,hp:100,alive:true,ammo:30,nextFire:0,lastInput:this.now(),lastMoveAt:this.now(),seq:0,receipts:[],
-   equipment:deployment.equipment,pack:[],secure:[],cap:deployment.recovery?8:18,weightCap:deployment.recovery?22:40,secureCap:deployment.recovery?1:2,move:{x:0,z:0},extracted:false,team,downed:false,bleedUntil:0,hurtAt:0,sprint:false,slideUntil:0,nextSlideAt:0,vault:null,nextVault:0,
+   equipment:deployment.equipment,pack:[],secure:[],cap:packCapacityFor(role,deployment.recovery),weightCap:weightCapacityFor(role,deployment.recovery),secureCap:deployment.recovery?1:2,move:{x:0,z:0},extracted:false,team,downed:false,bleedUntil:0,hurtAt:0,sprint:false,slideUntil:0,nextSlideAt:0,vault:null,nextVault:0,
    combatVersion:raid.combatVersion||1,role:role||null,wounds:{},facts:{explorations:[],machines:0,bosses:0},objective:requestedObjective?createObjectiveState(requestedObjective,this.now()):null,protectedUntil:this.now()+5};
   const weapon=player.equipment.find(it=>it.kind==='weapon');player.weaponId=weapon.id;weapon.loaded??=WEAPONS[weapon.weapon]?.mag||30;player.weapon=weaponStats(weapon);player.ammo=weapon.loaded;
   if(player.combatVersion!==2&&player.equipment.some(it=>it.kind==='armor'))player.hp=130;

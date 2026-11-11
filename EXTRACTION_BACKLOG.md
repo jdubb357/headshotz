@@ -84,8 +84,10 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
    roles now persist through party readiness, ship in snapshots, and grant longer pings,
    3.5 s revives and keyless door picks (iteration 12), with role labels in Squad hand-off
    and downed rescue panels and the medic revive timing exposed in the control (iteration
-   13). Live hosted coordination remains unverified and the role catalog may grow. Keep
-   additions opt-in to raids.
+   13). A fourth opt-in role, Hauler, adds 4 backpack slots and 8 kg of weight capacity
+   for that deployment through the same authoritative catalog and snapshot fields
+   (iteration 26), leaving the baseline and other roles unchanged. Live hosted coordination
+   remains unverified and the role catalog may grow. Keep additions opt-in to raids.
 9. **P9 — Encounter pacing and loot-excitement** (PARTIAL, celebration COMPLETE):
    event cadence and reward feedback exist, and rarity-derived visual/audio pickup
    celebration is now server-snapshot-driven and browser-graded (iteration 10). The
@@ -737,12 +739,30 @@ rerun 11/11). Honest gap: whether the presented repair-versus-scrap trade is fun
 well-balanced is human-evaluated and UNVERIFIED; hosted/device behavior also remains
 UNVERIFIED (P5/P6/P7), so P10 depth stays PARTIAL.
 
+## Completed in iteration 26
+
+**P8 — Fourth opt-in squad role: Hauler.** COMPLETE in local authoritative/UI scope.
+`shared/raid-roles.mjs` extends the role catalog with `hauler` (`+4` backpack slots,
+`+8` kg weight capacity) and exports `packCapacityFor(role,recovery)` /
+`weightCapacityFor(role,recovery)`, which fall back to the 18/40 baseline (8/22 with a
+recovery kit) for invalid or roleless deployments and add the hauler bonus only to
+haulers. `server/raids.mjs` derives each deployed operator's `cap`/`weightCap` from those
+helpers, so the existing snapshot/HUD cleanup counters, pickup weight checks and
+give/hand-off capacity rules all consume the bonus without a second rule source. The
+party role select gains a Hauler option with its bonus title; the roster summary and
+field role label use the catalog automatically. Evidence: `tests/raid-squad-roles.test.mjs`
+asserts the four-role catalog, baseline vs hauler capacities for recovery/standard kits,
+and a deployed hauler party (`cap:12`, `weightCap:30` beside a baseline scout `8/22`);
+`tests/raid-browser-squad-roles.mjs` verifies the real select has the new option/title
+alongside the existing authority behavior and reports no browser errors. Honest gap:
+live hosted role coordination and human balance/role-depth acceptance remain UNVERIFIED.
+
 ## Later items (not yet closed)
 
 - P5 human balance and potency evaluation (BLOCKED: needs human playtesters).
 - P6 hosted multi-client transport/reconnect acceptance (BLOCKED: needs deployed transport/WAN).
 - P7 touch/pointer physical-device acceptance (BLOCKED: needs physical devices).
-- P8 live hosted role coordination and further role depth; local roles/link-up slices complete.
+- P8 live hosted role coordination; local Scout/Medic/Engineer/Hauler roles and link-up slices are complete.
 - P9 celebration implemented; encounter pacing/human excitement still UNVERIFIED.
 - P10 richer persistent progression/economy depth.
 

@@ -4208,3 +4208,74 @@ Next action: alternate back to a gameplay slice. Candidates: a machine-enemy mod
 or material detail pass (visual), or a small authoritative gameplay refinement from the
 P8/P9/P10 open items. Do not claim human balance, pacing, hosted transport or device
 acceptance.
+
+## Gameplay iteration 26 — fourth opt-in squad role: Hauler (P8 role-depth slice) (2026-11-10)
+
+### Acceptance criteria — iteration 26
+
+1. The shared squad-role catalog gains an opt-in `hauler` role with authoritative
+   deployment bonuses: +4 backpack slots and +8 kg weight capacity over the baseline
+   (18 slots / 40 kg). Solo players, other modes and the original cooperative
+   Extraction keep baseline caps; the free recovery kit keeps its own caps plus the
+   same bonus (12 slots / 30 kg) and its starter-supply restrictions.
+2. Scout/medic/engineer behavior is unchanged; a hauler party member's extra capacity
+   is visible through the existing snapshot `self.cap`/`weightCap` fields and the
+   normal backpack/HUD counters, with no new client-only rule.
+3. The authorized party-role controls expose the new option with a label and summary,
+   the roster/hand-off text can name it, and invalid roles still reject.
+4. Targeted unit tests cover the catalog and capacities; the squad-roles browser
+   grader still exercises role selection through the real UI with `browserErrors: []`;
+   the full unit suite passes.
+
+
+### Implementation — iteration 26 (completed)
+
+- `shared/raid-roles.mjs`: added the opt-in `hauler` role (summary "Backpack holds 4 more
+  slots and 8 kg more carry weight") and exported `packCapacityFor(role,recovery)` /
+  `weightCapacityFor(role,recovery)`. The helpers normalize the role through `squadRole`,
+  so invalid/roleless values keep the 18-slot/40-kg baseline (8/22 with a recovery kit)
+  and only haulers receive the +4/+8 bonus.
+- `server/raids.mjs`: deployed operators initialize `cap`/`weightCap` from those shared
+  helpers instead of hard-coded recovery values. The existing snapshot fields, pickup/
+  weight checks, give/hand-off capacity checks and client HUD/backpack counters consume
+  the same authoritative values; no client-only rule was added.
+- `raid-online.html`: the party-role select exposes `Hauler — deeper pack`, with the
+  authoritative bonus in its title. Party roster and field role labels already read the
+  catalog, so the role is named everywhere a role appears.
+- `tests/raid-squad-roles.test.mjs`: catalog now expects four roles; new assertions cover
+  `packCapacityFor`/`weightCapacityFor` for baseline, roleless/invalid, recovery and
+  hauler cases, plus a deployed hauler party (`cap 12`, `weightCap 30` beside a baseline
+  recovery-kit scout `8/22`).
+- `tests/raid-browser-squad-roles.mjs`: the real party-role select now advertises five
+  options ending in `hauler` and its title states the bonus; the existing scout/medic/
+  engineer behavior assertions are unchanged, and the report adds `haulerRoleOption:true`.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-squad-roles.test.mjs tests/raid-isolation.test.mjs` → 15 pass,
+  0 fail.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-squad-roles.mjs` → exit 0,
+  `{"roleSelectOptions":true,"haulerRoleOption":true,"rosterRoles":true,
+  "snapshotRoles":true,"scoutPingSeconds":30,"medicReviveSeconds":3.5,
+  "engineerKeylessPick":true,"keysBeforeAfter":0,"browserErrors":[]}`.
+- `node --test tests/*.test.mjs` → 1176 pass, 0 fail, 0 skipped.
+
+### Criteria status
+
+1. PASS — the shared catalog and deployment helpers apply +4 slots/+8 kg only to
+   haulers; baseline, solo, recovery kit and synchronous other modes stay unchanged.
+2. PASS — the bonus lives only in authoritative `cap`/`weightCap` snapshot fields;
+   existing pickup, hand-off and client HUD/backpack counters read them unchanged.
+3. PASS — the production party-role select exposes Hauler with its bonus title, roster
+   and field labels resolve via the catalog, and invalid-role rejection is unchanged.
+4. PASS — targeted role/isolation suites 15/15, the real-UI squad-roles grader green
+   with no browser errors, and the full suite 1176/1176.
+
+**Status:** Iteration 26 Hauler role slice is COMPLETE in local authoritative/UI scope.
+Live hosted role coordination, human balance/role-depth acceptance, and hosted/device
+transport remain UNVERIFIED. Do not claim P5/P6/P7 or human acceptance.
+
+Next action: prefer a visual/asset slice next (iteration 25 visual, iteration 26
+gameplay): e.g., machine-enemy model/material/lighting detailing (readable worn plating,
+glowing core, distinct class silhouettes) or a raid-loot container/lighting VFX pass.
+Avoid claiming human balance/pacing or hosted/device acceptance.

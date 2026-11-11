@@ -25,7 +25,8 @@ try{
  a=await h.page();b=await h.page();c=await h.page();
  for(const p of [a,b,c])await p.command('Emulation.setDeviceMetricsOverride',{width:1280,height:800,deviceScaleFactor:1,mobile:false});
  const leader=await register(a,'scout'),medic=await register(b,'medic'),engineer=await register(c,'engineer');
- assert.deepEqual(await a.evaluate("(()=>{const s=document.getElementById('partyRole');return [s&&s.options.length,[...s.options].slice(1).map(o=>o.value).join(',')]})()"),[4,'scout,medic,engineer']);
+ assert.deepEqual(await a.evaluate("(()=>{const s=document.getElementById('partyRole');return [s&&s.options.length,[...s.options].slice(1).map(o=>o.value).join(',')]})()"),[5,'scout,medic,engineer,hauler']);
+ assert.match(await a.evaluate("document.getElementById('partyRole').querySelector('option[value=hauler]').title"),/4 more slots and 8 kg/,'the hauler option names its authoritative bonus');
  await a.evaluate("document.getElementById('partyMode').value='trio';document.getElementById('partyCreate').click()");await idle(a);
  await a.wait("document.getElementById('partyState').textContent.includes('Invite')");
  const party=await a.evaluate("fetch('/api/party').then(r=>r.json())");
@@ -86,7 +87,7 @@ try{
  assert.equal(operator(engineer.id).facts.keysUsed||0,0);
  assert.equal(operator(engineer.id).equipment.filter(it=>it.kind==='key').length+operator(engineer.id).pack.filter(it=>it.kind==='key').length,keysBefore,'no key is consumed');
  for(const p of [a,b,c])assert.deepEqual(p.errors,[]);
- console.log(JSON.stringify({roleSelectOptions:true,rosterRoles:true,snapshotRoles:true,scoutPingSeconds:30,medicReviveSeconds:3.5,engineerKeylessPick:true,keysBeforeAfter:keysBefore,browserErrors:[]}));
+ console.log(JSON.stringify({roleSelectOptions:true,haulerRoleOption:true,rosterRoles:true,snapshotRoles:true,scoutPingSeconds:30,medicReviveSeconds:3.5,engineerKeylessPick:true,keysBeforeAfter:keysBefore,browserErrors:[]}));
 }catch(error){
  const state=await c.evaluate("fetch('/api/raid').then(r=>r.json()).then(s=>({self:s.self,x:s.self.x,z:s.self.z,doors:s.doors,reviving:s.self.reviving,error:document.getElementById('message').textContent,hint:document.getElementById('hint').textContent,pack:document.getElementById('pack').textContent.slice(0,400),play:document.getElementById('play').style.display,errors:window.__errors}))").catch(e=>String(e));
  console.error(JSON.stringify({state}));throw error
