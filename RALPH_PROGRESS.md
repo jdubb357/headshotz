@@ -5546,3 +5546,74 @@ notice remain UNVERIFIED (P7); no raid rules, AI or settlement code changed.
 Next action: iteration 45 returns to a visual slice (per the alternating rule) — improve
 raid presentation (for example loot container/machine material readability or HUD clarity)
 while keeping the P0 static-Pages graders green.
+
+---
+
+## Iteration 45 — weathered salvage-cache container shells (2026-11-11)
+
+### Task
+
+Improve the readability and grit of the loot containers players interact with: give the
+searchable salvage caches (production `propModel('cache', ...)`) a procedural weathered
+stamped-metal shell (seams, rivet rows, rust blooms, scuffs) so they read as salvaged ARC
+municipal crates rather than flat colored boxes, while the authoritative loot-tier accent
+and the open/vault lid status stay exactly as before.
+
+### Acceptance criteria (recorded before implementation)
+
+1. Cache bodies and lids render a shared, deterministic procedural metal map; no texture is
+   allocated per cache actor and per-actor disposal never frees the shared map.
+2. The authoritative tier accent (`lootTierColor(tier)`, accent geometry) and the
+   open/vault lid-status tint remain unchanged; production presentation-only code only.
+3. An isolated bench comparing the former flat container with the new shell measures a
+   meaningful pixel delta and writes before/after screenshots.
+4. `tests/raid-browser-cache-tiers.mjs`, the P0 static offline playability grader and
+   `node --test tests/*.test.mjs` all pass with zero browser errors.
+
+### Implementation — iteration 45 (completed)
+
+- `raid-models.mjs`: added a deterministic 128×128 procedural stamped-metal shell map
+  (rolled plate bands, recessed panel border and rivet rows, welded diagonal braces, rust
+  blooms, chips/scuffs, grime) and a colour-keyed `cacheShellMat` sharing one cached
+  material/texture across every cache. `propModel('cache', ...)` now renders the body, lid,
+  side ribbons, reinforcement feet and riveted seam with that shell, plus presentation-only
+  corner braces, lid hinge beam, front latch and a dark recess under the lid lip. A
+  `plain:true` evidence-only option reconstructs the former flat container for grading;
+  production sync never passes it. Tier accent geometry and the open/vault lid colour are
+  untouched.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-models.mjs tests/raid-browser-cache-tiers.mjs` → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-cache-tiers.mjs` → PASS:
+  15 live production caches all carry the shell; all five tier accents still paint their
+  accent pixels; the shell pass changes 5,679 isolated-bench pixels versus the former flat
+  containers and reuses exactly one shared metal map; browser errors empty. Screenshots
+  `/tmp/hs-loot-containers-before.png` and `/tmp/hs-loot-containers.png` inspected: the
+  former flat dark boxes now read as weathered riveted crates with visible braces and
+  brass hinge/latch while tier rings and lid rim strips stay authoritative.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS;
+  deploy → move → machine hit → loot → extract on static files with no `/api` traffic,
+  zero browser errors. P0 playability gate stays green.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-effects.mjs` → PASS; the shell
+  texture is allocated once and firing sustains the same texture count (no new
+  allocations), zero browser errors.
+- `node --test tests/*.test.mjs` → 1233 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — one shared shell map/material per tint; production caches report `cacheShell`
+   and the sustained-effects grader shows no per-shot texture growth.
+2. PASS — `cacheTier`/`cacheAccent` and the tier group are unchanged; lid colour remains
+   the authoritative open/vault tint (sync path untouched).
+3. PASS — 5,679 changed pixels in the isolated bench; before/after screenshots written.
+4. PASS — cache-tiers, static P0 gate, effects and full suite green; zero browser errors.
+
+**Status:** Salvage-cache container readability is COMPLETE in local presentation scope.
+No raid rules, AI, loot ownership, settlement or `/api` transport changed. Human aesthetic
+judgment and live-combat readability remain UNVERIFIED (P5/P7).
+
+Next action: iteration 46 — alternate back to gameplay/UX on the offline path; for
+example deepen post-raid rewards/crafting UX or another remaining post-P0 persistence/UX
+slice, keeping the cache-tiers, static P0 and dispatch graders green; then return to a
+visual slice.

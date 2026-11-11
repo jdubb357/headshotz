@@ -66,6 +66,42 @@ function coreGlowTexture(){
  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;coreGlowTex=texture;return texture;
 }
 function wornMat(color){const key='worn|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,map:wornPlatingTexture(),roughness:.74,metalness:.53,envMapIntensity:.95});material.userData.raidWorn=true;materials.set(key,material)}return materials.get(key)}
+// Salvaged stamped-metal crate shell. Caches are the objects players search at
+// range, so a shared procedural map (rolled seams, rivet border, diagonal
+// braces, rust blooms and scuffs) makes them read as weathered municipal
+// containers instead of flat boxes. The neutral map is tinted by each part's
+// authored colour; authoritatively-owned tier accents and the open/vault lid
+// status keep their own colours. One texture is shared by every cache and it is
+// not chargeable to a per-actor disposal pass.
+let cacheShellTex=null;
+function cacheShellTexture(){
+ if(cacheShellTex)return cacheShellTex;
+ const size=128,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const g=canvas.getContext('2d');
+ let seed=0xc42e5a1d;const rnd=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return(seed>>>0)/4294967296};
+ g.fillStyle='#d4d0c4';g.fillRect(0,0,size,size);
+ // Rolled plate bands with alternating light lip / dark seam.
+ for(let i=0;i<7;i++){const y=8+i*17+(rnd()-.5)*3;g.strokeStyle='rgba(232,228,216,.55)';g.lineWidth=1;g.beginPath();g.moveTo(0,y);g.lineTo(size,y);g.stroke();g.strokeStyle='rgba(52,60,55,.36)';g.beginPath();g.moveTo(0,y+2);g.lineTo(size,y+2);g.stroke()}
+ // Recessed panel border and corner rivet rows.
+ g.strokeStyle='rgba(38,45,41,.62)';g.lineWidth=2;g.strokeRect(7,7,size-14,size-14);
+ g.strokeStyle='rgba(240,236,224,.34)';g.lineWidth=1;g.strokeRect(9,9,size-18,size-18);
+ for(const p of [12,44,76,108]){
+  for(const [x,y] of [[p,12],[p,116],[12,p],[116,p]]){g.fillStyle='rgba(245,242,232,.72)';g.beginPath();g.arc(x,y+1,2.6,0,Math.PI*2);g.fill();g.fillStyle='rgba(30,37,33,.55)';g.beginPath();g.arc(x,y,2.6,0,Math.PI*2);g.fill()}
+ }
+ // Diagonal reinforcing braces welded across both panels.
+ g.strokeStyle='rgba(70,78,71,.55)';g.lineWidth=4;
+ for(const [ax,ay,bx,by] of [[24,24,104,104],[104,24,24,104]]){g.beginPath();g.moveTo(ax,ay);g.lineTo(bx,by);g.stroke();g.strokeStyle='rgba(228,224,211,.26)';g.lineWidth=1;g.beginPath();g.moveTo(ax+2,ay+2);g.lineTo(bx+2,by+2);g.stroke();g.strokeStyle='rgba(70,78,71,.55)';g.lineWidth=4}
+ // Rust blooms leaking from seams.
+ for(let i=0;i<10;i++){const x=6+rnd()*(size-12),y=6+rnd()*(size-12),r=7+rnd()*17,a=.12+rnd()*.28;
+  const grd=g.createRadialGradient(x,y,0,x,y,r);grd.addColorStop(0,'rgba(122,58,27,'+a.toFixed(3)+')');grd.addColorStop(1,'rgba(122,58,27,0)');g.fillStyle=grd;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill()}
+ // Chipped paint and directional handling scuffs.
+ for(let i=0;i<26;i++){const x=rnd()*size,y=18+rnd()*(size-36),l=5+rnd()*22;
+  g.strokeStyle=rnd()<.55?'rgba(244,240,228,.34)':'rgba(48,55,50,.34)';g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(x+(rnd()-.5)*l,y+(rnd()-.7)*2);g.stroke()}
+ // Fine deterministic grime speckle.
+ for(let i=0;i<420;i++){g.fillStyle='rgba(36,43,39,'+(.04+rnd()*.10).toFixed(3)+')';g.fillRect(rnd()*size,rnd()*size,1.1,1.1)}
+ const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=4;
+ cacheShellTex=texture;return texture;
+}
+function cacheShellMat(color){const key='cache-shell|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,map:cacheShellTexture(),roughness:.68,metalness:.52,envMapIntensity:1.05});materials.set(key,material)}return materials.get(key)}
 export function part(root,type,color,x,y,z,sx,sy,sz,rotation){const mesh=new THREE.Mesh(geometries[type]||geometries.box,mat(color));mesh.position.set(x,y,z);mesh.scale.set(sx,sy,sz);if(rotation)mesh.rotation.set(...rotation);root.add(mesh);return mesh}
 function wornPart(root,type,color,x,y,z,sx,sy,sz,rotation){const mesh=part(root,type,color,x,y,z,sx,sy,sz,rotation);mesh.material=wornMat(color);mesh.userData.raidWorn=true;return mesh}
 function lightPart(root,x,y,z,r=.15,withHalo=true){
@@ -181,14 +217,33 @@ export function propModel(kind,color=0xe0aa4d,options={}){
  if(kind==='ping'){
   part(root,'cylinder',0xf4d284,0,1,0,.04,2,.04);part(root,'cone',0xf4d284,0,2.3,0,.32,.5,.32,[0,0,Math.PI]);part(root,'ring',0xf4d284,0,.12,0,.7,.7,.7,[Math.PI/2,0,0]);
  }else if(kind==='cache'){
-  part(root,'box',0x35444b,0,.4,0,1.25,.75,.85);const lid=part(root,'box',color,0,.82,0,1.32,.12,.92);lid.material=lid.material.clone();lid.material.userData.raidOwned=true;root.userData.lid=lid;
-  for(const x of [-.45,.45])part(root,'box',0x9ca4a0,x,.46,.44,.12,.6,.05);part(root,'box',0x8dc5b6,0,.54,.46,.25,.12,.03);
+  // `plain` reconstructs the former flat-coloured container for evidence
+  // benches only; production sync never passes it.
+  const plain=options.plain===true;
+  const shellPart=(type,c,x,y,z,sx,sy,sz,rotation)=>{const mesh=part(root,type,c,x,y,z,sx,sy,sz,rotation);if(!plain)mesh.material=cacheShellMat(c);return mesh};
+  shellPart('box',plain?0x35444b:0x5e7176,0,.4,0,1.25,.75,.85);
+  const lid=shellPart('box',color,0,.82,0,1.32,.12,.92);lid.material=lid.material.clone();lid.material.userData.raidOwned=true;root.userData.lid=lid;
+  for(const x of [-.45,.45])shellPart('box',plain?0x9ca4a0:0xa3aaa5,x,.46,.44,.12,.6,.05);
+  shellPart('box',plain?0x8dc5b6:0x8fb5a8,0,.54,.46,.25,.12,.03);
   // Procedural municipal crate detail: reinforcement feet, riveted lid seam and
   // a true loot-tier accent. The accent tint is derived from the shared rarity
   // palette so a cache reads at the same tier as the loot inside it. This is
   // presentation-only; item ownership and open/vault status remain authoritative.
-  for(const x of [-.59,.59])for(const z of [-.38,.38])part(root,'box',0x7d8580,x,.1,z,.11,.16,.07);
-  for(const x of [-.52,-.18,.18,.52])part(root,'box',0x6b7370,x,.755,.448,.05,.025,.025);
+  for(const x of [-.59,.59])for(const z of [-.38,.38])shellPart('box',plain?0x7d8580:0x9b978c,x,.1,z,.11,.16,.07);
+  for(const x of [-.52,-.18,.18,.52])shellPart('box',plain?0x6b7370:0x8e918c,x,.755,.448,.05,.025,.025);
+  if(!plain){
+   // Corner braces, a lid hinge beam and a front latch: the load-bearing edges
+   // catch light and make the crate legible even while its tier accent colour is
+   // dimmed by weather.
+   for(const [x,z] of [[-.6,-.4],[-.6,.4],[.6,-.4],[.6,.4]])shellPart('box',0x808a85,x,.45,z,.07,.68,.07);
+   part(root,'box',0x6b7873,0,.855,-.43,1.1,.06,.1);
+   part(root,'box',0xb0a685,0,.8,.46,.2,.16,.09);
+   part(root,'box',0x5c6864,0,.84,.46,.11,.05,.16);
+   // A dark recess under the lid lip adds depth so the container top reads as a
+   // removable plate rather than a painted stripe.
+   part(root,'box',0x212e32,0,.755,.47,1.18,.03,.07);
+  }
+  root.userData.cacheShell=!plain;
   const tier=Math.max(0,Math.min(5,Math.trunc(Number(options.tier))||0)),accent=lootTierColor(tier),tierGroup=new THREE.Group();
   tierGroup.userData.cacheTierGroup=true;tierGroup.userData.tier=tier;root.add(tierGroup);
   part(tierGroup,'ring',accent,0,.036,0,.74,.74,.74,[Math.PI/2,0,0]);

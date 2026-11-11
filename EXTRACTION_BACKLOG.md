@@ -53,6 +53,17 @@ Evidence: `tests/raid-store-persist.test.mjs`, `tests/raid-browser-static-recove
 static persistence/playability and offline-dispatch graders green; full suite 1233/1233.
 P7 physical-device feel of the notice remains UNVERIFIED.
 
+Post-P0 look/feel resumed 2026-11-11 (iteration 45): the searchable salvage caches now
+render a shared procedural stamped-metal shell — rolled plate bands, recessed riveted
+panel borders, welded diagonal braces, rust blooms, chips and grime — plus corner braces,
+a lid hinge beam, front latch and a recessed lid lip, so containers read as weathered
+municipal crates instead of flat boxes. The tier accent (ground ring, lid rim strips,
+side ribbons, front badge, top seal) and the authoritative open/vault lid tint are
+unchanged; production presentation only. Evidence: `tests/raid-browser-cache-tiers.mjs`
+(5,679-pixel isolated delta, one shared shell map, before/after screenshots), static P0
+playability gate, effects resource-lifecycle grader and full suite 1233/1233 green.
+Human readability/feel on a phone remains UNVERIFIED (P7).
+
 Post-P0 look/feel resumed 2026-11-10 (iteration 41): rain fronts are now a
 camera-local 620-drop streak volume instead of a sparse sector-wide field, so the
 static offline client reads rain near the operator. Presentation-only; the P0
@@ -598,7 +609,10 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   (iteration 21, presentation-only). Salvage cache props now carry a shared-palette tier
   accent — a ground ring, lid rim strips, side ribbons, a front badge and a top seal
   derived from the authoritative cache tier with the vault bonus — plus procedural
-  reinforcement feet and riveted lid seams (iteration 23, presentation-only). Base
+  reinforcement feet and riveted lid seams (iteration 23, presentation-only), and a
+  shared procedural stamped-metal shell with panel seams, rivet rows, welded braces,
+  rust and grime plus corner braces, hinge beam and latch (iteration 45,
+  presentation-only; one shared map, tier accents and open/vault lid tint unchanged). Base
   stash weapon/armor rows now carry a compact condition meter, a READY/WORN/CRITICAL
   grade chip and a severity stripe driven by the authoritative condition, alongside
   the existing salvage/repair note (iteration 25, presentation-only). All five machine
