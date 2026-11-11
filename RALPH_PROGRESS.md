@@ -7001,6 +7001,61 @@ post-P0 raid priorities from the backlog's top open mechanics item.
    lighting keep the world dull, and the actual press-of-trigger punch cannot be judged
    from stills or emulated touch on a physical iPad.
 
-**Status:** Gunfeel visibility slice COMPLETE. Next action: swap the flat cyan/beige
-viewmodel materials for warmer worn-metal/leather values and add per-shot world light spill,
-then re-shoot combat at both sizes.
+**Status:** Gunfeel visibility slice COMPLETE.
+
+## Iteration 64 — Worn weapon finish and clean sight picture (2026-11-11)
+
+### Acceptance criteria
+
+1. The held rifle and gloved hands read as worn metal, wood, leather and cloth at hip on
+   1024x720 and 844x390 gameplay frames, not flat plastic.
+2. The optic reads as a compact dark scope with a warm centred reticle instead of a
+   blown-white blob.
+3. Aiming down sights clears the sight picture: rear stock and forearms fade out, no giant
+   dark slab or pale cyan tube obscures the reticle, and the optic stays on the crosshair.
+4. The viewmodel, mobile HUD and static-offline graders plus the full unit suite stay green.
+5. Before/after gameplay and overlay frames at both sizes are captured and judged by eye.
+
+### Implementation — iteration 64 (completed)
+
+- `raid-models.mjs`: cached procedural 256/192/64px sRGB canvas maps (brushed/machined
+  steel, wood grain and knots, pebbled leather with stitch seams, woven fabric stains) feed
+  shared Map/BumpMap PBR materials per gun material group; ret/glass now MeshStandardMaterial
+  with the reticle's own emissive dot texture, ret renderOrder 4; sleeve darkened to olive
+  0x2f342c and glove to leather 0x5a4634.
+- `weapons.js`: `mat('stock')` isolates buttstock/butt pad so the viewmodel can fade rear
+  furniture without hiding the receiver or magazine.
+- `raid-view.mjs`: overlay fill 1.05, key 3.0 warm, rim 1.6 cool; ADS fades the sleeve
+  early and the stock through the back half of the blend; barrel heat skips ret/glass so
+  the reticle glow survives every shot; removed the bore cant that misaligned the dot.
+
+### Commands/results (2026-11-11)
+
+- `node tests/raid-browser-viewmodel.mjs` → PASS: lighting/reflections/PBR/sway/bob/
+  reduced-motion/aimSight/reload/visibility true, `browserErrors` [].
+- `node tests/raid-browser-mobile-hud.mjs` → PASS: 92.1% / 82.2% unobstructed, touch input
+  and contextual interact verified, no browser errors.
+- `node tests/raid-browser-static-offline.mjs` → PASS: deploy/move/headshot/loot/extract,
+  settlement +20 credits/XP, no API traffic.
+- `node --test tests/*.test.mjs` → PASS 1247/1247.
+- Screenshots before: `/tmp/hs-before-combat-aim-1024x720.png` (white optic blob, dark slab,
+  pale cyan forearm). After: `/tmp/hs-after6-combat-aim-1024x720.png`,
+  `/tmp/hs-after6-combat-fire-1024x720-0.png`, `/tmp/hs-after6-combat-aim-844x390.png`,
+  `/tmp/hs-after6-combat-fire-844x390-0.png`; overlay isolation
+  `/tmp/hs-ov-aim-fade.png`, `/tmp/hs-ov-hip-fade.png`.
+
+### Criteria status
+
+1. PASS — metal, wood, leather and cloth tints replace the flat plastic read at both sizes.
+2. PASS — optic is dark and compact; reticle texture is warm and no longer blows out.
+3. PASS — stock and forearms fade in ADS and the optic sits on the HUD crosshair; exact
+   aim x/y/z and restore assertions still hold.
+4. PASS — viewmodel/mobile-HUD/static-offline graders and 1247 unit tests green.
+5. PASS — before/after and overlay frames captured and compared by eye. Honest gap: the hip
+   hand/forearm still reads as one soft dark mass without knuckle seams, the stock top
+   faces stay flat under the key light, and the world beyond the gun remains washed-out
+   and boxy (priority 5).
+
+**Status:** Viewmodel material/optic slice COMPLETE. Next action: movement feel (iteration
+65) — acceleration/deceleration, head bob, sprint FOV, landing dip, footsteps and touch
+stick/look dead zones — judged by runtime values plus moving/sprinting frames.

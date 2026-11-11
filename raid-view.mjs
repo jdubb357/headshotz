@@ -271,9 +271,9 @@ export class RaidView {
   // cool rim from behind the shoulder, and a sky/ground hemisphere fill. The
   // weapon is near the camera and gets no shadow map; these lights read the
   // metal highlights without touching the world pass.
-  this.overlayFill=new THREE.HemisphereLight(0xdff3ff,0x3a2c24,1.5);
-  this.overlayKey=new THREE.DirectionalLight(0xffd8a6,3.2);this.overlayKey.position.set(2.4,2.8,4.2);
-  this.overlayRim=new THREE.DirectionalLight(0x9ddcff,1.75);this.overlayRim.position.set(-2.8,1.4,2.4);
+  this.overlayFill=new THREE.HemisphereLight(0xdbe8ee,0x2c241d,1.05);
+  this.overlayKey=new THREE.DirectionalLight(0xffe2bd,3.0);this.overlayKey.position.set(2.4,2.8,4.2);
+  this.overlayRim=new THREE.DirectionalLight(0x9fd4ff,1.6);this.overlayRim.position.set(-2.8,1.4,2.4);
   this.overlay.add(this.overlayFill,this.overlayKey,this.overlayRim);
   this.gunRoot=new THREE.Group();this.gunHip={x:VIEW_HIP.x,y:VIEW_HIP.y,z:VIEW_HIP.z};this.gunRoot.position.set(VIEW_HIP.x,VIEW_HIP.y,VIEW_HIP.z);this.gunRoot.scale.setScalar(VIEW_SCALE);this.overlay.add(this.gunRoot);
   this.buildCombatEffects();
@@ -339,7 +339,13 @@ export class RaidView {
   const item=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId);
   this.gunRoot.visible=!!item&&this.viewMode==='first';
   if(this.selfActor&&this.selfActor.userData.heldWeapon!==(item?.weapon??null))setHumanWeapon(this.selfActor,item?.weapon??null);
-  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now()}
+  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now();
+   // Rear furniture and forearms would otherwise jam into the sight picture:
+   // fade them out as the optic comes up, like a real shoulder-weld.
+   this.gunAimFade=[];
+   this.gun.traverse(node=>{const material=node.material;if(!node.isMesh||!material||!['stock','sleeve'].includes(material.name))return;
+    material.transparent=true;material.depthWrite=false;material.opacity=1;this.gunAimFade.push(material)});
+  }
  }
  // The muzzle glow is rebuilt with each held weapon and rides the recoiling
  // gunRoot. It is presentation-only and disposed with the overlay.
@@ -367,7 +373,11 @@ export class RaidView {
   // does not allocate or clone anything; the materials are already owned by
   // the weapon and disposed with it.
   this.heat=0;this.heatPeak=0;this.gunHeatMaterials=[];
-  const seen=new Set();this.gun.traverse(node=>{const material=node.material;if(node.isMesh&&material?.isMeshStandardMaterial&&!seen.has(material)){seen.add(material);material.emissive.setRGB(0,0,0);this.gunHeatMaterials.push(material)}});
+  const seen=new Set();this.gun.traverse(node=>{const material=node.material;if(node.isMesh&&material?.isMeshStandardMaterial&&!seen.has(material)){seen.add(material);
+   // The optic reticle carries its own emissive glow; barrel heat must not
+   // extinguish it or tint the glass.
+   if(material.name==='ret'||material.name==='glass')return;
+   material.emissive.setRGB(0,0,0);this.gunHeatMaterials.push(material)}});
   // Muzzle smoke: a cool grey puff that trails the flash and dissipates.
   const smokeCanvas=document.createElement('canvas');smokeCanvas.width=smokeCanvas.height=64;
   const smokeContext=smokeCanvas.getContext('2d'),smokeGradient=smokeContext.createRadialGradient(32,32,0,32,32,32);
@@ -1393,6 +1403,11 @@ export class RaidView {
   const sight=this.gun?.userData.info?.sight||[0,.06,.15],gunScale=this.gunRoot.scale.x||VIEW_SCALE;
   const hip=this.gunHip||VIEW_HIP,hipX=hip.x,hipY=hip.y,hipZ=hip.z,aimX=-(sight[0]||0)*gunScale,aimY=-(sight[1]||0)*gunScale;
   const aimBlend=this.vmAim;
+  if(this.gunAimFade)for(const material of this.gunAimFade){
+   // Arms clear early; the stock fades in the back half of the transition so the
+   // optic leads the eye up from the shoulder weld.
+   material.opacity=material.name==='sleeve'?Math.max(0,1-aimBlend*1.8):Math.max(0,1-Math.max(0,aimBlend-.3)*1.6);
+  }
   const equipAge=this.vmEquipAt?time-this.vmEquipAt:1e9,equipDrop=motionReduced||equipAge>=260?0:-.1*Math.pow(1-Math.max(0,equipAge)/260,2);
   const breathX=motionReduced||aiming?0:Math.sin(seconds*1.7)*.004,breathY=motionReduced||aiming?0:Math.sin(seconds*2.1)*.004;
   // Accepted reload handling: the weapon dips and leans while one magazine

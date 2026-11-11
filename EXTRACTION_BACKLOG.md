@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (first-person gun presentation iteration 63). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (viewmodel materials + optic iteration 64). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete → MOVEMENT FEEL (iteration 65) next → ENEMIES → WORLD → AUDIO → JUICE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -95,6 +95,25 @@ rerun and the full 1247-test unit suite. Gameplay screenshots
 `/tmp/hs-field-1024x720-baseline.png` and `/tmp/hs-field-844x390-baseline.png`. Honest gap:
 weapon/hand materials still read flat and plastic, the wood buildings remain boxy with soft
 lighting, and trigger-feel on a physical iPad is still unverified.
+
+Worn viewmodel finish shipped 2026-11-11 (iteration 64): the merged gun material groups now
+carry cached procedural sRGB canvas maps (brushed/worn steel, wood grain, pebbled leather
+with stitch seams, woven cloth) as Map/BumpMap, with hand tints changed from cyan/beige to
+olive sleeve + leather glove. The optic is a dark compact scope with its own warm emissive
+dot instead of a blown-white plane, and ADS fades the forearms early and the rear stock in
+the back half of the blend so the sight picture stays clear. Barrel heat skips the reticle
+and glass so the dot survives firing. Evidence: `node tests/raid-browser-viewmodel.mjs`
+PASS (PBR, lighting, reflections, aim/return, reload disposal, visibility; no browser
+errors), `tests/raid-browser-mobile-hud.mjs` PASS 92.1% / 82.2% unobstructed,
+`tests/raid-browser-static-offline.mjs` PASS (deploy/headshot/loot/extract, no API traffic),
+full suite 1247/1247. Screenshots: baseline `/tmp/hs-before-combat-aim-1024x720.png`; after
+`/tmp/hs-after6-combat-aim-{1024x720,844x390}.png`,
+`/tmp/hs-after6-combat-fire-{1024x720,844x390}-0.png`, overlay isolation
+`/tmp/hs-ov-aim-fade.png`, `/tmp/hs-ov-hip-fade.png`. Honest gap: hip hands still read as
+one soft dark mass without knuckle seams, stock top faces stay flat, world still washed-out
+and boxy (priority 5), and the actual trigger punch/physical-device feel remain UNVERIFIED
+(P7). Next feel priority: MOVEMENT FEEL (acceleration, bob, sprint FOV, landing dip,
+footsteps, touch dead zones).
 
 Naming shipped 2026-11-11 (iteration 60): the mode is "THE SECTOR" in the page title, base
 heading and main-menu raid banner, with the original co-op raid kept as CLASSIC EXTRACTION.

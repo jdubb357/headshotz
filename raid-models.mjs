@@ -112,13 +112,182 @@ function lightPart(root,x,y,z,r=.15,withHalo=true){
  }
  return mesh;
 }
+// First-person weapon finish. The gun and hands are merged into a handful of
+// vertex-coloured material groups, so broad colour still comes from each part's
+// authored tint; these small neutral maps add the tooth that made the model read
+// plastic: brushed steel streaks, edge scratches, wood grain, glove leather grain
+// and woven sleeve texture. They are generated once, shared by every weapon, and
+// never charged to a weapon's disposal pass.
+let gunMetalTex=null,gunWoodTex=null,gunLeatherTex=null,gunFabricTex=null;
+function gunCanvasTexture(size,paint){
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+ const g=canvas.getContext('2d'),rnd=(()=>{let seed=0x7f3a9c21;return()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return(seed>>>0)/4294967296}})();
+ paint(g,size,rnd);
+ const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+ texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=4;
+ return texture;
+}
+function gunMetalTexture(){
+ if(gunMetalTex)return gunMetalTex;
+ gunMetalTex=gunCanvasTexture(256,(g,size,rnd)=>{
+  g.fillStyle='#e9e9e9';g.fillRect(0,0,size,size);
+  // Worn finish blotches: slightly darker patches where handling has polished
+  // or scorched the parkerising.
+  for(let i=0;i<18;i++){
+   const r=18+rnd()*60,x=rnd()*size,y=rnd()*size,v=Math.round(196+rnd()*35);
+   const grd=g.createRadialGradient(x,y,0,x,y,r);
+   grd.addColorStop(0,`rgba(${v},${v},${v},${(.16+rnd()*.22).toFixed(3)})`);grd.addColorStop(1,'rgba(0,0,0,0)');
+   g.fillStyle=grd;g.fillRect(x-r,y-r,r*2,r*2);
+  }
+  // Brushed machining streaks, mostly horizontal, with occasional bright hilites.
+  for(let i=0;i<110;i++){
+   const y=rnd()*size,l=8+rnd()*90,x=rnd()*size;
+   g.strokeStyle=rnd()<.5?'rgba(255,255,255,.16)':'rgba(66,69,70,.14)';
+   g.lineWidth=rnd()<.25?1.6:1;g.beginPath();g.moveTo(x,y);g.lineTo(x+l,y+(rnd()-.5)*1.4);g.stroke();
+  }
+  // Scrapes and gouges with a bright lip so they catch the key light.
+  for(let i=0;i<58;i++){
+   const x=rnd()*size,y=rnd()*size,l=3+rnd()*20,a=rnd()*Math.PI;
+   g.strokeStyle='rgba(48,52,53,'+(.18+rnd()*.32).toFixed(3)+')';
+   g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l);g.stroke();
+   g.strokeStyle='rgba(255,255,255,.16)';g.beginPath();g.moveTo(x+Math.cos(a)*.5,y+Math.sin(a)*.5);g.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l);g.stroke();
+  }
+  // Pitting, rivet-level grit and a little oil grime.
+  for(let i=0;i<260;i++){const v=rnd()<.5?'35,39,40':'244,244,240';g.fillStyle='rgba('+v+','+(.05+rnd()*.09).toFixed(3)+')';g.fillRect(rnd()*size,rnd()*size,1.6,1.6)}
+  for(let i=0;i<4;i++){
+   const x=rnd()*size,y=rnd()*size,r=14+rnd()*36;
+   const grd=g.createRadialGradient(x,y,0,x,y,r);grd.addColorStop(0,'rgba(76,48,24,.16)');grd.addColorStop(1,'rgba(0,0,0,0)');
+   g.fillStyle=grd;g.fillRect(x-r,y-r,r*2,r*2);
+  }
+ });
+ return gunMetalTex;
+}
+function gunWoodTexture(){
+ if(gunWoodTex)return gunWoodTex;
+ gunWoodTex=gunCanvasTexture(256,(g,size,rnd)=>{
+  g.fillStyle='#d9c3a4';g.fillRect(0,0,size,size);
+  // Long grain running down the sheet, gently waved, with lighter and darker
+  // heart streaks. Tinted by the stock's authored tan so it stays warm.
+  for(let i=0;i<46;i++){
+   const x=rnd()*size,amp=2+rnd()*7,freq=.02+rnd()*.04,phase=rnd()*6.28;
+   g.strokeStyle=rnd()<.55?'rgba(78,44,18,'+(.08+rnd()*.12).toFixed(3)+')':'rgba(255,238,206,'+(.08+rnd()*.10).toFixed(3)+')';
+   g.lineWidth=.7+rnd()*1.6;g.beginPath();
+   for(let y=0;y<=size;y+=8){const xx=x+Math.sin(y*freq+phase)*amp;y?g.lineTo(xx,y):g.moveTo(xx,y)}
+   g.stroke();
+  }
+  // Knots and tiny splits.
+  for(let i=0;i<5;i++){
+   const x=rnd()*size,y=rnd()*size,r=3+rnd()*6;
+   g.strokeStyle='rgba(66,34,12,.35)';g.lineWidth=1.2;g.beginPath();g.ellipse(x,y,r*1.8,r*.65,0,0,Math.PI*2);g.stroke();
+   g.fillStyle='rgba(60,30,10,.25)';g.beginPath();g.ellipse(x,y,r*.55,r*.4,0,0,Math.PI*2);g.fill();
+  }
+  for(let i=0;i<260;i++){g.fillStyle=rnd()<.5?'rgba(64,38,16,'+(.05+rnd()*.1).toFixed(3)+')':'rgba(255,236,205,'+(.04+rnd()*.09).toFixed(3)+')';g.fillRect(rnd()*size,rnd()*size,1.4,1.4)}
+ });
+ return gunWoodTex;
+}
+function gunLeatherTexture(){
+ if(gunLeatherTex)return gunLeatherTex;
+ gunLeatherTex=gunCanvasTexture(192,(g,size,rnd)=>{
+  g.fillStyle='#d5c5b2';g.fillRect(0,0,size,size);
+  // Pebbled leather grain with creases across the knuckles and wrist.
+  for(let i=0;i<360;i++){
+   const x=rnd()*size,y=rnd()*size,r=2+rnd()*5;
+   const grd=g.createRadialGradient(x,y,0,x,y,r);
+   grd.addColorStop(0,'rgba(118,92,66,.22)');grd.addColorStop(1,'rgba(118,92,66,0)');
+   g.fillStyle=grd;g.fillRect(x-r,y-r,r*2,r*2);
+  }
+  for(let i=0;i<22;i++){
+   const x=rnd()*size,y=rnd()*size,l=10+rnd()*46,a=(rnd()-.5)*.7;
+   g.strokeStyle='rgba(70,48,30,'+(.22+rnd()*.26).toFixed(3)+')';g.lineWidth=1;
+   g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+l*.5,y+a*l,x+l,y+a*l*.3);g.stroke();
+  }
+  // Double stitch seams catch the eye at close range without extra geometry.
+  for(const y of [size*.22,size*.78]){
+   g.strokeStyle='rgba(246,238,224,.45)';g.lineWidth=2;g.setLineDash([5,4]);
+   g.beginPath();g.moveTo(0,y);g.lineTo(size,y);g.stroke();g.setLineDash([]);
+   g.strokeStyle='rgba(52,38,26,.28)';g.lineWidth=1;g.beginPath();g.moveTo(0,y+3);g.lineTo(size,y+3);g.stroke();
+  }
+  for(let i=0;i<180;i++){g.fillStyle='rgba(60,44,30,'+(.04+rnd()*.09).toFixed(3)+')';g.fillRect(rnd()*size,rnd()*size,1.5,1.5)}
+ });
+ return gunLeatherTex;
+}
+function gunFabricTexture(){
+ if(gunFabricTex)return gunFabricTex;
+ gunFabricTex=gunCanvasTexture(192,(g,size,rnd)=>{
+  g.fillStyle='#c9c9c9';g.fillRect(0,0,size,size);
+  // Coarse diagonal weave so sleeves read as cloth next to the leather gloves.
+  for(let i=0;i<220;i++){
+   const x=rnd()*size,y=rnd()*size;
+   g.strokeStyle=rnd()<.5?'rgba(255,255,255,.14)':'rgba(60,64,58,.13)';
+   g.lineWidth=1;g.beginPath();
+   if(rnd()<.5){g.moveTo(x,y);g.lineTo(x+3,y+3)}else{g.moveTo(x,y);g.lineTo(x+3,y-3)}
+   g.stroke();
+  }
+  // Duty stains and faded wear patches.
+  for(let i=0;i<10;i++){
+   const x=rnd()*size,y=rnd()*size,r=7+rnd()*26;
+   const grd=g.createRadialGradient(x,y,0,x,y,r);grd.addColorStop(0,'rgba(46,48,38,.14)');grd.addColorStop(1,'rgba(46,48,38,0)');
+   g.fillStyle=grd;g.fillRect(x-r,y-r,r*2,r*2);
+  }
+  for(let i=0;i<240;i++){g.fillStyle='rgba(44,48,40,'+(.04+rnd()*.08).toFixed(3)+')';g.fillRect(rnd()*size,rnd()*size,1.2,1.2)}
+ });
+ return gunFabricTex;
+}
+let gunReticleTex=null;
+function gunReticleTexture(){
+ if(gunReticleTex)return gunReticleTex;
+ // A crisp, hot centre dot with a short glow ring: readable at a glance and
+ // still warm enough to bloom into the muzzle-flash palette instead of the
+ // blown white square the bare reticle plane used to produce.
+ gunReticleTex=gunCanvasTexture(64,(g,size)=>{
+  g.clearRect(0,0,size,size);
+  const c=size/2,halo=g.createRadialGradient(c,c,0,c,c,size*.44);
+  halo.addColorStop(0,'rgba(255,108,52,.95)');halo.addColorStop(.34,'rgba(255,70,28,.4)');halo.addColorStop(.7,'rgba(255,42,18,.12)');halo.addColorStop(1,'rgba(255,42,18,0)');
+  g.fillStyle=halo;g.fillRect(0,0,size,size);
+  g.fillStyle='#ff4a24';g.beginPath();g.arc(c,c,size*.16,0,Math.PI*2);g.fill();
+  g.fillStyle='#ffd0b0';g.beginPath();g.arc(c,c,size*.075,0,Math.PI*2);g.fill();
+  g.strokeStyle='rgba(255,132,84,.55)';g.lineWidth=1.4;g.beginPath();g.arc(c,c,size*.34,0,Math.PI*2);g.stroke();
+ });
+ return gunReticleTex;
+}
+function gunGroupMaterial(key){
+ if(key==='ret'){
+  const reticle=gunReticleTexture(),material=new THREE.MeshStandardMaterial({
+   map:reticle,transparent:true,alphaTest:.22,depthWrite:false,
+   roughness:1,metalness:0,emissive:0xff6a3a,emissiveMap:reticle,emissiveIntensity:2.4
+  });
+  material.name=key;material.userData.raidOwned=true;return material;
+ }
+ if(key==='glass'){
+  const material=new THREE.MeshStandardMaterial({
+   vertexColors:true,color:0x16243a,transparent:true,opacity:.38,roughness:.12,metalness:.3,envMapIntensity:1.7
+  });
+  material.name=key;material.userData.raidOwned=true;return material;
+ }
+ const metal=['metal','alu','chrome','brass'].includes(key),polished=key==='alu'||key==='chrome';
+ let map=null;
+ if(key==='wood')map=gunWoodTexture();
+ else if(key==='glove'||key==='pad')map=gunLeatherTexture();
+ else if(key==='sleeve')map=gunFabricTexture();
+ else if(key!=='rubber')map=gunMetalTexture();
+ const bump=map?(key==='wood'?.0028:key==='glove'||key==='sleeve'?.0016:metal?.0042:.0032):0;
+ const material=new THREE.MeshStandardMaterial({
+  vertexColors:true,map:map||null,bumpMap:map||null,bumpScale:bump,
+  roughness:metal?polished?.22:.38:key==='wood'?.88:key==='glove'||key==='sleeve'?.92:.78,
+  metalness:key==='brass'?.72:metal?.66:.1,
+  envMapIntensity:metal?(polished?1.55:1.35):key==='glove'||key==='sleeve'?.55:.85
+ });
+ material.name=key;material.userData.raidOwned=true;return material;
+}
 export function weaponModel(id,hands=false){
- const {parts,info}=gunParts(id==='pistol'?'handgun':id,1),all=hands?parts.concat(handParts(info,0x43565c)):parts,groups=new Map(),root=new THREE.Group();
+ const {parts,info}=gunParts(id==='pistol'?'handgun':id,1),all=hands?parts.concat(handParts(info,0x2f342c,0x5a4634)):parts,groups=new Map(),root=new THREE.Group();
  for(const p of all){const key=p.mat||'metal';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p)}
  for(const [key,parts]of groups){const geometry=mergeParts(parts,{uv:true});geometry.userData.raidOwned=true;
-  const metal=['metal','alu','chrome','brass'].includes(key),polished=key==='alu'||key==='chrome';
-  const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:metal?polished?.22:.38:key==='wood'?.88:.78,metalness:key==='brass'?.72:metal?.66:.1,envMapIntensity:metal?(polished?1.55:1.35):1});material.userData.raidOwned=true;
-  root.add(new THREE.Mesh(geometry,material));
+  const mesh=new THREE.Mesh(geometry,gunGroupMaterial(key));
+  // The reticle is a tiny glowing plane that must sit on top of the tinted optic
+  // glass no matter how the transparent groups sort.
+  if(key==='ret')mesh.renderOrder=4;
+  root.add(mesh);
  }
  root.userData.info=info;return root;
 }
