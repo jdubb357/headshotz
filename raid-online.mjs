@@ -31,6 +31,41 @@ import {vaultTarget,vaultDirection} from './shared/raid-motion.mjs';
 import {baseController} from './raid-base.mjs';
 import {WEAPONS,MODS,weaponStats,itemWeight} from './shared/raid-catalog.mjs';
 import {sellValue} from './shared/raid-appraisal.mjs';
+import {isOfflineQuery,readServiceMeta} from './shared/raid-static.mjs';
+
+// Transport selection for the raid client. Static GitHub Pages has no `/api`,
+// so the page switches to an in-page authoritative service instead of fetch.
+// An explicit `offline=1`, the Node-injected service meta, or one profile probe
+// decides the mode once per page; online hosts still use fetch for everything.
+let transportProbe=null,offlineRuntime=null,offlineRuntimeWork=null;
+function decideTransport(){
+ if(isOfflineQuery(location.search))return Promise.resolve('offline');
+ if(readServiceMeta(document))return Promise.resolve('online');
+ return new Promise(resolve=>{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
+  fetch('/api/profile',{cache:'no-store',signal:controller.signal})
+    .then(response=>resolve(response.headers.get('content-type')?.includes('application/json')&&(response.status===200||response.status===401)?'online':'offline'))
+    .catch(()=>resolve('offline'))
+    .finally(()=>clearTimeout(timer));
+ });
+}
+async function offlineEnabled(){
+ if(!transportProbe)transportProbe=decideTransport();
+ const transport=await transportProbe;
+ try{document.body.dataset.raidTransport=transport}catch{}
+ return transport==='offline';
+}
+function offlineService(){
+ offlineRuntimeWork||=import('./shared/raid-offline.mjs').then(module=>{
+  const guest=new URLSearchParams(location.search).get('guest');
+  offlineRuntime=module.createOfflineRaidRuntime({username:guest||'guest'});
+  module.startOfflineTick(offlineRuntime);
+  // Diagnostic handle for the static browser grader; absent on Node hosts.
+  window.__hszOfflineRaid={mode:'offline',protocol:RAID_PROTOCOL,runtime:()=>offlineRuntime,snapshot:()=>snapshot,api:(path,body)=>module.offlineRaidRequest(offlineRuntime,path,body)};
+  return offlineRuntime;
+ });
+ return offlineRuntimeWork;
+}
 installDialogNavigation();
 const chooseQuantity=quantityUI();
 document.getElementById('previewTurn').onclick=()=>preview?.turn();
@@ -73,10 +108,15 @@ async function signedOut(text){
  message(text+(wasAlive?' Your operator remains vulnerable in the raid. Sign in and reconnect to continue.':''));
 }
 async function validateSession(){
- if(authChecking||!profile)return;authChecking=true;const generation=authGeneration;try{const response=await fetch('/api/profile',{cache:'no-store'});if(response.status===401&&generation===authGeneration)await signedOut('Session expired or signed out from another device.')}catch{}finally{authChecking=false}
+ if(authChecking||!profile||await offlineEnabled())return;authChecking=true;const generation=authGeneration;try{const response=await fetch('/api/profile',{cache:'no-store'});if(response.status===401&&generation===authGeneration)await signedOut('Session expired or signed out from another device.')}catch{}finally{authChecking=false}
 }
 
 async function api(path,body,{timeoutMs=15000}={}){
+ if(await offlineEnabled()){
+  const runtime=await offlineService();
+  const {offlineRaidRequest}=await import('./shared/raid-offline.mjs');
+  return offlineRaidRequest(runtime,path,body);
+ }
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
  try{
   const r=await fetch('/api/'+path,{method:body?'POST':'GET',cache:'no-store',signal:controller.signal,headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined});

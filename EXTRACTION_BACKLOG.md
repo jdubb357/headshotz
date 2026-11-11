@@ -17,7 +17,7 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slices 1–5 COMPLETE 2026-11-10; slices 6–12 open. This project
+Status: IN PROGRESS — slices 1–6 COMPLETE 2026-11-10; slices 7–12 open. This project
 temporarily supersedes P1–P10 and visual-alternation
 until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
 to “do not change the hub/main menu or the original cooperative Extraction”: routing
@@ -97,12 +97,26 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    `tests/raid-session.test.mjs` 6/6 (guest profile shape, name reuse, route contract,
    501 password routes, deployment bound to the session account), targeted 22/22,
    full suite 1206/1206. Next: slice 6 in-page dispatcher/tick.
-6. **In-page dispatcher and 50 ms tick** — MISSING. When static/offline,
-   `raid-online.mjs` `api(path, body)` calls an in-page dispatcher backed by the
-   in-browser `RaidService` instead of `fetch('/api/...')`. Start the same 50 ms
-   `raids.tick()` loop in the page. Implement routes needed for capabilities, worlds,
-   profile, deploy, raid snapshot, and action. Party/voice/trade/matchmaking probes
-   may return explicit offline stubs.
+6. **In-page dispatcher and 50 ms tick** — COMPLETE (iteration 35).
+   `shared/raid-offline.mjs` constructs the browser-safe `MemoryRaidStore`,
+   passwordless `GuestSession` and real `server/raids.mjs` `RaidService`, exposes
+   the hosted route subset (`worlds`, `capabilities`, `profile`/`results`/
+   `sessions`/`login`/`register`/`logout` via the slice-5 session contract,
+   `market`, `raid`, `deploy`, `action`, `social`, `voice`, `party`,
+   `matchmaking`) and starts the same 50 ms `raids.tick(0.05)` loop
+   (`startOfflineTick`, stoppable via `dispose`). Party/voice/trade/security
+   mutation routes fail explicitly with 501; matchmaking probe/measure return
+   offline proofs; GET party/voice return well-formed empty responses so the base
+   screen boots. `raid-online.mjs` selects the transport once per page:
+   `offline=1` wins, Node meta means online, otherwise one `/api/profile` probe
+   (online only for 200/401 JSON; GitHub Pages 404/non-JSON means offline) and
+   dynamically imports the dispatcher only when static. No server authority or
+   hosted fetch path changed. Evidence: `tests/raid-offline.test.mjs` 9/9
+   (source safety, routes, deploy/action, stubs, tick lifecycle) and
+   `tests/raid-browser-offline-dispatch.mjs` (static server, no `/api` traffic:
+   offline boot with/without flag, deploy, keyboard movement, fire action,
+   ticking; browser exceptions empty). Targeted 31/31; full suite 1215/1215.
+   Next: slice 7 offline multiplayer UI stub.
 7. **Stub offline multiplayer** — MISSING. Hide or disable party create/join, voice,
    and latency probes in offline mode so the base UI can deploy solo versus machines
    without matchmaking failures.

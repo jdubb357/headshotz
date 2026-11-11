@@ -4837,3 +4837,73 @@ and `RaidService` in static mode, route `api(path, body)` through
 `offlineSessionRoute` plus authoritative service routes (`capabilities`, `worlds`,
 `deploy`, `raid`, `action`, 50 ms tick, results/market), and stub party/voice/
 matchmaking probes so the client can boot offline.
+
+## Iteration 35 — P0 slice 6: in-page dispatcher and 50 ms tick
+
+### Acceptance criteria — iteration 35 (P0 slice 6)
+
+1. A browser-static page with no Node `/api` boots the raid UI through the real
+   in-browser `RaidService` (MemoryRaidStore + passwordless guest) instead of
+   `fetch`, with the same 50 ms `raids.tick()` simulation loop running in the page.
+2. `api(path, body)` routes `capabilities`, `worlds`, profile/results/sessions/
+   login/register/logout, `deploy`, `raid` (including `?spectate=`), `action`
+   (protocol + `validateAction` checks, `{ok, ack, state?}` response), market,
+   social, voice, party and matchmaking probes; party/voice/trade/security
+   mutations fail explicitly offline (501) rather than silently succeeding.
+3. Offline deploy/action responses come from the authoritative service contract
+   (validated game rules, authoritative state), not a client-trusted shortcut.
+4. Node-hosted online pages keep the fetch path; no hosted validation or server
+   authority was weakened or moved onto the client.
+5. Unit tests plus a static-file browser grader exercise offline boot, deploy,
+   movement, fire, tick, and zero `/api` traffic.
+
+### Implementation — iteration 35 (completed)
+
+- `shared/raid-offline.mjs`: DOM-free dispatcher that builds `MemoryRaidStore`,
+  `GuestSession` and `RaidService`, exposes `offlineRaidRoute`/`offlineRaidRequest`
+  with the hosted route subset, and `startOfflineTick` for the 50 ms loop (timer
+  cleared by `runtime.dispose`). Auth/profile routes delegate to the slice-5
+  `offlineSessionRoute`; gameplay routes stay authoritative; trade/party/voice/
+  password routes are explicit 501 stubs; matchmaking probe/measure return offline
+  proofs with a zero RTT.
+- `raid-online.mjs`: one transport decision per page (`offline=1`, Node service
+  meta, or a `/api/profile` probe accepted as online only for 200/401 JSON),
+  dynamic import of the dispatcher only when offline, and `api(path, body)`
+  delegation. Diagnostic `window.__hszOfflineRaid` handle is created offline only
+  (for the grader); the online fetch path is unchanged and `validateSession`
+  skips the probe offline.
+- Tests: `tests/raid-offline.test.mjs` (9) covering source safety, capabilities,
+  worlds, guest auth, deploy binding/authorship, action validation, stubs and
+  tick lifecycle; `tests/raid-browser-offline-dispatch.mjs` serves the repo as
+  plain files with no `/api`, selects offline by flag and by failed profile
+  probe, deploys, moves via keyboard, sends an authorized fire action, verifies
+  ticking and zero `/api` resource requests.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-offline.test.mjs` → 9 pass, 0 fail.
+- Targeted transport/store suites (`raid-offline`, `raid-session`,
+  `raid-static-mode`, `raid-store-memory`) → 31/31.
+- `node tests/raid-browser-offline-dispatch.mjs` → staticOffline, probeFallback,
+  deploy, moving, firing, noApiTraffic, tick true; 0 browser exceptions.
+- Online regressions: `node tests/raid-browser-smoke.mjs`,
+  `tests/raid-browser-offline.mjs`, `tests/raid-browser-entry.mjs` against a fresh
+  server (`RAID_TEST_URL=http://127.0.0.1:8022`) → all pass.
+- Full suite `node --test tests/*.test.mjs` → 1215 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — static playback boot and tick verified in Chrome against a static server.
+2. PASS — route table, authoritative action/deploy validation, explicit 501 stubs.
+3. PASS — deploy/action executed by `RaidService`; responses carry ack/protocol/state.
+4. PASS — online smoke, offline/caching and entry routing graders unchanged and green.
+5. PASS — unit + browser grader exercise boot/deploy/move/fire/tick/no-API.
+
+**Status:** P0 slice 6 is COMPLETE. Offline multiplayer UI still shows party/voice
+controls that fail (slice 7), Pages main-menu DEPLOY still needs routing (slice 8),
+and the full combat/loot/extraction playability grader is slice 10. No human/hosted
+Pages acceptance is claimed.
+
+Next action: P0 slice 7 — hide/disable party create/join, voice, and latency probes
+in offline mode so the base UI deploys solo-versus-machines without matchmaking
+controls, keeping the online/Node behaviour unchanged.
