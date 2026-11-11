@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-P0 storm-front lightning iteration 49). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (post-P0 offline loadout readiness iteration 50). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,20 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 UX resumed 2026-11-11 (iteration 50): the static offline base Deploy card now shows a
+store-authoritative loadout readiness line. A read-only in-page `readiness` route calls the
+same `MemoryRaidStore.preflightLoadout` rules deploy uses, reporting the concrete blocker
+verbatim when the selection cannot deploy (for example "Equip one or two weapons") and the
+authoritative carried weight plus insurance premium when it can; recovery kits are ready with
+no premium, and an active deployment shows "Operator still in raid" while Resume stays
+available. The offline Deploy button is gated by that verdict and every loadout, insurance and
+recovery change refreshes it; online/Node readiness and deploy behavior are unchanged and the
+line stays hidden there. Evidence: new `tests/raid-browser-static-readiness.mjs` (blocked →
+4.0 kg ready → 14-credit insured premium → recovery → cleared → deployment → active resume,
+zero `/api` traffic, zero browser errors), `tests/raid-offline.test.mjs` readiness unit test,
+static P0 playability gate, offline dispatch/persist graders, online smoke against an isolated
+`node server/main.mjs`, and full suite 1240/1240. Physical-device feel remains UNVERIFIED (P7).
 
 Post-P0 look/feel resumed 2026-11-11 (iteration 47): authored ground-loot piles now render a
 presentation-only pickup beacon in both online and offline raids — a floating gem, additive
@@ -604,6 +618,13 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   and render read-only progress plus an explanation instead of 501 action buttons. Hosted
   trader/contract UI is unchanged. Evidence: `tests/raid-browser-static-availability.mjs`,
   static P0 gate, full suite 1239/1239; physical-device feel still UNVERIFIED (P7).
+- **Offline deploy readiness** — COMPLETE (iteration 50). The static base's Deploy card
+  reports the in-page store's `preflightLoadout` verdict for the current selection through
+  a read-only `readiness` route (blocker verbatim, carried weight and insurance premium
+  when ready), gates the offline Deploy button, and leaves an active deployment resumable.
+  Online behavior is unchanged and the line stays hidden. Evidence:
+  `tests/raid-browser-static-readiness.mjs`, `tests/raid-offline.test.mjs`, static P0 gate,
+  isolated online smoke, full suite 1240/1240; physical-device feel UNVERIFIED (P7).
 - **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
   tests and browser grants/loadout/rewards.
 - **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress

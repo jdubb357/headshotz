@@ -6011,3 +6011,70 @@ cache-tier and base-economy graders green; then return to a visual slice.
    insured-premium → recovery-ready transitions and that a valid loadout still deploys;
    the static P0 playability gate, offline dispatcher unit tests and the full suite stay green
    with zero `/api` traffic and zero browser errors.
+
+### Implementation — iteration 50 (completed)
+
+- `shared/raid-offline.mjs`: exported a synchronous `offlineReadiness(runtime, loadout)`
+  preview that calls `MemoryRaidStore.preflightLoadout` (the exact method `deploy` uses)
+  and returns the ready verdict, premium, insured count, equipped count and catalogue
+  weight; `RuleError` blockers come back as `{ready:false, blocker}` instead of throwing.
+  Added a read-only `readiness` dispatcher route that wraps it. The module stays DOM- and
+  `node:*`-free and never mutates stash, credits or deployments.
+- `raid-online.html` / `raid-online.mjs`: added a `#deployReadiness` status line in the
+  Deploy card. The offline base refreshes it on refresh, party poll, profile poll and every
+  loadout/insurance/recovery change, gating `#deploy` with the authoritative verdict. It
+  states the concrete blocker verbatim when not ready, or authoritative carried weight and
+  insurance premium when ready; an active deployment shows "Operator still in raid" while
+  Resume stays available. Online mode never shows the line or changes deploy behavior.
+- New `tests/raid-browser-static-readiness.mjs`: plain static-file server with no `/api`,
+  offline boot, verifies the blocked → weapon-ready (4.0 kg, 0 premium) → insured armor
+  premium 14 → recovery-kit-ready → cleared-blocked transitions, an actual deployment with
+  the selected gear, and the active-deployment "Resume remains" state. Zero `/api` traffic,
+  zero browser errors.
+- `tests/raid-offline.test.mjs`: new unit test covering blocked/ready/premium/weight,
+  recovery and active-deployment readiness, and that the preview never deploys gear.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-online.mjs shared/raid-offline.mjs tests/raid-offline.test.mjs
+  tests/raid-browser-static-readiness.mjs` → OK.
+- `node --test tests/raid-offline.test.mjs` → 14/14 pass.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-readiness.mjs` → PASS:
+  `{"empty":{"state":"false","text":"Deploy blocked — Equip one or two weapons.",
+  "deployDisabled":true},"ready":{"state":"true","weight":"4.0","premium":"0"},
+  "insured":{"state":"true","weight":"10.0","premium":"14"},
+  "recovery":{"state":"true","premium":"0"},"cleared":{"state":"false"},
+  "active":{"state":"false","text":"Operator still in raid — resume the active deployment
+  before deploying again.","deployDisabled":true},"resumeHidden":false,
+  "noApiTraffic":true,"browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS; the
+  deploy → move → machine hit → loot → extract static-Pages gate remains green
+  (`noApiTraffic:true`, `browserErrors:[]`).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-offline-dispatch.mjs` → PASS.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-persist.mjs` → PASS
+  (settled reload, checkpoint resume, localStorage fallback).
+- `RAID_TEST_URL=http://127.0.0.1:8099 node tests/raid-browser-smoke.mjs` → PASS against a
+  fresh isolated `node server/main.mjs`: online register, recovery deploy, server movement,
+  reconnect and rendering unchanged with `/api` traffic.
+- `node --test tests/*.test.mjs` → 1240 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — readiness runs the store's `preflightLoadout` inside the in-page dispatcher, not a
+   client rule copy; the static grader records zero `/api` requests.
+2. PASS — empty selection reports "Equip one or two weapons" verbatim and blocks Deploy;
+   ready selections report catalogue weight (4.0, then 10.0 with armor) and premium (0,
+   then 14). Broken/weight/credits/overflow reuse their preflight messages unchanged.
+3. PASS — recovery kit is ready with 0 premium; an active deployment blocks Deploy with an
+   explicit "Operator still in raid" line while Resume is visible.
+4. PASS — changes refresh and gate offline Deploy only; the isolated online smoke test and
+   Node-hosted base deploy path are unchanged (the line stays hidden online).
+5. PASS — new static readiness grader, static P0 gate, offline dispatch/persist graders and
+   full suite 1240/1240 are green; screenshots not required for this text-only slice.
+
+**Status:** Offline pre-deploy loadout readiness is COMPLETE in local UX scope. The displayed
+verdict is store-authoritative, but human readability on a phone remains UNVERIFIED (P7).
+
+Next action: iteration 51 returns to a visual/look-feel slice for Extraction Raids (alternating
+rule; 50 was gameplay/UX). Keep the readiness, static P0, lightning, loot-beacon, cache-tier
+and base-economy graders green and record before/after screenshot evidence.

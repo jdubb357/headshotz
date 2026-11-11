@@ -14,6 +14,7 @@ import {RuleError,requireRule} from './raid-rules.mjs';
 import {RAID_PROTOCOL, validateAction} from './raid-protocol.mjs';
 import {RAID_WORLDS} from './raid-worlds.mjs';
 import {MATCH_POLICY,matchPreferences} from './raid-matchmaking.mjs';
+import {itemWeight} from './raid-catalog.mjs';
 import {MemoryRaidStore} from './raid-store-memory.mjs';
 import {PersistentRaidStore,createFallbackSnapshotBackend} from './raid-store-persist.mjs';
 import {createIndexedDbBackend} from './raid-store-idb.mjs';
@@ -41,6 +42,27 @@ function parsePath(path) {
 
 function offlineSnapshot(runtime) {
   return runtime.raids.snapshot(runtime.account);
+}
+
+// Read-only deploy readiness preview. It runs the same authoritative
+// MemoryRaidStore.preflightLoadout rules the deploy route uses, so the base
+// screen can say why a selection cannot deploy without duplicating game rules
+// on the client. It never mutates the store and never deploys anything.
+export function offlineReadiness(runtime, loadout = {}) {
+  try {
+    const result = runtime.store.preflightLoadout(runtime.account, loadout);
+    return {
+      ready: true,
+      recovery: !!(loadout && loadout.recovery === true),
+      premium: result.premium,
+      weight: result.equipment.reduce((total, it) => total + itemWeight(it), 0),
+      insured: result.insured.length,
+      equipped: result.equipment.length,
+    };
+  } catch (error) {
+    if (error instanceof RuleError) return { ready: false, blocker: error.message, status: error.status || 400 };
+    throw error;
+  }
 }
 
 function buildOfflineRaidRuntime(store, { username = 'guest', now = () => Date.now() / 1000 } = {}) {
@@ -184,6 +206,11 @@ export function offlineRaidRoute(runtime, path, body) {
       }
       throw new RuleError('Unknown latency operation', 400);
     }
+    case 'readiness':
+      // Presentation-only preview of the authoritative preflight deploy runs.
+      // Unknown/malformed selections come back as blockers rather than errors so
+      // the base screen can always explain itself.
+      return offlineReadiness(runtime, payload || {});
     case 'deploy': {
       requireRule(payload && payload.protocol === RAID_PROTOCOL, 'Client update required. Reload to deploy safely.', 426);
       // Match the hosted server's preference validation without the human

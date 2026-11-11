@@ -37,7 +37,7 @@ import {isOfflineQuery,readServiceMeta} from './shared/raid-static.mjs';
 // so the page switches to an in-page authoritative service instead of fetch.
 // An explicit `offline=1`, the Node-injected service meta, or one profile probe
 // decides the mode once per page; online hosts still use fetch for everything.
-let transportProbe=null,offlineRuntime=null,offlineRuntimeWork=null,offlineMode=false;
+let transportProbe=null,offlineRuntime=null,offlineRuntimeWork=null,offlineMode=false,offlineReadinessCheck=null;
 function decideTransport(){
  if(isOfflineQuery(location.search))return Promise.resolve('offline');
  if(readServiceMeta(document))return Promise.resolve('online');
@@ -60,6 +60,7 @@ function offlineService(){
  offlineRuntimeWork||=import('./shared/raid-offline.mjs').then(async module=>{
   const guest=new URLSearchParams(location.search).get('guest');
   offlineRuntime=await module.createPersistentOfflineRaidRuntime({username:guest||'guest'});
+  offlineReadinessCheck=module.offlineReadiness;
   module.startOfflineTick(offlineRuntime);
   // Best effort on tab hide/close: IndexedDB saves are already queued after each
   // committed action, and this flushes the latest debounced state.
@@ -282,8 +283,32 @@ async function refresh(){
  await refreshParty();if(generation!==authGeneration)return;await comms.refresh();
 }
 function selectedLoadout(){const recovery=$('recovery').checked,raw=[...$('stash').querySelectorAll('input[data-equip]:checked')].map(e=>e.value),ordered=baseUI?.orderedIds(raw)||raw;return {recovery,itemIds:recovery?[]:ordered,insureIds:recovery?[]:[...$('stash').querySelectorAll('input[data-insure]:checked')].map(e=>e.value)}}
-baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
+baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch();updateDeployReadiness()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
 function updateReadyMismatch(){const member=party?.members.find(m=>m.account===profile?.id),mismatch=!!(member?.ready&&!profile?.activeDeployment&&!sameLoadout(member.loadout,selectedLoadout()));$('readyMismatch').hidden=!mismatch;$('restoreReady').hidden=!mismatch;$('readyMismatch').textContent=mismatch?'Your current selection differs from your readied loadout. Ready again or restore it before deploying.':'';if(mismatch)$('deploy').disabled=true;return mismatch}
+// Offline-only deploy readiness. The verdict and numbers come from the same
+// authoritative preflight the in-page deploy route runs; the client only
+// formats them, so the base screen never duplicates raid rules. Online hosts
+// keep their squad/latency readiness and this line stays hidden.
+function updateDeployReadiness(){
+ const line=$('deployReadiness');if(!line)return;
+ if(!offlineMode||!offlineReadinessCheck||!profile){line.hidden=true;delete line.dataset.ready;delete line.dataset.weight;delete line.dataset.premium;return}
+ line.hidden=false;
+ if(profile.activeDeployment){
+  delete line.dataset.weight;delete line.dataset.premium;line.dataset.ready='false';
+  line.textContent='Operator still in raid — resume the active deployment before deploying again.';
+  $('deploy').disabled=true;return;
+ }
+ let result;
+ try{result=offlineReadinessCheck(offlineRuntime,selectedLoadout())}
+ catch(error){result={ready:false,blocker:error.message||String(error)}}
+ line.dataset.ready=String(!!result.ready);
+ line.dataset.premium=String(result.ready?(result.premium||0):'');
+ line.dataset.weight=String(result.ready&&!result.recovery?(Number(result.weight)||0).toFixed(1):'');
+ line.textContent=result.ready
+  ?(result.recovery?'Recovery kit ready — free starter rifle and medkit; nothing in the kit can be banked.':'Ready to deploy — '+(Number(result.weight)||0).toFixed(1)+'/40 kg carried · insurance premium '+(result.premium||0)+' credits'+(result.insured?' · '+(result.insured===1?'1 insured gear item':result.insured+' insured gear items'):'')+'.')
+  :'Deploy blocked — '+result.blocker+'.';
+ $('deploy').disabled=!result.ready;
+}
 $('restoreReady').onclick=()=>run(async()=>{const account=profile?.id;await refresh();if(profile?.id!==account)return;const member=party?.members.find(m=>m.account===account);if(!member?.ready||profile.activeDeployment)throw new Error('The readied loadout is no longer available. Review your squad.');if((member.loadout.itemIds||[]).some(id=>!profile.items.some(it=>it.id===id)))throw new Error('Readied equipment is no longer in your stash. Select equipment and ready again.');baseUI.selectLoadout(member.loadout);await refreshParty()});
 function selectedMatch(){return matchPreferences(offlineMode?{allowMixed:true,maxRttMs:0}:party?.match??{allowMixed:$('allowMixed').checked,maxRttMs:Number($('maxRtt').value)})}
 // Offline solo raids have no party, voice transport, or remote performance
@@ -326,7 +351,7 @@ async function refreshParty(){
   $('partyState').textContent='Playing solo offline — machines are the opposition.';
   $('deploy').textContent='Deploy solo raid';
   $('deploy').disabled=!!profile.activeDeployment;
-  updateReadyMismatch();comms.update(null,null);
+  updateReadyMismatch();updateDeployReadiness();comms.update(null,null);
   return;
  }
  if(!party)$('partyRole').value='';if(!matchInfo)matchInfo=await api('matchmaking');if(generation!==authGeneration)return;for(const id of ['allowMixed','maxRtt'])$(id).disabled=!!party&&party.leader!==profile.id;if(party){$('allowMixed').checked=party.match?.allowMixed??true;$('maxRtt').value=String(party.match?.maxRttMs??0)}renderMatchSummary();$('partyState').textContent=party?`Invite ${party.id} · ${party.mode} · ${party.region}`:'Playing solo.';

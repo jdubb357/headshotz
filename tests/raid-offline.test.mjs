@@ -6,6 +6,7 @@ import {RAID_WORLDS} from '../shared/raid-worlds.mjs';
 import {item} from '../shared/raid-rules.mjs';
 import {
   createOfflineRaidRuntime,
+  offlineReadiness,
   offlineRaidRequest,
   offlineRaidRoute,
   startOfflineTick,
@@ -167,6 +168,39 @@ test('offline trade routes crafting and repairs through the authoritative store'
     assert.equal(repaired.items.find(it => it.id === weapon.id).condition, 65, 'field patch matches the shared repair target');
     assert.equal(repaired.credits, 230, 'the patch is priced from the shared rule');
     assert.deepEqual(rt.store.profile(account).items.filter(it => it.id === weapon.id)[0].condition, 65, 'repair persists');
+  } finally {
+    rt.dispose();
+  }
+});
+
+test('offline readiness previews the authoritative preflight without deploying gear', () => {
+  const rt = runtime({username: 'offline_readiness'});
+  try {
+    const profile = offlineRaidRoute(rt, 'profile');
+    const weapon = starterWeapon(profile);
+    const armor = profile.items.find(it => it.kind === 'armor');
+    const blocked = offlineRaidRoute(rt, 'readiness', { recovery: false, itemIds: [] });
+    assert.equal(blocked.ready, false);
+    assert.match(blocked.blocker, /Equip one or two weapons/);
+    assert.equal(profile.items.filter(it => it.kind === 'weapon').length, 1, 'the preview never removes stash gear');
+    const ready = offlineReadiness(rt, { recovery: false, itemIds: [weapon.id] });
+    assert.equal(ready.ready, true);
+    assert.equal(ready.premium, 0);
+    assert.equal(ready.insured, 0);
+    assert.equal(ready.weight, 4, 'carried weight comes from the shared catalogue');
+    assert.ok(rt.store.profile(rt.account).items.some(it => it.id === weapon.id), 'readiness never deploys gear');
+    const insured = offlineReadiness(rt, { itemIds: [weapon.id, armor.id], insureIds: [weapon.id, armor.id] });
+    assert.equal(insured.ready, true);
+    assert.equal(insured.insured, 2);
+    assert.equal(insured.premium, 34, '20% of the starter rifle and armor prices');
+    const recovery = offlineReadiness(rt, { recovery: true, itemIds: [], insureIds: [] });
+    assert.equal(recovery.ready, true);
+    assert.equal(recovery.recovery, true);
+    assert.equal(recovery.premium, 0);
+    deploy(rt, 'offline-readiness-deploy-1');
+    const deployed = offlineReadiness(rt, { recovery: true });
+    assert.equal(deployed.ready, false);
+    assert.match(deployed.blocker, /only one raid at a time/);
   } finally {
     rt.dispose();
   }
