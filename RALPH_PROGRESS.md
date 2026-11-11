@@ -3998,3 +3998,73 @@ Next action: prefer a visual/asset slice next (iteration 21 was visual, iteratio
 gameplay): e.g. a readable equipment-condition meter and repair-grade chip in the base
 stash, or tiered cache/container prop detailing (straps, lids, loot-tier glow). Do not
 claim human acceptance.
+
+## Visual iteration 23 — tiered salvage cache container detailing (2026-11-10)
+
+### Acceptance criteria — iteration 23 (visual loot-tier readability slice)
+
+1. Cache props in a real raid deployment render one tier accent derived only from the
+   authoritative snapshot `tier` plus the vault bonus (clamped 0–5), using the same
+   accent palette as the rarity pickup celebration.
+2. Each tier is visually distinct and measurable: a tier group with a ground ring, lid
+   rim strips, side ribbons, a front badge and a top seal, independent of the lid's
+   open/vault status colour.
+3. The grade proves the production `raid-view.mjs` path (not a synthetic fixture) and a
+   browser screenshot grader records before/after evidence with zero browser errors.
+4. Existing cache behaviour (ownership, search, open state, collision, settlement) and
+   the full unit suite remain unchanged and green.
+
+### Implementation — iteration 23 (completed)
+
+- `shared/raid-loot-presentation.mjs`: added `lootTierColor(value)`, returning the
+  numeric form of the existing `LOOT_PRESENTATION` accent for a clamped tier. The raid
+  client/model path and pickup celebration now share one palette.
+- `raid-models.mjs`: `propModel(kind, color, options={})` accepts `options.tier`. The
+  cache branch adds procedural reinforcement feet at the body base and riveted lid
+  seam blocks, then a `cacheTierGroup` with a self-lit accent ground ring, lid rim
+  strips, side ribbons, front badge and corner top seal. The group, tier and accent are
+  published as `userData.cacheTierGroup`/`cacheTier`/`cacheAccent`. Lid status colours
+  and every authoritative container field are untouched.
+- `raid-view.mjs`: cache props are created with `{tier:(Number(data.tier)||0)+(data.vault?1:0)}`
+  from the snapshot, so a vault's sealed cache reads one tier higher. All other props
+  receive no options and are unchanged.
+- `tests/raid-loot-excitement.test.mjs`: added the tier-accent palette assertion
+  (0–5 distinct, missing/negative common, overflow special).
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-loot-excitement.test.mjs tests/raid-exits.test.mjs` → 16 pass,
+  0 fail (includes the new cache tier accent test).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-cache-tiers.mjs` → exit 0.
+  `cacheCount: 15`, `tierCounts: {0:3, 1:4, 2:3, 3:4, 4:1}`; every production cache prop
+  matched its authoritative tier and shared accent. Production-prop pixel deltas:
+  `tier 0: 571`, `tier 1: 605`, `tier 2: 656`, `tier 3: 614`, `tier 4: 641`;
+  `browserErrors: []`.
+- Screenshots inspected: `/tmp/hs-cache-tiers-before.png` shows five plain dark crates
+  with tan lids and no tier marking; `/tmp/hs-cache-tiers.png` shows the same five crates
+  with distinct grey/green/cyan/purple/amber rings, ribbons, badges and top seals.
+- Isolated smoke browser run on a fresh data dir (port 8022) → green
+  (`rendered:true`, `serverMovement:true`, `reconnect:true`, no exceptions).
+- Full unit suite `node --test tests/*.test.mjs` → 1174 pass, 0 fail, 0 skipped.
+
+### Criteria status
+
+1. PASS — 15 deployed cache props derive their tier from snapshot `tier` + vault bonus
+   and use `lootTierColor` from the shared pickup palette.
+2. PASS — all five tiers carry a distinct accent group with ring/ribbons/badge/rim strips
+   and a top seal; the lid's open/vault status colour remains separate.
+3. PASS — the grader deploys through the real service and production RaidView; the
+   before/after captures are recorded with `browserErrors: []`.
+4. PASS — no cache rule, ownership, search or settlement code changed; unit suite
+   1174/1174 and the isolated smoke run pass.
+
+**Status:** Iteration 23 cache tier detailing is COMPLETE in local presentation scope.
+Subjective in-world readability (the authored deployment happens to be a night rain
+front), human aesthetic acceptance, cleanliness of the shared palette design, hosted
+multiplayer and physical-device behavior remain UNVERIFIED. Do not claim P5/P6/P7 or
+human acceptance.
+
+Next action: prefer a gameplay slice next. Candidates: run the fixture-free natural
+acceptance probe and fix the highest-impact observed raid gap, or extend P10 with a
+condition-aware repair/salvage trade decision that is verifiable by unit tests and the
+real base UI. Do not claim human balance, pacing, hosted transport or device acceptance.

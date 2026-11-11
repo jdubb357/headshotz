@@ -4,6 +4,7 @@ import {gunParts,handParts} from './weapons.js';
 import {makeCharacterWithCache,animate} from './chars.js';
 import {WEAPONS} from './shared/raid-catalog.mjs';
 import {MACHINES} from './shared/raid-enemies.mjs';
+import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,12,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,5,24)};
 const HIT_FLASH_COLOR=new THREE.Color(0xffffff);
 const materials=new Map();
@@ -68,13 +69,27 @@ export function machineModel(kind){
  }
  root.userData.actor='machine';return root;
 }
-export function propModel(kind,color=0xe0aa4d){
+export function propModel(kind,color=0xe0aa4d,options={}){
  const root=new THREE.Group();
  if(kind==='ping'){
   part(root,'cylinder',0xf4d284,0,1,0,.04,2,.04);part(root,'cone',0xf4d284,0,2.3,0,.32,.5,.32,[0,0,Math.PI]);part(root,'ring',0xf4d284,0,.12,0,.7,.7,.7,[Math.PI/2,0,0]);
  }else if(kind==='cache'){
   part(root,'box',0x35444b,0,.4,0,1.25,.75,.85);const lid=part(root,'box',color,0,.82,0,1.32,.12,.92);lid.material=lid.material.clone();lid.material.userData.raidOwned=true;root.userData.lid=lid;
   for(const x of [-.45,.45])part(root,'box',0x9ca4a0,x,.46,.44,.12,.6,.05);part(root,'box',0x8dc5b6,0,.54,.46,.25,.12,.03);
+  // Procedural municipal crate detail: reinforcement feet, riveted lid seam and
+  // a true loot-tier accent. The accent tint is derived from the shared rarity
+  // palette so a cache reads at the same tier as the loot inside it. This is
+  // presentation-only; item ownership and open/vault status remain authoritative.
+  for(const x of [-.59,.59])for(const z of [-.38,.38])part(root,'box',0x7d8580,x,.1,z,.11,.16,.07);
+  for(const x of [-.52,-.18,.18,.52])part(root,'box',0x6b7370,x,.755,.448,.05,.025,.025);
+  const tier=Math.max(0,Math.min(5,Math.trunc(Number(options.tier))||0)),accent=lootTierColor(tier),tierGroup=new THREE.Group();
+  tierGroup.userData.cacheTierGroup=true;tierGroup.userData.tier=tier;root.add(tierGroup);
+  part(tierGroup,'ring',accent,0,.036,0,.74,.74,.74,[Math.PI/2,0,0]);
+  for(const z of [-.468,.468])part(tierGroup,'box',accent,0,.82,z,1.2,.035,.02);
+  for(const x of [-.455,.455])part(tierGroup,'box',accent,x,.55,.468,.1,.24,.02);
+  part(tierGroup,'box',accent,0,.3,.444,.26,.12,.02);
+  const seal=part(tierGroup,'box',accent,0,.9,0,.24,.04,.24);seal.rotation.y=Math.PI/4;
+  root.userData.cacheTier=tier;root.userData.cacheAccent=accent;root.userData.cacheTierGroup=tierGroup;
  }else if(kind==='loot'){
   part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]);part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]);part(root,'box',0x343933,.05,.22,0,.2,.2,.16);part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
   part(root,'ring',color,0,.3,0,.58,.58,.58,[Math.PI/2,0,0]);part(root,'cylinder',color,0,.48,0,.035,.55,.035);

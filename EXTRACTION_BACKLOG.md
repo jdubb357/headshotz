@@ -377,8 +377,11 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   richer at street range: 8009 detected exterior window openings now carry projecting
   stone sill ledges and 1681 carry hanging flower-box planters with foliage and blooms,
   proven as instanced PBR `windowSill`/`flowerBox` groups with isolated pixel evidence
-  (iteration 21, presentation-only). Older screenshots may still show the former generic
-  "salvage bag" wording.
+  (iteration 21, presentation-only). Salvage cache props now carry a shared-palette tier
+  accent — a ground ring, lid rim strips, side ribbons, a front badge and a top seal
+  derived from the authoritative cache tier with the vault bonus — plus procedural
+  reinforcement feet and riveted lid seams (iteration 23, presentation-only). Older
+  screenshots may still show the former generic "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.
@@ -688,6 +691,24 @@ UI (`repairGrades`: patch→65%, full→100%, one wire and one steel consumed,
 `browserErrors: []`); full unit suite `1173 pass / 0 fail`. Honest gap: the relative
 balance/feel of paying partial vs full prices, and hosted/device behavior, remain
 UNVERIFIED (P5/P6/P10), so P10 depth stays PARTIAL as a human-acceptance question.
+
+## Completed in iteration 23
+
+**Tiered salvage cache container props.** COMPLETE in local presentation scope. The
+authoritative snapshot already carries each cache's authored `tier` and `vault`; the raid
+client now feeds `tier + vault bonus` (clamped 0–5) into `propModel('cache', ...)`, which
+marks the crate with the same accent the shared loot palette assigns to that rarity. The
+tier group adds a ground ring, two lid rim strips, two side ribbons, a front badge and a
+corner-seated top seal; independent procedural reinforcement feet and lid rivets improve
+the plain body. Opening/lid status colours, lock/search rules, container ownership,
+collision and settlement are unchanged. Evidence: `tests/raid-browser-cache-tiers.mjs`
+deploys a real relay raid (15 cache props), asserts every prop's tier/accent and geometry
+and measures each tier's contribution (571, 605, 656, 614 and 641 changed pixels in a
+production-prop bench), with before/after screenshots `/tmp/hs-cache-tiers-before.png` and
+`/tmp/hs-cache-tiers.png` inspected; the full unit suite is 1174/1174 and an isolated
+smoke browser run stays green. Honest gap: subjective in-world readability (especially the
+authored night/rain front), human aesthetic acceptance, hosted multiplayer and
+physical-device behavior remain UNVERIFIED; do not claim P5/P6/P7 or human acceptance.
 
 ## Later items (not yet closed)
 

@@ -17,6 +17,12 @@ export function lootPresentation(item){
  const rarity=rarityIndex(item?.rarity),tier=LOOT_TIERS[rarity],meta=LOOT_PRESENTATION[tier];
  return {rarity,tier,...meta};
 }
+// Numeric form for renderers: the same authoritative tier accent used by
+// pickup celebration, so a cache's tier marking and a dropped item agree.
+export function lootTierColor(value){
+ const rarity=rarityIndex(value);
+ return parseInt(LOOT_PRESENTATION[LOOT_TIERS[rarity]].accent.slice(1),16);
+}
 export function lootCelebrationText(item,name='Item'){
  const presentation=lootPresentation(item);
  return presentation.celebrate?presentation.label+' haul: '+name+' recovered.':presentation.label+' item recovered: '+name+'.';
