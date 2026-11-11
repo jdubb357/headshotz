@@ -1,16 +1,16 @@
 import * as THREE from './lib/three.module.min.js';
 import {getTex,normalTex,TX} from './gfx.js';
 import {terrainHeightAt,raidScenery} from './shared/raid-worlds.mjs';
-const palettes={industrial:{ground:0x969684,concrete:0xa8adac,brick:0xa39383,planks:0x96785a,roof:0x44565f,metal:0x849598,container:0x4e7b81,rock:0x7f7c72,crate:0xac8755,barrier:0xccb173},wilderness:{ground:0x8a9375,concrete:0xa9a99a,brick:0xa9a286,planks:0x8e7357,roof:0x4c6662,metal:0x8d9f9f,container:0x7c7050,rock:0x99958a,crate:0x9c8559,barrier:0xa8a176},settlement:{ground:0x9c8d78,concrete:0xafa8a0,brick:0xc08a6c,planks:0xa47a56,roof:0x5c5f6a,metal:0x8d989d,container:0x7a625a,rock:0x857d70,crate:0xac8252,barrier:0xceb379}};
+const palettes={industrial:{ground:0x969684,concrete:0xadb0a8,brick:0x9b8272,planks:0x8a7c68,roof:0x44565f,metal:0x8ea0a1,container:0x4e7b81,rock:0x7f7c72,crate:0xac8755,barrier:0xccb173},wilderness:{ground:0x8a9375,concrete:0xb0b0a4,brick:0xa88977,planks:0x8a7357,roof:0x4c6662,metal:0x8fa2a2,container:0x7c7050,rock:0x99958a,crate:0x9c8559,barrier:0xa8a176},settlement:{ground:0x9c8d78,concrete:0xb3ada3,brick:0xb0836a,planks:0x94785c,roof:0x5c5f6a,metal:0x8d989d,container:0x7a625a,rock:0x857d70,crate:0xac8252,barrier:0xceb379}};
 const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':kind==='crate'?'crate':kind==='rock'?'rock':kind==='barrier'?'hazard':kind==='planks'?'planks':kind==='brick'?'brick':'concrete';
 // Per-surface physical response: [roughness, metalness, normalScale]. Asphalt and
 // barriers keep a wet sheen so the sky environment map reads as surface reflection,
 // while concrete/rock stay diffuse. The table also feeds terrain shading.
-const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.86,.04,.45],crate:[.8,.02,.55],plain:[.86,0,0],glow:[.35,.1,0]};
+const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.86,.04,.45],crate:[.8,.02,.55],window:[.18,.88,0],plain:[.86,0,0],glow:[.35,.1,0]};
 // How strongly each surface responds to rain: roofs/asphalt/stone wet hardest,
 // vegetation and timber only dampen. The value scales the shared wetness state
 // against a material's authored dry baseline.
-const WET_RESPONSE={asphalt:1,gravel:.92,tiles:.88,concrete:.78,rock:.7,brick:.62,dirt:.5,forest:.38,planks:.55,crate:.42};
+const WET_RESPONSE={asphalt:1,gravel:.92,tiles:.88,window:.85,concrete:.78,rock:.7,brick:.62,dirt:.5,forest:.38,planks:.55,crate:.42};
 // The sector terrain is one vertex-shaded heightfield rather than a flat slab.
 // Heights are sampled from shared world data, so hills match authoritative
 // collision and offline/raid-minimap previews. Line tint keeps ridges readable
@@ -115,11 +115,20 @@ export function buildEnvironment(world){
  };
  const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,4,20)};
  const matrix=new THREE.Matrix4(),position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3(),euler=new THREE.Euler();
+ // Daytime windows are dark glass that mirrors the sky; a lit window carries its
+ // authored lamp colour in the group tag so RaidView can restore its warm emissive
+ // only after the sun goes down. One material per distinct glow colour, no per-frame
+ // texture or matrix updates.
+ const windowMaterials=[],WLIT='windowLit:';
  function add(type,color,x,y,z,sx,sy,sz,ry=0,texture='plain',rx=0,rz=0,wind=false,tag=''){const key=type+'|'+color+'|'+texture+(wind?'|wind':'')+(tag?'|'+tag:'');let group=groups.get(key);if(!group){
-   const glow=texture==='glow',spec=SURFACE_PBR[texture]||SURFACE_PBR.plain;
+   const glow=texture==='glow',glass=texture==='window',spec=SURFACE_PBR[texture]||SURFACE_PBR.plain;
+  const windowLit=tag.startsWith(WLIT)?(Number(tag.slice(WLIT.length))||0xffd79a):null;
   const mat=new THREE.MeshStandardMaterial(glow
     ?{color,emissive:color,emissiveIntensity:1.7,roughness:spec[0],metalness:spec[1]}
+    :glass
+    ?{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:1.8,emissive:windowLit??0x000000,emissiveIntensity:0}
     :{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:spec[1]>.1?1.3:.55,...(spec[2]>0?{normalMap:normalTex(texture),normalScale:new THREE.Vector2(spec[2],spec[2])}:{})});
+  if(windowLit!==null){mat.userData.raidWindowGlass=true;mat.userData.raidWindowGlowColor=windowLit;windowMaterials.push(mat)}
   mat.userData.raidOwned=true;mat.userData.raidDry={roughness:mat.roughness,metalness:mat.metalness,envMapIntensity:mat.envMapIntensity??1,normalScale:mat.normalScale?mat.normalScale.x:null};mat.userData.raidWet=glow?0:(WET_RESPONSE[texture]||0);
   if(tag)mat.userData.raidStructure=tag;
   // Only the foliage groups sway; the uniform is exposed through the root so
@@ -358,7 +367,10 @@ export function buildEnvironment(world){
   }
   else if(prop.kind==='window'){
    const w=prop.w||.16,d=prop.d||1.15,h=prop.h||1.3,lit=!!(prop.lit&&prop.color!=null);
-   add('box',lit?prop.color:0x11191d,x,y+h/2,z,w,h,d,0,lit?'glow':'metal');
+   // Dark glazing by daylight, warm lamp by night: the pane keeps the same material
+   // and the authored colour travels in the tag, so nothing changes shape or per-window
+   // draw state when the sun sets.
+   add('box',0x56727d,x,y+h/2,z,w,h,d,0,'window',0,0,false,lit?'windowLit:'+(prop.color&0xffffff):'windowDark');
    // Presentation-only masonry reveal: a sill, a lintel and two jambs turn the
    // flat opening into an authored window frame. The trim faces outward by a
    // few centimetres so rain wetness and lamplight catch it, and it is derived
@@ -605,7 +617,8 @@ export function buildEnvironment(world){
  for(const block of world.blocks){
   const [x,z,w,d,h,y=0,kind='concrete']=block;
   if(y>.4||h<2.8||w<6||d<6)continue;
-  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks'&&kind!=='metal')continue;
+  const rust=kind==='metal';
   const weatherHash=hash01(x*29.7+z*67.3+world.id.length*4.1+h*7.9);
   if(weatherHash>=.62)continue;
   let face=-1,onZ=false,nx=0,nz=0,wallX=0,wallZ=0,span=0,wins=null,outX=0,outZ=0;
@@ -629,20 +642,21 @@ export function buildEnvironment(world){
    const top=Math.min(p.y-.10,roofY-.30),bot=Math.max(y+.30,top-(.55+hash01(weatherHash*7.7+i*3.1)*.9));
    if(top-bot<.28)continue;
    const sw=.15+hash01(weatherHash*11.9+i*2.7)*.13;
-   add('box',i%2?0xb5ae9b:0x77806b,onZ?along:wallX+outX*.014,(top+bot)/2,onZ?wallZ+outZ*.014:along,...since(sw,top-bot,.024),0,i%2?'concrete':'rock',0,0,false,'facadeWeather');
+   add('box',rust?(i%2?0x9a6749:0x6f4a37):(i%2?0xb5ae9b:0x77806b),onZ?along:wallX+outX*.014,(top+bot)/2,onZ?wallZ+outZ*.014:along,...since(sw,top-bot,.024),0,rust?'concrete':i%2?'concrete':'rock',0,0,false,'facadeWeather');
   }
   // A ragged damp foundation instead of one flat slab: overlapping stains of
   // varying width and shallow height key the wall to the pavement above the plinth.
   for(let i=0;i<5;i++){
    const t=hash01(weatherHash*13.7+i*2.93),sw2=.55+t*.35,sh2=.18+hash01(weatherHash*5.3+i)*.38;
    const off=(i/4-.5)*Math.min(span*.55,2.4)+(hash01(weatherHash*7.1+i*1.9)-.5)*.16;
-   add('box',i%2?0x59614e:0x495646,onZ?wallX+off:wallX+outX*.012,y+.37+sh2/2,onZ?wallZ+outZ*.012:wallZ+off,...since(sw2,sh2,.02),0,'rock',0,0,false,'facadeWeather');
+   add('box',rust?(i%2?0x6d4b36:0x563c2c):(i%2?0x59614e:0x495646),onZ?wallX+off:wallX+outX*.012,y+.37+sh2/2,onZ?wallZ+outZ*.012:wallZ+off,...since(sw2,sh2,.02),0,rust?'concrete':'rock',0,0,false,'facadeWeather');
   }
-  // Faded efflorescence drips under the cornice weep onto the masonry.
+  // Faded efflorescence drips under the cornice weep onto the masonry; on metal
+  // they read as zinc bloom and run-off instead of lime, so keep them dull.
   for(let i=0;i<4;i++){
    const t=hash01(weatherHash*23.9+i*3.1),sw2=.12+t*.16,sh2=.34+hash01(weatherHash*6.7+i)*.86;
    const off=(i/3-.5)*Math.min(span*.42,1.9)+(hash01(weatherHash*11.3+i)-.5)*.12,top=roofY-.22;
-   add('box',i%2?0x928c78:0x616956,onZ?wallX+off:wallX+outX*.014,top-sh2/2,onZ?wallZ+outZ*.014:wallZ+off,...since(sw2,sh2,.02),0,i%2?'concrete':'rock',0,0,false,'facadeWeather');
+   add('box',rust?(i%2?0x8a8272:0x665f52):(i%2?0x928c78:0x616956),onZ?wallX+off:wallX+outX*.014,top-sh2/2,onZ?wallZ+outZ*.014:wallZ+off,...since(sw2,sh2,.02),0,'concrete',0,0,false,'facadeWeather');
   }
   weatherList.push({x:wallX,z:wallZ,y:y+.62,face,onZ,outX,outZ,span,h:roofY});
   facadeStains++;
@@ -656,7 +670,7 @@ export function buildEnvironment(world){
  for(const block of world.blocks){
   const [x,z,w,d,h,y=0,kind='concrete']=block;
   if(y>.4||h<3||w<6||d<6)continue;
-  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks'&&kind!=='metal')continue;
   const uHash=hash01(x*41.3+z*73.9+world.id.length*5.1+h*2.7);
   const pipeShare=uHash<.40,boxShare=hash01(uHash*17.3+x*3.7-z*5.9)<.28;
   if(!pipeShare&&!boxShare)continue;
@@ -718,6 +732,47 @@ export function buildEnvironment(world){
  }
  structureDetail.facadeUtilities=facadeUtilities;structureDetail.downpipes=downpipes;structureDetail.utilityBoxes=utilityBoxes;
  root.userData.raidFacadeUtilities=utilityList;
+ // Metal halls read as clipped industrial siding rather than planks: slender
+ // vertical ribs run the height of each face at a deterministic pitch, and a
+ // horizontal belt ties them at mid-eave. The rib depth is real geometry (not a
+ // texture swap) so daylight throws a fine highlight/shadow line down every
+ // panel; all ribs share one instanced draw call.
+ const sidingRibs=[];
+ for(const block of world.blocks){
+  const [x,z,w,d,h,y=0,kind='concrete']=block;
+  if(kind!=='metal'||y>.4||h<2.8||w<5||d<5)continue;
+  for(const side of ['n','s','e','w']){
+   const along=(side==='n'||side==='s')?w:d;
+   const count=Math.max(2,Math.min(6,Math.round(along/2.6)));
+   for(let i=0;i<count;i++){
+    const offset=(i+.5)/count*along-along/2;
+    if(side==='n')add('box',0x667878,x+offset,y+.12+h*.5,z-d/2-.035,.075,h-.24,.07,0,'metal',0,0,false,'sidingRib');
+    else if(side==='s')add('box',0x667878,x+offset,y+.12+h*.5,z+d/2+.035,.075,h-.24,.07,0,'metal',0,0,false,'sidingRib');
+    else if(side==='e')add('box',0x667878,x+w/2+.035,y+.12+h*.5,z+offset,.07,h-.24,.075,0,'metal',0,0,false,'sidingRib');
+    else add('box',0x667878,x-w/2-.035,y+.12+h*.5,z+offset,.07,h-.24,.075,0,'metal',0,0,false,'sidingRib');
+   }
+  }
+  add('box',0x7c8d8c,x,y+.10+h*.52,z,w+.09,.11,d+.09,0,'metal',0,0,false,'sidingBelt');
+  sidingRibs.push({x,z,w,d,h,y});
+ }
+ structureDetail.sidingRibs=sidingRibs.length;
+ // Spawn dressing: a knot of drums and a supply crate on the apron beside each
+ // insertion point. These are presentation-only street clutter, never blocks, so
+ // authoritative collision and offline/server agreement are untouched.
+ const spawnProps=[[-3.2,11.4,0x4b5344],[-1.4,12.8,0x8a5a3e],[1.8,13.8,0x4b5344]];
+ const atSpawn=(sx,sz)=>{
+  const hit=(x,z)=>world.blocks.some(b=>Math.abs(x-b[0])<b[2]/2+.7&&Math.abs(z-b[1])<b[3]/2+.7);
+  for(const [dx,dz,color] of spawnProps){
+   const x=sx+dx,z=sz+dz;if(hit(x,z))continue;
+   const y=terrainHeightAt(world,x,z);
+   add('cylinder',color,x,y+.65,z,.52,1.3,.52,0,'metal');
+   add('cylinder',0x2a2f2c,x,y+1.25,z,.54,.09,.54,0,'metal');
+   add('cylinder',0x232824,x,y+.07,z,.54,.10,.54,0,'metal');
+  }
+  const x=sx-4.4,z=sz+9.7;
+  if(!hit(x,z))add('box',0x8a6a45,x,terrainHeightAt(world,x,z)+.55,z,1.05,1.1,1.05,0,'crate');
+ };
+ for(const [sx,sz] of world.spawns||[])atSpawn(sx,sz);
  // Perimeter hills and warning posts frame the playable region without blocking routes.
  for(let i=0;i<24;i++){const angle=i*Math.PI/12,x=Math.sin(angle)*(world.size/2+15),z=Math.cos(angle)*(world.size/2+15);add('cone',palette.rock,x,7,z,15,18,15,angle,'rock')}
  const sceneryCounts={};for(const item of scenery)sceneryCounts[item.kind]=(sceneryCounts[item.kind]||0)+1;
@@ -823,9 +878,9 @@ export function buildEnvironment(world){
   glintMesh.frustumCulled=false;glintMesh.renderOrder=1;glintMesh.visible=false;glintMesh.userData.raidWetReflections=true;
   root.add(glintMesh);root.userData.raidWetReflections=glintMesh;
  }
- root.userData.raidWindMaterials=windMaterials;
+ root.userData.raidWindMaterials=windMaterials;root.userData.raidWindowMaterials=windowMaterials;
  for(const {type,transforms,material,tag}of groups.values()){
-  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;if(tag)mesh.userData.raidStructure=tag;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
+  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;if(tag&&tag!=='windowDark'&&!tag.startsWith(WLIT))mesh.userData.raidStructure=tag;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
  }
  root.userData.materials=materials;return root;
 }

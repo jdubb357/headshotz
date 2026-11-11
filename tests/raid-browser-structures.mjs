@@ -352,7 +352,7 @@ try{
  assert.equal(result.detail.plinths,result.detail.structures,'every structure gets a foundation plinth');
  assert.equal(result.detail.cornices,result.detail.structures,'every structure gets a roof cornice');
  assert.ok(result.detail.vents>100&&result.detail.antennas>20&&result.detail.debris>20&&result.detail.beacons>10,'rooftop vents, masts, debris and beacons are populated');
- assert.deepEqual(Object.keys(result.tagCounts).sort(),['antenna','beacon','boarding','cornice','debris','doorAwning','doorway','facadeSign','facadeUtility','facadeWeather','fireEscape','flowerBox','framing','groundGrit','plinth','roofPlant','vent','vines','windowShutter','windowSill'],'all detail tags are grouped as instanced meshes');
+ assert.deepEqual(Object.keys(result.tagCounts).sort(),['antenna','beacon','boarding','cornice','debris','doorAwning','doorway','facadeSign','facadeUtility','facadeWeather','fireEscape','flowerBox','framing','groundGrit','plinth','roofPlant','sidingBelt','sidingRib','vent','vines','windowShutter','windowSill'],'all detail tags are grouped as instanced meshes');
  assert.ok((result.detail.frames||0)>200,'window openings gain four authored frame pieces each ('+result.detail.frames+')');
  assert.ok((result.detail.fireEscapes||0)>10,'tall blocks carry readable fire escapes ('+result.detail.fireEscapes+')');
  assert.ok((result.detail.vines||0)>20,'facades are reclaimed by climbing vines ('+result.detail.vines+' blocks)');

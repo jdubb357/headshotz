@@ -7202,3 +7202,54 @@ daylight window squares — that is director note 2, next.
 
 Next: director note 2 (building material variety, dark daytime glass, spawn props), then
 director note 3 (auto-fade HUD).
+
+## Iteration 68 — Material variety, daylight glass and spawn trim (director note 2) (2026-11-11)
+
+### Acceptance criteria
+1. In one spawn frame the facades visibly differ by material: at least three of concrete,
+   brick, galvanised metal siding and timber appear as distinct colors/surfaces instead of
+   one brown plank wall; metal walls read as panels, not planks.
+2. Daytime windows are dark glass with a subtle sky/reflection; no white/yellow blowout or
+   bloom halo at midday, while night windows still glow warm.
+3. Visible trim/props near the spawn view (pipes, wall cabinets/AC units, barrels or signs)
+   give the street scale and clutter without adding gameplay systems.
+4. Before/after world frames at 1024x720 and 844x390 offline from the identical pinned clear
+   spawn show the improvement; nothing regresses gunfeel, HUD or mobile layout.
+5. raid-browser-atmosphere, weather-surface, mobile-hud, static-offline stay green and
+   `node --test tests/*.test.mjs` passes; commit only on cypert/dev.
+
+### Implementation / verification
+- Director note 2 addressed. `shared/raid-worlds.mjs`: per-material WALL_TINTS (cool concrete,
+  muted brick, bright galvanised metal, weathered timber) plus kind-aware
+  `tintFor(theme,x,z,kind)`; settlement lots cycle wall materials while consuming the original
+  `R()` draw order, so footprints, heights, windows and routes stay byte-identical. Relay's
+  spawn frame now shows weathered timber left (k0), a sunlit galvanised metal shed right (k10)
+  and a pale concrete row behind, instead of three identical brown plank blocks.
+- `raid-environment.mjs`: window props are now dark glazed glass (metalness .88, roughness
+  .18, envMapIntensity 1.8, `window` texture) with the authored lamp colour carried in a
+  `windowLit:` group tag; the fixed 1.7-emissive pane is gone. Metal blocks gain instanced
+  vertical siding ribs and a belt band; metal facades also qualify for pipes/A/C cabinets and
+  rust-streaked weathering at their foundations. Presentation-only drums and a supply crate
+  dress each spawn (no blocks/collision).
+- `raid-view.mjs`: caches `raidWindowMaterials` and fades pane emissive with daylight (0 by
+  day, 1.55 at night on the same night curve as the halo field).
+- Criteria: 1 PASS (spawn frame shows timber, galvanised metal with ribs/belt and pale
+  concrete as distinct surfaces); 2 PASS (midday windows random dark blue-glass panes with
+  faint sky reflection, no bloom blowout; the night capture still has warm lit panes);
+  3 PASS (three drums, supply crate, lamp, pipes/cabinet around spawn); 4 PASS (before/after
+  from the identical pinned Relay spawn at 1024x720 and 844x390); 5 PASS. Graders green:
+  structures, atmosphere, weather-surface, mobile-hud, static-offline (vacuous greens:
+  atmosphere 41176 changed px, weather wetCount 143, mobile fraction .177 / unobstructed
+  .823); node suite 1247 pass / 0 fail.
+- Shots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png`,
+  `{before,after}-world-{1024,844}.png`, `after-look-metal-1024.png`,
+  `after-night-world-1024.png`.
+
+### Honest critique
+The facades now visibly differ (dark timber left, pale galvanised metal with rib panels and
+rust streaks right, pale concrete row behind) and the midday windows are finally dark glass,
+clearly beating the uniform brown plank/glowing-window rows; still weak: the metal shed reads a
+little pale and flat under full sun while the drums/crate are small against a wide empty
+asphalt foreground, and on desktop the backpack dock covers half the frame — director note 3.
+
+Next: director note 3 (auto-fade HUD / kill the quarter-frame box), then ENEMIES (priority 4).
