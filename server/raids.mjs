@@ -20,7 +20,7 @@ import {createHash,randomUUID} from '../shared/raid-crypto.mjs';
 import {PING_TYPES} from '../shared/raid-comms.mjs';
 import {squadRole,pingSecondsFor,reviveSecondsFor,engineerPicks,packCapacityFor,weightCapacityFor} from '../shared/raid-roles.mjs';
 import {blockedBetween} from './comms.mjs';
-import {item,RuleError} from './store.mjs';
+import {item,RuleError} from '../shared/raid-rules.mjs';
 import {RAID_WORLDS,getWorld,blocked,clearLine,floorAt} from '../shared/raid-worlds.mjs';
 import {safePoint} from '../shared/raid-navigation.mjs';
 import {MACHINES,hazardState} from '../shared/raid-enemies.mjs';

@@ -4654,3 +4654,64 @@ run because this slice changes no rendered state and wires no client behaviour.
 Next action: P0 slice 3 — a new in-memory store adapter (no `node:sqlite`) that constructs
 a `RaidService`, creates a guest account, and returns an empty profile/stash; unit-test
 construct + profile on the Node path.
+
+## Iteration 32 — P0 slice 3: in-memory store skeleton
+
+### Acceptance criteria — iteration 32 (P0 slice 3, in-memory store skeleton)
+
+1. `shared/raid-store-memory.mjs` is a DOM-free, `node:*`-free in-memory store adapter
+   implementing the store contract `RaidService` constructor needs (`acquireLease`,
+   `loadRaids`, `recoverInterrupted`, `transaction`, `checkpoint`, `audit`, `profile`).
+2. A fresh store constructs a real `RaidService` against it and creates one guest account
+   whose profile mirrors the online starter rule set: 250 starter credits, the bound
+   starter loadout (AR, armor, 2 meds) in the stash, revision >= 1, empty overflow/
+   insurance, and no active deployment. "Empty" means no raid-earned loot yet; the guest
+   is deployable with the same starter kit the Node register gives new accounts.
+3. Profile derivation no longer depends on SQLite: `server/rules.mjs` is a thin
+   browser-safe re-export and `server/raids.mjs`/`server/comms.mjs` no longer import
+   `node:*`, without changing Node store/rule behaviour.
+4. New unit tests prove construct + guest profile + state/inventory round-trip; affected
+   raid suites and `node server/main.mjs` stay green.
+
+### Implementation — iteration 32 (completed)
+
+- `shared/raid-rules.mjs` (new): browser-safe `RuleError`, `requireRule` and `item` using
+  the shared Web Crypto UUID; `server/rules.mjs` is now a one-line re-export.
+- `server/raids.mjs`: `item`/`RuleError` from the shared rules module instead of
+  `store.mjs`, removing the `node:sqlite` dependency from the service module.
+- `server/comms.mjs`: `randomUUID` from `shared/raid-crypto.mjs`; no `node:*` in the
+  `server/raids.mjs` import graph.
+- `shared/raid-store-memory.mjs` (new): in-memory accounts/inventory/deployments/
+  checkpoints/leases with `createGuest`, `state`, `save`, `profile`, `audit`,
+  `transaction`, `acquireLease`/`releaseLease`, `loadRaids`/`checkpoint`,
+  `recoverInterrupted`. Guest starter state mirrors `RaidStore.register`.
+- `tests/raid-store-memory.test.mjs` (new): 7 tests — node-free source, real service
+  construction, starter profile shape, guest reuse, stash save round-trip, lease/checkpoint
+  contract, and fresh-read audit/404 behaviour.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-store-memory.test.mjs` → 7 pass, 0 fail.
+- Targeted suites (game-loop, interactions, transfers, exits, medical, utilities,
+  ballistics, encounters, crypto, squad-roles) → 130/130.
+- Real server boot: `RAID_DATA_DIR=$(mktemp -d) PORT=18117 node server/main.mjs`,
+  `/health/live` HTTP 200; clean shutdown.
+- Full suite `node --test tests/*.test.mjs` → 1198 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — adapter has no `node:*` imports and satisfies the construction/profile contract.
+2. PASS — guest profile is 250 credits / 4 bound starter items / revision 1 / empty
+   overflow/insurance / no active deployment; deployability comes from the starter stash.
+3. PASS — rules primitives are shared and browser-safe; Node store behaviour is unchanged.
+4. PASS — 7/7 new tests, targeted 130/130, full 1198/1198, health 200.
+
+**Status:** P0 slice 3 is COMPLETE in local module/test scope. Offline combat is still not
+playable: deployments (slice 4), guest session (5), dispatcher/tick (6), offline multiplayer
+stubs (7), Pages DEPLOY routing (8), combat wiring (9) and the static grader (10) remain.
+No browser or human/hosted acceptance is claimed for offline mode yet.
+
+Next action: P0 slice 4 — implement the in-memory store methods `RaidService` needs to
+deploy, snapshot, apply an action and settle/extract (inventory locations, raid
+checkpoints; audit simplified), and unit-test a scripted deploy → action → settle through
+the authoritative `RaidService` in Node.

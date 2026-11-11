@@ -17,7 +17,7 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slices 1–2 COMPLETE 2026-11-10; slices 3–12 open. This project
+Status: IN PROGRESS — slices 1–3 COMPLETE 2026-11-10; slices 4–12 open. This project
 temporarily supersedes P1–P10 and visual-alternation
 until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
 to “do not change the hub/main menu or the original cooperative Extraction”: routing
@@ -57,9 +57,18 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    UUIDv4 format/uniqueness, byte/hex helpers) and a real `node server/main.mjs`
    boot (`/health/live` 200) plus targeted loot/inventory/ballistics/exits suites.
    Next: slice 3 in-memory store skeleton.
-3. **In-memory store skeleton** — MISSING. New adapter (no `node:sqlite`) that
-   constructs a `RaidService`, creates a guest account, and returns an empty
-   profile/stash. Unit-test construct + profile.
+3. **In-memory store skeleton** — COMPLETE (iteration 32). `shared/raid-store-memory.mjs`
+   is a DOM-free, `node:*`-free adapter implementing the construction/profile
+   contract (`acquireLease`/`releaseLease`, `loadRaids`/`checkpoint`,
+   `recoverInterrupted`, `transaction`, `audit`, `state`/`save`, `profile`) with an
+   automatic passwordless guest. The guest mirrors the online starter account
+   (250 starter credits, bound AR/armor/2 meds) so deployment has gear; it has no
+   earned loot, insurance, overflow or active deployment. `shared/raid-rules.mjs`
+   owns the browser-safe `RuleError`/`requireRule`/`item` primitives, `server/rules.mjs`
+   re-exports them, and `server/raids.mjs`/`server/comms.mjs` no longer import
+   `node:crypto`. Evidence: `tests/raid-store-memory.test.mjs` 7/7, targeted raid
+   suites 130/130, full suite 1198/1198, `node server/main.mjs` `/health/live` 200.
+   Next: slice 4 in-memory deployments and checkpoints.
 4. **In-memory deployments and checkpoints** — MISSING. Implement the store methods
    `RaidService` needs to deploy, snapshot, apply an action, and settle/extract
    (inventory locations, raid checkpoints; audit may be simplified). Unit-test a

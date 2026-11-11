@@ -1,4 +1,4 @@
-import {randomUUID} from 'node:crypto';
+import {randomUUID} from '../shared/raid-crypto.mjs';
 import {requireRule as check} from './rules.mjs';
 import {REPORT_REASONS,VOICE_SCOPES,hearsSquad,hearsProximity} from '../shared/raid-comms.mjs';
 export function blockedBetween(store,a,b){return !!store.db.prepare("SELECT 1 FROM comm_blocks WHERE mode='block' AND ((account=? AND target=?) OR (account=? AND target=?))").get(a,b,b,a)}

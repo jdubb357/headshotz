@@ -130,3 +130,10 @@ checkpoint hashes agree online and offline. `server/raids.mjs` and the `server/r
 modules that need randomness/hashing import it instead of `node:crypto`;
 `server/credentials.mjs` keeps Node-only scrypt password hashing. The Node host boots
 unchanged (`node server/main.mjs`, `/health/live` 200).
+
+Slice 3 adds `shared/raid-store-memory.mjs`, the `node:sqlite`-free store adapter, and
+`shared/raid-rules.mjs`, which owns the browser-safe `RuleError`/`requireRule`/`item`
+primitives re-exported by `server/rules.mjs`. The adapter's passwordless guest account
+mirrors the online starter account (250 starter credits and a bound AR, armor and two
+medkits) so the same authoritative `RaidService` can be constructed offline with a
+deployable stash. Deployments, checkpoints and persistence are later slices (4, 11, 12).
