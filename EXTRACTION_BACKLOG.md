@@ -383,8 +383,11 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   (iteration 21, presentation-only). Salvage cache props now carry a shared-palette tier
   accent — a ground ring, lid rim strips, side ribbons, a front badge and a top seal
   derived from the authoritative cache tier with the vault bonus — plus procedural
-  reinforcement feet and riveted lid seams (iteration 23, presentation-only). Older
-  screenshots may still show the former generic "salvage bag" wording.
+  reinforcement feet and riveted lid seams (iteration 23, presentation-only). Base
+  stash weapon/armor rows now carry a compact condition meter, a READY/WORN/CRITICAL
+  grade chip and a severity stripe driven by the authoritative condition, alongside
+  the existing salvage/repair note (iteration 25, presentation-only). Older screenshots
+  may still show the former generic "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.

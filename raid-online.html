@@ -156,9 +156,22 @@ html[data-reduced-motion=true] #sectorStatus{animation:none}
 html[data-reduced-motion=true] #pack .extractLink{transition:none!important}
 #pack .item small{color:var(--hs-dim)}
 #stashCapacity{color:var(--hs-dim);font-weight:500;letter-spacing:0}
-#stash .item{display:flex;align-items:flex-start;background:rgba(255,255,255,.035);border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;padding:10px 12px;margin:6px 0}
+#stash .item{display:flex;flex-wrap:wrap;align-items:flex-start;column-gap:6px;background:rgba(255,255,255,.035);border-left:3px solid transparent;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;padding:10px 12px;margin:6px 0}
 #stash .item:hover{background:rgba(255,255,255,.065)}
+#stash .item[data-grade=ready]{border-left-color:rgba(114,226,176,.38)}
+#stash .item[data-grade=worn]{border-left-color:rgba(255,180,74,.48)}
+#stash .item[data-grade=critical]{border-left-color:rgba(255,100,95,.62)}
 #stash .item span{flex:1 1 0;min-width:50%;padding-top:8px;line-height:1.4;color:#e2edf0}
+#stash .item span.stashLabel{flex:1 1 60%}
+#stash .item span.conditionStatus{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;min-width:0;margin-top:9px;padding:0}
+#stash .item span.itemCondition{flex:0 0 48px;align-self:center;height:6px;min-width:0;margin-top:0;padding:0;border-radius:99px;background:linear-gradient(90deg,var(--grade,#72e2b0) 0 var(--condition,100%),rgba(174,196,209,.16) var(--condition,100%) 100%);box-shadow:0 0 0 1px rgba(255,255,255,.09) inset}
+#stash .item span.itemCondition[data-grade=ready]{--grade:#72e2b0}
+#stash .item span.itemCondition[data-grade=worn]{--grade:#ffb44a}
+#stash .item span.itemCondition[data-grade=critical]{--grade:#ff645f}
+#stash .item span.gradeChip{flex:0 0 auto;align-self:center;min-width:0;margin-top:0;padding:2px 6px;border-radius:4px;font:800 .6rem/1.25 system-ui,-apple-system,sans-serif;letter-spacing:.1em;color:#d9e6e9;border:1px solid rgba(174,196,209,.25);background:rgba(255,255,255,.04)}
+#stash .item span.gradeChip.ready{color:#86efbb;border-color:rgba(114,226,176,.35);background:rgba(114,226,176,.09)}
+#stash .item span.gradeChip.worn{color:#ffce7a;border-color:rgba(255,180,74,.42);background:rgba(255,180,74,.09)}
+#stash .item span.gradeChip.critical{color:#ff9a94;border-color:rgba(255,100,95,.55);background:rgba(255,100,95,.12)}
 #stash .item small{color:var(--hs-dim);flex:1 0 100%}
 #stash .item input[type=checkbox]{flex:0 0 auto;margin-top:10px;accent-color:var(--hs-amber)}
 #stash .item label{display:flex;align-items:center;gap:5px;margin:4px;color:var(--hs-dim);font-size:.9rem}

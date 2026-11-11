@@ -4137,3 +4137,74 @@ Next action: prefer a visual/asset slice next (iteration 23 was visual, iteratio
 gameplay): e.g., a compact condition meter/repair-grade chip next to the new worn-equipment
 salvage note in the base stash, or machine-enemy model/lighting detailing. Do not claim
 human balance, pacing, hosted transport or device acceptance.
+
+## Visual iteration 25 — base stash equipment condition meter and grade chip (2026-11-10)
+
+### Acceptance criteria — iteration 25
+
+1. Every weapon/armor row in the production base stash renders a compact condition meter
+   from the authoritative item condition plus a `READY`/`WORN`/`CRITICAL` grade chip, with
+   a severity accent; a 100% row shows a full meter and a 60% row shows a partial one.
+2. The meter and chip are presentation-only: row labels, accessible names, focus order,
+   sort/filter, insurance, repair/recycle costs and every trade action stay unchanged.
+3. The real-account browser grader asserts `data-grade`, meter fill and chip text for worn
+   and pristine equipment with `browserErrors: []`; inventory, repair and recycling
+   graders stay green and the full unit suite remains green.
+4. Before/after screenshots of the base stash are captured and inspected, and the change
+   uses procedural CSS only (no third-party assets), so ASSETS.md needs no new entry.
+
+### Implementation — iteration 25 (completed)
+
+- `raid-base.mjs`: each stash weapon/armor row now marks a severity grade from the
+  authoritative condition (`critical` below 35%, `worn` below 70%, otherwise `ready`) and
+  renders a `.conditionStatus` group containing a 48 px `.itemCondition` meter filled to
+  the condition percentage and a `.gradeChip` with `READY`/`WORN`/`CRITICAL`. The group is
+  `aria-hidden`; the existing item label still carries the numeric condition, so the
+  accessible name, controls and focus order are unchanged.
+- `raid-online.html`: scoped stash CSS gives the meter a status color (green/amber/red)
+  and dark track, the chip a matching tinted border, and the row a 3 px left severity
+  stripe. The stash row now wraps its controls instead of overflowing, and the new
+  elements are excluded from the generic `#stash .item span` width rule.
+- `tests/raid-browser-recycling.mjs`: injected a second worn weapon and a 28% light
+  armor, then asserts the worn row (`WORN`, `60%`, amber stripe), a pristine 100% row
+  (`READY`, green stripe) and the critical row (`CRITICAL`, `28%`, red stripe), plus the
+  existing recycle quote/note and no-error checks.
+- `INVENTORY.md` and `EXTRACTION_BACKLOG.md`: document the new presentation-only base
+  stash condition readout.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-recycling.test.mjs` → 8 pass, 0 fail.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-recycling.mjs` → exit 0,
+  `{"conditionGradeChip":true,"conditionMeter":true,"conditionSeverityAccent":true,
+  "repairVersusScrapNote":true,"conditionScaledEquipmentSalvage":true,"browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-hud-theme.mjs` → exit 0,
+  `{"baseTheme":true,"mobileTheme":true,"controlIdsIntact":true,"browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-rewards.mjs` → exit 0,
+  `repairGrades:{"fieldPatchTo":65,"fullRepairTo":100}`, `browserErrors:[]`.
+- `node --test tests/*.test.mjs` → 1175 pass, 0 fail.
+- Screenshots inspected: `/tmp/hs-stash-before.png` shows the old rows with plain buttons
+  and the salvage/repair note only; `/tmp/hs-stash-after.png` shows the same rows with a
+  full green READY meter on pristine gear, a 60% amber WORN meter, a 28% red CRITICAL
+  meter, and matching severity stripes.
+
+### Criteria status
+
+1. PASS — the production base UI derives the meter fill, grade word and severity color
+   from authoritative `condition`; the browser grader asserts 60%, 100% and 28% cases.
+2. PASS — only presentation spans/CSS were added; row labels, actions, saved loadouts and
+   the recycling/repair assertions are unchanged and green.
+3. PASS — the recycling grader covers all three grades with `browserErrors: []`; the
+   repair/hud-theme graders and the full 1175-test suite are green.
+4. PASS — before/after screenshots were inspected and the change is procedural CSS, so no
+   asset was added and ASSETS.md needs no new entry.
+
+**Status:** Iteration 25 base stash condition meter is COMPLETE in local presentation scope.
+Subjective readability and aesthetics on small screens or in the shipped dark theme are not
+human-accepted, and hosted transport/physical-device behavior remain UNVERIFIED. Do not
+claim P5/P6/P7 or human acceptance.
+
+Next action: alternate back to a gameplay slice. Candidates: a machine-enemy model/lighting
+or material detail pass (visual), or a small authoritative gameplay refinement from the
+P8/P9/P10 open items. Do not claim human balance, pacing, hosted transport or device
+acceptance.
