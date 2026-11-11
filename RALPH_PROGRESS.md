@@ -6746,6 +6746,74 @@ Human feel on a physical phone remains UNVERIFIED (P7); P0 stays complete.
 and authoritative-input scope. Physical-device feel on Austin's iPad/phone and
 subjective combat readability remain UNVERIFIED (P7, blocked on hardware).
 
-Next action: iteration 60 returns to the alternating gameplay/persistence and
-visual-quality slices, keeping the mobile HUD, offline-plan, readiness, static P0,
-records and insurance-refresh graders green.
+## Iteration 60 — Naming: THE SECTOR + jargon cleanup (2026-11-11)
+
+### Acceptance criteria
+
+1. `raid-online.html` document title is "HeadShotz — The Sector" and the visible
+   page heading is "THE SECTOR".
+2. Main-menu raid banner reads "THE SECTOR" with DEPLOY; the secondary legacy
+   button remains "CLASSIC EXTRACTION".
+3. Visible text on the static base/raid page contains none of, case-insensitively:
+   "Persistent Extraction", "Server-owned", "authoritative", "reconciliation"; the
+   intro paragraph no longer says "Server-owned equipment".
+4. `tests/raid-browser-mobile-hud.mjs` asserts criteria 1 and 3 on the initial
+   offline base at both target sizes and stays green with screenshots and no
+   browser errors.
+5. Desktop and online boot paths remain functional; internal code/file names are
+   unchanged; behavior is unchanged.
+
+### Implementation — iteration 60 (completed)
+
+- `raid-online.html`: title `HeadShotz — The Sector`; heading `THE SECTOR`; intro
+  rewritten to "Deploy your gear, fight machines, and extract before the sector
+  timer closes. Equipment you bring can be lost; a free recovery kit is always
+  available." No "Server-owned" or "recurrence" language remains in visible copy.
+- `index.html`: raid banner is now `THE <em>SECTOR</em>` with "PvPvE raids ·
+  machine enemies · loot · extract under pressure" and DEPLOY. The secondary
+  `🧓 CLASSIC EXTRACTION · original co-op raid base` control is unchanged.
+- `tests/raid-browser-mobile-hud.mjs`: asserts the document title and base
+  heading, rejects visible "Persistent Extraction"/"Server-owned"/"authoritative"/
+  "reconciliation" text on the freshly deployed base, and checks the static main
+  menu markup names THE SECTOR while CLASSIC EXTRACTION stays reachable.
+
+### Commands/results (2026-11-11)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-mobile-hud.mjs` → PASS:
+  unobstructed 0.9207 / 0.8243; thumbstick, right-drag, contextual Interact,
+  role collapse, fire/reload/interact by touch; screenshots
+  `/tmp/hs-mobile-hud-1024x720.png`, `/tmp/hs-mobile-hud-844x390.png`,
+  `/tmp/hs-mobile-hud-briefing.png`; browserErrors `[]`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-entry.mjs` → PASS
+  (main menu is still "THE SECTOR" for the hosted deploy path, static fallback
+  boots offline mode, CLASSIC EXTRACTION preserved, zero browser errors).
+- Rendered menu probe at 1024x720: `🏴 | THE SECTOR | PvPvE raids · machine
+  enemies · loot · extract under pressure | DEPLOY ▶`; saved
+  `/tmp/hs-menu-sector.png`.
+- `node --test tests/*.test.mjs` → 1,247 pass / 0 fail.
+- Note: the Node dev server on :8021 serves `raid-online.html` with a route table
+  that omits `shared/raid-offline.mjs`, so `?offline=1` fails there with a module
+  404; this is dev routing, not the static Pages artifact. The static-server
+  grader above serves the real files from disk and passes.
+
+### Criteria status
+
+1. PASS — title and h1 verified in the browser and asserted in the grader.
+2. PASS — main-menu banner renders THE SECTOR with DEPLOY; CLASSIC EXTRACTION
+   remains the secondary control.
+3. PASS — no banned copy in rendered base text; intro paragraph rewritten.
+4. PASS — grader assertion added and green at both target sizes with screenshots.
+5. PASS — entry grader confirms the hosted/online and static boot paths still
+   route correctly; only player-facing strings and the grader changed.
+
+**Status:** Naming slice COMPLETE. The broader mobile/base block remains
+INCOMPLETE: the between-raid base still stacks ~20 panels and the offline boot
+can transiently show the password form before the guest profile resolves.
+
+Next action: iteration 61 — the between-raid base redesign. Start by removing the
+offline account form from the boot path (mark offline from `?offline=1` before the
+async profile load and never show the username/password form), then restructure
+the base into a hero deploy screen plus tabs (Loadout & Stash, Traders, Workshop,
+Contracts, Records) showing one panel at a time, collapse the first-raid guide to
+a one-line dismissible tip, and add a sibling grader at 1024x720 and 844x390 that
+also checks those four banned phrases.

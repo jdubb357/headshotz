@@ -29,7 +29,7 @@ client. Offline mode is an in-page copy of the same `RaidService` rules.
 
 ## Post-P0 priority — Mobile/touch HUD declutter (iteration 59, 2026-11-11)
 
-Status: COMPLETE in local/emulated-browser scope. The compact landscape touch HUD leaves
+Status: OPEN — raid-view HUD slice complete; base redesign, offline boot form and naming remain. The compact landscape touch HUD leaves
 at least 75% of the 1024x720 and 844x390 raid view unobstructed (92.2% and 82.2% measured
 by union of visible HUD surfaces). A slim translucent top strip carries HP (bar plus
 number, with a damage flash and warn/critical/downed colours), ammunition/magazine,
@@ -53,6 +53,15 @@ collapse and overlap checks) plus
 full unit suite green. Honest gap: physical-device feel on Austin's iPad/phone and
 subjective combat readability remain UNVERIFIED (P7); browser touch emulation covers geometry,
 target size and authoritative input but not sensor/pointer latency or human fatigue.
+
+Naming shipped 2026-11-11 (iteration 60): the mode is "THE SECTOR" in the page title, base
+heading and main-menu raid banner, with the original co-op raid kept as CLASSIC EXTRACTION.
+Visible base copy no longer says Persistent Extraction, Server-owned, authoritative or
+reconciliation, and `tests/raid-browser-mobile-hud.mjs` asserts that.
+
+Still open for the block: the between-raid base stacks ~20 panels in one scroll, a fresh
+offline load can briefly show the username/password form before the guest base resolves,
+and the first-raid guide is a large card rather than a one-line dismissible tip.
 
 Post-P0 UX resumed 2026-11-11 (iteration 58): the static offline Deploy card now previews
 an authored field objective from the shared catalogue and remembers the sector/objective

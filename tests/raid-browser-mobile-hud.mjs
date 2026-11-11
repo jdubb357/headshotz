@@ -115,6 +115,16 @@ try {
   await page.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
   assert.deepEqual(await page.evaluate("performance.getEntriesByType('resource').map(r=>new URL(r.name).pathname).filter(p=>p.startsWith('/api/'))"), [], 'no Node API traffic');
 
+  // Player-facing naming: the mode is "THE SECTOR" and the base copy avoids
+  // developer jargon (authority, settlement reconciliation, server ownership).
+  assert.equal(await page.evaluate("document.title"), 'HeadShotz — The Sector', 'page title uses the player-facing mode name');
+  assert.equal(await page.evaluate("document.querySelector('h1').textContent.trim()"), 'THE SECTOR', 'base heading uses the player-facing mode name');
+  const baseText = await page.evaluate("document.body.innerText");
+  assert.equal(/persistent extraction|server-owned|authoritative|reconciliation/i.test(baseText), false, 'base copy has no developer jargon: ' + baseText.slice(0, 400));
+  const menuHtml = await readFile(resolve(ROOT, 'index.html'), 'utf8');
+  assert.match(menuHtml, /<b>THE <em>SECTOR<\/em><\/b>/, 'main menu raid banner is renamed to THE SECTOR');
+  assert.match(menuHtml, /CLASSIC EXTRACTION/, 'the original cooperative raid stays reachable as CLASSIC EXTRACTION');
+
   await page.wait("!!document.querySelector('#stash input[data-equip]')");
   await page.evaluate("document.querySelector('#stash input[data-equip]').click()");
   await page.evaluate("document.getElementById('deploy').click()");
