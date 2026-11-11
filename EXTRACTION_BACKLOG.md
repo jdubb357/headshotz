@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-P0 offline workshop iteration 46). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (post-P0 loot pickup beacons iteration 47). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,18 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 47): authored ground-loot piles now render a
+presentation-only pickup beacon in both online and offline raids — a floating gem, additive
+halo and light wisp tinted by the pile's brightest authoritative item rarity, plus a pulsing
+accent ring. The gem hovers and turns at runtime and freezes to a still pose under reduced
+motion; the shared procedural glow map and gem geometry mean per-actor disposal does not
+release another pile's resources. Loot ownership, items, positions, settlements and the
+`/api` transport are unchanged. Evidence: new `tests/raid-browser-loot-beacons.mjs`
+(3 live piles, shared map/geometry, animation/freeze, 14,287-pixel isolated delta; before/after
+screenshots `/tmp/hs-loot-beacons-before.png` / `/tmp/hs-loot-beacons.png`), static P0
+playability gate, cache-tiers and loot-excitement graders, full suite 1239/1239. Human
+readability/feel on a phone remains UNVERIFIED (P7).
 
 Post-P0 economy resumed 2026-11-11 (iteration 46): the static offline base workshop now
 crafts, repairs, upgrades and moves stash stacks through `MemoryRaidStore.trade`, using
@@ -347,7 +359,9 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 - **Rarity/readability** — COMPLETE at mechanics/UI level. Item rarity and labels are
   generated and rendered; `raid-browser-accessibility.mjs` asserts the inspect dialog
   shows weapon damage and "Common". Rarity-differentiated visual excitement is PARTIAL
-  (see Game feel).
+  (see Game feel). Ground piles now carry a rarity-tinted pickup beacon — floating gem,
+  additive halo, wisp and pulsing ring, still and readable under reduced motion — proven by
+  `raid-browser-loot-beacons.mjs` (iteration 47, presentation-only; labels are unchanged).
 - **Item inspection** — COMPLETE. Inspect dialog is a native dialog with focus management
   and keyboard close; `raid-browser-accessibility.mjs`.
 - **Pickup / drop / stack / secure** — COMPLETE. `take`, `drop`, `stack`, `split` and

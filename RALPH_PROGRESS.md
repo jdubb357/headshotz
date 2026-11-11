@@ -5748,3 +5748,70 @@ fields, settlement and the online/Node transport stay exactly as they are.
    unit tests and the full `node --test tests/*.test.mjs` suite pass.
 6. Online/Node transport, raid loot rules, authoritative damage/extraction decisions and all
    other modes remain unchanged; no client-trusted shortcut is added.
+
+### Implementation — iteration 47 (completed)
+
+- `raid-models.mjs`: production `propModel('loot', ...)` now builds a presentation-only
+  pickup beacon from the accent colour passed by the raid client: an octahedron gem that
+  floats over the pile, an additive halo sprite using the existing shared procedural glow
+  map, a thin additive light wisp rising from the pile, and a pulsing additive accent ring.
+  The former ring/stem are retained for the `plain:true` evidence reconstruction used by
+  graders; production never passes `plain`. Base geometries (box/sphere/cylinder/cone/ring/
+  gem) and the glow map are shared module resources; per-actor disposal only releases the
+  beacon's owned materials and never another actor's map.
+- `raid-view.mjs`: imported `lootTierColor` and added a `lootAccent` helper that picks the
+  brightest authoritative item rarity in the pile for the beacon tint, so a drop reads at
+  the same rarity ladder as caches and pickup celebration. Loot piles now sync through
+  `propModel('loot', lootAccent(data))`; per-frame update hovers/rotates the gem, breathes
+  the halo and wisp and pulses the ring, and pins all of it to a still readable pose under
+  reduced motion. No snapshot, ownership, value or settlement fields are read or written for
+  rules; only item rarity feeds the colour.
+- New `tests/raid-browser-loot-beacons.mjs`: deploys relay, renders the authored ground
+  drops in the production `RaidView`, asserts all live piles expose gem/halo/wisp/ring with
+  their authoritative rarity accent, proves one shared glow map/gem geometry and that
+  per-actor disposal does not dispose the shared map, checks hover/turn motion and the
+  reduced-motion freeze, and measures the beacon pass against evidence-only flat piles with
+  before/after screenshots.
+- `EXTRACTION_BACKLOG.md`: recorded the finished Loot readability slice.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-models.mjs raid-view.mjs tests/raid-browser-loot-beacons.mjs` → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-loot-beacons.mjs` → PASS:
+  3 live ground piles, all beacons gem/halo/wisp/ring present with authoritative accents
+  (common/uncommon/rare tiers), shared glow map and gem geometry, zero shared-map disposal,
+  animated gem motion, static reduced-motion pose, 14,287 changed isolated pixels.
+  Screenshots `/tmp/hs-loot-beacons-before.png` and `/tmp/hs-loot-beacons.png` inspected
+  (before/after shows the flat pile versus floating gem + halo + wisp + pulsing ring).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS; the
+  deploy → move → machine hit → loot → extract P0 static Pages gate stays green with zero
+  `/api` traffic and zero browser errors.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-cache-tiers.mjs` → PASS (all 15
+  caches keep tiers/shell; container shell delta unchanged).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-loot-excitement.mjs` → PASS;
+  rarity celebration, cues, accents, reduced-motion freeze and live-region wording unchanged.
+- `node --test tests/*.test.mjs` → 1239 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — beacons tinted from the pile's authoritative top item rarity; loot items, ids,
+   positions, bags and settlement untouched.
+2. PASS — shared base geometry and shared procedural glow map; `plain` is evidence-only and
+   disposal of one pile never frees the shared map (grader listener count zero).
+3. PASS — gem hover/turn and halo/wisp/ring pulse at runtime; reduced motion pins the gem at
+   `y=.95` with a fixed rotation and stable ring/glow.
+4. PASS — every discovered ground pile exposes the full beacon group; evidence bench changes
+   14,287 isolated pixels versus the flat piles and writes before/after screenshots.
+5. PASS — loot-beacons, static P0, cache-tiers and loot-excitement browser graders green with
+   zero browser errors; full unit suite 1239/1239.
+6. PASS — presentation-only edits; no online/Node transport, loot rule, damage, extraction or
+   other-mode code touched.
+
+**Status:** Ground-loot pickup readability is COMPLETE in local presentation scope. No raid
+rules, AI, loot ownership, settlement or `/api` transport changed. Human aesthetic judgment
+and live-combat readability remain UNVERIFIED (P5/P7).
+
+Next action: iteration 48 alternates back to gameplay/UX on the offline path (for example
+a remaining post-P0 persistence or rewards/crafting UX slice, or a higher-priority repair if
+the static P0 gate regresses); keep loot-beacons, static P0, cache-tiers and base-economy
+graders green, then return to a visual slice.

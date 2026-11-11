@@ -5,7 +5,7 @@ import {makeCharacterWithCache,animate} from './chars.js';
 import {WEAPONS} from './shared/raid-catalog.mjs';
 import {MACHINES} from './shared/raid-enemies.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
-const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,12,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,5,24)};
+const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,12,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,5,24),gem:new THREE.OctahedronGeometry(1,0)};
 const HIT_FLASH_COLOR=new THREE.Color(0xffffff);
 const materials=new Map();
 const characterGeometryCache=Object.create(null),characterGeometryRefs=new Map(),idleCharacterGeometry=new Map(),IDLE_CHARACTER_GEOMETRY_LIMIT=112;
@@ -253,8 +253,32 @@ export function propModel(kind,color=0xe0aa4d,options={}){
   const seal=part(tierGroup,'box',accent,0,.9,0,.24,.04,.24);seal.rotation.y=Math.PI/4;
   root.userData.cacheTier=tier;root.userData.cacheAccent=accent;root.userData.cacheTierGroup=tierGroup;
  }else if(kind==='loot'){
+  // `plain` reconstructs the former flat pile for evidence benches only;
+  // production sync never passes it.
+  const plain=options.plain===true;
   part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]);part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]);part(root,'box',0x343933,.05,.22,0,.2,.2,.16);part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
-  part(root,'ring',color,0,.3,0,.58,.58,.58,[Math.PI/2,0,0]);part(root,'cylinder',color,0,.48,0,.035,.55,.035);
+  const ring=part(root,'ring',color,0,.3,0,.58,.58,.58,[Math.PI/2,0,0]);
+  part(root,'cylinder',color,0,.48,0,.035,.55,.035);
+  if(!plain){
+   // Loose ground drops are easy to miss against debris, so production piles
+   // carry presentation-only pickup beacons: an additive tinted gem, a soft
+   // halo sprite, a short light wisp and a pulsing accent ring. `color` is the
+   // authoritative rarity accent passed by the raid client; loot items, ids,
+   // ownership and settlement are untouched.
+   ring.material=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending});
+   ring.material.userData.raidOwned=true;
+   const gemMaterial=new THREE.MeshBasicMaterial({color});
+   gemMaterial.userData.raidOwned=true;
+   const gem=new THREE.Mesh(geometries.gem,gemMaterial);gem.position.set(0,.95,0);gem.scale.setScalar(.13);gem.rotation.y=.4;root.add(gem);
+   const haloMaterial=new THREE.SpriteMaterial({map:coreGlowTexture(),color,transparent:true,opacity:.4,depthWrite:false,blending:THREE.AdditiveBlending});
+   haloMaterial.userData.raidOwned=true;
+   const halo=new THREE.Sprite(haloMaterial);halo.position.set(0,.95,0);halo.scale.setScalar(1.1);root.add(halo);gem.userData.halo=halo;
+   const wispMaterial=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.16,depthWrite:false,blending:THREE.AdditiveBlending});
+   wispMaterial.userData.raidOwned=true;
+   const wisp=new THREE.Mesh(geometries.cylinder,wispMaterial);wisp.position.set(0,.86,0);wisp.scale.set(.035,1.2,.035);wisp.renderOrder=-1;root.add(wisp);
+   root.userData.lootBeacon={gem,halo,wisp,ring};
+  }
+  root.userData.lootPile=!plain;
  }else if(kind==='bag'){
   part(root,'box',0x47534d,0,.22,0,.85,.4,.65);for(const x of [-.25,.25])part(root,'box',0xa89670,x,.25,0,.09,.45,.72);part(root,'ring',0x35444b,0,.45,0,.15,.15,.15);
  }else if(kind==='door'){

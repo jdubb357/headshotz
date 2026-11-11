@@ -6,6 +6,7 @@ import {getWorld,terrainHeightAt,blocked} from './shared/raid-worlds.mjs';
 import {mapConditions} from './shared/raid-enemies.mjs';
 import {exitColor} from './shared/raid-exits.mjs';
 import {buildEnvironment} from './raid-environment.mjs';
+import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 import {TX,makeRaidHorizon} from './gfx.js';
 import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,disposeOwned,part,beaconModel} from './raid-models.mjs';
 
@@ -158,6 +159,13 @@ function muzzleFlashTexture(profile){
 // y in world space), so a small streak field fills the near view instead of
 // scattering a handful of drops over the whole 1,440 m sector.
 function writeRain(arr,i,d,ax,az){const k=i*6,x=ax+d.ox,y=d.y,z=az+d.oz;arr[k]=x;arr[k+1]=y;arr[k+2]=z;arr[k+3]=x+d.len*.28;arr[k+4]=y-d.len;arr[k+5]=z}
+function lootAccent(data){
+ // The brightest authoritative item rarity in the pile picks the pickup accent.
+ // Presentation only: items, ownership and values are untouched.
+ let rarity=0;
+ for(const item of data.items||[])rarity=Math.max(rarity,Math.max(0,Math.min(5,Math.trunc(Number(item.rarity)||0))));
+ return lootTierColor(rarity);
+}
 export class RaidView {
  constructor(canvas){
   this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
@@ -236,7 +244,8 @@ export class RaidView {
   const put=(key,type,data)=>{
    live.add(key);let entry=this.actors.get(key);
    if(!entry){
-    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):propModel(type,type==='door'?(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b):data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062,type==='cache'?{tier:(Number(data.tier)||0)+(data.vault?1:0)}:undefined);
+    const props=type==='cache'?propModel('cache',0xd8b062,{tier:(Number(data.tier)||0)+(data.vault?1:0)}):type==='loot'?propModel('loot',lootAccent(data)):propModel(type,type==='door'?(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b):data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
+    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):props;
     // Armories carry purple beams; extraction beacons stay cyan/green. This
     // gives both objectives a silhouette above the dense district roofs.
     if(type==='cache'&&data.weaponCache){model.userData.beacon=beaconModel(0xe07adf,18);model.add(model.userData.beacon)}
@@ -1204,6 +1213,19 @@ export class RaidView {
      const w=data.w||3.4,h=Math.min(data.h||2.8,2.8),d=data.d||.32,leaf=model.userData.doorLeaf,sill=model.userData.doorSill;
      if(leaf){leaf.visible=data.closed!==false;leaf.scale.set(w,h,d);leaf.position.set(0,h/2,0);leaf.material.color.setHex(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b)}
      if(sill){sill.scale.set(w,.1,d);sill.position.set(0,.05,0);sill.material.color.setHex(data.locked?0xe07a5b:data.closed?0xd8b062:0x9fe0ad)}
+    }else if(type==='loot'){const beacon=model.userData.lootBeacon;
+     // Presentation-only pickup motion: the gem hovers and turns, the halo and
+     // wisp breathe, and the accent ring pulses. Reduced motion freezes a still,
+     // readable pose; loot state itself is authoritative and never touched here.
+     if(beacon){if(this.settings?.reduced){
+      beacon.gem.position.y=.95;beacon.halo.position.y=.95;beacon.gem.rotation.y=.4;
+      beacon.halo.material.opacity=.4;beacon.wisp.material.opacity=.16;
+      beacon.ring.material.opacity=.55;beacon.ring.scale.setScalar(.58);
+     }else{const phase=(data.x||0)*.21+(data.z||0)*.13,bob=Math.sin(seconds*2.1+phase),pulse=.5+.5*Math.sin(seconds*2.4+phase);
+      beacon.gem.position.y=.95+bob*.08;beacon.halo.position.y=beacon.gem.position.y;beacon.gem.rotation.y=seconds*.9+phase;
+      beacon.halo.material.opacity=.3+.14*pulse;beacon.wisp.material.opacity=.12+.1*pulse;
+      beacon.ring.material.opacity=.36+.24*pulse;beacon.ring.scale.setScalar(.58*(1+.035*pulse));
+     }}
     }else{
      if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}
     }
