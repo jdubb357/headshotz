@@ -7169,3 +7169,36 @@ top instruction strip; per-deployment weather (rain/dusk) also makes frames inco
 
 Next: director note 2 (flat washed lighting, near-black featureless ground) before
 priority 4 enemies.
+
+## Iteration 67 — Sunlit sky, readable asphalt and gravel ground (director note 1) (2026-11-11)
+
+### Acceptance criteria
+1. Clear-sky spawn frame gets a stronger directional sun, crisp lit facades and visible
+   self-shadowed masses, plus a clean blue sky gradient instead of beige haze.
+2. The ground shows gravel/asphalt texture and surface variation, not a near-black plane,
+   in world-only frames (no HUD ink) at 1024x720 and 844x390.
+3. Atmosphere/weather-surface/mobile-HUD/static-offline graders stay green and
+   `node --test tests/*.test.mjs` passes.
+
+### Implementation / verification
+- Cooled clear fronts (shared/raid-enemies.mjs) to blue `0x83b2d4`/`0x7fafd2`/`0x85b3d4` and
+  moved the sun (`raid-conditions.mjs`) to y=74, z=+46 so facades face the light.
+- `raid-view.mjs`: sun/hemi warm-cool split, sunGain 1.45+.55·daylight, hemiGain 1.25+.09,
+  saturated sky top, exposure 1.22.
+- `raid-environment.mjs`: brighter palette, matte asphalt (roughness .86/metalness .04),
+  roads 0x34393b→0x64675f, terrain maps repeat 200 + anisotropy 8 + stronger vertex variation.
+- Sky sample 1024: baseline (210,188,171) beige → (178,197,209) blue; ground now shows ridge
+  shadowing and gravel speckle instead of a flat dark slab.
+- Graders PASS: raid-browser-atmosphere, raid-browser-weather-surface, raid-browser-mobile-hud,
+  raid-browser-static-offline. Node suite 1247 pass / 0 fail.
+- Shots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png` plus
+  `{before,after}-world-{1024,844}.png` from the identical Relay Graveyard spawn.
+
+### Honest critique
+The blue sky gradient, sunlit wood facades and gravel relief clearly beat the beige haze
+baseline. Still bad: the near asphalt sits darker than true midday tarmac, and the 844
+backpack dock hides half the world; every building remains the same brown planks with white
+daylight window squares — that is director note 2, next.
+
+Next: director note 2 (building material variety, dark daytime glass, spawn props), then
+director note 3 (auto-fade HUD).

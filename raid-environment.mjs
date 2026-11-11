@@ -1,12 +1,12 @@
 import * as THREE from './lib/three.module.min.js';
 import {getTex,normalTex,TX} from './gfx.js';
 import {terrainHeightAt,raidScenery} from './shared/raid-worlds.mjs';
-const palettes={industrial:{ground:0x6c7469,concrete:0x9ba0a0,brick:0x92968b,planks:0x8a6f52,roof:0x354951,metal:0x748889,container:0x426a72,rock:0x6d6a60,crate:0x9c7b4d,barrier:0xc6ab65},wilderness:{ground:0x6c795b,concrete:0x9d9d8f,brick:0x9a9a7e,planks:0x82684e,roof:0x455f5b,metal:0x7e9292,container:0x716645,rock:0x8a8777,crate:0x8d7850,barrier:0x9c956c},settlement:{ground:0x756a60,concrete:0x9f9b95,brick:0xb08063,planks:0x946f4f,roof:0x50505b,metal:0x7e8a90,container:0x6d5751,rock:0x766f64,crate:0x9b744a,barrier:0xc4a86e}};
+const palettes={industrial:{ground:0x969684,concrete:0xa8adac,brick:0xa39383,planks:0x96785a,roof:0x44565f,metal:0x849598,container:0x4e7b81,rock:0x7f7c72,crate:0xac8755,barrier:0xccb173},wilderness:{ground:0x8a9375,concrete:0xa9a99a,brick:0xa9a286,planks:0x8e7357,roof:0x4c6662,metal:0x8d9f9f,container:0x7c7050,rock:0x99958a,crate:0x9c8559,barrier:0xa8a176},settlement:{ground:0x9c8d78,concrete:0xafa8a0,brick:0xc08a6c,planks:0xa47a56,roof:0x5c5f6a,metal:0x8d989d,container:0x7a625a,rock:0x857d70,crate:0xac8252,barrier:0xceb379}};
 const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':kind==='crate'?'crate':kind==='rock'?'rock':kind==='barrier'?'hazard':kind==='planks'?'planks':kind==='brick'?'brick':'concrete';
 // Per-surface physical response: [roughness, metalness, normalScale]. Asphalt and
 // barriers keep a wet sheen so the sky environment map reads as surface reflection,
 // while concrete/rock stay diffuse. The table also feeds terrain shading.
-const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.72,.12,.4],crate:[.8,.02,.55],plain:[.86,0,0],glow:[.35,.1,0]};
+const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.86,.04,.45],crate:[.8,.02,.55],plain:[.86,0,0],glow:[.35,.1,0]};
 // How strongly each surface responds to rain: roofs/asphalt/stone wet hardest,
 // vegetation and timber only dampen. The value scales the shared wetness state
 // against a material's authored dry baseline.
@@ -31,19 +31,19 @@ function terrainMesh(world,palette){
   const height=position[i*3+1],slope=1-normals.array[i*3+1];
   tint.copy(low).lerp(high,Math.min(1,height/34));
   if(slope>0)tint.lerp(rock,Math.min(.55,slope*1.5));
-  const variation=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.075;
+  const variation=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.13;
   tint.multiplyScalar(1+variation);
   colors[i*3]=tint.r;colors[i*3+1]=tint.g;colors[i*3+2]=tint.b;
  }
  geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
  geometry.userData.raidOwned=true;
  const map=getTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel').clone();
- map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(54,54);map.anisotropy=4;map.needsUpdate=true;
+ map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(200,200);map.anisotropy=8;map.needsUpdate=true;
  // The terrain grid is large enough that a single normal tile would smear; tile
  // the relief texture at the same density as the albedo so sun-lit ridges and
  // gravel keep readable surface detail at first-person range.
  const normal=normalTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel',1.6).clone();
- normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.set(54,54);normal.anisotropy=4;normal.needsUpdate=true;
+ normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.set(200,200);normal.anisotropy=8;normal.needsUpdate=true;
  const material=new THREE.MeshStandardMaterial({map,normalMap:normal,normalScale:new THREE.Vector2(.55,.55),vertexColors:true,roughness:.93,metalness:.04,envMapIntensity:.4,side:THREE.FrontSide});
  material.userData.raidOwned=true;material.userData.raidOwnTexture=true;material.userData.raidOwnNormalTexture=true;
  material.userData.raidDry={roughness:.93,metalness:.04,envMapIntensity:.4,normalScale:.55};material.userData.raidWet=1;
@@ -279,7 +279,7 @@ export function buildEnvironment(world){
   if(i%4===0)for(const side of [-1,1])add('box',palette.metal,x+(ramp.axis==='z'?side*ramp.w/2:0),y+.55,z+(ramp.axis==='x'?side*ramp.d/2:0),.1,1.1,.1);
  }}
  // Roads and lane paint establish readable routes through every district.
- for(const axis of ['x','z']){add('box',0x3e4546,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
+ for(const axis of ['x','z']){add('box',0x666b65,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
  // Window props are authored 0.27 m proud of their parent block face. Scanning
  // every block for every window would be quadratic at relay scale (≈8.8k windows
  // × 10k blocks), so a coarse footprint grid narrows each lookup to the blocks
@@ -349,7 +349,7 @@ export function buildEnvironment(world){
   else if(prop.kind==='antenna'){add('cylinder',0x5f7075,x,y+7,z,.2,14,.2,0,'metal');add('box',0x26363b,x,y+12,z,2.4,.24,.24,0,'metal');add('sphere',0xdf6b4e,x,y+13,z,.35,.35,.35,0,'glow')}
   else if(prop.kind==='wreck'){add('box',0x3d302c,x,y+.8,z,6,1.4,2.4,0,'metal');add('box',0x6e4c38,x+1.6,y+1.6,z-.4,2.6,.4,1.6,0,'metal');add('cylinder',0x24201f,x-1.8,y+.5,z+.9,.45,.6,.45,0,'metal');add('box',0x3f4446,x+2.4,y+1.1,z+.2,2.2,.5,2.2,0,'metal')}
   else if(prop.kind==='road'||prop.kind==='sidewalk'||prop.kind==='plaza'){
-   const color=prop.kind==='sidewalk'?0x9e9a90:prop.kind==='plaza'?0x7a7264:0x34393b;
+   const color=prop.kind==='sidewalk'?0xb5afa2:prop.kind==='plaza'?0x9a9080:0x64675f;
    add('box',color,x,y,z,prop.w,.024,prop.d,prop.ry||0,prop.kind==='road'?'asphalt':prop.kind==='plaza'?'tiles':'concrete');
   }
   else if(prop.kind==='crosswalk'){
