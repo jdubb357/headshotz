@@ -5989,3 +5989,25 @@ Next action: iteration 50 alternates back to gameplay/UX on the offline path —
 highest-impact open post-P0 persistence/UX slice (for example offline pre-deploy loadout
 readiness or another base-flow gap) while keeping the static P0 gate, lightning, loot-beacon,
 cache-tier and base-economy graders green; then return to a visual slice.
+
+
+## Gameplay/UX iteration 50 — offline pre-deploy loadout readiness (2026-11-11)
+
+### Acceptance criteria — iteration 50 (post-P0 offline base UX)
+
+1. The offline base shows a deploy readiness line for the current selection. The verdict is
+   produced by the same authoritative `MemoryRaidStore.preflightLoadout` rules deploy uses
+   (via a new in-page `readiness` route), not a client-side rule copy, and makes no `/api`
+   request.
+2. When the selection cannot deploy, the line reports the store's authoritative blocker
+   verbatim (for example no weapon, weight limit, insurance credits, protected overflow);
+   when ready it shows the authoritative carried weight and insurance premium.
+3. A recovery-kit selection is ready with no premium/weight penalty; an active deployment
+   keeps Deploy blocked while Resume stays available (readiness says the operator is still
+   in the raid).
+4. Selection, insurance and recovery changes refresh readiness and gate the offline Deploy
+   control; the online/Node base page keeps its prior deploy rules and never shows the line.
+5. A new static-file browser grader (no Node `/api`) verifies the blocked → weapon-ready →
+   insured-premium → recovery-ready transitions and that a valid loadout still deploys;
+   the static P0 playability gate, offline dispatcher unit tests and the full suite stay green
+   with zero `/api` traffic and zero browser errors.
