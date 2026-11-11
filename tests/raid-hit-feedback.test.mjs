@@ -24,6 +24,13 @@ test('hit tokens are monotonic and describe only server-resolved outcomes',()=>{
  const machine={kind:'overlord',hp:0,elite:true,y:0};
  const boss=hitFeedback(shooter,machine,{y:1.5},1006);
  assert.deepEqual([boss.target,boss.kill,boss.boss,boss.elite],['machine',true,true,true]);
+ const liveMachine={kind:'hunter',hp:100,y:0};
+ const weak=hitFeedback(shooter,liveMachine,{y:1.2},1007,{weak:true});
+ assert.equal(weak.weak,true);assert.equal(weak.target,'machine');assert.equal(weak.headshot,false);
+ const normal=hitFeedback(shooter,liveMachine,{y:1.2},1008);
+ assert.equal(normal.weak,undefined,'ordinary machine hits omit the weak flag');
+ const humanWeak=hitFeedback(shooter,{account:'enemy',alive:true,hp:80,downed:false},{y:1.6},1009,{weak:true});
+ assert.equal(humanWeak.weak,undefined,'human hits never claim a machine weak point');
 });
 
 test('reconnect baselines the current token and only later tokens replay',()=>{
@@ -38,6 +45,8 @@ test('reconnect baselines the current token and only later tokens replay',()=>{
  assert.equal(hitCaption({...stale,target:'machine',elite:true,kill:true}),'Elite machine destroyed');
  assert.equal(hitCaption({...stale,headshot:true}),'Headshot confirmed · operator');
  assert.equal(hitCaption({...stale,target:'machine',elite:true}),'Hit confirmed · machine · elite');
+ assert.equal(hitCaption({...stale,target:'machine',weak:true}),'Weak point hit · machine');
+ assert.equal(hitCaption({...stale,target:'machine',weak:true,elite:true}),'Weak point hit · machine · elite');
 });
 
 test('recordShotHit prefers the lethal pellet over an earlier body hit',()=>{
@@ -104,6 +113,17 @@ test('legacy active raids also report server-resolved hit feedback',t=>{
  f.fire({pitch:0});
  const hit=f.snapshot().self.hit;
  assert.equal(hit.target,'operator');assert.equal(hit.token,1);assert.equal(hit.zone,'body');
+});
+
+test('legacy machine core hits carry the authoritative weak flag',t=>{
+ const f=setup(t);
+ delete f.r().ballisticsVersion;
+ Object.assign(f.q(),{x:40,z:40});
+ f.r().machines=[{id:'legacy_weak',kind:'scout',x:0,y:.65,z:4,hp:75,maxHp:75,state:'patrol',yaw:0,nextAttack:2000,home:{x:0,y:.65,z:4}}];
+ f.fire({pitch:0});
+ const hit=f.snapshot().self.hit;
+ assert.equal(hit?.target,'machine');
+ assert.equal(hit.weak,true,'a scout core hit at eye level is weak without armor');
 });
 
 test('incoming positioned damage exposes a bounded attacker bearing',t=>{

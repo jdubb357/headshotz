@@ -40,7 +40,7 @@ try {
 
   await p.evaluate("document.getElementById('view').focus()");
   // Observe local cue requests without depending on headless speaker output.
-  await p.evaluate("(async()=>{const {RaidAudio}=await import('./raid-audio.mjs');const original=RaidAudio.prototype.play;window.__hitCues=[];RaidAudio.prototype.play=function(kind,spatial){if(kind==='hit'||kind==='headshot'||kind==='kill')window.__hitCues.push(kind);return original.call(this,kind,spatial)}})()");
+  await p.evaluate("(async()=>{const {RaidAudio}=await import('./raid-audio.mjs');const original=RaidAudio.prototype.play;window.__hitCues=[];RaidAudio.prototype.play=function(kind,spatial){if(kind==='hit'||kind==='headshot'||kind==='weak'||kind==='kill')window.__hitCues.push(kind);return original.call(this,kind,spatial)}})()");
 
   await key(p, 'KeyF'); await key(p, 'KeyF', false);
   await p.wait("document.getElementById('hitmarker').classList.contains('show')");
@@ -69,6 +69,25 @@ try {
   const tokenAfter = await p.evaluate("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.hit?.token||0)");
   assert.equal(after, before, 'a miss plays no outgoing hit cue');
   assert.equal(tokenAfter, tokenBefore, 'a miss does not invent a token');
+
+  // A machine core hit while its attack is charging is authoritative weak
+  // feedback: exhibit the core exactly at the horizontal aim line (hunter core
+  // 1.2 m above a 0.35 m hull, eye 1.55 m) so real client fire resolves weak.
+  raid.machines = [{id: 'hit_ui_weak_machine', kind: 'hunter', x: 0, y: 0.35, z: 4, hp: 120, maxHp: 140, state: 'windup', yaw: 0, nextAttack: 9999999999,
+    attack: {at: 9999999999, point: {x: 0, y: 0, z: 4}, radius: 1.15}}];
+  await sleep(700);
+  await key(p, 'KeyF'); await key(p, 'KeyF', false);
+  await p.wait("document.getElementById('hitmarker').dataset.kind==='weak'");
+  const weak = await hitState(p);
+  assert.equal(weak.kind, 'weak', 'a server-resolved core hit shows the weak-point marker');
+  assert.match(weak.caption, /Weak point hit · machine/);
+  await p.wait("window.__hitCues.includes('weak')");
+  assert.equal(await p.evaluate("window.__hitCues.filter(k=>k==='weak').length"), 1, 'one weak cue per authoritative token');
+  const weakToken = await p.evaluate("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.hit)");
+  assert.equal(weakToken.weak, true, 'the authoritative token marks the core hit');
+  assert.equal(weakToken.kill, false, 'weak feedback does not fabricate a kill');
+  await writeFile('/tmp/headshotz-hit-weak.png', Buffer.from((await p.command('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  await sleep(800);
 
   // A machine kill is still authoritative and uses the kill marker. The target
   // operator is purposefully removed from the ray so the machine is hit.
@@ -99,6 +118,9 @@ try {
   console.log(JSON.stringify({
     bodyHitMarker: true,
     bodyCaption: body.caption,
+    weakMarker: true,
+    weakCaption: weak.caption,
+    weakCue: true,
     killMarker: true,
     killCaption: kill.caption,
     oneCuePerToken: true,
@@ -106,6 +128,7 @@ try {
     missNoToken: true,
     reconnectBaseline: true,
     screenshot: '/tmp/headshotz-hit-feedback.png',
+    weakScreenshot: '/tmp/headshotz-hit-weak.png',
     browserErrors: p.errors,
     scope: 'Isolated loopback service, one real Chrome client, arranged empty-cover geometry; the hit token is read from /api/raid. Does not prove human balance or remote/device acceptance.'
   }));

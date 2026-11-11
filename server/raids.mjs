@@ -240,8 +240,8 @@ export class RaidService {
     const angle=Math.abs(Math.atan2(Math.sin(Math.atan2(q.x-p.x,q.z-p.z)-p.yaw),Math.cos(Math.atan2(q.x-p.x,q.z-p.z)-p.yaw)));
     return {target:q,hitY,valid:dist(p,q)<p.weapon.range&&angle<Math.atan2(radius,Math.max(.1,horizontal))&&hitY>=(q.y||0)&&hitY<=(q.y||0)+height&&clearLine(r.world,p.x,p.z,q.x,q.z,originY,hitY)};
    }).filter(hit=>hit.valid).sort((a,b)=>dist(p,a.target)-dist(p,b.target));
-   if(hits.length){const {target,hitY}=hits[0],before=Math.max(0,target.hp),absorbed=target.facts?.damageAbsorbed||0;p.facts.shotsHit=(p.facts.shotsHit||0)+1;if(target.account)this.damage(r,target,p.weapon.damage*(hitY-(target.y||0)>1.6?1.6:1),{source:'operator',zone:hitY-(target.y||0)>1.6?'head':hitY-(target.y||0)<.65?'leg':'body',from:{x:p.x,z:p.z}});else hitMachine(this,r,target,p.weapon.damage,hitY,p.team);p.facts.damageDealt=(p.facts.damageDealt||0)+before-Math.max(0,target.hp)+Math.max(0,(target.facts?.damageAbsorbed||0)-absorbed)}
-   recordShotHit(p,hits.map(({target,hitY})=>({target,point:{y:hitY}})),now);
+   if(hits.length){const hit=hits[0],{target,hitY}=hit,before=Math.max(0,target.hp),absorbed=target.facts?.damageAbsorbed||0;p.facts.shotsHit=(p.facts.shotsHit||0)+1;if(target.account)this.damage(r,target,p.weapon.damage*(hitY-(target.y||0)>1.6?1.6:1),{source:'operator',zone:hitY-(target.y||0)>1.6?'head':hitY-(target.y||0)<.65?'leg':'body',from:{x:p.x,z:p.z}});else{if(hitMachine(this,r,target,p.weapon.damage,hitY,p.team)?.weak)hit.weak=true}p.facts.damageDealt=(p.facts.damageDealt||0)+before-Math.max(0,target.hp)+Math.max(0,(target.facts?.damageAbsorbed||0)-absorbed)}
+   recordShotHit(p,hits.map(hit=>({target:hit.target,point:{y:hit.hitY},weak:hit.weak})),now);
    return;
   }
   if(m.type==='wear'||m.type==='removeArmor'){check(p.combatVersion===2,'Armor changes require a new deployment');changeArmor(p,m,now);return}

@@ -275,7 +275,11 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 - **Varied machines** — COMPLETE. Five classes (scout, hunter, heavy, flyer, overlord)
   with distinct stats/cues/models; common/escalation scenes.
 - **Weak points** — COMPLETE. Core/head hits deal 2.5x through `hitMachine`; body damage
-  otherwise normal; unit tests assert multipliers.
+  otherwise normal; unit tests assert multipliers. A core hit while a machine is charging
+  now staggers that attack by 0.22 s (three-hit cap), and the authoritative hit token
+  reports `weak:true`, rendered as a cyan marker, "Weak point hit · machine" caption and
+  synthesized cue (iteration 28). Evidence: `raid-encounters.test.mjs`,
+  `raid-hit-feedback.test.mjs`, `raid-audio.test.mjs`, `raid-browser-hit-feedback.mjs`.
 - **Bosses** — COMPLETE. Foundry Warden with approach/furnace/meltdown phases, phase
   hazards and HUD panel; `raid-boss.test.mjs`/`raid-browser-boss.mjs`.
 - **Loot drops** — COMPLETE. Destroyed machines drop salvage bags and fuel; elite and
@@ -394,7 +398,10 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   and class-specific silhouette details — scout antenna/fins, hunter dorsal ridge/mast,
   heavy hazard chevrons/vents, flyer rotor blades/struts and overlord crown/chest vents
   (iteration 27, presentation-only; live-combat readability and human aesthetics remain
-  UNVERIFIED). Older screenshots may still show the former generic "salvage bag" wording.
+  UNVERIFIED). Machine core hits now carry authoritative weak feedback — a cyan hit
+  marker, "Weak point hit" caption and a distinct synthesized cue — and stagger a charged
+  attack by a bounded 0.22 s (iteration 28). Older screenshots may still show the former
+  generic "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.
@@ -761,6 +768,25 @@ and a deployed hauler party (`cap:12`, `weightCap:30` beside a baseline scout `8
 `tests/raid-browser-squad-roles.mjs` verifies the real select has the new option/title
 alongside the existing authority behavior and reports no browser errors. Honest gap:
 live hosted role coordination and human balance/role-depth acceptance remain UNVERIFIED.
+
+## Completed in iteration 28
+
+**Weak-point stagger and authoritative weak-hit feedback.** COMPLETE in local
+authoritative/UI scope. `server/raid-ai.mjs` exports `STAGGER={delay:.22,hits:3}` and
+`hitMachine` now delays an inbound attack and its matching telegraph expiry on a living
+machine's exposed-core hit, capped at three per charge, resetting on resolution or the
+next charge; the function returns `{weak,staggered,killed}` for both ballistics and legacy
+shot paths. `server/raid-hit-feedback.mjs` accepts the weak outcome and emits an optional
+`weak:true` token only for machine hits, leaving all other tokens unchanged.
+`shared/raid-hit-presentation.mjs` captions it "Weak point hit"; `raid-online.mjs` renders
+a cyan `[data-kind=weak]` marker and `raid-audio.mjs` plays a distinct synthesized weak cue
+(and still prefers the kill cue). Evidence: targeted suites are green (57/57 across
+encounters/hit-feedback/audio/ballistics and 19/19 game-loop), the real-Chrome grader reports
+`weakMarker:true`, `weakCaption:"Weak point hit · machine"`, one weak cue, a server token
+with `weak:true` and `kill:false`, and `browserErrors:[]`, with screenshots
+`/tmp/headshotz-hit-weak.png` and `/tmp/headshotz-hit-feedback.png`. Honest gap: subjective
+weak-point readability and attack-tell fairness under live human combat remain UNVERIFIED,
+as do hosted transport and physical-device behavior (P5/P6/P7).
 
 ## Later items (not yet closed)
 

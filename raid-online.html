@@ -258,6 +258,7 @@ html[data-high-contrast=true] #cross{--reticle:#fff;opacity:1;filter:drop-shadow
 #hitmarker::before,#hitmarker::after{content:"";position:absolute;left:50%;top:50%;width:2px;height:34px;border-radius:1px;background:linear-gradient(180deg,transparent 0 4px,currentColor 4px calc(100% - 4px),transparent calc(100% - 4px) 100%);transform:translate(-50%,-50%) rotate(45deg)}
 #hitmarker::after{transform:translate(-50%,-50%) rotate(-45deg)}
 #hitmarker[data-kind=headshot]{color:#ffd166}
+#hitmarker[data-kind=weak]{color:#62f0ff;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 6px #3ce6ffaa)}
 #hitmarker[data-kind=kill]{color:#ff6b6b;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 5px #ff3838aa)}
 #hitmarker.show{visibility:visible;animation:hitmarkerPulse .46s ease-out both}
 @keyframes hitmarkerPulse{0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}56%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.18)}}

@@ -11,6 +11,10 @@ export const MACHINE_CAP=12;
 // sector can only field MACHINE_CAP living machines, and every wave entry is
 // staggered so a single frame cannot spawn an arbitrary number of contacts.
 export const ESCALATION={alarmWaveCap:4,eliteInterval:180,eliteCap:3,hazardWindowInterval:150,hazardWarning:18,hazardDuration:22,hazardDamage:2,squeezeLead:180,squeezeWaveInterval:45};
+// A weak-point hit while a machine charges its attack pushes that attack and
+// its telegraph back. The per-charge cap keeps a sustained burst from freezing
+// the machine indefinitely; the counter resets on resolution or next charge.
+export const STAGGER={delay:.22,hits:3};
 const HAZARD_WINDOWS={
  relay:{name:'Ashfall squall',damage:2,radius:26},
  reservoir:{name:'Acid rain cell',damage:2,radius:24},
@@ -135,8 +139,19 @@ export function hitMachine(service,raid,machine,damage,hitY,team){
  // keep less armor, so the boss is vulnerable without waiting for a windup.
  const armor=phase==='meltdown'?.3:phase==='furnace'?.55:def.armor;
  const weak=Math.abs(hitY-(machine.y||0)-def.core)<.35&&(phase==='meltdown'||machine.state==='windup'||!def.armor);
- machine.hp-=damage*(weak?2.5:1-armor);machine.hurtUntil=now+.15;
- if(machine.hp>0){advanceBossPhase(raid,machine,now);return}
+ machine.hp-=damage*(weak?2.5:1-armor);machine.hurtUntil=now+(weak?.32:.15);
+ // A core hit before a charged attack resolves staggers it: the telegraphed
+ // attack and its warning ring move back by a fixed delay, capped so sustained
+ // fire can never hold a machine in an indefinite windup. The counter resets
+ // when the attack fires or a new charge starts.
+ let staggered=false;
+ if(machine.hp>0&&weak&&machine.attack&&machine.attack.at>now&&(machine.staggerHits||0)<STAGGER.hits){
+  machine.staggerHits=(machine.staggerHits||0)+1;machine.attack.at+=STAGGER.delay;staggered=true;
+  machine.nextAttack=Math.max(machine.nextAttack||0,machine.attack.at);
+  const telegraph=(raid.telegraphs||[]).find(t=>t.id===machine.attack.telegraph);
+  if(telegraph)telegraph.until=machine.attack.at;
+ }
+ if(machine.hp>0){advanceBossPhase(raid,machine,now);return {weak,staggered,killed:false}}
  const roll=ratio((raid.id||'raid')+':'+machine.id),pool=MACHINE_WEAPONS[machine.kind]||['pistol'],weapon=pool[Math.floor(roll*pool.length)%pool.length],ammo=WEAPONS[weapon].ammo;
  const salvage=[item('valuable',{value:machine.kind==='overlord'?150:20,rarity:machine.kind==='overlord'?4:1}),item('material',{material:machine.kind==='flyer'?'wire':'steel',quantity:machine.kind==='overlord'?8:2}),item('weapon',{weapon,condition:35+Math.floor(roll*50),rarity:Math.max(1,Math.floor(roll*3)),loaded:WEAPONS[weapon].mag}),item('ammo',{ammo,quantity:Math.max(6,Math.round(MACHINE_AMMO_ROUNDS[ammo]*(.5+roll)))})];
  if(machine.kind==='overlord')salvage.push(item('mod',{mod:Object.keys(MODS)[Math.floor(roll*3)%3],rarity:3}));
@@ -147,6 +162,7 @@ export function hitMachine(service,raid,machine,damage,hitY,team){
  for(const other of raid.machines)if(other!==machine&&other.hp>0&&distance(other,machine)<55){other.investigate={...contact};other.state='investigate'}
  escalate(raid,now,machine.x,machine.z,'destroyed:'+machine.id);
  for(const ally of raid.players.values())if(ally.alive&&ally.team===team&&distance(ally,machine)<60){ally.facts||={explorations:[],machines:0,bosses:0};ally.facts.machines++;ally.facts.mapMachines||={};ally.facts.mapMachines[raid.world.id]=(ally.facts.mapMachines[raid.world.id]||0)+1;if(machine.kind==='overlord')ally.facts.bosses++}
+ return {weak,staggered,killed:true};
 }
 function visible(raid,m,p,def){
  if(!p.alive||(p.protectedUntil||0)>raid.now)return false;
@@ -185,7 +201,7 @@ export function advanceMachines(service,raid,dt,now){
   }
   if(m.attack){
    m.state='windup';if(now<m.attack.at)continue;
-   const shot=m.attack,from={x:m.x,z:m.z};m.attack=null;m.nextAttack=now+def.cooldown*(m.bossPhase==='meltdown'?.55:m.enraged?.7:1);m.state='recover';
+   const shot=m.attack,from={x:m.x,z:m.z};m.attack=null;m.staggerHits=0;m.nextAttack=now+def.cooldown*(m.bossPhase==='meltdown'?.55:m.enraged?.7:1);m.state='recover';
    if(def.attack==='pounce'&&raidLine(raid,m.x,m.z,shot.point.x,shot.point.z,(m.y||0)+1,(shot.point.y||0)+1)){
     const at=safePoint(raid.world,shot.point.x,shot.point.z,{radius:def.radius,height:def.height,y:shot.point.y||0});if(at){m.x=at.x;m.y=at.y;m.z=at.z}
    }
@@ -194,7 +210,7 @@ export function advanceMachines(service,raid,dt,now){
   }
   if(target&&distance(m,target)<=def.range&&now>=m.nextAttack){
    const point={x:target.x,y:target.y||0,z:target.z},radius=['mortar','barrage'].includes(def.attack)?3.5:def.attack==='pounce'?2.3:1.15;
-   m.attack={at:now+def.windup,point,radius};m.state='windup';raid.telegraphs.push({id:m.id+'_'+now,x:point.x,y:point.y,z:point.z,radius,until:m.attack.at,kind:def.attack});
+   m.attack={at:now+def.windup,point,radius,telegraph:m.id+'_'+now};m.staggerHits=0;m.state='windup';raid.telegraphs.push({id:m.attack.telegraph,x:point.x,y:point.y,z:point.z,radius,until:m.attack.at,kind:def.attack});
    event(raid,now,def.name+' '+(def.attack==='pounce'?'is preparing to pounce':'is charging an attack'),'warning');continue;
   }
   if(target&&distance(m,target)>Math.max(3,def.range*.65)){walk(raid,m,target,def,dt,now);continue}

@@ -1184,7 +1184,7 @@ function renderHitFeedback(s){
  const hit=s.hit;
  if(!shouldShowHit(hit,lastHitToken))return;
  lastHitToken=hitToken(hit);
- const marker=$('hitmarker'),caption=$('hitmarkerCaption'),kind=hit.kill?'kill':hit.headshot?'headshot':'hit',text=hitCaption(hit);
+ const marker=$('hitmarker'),caption=$('hitmarkerCaption'),kind=hit.kill?'kill':hit.weak?'weak':hit.headshot?'headshot':'hit',text=hitCaption(hit);
  if(marker){marker.dataset.kind=kind;marker.classList.remove('show');void marker.offsetWidth;marker.classList.add('show')}
  if(caption)caption.textContent=text;
  clearTimeout(hitmarkerTimer);hitmarkerTimer=setTimeout(()=>marker?.classList.remove('show'),hit.kill?900:650);

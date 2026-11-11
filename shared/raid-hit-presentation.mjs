@@ -14,5 +14,5 @@ export function hitCaption(hit){
  const target=hit.target==='machine'?'machine':hit.target==='rival'?'rival':'operator';
  return hit.kill
   ?(hit.boss?'Boss destroyed':hit.elite?'Elite machine destroyed':target==='machine'?'Machine destroyed':target==='rival'?'Rival eliminated':'Operator eliminated')
-  :(hit.headshot?'Headshot confirmed':'Hit confirmed')+' · '+target+(hit.elite?' · elite':'');
+  :(hit.weak?'Weak point hit':hit.headshot?'Headshot confirmed':'Hit confirmed')+' · '+target+(hit.elite?' · elite':'');
 }

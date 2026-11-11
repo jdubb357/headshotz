@@ -4368,3 +4368,80 @@ Next action: alternate back to a gameplay slice (iteration 27 visual, iteration 
 gameplay). Candidates: a small authoritative P8/P9/P10 refinement, e.g. contract or
 objective reward feedback in the field, or a machine weak-point/tell readability
 behavior slice. Keep raid scoping opt-in and avoid claiming human balance/pacing.
+
+## Gameplay iteration 28 — weak-point charges stagger machines and report authoritative core hits (2026-11-10)
+
+### Acceptance criteria — iteration 28
+
+1. A weak-point hit (the existing exposed-core rule in `hitMachine`) on a living
+   machine that is charging an inbound attack must delay that attack and extend its
+   matching telegraph expiry by a fixed amount, capped at three staggers per charge.
+   Body hits and weak hits with no inbound attack must not stagger; resolving the
+   attack resets the cap so the next charge can be staggered.
+2. The authoritative hit token may carry `weak:true` only for a server-resolved
+   machine core hit. The field is absent otherwise, so existing operator/rival
+   tokens are byte-for-byte unchanged and reconnect token baselineing still works.
+3. The raid client renders a distinct weak-point hit marker, an accessible caption
+   ("Weak point hit · machine" and elite suffix) and a synthesized weak cue, all
+   driven by the snapshot token; a miss and reconnect never fabricate or replay.
+4. The affected encounter, hit-feedback and audio unit suites pass; the browser hit
+   feedback grader exercises a real weak hit with `browserErrors: []`; the full unit
+   suite is green apart from the known intermittent matchmaking ECONNRESET. No
+   snapshot fields, modes or blueprint generation change outside raids.
+
+### Implementation — iteration 28 (completed)
+
+- `server/raid-ai.mjs`: added `STAGGER={delay:.22,hits:3}`. `hitMachine` now extends a
+  weak hit's hurt flash and, while the machine is alive and has an inbound attack, pushes
+  `attack.at` and the matching telegraph `until` back by 0.22 s up to three times per
+  charge; the count resets on attack resolution and on each new charge. The updated
+  telegraph id is stored on `attack` so a delayed charge still drives the client warning
+  ring. `hitMachine` now returns `{weak,staggered,killed}` to both ballistics and legacy
+  shot callers without changing damage, salvage or boss-phase rules.
+- `server/raid-hit-feedback.mjs`: `hitFeedback` accepts an optional `{weak}` outcome and
+  emits `weak:true` only for non-human targets; ordinary tokens keep their exact prior
+  shape. `recordShotHit` forwards the chosen pellet's weak result. `raid-ballistics.mjs`
+  and `raids.mjs` mark weak hits on the resolver's hit entries.
+- `shared/raid-hit-presentation.mjs`: weak hits caption as "Weak point hit · machine"
+  (with the existing elite suffix); kills keep their existing wording.
+- `raid-online.mjs` / `raid-online.html`: the hit marker selects `weak` before headshot,
+  with a cyan colour and glow. `raid-audio.mjs` added a synthesized `weak` cue and prefers
+  kill over weak. No random, networked or cross-mode state was introduced.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-hit-feedback.test.mjs tests/raid-encounters.test.mjs
+  tests/raid-audio.test.mjs tests/raid-ballistics.test.mjs` → 57 pass, 0 fail (includes the
+  new stagger-cap, weak-token, legacy-weak and weak-audio cases).
+- `node --test tests/raid-game-loop.test.mjs` → 19 pass, 0 fail.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-hit-feedback.mjs` → exit 0,
+  `{"bodyHitMarker":true,"weakMarker":true,"weakCaption":"Weak point hit · machine",
+  "weakCue":true,"killMarker":true,"oneCuePerToken":true,"missNoMarker":true,
+  "missNoToken":true,"reconnectBaseline":true,"browserErrors":[]}`. Screenshots inspected:
+  `/tmp/headshotz-hit-weak.png` shows the cyan weak marker and caption; the body and kill
+  captures are unchanged.
+- `node --test tests/*.test.mjs` → 1179 pass, 0 fail (65.0 s).
+
+### Criteria status
+
+1. PASS — a living machine with an inbound attack delays by 0.22 s per weak core hit, up
+   to three (0.66 s total), its telegraph expires at the delayed clock, body hits and
+   attack-free weak hits do not stagger, and resolution resets the counter.
+2. PASS — `weak:true` appears only on server-resolved machine core hits; the deepEqual
+   operator/rival token cases remain unchanged and the reconnect baseline test is green.
+3. PASS — the real-Chrome grader shows the cyan weak marker and accessible caption from a
+   real client shot, plays one weak cue per token, and produces no browser errors; misses
+   and reconnect still fabricate or replay nothing.
+4. PASS — affected suites 57/57 and game-loop 19/19, the full suite is 1179/1179 (the
+   matchmaking ECONNRESET did not recur), and no non-raid mode, deployment field or
+   blueprint generation was touched.
+
+**Status:** Iteration 28 weak-point stagger and feedback slice is COMPLETE in local
+authoritative/UI scope. Subjective weak-point readability and attack-tell fairness under
+live human combat are UNVERIFIED, as are hosted transport and physical-device behavior.
+Do not claim P5/P6/P7 or human acceptance.
+
+Next action: alternate back to a visual/asset slice (iteration 28 gameplay, iteration 27
+visual): a machine weak-point hit spark/burst VFX at the authoritative core (or an impact
+debris pass) would make the new stagger readable. Keep raid scoping opt-in, avoid claiming
+human balance/pacing, and record source/license if any asset is added.
