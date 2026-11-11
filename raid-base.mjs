@@ -29,7 +29,7 @@ function recipeReadiness(profile,recipe,rank){
  return {stock,blockers,held,ready:blockers.length===0};
 }
 
-export function baseController({api,run,button,label,getProfile,refresh,selectedLoadout,onLoadoutChanged,chooseQuantity,onPreviewLoadout=()=>{},onInspect=()=>{},onSelectionChanged=()=>{}}){
+export function baseController({api,run,button,label,getProfile,refresh,selectedLoadout,onLoadoutChanged,chooseQuantity,offline=()=>false,onPreviewLoadout=()=>{},onInspect=()=>{},onSelectionChanged=()=>{}}){
  const $=id=>document.getElementById(id);let selectionOrder=[];
  const heading=(parent,text,level='h3')=>{const el=document.createElement(level);el.textContent=text;parent.append(el);return el};
  const option=(parent,value,text)=>{const o=document.createElement('option');o.value=value;o.textContent=text;parent.append(o)};
@@ -107,8 +107,25 @@ export function baseController({api,run,button,label,getProfile,refresh,selected
    const preset=$('presets').value;$('presets').replaceChildren();for(const name of Object.keys(profile.presets))option($('presets'),name,name);if(Object.hasOwn(profile.presets,preset))$('presets').value=preset;
    $('overflow').replaceChildren();if(profile.overflow.length)heading($('overflow'),'Protected overflow — no items were sold');
    for(const it of profile.overflow){const row=document.createElement('p');row.textContent=label(it);row.append(button('Move to stash',()=>execute({type:'claimOverflow',itemId:it.id})));$('overflow').append(row)}
-   $('trader').replaceChildren();
-   for(const trader of market){
+   $('trader').replaceChildren();const isOffline=offline()===true;
+   if(isOffline){
+    const section=document.createElement('section');section.dataset.offlineNotice='traders';
+    heading(section,'Salvage exchange · offline');
+    const text=document.createElement('p');text.textContent='Traders and vendor stock are online-only. Recovered salvage can still be sold here or carried into the workshop: credits and materials buy crafting, repairs and bench upgrades on this device.';
+    section.append(text);
+    const sellable=profile.items.filter(it=>!it.favorite&&(it.kind==='material'||it.kind==='valuable'));
+    const groups=new Map();let total=0;
+    for(const it of sellable){total+=profile.sellValues?.[it.id]??sellValue(it);const name=it.kind==='material'?(it.material||'salvage'):(it.label||'valuable');groups.set(name,(groups.get(name)||0)+(it.quantity||1))}
+    const stock=document.createElement('p');stock.dataset.salvageStock='1';
+    stock.textContent=sellable.length
+      ? [...groups].map(([name,count])=>name+' ×'+count).join(' · ')+' · '+total+' credits at base sale price'
+      : profile.activeDeployment?'Salvage may be carried by your deployed operator; return to base to sell it.':'No sellable recovery salvage is in your stash yet. Search containers and machine salvage during a raid.';
+    section.append(stock);
+    const sellAll=button(total?'Sell all recovery salvage · '+total+' credits':'Sell recovery salvage',async()=>{const ids=sellable.map(it=>it.id);if(!ids.length)throw new Error('No sellable recovery salvage is in your stash');if(!confirm(`Sell ${ids.length} recovered salvage stacks for ${total} credits? Favorited salvage stays in your stash.`))return;await execute({type:'bulkSell',itemIds:ids})});
+    sellAll.dataset.salvageSale='1';sellAll.disabled=!sellable.length||!!profile.activeDeployment;
+    section.append(sellAll);
+    $('trader').append(section);
+   }else for(const trader of market){
     const section=document.createElement('section');heading(section,`${trader.name} · reputation ${trader.reputation}/20`);const text=document.createElement('p');text.textContent=trader.description+' Stock refreshes '+new Date(trader.restockAt).toLocaleTimeString();section.append(text);
     for(const offer of trader.stock){const b=button(`Buy ${(offer.kind==='armor'?armorStats(offer).name:offer.kind==='med'?(MEDICAL[offer.medical]||MEDICAL.field).name:null)||UTILITIES[offer.utility]?.name||WEAPONS[offer.weapon]?.name||MODS[offer.mod]?.name||offer.sku} ×${offer.packQuantity} · ${offer.price} credits · ${offer.locked?'locked':offer.quantity+' left'}${grantCost(profile,offer.price)>0?' · Starter supply':''}`,()=>execute({type:'buy',trader:trader.id,sku:offer.sku}));b.disabled=offer.locked||offer.quantity<=0||!!profile.activeDeployment;section.append(b)}
     $('trader').append(section);
@@ -133,9 +150,13 @@ export function baseController({api,run,button,label,getProfile,refresh,selected
     if(it.kind==='mod')option($('attachmentMod'),it.id,label(it));
    }
    $('contracts').replaceChildren();for(const [id,definition]of Object.entries(CONTRACTS)){
-    const p=profile.contracts[id],stage=p&&!p.completed?definition.stages[p.stage]:null,section=document.createElement('section');heading(section,definition.name);
+    const p=profile.contracts?.[id],stage=p&&!p.completed?definition.stages[p.stage]:null,section=document.createElement('section');heading(section,definition.name);
     const text=document.createElement('p');text.textContent=`${definition.description} ${p?.completed?'COMPLETE':stage?`Stage ${p.stage+1}: ${p.progress}/${stage.need} · ${stage.reward} credits + ${stage.xp} XP`:''}`;section.append(text);
-    if(!p)section.append(button('Accept contract',()=>execute({type:'contract',contract:id,operation:'accept'})));
+    if(isOffline){
+     section.dataset.offlineNotice='contracts';
+     const note=document.createElement('p');note.className='offlineNote';note.textContent='Online only — accepting, delivering and claiming contract stages requires the hosted raid service. This offline build earns credits, XP and salvage from extraction rewards instead.';
+     section.append(note);
+    }else if(!p)section.append(button('Accept contract',()=>execute({type:'contract',contract:id,operation:'accept'})));
     else if(stage){if(['deliverSteel','deliverArtifact'].includes(stage.event)&&p.progress<stage.need)section.append(button(stage.event==='deliverArtifact'?'Deliver '+ARTIFACTS[stage.artifact].name:'Deliver salvage',()=>execute({type:'contract',contract:id,operation:'deliver'})));if(p.progress>=stage.need)section.append(button('Claim stage reward',()=>execute({type:'contract',contract:id,operation:'claim'})))}
     $('contracts').append(section);
    }

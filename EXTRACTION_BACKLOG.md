@@ -39,6 +39,18 @@ screenshots `/tmp/hs-loot-beacons-before.png` / `/tmp/hs-loot-beacons.png`), sta
 playability gate, cache-tiers and loot-excitement graders, full suite 1239/1239. Human
 readability/feel on a phone remains UNVERIFIED (P7).
 
+Post-P0 UX resumed 2026-11-11 (iteration 48): the static offline base no longer renders an
+empty Traders card or live contract buttons that can only return 501. Offline Traders becomes
+a "Salvage exchange · offline" section that states vendor stock is online-only and lists
+held non-favorited material/valuable salvage with authoritative base sale values plus one
+liquidation action routed through `bulkSell`; offline Contracts list every authored contract
+with read-only progress and an online-only note instead of accept/deliver/claim controls.
+Online trader/contract UI is unchanged. Evidence: new
+`tests/raid-browser-static-availability.mjs` (no `/api`, notices, zero dead controls,
+seeded sale 250 → 275 credits with favorited wire retained, persisted reload, zero browser
+errors; screenshot `/tmp/hs-offline-availability.png`), static P0 playability gate and full
+suite 1239/1239 green. Physical-device feel remains UNVERIFIED (P7).
+
 Post-P0 economy resumed 2026-11-11 (iteration 46): the static offline base workshop now
 crafts, repairs, upgrades and moves stash stacks through `MemoryRaidStore.trade`, using
 the same shared recipe/repair/progression rules as the Node store; online-only traders
@@ -572,6 +584,13 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   `tests/raid-store-memory.test.mjs`, `tests/raid-offline.test.mjs`,
   `raid-browser-static-base-economy.mjs` (craft/upgrade/reload, no `/api`), plus the P0
   static playability gate and online progression grader. Live-device feel UNVERIFIED.
+- **Offline availability clarity** — COMPLETE (iteration 48). On static Pages the Traders
+  card explains that vendor stock is online-only, lists held sellable material/valuable
+  salvage with authoritative sale values, and liquidates it through the same `bulkSell`
+  store rule (favorited stacks excluded; disabled while deployed). Contracts stay online-only
+  and render read-only progress plus an explanation instead of 501 action buttons. Hosted
+  trader/contract UI is unchanged. Evidence: `tests/raid-browser-static-availability.mjs`,
+  static P0 gate, full suite 1239/1239; physical-device feel still UNVERIFIED (P7).
 - **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
   tests and browser grants/loadout/rewards.
 - **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress

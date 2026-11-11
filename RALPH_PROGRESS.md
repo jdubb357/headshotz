@@ -5815,3 +5815,101 @@ Next action: iteration 48 alternates back to gameplay/UX on the offline path (fo
 a remaining post-P0 persistence or rewards/crafting UX slice, or a higher-priority repair if
 the static P0 gate regresses); keep loot-beacons, static P0, cache-tiers and base-economy
 graders green, then return to a visual slice.
+
+---
+
+## Iteration 48 — offline base availability and salvage liquidation UX (2026-11-11)
+
+### Task
+
+The static-Pages base still renders an empty Traders card and live Accept/Deliver/Claim
+contract buttons that can only fail with an offline 501. Make offline availability explicit
+and give the offline economy a safe, authoritative one-tap liquidation path for recovered
+salvage so a solo player can return from a raid, turn loot into credits, and craft.
+Every economy decision still runs through `MemoryRaidStore.bulkSell`; the online Node path
+and its trader/contract card are unchanged.
+
+### Acceptance criteria (recorded before implementation)
+
+1. In offline mode the Traders card is never blank and never shows purchase controls: it
+   states that traders/vendor stock are online-only, explains that recovered salvage can be
+   sold and crafted locally, lists held material/valuable salvage with authoritative base
+   sale values, and offers a single explicit "sell all recovery salvage" action only when
+   sellable salvage exists and no deployment is active.
+2. The liquidation action is not a client shortcut: it sends the shared `bulkSell` trade
+   (with authoritative expectedRevision) to `MemoryRaidStore`, and the credits, consumed
+   stacks and item removal come from the store. Favorited salvage is excluded before the
+   request so the authoritative all-or-nothing sale cannot be rejected.
+3. In offline mode the Contracts card never renders Accept/Deliver/Claim buttons (which
+   return 501); every listed contract states that its stages and rewards require the hosted
+   raid service, while any persisted progress is still shown read-only.
+4. Online mode renders traders and contracts exactly as before (the offline branches are
+   selected only by the transport flag).
+5. `tests/raid-browser-static-availability.mjs` (new) boots the base as plain static files
+   with no `/api`, asserts the notices and absent dead controls, seeds salvage, reloads,
+   liquidates it through the shipped button (with the grader's confirm accepted), checks the
+   authoritative credit delta and persisted removal, and reports zero `/api` traffic and
+   zero browser errors. The static P0 playability gate stays green; the full unit suite
+   passes.
+
+### Implementation — iteration 48 (completed)
+
+- `raid-base.mjs`: `baseController` now accepts an `offline` getter and only shows the
+  offline branches when the page transport is offline. The Traders card is replaced by a
+  labelled "Salvage exchange · offline" section: it explains that vendor stock is online-only,
+  lists only non-favorited material/valuable salvage by name and stack count, quotes the
+  total using the same `profile.sellValues`/`sellValue` arithmetic the store uses, and offers
+  one `Sell all recovery salvage · N credits` button. The button is disabled with an empty
+  stash or an active deployment; its handler calls the existing `execute({type:'bulkSell',
+  itemIds})` path so `MemoryRaidStore`/`RaidStore` still validate ownership, favorites, stack
+  limits and revision, and the credit award is authoritative. Contracts still list every
+  authored contract with description/read-only progress, but offline sections carry an
+  "Online only" note and no Accept/Deliver/Claim buttons. The hosted trader/contract branch
+  is unchanged.
+- `raid-online.mjs`: passes `offline: () => offlineMode` to the base controller so the same
+  UI file serves both transports without a second rule source.
+- New `tests/raid-browser-static-availability.mjs`: plain static server (no `/api`), offline
+  boot via `raid-online.html?offline=1`, notices and zero dead purchase/contract controls,
+  a seeded 4-steel/17-credit valuable stash (plus a favorited wire that must stay), a real
+  button sale, the 250 → 275 credit delta, item removal, a persisted reload and zero browser
+  errors; screenshot `/tmp/hs-offline-availability.png` inspected (exchange card + workshop
+  readiness notes).
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-base.mjs raid-online.mjs tests/raid-browser-static-availability.mjs` → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-availability.mjs` → PASS:
+  `{"offlineTradersNotice":true,"offlineContractNotice":true,"deadContractButtons":0,
+  "salvageListed":"steel ×4 · Purifier cartridge ×1 · 25 credits at base sale price",
+  "saleTotal":25,"creditsAfterSale":275,"persisted":275,"noApiTraffic":true,
+  "browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS; the
+  deploy → move → machine hit → loot → extract P0 static-Pages gate remains green with
+  `noApiTraffic:true` and `browserErrors:[]`.
+- `node --test tests/*.test.mjs` → 1239 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — offline Traders shows an online-only explanation, the held salvage list with
+   authoritative base sale values, and one explicit liquidation action that is disabled
+   without sellable salvage or while deployed.
+2. PASS — liquidation runs through `execute` → `trade`/`bulkSell` on the in-page store (the
+   grader's 250 → 275 credits and item removals come from the store); favorites are filtered
+   out of the request and the favorited wire survives.
+3. PASS — every offline contract section carries the "Online only" note and the grader finds
+   zero Accept/Deliver/Claim buttons; persisted progress, if any, remains read-only.
+4. PASS — the offline branch is gated by the transport getter; the hosted trader/contract
+   branch is byte-for-byte the prior behavior (the `buy` action is unchanged).
+5. PASS — new static-file availability grader, static P0 playability gate, and full unit
+   suite 1239/1239 green with zero `/api` traffic and zero browser errors.
+
+**Status:** Offline base availability and salvage liquidation UX is COMPLETE in local
+presentation/UX scope. The offline economy still has no vendor purchases or contract
+stages by design; salvage sale, crafting, repairs and upgrades all stay store-authoritative.
+Human readability and physical-device feel remain UNVERIFIED (P7).
+
+Next action: iteration 49 returns to a visual/look-feel slice for Extraction Raids (the
+alternating rule; iteration 47 was visual, 48 was gameplay/UX). Keep the new availability
+grader, the static P0 gate, loot-beacons, cache-tiers and base-economy graders green, and
+record before/after screenshot evidence.
+
