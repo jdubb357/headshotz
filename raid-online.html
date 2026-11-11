@@ -269,6 +269,9 @@ html[data-reduced-motion=true] #base>.card,html[data-reduced-motion=true] #base>
 #cross::after{width:var(--reticle-tick);height:var(--reticle-spread);transform:translate(-50%,-50%);background:linear-gradient(180deg,currentColor 0 calc(50% - var(--reticle-gap)),transparent calc(50% - var(--reticle-gap)) calc(50% + var(--reticle-gap)),currentColor calc(50% + var(--reticle-gap)) 100%)}
 #cross{background:radial-gradient(circle at center,currentColor 0 var(--reticle-dot),transparent calc(var(--reticle-dot) + .5px))}
 #play[data-aiming=true] #cross{--reticle-spread:15px;--reticle-gap:2px;--reticle-tick:1px;--reticle-dot:1px;opacity:.96;transform:translate(-50%,-50%) scale(.86)}
+/* A machine under the reticle glows red; on touch this is also the auto-fire
+   trigger, matching the main game's phone control. */
+#play[data-target=true] #cross{color:var(--hs-red);opacity:1;--reticle-spread:20px;--reticle-gap:3px;filter:drop-shadow(0 0 4px rgba(255,100,95,.85))}
 html[data-high-contrast=true] #cross{--reticle:#fff;opacity:1;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 3px #000)}
 @media(prefers-reduced-motion:reduce){#cross{transition:none}}
 /* Server-confirmed outgoing hit marker. The client only renders a token the
@@ -377,7 +380,13 @@ html[data-compact-hud=true] #touch>div{pointer-events:none}
 html[data-compact-hud=true] #touch button{pointer-events:auto;margin:0;min-width:44px;min-height:44px;padding:4px 8px;font-size:calc(.68rem * var(--hud-scale));border-radius:10px;touch-action:none}
 html[data-compact-hud=true] #touchMove{display:none}
 html[data-compact-hud=true] #touch [data-look]{display:none}
-html[data-compact-hud=true] #touch>div#stick{display:block;position:fixed;left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));width:120px;height:120px;pointer-events:auto;touch-action:none;z-index:7}
+/* The pad is only a visual dock; the whole left 42% of the canvas is the
+   movement zone, and the pad jumps under whichever thumb starts there. */
+html[data-compact-hud=true] #touch>div#stick{display:block;position:fixed;left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));width:120px;height:120px;pointer-events:none;touch-action:none;z-index:7;opacity:.62;transition:opacity .14s ease}
+html[data-compact-hud=true] #touch>div#stick.dragging{opacity:1}
+html[data-compact-hud=true] #stickBase,html[data-compact-hud=true] #stickKnob{pointer-events:none}
+#stick.dragging #stickBase{border-color:rgba(99,217,242,.6);box-shadow:0 0 0 8px rgba(9,17,23,.12),0 10px 26px rgba(0,0,0,.32),0 0 16px rgba(99,217,242,.16)}
+html[data-reduced-motion=true] #touch>div#stick{transition:none}
 #touch>#stick{display:none}
 #raidMenu,#raidMenuPanel{display:none}
 html[data-compact-hud=true] #raidMenu{display:flex;align-items:center;justify-content:center;position:fixed;top:calc(4px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:9;width:44px;height:44px;min-height:44px;padding:0;border-radius:12px;background:rgba(9,17,23,.82);border:1px solid var(--hs-border);color:var(--hs-ink);font-size:20px;font-weight:700;line-height:1;backdrop-filter:blur(12px);box-shadow:0 10px 26px rgba(0,0,0,.4),0 1px 0 rgba(255,255,255,.07) inset}

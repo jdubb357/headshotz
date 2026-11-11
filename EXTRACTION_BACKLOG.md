@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (director HUD note, iteration 69). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety, metal siding ribs/rust, daylight glass (iteration 68) and slim auto-fading raid HUD (iteration 69) complete → NEXT: director note 4 viewmodel → note 5 tracer → ENEMIES (priority 4) → WORLD → AUDIO → JUICE.
+Last audited: 2026-11-11 (director controls note, iteration 70). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69) and main-game-matched controls (iteration 70) complete → NEXT: director P2 enemy leg animation → P3 map holes/overlap/collision → older note 4 viewmodel → note 5 tracer.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -9,6 +9,27 @@ only when the authoritative service and the playable raid client both support th
 behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
+
+## Director P1 — controls must match the main HeadShotz game (iteration 70, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — the playable raid client now uses the main game's input and
+camera tuning instead of its separate scheme. `raid-online.mjs` matches: `game.js:1075`
+mouse look `.0021*S.sens*zoomSens()`; `game.js:1078-1079` FOV sensitivity ratio `pow(r,.85)`;
+`game.js:1094-1101` touch pad on the left 42%, floating base under the thumb, radius 52, .14
+dead zone, `pow((n-.14)/.86,1.15)` gain, rim sprint, raw look deltas; `game.js:1102-1105`
+`applyTouchLook` dt*38 smoothing, `.0052*S.sens*zoomSens()`, 0.6 near-reticle damping,
+`aimPull`, `1+min(.5,speed/4000)` acceleration, pitch *.9; `game.js:1153-1157`
+nearAim/aimPull 5° cone, 60 m cap and dt*3.2/*.6 blend; `game.js:1277-1279` crosshair-owned
+trigger with the reticle turning red. Raid keeps its server pitch clamp ±1.2 and adapts chest
+height to machine bodies; raid has no separate aim-assist toggle, so it uses the main game's
+default-on assist. Exercise evidence (temporary harness at /tmp/hsz-cap/verify-controls3.mjs):
+844 touch moved 3.6 m while tracking and auto-firing a scout 75->15 hp -> 27 ammo (TOUCH PASS);
+1024 keyboard S+ArrowLeft moved 12.0 m while auto-firing 75->15 hp -> 28 ammo (DESKTOP PASS).
+Screenshots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png`,
+after-844-hit.png, after-844-stick.png, after-1024-fire.png. Mobile HUD and static-offline green;
+Node 1247/1247. Known gap: physical iPad/phone latency/fatigue unverified, and the 1024
+red-reticle screenshot can race the target frame (cyan reticle while the target lapses).
+Next: P2 enemy leg walk cycles.
 
 ## P0 — Static Pages offline raid (CURRENT PROJECT — do this first)
 

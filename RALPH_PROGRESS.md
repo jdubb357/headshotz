@@ -7271,3 +7271,28 @@ Next: director note 3 (auto-fade HUD / kill the quarter-frame box), then ENEMIES
 ### Honest critique
 The quarter-frame HUD, open dock and touch deck are gone and the deploy brief now dissolves into the sector; still weak: at 844 the briefing wraps to three lines and its 422px glass pill covers the upper sightline for ~5s, and the viewmodel still reads flat tan/grey with a stray line below the barrel (director note 4).
 Next: director note 4 (viewmodel), then note 5 (tracer), then ENEMIES (priority 4).
+
+## Iteration 70 — Controls match the main HeadShotz game (director note P1, 2026-11-11)
+
+### Acceptance criteria (director note P1, recorded this slice)
+1. Raid walking/look/fire use the main game's scheme and constants: mouse .0021 px/rad off FOV sensitivity, touch .0052, floating left-half stick (radius 52, .14 dead zone, ^1.15 gain, rim sprint), smoothed per-frame look, near-reticle damping, 60 m aim magnetism, and crosshair-owned fire.
+2. Phone: one thumb moves in the left 42% (pad appears under it) while the other aims and hits a moving machine; mouse/keyboard: W+turn and crosshair fire hit a moving machine.
+3. Before/after frames at 1024x720 and 844x390; mobile-hud and static-offline graders stay green; Node suite stays 1247.
+
+### Implementation
+- `raid-online.mjs` now mirrors these main-game functions/constants: `game.js:1075` mousemove look (`.0021*S.sens*zoomSens()`, clamp ±1.5 main; raid keeps server ±1.2); `game.js:1078-1079` `zoomSens()` FOV ratio `pow(r,.85)`; `game.js:1094-1101` touch pad (left 42%, floating base under the thumb, mx=52, dead zone .14, `pow((n-.14)/.86,1.15)`, sprint at `l>52*.88&&dy<-52*.5`, raw look deltas); `game.js:1102-1105` `applyTouchLook` (dt*38 smoothing, `.0052*S.sens*zoomSens()`, 0.6 damping at the reticle cone, `aimPull`, speed accel `1+min(.5,speed/4000)`, pitch *.9); `game.js:1153-1157` `nearAim/aimPull` (5° cone from crosshair, 60 m cap, chest target, dt*3.2 blend, pitch *.6 — chest height adapted to `MACHINES[kind].height*.55`). `game.js:1277-1279` crosshair-owned trigger: a machine under the reticle turns `#cross` red and `trigger.tap()` fires while it is owned.
+- `raid-online.html`: the pad is now a docked visual with `pointer-events:none`, jumps under the thumb and fades up while dragging; red target reticle.
+- Touch gestures are pointer-typed (touch only), two-thumb multitouch (either thumb can start first, matching game.js's left-42%/look gate), canceled by menus/map/communications, and `stopHeldInput` clears both axes.
+
+### Verification (scripted, /tmp/hsz-cap/verify-controls3.mjs, not committed)
+- 844 touch, look thumb then movement thumb: movement + tracking + auto-fire ran together; machine 75->15 hp at lock (ammo 30->29), final 30->27, player walked 2.81 m, scout killed -> "TOUCH PASS".
+- 1024 keyboard: S+ArrowLeft+auto-fire; machine 75->15 hp, ammo 30->28, player walked 12.76 m -> "DESKTOP PASS"; script exit 0.
+- `node --check raid-online.mjs`: SYNTAX_OK. `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- Mobile HUD green: unobstructed .9202 (1024) / .8213 (844); thumbstick moved, right drag turned, fire/reload/interact by touch, browserErrors []. If a second finger starts with look, the next left-half touch becomes movement, matching the main gate.
+- Static offline green: machine hit, deploy, moving, loot SMG, extract, credits +20, no API traffic, browserErrors [].
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png (night 04:30, red reticle + tracer), before-844.png / after-844.png (red target reticle on the scout), after-844-hit.png, after-844-stick.png (floating pad under the thumb), after-1024-fire.png.
+
+### Honest critique
+The two-thumb field test now turns the crosshair onto a moving scout and fires without releasing movement, and the pad follows the thumb; still uncertain: physical iPad/phone latency and thumb fatigue are unverified, the 1024 red-reticle still races a frame (cyan when the target lapses), and touch sprint at the rim is abrupt. Next: director P2, enemy leg walk cycles synced to speed.

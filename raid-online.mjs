@@ -20,7 +20,7 @@ import {accountUI} from './raid-account-ui.mjs';
 import {installDialogNavigation} from './raid-dialogs.mjs';
 import {settingsUI} from './raid-settings-ui.mjs';
 import {raidInput} from './raid-input.mjs';
-import {keyName,aimDelta} from './shared/raid-settings.mjs';
+import {keyName} from './shared/raid-settings.mjs';
 import {rankProgress} from './shared/raid-progression.mjs';
 import {communicationUI} from './raid-comms-ui.mjs';
 import {BOSS_PHASES,MACHINES} from './shared/raid-enemies.mjs';
@@ -487,8 +487,8 @@ for(const w of RAID_WORLDS){const o=document.createElement('option');o.value=w.i
 $('deploy').onclick=()=>run(async()=>{const generation=authGeneration,measured=selectedMatch().maxRttMs?await measureLatency():null;if(generation!==authGeneration||!profile)throw new Error('Deployment canceled after account change');const deployed=await api('deploy',{protocol:RAID_PROTOCOL,requestId:crypto.randomUUID(),mapId:$('map').value,objective:$('fieldObjective').value||null,match:selectedMatch(),latencyProof:measured?.proofId,...selectedLoadout()});if(generation!==authGeneration||!profile)return;snapshot=deployed;awaitingParty=false;start()});
 $('resume').onclick=()=>run(async()=>{const generation=authGeneration,resumed=await api('raid');if(generation!==authGeneration||!profile)return;snapshot=resumed;start()});
 let packKey='',frame=0,controlsDisabled=false;
-function sprintIntent(){return touchSprint||input.held('sprint')}
-function stopHeldInput(){aimMouse=aimTouch=aiming=false;$('aim').setAttribute('aria-pressed','false');trigger?.clear();comms.voice.quiet();if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send({type:'move',x:0,z:0,yaw,pitch,sprint:false}).catch(()=>{})}
+function sprintIntent(){return touchSprint||stickSprint||input.held('sprint')}
+function stopHeldInput(){aimMouse=aimTouch=aiming=false;cancelTouch();$('aim').setAttribute('aria-pressed','false');trigger?.clear();comms.voice.quiet();if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send({type:'move',x:0,z:0,yaw,pitch,sprint:false}).catch(()=>{})}
 function sendHeldMovement(){if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send(()=>({type:'move',...movementInput(),yaw,pitch,sprint:sprintIntent()})).catch(()=>{})}
 function start(){
  if(snapshot.protocol!==RAID_PROTOCOL)throw new Error('Client update required. Reload to reconnect safely.');
@@ -498,7 +498,16 @@ function start(){
 }
 let lastFrame=0;
 function renderFrame(time){
- const dt=Math.min(.2,(time-lastFrame)/1000||.016);lastFrame=time;aiming=!!(inRaid&&snapshot?.self.alive&&!snapshot.self.downed&&snapshot.self.weaponId&&!weaponWork&&!preferences.isModal()&&$('communications').hidden&&!mapOpen&&(aimMouse||aimTouch||input.held('aim')));$('aim').setAttribute('aria-pressed',String(aiming));$('play').dataset.aiming=String(aiming);trigger.hold('keyboard',input.held('fire'));trigger.tick();if(inRaid&&!preferences.isModal()&&$('communications').hidden&&!mapOpen){yaw-=(Number(input.held('lookRight'))-Number(input.held('lookLeft')))*dt*1.7*(aiming?.45:1);pitch=Math.max(-1.2,Math.min(1.2,pitch+(Number(input.held('lookUp'))-Number(input.held('lookDown')))*dt*1.4*(aiming?.45:1)))}
+ const dt=Math.min(.2,(time-lastFrame)/1000||.016);lastFrame=time;aiming=!!(inRaid&&snapshot?.self.alive&&!snapshot.self.downed&&snapshot.self.weaponId&&!weaponWork&&!preferences.isModal()&&$('communications').hidden&&!mapOpen&&(aimMouse||aimTouch||input.held('aim')));$('aim').setAttribute('aria-pressed',String(aiming));$('play').dataset.aiming=String(aiming);
+ applyTouchLook(dt);
+ if(inRaid&&!preferences.isModal()&&$('communications').hidden&&!mapOpen){yaw-=(Number(input.held('lookRight'))-Number(input.held('lookLeft')))*dt*1.7*(aiming?.45:1);pitch=Math.max(-1.2,Math.min(1.2,pitch+(Number(input.held('lookUp'))-Number(input.held('lookDown')))*dt*1.4*(aiming?.45:1)))}
+ // The reticle turns red over a visible machine, and the weapon fires itself
+ // while it is there — the main game's crosshair-owned trigger (primary phone
+ // control, and the same convenience on desktop).
+ const sighted=inRaid&&snapshot?.self.alive&&!preferences.isModal()&&$('communications').hidden&&!mapOpen?machineUnderCrosshair():null;
+ $('play').dataset.target=String(!!sighted);
+ if(sighted&&!input.held('fire'))trigger.tap();
+ trigger.hold('keyboard',input.held('fire'));trigger.tick();
  frame=requestAnimationFrame(renderFrame);
  if(inRaid)view?.frame(time,yaw,pitch,prediction?.frame(movementInput(),time),aiming);
  else if(profile&&!$('base').hidden){preview||=new BasePreview($('basePreview'));preview.setLoadout(previewLoadout);preview.applySettings(preferences.get());preview.frame(time,true)}
@@ -1029,8 +1038,74 @@ $('pack').addEventListener('dblclick',event=>{
  }
 });
 $('view').onclick=e=>{if(e.pointerType==='touch'||preferences.isModal()||!$('communications').hidden)return;if(inRaid){if(document.pointerLockElement!==$('view')){const request=$('view').requestPointerLock();request?.catch(()=>{notice={text:'Mouse capture was unavailable. Use arrow keys, touch aim, or click the view to retry.',until:performance.now()+5000}})}}};
-addEventListener('mousemove',e=>{if(document.pointerLockElement===$('view'))aim(e.movementX,e.movementY,.003)});
-function aim(dx,dy,multiplier){const settings=preferences.get();if(aiming)multiplier*=view?.camera.fov/settings.fov||.45;({yaw,pitch}=aimDelta({yaw,pitch},dx*multiplier,dy*multiplier,settings))}
+// Look tuning matches the main HeadShotz game (game.js mousemove / zoomSens /
+// applyTouchLook): .0021 rad/px on mouse, .0052 on touch, aim slows with the
+// field-of-view ratio, touch vertical look is damped 10%, and a faster swipe
+// turns a little quicker so a whole turn fits in one thumb flick.
+const MOUSE_LOOK=.0021,TOUCH_LOOK=.0052;
+function adsLookScale(){
+ const fov=Number(view?.camera?.fov),r=Math.tan((Number.isFinite(fov)?fov:preferences.get().fov)*Math.PI/360)/Math.tan(75*Math.PI/360);
+ return Math.pow(r,.85);
+}
+function aim(dx,dy,base,vscale=1){
+ const settings=preferences.get(),multiplier=base*settings.sensitivity*(aiming?adsLookScale():1);
+ yaw-=dx*multiplier;
+ pitch=Math.max(-1.2,Math.min(1.2,pitch-dy*multiplier*vscale*(settings.invertY?-1:1)));
+}
+addEventListener('mousemove',e=>{if(document.pointerLockElement===$('view')&&!preferences.isModal()&&$('communications').hidden&&!mapOpen)aim(e.movementX,e.movementY,MOUSE_LOOK)});
+const machineBody=m=>MACHINES[m.kind]||{height:1.3,radius:.55};
+const machineChest=m=>{const body=MACHINES[m.kind]||{height:1.3,radius:.55};return {x:m.x,y:(m.y||0)+body.height*.55,z:m.z}};
+function machinesInView(){
+ const s=snapshot?.self;if(!s?.alive||!snapshot.machines?.length)return [];
+ const eye=(s.y||0)+1.55,cp=Math.cos(pitch),fx=Math.sin(yaw)*cp,fy=Math.sin(pitch),fz=Math.cos(yaw)*cp,out=[];
+ for(const m of snapshot.machines){
+  if(!(m.hp>0))continue;
+  const c=machineChest(m),dx=c.x-s.x,dy=c.y-eye,dz=c.z-s.z,dist=Math.hypot(dx,dy,dz);
+  if(dist<.4||dist>90)continue;
+  const angle=Math.acos(Math.max(-1,Math.min(1,(dx*fx+dy*fy+dz*fz)/dist)));
+  out.push({m,dist,angle,chest:c});
+ }
+ return out;
+}
+// Aim assist mirrors game.js aimPull/nearAim on touch: within ~5° the camera is
+// gently drawn to the nearest visible machine and fine-look sensitivity eases
+// to 60% so the crosshair settles instead of shivering.
+function nearestMachine(cone){
+ let best=null;
+ for(const target of machinesInView())if(target.angle<=cone&&(!best||target.angle<best.angle))best=target;
+ return best;
+}
+function machineUnderCrosshair(){
+ let best=null;
+ for(const target of machinesInView()){
+  const tolerance=Math.atan(((machineBody(target.m).radius||.55)*1.05)/Math.max(1.4,target.dist));
+  if(target.angle<=tolerance&&(!best||target.angle<best.angle))best=target;
+ }
+ return best;
+}
+function aimPull(dt,target){
+ const s=snapshot?.self;if(!s||!target)return;
+ const dx=target.chest.x-s.x,dy=target.chest.y-((s.y||0)+1.55),dz=target.chest.z-s.z;
+ let delta=Math.atan2(dx,dz)-yaw;delta=Math.atan2(Math.sin(delta),Math.cos(delta));
+ const turn=Math.min(1,dt*3.2),lift=Math.atan2(dy,Math.hypot(dx,dz));
+ yaw+=delta*turn;
+ pitch=Math.max(-1.2,Math.min(1.2,pitch+(lift-pitch)*turn*.6));
+}
+let lookPointer=null,lookLast=null,lookBankX=0,lookBankY=0,lookPX=0,lookPY=0;
+let movePointer=null,moveStart=null,moveRadius=52,stickSprint=false;
+function applyTouchLook(dt){
+ if(!lookPX&&!lookPY)return;
+ const kept=Math.min(1,dt*38);let ax=lookPX*kept,ay=lookPY*kept;
+ lookPX-=ax;lookPY-=ay;
+ if(Math.abs(lookPX)<.05)lookPX=0;if(Math.abs(lookPY)<.05)lookPY=0;
+ if(!inRaid||preferences.isModal()||!$('communications').hidden||mapOpen)return;
+ const speed=Math.hypot(ax,ay)/Math.max(dt,.001),accel=1+Math.min(.5,speed/4000);
+ const near=nearestMachine(.09),damp=near&&near.angle<.06?.6:1;
+ aim(ax*accel,ay*accel,TOUCH_LOOK*damp,.9);
+ // game.js only magnetises enemies within 60 m for the pull; the damping is
+ // the wider under-reticle check, so a far machine does not tug the camera.
+ if(near&&near.dist<=60)aimPull(dt,near);
+}
 $('jump').onclick=()=>controlAction('jump');$('vault').onclick=()=>controlAction('vault');
 $('sprint').onclick=()=>{touchSprint=!touchSprint;$('sprint').setAttribute('aria-pressed',String(touchSprint));if(touchSprint&&inRaid&&wire&&!wire.closed)sendHeldMovement()};
 $('slide').onclick=()=>controlAction('slide');
@@ -1078,55 +1153,70 @@ for(const element of [$('fire'),$('view')]){
  for(const type of ['pointerup','pointercancel','lostpointercapture'])element.addEventListener(type,e=>trigger.release('pointer:'+e.pointerId));
 }
 addEventListener('pointerup',e=>trigger.release('pointer:'+e.pointerId));
-let look=null,lookBankX=0,lookBankY=0;
-$('view').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){e.preventDefault();look={id:e.pointerId,x:e.clientX,y:e.clientY};lookBankX=lookBankY=0;$('view').setPointerCapture(e.pointerId);view?.audio.resume()}});
-$('view').addEventListener('pointermove',e=>{if(preferences.isModal()||!$('communications').hidden){look=null;return}if(look?.id===e.pointerId){
- // iOS fires sub-pixel drift while a finger rests, which makes the crosshair
- // shiver; bank the movement and only turn once it clears a small dead zone.
- const dx=e.clientX-look.x,dy=e.clientY-look.y;look={id:e.pointerId,x:e.clientX,y:e.clientY};
- lookBankX+=dx;lookBankY+=dy;
- if(Math.abs(lookBankX)+Math.abs(lookBankY)>=1.2){aim(lookBankX,lookBankY,.006);lookBankX=lookBankY=0}
-}});
-for(const type of ['pointerup','pointercancel'])$('view').addEventListener(type,()=>{look=null;lookBankX=lookBankY=0});
-// Bottom-left virtual thumbstick for the compact touch HUD. It replaces the
-// arrow buttons with a continuous analogue vector; the same vector feeds the
-// authoritative move action, so prediction and the server see one source.
-{const pad=$('stick'),knob=$('stickKnob');
- if(pad&&knob){
-  let pointer=null,origin=null,radius=38;
-  const apply=(dx,dy)=>{
-   const length=Math.hypot(dx,dy),scale=length>radius?radius/length:1;
-   const x=dx*scale,y=dy*scale,dead=radius*.12,reach=radius-dead;
-   // A resting thumb still holds a direction; below the dead zone that is noise,
-   // not intent. Past it, ease into the rim so precision walking stays possible.
-   const magnitude=Math.max(0,Math.min(1,(Math.hypot(x,y)-dead)/reach)),gain=magnitude?Math.pow(magnitude,1.25):0;
-   const dirLength=Math.hypot(x,y)||1;
-   stickAxisX=(x/dirLength)*gain;stickAxisZ=-(y/dirLength)*gain;
-   knob.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px)';
-   sendHeldMovement();
-  };
-  const release=event=>{
-   if(pointer===null||event&&pointer!==event.pointerId)return;
-   pointer=null;origin=null;stickAxisX=0;stickAxisZ=0;
-   knob.style.transform='';sendHeldMovement();
-  };
-  pad.addEventListener('pointerdown',event=>{
-   if(!inRaid||preferences.isModal()||!$('communications').hidden||mapOpen)return;
-   event.preventDefault();pointer=event.pointerId;
-   const rect=pad.getBoundingClientRect();
-   origin={x:rect.left+rect.width/2,y:rect.top+rect.height/2};
-   radius=Math.max(28,Math.min(44,rect.width/2-8));
-   pad.setPointerCapture?.(event.pointerId);
-   apply(event.clientX-origin.x,event.clientY-origin.y);
-   view?.audio.resume();
-  });
-  pad.addEventListener('pointermove',event=>{
-   if(pointer!==event.pointerId||!origin||(event.buttons===0&&event.pointerType!=='touch'))return;
-   event.preventDefault();apply(event.clientX-origin.x,event.clientY-origin.y);
-  });
-  for(const type of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(type,release);
+// Touch controls match the main game: move anywhere on the left 42% of the
+// screen (the pad appears under the thumb) and look with the other thumb on
+// the right. Raw movement is smoothed once per frame by applyTouchLook so a
+// swipe does not step, jitter or race the animation loop.
+function touchAllowed(){return inRaid&&!preferences.isModal()&&$('communications').hidden&&!mapOpen}
+function cancelTouch(){
+ lookPointer=null;lookLast=null;lookBankX=lookBankY=0;lookPX=lookPY=0;
+ if(movePointer!==null){
+  movePointer=null;moveStart=null;stickSprint=false;stickAxisX=stickAxisZ=0;
+  const pad=$('stick');if(pad){pad.classList.remove('dragging');pad.style.left='';pad.style.top='';pad.style.bottom='';pad.style.right=''}
+  sendHeldMovement();
  }
 }
+function dockStick(){
+ const pad=$('stick');if(!pad)return;
+ pad.classList.remove('dragging');
+ for(const prop of ['left','top','bottom','right'])pad.style.removeProperty(prop);
+}
+$('view').addEventListener('pointerdown',e=>{
+ if(e.pointerType!=='touch'||!touchAllowed())return;
+ e.preventDefault();view?.audio.resume();
+ if(movePointer===null&&e.clientX<innerWidth*.42){
+  movePointer=e.pointerId;moveStart={x:e.clientX,y:e.clientY};moveRadius=52;stickSprint=false;
+  const pad=$('stick');if(pad){pad.classList.add('dragging');pad.style.left=(e.clientX-60)+'px';pad.style.top=(e.clientY-60)+'px';pad.style.bottom='auto'}
+  $('stickKnob')?.style.removeProperty('transform');stickAxisX=stickAxisZ=0;sendHeldMovement();
+  $('view').setPointerCapture?.(e.pointerId);
+ }else if(lookPointer===null){
+  lookPointer=e.pointerId;lookLast={x:e.clientX,y:e.clientY};lookBankX=lookBankY=0;
+  $('view').setPointerCapture?.(e.pointerId);
+ }
+});
+$('view').addEventListener('pointermove',e=>{
+ if(e.pointerType!=='touch')return;
+ if(e.pointerId===lookPointer&&lookLast){
+  if(!touchAllowed()){cancelTouch();return}
+  e.preventDefault();
+  // iOS fires sub-pixel drift while a finger rests; bank the movement and only
+  // queue it once it clears a small threshold. applyTouchLook then eases the
+  // queued swipe out over following frames, as the main game does.
+  lookBankX+=e.clientX-lookLast.x;lookBankY+=e.clientY-lookLast.y;lookLast={x:e.clientX,y:e.clientY};
+  if(Math.abs(lookBankX)+Math.abs(lookBankY)>=1.2){lookPX+=lookBankX;lookPY+=lookBankY;lookBankX=lookBankY=0}
+ }else if(e.pointerId===movePointer&&moveStart){
+  if(!touchAllowed()){cancelTouch();return}
+  e.preventDefault();
+  let dx=e.clientX-moveStart.x,dy=e.clientY-moveStart.y;
+  const radius=moveRadius,length=Math.hypot(dx,dy);
+  if(length>radius){dx=dx/length*radius;dy=dy/length*radius}
+  // Main-game joystick response: 14% dead zone, eased 1.15 curve, and sprint
+  // when the thumb is held at the front rim.
+  const n=Math.min(1,length/radius),dead=.14,gain=n<dead?0:Math.pow((n-dead)/(1-dead),1.15);
+  const dirLength=Math.hypot(dx,dy)||1;
+  stickAxisX=(dx/dirLength)*gain;stickAxisZ=-(dy/dirLength)*gain;
+  stickSprint=length>radius*.88&&dy<-radius*.5;
+  $('stickKnob').style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
+  sendHeldMovement();
+ }
+});
+for(const type of ['pointerup','pointercancel','lostpointercapture'])$('view').addEventListener(type,e=>{
+ if(e.pointerId===lookPointer){lookPointer=null;lookLast=null;lookBankX=lookBankY=0}
+ if(e.pointerId===movePointer){
+  movePointer=null;moveStart=null;stickSprint=false;stickAxisX=stickAxisZ=0;
+  dockStick();sendHeldMovement();
+ }
+});
 function mapBackground(world,n,compact=false){
  // Live tactical minimaps are CSS-downscaled to 80–100 px, so their per-pixel
  // grain and rooftop microdetail dissolve into visual static; the compact
