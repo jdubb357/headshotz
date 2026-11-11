@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (director controls note, iteration 70). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69) and main-game-matched controls (iteration 70) complete → NEXT: director P2 enemy leg animation → P3 map holes/overlap/collision → older note 4 viewmodel → note 5 tracer.
+Last audited: 2026-11-11 (director controls note, iteration 71). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70) and enemy leg walk cycles (iteration 71) complete → NEXT: director P3 map holes/overlap/collision → older note 4 viewmodel → note 5 tracer.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -29,7 +29,26 @@ Screenshots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png`,
 after-844-hit.png, after-844-stick.png, after-1024-fire.png. Mobile HUD and static-offline green;
 Node 1247/1247. Known gap: physical iPad/phone latency/fatigue unverified, and the 1024
 red-reticle screenshot can race the target frame (cyan reticle while the target lapses).
-Next: P2 enemy leg walk cycles.
+
+## Director P2 — enemy legs must move (iteration 71, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — hunter and Warden (overlord) legs are now articulated
+joints rather than single rigid pivots, and their gait is driven by the snapshot
+movement speed. `raid-models.mjs` builds each hunter leg as hip → knee → foot (four
+legs, diagonal phases) and each Warden leg as hip → knee (four). `updateActor` derives
+cadence `0.9 + speed*0.28` cycles/s (capped 2.3) and amplitude `0.1 + speed*0.09` rad
+(capped 0.46), flexes the knee on the swinging leg, counter-rotates the foot pad to stay
+flat, and eases a stopped machine back to a planted stance via `walkBlend`; gait phase is
+seeded from the machine's world position and `state.reduced` stops it. Exercise evidence:
+`/tmp/hsz_cap_legs/bench.mjs` (not committed) hunter frames at speed 4.2 differ by ~0.3 rad
+at hip/knee between frames 12 and 26, speed 1.1 gives a shorter stride, and 40 idle frames
+return every leg to rotation 0; gameplay capture at 1024x720 and 844x390 shows stiff legs
+before and knee flex/stride after. Screenshots: `~/headshotz-loop/shots/latest/`
+before/after 1024 and 844 plus after-1024-stride, after-844-stride and bench leg frames.
+Grader `raid-browser-machine-models` green (hunter detail 256 px changed), Mobile HUD and
+static-offline green, Node 1247/1247. Known gap: the cycle is time-driven, not foot-locked,
+so the stance foot can skate slightly; scout/flyer hover with no locomotion animation.
+Next: P3 fix the map.
 
 ## P0 — Static Pages offline raid (CURRENT PROJECT — do this first)
 

@@ -322,7 +322,22 @@ export function machineModel(kind,options={}){
   lightPart(root,0,def.core,.33,.12,!plain);
  }else if(kind==='hunter'){
   hull('box',color,0,1.2,0,.9,.55,1.25);hull('box',dark,0,1.45,.6,.65,.4,.6);
-  for(const x of [-.58,.58])for(const z of [-.45,.45]){const pivot=new THREE.Group();pivot.position.set(x,1,z);root.add(pivot);part(pivot,'box',metal,0,-.25,0,.16,.6,.18,[.2,0,x>0?-.3:.3]);part(pivot,'box',dark,0,-.7,.12,.17,.55,.16,[-.35,0,0]);part(pivot,'box',dark,0,-.95,.25,.28,.12,.4);root.userData.legs.push(pivot)}
+  // Articulated legs: hip → knee → foot. The gait cycle rotates the hip and
+  // flexes the knee so the feet step and clear the ground instead of paddling
+  // as a single rigid pendulum.
+  for(const x of [-.58,.58])for(const z of [-.45,.45]){
+   const hip=new THREE.Group();hip.position.set(x,1,z);root.add(hip);
+   part(hip,'box',metal,0,-.2,0,.18,.5,.2,[.18,0,x>0?-.28:.28]);
+   part(hip,'cylinder',dark,0,-.45,0,.11,.16,.11,[0,0,Math.PI/2]);
+   const knee=new THREE.Group();knee.position.set(0,-.46,.08);hip.add(knee);
+   part(knee,'box',metal,0,-.22,0,.16,.48,.18,[-.28,0,0]);
+   // The pad pivots independently so a lifting leg keeps its foot flat instead
+   // of dangling with a tilted ankle.
+   const foot=new THREE.Group();foot.position.set(0,-.46,.02);knee.add(foot);
+   part(foot,'box',dark,0,-.015,0,.32,.1,.46);
+   part(foot,'box',metal,0,-.02,.2,.34,.04,.12);
+   root.userData.legs.push({hip,knee,foot,baseY:1,phase:(x*z)>0?0:Math.PI});
+  }
   if(!plain){
    detail('box',metal,0,1.52,-.36,.2,.09,.5,[-.32,0,0]);
    detail('box',metal,0,1.64,-.08,.24,.1,.38,[-.5,0,0]);
@@ -365,7 +380,16 @@ export function machineModel(kind,options={}){
   }
   lightPart(root,0,def.core,.45,.16,!plain);
  }else{
-  for(const x of [-1.35,1.35])for(const z of [-.8,.8]){const pivot=new THREE.Group();pivot.position.set(x,2.2,z);root.add(pivot);part(pivot,'box',metal,0,-.8,0,.45,1.9,.5,[0,0,x*.15]);part(pivot,'box',dark,x*.15,-1.9,.2,.7,.4,1.1);root.userData.legs.push(pivot)}
+  // The Warden's four landing legs articulate at hip and knee so the heavy
+  // chassis reads as a walker rather than a sliding tower.
+  for(const x of [-1.35,1.35])for(const z of [-.8,.8]){
+   const hip=new THREE.Group();hip.position.set(x,2.2,z);root.add(hip);
+   part(hip,'box',metal,0,-.6,0,.45,1.55,.5,[0,0,x*.15]);
+   const knee=new THREE.Group();knee.position.set(x*.12,-1.35,.16);hip.add(knee);
+   part(knee,'box',dark,0,-.35,0,.72,.7,1.05);
+   part(knee,'box',metal,x*.1,-.66,.22,.8,.09,1.15);
+   root.userData.legs.push({hip,knee,baseY:2.2,phase:(x*z)>0?0:Math.PI});
+  }
   hull('box',color,0,3.2,0,2.3,2.1,1.8);hull('box',dark,0,4.65,0,1.5,.75,1.4);
   for(const x of [-1.6,1.6]){hull('box',metal,x,3.7,0,.65,.7,1.2);part(root,'cylinder',dark,x,3.75,.9,.24,1.6,.24,[Math.PI/2,0,0])}
   part(root,'ring',metal,0,def.core,1, .65,.65,.65);
@@ -551,8 +575,27 @@ export function updateActor(root,state,dt,time){
  root.rotation.y=(state.yaw||0)+(root.userData.actor==='human'?Math.PI:0);
  if(root.userData.actor==='human')animate(root,{speed,pitch:state.pitch||0,dist:10,down:!!state.downed,air:!!state.air,slide:!!state.sliding,crouch:!!state.crouch,reduced:state.reduced===true},dt);
  else if(root.userData.actor==='machine'){
-  for(const [i,leg]of root.userData.legs.entries())leg.rotation.x=Math.sin(time*7+i*Math.PI)*Math.min(.35,speed*.1);
-  const phase=root.userData.kind==='overlord'&&state.bossPhase?state.bossPhase:null,reduced=root.userData.motionReduced===true||state.reduced===true;
+  // Locomotion is driven by the snapshot speed: stride cadence and swing
+  // amplitude rise with it, each leg flexes its knee as it swings forward so
+  // the feet actually step, and the pose eases back to a planted stance when
+  // the machine stops instead of snapping upright.
+  const legs=root.userData.legs||[],reduced=root.userData.motionReduced===true||state.reduced===true;
+  if(legs.length){
+   if(root.userData.gait===undefined)root.userData.gait=((Number(state.x)||0)*.43+(Number(state.z)||0)*.71)%(Math.PI*2);
+   const walking=!reduced&&speed>.15,blendTarget=walking?1:0;
+   root.userData.walkBlend=(root.userData.walkBlend||0)+((blendTarget-(root.userData.walkBlend||0))*Math.min(1,dt*10));
+   const blend=root.userData.walkBlend,amp=Math.min(.46,.1+speed*.09)*blend;
+   if(!reduced&&walking)root.userData.gait=(root.userData.gait+dt*Math.min(2.3,.9+speed*.28)*Math.PI*2)%(Math.PI*2);
+   const gait=reduced?0:root.userData.gait;
+   for(const leg of legs){
+    const swing=Math.sin(gait+leg.phase),lift=Math.max(0,-swing);
+    leg.hip.rotation.x=swing*amp;
+    leg.hip.position.y=leg.baseY+lift*.035*blend;
+    leg.knee.rotation.x=-lift*amp*1.5;
+    if(leg.foot)leg.foot.rotation.x=-leg.knee.rotation.x*.8;
+   }
+  }
+  const phase=root.userData.kind==='overlord'&&state.bossPhase?state.bossPhase:null;
   const hitFlash=Math.max(0,(root.userData.hitFlash||0)-dt*3.6);root.userData.hitFlash=reduced?0:hitFlash;
   const core=root.userData.core;if(core){
    const strobe=!reduced&&phase==='meltdown'&&Math.sin(time*14)>0;

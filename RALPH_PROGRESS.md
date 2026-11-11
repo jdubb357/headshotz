@@ -7296,3 +7296,25 @@ Next: director note 4 (viewmodel), then note 5 (tracer), then ENEMIES (priority 
 
 ### Honest critique
 The two-thumb field test now turns the crosshair onto a moving scout and fires without releasing movement, and the pad follows the thumb; still uncertain: physical iPad/phone latency and thumb fatigue are unverified, the 1024 red-reticle still races a frame (cyan when the target lapses), and touch sprint at the rim is abrupt. Next: director P2, enemy leg walk cycles synced to speed.
+
+## Iteration 71 — Enemy legs walk (director note P2, 2026-11-11)
+
+### Acceptance criteria (director note P2, recorded this slice)
+1. Hunter and Warden machines animate a walk/run cycle whose stride cadence and swing amplitude derive from their snapshot movement speed; their legs are articulated (hip, knee, foot) rather than pivoting as one rigid piece.
+2. Machines at rest settle into a planted stance (no residual rotation); reduced-motion mode stops the gait.
+3. Two captured frames a few frames apart show materially different leg poses in the same machine.
+4. Before/after at 1024x720 and 844x390; machine-model, mobile-hud and static-offline graders stay green; Node suite passes.
+
+### Implementation
+- `raid-models.mjs`: hunter legs rebuilt as hip → knee → foot groups (twelve leg segments total), and Warden legs as hip → knee (four legs), each with diagonal trot phases so opposing pairs step together. `updateActor` drives them from the per-frame snapshot speed: cadence `0.9 + speed*0.28` cycles/s capped at 2.3, amplitude `0.1 + speed*0.09` rad capped at 0.46, knee flex on the swinging-forward leg, foot counter-rotation to keep pads flat, a slight hip lift on the planted leg, and a `walkBlend` ease so a stopped machine returns to a planted stance. Gait phase is seeded from the machine's world position so formations do not march in lockstep; `state.reduced` zeroes the gait.
+
+### Verification
+- Temporary bench at `/tmp/hsz_cap_legs/bench.mjs` (not committed) posed a hunter on a checkerboard at 1024x720: frame 12 and frame 26 at speed 4.2 produced different leg pose vectors, speed 1.1 gave a shorter stride, and 40 frames at speed 0 left all four legs at `rotation 0`.
+- Gameplay capture `game.mjs` placed a patrolling hunter across the spawn sightline under pinned 14:00 conditions; before (old single-pivot legs) and after (articulated) frames captured at 1024x720 and 844x390, 240 ms apart so the gait is at opposite phase.
+- `node --check raid-models.mjs`: SYNTAX_OK. `raid-browser-machine-models`: hunter detail changed 256 px, all classes pass, browserErrors []. Mobile HUD stayed green (.919 /.819 unobstructed). Static offline stayed green (hit, loot, extract, no API traffic). Boss grader all true. Node suite 1247/1247.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, after-1024-stride.png (bent knee, lifted foot), before-844.png / after-844.png, after-844-stride.png, bench-legs-a.png / bench-legs-b.png / bench-legs-idle.png.
+
+### Honest critique
+The hunter and Warden now read as stepping machines instead of sliding, but the gait is time-driven rather than foot-locked, so in stance the planted foot still skates slightly across the ground, and the scout/flyer still hover with no locomotion at all. The captured gameplay frames drift in lighting between runs (the offline raid reseeds its plan after capture), so pose — not brightness — is the comparison. Next: director P3, fix the map (holes, floating geometry, collision and spawn/extraction placement).
