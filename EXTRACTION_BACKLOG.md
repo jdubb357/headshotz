@@ -17,14 +17,14 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slices 1–9 COMPLETE 2026-11-10; slices 10–12 open. This project
-temporarily supersedes P1–P10 and visual-alternation
-until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
-to “do not change the hub/main menu or the original cooperative Extraction”: routing
-may change so DEPLOY opens the new client, but the old `game.js` Extraction must stay
-reachable from a clearly labeled secondary button. Do not weaken the online/Node path
-or move hosted-server authority onto an untrusted client. Offline mode is an in-page
-copy of the same `RaidService` rules.
+Status: PLAYABILITY GATE PASSED — slices 1–10 COMPLETE 2026-11-10; slices 11–12 open. The
+solo offline raid loop is verified end to end on a static-file harness. Remaining work
+is persistence (IndexedDB + localStorage fallback), after which P0's approved
+exception to “do not change the hub/main menu or the original cooperative Extraction”
+is over. For that exception: routing may change so DEPLOY opens the new client, but the
+old `game.js` Extraction must stay reachable from a clearly labeled secondary button.
+Do not weaken the online/Node path or move hosted-server authority onto an untrusted
+client. Offline mode is an in-page copy of the same `RaidService` rules.
 
 Required pieces: (a) browser store adapter replacing `node:sqlite` — in-memory first
 if that unblocks play, then IndexedDB with localStorage fallback; (b) Web Crypto shims
@@ -152,14 +152,19 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    (loot take, machine shot/hit token, call → boarding → extraction settlement with
    returned gear and 270 credits), a `claimLoot` parity test in
    `tests/raid-store-memory.test.mjs`, the static dispatch browser grader, and the
-   full suite 1219/1219. UI-level looting/extraction on static hosting is covered by
-   the slice 10 grader. Next: slice 10 static Pages playability grader.
-10. **Static Pages browser grader** — MISSING. New grader (for example
-    `tests/raid-browser-static-offline.mjs`) that serves the repo as static files
-    with no Node raid `/api`, follows DEPLOY into raid-online offline mode, and
-    asserts deploy, movement, shooting a machine, looting, and extracting succeed.
-    **This slice is the playability gate.** When it is COMPLETE, P0 no longer blocks
-    visual/look-feel work.
+   full suite 1219/1219. UI-level looting/extraction on static hosting is now covered
+   by the green slice 10 grader (iteration 39). Next: slice 11 IndexedDB persistence.
+10. **Static Pages browser grader** — COMPLETE (iteration 39). Added
+    `tests/raid-browser-static-offline.mjs`: a plain static-file server in the test
+    process (no Node raid `/api`) drives headless Chrome from the hub DEPLOY button
+    into `raid-online.html?offline=1`, then verifies deploy, `KeyW` movement, a
+    `keyF` machine hit (authoritative HP drop + machine hit token), a `KeyE` ground
+    loot take, and a `KeyE` call-exit boarding that settles to `extract` with
+    returned gear and applicable credits. World blockers/rivals are cleared only
+    around the shot fixture; interactions still run through the shipped UI and
+    in-page `RaidService`. Result: all assertions pass, no `/api` traffic, zero browser
+    errors. **The playability gate is green.** Remaining P0 work is persistence
+    (slices 11–12); after that resume visual/look-feel work.
 11. **IndexedDB persistence** — MISSING. Upgrade the in-memory adapter so guest
     profile, stash, and unfinished raid checkpoints survive a reload via IndexedDB.
 12. **localStorage fallback** — MISSING. If IndexedDB is missing or fails, persist

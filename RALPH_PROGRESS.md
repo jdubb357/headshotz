@@ -5091,3 +5091,70 @@ is claimed.
 Next action: P0 slice 10 — add `tests/raid-browser-static-offline.mjs`: serve the repo
 as static files with no Node `/api`, follow static DEPLOY into `raid-online.html?offline=1`,
 and assert deploy, movement, shooting a machine, looting, and extraction all succeed.
+
+## Iteration 39 — P0 slice 10: static Pages playability grader (gate green)
+
+### Acceptance criteria — iteration 39 (P0 slice 10)
+
+1. A browser grader serves the repo as plain static files with no Node raid `/api`.
+2. The static hub DEPLOY navigates to `raid-online.html?offline=1`, boots the offline
+   transport, and performs no `/api/` resource requests.
+3. Deploying through the real stash/deploy UI creates an authoritative deployment.
+4. The shipped movement binding changes the authoritative operator position.
+5. The shipped fire binding hits an authoritative machine: the hit token names
+   `machine` and the machine's authoritative health drops.
+6. The shipped interact binding takes a real ground-loot weapon: it enters the pack
+   and the authoritative pile no longer contains it.
+7. The shipped interact binding boards an open call exit and settlement reports
+   `extract`, returns carried items, clears the deployment, and preserves credits.
+
+### Implementation — iteration 39 (completed)
+
+- Added `tests/raid-browser-static-offline.mjs`. It spawns a plain static-file HTTP
+  server (404 for `/api/*`, path-escape guard, MIME map), then drives an isolated
+  Chrome through the real UI: hub `#raidBtn` → offline raid client; stash equip +
+  `#deploy`; `KeyW` movement; `KeyF` fire at a fixture hunter placed 4 m ahead (world
+  blockers and rivals cleared only for a deterministic line of sight, restored after);
+  a `MutationObserver` catches the transient hitmarker and asserts the authoritative
+  snapshot's hit token target; `KeyE` take on the nearest weapon-bearing ground pile;
+  and `KeyE` boarding on an opened `call` exit with a 90 s window. The exit window and
+  operator teleports are fixtures to avoid minutes of walking; every action itself
+  still goes through the shipped bindings and the in-page `RaidService`/`MemoryRaidStore`
+  on the 50 ms tick. Settles, asserts `profile.activeDeployment === null` and
+  credits ≥ 250, writes a screenshot, and requires zero browser exceptions.
+
+### Commands/results (2026-11-10)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` →
+  `{"staticDeployRouting":true,"offlineBoot":true,"deploy":true,"moving":true,
+  "machineHit":"headshot","machineHpAfter":100,"looted":"Dropped weapon · Compact SMG",
+  "extracted":"extract","itemsReturned":2,"lostItems":0,"credits":270,
+  "noApiTraffic":true,"browserErrors":[]}`. PASS.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-offline-dispatch.mjs` → still
+  green (staticOffline, probeFallback, deploy, moving, firing, noApiTraffic, tick,
+  soloUI, staticDeployRouting, classicExtraction; 0 exceptions).
+- `node --test tests/*.test.mjs` → first run flaked on a matchmaking test's
+  self-hosted fetch (`ECONNRESET`) under parallel load; `tests/matchmaking.test.mjs`
+  alone was 11/11 and the full rerun was 1219 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — static-file server with `/api/*` 404; `tests/raid-browser-static-offline.mjs`.
+2. PASS — hub DEPLOY landed on `raid-online.html?offline=1`; offline transport
+   detected; performance entries show no `/api/` resources.
+3. PASS — authoritative deployment id and finite spawn/hp/weapon in the client state.
+4. PASS — `KeyW` moved both the client snapshot and the authoritative operator > 0.5 m.
+5. PASS — authoritative hit token targeted `machine`, hitmarker rendered, machine HP
+   120 → 100.
+6. PASS — taken Compact SMG entered `self.pack` and left the authoritative pile.
+7. PASS — boarding settled `extract`, 2 items returned, 0 lost, deployment cleared,
+   credits 270.
+
+**Status:** P0 slice 10 is COMPLETE — the static Pages offline raid playability gate
+is green on the repository harness (deploy → move → shoot machine → loot → extract).
+This is browser-harness evidence, not physical-device or hosted GitHub Pages human
+acceptance; visual quality on a real phone remains subjective and unverified.
+
+Next action: P0 slice 11 — IndexedDB persistence so the guest profile, stash, and
+unfinished raid checkpoints survive a reload on static pages, with slice 12's
+localStorage fallback after it.
