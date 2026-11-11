@@ -3876,6 +3876,11 @@ function raidReturnBase(){
  try{sessionStorage.setItem('hsz_raidOpen','1')}catch(e){}
  location.href=location.pathname+'?raid=1'+(PROF?'&prof='+PROF:'');
 }
+function raidOnlineUrl(){
+ // The Node host injects the service meta; plain static Pages (GitHub) have no
+ // backend, so DEPLOY boots the in-page raid stack in offline mode there.
+ return document.querySelector('meta[name="headshotz-raid-service"]')?'raid-online.html':'raid-online.html?offline=1';
+}
 function raidOpenBase(){
  if(inGame)return;
  if(document.querySelector('meta[name="headshotz-raid-service"]')){location.replace('raid-online.html');return}
@@ -4140,7 +4145,12 @@ function raidJoinOnline(){
 function raidFinalGoBase(){raidReturnBase()}
 function raidFinalGoLobby(){location.href=location.pathname+(PROF?'?prof='+PROF:'')}
 function raidBindUI(){
- $('raidBtn')&&($('raidBtn').onclick=()=>{if(document.querySelector('meta[name="headshotz-raid-service"]'))location.href='raid-online.html';else raidOpenBase()});
+ const raidHosted=!!document.querySelector('meta[name="headshotz-raid-service"]');
+ $('raidBtn')&&($('raidBtn').onclick=()=>{location.href=raidOnlineUrl()});
+ // Static hosting has no Node raid service: DEPLOY now opens the new offline
+ // client, and this secondary control keeps the original co-op raid base reachable.
+ const legacyBtn=$('raidLegacyBtn');
+ if(legacyBtn){legacyBtn.classList.toggle('hidden',raidHosted);legacyBtn.onclick=()=>raidOpenBase()}
  $('raidClose')&&($('raidClose').onclick=()=>raidCloseBase());
  $('raidOffline')&&($('raidOffline').onclick=()=>raidDeployOffline());
  $('raidOnline')&&($('raidOnline').onclick=()=>{if(RAO&&RAO.code&&!RAO.started)raidHostBegin();else raidHostCreate()});

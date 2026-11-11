@@ -23,6 +23,10 @@ try {
   await p.wait("document.getElementById('message')?.textContent.includes('Sign in')");
   await p.evaluate("document.querySelector('[name=username]').value='hit_ui_'+Date.now().toString(36);document.querySelector('[name=password]').value='a long hit feedback browser password';document.getElementById('register').click()");
   await p.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
+  // Observe the authoritative machine-wreck request without changing the
+  // effect itself: the client must anchor it at the token's core coordinate and
+  // name the authoritative machine class.
+  await p.evaluate("(async()=>{const {RaidView}=await import('./raid-view.mjs');const original=RaidView.prototype.spawnMachineWreck;window.__wreckCalls=[];window.__wreckView=null;RaidView.prototype.spawnMachineWreck=function(x,y,z,options={}){window.__wreckCalls.push({x,y,z,kind:options.kind||'scout',scale:this.wreckScale(options.kind||'scout')});window.__wreckView=this;return original.call(this,x,y,z,options)}})()");
   const profile = await p.evaluate("fetch('/api/profile').then(r=>r.json())");
   // The recovery kit supplies a server-owned weapon for the real UI deployment.
   await p.evaluate("document.getElementById('recovery').checked=true;document.getElementById('maxRtt').value='0';document.getElementById('maxRtt').dispatchEvent(new Event('change'));document.getElementById('deploy').click()");
@@ -40,7 +44,7 @@ try {
 
   await p.evaluate("document.getElementById('view').focus()");
   // Observe local cue requests without depending on headless speaker output.
-  await p.evaluate("(async()=>{const {RaidAudio}=await import('./raid-audio.mjs');const original=RaidAudio.prototype.play;window.__hitCues=[];RaidAudio.prototype.play=function(kind,spatial){if(kind==='hit'||kind==='headshot'||kind==='kill')window.__hitCues.push(kind);return original.call(this,kind,spatial)}})()");
+  await p.evaluate("(async()=>{const {RaidAudio}=await import('./raid-audio.mjs');const original=RaidAudio.prototype.play;window.__hitCues=[];RaidAudio.prototype.play=function(kind,spatial){if(kind==='hit'||kind==='headshot'||kind==='weak'||kind==='kill')window.__hitCues.push(kind);return original.call(this,kind,spatial)}})()");
 
   await key(p, 'KeyF'); await key(p, 'KeyF', false);
   await p.wait("document.getElementById('hitmarker').classList.contains('show')");
@@ -70,6 +74,25 @@ try {
   assert.equal(after, before, 'a miss plays no outgoing hit cue');
   assert.equal(tokenAfter, tokenBefore, 'a miss does not invent a token');
 
+  // A machine core hit while its attack is charging is authoritative weak
+  // feedback: exhibit the core exactly at the horizontal aim line (hunter core
+  // 1.2 m above a 0.35 m hull, eye 1.55 m) so real client fire resolves weak.
+  raid.machines = [{id: 'hit_ui_weak_machine', kind: 'hunter', x: 0, y: 0.35, z: 4, hp: 120, maxHp: 140, state: 'windup', yaw: 0, nextAttack: 9999999999,
+    attack: {at: 9999999999, point: {x: 0, y: 0, z: 4}, radius: 1.15}}];
+  await sleep(700);
+  await key(p, 'KeyF'); await key(p, 'KeyF', false);
+  await p.wait("document.getElementById('hitmarker').dataset.kind==='weak'");
+  const weak = await hitState(p);
+  assert.equal(weak.kind, 'weak', 'a server-resolved core hit shows the weak-point marker');
+  assert.match(weak.caption, /Weak point hit · machine/);
+  await p.wait("window.__hitCues.includes('weak')");
+  assert.equal(await p.evaluate("window.__hitCues.filter(k=>k==='weak').length"), 1, 'one weak cue per authoritative token');
+  const weakToken = await p.evaluate("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.hit)");
+  assert.equal(weakToken.weak, true, 'the authoritative token marks the core hit');
+  assert.equal(weakToken.kill, false, 'weak feedback does not fabricate a kill');
+  await writeFile('/tmp/headshotz-hit-weak.png', Buffer.from((await p.command('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  await sleep(800);
+
   // A machine kill is still authoritative and uses the kill marker. The target
   // operator is purposefully removed from the ray so the machine is hit.
   raid.machines = [{id: 'hit_ui_machine', kind: 'hunter', x: 0, y: 0, z: 4, hp: 1, state: 'patrol'}];
@@ -81,6 +104,50 @@ try {
   assert.match(kill.caption, /Machine destroyed/);
   await p.wait("window.__hitCues.includes('kill')");
   assert.equal(await p.evaluate("window.__hitCues.filter(k=>k==='kill').length"), 1, 'one kill cue per authoritative token');
+  // A machine kill carries the authoritative wreck origin and class. The client
+  // spends it on a pooled hull-break burst rather than a bare disappearance.
+  const wreckOrNull = await p.evaluate("window.__wreckCalls?.[window.__wreckCalls.length-1]||null");
+  assert.ok(wreckOrNull, 'the shipped client spawns a machine wreck on a kill token');
+  const killToken = await p.evaluate("fetch('/api/raid').then(r=>r.json()).then(r=>r.self.hit)");
+  assert.equal(killToken.kind, 'hunter', 'the authoritative kill token names the machine class');
+  assert.ok(!killToken.weak, 'the body kill does not claim a weak-point hit');
+  assert.deepEqual([wreckOrNull.x, wreckOrNull.y, wreckOrNull.z], [killToken.core.x, killToken.core.y, killToken.core.z], 'the wreck is anchored at the authoritative core');
+  assert.equal(wreckOrNull.kind, 'hunter', 'the wreck uses the authoritative machine class');
+  assert.ok(wreckOrNull.scale > 1 && wreckOrNull.scale < 2, 'the hunter wreck scales above the scout baseline');
+  assert.equal(await p.evaluate("window.__wreckView.machineWreckEffects.length"), 4, 'wreck bursts use a fixed pool');
+  await sleep(120);
+  const wreckEarly = await p.evaluate("(()=>{const v=window.__wreckView,e=v.machineWreckEffects.find(s=>s.started!==null);if(!e)return null;return {flash:e.flash.visible,flashOpacity:e.flash.material.opacity,flashScale:e.flash.scale.x,ring:e.ring.visible,ringOpacity:e.ring.material.opacity,embers:e.embers.visible,smoke:e.smoke.visible,chunks:e.chunks.visible,light:e.light.visible,lightIntensity:e.light.intensity,origin:e.origin.toArray(),kind:e.kind,scale:e.scale}})()");
+  assert.ok(wreckEarly, 'the wreck burst is live after the kill');
+  assert.equal(wreckEarly.flash, true, 'the hull-break flash is rendered');
+  assert.ok(wreckEarly.flashOpacity > 0 && wreckEarly.flashScale > 0, 'the flash is visible and scaled');
+  assert.equal(wreckEarly.ring, true, 'the wreck ring renders');
+  assert.equal(wreckEarly.embers, true, 'the wreck throws embers');
+  assert.equal(wreckEarly.smoke, true, 'the wreck leaves a smoke plume');
+  assert.equal(wreckEarly.chunks, true, 'the wreck throws angular scrap');
+  assert.equal(wreckEarly.light, true, 'the wreck briefly lights its surroundings');
+  await writeFile('/tmp/headshotz-hit-wreck.png', Buffer.from((await p.command('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  // Advance only the presentation clock through the pooled effect so the wreck
+  // expiry assertion does not consume the authoritative 1.6 s hit window the
+  // following reconnect-baseline check depends on.
+  const wreckLate = await p.evaluate("(()=>{const v=window.__wreckView,e=v.machineWreckEffects.find(s=>s.started!==null);if(!e)return {expired:true,allHidden:false};v.updateCombatEffects(performance.now()+1200);return {expired:e.started===null,allHidden:v.machineWreckEffects.every(s=>!s.flash.visible&&!s.ring.visible&&!s.embers.visible&&!s.smoke.visible&&!s.chunks.visible&&!s.light.visible&&s.light.intensity===0)}})()");
+  assert.equal(wreckLate.expired, true, 'the wreck clears after its short lifetime');
+  assert.equal(wreckLate.allHidden, true, 'expired wreck layers leave nothing rendered');
+  // Reduced motion keeps a readable static flash, ring and smoke while animated
+  // embers, scrap and the pooled light wash stay suppressed.
+  const wreckReduced = await p.evaluate("(()=>{const v=window.__wreckView,normal=v.settings;v.applySettings({...normal,reduced:true});const e=v.spawnMachineWreck(v.snapshot.self.x,0.9,v.snapshot.self.z+4,{kind:'hunter'});v.updateCombatEffects(performance.now()+40);const first={flash:e.flash.visible,flashOpacity:e.flash.material.opacity,flashScale:e.flash.scale.x,ring:e.ring.visible,ringOpacity:e.ring.material.opacity,ringScale:e.ring.scale.x,smoke:e.smoke.visible,smokeOpacity:e.smoke.material.opacity,smokePos:Array.from(e.smoke.geometry.attributes.position.array.slice(0,6)),embers:e.embers.visible,chunks:e.chunks.visible,light:e.light.visible,intensity:e.light.intensity,started:e.started};v.updateCombatEffects(performance.now()+600);const second={flashScale:e.flash.scale.x,ringScale:e.ring.scale.x,smokePos:Array.from(e.smoke.geometry.attributes.position.array.slice(0,6)),started:e.started};v.applySettings(normal);return {first,second};})()");
+  assert.equal(wreckReduced.first.flash, true, 'reduced motion keeps a readable wreck flash');
+  assert.ok(wreckReduced.first.flashOpacity >= .4, 'the reduced-motion flash is not transparent');
+  assert.equal(wreckReduced.first.ring, true, 'reduced motion keeps the wreck ring');
+  assert.ok(wreckReduced.first.ringOpacity >= .5, 'the reduced-motion ring remains legible');
+  assert.equal(wreckReduced.first.smoke, true, 'reduced motion keeps a settled smoke plume');
+  assert.equal(wreckReduced.first.embers, false, 'reduced motion suppresses the animated ember field');
+  assert.equal(wreckReduced.first.chunks, false, 'reduced motion suppresses the animated scrap burst');
+  assert.equal(wreckReduced.first.light, false, 'reduced motion suppresses the wreck light wash');
+  assert.equal(wreckReduced.first.intensity, 0, 'the reduced-motion wreck light emits no intensity');
+  assert.equal(wreckReduced.first.flashScale, wreckReduced.second.flashScale, 'reduced-motion flash scale is static');
+  assert.equal(wreckReduced.first.ringScale, wreckReduced.second.ringScale, 'reduced-motion ring scale is static');
+  assert.deepEqual(wreckReduced.first.smokePos, wreckReduced.second.smokePos, 'reduced-motion smoke positions are frozen');
+  assert.equal(wreckReduced.second.started, wreckReduced.first.started, 'the reduced-motion wreck does not expire on a short frame');
 
   // Reconnect baseline: leave and resume within the server's presentation
   // window. start() must seed lastHitToken and clear the marker, so the old hit
@@ -99,6 +166,9 @@ try {
   console.log(JSON.stringify({
     bodyHitMarker: true,
     bodyCaption: body.caption,
+    weakMarker: true,
+    weakCaption: weak.caption,
+    weakCue: true,
     killMarker: true,
     killCaption: kill.caption,
     oneCuePerToken: true,
@@ -106,6 +176,7 @@ try {
     missNoToken: true,
     reconnectBaseline: true,
     screenshot: '/tmp/headshotz-hit-feedback.png',
+    weakScreenshot: '/tmp/headshotz-hit-weak.png',
     browserErrors: p.errors,
     scope: 'Isolated loopback service, one real Chrome client, arranged empty-cover geometry; the hit token is read from /api/raid. Does not prove human balance or remote/device acceptance.'
   }));

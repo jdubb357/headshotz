@@ -16,12 +16,11 @@ import {objectiveFor,createObjectiveState,advanceObjectiveState,settleObjectiveS
 import {ARTIFACTS} from '../shared/raid-sectors.mjs';
 import {createConditionPlan,conditionsAt} from '../shared/raid-conditions.mjs';
 import {RAID_PROTOCOL,RECEIPT_LIMIT,validateAction} from '../shared/raid-protocol.mjs';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from '../shared/raid-crypto.mjs';
 import {PING_TYPES} from '../shared/raid-comms.mjs';
-import {squadRole,pingSecondsFor,reviveSecondsFor,engineerPicks} from '../shared/raid-roles.mjs';
+import {squadRole,pingSecondsFor,reviveSecondsFor,engineerPicks,packCapacityFor,weightCapacityFor} from '../shared/raid-roles.mjs';
 import {blockedBetween} from './comms.mjs';
-import {randomUUID} from 'node:crypto';
-import {item,RuleError} from './store.mjs';
+import {item,RuleError} from '../shared/raid-rules.mjs';
 import {RAID_WORLDS,getWorld,blocked,clearLine,floorAt} from '../shared/raid-worlds.mjs';
 import {safePoint} from '../shared/raid-navigation.mjs';
 import {MACHINES,hazardState} from '../shared/raid-enemies.mjs';
@@ -49,7 +48,7 @@ export class RaidService {
    for(const p of r.players.values()){
     p.receipts||=[];p.lastMoveAt??=p.lastInput;if(p.weaponId===undefined)p.weaponId=[...p.equipment,...p.pack].find(it=>it.kind==='weapon')?.id??null;
     for(const it of [...p.equipment,...p.pack])if(it.kind==='weapon'&&it.loaded==null)it.loaded=it.id===p.weaponId?(p.ammo??WEAPONS[it.weapon]?.mag??30):(WEAPONS[it.weapon]?.mag||30);
-    if(!selected.has(p.account))selected.set(p.account,this.store.db.prepare('SELECT id FROM deployments WHERE account=? ORDER BY active DESC,rowid DESC LIMIT 1').get(p.account)?.id);
+    if(!selected.has(p.account))selected.set(p.account,this.store.latestDeploymentId(p.account));
     if(selected.get(p.account)===p.deploymentId)this.byAccount.set(p.account,p);
    }
   }
@@ -117,7 +116,7 @@ export class RaidService {
   // graders; the server must not invent a spawn orientation the client would
   // then contradict with its first aim packet.
   const player={account,name:this.store.profile(account).username,requestId:request.requestId,deploymentId:deployment.id,raidId:raid.id,...at,vy:0,grounded:true,pitch:0,yaw:0,hp:100,alive:true,ammo:30,nextFire:0,lastInput:this.now(),lastMoveAt:this.now(),seq:0,receipts:[],
-   equipment:deployment.equipment,pack:[],secure:[],cap:deployment.recovery?8:18,weightCap:deployment.recovery?22:40,secureCap:deployment.recovery?1:2,move:{x:0,z:0},extracted:false,team,downed:false,bleedUntil:0,hurtAt:0,sprint:false,slideUntil:0,nextSlideAt:0,vault:null,nextVault:0,
+   equipment:deployment.equipment,pack:[],secure:[],cap:packCapacityFor(role,deployment.recovery),weightCap:weightCapacityFor(role,deployment.recovery),secureCap:deployment.recovery?1:2,move:{x:0,z:0},extracted:false,team,downed:false,bleedUntil:0,hurtAt:0,sprint:false,slideUntil:0,nextSlideAt:0,vault:null,nextVault:0,
    combatVersion:raid.combatVersion||1,role:role||null,wounds:{},facts:{explorations:[],machines:0,bosses:0},objective:requestedObjective?createObjectiveState(requestedObjective,this.now()):null,protectedUntil:this.now()+5};
   const weapon=player.equipment.find(it=>it.kind==='weapon');player.weaponId=weapon.id;weapon.loaded??=WEAPONS[weapon.weapon]?.mag||30;player.weapon=weaponStats(weapon);player.ammo=weapon.loaded;
   if(player.combatVersion!==2&&player.equipment.some(it=>it.kind==='armor'))player.hp=130;
@@ -240,8 +239,8 @@ export class RaidService {
     const angle=Math.abs(Math.atan2(Math.sin(Math.atan2(q.x-p.x,q.z-p.z)-p.yaw),Math.cos(Math.atan2(q.x-p.x,q.z-p.z)-p.yaw)));
     return {target:q,hitY,valid:dist(p,q)<p.weapon.range&&angle<Math.atan2(radius,Math.max(.1,horizontal))&&hitY>=(q.y||0)&&hitY<=(q.y||0)+height&&clearLine(r.world,p.x,p.z,q.x,q.z,originY,hitY)};
    }).filter(hit=>hit.valid).sort((a,b)=>dist(p,a.target)-dist(p,b.target));
-   if(hits.length){const {target,hitY}=hits[0],before=Math.max(0,target.hp),absorbed=target.facts?.damageAbsorbed||0;p.facts.shotsHit=(p.facts.shotsHit||0)+1;if(target.account)this.damage(r,target,p.weapon.damage*(hitY-(target.y||0)>1.6?1.6:1),{source:'operator',zone:hitY-(target.y||0)>1.6?'head':hitY-(target.y||0)<.65?'leg':'body',from:{x:p.x,z:p.z}});else hitMachine(this,r,target,p.weapon.damage,hitY,p.team);p.facts.damageDealt=(p.facts.damageDealt||0)+before-Math.max(0,target.hp)+Math.max(0,(target.facts?.damageAbsorbed||0)-absorbed)}
-   recordShotHit(p,hits.map(({target,hitY})=>({target,point:{y:hitY}})),now);
+   if(hits.length){const hit=hits[0],{target,hitY}=hit,before=Math.max(0,target.hp),absorbed=target.facts?.damageAbsorbed||0;p.facts.shotsHit=(p.facts.shotsHit||0)+1;if(target.account)this.damage(r,target,p.weapon.damage*(hitY-(target.y||0)>1.6?1.6:1),{source:'operator',zone:hitY-(target.y||0)>1.6?'head':hitY-(target.y||0)<.65?'leg':'body',from:{x:p.x,z:p.z}});else{if(hitMachine(this,r,target,p.weapon.damage,hitY,p.team)?.weak)hit.weak=true}p.facts.damageDealt=(p.facts.damageDealt||0)+before-Math.max(0,target.hp)+Math.max(0,(target.facts?.damageAbsorbed||0)-absorbed)}
+   recordShotHit(p,hits.map(hit=>({target:hit.target,point:{y:hit.hitY},weak:hit.weak})),now);
    return;
   }
   if(m.type==='wear'||m.type==='removeArmor'){check(p.combatVersion===2,'Armor changes require a new deployment');changeArmor(p,m,now);return}
@@ -411,8 +410,7 @@ export class RaidService {
   for(const r of this.raids.values()){
    const live=[...r.players.values()].some(p=>p.alive||p.pending);
    if(now>r.deadline+120&&!live){
-    this.store.db.prepare('DELETE FROM raid_checkpoints WHERE id=?').run(r.id);
-    this.store.db.prepare("UPDATE inventory SET location='lost',account=NULL WHERE raid=? AND location='raid'").run(r.id);
+    this.store.purgeRaid(r.id);
     for(const p of r.players.values())if(this.byAccount.get(p.account)?.raidId===r.id)this.byAccount.delete(p.account);
     this.raids.delete(r.id);continue;
    }

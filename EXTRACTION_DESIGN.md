@@ -78,13 +78,72 @@ Observed differences and gaps:
    radius remains the single E target even when ambush salvage is nearer; ordinary loot
    ordering still applies outside the open window (iteration 18, COMPLETE in local
    presentation scope; natural extract/secure acceptance still PARTIAL).
-7. Authoritative idle look synchronization: while standing still, the client now sends
+7. Machine-enemy presentation detail: every machine hull now carries a deterministic
+   procedural worn-plating texture with seams, bolts, rust and chips; blue-lit cores gain
+   an additive halo that follows the authoritative state/phase colour, and each class
+   carries a distinct detail silhouette (scout antenna/fins, hunter dorsal ridge/mast,
+   heavy hazard chevrons/vents, flyer rotors/struts, overlord crown/vents). Weak core
+   hits additionally spawn a pooled camera-facing cyan flash/ring/spark burst and a
+   bounded tinted light at the authoritative core, anchored by the weak hit token's new
+   `core` coordinate and suppressed/turned static under reduced motion. Presentation
+   only; rules, AI, hit detection and other modes are unchanged (iterations 27 and 29,
+   COMPLETE in local presentation scope; human aesthetic acceptance UNVERIFIED).
+8. Authoritative idle look synchronization: while standing still, the client now sends
    a view-only move packet when the local view has not reached `self.yaw`/`self.pitch`,
    so the compass, minimap, threat ring and hurt arrow stay authoritative instead of
    freezing on the last movement packet. Pure idle with unchanged look still defers
    (iteration 19, COMPLETE in local authoritative scope).
-8. Encounter pacing review with human playtesters (blocked: no playtest cohort).
-9. Hosted transport/reconnect and physical-device acceptance (blocked: no deployed WAN
+9. Encounter pacing review with human playtesters (blocked: no playtest cohort).
+10. Hosted transport/reconnect and physical-device acceptance (blocked: no deployed WAN
    or devices owned/testable here).
 
 Human balance, pacing and "fun" judgments are explicitly unverified by automated tests.
+
+## Static Pages offline deployment (P0)
+
+Austin's playable target is `https://jdubb357.github.io/headshotz/`, where no Node raid
+host exists. The ordered slices in `EXTRACTION_BACKLOG.md` (P0) build a same-rules
+in-page `RaidService` for that static site while leaving `node server/main.mjs`, the
+hosted transport, and all other modes intact.
+
+Slice 1 adds `shared/raid-static.mjs`, the single transport-mode detector used before
+any raid request:
+
+- `offline=1` in the query string selects offline mode explicitly.
+- A missing `<meta name="headshotz-raid-service">` means the page was served statically
+  (only the Node host injects that meta).
+- An explicitly failed `/api/profile` probe is also treated as offline; an unchecked
+  probe does not change the decision.
+- The result carries a reason string (`offline-query`, `no-service-meta`,
+  `profile-unreachable`, `service-meta`) for later diagnostic logging.
+
+`readServiceMeta`/`browserRaidMode` read the browser document defensively, and the module
+stays DOM-free at import time so Node tests can use it directly. No routing or gameplay
+behaviour is wired to the detector yet; that lands with the in-page dispatcher and Pages
+DEPLOY routing slices.
+
+Slice 2 adds `shared/raid-crypto.mjs`, the single crypto primitive source for both
+transports: `randomUUID`/`randomBytes` prefer the Web Crypto global and fall back to
+pure JS, and `createHash('sha256')` is a synchronous FIPS 180-4 implementation whose
+digest hex matches Node's `node:crypto` byte-for-byte, so action receipt hashes and
+checkpoint hashes agree online and offline. `server/raids.mjs` and the `server/raid-*`
+modules that need randomness/hashing import it instead of `node:crypto`;
+`server/credentials.mjs` keeps Node-only scrypt password hashing. The Node host boots
+unchanged (`node server/main.mjs`, `/health/live` 200).
+
+Slice 3 adds `shared/raid-store-memory.mjs`, the `node:sqlite`-free store adapter, and
+`shared/raid-rules.mjs`, which owns the browser-safe `RuleError`/`requireRule`/`item`
+primitives re-exported by `server/rules.mjs`. The adapter's passwordless guest account
+mirrors the online starter account (250 starter credits and a bound AR, armor and two
+medkits) so the same authoritative `RaidService` can be constructed offline with a
+deployable stash.
+
+Slice 4 gives that adapter the authoritative deployment and settlement contract: owned
+gear moves from stash to raid inventory, checkpoints canonically record carried items,
+extraction returns gear with a result shaped like the online settlement (credits, XP,
+rank progression, contracts, insurance claims), and a non-extraction death returns only
+the protected pocket while dropping the rest to `lost`. `RaidService` now reads the
+active deployment / expired-raid cleanup / comm block state through store methods rather
+than SQL, with the Node store implementing the same contract, so online rules are
+unchanged. Persistence across reloads remains slices 11–12; the in-page dispatcher and
+static grader are slices 5–10.

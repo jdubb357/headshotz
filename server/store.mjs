@@ -226,6 +226,14 @@ export class RaidStore {
   let count=0;for(const row of rows)if(!retained.has(row.id)){this.settle(row.id,{outcome:'aborted'});count++}
   return count;
  }
+ latestDeploymentId(account){return this.db.prepare('SELECT id FROM deployments WHERE account=? ORDER BY active DESC,rowid DESC LIMIT 1').get(account)?.id??null}
+ purgeRaid(raidId){
+  this.transaction(()=>{
+   this.db.prepare('DELETE FROM raid_checkpoints WHERE id=?').run(raidId);
+   this.db.prepare("UPDATE inventory SET location='lost',account=NULL WHERE raid=? AND location='raid'").run(raidId);
+  });
+ }
+ blockedBetween(a,b){return !!this.db.prepare("SELECT 1 FROM comm_blocks WHERE mode='block' AND ((account=? AND target=?) OR (account=? AND target=?))").get(a,b,b,a)}
  acquireLease(owner,now=Date.now(),ttl=15000){return this.transaction(()=>{
   const lease=this.db.prepare("SELECT * FROM leases WHERE name='simulation'").get();requireRule(!lease||lease.owner===owner||lease.expires<=now,'Another simulation process owns this database');
   this.db.prepare("INSERT INTO leases VALUES('simulation',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires=excluded.expires").run(owner,now+ttl);
@@ -381,7 +389,7 @@ export class RaidStore {
     requireRule(!contractItemReserved(s,it),'Contract item reserved: deliver it or complete its contract before recycling');const quote=recyclingQuote(it);requireRule(quote,'Item cannot be recycled; use salvage directly');requireRule(quote.quantity>0,'Need at least '+quote.batchSize+' rounds of this ammunition to recycle');
     if(quote.remaining)it.quantity=quote.remaining;else s.items.splice(i,1);
     for(const child of flatten(it.attachments||[]))this.db.prepare("UPDATE inventory SET location='consumed',account=NULL WHERE id=?").run(child.id);
-    const output=bindGrant(item('material',{material:quote.material,quantity:quote.quantity}),account,!!it.grantOwner);this.addItem(s,output);this.audit(account,'item_recycled',{itemId:it.id,outputId:output.id,...quote});
+    const output=bindGrant(item('material',{material:quote.material,quantity:quote.quantity}),account,!!it.grantOwner);this.addItem(s,output);this.audit(account,'item_recycled',{itemId:it.id,outputId:output.id,...quote,condition:it.condition});
    }else if(action.type==='upgrade'){
     requireRule(['stash','bay','bench'].includes(action.upgrade),'Unknown base upgrade');const level=s.upgrades[action.upgrade],max=action.upgrade==='stash'?3:2;
     requireRule(level<max,'Upgrade already at maximum');const cost=100+50*level;requireRule(s.credits>=cost,'Insufficient credits');this.consumeMaterials(s,{steel:2+level,wire:1});spendCredits(s,cost);s.upgrades[action.upgrade]++;

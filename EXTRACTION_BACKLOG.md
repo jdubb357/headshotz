@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-10 (gameplay audit iteration 22).
+Last audited: 2026-11-11 (offline record summary iteration 56). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -9,6 +9,356 @@ only when the authoritative service and the playable raid client both support th
 behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
+
+## P0 — Static Pages offline raid (CURRENT PROJECT — do this first)
+
+Austin plays only at https://jdubb357.github.io/headshotz/ (static GitHub Pages). There
+will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that site must
+launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
+browser can complete a solo raid versus AI machines with no `/api` backend.
+
+Status: COMPLETE 2026-11-10 — all ordered slices 1–12 are COMPLETE. A solo offline
+raid versus AI machines is playable and persists on static-file/GitHub-Pages-style
+hosting with no Node raid server: deploy, move, fight machines, loot, extract, reload
+a settled profile/stash, or reload and resume an unfinished raid. IndexedDB is the
+primary browser store with a localStorage fallback. P0's approved exception to “do not
+change the hub/main menu or the original cooperative Extraction” ends here: its
+legacy entry remains reachable from a clearly labeled secondary button.
+Do not weaken the online/Node path or move hosted-server authority onto an untrusted
+client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 UX resumed 2026-11-11 (iteration 56): the base "Raid records" card now opens
+with an honest empty state and an aggregate line computed from the authoritative
+settled results — recorded deployments, extractions, deployments that ended without
+extraction, interrupted/refunded deployments, raid-reward credits, XP and machines
+destroyed. The line updates in place after each settlement and survives a reload
+from the same `results` rows the detail list renders; online and offline show it
+identically, and no rule, reward, transport or record was invented. Evidence: new
+`tests/raid-browser-static-records.mjs` (empty state → death settlement → recovery
+extraction → reload, exact parity with `careerText(api('results'))`, zero `/api`,
+zero browser errors; screenshots `/tmp/hs-records-summary.png` /
+`/tmp/hs-records-summary-extracted.png`), unit cases in `tests/raid-report.test.mjs`,
+static P0 gate and online rewards grader green.
+
+Post-P0 UX resumed 2026-11-11 (iteration 54): static offline insurance claims now
+update themselves. After a death settlement the base shows the authoritative pending
+claim copy (label, "pending", eligibility time); when the in-page RaidService tick
+resolves a claim through `MemoryRaidStore.processInsurance`, the 2 s base poll detects
+the authoritative insurance-list change and re-renders the card (for example
+"Assault Rifle · returned") without a reload, and the returned gear reappears in the
+stash. This is use of the existing authoritative store rules, not a client shortcut:
+no rules, rewards, loot, AI or `/api` transport changed and online keeps its previous
+deployment-only refresh behavior. Evidence: new
+`tests/raid-browser-static-insurance-refresh.mjs` (premium 20 debited, pending claim,
+due-only advance, returned + banked rifle, marker proves no reload, zero `/api`, zero
+browser errors; screenshots `/tmp/hs-insurance-pending.png` /
+`/tmp/hs-insurance-returned.png`), static P0 playability gate, static persistence
+grader and full suite 1240/1240. Physical-device readability remains UNVERIFIED (P7).
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 53): the active raid now paints a
+presentation-only screen-edge vitality haze from the authoritative `self.hp`/`self.downed`
+fields — invisible above 60 health, a restrained amber-red warning at 60 or below, a
+stronger red `vitalPulse` at 30 or below, and a deep maroon while downed. The overlay is
+pointer-transparent, hidden from assistive technology (the numeric HP token remains the
+text authority), spans the raid view, and freezes to a static tint under reduced motion.
+No rules, damage, loot, AI, extraction or `/api` code changed. Evidence:
+`tests/raid-browser-vital-vignette.mjs` (live hp 55 → warn, hp 25 → critical, downed,
+reduced-motion freeze, pointer-events none, 610,031-pixel isolated tint delta,
+zero browser errors; screenshots `/tmp/hs-vital-vignette-clear.png`,
+`/tmp/hs-vital-vignette-dark.png`, `/tmp/hs-vital-vignette-critical.png`), static P0
+gate green, full suite 1239/1240 with the known matchmaking ECONNRESET rerun 11/11.
+Human readability on a phone remains UNVERIFIED (P7).
+
+Post-P0 UX resumed 2026-11-11 (iteration 52): the static offline Account surface is
+passwordless and truthful. The Account dialog explains that the operator and stash
+are stored on this device and hides online-only password change, recovery-code and
+server-session controls instead of invoking routes that can only return 501. Signing
+out shows a name-only local sign-in (password hidden and non-required, register and
+recovery controls hidden, "Continue offline" submit); signing back in reuses the same
+guest account, stash and progress. Online/Node account security, cookies and
+passwords are unchanged. Evidence: new `tests/raid-browser-static-account.mjs`
+(dialog note, hidden online controls, passwordless sign-out/sign-in, reused operator
+and stash, zero `/api` traffic, zero browser errors), static P0 playability gate,
+readiness grader and full suite 1240/1240. Physical-device readability remains
+UNVERIFIED (P7).
+
+Post-P0 UX resumed 2026-11-11 (iteration 50): the static offline base Deploy card now shows a
+store-authoritative loadout readiness line. A read-only in-page `readiness` route calls the
+same `MemoryRaidStore.preflightLoadout` rules deploy uses, reporting the concrete blocker
+verbatim when the selection cannot deploy (for example "Equip one or two weapons") and the
+authoritative carried weight plus insurance premium when it can; recovery kits are ready with
+no premium, and an active deployment shows "Operator still in raid" while Resume stays
+available. The offline Deploy button is gated by that verdict and every loadout, insurance and
+recovery change refreshes it; online/Node readiness and deploy behavior are unchanged and the
+line stays hidden there. Evidence: new `tests/raid-browser-static-readiness.mjs` (blocked →
+4.0 kg ready → 14-credit insured premium → recovery → cleared → deployment → active resume,
+zero `/api` traffic, zero browser errors), `tests/raid-offline.test.mjs` readiness unit test,
+static P0 playability gate, offline dispatch/persist graders, online smoke against an isolated
+`node server/main.mjs`, and full suite 1240/1240. Physical-device feel remains UNVERIFIED (P7).
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 51): every extraction exit prop now carries
+a presentation-only signal — a coloured flare and a pooled eight-puff smoke column. The
+signal vents only while the authoritative `openAt`/`closeAt` window is scheduled or open
+and is tinted by the exit colour code (open green `0x86efbb`, inbound amber `0xd7a650`,
+contested red `0xff805b`); an inactive exit shows nothing. Animation is deterministic from
+scene time, freezes fully under reduced motion, reuses the authored `TX.smoke` texture and
+the cached procedural glow map, and never touches boarding, seats, timing, settlement, AI,
+loot or `/api`. Evidence: new `tests/raid-browser-exit-signal.mjs` (all four exits, open/
+inbound/inactive/contested states, 24 animated fields, frozen pose, shared maps, ~2,500-pixel
+isolated delta, screenshots `/tmp/hs-exit-signal-before.png` / `/tmp/hs-exit-signal.png`),
+static P0 playability gate green, zero browser errors. Human readability on a phone remains
+UNVERIFIED (P7).
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 47): authored ground-loot piles now render a
+presentation-only pickup beacon in both online and offline raids — a floating gem, additive
+halo and light wisp tinted by the pile's brightest authoritative item rarity, plus a pulsing
+accent ring. The gem hovers and turns at runtime and freezes to a still pose under reduced
+motion; the shared procedural glow map and gem geometry mean per-actor disposal does not
+release another pile's resources. Loot ownership, items, positions, settlements and the
+`/api` transport are unchanged. Evidence: new `tests/raid-browser-loot-beacons.mjs`
+(3 live piles, shared map/geometry, animation/freeze, 14,287-pixel isolated delta; before/after
+screenshots `/tmp/hs-loot-beacons-before.png` / `/tmp/hs-loot-beacons.png`), static P0
+playability gate, cache-tiers and loot-excitement graders, full suite 1239/1239. Human
+readability/feel on a phone remains UNVERIFIED (P7).
+
+Post-P0 UX resumed 2026-11-11 (iteration 48): the static offline base no longer renders an
+empty Traders card or live contract buttons that can only return 501. Offline Traders becomes
+a "Salvage exchange · offline" section that states vendor stock is online-only and lists
+held non-favorited material/valuable salvage with authoritative base sale values plus one
+liquidation action routed through `bulkSell`; offline Contracts list every authored contract
+with read-only progress and an online-only note instead of accept/deliver/claim controls.
+Online trader/contract UI is unchanged. Evidence: new
+`tests/raid-browser-static-availability.mjs` (no `/api`, notices, zero dead controls,
+seeded sale 250 → 275 credits with favorited wire retained, persisted reload, zero browser
+errors; screenshot `/tmp/hs-offline-availability.png`), static P0 playability gate and full
+suite 1239/1239 green. Physical-device feel remains UNVERIFIED (P7).
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 49): rain fronts ("Electrical squall") now
+carry a deterministic lightning sheet in Extraction Raids — the sky dome lifts cold overhead
+light with a horizon echo, the existing sun and hemisphere lights briefly brighten and cool,
+and the fog haze lifts with the strike. A pure `lightningPulse(seconds, weather)` schedules a
+full strike ~1.1 s into every 8.5 s cycle plus a softer sheet ~1.38 s, with no runtime
+randomness or extra scene light. Clear, mist, ash and reduced-motion states leave every
+flash-driven value at its neutral baseline, and all values return exactly between strikes.
+Loot, rules, snapshots and `/api` transport are unchanged. Evidence:
+`tests/raid-browser-lightning.mjs` (pulse determinism/cycle, uniform + light + tint transition,
+reduced/clear/ash gating, 57,600-pixel sky delta, before/after screenshots
+`/tmp/hs-lightning-before.png` / `/tmp/hs-lightning.png`), atmosphere grader and full unit
+suite green. Live storm readability on a phone remains UNVERIFIED (P7).
+
+Post-P0 economy resumed 2026-11-11 (iteration 46): the static offline base workshop now
+crafts, repairs, upgrades and moves stash stacks through `MemoryRaidStore.trade`, using
+the same shared recipe/repair/progression rules as the Node store; online-only traders
+and contracts stay explicit offline 501 stubs. Workshop recipe rows show owned versus
+required salvage, credit stock and human-readable blockers (rank, workbench, active
+deployment, missing stock, short credits) bound by `aria-describedby`. Evidence:
+`tests/raid-store-memory.test.mjs`/`tests/raid-offline.test.mjs` (28 targeted), new
+`tests/raid-browser-static-base-economy.mjs` (craft → upgrade → reload persisted, no
+`/api`, zero errors), static P0 playability gate and online progression grader green.
+Physical-device feel remains UNVERIFIED (P7).
+
+Post-P0 UX resumed 2026-11-11 (iteration 42): the post-raid rewards card now shows
+an authoritative settlement reconciliation line (credits before → after with raid
+reward and insurance premium/refund, XP before → after, returned vs lost items) and
+a stash capacity reminder that flags protected overflow with an actionable warning.
+Both render offline from `MemoryRaidStore` results and online from Node facts via
+shared `settlementGapText`/`stashUsageText`; the static offline grader and full suite
+stay green. Human-readable feel on Austin's phone remains UNVERIFIED (P7).
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 43): a confirmed machine kill now
+reports its authoritative core coordinate and class through the hit token, and the
+raid client renders a pooled hull-break wreck there — a warm flash, camera-facing ring,
+embers, matte smoke plume, angular scrap and a short pooled light, scaled by machine
+class and static/quiet under reduced motion. No rules, AI, damage, loot or transport
+changed; the hit-feedback browser grader and the static offline playability gate are
+green. Human readability/feel on a phone remains UNVERIFIED (P7).
+
+Post-P0 UX resumed 2026-11-11 (iteration 44): stale/partial/future-version IndexedDB
+snapshots and truncated localStorage JSON no longer block offline raid boot. The bad
+save is quarantined, a clean local profile and persistent store are created, the base
+screen explains the reset or a failed local write, and a normal reload restores the new
+operator/stash by identity. Snapshot import is atomic, the localStorage fallback restores
+degraded saves when IndexedDB loads empty, and online `/api` authority is unchanged.
+Evidence: `tests/raid-store-persist.test.mjs`, `tests/raid-browser-static-recovery.mjs`,
+static persistence/playability and offline-dispatch graders green; full suite 1233/1233.
+P7 physical-device feel of the notice remains UNVERIFIED.
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 45): the searchable salvage caches now
+render a shared procedural stamped-metal shell — rolled plate bands, recessed riveted
+panel borders, welded diagonal braces, rust blooms, chips and grime — plus corner braces,
+a lid hinge beam, front latch and a recessed lid lip, so containers read as weathered
+municipal crates instead of flat boxes. The tier accent (ground ring, lid rim strips,
+side ribbons, front badge, top seal) and the authoritative open/vault lid tint are
+unchanged; production presentation only. Evidence: `tests/raid-browser-cache-tiers.mjs`
+(5,679-pixel isolated delta, one shared shell map, before/after screenshots), static P0
+playability gate, effects resource-lifecycle grader and full suite 1233/1233 green.
+Human readability/feel on a phone remains UNVERIFIED (P7).
+
+Post-P0 look/feel resumed 2026-11-10 (iteration 41): rain fronts are now a
+camera-local 620-drop streak volume instead of a sparse sector-wide field, so the
+static offline client reads rain near the operator. Presentation-only; the P0
+playability graders and the full suite remain green.
+
+Required pieces: (a) browser store adapter replacing `node:sqlite` — in-memory first
+if that unblocks play, then IndexedDB with localStorage fallback; (b) Web Crypto shims
+for `node:crypto` imports in `server/raids.mjs` and `server/raid-*.mjs`; (c) guest/local
+session, no password, no HttpOnly cookies or scrypt offline; (d) in-page dispatcher so
+`raid-online.mjs` `api(path, body)` calls in-browser `RaidService` when `/api` is
+unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbed;
+(e) static Pages DEPLOY → `raid-online.html` offline instead of `raidOpenBase()`;
+(f) keep `node server/main.mjs` working; (g) a static-file browser grader.
+
+### Ordered slices (one per iteration, about 15–30 minutes)
+
+1. **Static-mode detection** — COMPLETE (iteration 30). `shared/raid-static.mjs` is a
+   DOM-free detector returning `{mode:'offline'|'online', reason:'offline-query'|
+   'no-service-meta'|'profile-unreachable'|'service-meta'}` from `offline=1`, the
+   absence of the Node-injected `headshotz-raid-service` meta, or an explicit failed
+   `/api/profile` probe (unchecked never forces offline). `readServiceMeta` and
+   `browserRaidMode` are browser convenience helpers; no game/routing behaviour was
+   wired in this slice by design. Evidence: `tests/raid-static-mode.test.mjs` (7/7).
+   Next: slice 2 Web Crypto shim.
+2. **Web Crypto shim** — COMPLETE (iteration 31). `shared/raid-crypto.mjs` is a
+   DOM-free, `node:*`-free wrapper exporting `randomUUID`, `randomBytes`, `randomHex`,
+   `fromHex`/`toHex` and a synchronous `createHash('sha256').update(x).digest('hex')`
+   (pure-JS SHA-256 fallback, Web Crypto `getRandomValues`/`randomUUID` when present).
+   `server/raids.mjs`, `server/raid-loot.mjs`, `server/raid-inventory.mjs` and
+   `server/raid-utilities.mjs` now import it, so those modules no longer pull
+   `node:crypto` and can load in the browser. `server/credentials.mjs` keeps
+   `scryptSync`/`timingSafeEqual` on the Node path. Evidence:
+   `tests/raid-crypto.test.mjs` (5/5: Node-oracle SHA-256 vectors incl. unicode,
+   UUIDv4 format/uniqueness, byte/hex helpers) and a real `node server/main.mjs`
+   boot (`/health/live` 200) plus targeted loot/inventory/ballistics/exits suites.
+   Next: slice 3 in-memory store skeleton.
+3. **In-memory store skeleton** — COMPLETE (iteration 32). `shared/raid-store-memory.mjs`
+   is a DOM-free, `node:*`-free adapter implementing the construction/profile
+   contract (`acquireLease`/`releaseLease`, `loadRaids`/`checkpoint`,
+   `recoverInterrupted`, `transaction`, `audit`, `state`/`save`, `profile`) with an
+   automatic passwordless guest. The guest mirrors the online starter account
+   (250 starter credits, bound AR/armor/2 meds) so deployment has gear; it has no
+   earned loot, insurance, overflow or active deployment. `shared/raid-rules.mjs`
+   owns the browser-safe `RuleError`/`requireRule`/`item` primitives, `server/rules.mjs`
+   re-exports them, and `server/raids.mjs`/`server/comms.mjs` no longer import
+   `node:crypto`. Evidence: `tests/raid-store-memory.test.mjs` 7/7, targeted raid
+   suites 130/130, full suite 1198/1198, `node server/main.mjs` `/health/live` 200.
+   Next: slice 4 in-memory deployments and checkpoints.
+4. **In-memory deployments and checkpoints** — COMPLETE (iteration 33).
+   `MemoryRaidStore.deploy/preflightLoadout/checkpoint/settle/processInsurance/results/
+   latestDeploymentId/purgeRaid/blockedBetween` now implement the authoritative store
+   contract: gear leaves the stash for raid inventory, checkpointing records every
+   carried/container item canonically, extraction returns equipment and pack, death
+   returns only the protected pocket while dropped gear becomes `lost` (so insurance can
+   resolve), credits/XP/progression/contracts match the online settlement shape, and
+   aborted deployments refund the premium. `server/raids.mjs` reaches the store through
+   `latestDeploymentId`/`purgeRaid` instead of `store.db`, and `server/comms.mjs`
+   delegates block checks to `store.blockedBetween`; `RaidStore` implements both, so the
+   Node path is unchanged. Evidence: `tests/raid-store-memory.test.mjs` 9/9 (scripted
+   deploy → move → fire → boarding → extract settles 20 credits/20 XP with gear back in
+   stash; death loses both deployed items and returns no gear; one-active-deployment
+   rejection), targeted raid suites 56/56, full suite 1200/1200.
+   No browser acceptance for offline mode yet — the dispatcher/grader slices are next.
+   Next: slice 5 guest/local session.
+5. **Guest/local session** — COMPLETE (iteration 34). `shared/raid-session.mjs` is a
+   DOM-free, `node:*`-free passwordless guest session: `createGuestSession`/`GuestSession`
+   claim the store guest (no password, token, cookie, or scrypt) and expose
+   `authenticate`/`profile`/`results`/`sessions`/`signIn`/`logout`. Its
+   `offlineSessionRoute` contract maps the client's auth/profile calls (`profile`,
+   `results`, `sessions`, `login`, `register`, `logout`) and rejects password-only
+   routes with 501; gameplay routes stay with `RaidService`. Login/register are the
+   same local operation (typed name picks or creates the guest; the password field
+   is ignored). Online register/login/cookies are unchanged. Evidence:
+   `tests/raid-session.test.mjs` 6/6 (guest profile shape, name reuse, route contract,
+   501 password routes, deployment bound to the session account), targeted 22/22,
+   full suite 1206/1206. Next: slice 6 in-page dispatcher/tick.
+6. **In-page dispatcher and 50 ms tick** — COMPLETE (iteration 35).
+   `shared/raid-offline.mjs` constructs the browser-safe `MemoryRaidStore`,
+   passwordless `GuestSession` and real `server/raids.mjs` `RaidService`, exposes
+   the hosted route subset (`worlds`, `capabilities`, `profile`/`results`/
+   `sessions`/`login`/`register`/`logout` via the slice-5 session contract,
+   `market`, `raid`, `deploy`, `action`, `social`, `voice`, `party`,
+   `matchmaking`) and starts the same 50 ms `raids.tick(0.05)` loop
+   (`startOfflineTick`, stoppable via `dispose`). Party/voice/trade/security
+   mutation routes fail explicitly with 501; matchmaking probe/measure return
+   offline proofs; GET party/voice return well-formed empty responses so the base
+   screen boots. `raid-online.mjs` selects the transport once per page:
+   `offline=1` wins, Node meta means online, otherwise one `/api/profile` probe
+   (online only for 200/401 JSON; GitHub Pages 404/non-JSON means offline) and
+   dynamically imports the dispatcher only when static. No server authority or
+   hosted fetch path changed. Evidence: `tests/raid-offline.test.mjs` 9/9
+   (source safety, routes, deploy/action, stubs, tick lifecycle) and
+   `tests/raid-browser-offline-dispatch.mjs` (static server, no `/api` traffic:
+   offline boot with/without flag, deploy, keyboard movement, fire action,
+   ticking; browser exceptions empty). Targeted 31/31; full suite 1215/1215.
+   Next: slice 7 offline multiplayer UI stub.
+7. **Stub offline multiplayer** — COMPLETE (iteration 36). Offline mode hides the
+   squad mutation controls (`#squadOnlineControls`: size, create/join/leave/ready,
+   invite code, roster, role) and hosted connection probes (`#connectionControls`:
+   mixed-size, round-trip limit, Check connection), hides the Squad/voice toggle
+   and voice controls, and states "Playing solo offline — machines are the
+   opposition." Deploy pins a neutral no-limit match, skips the latency probe and
+   sends no proof, and the interpolation/matchmaking probe paths are bypassed.
+   Online/Node pages keep every control and their probe validation. Evidence:
+   `tests/raid-browser-offline-dispatch.mjs` asserts the hidden/disabled controls
+   on both static boot paths and still deploys, moves, fires and shows zero `/api`
+   traffic; `tests/raid-browser-smoke.mjs` is green online; full suite 1215/1215.
+8. **Pages DEPLOY routing** — COMPLETE (iteration 37). `game.js` now routes the
+   hub `#raidBtn` to `raid-online.html?offline=1` when the Node-injected
+   `headshotz-raid-service` meta is absent (and to plain `raid-online.html` when it
+   is present, as before), so the GitHub Pages DEPLOY enters the in-page offline
+   raid client instead of `raidOpenBase()`. A new clearly labeled secondary control
+   (`#raidLegacyBtn`, "🧓 CLASSIC EXTRACTION · original co-op raid base") is shown
+   only on static pages and still opens the original `game.js` RAID BASE; Battle
+   Royale and all other modes are untouched. Evidence: a plain static-file server
+   (no meta, no `/api`) in `tests/raid-browser-offline-dispatch.mjs` asserts the
+   legacy control is visible, opens the classic base, and DEPLOY navigates to
+   `raid-online.html?offline=1` then boots offline; `tests/raid-browser-entry.mjs`
+   re-checks the server-marker removal path, deep-link entry and saved-session entry.
+   Full unit suite 1215/1215.
+9. **Playable combat/loot/extract wiring** — COMPLETE (iteration 38). The dispatcher
+   gameplay routes now work offline: `RAID_WORLDS` deploy, `move`, `fire` (machine
+   health/hit feedback), `take` ground loot plus container claims, `call`/`extract`
+   boarding and settlement all run through the real `RaidService` and
+   `MemoryRaidStore`. The missing store method was `claimLoot`: it now invalidates
+   rival `covered`/`pending` insurance claims exactly like `server/store.mjs`, so an
+   in-page Take no longer throws. No new endpoints or client-trusted shortcuts were
+   added. Evidence: three new dispatcher tests in `tests/raid-offline.test.mjs`
+   (loot take, machine shot/hit token, call → boarding → extraction settlement with
+   returned gear and 270 credits), a `claimLoot` parity test in
+   `tests/raid-store-memory.test.mjs`, the static dispatch browser grader, and the
+   full suite 1219/1219. UI-level looting/extraction on static hosting is now covered
+   by the green slice 10 grader (iteration 39). Next: slice 11 IndexedDB persistence.
+10. **Static Pages browser grader** — COMPLETE (iteration 39). Added
+    `tests/raid-browser-static-offline.mjs`: a plain static-file server in the test
+    process (no Node raid `/api`) drives headless Chrome from the hub DEPLOY button
+    into `raid-online.html?offline=1`, then verifies deploy, `KeyW` movement, a
+    `keyF` machine hit (authoritative HP drop + machine hit token), a `KeyE` ground
+    loot take, and a `KeyE` call-exit boarding that settles to `extract` with
+    returned gear and applicable credits. World blockers/rivals are cleared only
+    around the shot fixture; interactions still run through the shipped UI and
+    in-page `RaidService`. Result: all assertions pass, no `/api` traffic, zero browser
+    errors. **The playability gate is green.** Remaining P0 work is persistence
+    (slices 11–12); after that resume visual/look-feel work.
+11. **IndexedDB persistence** — COMPLETE. `MemoryRaidStore`
+    now snapshots its accounts, stash inventory, deployment records, insurance claims
+    and active raid checkpoints to a single async backend. `PersistentRaidStore`
+    flushes after committed transactions (debounced, with an unload flush), and
+    `shared/raid-store-idb.mjs` stores the flattened snapshot under one IndexedDB key.
+    `createPersistentOfflineRaidRuntime` hydrates before constructing `RaidService`,
+    so the static client boots with the same guest, stash and unfinished raids.
+    Evidence: `tests/raid-store-persist.test.mjs` round-trip and reload/resume tests;
+    `tests/raid-browser-static-persist.mjs` reloads a settled guest and resumes an
+    active deployment from IndexedDB with zero `/api` traffic or browser errors.
+12. **localStorage fallback** — COMPLETE. If IndexedDB is
+    absent or its first read/write fails, `createFallbackSnapshotBackend` switches to
+    `shared/raid-store-local.mjs`, which JSON-persists the same snapshot under one
+    localStorage key. Both backends are absent-safe; gameplay falls back to the
+    in-memory store if neither is available. The online Node store and cookie path
+    are untouched. Evidence: fallback/degraded-write unit tests, and a browser reload/
+    resume scenario with `window.indexedDB` removed that reports
+    `storageMode:'localStorage'`.
+
+All P0 slices are COMPLETE. Resume look/feel work (alternating with gameplay) and the
+P5–P10 items below.
 
 ## How statuses are judged
 
@@ -84,17 +434,21 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
    roles now persist through party readiness, ship in snapshots, and grant longer pings,
    3.5 s revives and keyless door picks (iteration 12), with role labels in Squad hand-off
    and downed rescue panels and the medic revive timing exposed in the control (iteration
-   13). Live hosted coordination remains unverified and the role catalog may grow. Keep
-   additions opt-in to raids.
+   13). A fourth opt-in role, Hauler, adds 4 backpack slots and 8 kg of weight capacity
+   for that deployment through the same authoritative catalog and snapshot fields
+   (iteration 26), leaving the baseline and other roles unchanged. Live hosted coordination
+   remains unverified and the role catalog may grow. Keep additions opt-in to raids.
 9. **P9 — Encounter pacing and loot-excitement** (PARTIAL, celebration COMPLETE):
    event cadence and reward feedback exist, and rarity-derived visual/audio pickup
    celebration is now server-snapshot-driven and browser-graded (iteration 10). The
    loop's addictiveness and pacing are still not proven by humans.
 10. **P10 — Persistent richer home-base economy** (COMPLETE baseline, PARTIAL depth):
-    vendors/crafting/contracts/upgrades work, and damaged equipment now offers two
-    authoritative repair grades — a cheap partial field patch (+25 condition, one wire)
-    and a full workshop restoration (100%, one steel). The relative value of those
-    choices is not yet human-evaluated.
+    vendors/crafting/contracts/upgrades work, damaged equipment offers two authoritative
+    repair grades — a cheap partial field patch (+25 condition, one wire) and a full
+    workshop restoration (100%, one steel) — and worn weapons/armor now dismantle into
+    condition-scaled steel (3/2/1) with a salvage-versus-repair comparison shown in the
+    base stash (iteration 24). The relative value of those choices is not yet
+    human-evaluated.
 
 ## 1. Loot
 
@@ -112,7 +466,9 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 - **Rarity/readability** — COMPLETE at mechanics/UI level. Item rarity and labels are
   generated and rendered; `raid-browser-accessibility.mjs` asserts the inspect dialog
   shows weapon damage and "Common". Rarity-differentiated visual excitement is PARTIAL
-  (see Game feel).
+  (see Game feel). Ground piles now carry a rarity-tinted pickup beacon — floating gem,
+  additive halo, wisp and pulsing ring, still and readable under reduced motion — proven by
+  `raid-browser-loot-beacons.mjs` (iteration 47, presentation-only; labels are unchanged).
 - **Item inspection** — COMPLETE. Inspect dialog is a native dialog with focus management
   and keyboard close; `raid-browser-accessibility.mjs`.
 - **Pickup / drop / stack / secure** — COMPLETE. `take`, `drop`, `stack`, `split` and
@@ -271,7 +627,11 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 - **Varied machines** — COMPLETE. Five classes (scout, hunter, heavy, flyer, overlord)
   with distinct stats/cues/models; common/escalation scenes.
 - **Weak points** — COMPLETE. Core/head hits deal 2.5x through `hitMachine`; body damage
-  otherwise normal; unit tests assert multipliers.
+  otherwise normal; unit tests assert multipliers. A core hit while a machine is charging
+  now staggers that attack by 0.22 s (three-hit cap), and the authoritative hit token
+  reports `weak:true`, rendered as a cyan marker, "Weak point hit · machine" caption and
+  synthesized cue (iteration 28). Evidence: `raid-encounters.test.mjs`,
+  `raid-hit-feedback.test.mjs`, `raid-audio.test.mjs`, `raid-browser-hit-feedback.mjs`.
 - **Bosses** — COMPLETE. Foundry Warden with approach/furnace/meltdown phases, phase
   hazards and HUD panel; `raid-boss.test.mjs`/`raid-browser-boss.mjs`.
 - **Loot drops** — COMPLETE. Destroyed machines drop salvage bags and fuel; elite and
@@ -311,6 +671,41 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   readiness and reconnect entries; browser account/menu/readiness/entry/network graders.
 - **Crafting** — COMPLETE. Workshop crafts medkits, optics, weapons and mods with credits/
   materials/blueprint checks; economy and progression suites and base UI.
+- **Offline workshop parity** — COMPLETE (iteration 46). Static Pages `trade` is routed to
+  `MemoryRaidStore.trade`, which implements crafting, repair grades, bench/stash upgrades,
+  sell/recycle, stack/split, favorite/preset/attachment and overflow claim with the same
+  shared catalog rules as `server/store.mjs`; traders and contracts stay online-only.
+  Recipe rows show owned salvage, credits and unavailable reasons. Evidence:
+  `tests/raid-store-memory.test.mjs`, `tests/raid-offline.test.mjs`,
+  `raid-browser-static-base-economy.mjs` (craft/upgrade/reload, no `/api`), plus the P0
+  static playability gate and online progression grader. Live-device feel UNVERIFIED.
+- **Offline availability clarity** — COMPLETE (iteration 48). On static Pages the Traders
+  card explains that vendor stock is online-only, lists held sellable material/valuable
+  salvage with authoritative sale values, and liquidates it through the same `bulkSell`
+  store rule (favorited stacks excluded; disabled while deployed). Contracts stay online-only
+  and render read-only progress plus an explanation instead of 501 action buttons. Hosted
+  trader/contract UI is unchanged. Evidence: `tests/raid-browser-static-availability.mjs`,
+  static P0 gate, full suite 1239/1239; physical-device feel still UNVERIFIED (P7).
+- **Offline deploy readiness** — COMPLETE (iteration 50). The static base's Deploy card
+  reports the in-page store's `preflightLoadout` verdict for the current selection through
+  a read-only `readiness` route (blocker verbatim, carried weight and insurance premium
+  when ready), gates the offline Deploy button, and leaves an active deployment resumable.
+  Online behavior is unchanged and the line stays hidden. Evidence:
+  `tests/raid-browser-static-readiness.mjs`, `tests/raid-offline.test.mjs`, static P0 gate,
+  isolated online smoke, full suite 1240/1240; physical-device feel UNVERIFIED (P7).
+- **Offline account surface** — COMPLETE (iteration 52). The static offline Account
+  dialog states that the operator, stash and checkpoints are device-local and hides
+  online-only password, recovery-code and session controls. Sign-out returns to a
+  name-only local sign-in (password hidden/non-required, register and recovery hidden)
+  that reuses the same guest account and stash; online account security is unchanged.
+  Evidence: `tests/raid-browser-static-account.mjs`, static P0 and readiness graders,
+  full suite 1240/1240; physical-device readability UNVERIFIED (P7).
+- **Offline insurance refresh** — COMPLETE (iteration 54). The static base's Insurance
+  claims card starts from the authoritative pending claim after a death settlement and
+  re-renders when the in-page tick's `MemoryRaidStore.processInsurance` returns,
+  destroys or invalidates it — no reload and no client rule duplication. Evidence:
+  `tests/raid-browser-static-insurance-refresh.mjs`, static P0 and persistence graders,
+  full suite 1240/1240; physical-device feel UNVERIFIED (P7).
 - **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
   tests and browser grants/loadout/rewards.
 - **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress
@@ -323,6 +718,15 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   incompatible with recovery boundary; loadout/accessibility/rewards graders.
 - **Post-raid rewards** — COMPLETE. `#rewards` card from `/api/results` plus sign-out/
   account isolation, focus/navigation and no invented state; rewards grader.
+- **Record aggregate on the base** — COMPLETE (iteration 56). The "Raid records"
+  card leads with an authoritative aggregate over the same settled results the
+  details list — recorded deployments, extractions, deployments ended without
+  extraction, interrupted/refunded deployments, raid-reward credits, XP and machine
+  destroys — with a first-run empty state, in-place update after settlement and
+  reload parity. `careerSummary`/`careerText` in `shared/raid-report.mjs` read only
+  the records the store returns; no rules, rewards or client state are invented.
+  Evidence: `tests/raid-report.test.mjs` and
+  `tests/raid-browser-static-records.mjs`, static P0 gate, online rewards grader.
 - **Equipment repair grades** — COMPLETE local (iteration 22). Damaged weapons and armor
   can receive an authoritative partial field patch (+25 condition, capped at 100, one
   wire, credits priced per restored points) or a full workshop repair (100%, one steel,
@@ -330,7 +734,8 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   both costs and starter-binding hints. `raid-progression.test.mjs` and the real-UI
   repair flow in `raid-browser-rewards.mjs` are green.
 - **Deeper human-evaluated economically meaningful choices** — PARTIAL (P10); baseline
-  systems work, but depth/values are not human-accepted.
+  systems work, and condition-scaled equipment recycling now presents a visible repair-
+  versus-scrap price, but depth/values are not human-accepted.
 
 ## 10. Multiplayer
 
@@ -380,8 +785,43 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   (iteration 21, presentation-only). Salvage cache props now carry a shared-palette tier
   accent — a ground ring, lid rim strips, side ribbons, a front badge and a top seal
   derived from the authoritative cache tier with the vault bonus — plus procedural
-  reinforcement feet and riveted lid seams (iteration 23, presentation-only). Older
-  screenshots may still show the former generic "salvage bag" wording.
+  reinforcement feet and riveted lid seams (iteration 23, presentation-only), and a
+  shared procedural stamped-metal shell with panel seams, rivet rows, welded braces,
+  rust and grime plus corner braces, hinge beam and latch (iteration 45,
+  presentation-only; one shared map, tier accents and open/vault lid tint unchanged). Base
+  stash weapon/armor rows now carry a compact condition meter, a READY/WORN/CRITICAL
+  grade chip and a severity stripe driven by the authoritative condition, alongside
+  the existing salvage/repair note (iteration 25, presentation-only). All five machine
+  classes now carry a shared procedural worn-plating map (seams, bolts, rust, chips), a
+  camera-facing additive halo on the authoritative core that follows state/phase colour,
+  and class-specific silhouette details — scout antenna/fins, hunter dorsal ridge/mast,
+  heavy hazard chevrons/vents, flyer rotor blades/struts and overlord crown/chest vents
+  (iteration 27, presentation-only; live-combat readability and human aesthetics remain
+  UNVERIFIED). Machine core hits now carry authoritative weak feedback — a cyan hit
+  marker, "Weak point hit" caption and a distinct synthesized cue — and stagger a charged
+  attack by a bounded 0.22 s (iteration 28). A weak token now also carries the resolved
+  core coordinate, and the client renders one pooled camera-facing cyan burst there —
+  additive flash sprite, expanding shock ring, 14-spark field and a bounded tinted light
+  — with no burst on a miss or a reconnect baseline and a static reduced-motion variant
+  (iteration 29, presentation-only; readable pixel delta 4,234 in an isolated frame,
+  subjective live-combat readability UNVERIFIED). Every extraction exit now vents a
+  presentation-only signal — a coloured flare and an eight-puff smoke column tinted by
+  the authoritative open/inbound/contested window state, deterministic, fully frozen
+  under reduced motion and sharing one smoke map and glow map (iteration 51,
+  presentation-only; ~2,500-pixel isolated delta in `tests/raid-browser-exit-signal.mjs`;
+  live readability on a phone UNVERIFIED). A presentation-only vitality haze now spans
+  the raid view from the authoritative hp/downed fields: transparent above 60, restrained
+  amber-red at 60 or below, pulsing red at 30 or below, and deep maroon while downed,
+  with the pulse and transition removed under reduced motion (iteration 53,
+  presentation-only; 610,031-pixel isolated tint delta; live readability UNVERIFIED).
+  An active rain front now also paints a presentation-only ground-impact ripple field —
+  one 48-instance additive ring mesh on a 1.7 s authored cycle, seated 3 cm above the
+  authoritative terrain and re-anchored to the operator each frame, deterministic per
+  scene time, hidden under clear weather/reduced motion and disposed with the front
+  (iteration 55, presentation-only; 4,903-pixel isolated delta in
+  `tests/raid-browser-rain-splashes.mjs`; live phone readability UNVERIFIED).
+  Older screenshots may still show the former edge-on ring or the generic "salvage bag"
+  wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.
@@ -710,12 +1150,70 @@ smoke browser run stays green. Honest gap: subjective in-world readability (espe
 authored night/rain front), human aesthetic acceptance, hosted multiplayer and
 physical-device behavior remain UNVERIFIED; do not claim P5/P6/P7 or human acceptance.
 
+## Completed in iteration 24
+
+**Condition-aware equipment salvage versus repair.** COMPLETE in local authoritative/UI
+scope. `shared/raid-inventory.mjs` now exports `equipmentSalvage(condition)` and the shared
+`recyclingQuote` uses it for weapons/armor: three steel at 75–100% condition, two at
+50–74%, and one below 50%. The base stash labels worn equipment recycling with the
+condition and gives each damaged weapon/armor row a small comparison note (steel and its
+sale credits versus the full-repair credit/material cost), while the store records the
+input condition in the `item_recycled` audit. Repair grades, sale values, favorites,
+contract reservations and starter-ownership binding are unchanged. Evidence: a new case in
+`tests/raid-recycling.test.mjs` asserts the thresholds, quote quantities, store recycle
+output and audited condition; `tests/raid-browser-recycling.mjs` injects one 60-condition
+weapon into a real account, asserts the production base row
+(`Recycle · 2 steel · worn 60%`, repair/scrap note, title), recycles it and counts 2 steel,
+with `conditionScaledEquipmentSalvage:true`, `repairVersusScrapNote:true`,
+`browserErrors:[]`; the targeted grants/progression suites are green (27/27); the full
+unit suite is 1174 pass / 1 intermittent `matchmaking.test.mjs` ECONNRESET (isolated
+rerun 11/11). Honest gap: whether the presented repair-versus-scrap trade is fun or
+well-balanced is human-evaluated and UNVERIFIED; hosted/device behavior also remains
+UNVERIFIED (P5/P6/P7), so P10 depth stays PARTIAL.
+
+## Completed in iteration 26
+
+**P8 — Fourth opt-in squad role: Hauler.** COMPLETE in local authoritative/UI scope.
+`shared/raid-roles.mjs` extends the role catalog with `hauler` (`+4` backpack slots,
+`+8` kg weight capacity) and exports `packCapacityFor(role,recovery)` /
+`weightCapacityFor(role,recovery)`, which fall back to the 18/40 baseline (8/22 with a
+recovery kit) for invalid or roleless deployments and add the hauler bonus only to
+haulers. `server/raids.mjs` derives each deployed operator's `cap`/`weightCap` from those
+helpers, so the existing snapshot/HUD cleanup counters, pickup weight checks and
+give/hand-off capacity rules all consume the bonus without a second rule source. The
+party role select gains a Hauler option with its bonus title; the roster summary and
+field role label use the catalog automatically. Evidence: `tests/raid-squad-roles.test.mjs`
+asserts the four-role catalog, baseline vs hauler capacities for recovery/standard kits,
+and a deployed hauler party (`cap:12`, `weightCap:30` beside a baseline scout `8/22`);
+`tests/raid-browser-squad-roles.mjs` verifies the real select has the new option/title
+alongside the existing authority behavior and reports no browser errors. Honest gap:
+live hosted role coordination and human balance/role-depth acceptance remain UNVERIFIED.
+
+## Completed in iteration 28
+
+**Weak-point stagger and authoritative weak-hit feedback.** COMPLETE in local
+authoritative/UI scope. `server/raid-ai.mjs` exports `STAGGER={delay:.22,hits:3}` and
+`hitMachine` now delays an inbound attack and its matching telegraph expiry on a living
+machine's exposed-core hit, capped at three per charge, resetting on resolution or the
+next charge; the function returns `{weak,staggered,killed}` for both ballistics and legacy
+shot paths. `server/raid-hit-feedback.mjs` accepts the weak outcome and emits an optional
+`weak:true` token only for machine hits, leaving all other tokens unchanged.
+`shared/raid-hit-presentation.mjs` captions it "Weak point hit"; `raid-online.mjs` renders
+a cyan `[data-kind=weak]` marker and `raid-audio.mjs` plays a distinct synthesized weak cue
+(and still prefers the kill cue). Evidence: targeted suites are green (57/57 across
+encounters/hit-feedback/audio/ballistics and 19/19 game-loop), the real-Chrome grader reports
+`weakMarker:true`, `weakCaption:"Weak point hit · machine"`, one weak cue, a server token
+with `weak:true` and `kill:false`, and `browserErrors:[]`, with screenshots
+`/tmp/headshotz-hit-weak.png` and `/tmp/headshotz-hit-feedback.png`. Honest gap: subjective
+weak-point readability and attack-tell fairness under live human combat remain UNVERIFIED,
+as do hosted transport and physical-device behavior (P5/P6/P7).
+
 ## Later items (not yet closed)
 
 - P5 human balance and potency evaluation (BLOCKED: needs human playtesters).
 - P6 hosted multi-client transport/reconnect acceptance (BLOCKED: needs deployed transport/WAN).
 - P7 touch/pointer physical-device acceptance (BLOCKED: needs physical devices).
-- P8 live hosted role coordination and further role depth; local roles/link-up slices complete.
+- P8 live hosted role coordination; local Scout/Medic/Engineer/Hauler roles and link-up slices are complete.
 - P9 celebration implemented; encounter pacing/human excitement still UNVERIFIED.
 - P10 richer persistent progression/economy depth.
 

@@ -1,7 +1,7 @@
-import {randomUUID} from 'node:crypto';
+import {randomUUID} from '../shared/raid-crypto.mjs';
 import {requireRule as check} from './rules.mjs';
 import {REPORT_REASONS,VOICE_SCOPES,hearsSquad,hearsProximity} from '../shared/raid-comms.mjs';
-export function blockedBetween(store,a,b){return !!store.db.prepare("SELECT 1 FROM comm_blocks WHERE mode='block' AND ((account=? AND target=?) OR (account=? AND target=?))").get(a,b,b,a)}
+export function blockedBetween(store,a,b){return store.blockedBetween(a,b)}
 export class RaidComms {
  constructor(store,raids,{now=()=>Date.now()/1000,iceServers=[]}={}){this.store=store;this.raids=raids;this.now=now;this.iceServers=iceServers;this.presences=new Map();this.messages=new Map();this.cursor=0}
  revoke(account,sessionKey){const p=this.presences.get(account);if(p&&(!sessionKey||p.sessionKey===sessionKey)){this.presences.delete(account);this.messages.delete(account)}for(const [id,list]of this.messages)this.messages.set(id,list.filter(m=>m.from!==account))}

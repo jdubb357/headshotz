@@ -6,8 +6,9 @@ import {getWorld,terrainHeightAt,blocked} from './shared/raid-worlds.mjs';
 import {mapConditions} from './shared/raid-enemies.mjs';
 import {exitColor} from './shared/raid-exits.mjs';
 import {buildEnvironment} from './raid-environment.mjs';
+import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 import {TX,makeRaidHorizon} from './gfx.js';
-import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,disposeOwned,part,beaconModel} from './raid-models.mjs';
+import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,updateExitSignal,disposeOwned,part,beaconModel} from './raid-models.mjs';
 
 import {RaidAudio,spatialCue} from './raid-audio.mjs';
 export {RaidAudio} from './raid-audio.mjs';
@@ -17,7 +18,7 @@ const bobReach=speed=>.016*Math.max(0,Math.min(1,speed));
 // Gradient sky dome: cheap, no textures, follows the authoritative sky/sun so
 // dusk, night and storm fronts read as depth instead of a flat clear colour.
 const SKY_VERT=`varying vec3 vD;void main(){vD=position;vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}`;
-const SKY_FRAG=`uniform vec3 top,mid,bot,sunCol;uniform vec3 sunDir;uniform float sunI;uniform float uScatter;uniform vec3 cloudCol;uniform float uCloud;uniform float cloudTime;varying vec3 vD;
+const SKY_FRAG=`uniform vec3 top,mid,bot,sunCol;uniform vec3 sunDir;uniform float sunI;uniform float uScatter;uniform vec3 cloudCol;uniform float uCloud;uniform float cloudTime;uniform vec3 flashCol;uniform float uFlash;varying vec3 vD;
 #include <common>
 // Deterministic value-noise fbm used for the overcast deck. There is no runtime
 // randomness: the same view direction and cloud time always paint the same deck.
@@ -47,11 +48,27 @@ void main(){vec3 d=normalize(vD);float y=d.y;
  // night and storm fronts stay cold while golden hour gains a soft hush of light.
  float horizon=exp(-abs(y)*3.2);
  c+=sunCol*uScatter*(pow(s,4.)*.20+pow(s,1.8)*horizon*.15+horizon*.045);
+ // Lightning sheet: a cold, cloud-lit lift concentrated overhead with a faint
+ // horizon echo. uFlash is a deterministic storm-front pulse (zero otherwise),
+ // so the flash never paints under clear skies or reduced motion.
+ c+=flashCol*uFlash*(.45+.55*smoothstep(-.15,.75,y)+smoothstep(.0,.4,horizon)*.32);
  gl_FragColor=vec4(c,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
 const SKY_MID=new THREE.Color(),CLOUD_MIX=new THREE.Color(),CLOUD_WHITE=new THREE.Color(0xffffff);
+// Deterministic storm-front lightning envelope. Clear weather and reduced
+// motion never flash; a rain front gets one sharp strike per 8.5 s cycle plus
+// a softer follow-up sheet. Pure function of scene time so the same deployment
+// paints the same flashes on every client, with no runtime randomness.
+export function lightningPulse(seconds,weather){
+ if(weather!=='rain')return 0;
+ const cycle=8.5,phase=Math.max(0,seconds||0)%cycle,age=phase-1.1;
+ const strike=Math.exp(-Math.pow(age/.06,2));
+ const tail=age>0?Math.max(0,.38*(1-age/1.45)):0;
+ const sheet=Math.exp(-Math.pow((age-.3)/.075,2))*.55;
+ return Math.min(1,strike+tail+sheet);
+}
 // Presentation-only frame composite drawn after the world and weapon overlay:
 // a soft edge vignette with fine, temporally animated film grain. Both effects
 // are procedural, resolution-independent and never touch gameplay state.
@@ -154,13 +171,46 @@ function muzzleFlashTexture(profile){
  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
  return texture;
 }
-function writeRain(arr,i,d){const k=i*6;arr[k]=d.x;arr[k+1]=d.y;arr[k+2]=d.z;arr[k+3]=d.x+Math.sin(d.y*.23+i)*.07;arr[k+4]=d.y-d.len;arr[k+5]=d.z}
+// Rain drops are authored as camera-local offsets (ox/oz around the operator,
+// y in world space), so a small streak field fills the near view instead of
+// scattering a handful of drops over the whole 1,440 m sector.
+function writeRain(arr,i,d,ax,az){const k=i*6,x=ax+d.ox,y=d.y,z=az+d.oz;arr[k]=x;arr[k+1]=y;arr[k+2]=z;arr[k+3]=x+d.len*.28;arr[k+4]=y-d.len;arr[k+5]=z}
+// Ground-impact ripple for an active rain front. One soft ring texture paints
+// every splash; the instanced quad is laid flat and only its matrix and tint
+// change per frame, so the effect never allocates on the render path. This is
+// presentation-only and does not read or write any snapshot field.
+let RAIN_RIPPLE_TEXTURE=null;
+function rainRippleTexture(){
+ if(RAIN_RIPPLE_TEXTURE)return RAIN_RIPPLE_TEXTURE;
+ const size=64,center=size/2;
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+ const context=canvas.getContext('2d');
+ const gradient=context.createRadialGradient(center,center,0,center,center,center);
+ // Transparent core so the ripple reads as a ring rather than a filled patch,
+ // a faint inner wash for the splash lip, and a bright crest that fades out.
+ gradient.addColorStop(0,'rgba(255,255,255,0)');
+ gradient.addColorStop(.5,'rgba(255,255,255,.08)');
+ gradient.addColorStop(.78,'rgba(255,255,255,.82)');
+ gradient.addColorStop(1,'rgba(255,255,255,0)');
+ context.fillStyle=gradient;context.fillRect(0,0,size,size);
+ RAIN_RIPPLE_TEXTURE=new THREE.CanvasTexture(canvas);RAIN_RIPPLE_TEXTURE.colorSpace=THREE.SRGBColorSpace;
+ return RAIN_RIPPLE_TEXTURE;
+}
+const SPLASH_FLAT_QUAT=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
+const SPLASH_MATRIX=new THREE.Matrix4(),SPLASH_POSITION=new THREE.Vector3(),SPLASH_SCALE=new THREE.Vector3(),SPLASH_TINT=new THREE.Color();
+function lootAccent(data){
+ // The brightest authoritative item rarity in the pile picks the pickup accent.
+ // Presentation only: items, ownership and values are untouched.
+ let rarity=0;
+ for(const item of data.items||[])rarity=Math.max(rarity,Math.max(0,Math.min(5,Math.trunc(Number(item.rarity)||0))));
+ return lootTierColor(rarity);
+}
 export class RaidView {
  constructor(canvas){
   this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
-  this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;
+  this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;this.splashes=this.splashesState=this.splashesAnchor=null;
 
-  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.shotCursor=0;this.blastCursor=0;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
+  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
  // Presentation-only view-model feel: damped look sway, locomotion bob and a
  // transient additive muzzle glow. None of these feed snapshot, ballistics or
  // prediction.
@@ -187,9 +237,9 @@ export class RaidView {
   // Directional shadow targets are not reachable from scene disposal, so release
   // the sun's map explicitly or each restart leaves one texture on the GPU.
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.lastWeapon=null;this.lastTime=0;
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.lastTime=0;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
-  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
+  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
@@ -202,7 +252,7 @@ export class RaidView {
   for(const target of this.bloomTargets||[])target.dispose();
   this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.audio.reset();
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
@@ -210,7 +260,7 @@ export class RaidView {
   this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.environmentRoot=buildEnvironment(this.world);this.scene.add(this.environmentRoot);this.glowPoints=this.environmentRoot.userData.raidGlowPoints||null;this.glowPools=this.environmentRoot.userData.raidGlowPools||null;this.wetReflections=this.environmentRoot.userData.raidWetReflections||null;this.terrainMaterial=this.environmentRoot.userData.raidTerrainMaterial||null;this.wetMaterials=[];this.windMaterials=this.environmentRoot.userData.raidWindMaterials||[];if(this.terrainMaterial)this.wetMaterials.push(this.terrainMaterial);for(const material of this.environmentRoot.userData.materials?.values()||[])if(material.userData.raidDry&&material.userData.raidWet>0)this.wetMaterials.push(material);const initialWeather=snapshot.conditions?.weather||'clear';this.wetness=initialWeather==='rain'?1:initialWeather==='mist'?.35:0;this.applyWetness();this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
   const selfWeapon=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId&&it.kind==='weapon')?.weapon??null;
   this.selfActor=humanModel(snapshot.self.name||'Operator','raid_local_operator',true,selfWeapon);if(this.selfActor.userData.tag)this.selfActor.userData.tag.visible=false;this.selfActor.visible=this.viewMode!=='first';this.scene.add(this.selfActor);
-  this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.sun,this.sun.target);this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
+  this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.sun,this.sun.target);this.hemiNeutral=new THREE.Color(0xe5f2ed);this.flashColor=new THREE.Color(0xcfe4ff);this.sunBase=null;this.hemiBase=null;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
   this.environmentTarget=null;this.buildSky(snapshot);
   this.overlay=new THREE.Scene();this.weaponCamera=new THREE.PerspectiveCamera(58,1,.02,8);
   // Three-point first-person lighting: a warm key (sun through the scene), a
@@ -233,7 +283,8 @@ export class RaidView {
   const put=(key,type,data)=>{
    live.add(key);let entry=this.actors.get(key);
    if(!entry){
-    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):propModel(type,type==='door'?(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b):data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062,type==='cache'?{tier:(Number(data.tier)||0)+(data.vault?1:0)}:undefined);
+    const props=type==='cache'?propModel('cache',0xd8b062,{tier:(Number(data.tier)||0)+(data.vault?1:0)}):type==='loot'?propModel('loot',lootAccent(data)):propModel(type,type==='door'?(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b):data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
+    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):props;
     // Armories carry purple beams; extraction beacons stay cyan/green. This
     // gives both objectives a silhouette above the dense district roofs.
     if(type==='cache'&&data.weaponCache){model.userData.beacon=beaconModel(0xe07adf,18);model.add(model.userData.beacon)}
@@ -405,7 +456,7 @@ export class RaidView {
  }
  buildSky(snapshot=null){
   const skyMaterial=new THREE.ShaderMaterial({vertexShader:SKY_VERT,fragmentShader:SKY_FRAG,side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
-   uniforms:{top:{value:new THREE.Color(0x16233d)},mid:{value:new THREE.Color(0x2c3a4e)},bot:{value:new THREE.Color(0x7a766b)},sunDir:{value:new THREE.Vector3(0,1,0)},sunCol:{value:new THREE.Color(0xffd7a5)},sunI:{value:1},uScatter:{value:0},cloudCol:{value:new THREE.Color(0x8b8b86)},uCloud:{value:0},cloudTime:{value:0}}});
+   uniforms:{top:{value:new THREE.Color(0x16233d)},mid:{value:new THREE.Color(0x2c3a4e)},bot:{value:new THREE.Color(0x7a766b)},sunDir:{value:new THREE.Vector3(0,1,0)},sunCol:{value:new THREE.Color(0xffd7a5)},sunI:{value:1},uScatter:{value:0},cloudCol:{value:new THREE.Color(0x8b8b86)},uCloud:{value:0},cloudTime:{value:0},flashCol:{value:new THREE.Color(0xcfe4ff)},uFlash:{value:0}}});
   skyMaterial.userData.raidOwned=true;
   const skyGeometry=new THREE.SphereGeometry(195*this.viewScale,32,16);skyGeometry.userData.raidOwned=true;
   this.skyDome=new THREE.Mesh(skyGeometry,skyMaterial);this.skyDome.renderOrder=-11;this.skyDome.frustumCulled=false;this.scene.add(this.skyDome);
@@ -441,17 +492,48 @@ export class RaidView {
   this.motes=new THREE.Points(geometry,material);this.motes.frustumCulled=false;this.motes.renderOrder=2;this.motes.visible=false;this.scene.add(this.motes);
   this.motesState={offsets,phases};this.motesAnchor=null;
  }
+ buildRainSplashes(){
+  // 48 flat additive rings cycle through a 1.7 s impact rhythm inside a 12 m
+  // disc around the operator. Phases and offsets are authored once and never
+  // randomised, so a replay at the same scene time paints the same field.
+  if(this.splashes){this.scene.remove(this.splashes);disposeOwned(this.splashes)}
+  const count=48;
+  const geometry=new THREE.PlaneGeometry(1,1);geometry.userData.raidOwned=true;
+  const material=new THREE.MeshBasicMaterial({map:rainRippleTexture(),color:0xffffff,transparent:true,opacity:.6,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:true});
+  material.userData.raidOwned=true;
+  const mesh=new THREE.InstancedMesh(geometry,material,count);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const offsets=new Float32Array(count*2),phases=new Float32Array(count);
+  for(let i=0;i<count;i++){
+   const angle=i*2.399963;const radius=Math.sqrt(((i*.6180339)+.11)%1)*12;
+   offsets[i*2]=Math.cos(angle)*radius;offsets[i*2+1]=Math.sin(angle)*radius;
+   phases[i]=(i*.371)%1;
+  }
+  for(let i=0;i<count;i++)mesh.setColorAt(i,SPLASH_TINT.setRGB(0,0,0));
+  mesh.instanceColor.needsUpdate=true;
+  mesh.visible=false;mesh.frustumCulled=false;mesh.renderOrder=2;
+  mesh.userData.raidRainSplashes=true;
+  this.scene.add(mesh);
+  this.splashes=mesh;this.splashesState={offsets,phases,count,period:1.7,radius:12,baseScale:.18,growReach:1.45};
+  this.splashesAnchor=new THREE.Vector3();
+ }
  // Rain renders as additive motion streaks, snow/ash/mist as soft particles. The
  // mesh is rebuilt when the front changes so the flat Points cloud of the old
  // renderer does not hide the weather the snapshot announces.
  buildWeather(kind){
+  if(this.splashes&&kind!=='rain'){this.scene.remove(this.splashes);disposeOwned(this.splashes);this.splashes=null;this.splashesState=null;this.splashesAnchor=null}
   if(this.weather){this.scene.remove(this.weather);disposeOwned(this.weather);this.weather=null}
   const size=this.world?.size||1440;
   let geometry,material,state;
   if(kind==='rain'){
-   const count=360,arr=new Float32Array(count*6),colors=new Float32Array(count*6);
-   state={mode:'rain',drops:[]};
-   for(let i=0;i<count;i++){const d={x:(Math.random()-.5)*size,z:(Math.random()-.5)*size,y:Math.random()*38,len:1.1+Math.random()*1.9,speed:16+Math.random()*10};state.drops.push(d);writeRain(arr,i,d);
+   const count=620,arr=new Float32Array(count*6),colors=new Float32Array(count*6);
+   // The volume is a 46 m wide, 32 m tall local box: dense enough that a phone
+   // screen sees streaks at first-person range, sparse enough to stay one draw
+   // call and one small buffer. Drops drift with the wind so the authored slant
+   // stays coherent as they fall.
+   state={mode:'rain',drops:[],radius:23,ceiling:32,wind:.9};
+   for(let i=0;i<count;i++){const d={ox:(Math.random()-.5)*state.radius*2,oz:(Math.random()-.5)*state.radius*2,y:Math.random()*state.ceiling,len:1.15+Math.random()*2,speed:16+Math.random()*10,drift:.55+Math.random()*.75};
+    state.drops.push(d);writeRain(arr,i,d,0,0);
     colors[i*6]=.55;colors[i*6+1]=.7;colors[i*6+2]=.86;colors[i*6+3]=.06;colors[i*6+4]=.1;colors[i*6+5]=.16}
    geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(arr,3));geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
    material=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false,fog:true});
@@ -466,6 +548,7 @@ export class RaidView {
   }
   geometry.userData.raidOwned=true;material.userData.raidOwned=true;
   this.weather.renderOrder=3;this.weather.frustumCulled=false;this.scene.add(this.weather);
+  if(kind==='rain')this.buildRainSplashes();
   this.weatherKind=kind;this.weatherState=state;
  }
  createEnvironmentMap(target){
@@ -481,7 +564,13 @@ export class RaidView {
   texture.dispose();pmrem.dispose();return renderTarget;
  }
  updateEnvironment(blend){
-  const target=this.environmentTarget;if(!target)return;const weather=this.snapshot?.conditions?.weather||'clear';this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(24*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(125*this.viewScale*target.visibility-this.scene.fog.far)*blend;this.sun.intensity+=(target.light-this.sun.intensity)*blend;this.hemi.intensity+=(target.ambient-this.hemi.intensity)*blend;
+  const target=this.environmentTarget;if(!target)return;const weather=this.snapshot?.conditions?.weather||'clear';this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(24*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(125*this.viewScale*target.visibility-this.scene.fog.far)*blend;
+  // Keep the smoothed ambient baselines separate from the transient lightning
+  // boost applied in updateAtmosphere, so a storm flash never warps the weather
+  // blend itself.
+  this.sunBase=this.sunBase==null?target.light:this.sunBase+(target.light-this.sunBase)*blend;
+  this.hemiBase=this.hemiBase==null?target.ambient:this.hemiBase+(target.ambient-this.hemiBase)*blend;
+  this.sun.intensity=this.sunBase;this.hemi.intensity=this.hemiBase;
   const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
   if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;u.top.value.lerp(target.sky,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
    // Cloud deck follows the weather: thin haze by day, heavy low ceiling under
@@ -504,11 +593,25 @@ export class RaidView {
  this.updateWetReflections();
  }
  updateAtmosphere(seconds){
-  const reduced=!!this.settings?.reduced;
+  const reduced=!!this.settings?.reduced,weather=this.snapshot?.conditions?.weather||'clear';
   // The cloud deck drifts with scene time but is frozen for reduced motion, so
   // the sky shares the same stillness guarantee as the dust field.
-  if(this.skyDome)this.skyDome.material.uniforms.cloudTime.value=reduced?0:seconds;
-  if(!this.motes)return;const weather=this.snapshot?.conditions?.weather||'clear',target=this.environmentTarget;
+  if(this.skyDome){
+   const uniforms=this.skyDome.material.uniforms;
+   uniforms.cloudTime.value=reduced?0:seconds;
+   // Rain-front lightning is a deterministic presentation pulse: it lifts the
+   // sky sheet and briefly brightens the existing sun/hemisphere lights, so no
+   // extra scene light is allocated and clear weather stays unchanged.
+   const flash=reduced?0:lightningPulse(seconds,weather);
+   uniforms.uFlash.value=flash;
+   if(this.sun)this.sun.intensity=(this.sunBase??this.environmentTarget?.light??0)+flash*2.6;
+   if(this.hemi)this.hemi.intensity=(this.hemiBase??this.environmentTarget?.ambient??0)+flash*1.4;
+   if(this.hemi&&this.hemiNeutral&&this.flashColor)this.hemi.color.copy(this.hemiNeutral).lerp(this.flashColor,flash*.6);
+   // A storm sheet also lifts the horizon haze, so distant silhouettes flash
+   // with the sky instead of staying a flat fog band beneath it.
+   if(this.scene?.fog&&this.flashColor)this.scene.fog.color.lerp(this.flashColor,flash*.3);
+  }
+  if(!this.motes)return;const target=this.environmentTarget;
   const visible=!reduced&&!!target&&target.daylight>.25&&weather==='clear';
   this.motes.visible=visible;this.motes.material.opacity=visible?Math.min(.55,.5*target.daylight):0;
   if(!visible)return;
@@ -522,6 +625,35 @@ export class RaidView {
    position[k+2]=this.motesAnchor.z+offsets[k+2]+Math.sin(seconds*.23+p*.7)*.55;
   }
   this.motes.geometry.attributes.position.needsUpdate=true;
+ }
+ updateRainSplashes(seconds,pose){
+  const mesh=this.splashes;if(!mesh||!pose)return;
+  // Splashes exist only for a live rain front and vanish under reduced motion,
+  // matching the streak field's own visibility rule.
+  const reduced=!!this.settings?.reduced;
+  const visible=!reduced&&this.snapshot?.conditions?.weather==='rain'&&this.weather?.visible!==false;
+  mesh.visible=visible;
+  if(!visible)return;
+  const state=this.splashesState,offsets=state.offsets,phases=state.phases;
+  this.splashesAnchor.set(pose.x||0,pose.y||0,pose.z||0);
+  const anchor=this.splashesAnchor;
+  for(let i=0;i<state.count;i++){
+   // Local splash cycle: each ring starts small and bright, expands, and fades
+   // to nothing before its next impact. No runtime randomness is consumed.
+   const local=((seconds/state.period)+phases[i])%1;
+   const x=anchor.x+offsets[i*2],z=anchor.z+offsets[i*2+1];
+   const y=terrainHeightAt(this.world,x,z)+.03;
+   const grow=state.baseScale+state.growReach*local;
+   const fade=(1-local)*(1-local);
+   SPLASH_POSITION.set(x,y,z);
+   SPLASH_SCALE.set(grow,grow,1);
+   SPLASH_MATRIX.compose(SPLASH_POSITION,SPLASH_FLAT_QUAT,SPLASH_SCALE);
+   mesh.setMatrixAt(i,SPLASH_MATRIX);
+   SPLASH_TINT.setRGB(.46*fade,.64*fade,.82*fade);
+   mesh.setColorAt(i,SPLASH_TINT);
+  }
+  mesh.instanceMatrix.needsUpdate=true;
+  mesh.instanceColor.needsUpdate=true;
  }
  // Weather-responsive PBR: a passing rain front wets roofs, roads and terrain
  // toward a lower roughness / higher environmental sheen; every material keeps
@@ -659,6 +791,62 @@ export class RaidView {
    scorchGeometry.userData.raidOwned=scorchMaterial.userData.raidOwned=true;scorchMaterial.userData.raidOwnTexture=true;shockTexture.userData.raidOwned=true;
    const scorch=new THREE.Mesh(scorchGeometry,scorchMaterial);scorch.rotation.x=-Math.PI/2;scorch.visible=false;scorch.renderOrder=2;this.scene.add(scorch);
    this.blastEffects.push({ring,flash,embers,plume,chunks,scorch,light,scorchStarted:null,scorchDuration,plumeCount,chunkCount,chunkVelocities:new Float32Array(chunkCount*3),started:null,origin:new THREE.Vector3(),velocities:new Float32Array(emberCount*3),emberCount,blastDuration,radius:3});
+  }
+  // Weak-point core bursts use a small fixed pool so repeated core hits never
+  // allocate. Each burst is a camera-facing additive flash, an expanding cyan
+  // shock ring, a short spark field and one pooled tinted light, anchored to
+  // the authoritative position carried by the hit token.
+  const burstCount=4,burstSparks=14;
+  for(let i=0;i<burstCount;i++){
+   const flashMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xd9fbff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   flashMaterial.userData.raidOwned=true;
+   const flash=new THREE.Sprite(flashMaterial);flash.visible=false;flash.frustumCulled=false;flash.renderOrder=5;this.scene.add(flash);
+   // A thick, saturated cyan tube keeps the ring legible over bright terrain
+   // instead of washing out to a thin white line under additive blending.
+   const ringGeometry=new THREE.TorusGeometry(1,.06,4,40);
+   const ringMaterial=new THREE.MeshBasicMaterial({color:0x46d9ff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+   ringGeometry.userData.raidOwned=ringMaterial.userData.raidOwned=true;
+   const ring=new THREE.Mesh(ringGeometry,ringMaterial);ring.rotation.x=Math.PI/2;ring.visible=false;ring.frustumCulled=false;ring.renderOrder=4;this.scene.add(ring);
+   const sparkGeometry=new THREE.BufferGeometry();sparkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(burstSparks*3),3));
+   const sparkMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xbdf7ff,size:.1,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+   sparkGeometry.userData.raidOwned=sparkMaterial.userData.raidOwned=true;
+   const sparks=new THREE.Points(sparkGeometry,sparkMaterial);sparks.visible=false;sparks.frustumCulled=false;sparks.renderOrder=5;this.scene.add(sparks);
+   // Cyan illumination is scoped to this burst only; it hides at rest and is
+   // reused in place, so sustained core hits neither allocate lights nor leave
+   // the scene brighter between hits.
+   const light=new THREE.PointLight(0x8fe9ff,0,9,2);light.visible=false;light.castShadow=false;light.userData.raidOwned=true;light.userData.raidCoreBurstLight=true;this.scene.add(light);
+   this.coreBurstEffects.push({flash,ring,sparks,light,started:null,origin:new THREE.Vector3(),velocities:new Float32Array(burstSparks*3),burstSparks,duration:520});
+  }
+  // Machine destruction uses its own small pool: a warm hull-break flash, an
+  // expanding ring, a rising smoke plume, embers, angular scrap and one pooled
+  // light. It is anchored to the authoritative machine core coordinate carried
+  // by the kill token, so a destroyed machine leaves a readable wreck instead
+  // of disappearing between snapshots. Presentation-only; no rules changed.
+  const wreckCount=4,wreckEmbers=20,wreckChunks=10,wreckSmoke=18,wreckDuration=1100;
+  for(let i=0;i<wreckCount;i++){
+   const flashMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xfff0d2,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   flashMaterial.userData.raidOwned=true;
+   const flash=new THREE.Sprite(flashMaterial);flash.visible=false;flash.frustumCulled=false;flash.renderOrder=5;this.scene.add(flash);
+   const ringGeometry=new THREE.TorusGeometry(1,.08,5,40);
+   const ringMaterial=new THREE.MeshBasicMaterial({color:0xff8a4a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+   ringGeometry.userData.raidOwned=ringMaterial.userData.raidOwned=true;
+   const ring=new THREE.Mesh(ringGeometry,ringMaterial);ring.rotation.x=Math.PI/2;ring.visible=false;ring.frustumCulled=false;ring.renderOrder=4;this.scene.add(ring);
+   const emberGeometry=new THREE.BufferGeometry();emberGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckEmbers*3),3));
+   const emberMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xffb05e,size:.18,transparent:true,opacity:0,vertexColors:false,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+   emberGeometry.userData.raidOwned=emberMaterial.userData.raidOwned=true;
+   const embers=new THREE.Points(emberGeometry,emberMaterial);embers.visible=false;embers.frustumCulled=false;embers.renderOrder=4;this.scene.add(embers);
+   // Matte powder smoke keeps the wreck readable after the flash: it rises and
+   // widens toward the hull silhouette rather than blooming additively.
+   const smokeGeometry=new THREE.BufferGeometry();smokeGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckSmoke*3),3));
+   const smokeMaterial=new THREE.PointsMaterial({map:TX.smoke,color:0x9a978d,size:.3,transparent:true,opacity:0,depthWrite:false,depthTest:true,sizeAttenuation:true,blending:THREE.NormalBlending,fog:true});
+   smokeGeometry.userData.raidOwned=smokeMaterial.userData.raidOwned=true;
+   const smoke=new THREE.Points(smokeGeometry,smokeMaterial);smoke.visible=false;smoke.frustumCulled=false;smoke.renderOrder=3;this.scene.add(smoke);
+   const chunkGeometry=new THREE.BufferGeometry();chunkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckChunks*3),3));
+   const chunkMaterial=new THREE.PointsMaterial({map:chipTexture,color:0x6f6658,size:.26,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true,alphaTest:.15});
+   chunkGeometry.userData.raidOwned=chunkMaterial.userData.raidOwned=true;
+   const chunks=new THREE.Points(chunkGeometry,chunkMaterial);chunks.visible=false;chunks.frustumCulled=false;chunks.renderOrder=4;this.scene.add(chunks);
+   const light=new THREE.PointLight(0xff9a3c,0,20,2);light.visible=false;light.castShadow=false;light.userData.raidOwned=true;light.userData.raidWreckLight=true;this.scene.add(light);
+   this.machineWreckEffects.push({flash,ring,embers,smoke,chunks,light,started:null,kind:'scout',scale:1,origin:new THREE.Vector3(),emberVelocities:new Float32Array(wreckEmbers*3),chunkVelocities:new Float32Array(wreckChunks*3),emberCount:wreckEmbers,chunkCount:wreckChunks,smokeCount:wreckSmoke,duration:wreckDuration});
   }
  }
  shotSurface(x,y,z,terrainHit){
@@ -832,6 +1020,96 @@ export class RaidView {
    this.shotMuzzleLight.visible=lightActive;
    this.shotMuzzleLight.intensity=lightActive?(1-lightAge/120)*3.2:0;
   }
+  // Weak-point bursts follow the authoritative core coordinate from the hit
+  // token. Reduced motion keeps a readable static flash and ring while the
+  // spark field and tinted light wash are suppressed.
+  for(const effect of this.coreBurstEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started,fade=Math.max(0,1-age/effect.duration);
+   if(age>=effect.duration){effect.started=null;effect.flash.visible=false;effect.ring.visible=false;effect.sparks.visible=false;effect.light.visible=false;effect.light.intensity=0;continue}
+   const expand=Math.min(1,age/260),flare=Math.max(0,1-age/140),seconds=age/1000;
+   effect.flash.visible=true;effect.flash.position.copy(effect.origin);
+   effect.flash.material.opacity=reduced?.55:flare*.9;
+   effect.flash.scale.setScalar(reduced?1.02:.42+.34*expand);
+   effect.ring.visible=true;effect.ring.position.copy(effect.origin);
+   // Billboard the shock ring toward the camera. A fixed horizontal torus is
+   // seen edge-on from the first-person eye line and reads as a stray line, not
+   // as an expanding burst around the core.
+   effect.ring.quaternion.copy(this.camera.quaternion);
+   effect.ring.scale.setScalar(reduced?.78:1.35*(.32+1.05*expand));
+   effect.ring.material.opacity=reduced?.72:Math.min(1,fade*1.45)*.8;
+   effect.ring.position.y+=.02;
+   effect.sparks.visible=!reduced;effect.sparks.position.copy(effect.origin);
+   effect.sparks.material.opacity=reduced?0:Math.min(1,fade*1.6)*.95;
+   effect.sparks.material.size=reduced?0:.1+.05*fade;
+   const sparks=effect.sparks.geometry.attributes.position.array;
+   for(let i=0;i<effect.burstSparks;i++){
+    const k=i*3;
+    sparks[k]=effect.velocities[k]*seconds;
+    sparks[k+1]=Math.max(-.02,effect.velocities[k+1]*seconds-4.9*seconds*seconds);
+    sparks[k+2]=effect.velocities[k+2]*seconds;
+   }
+   effect.sparks.geometry.attributes.position.needsUpdate=true;
+   effect.light.visible=!reduced&&flare>0;effect.light.position.copy(effect.origin);
+   effect.light.intensity=reduced?0:flare*2.6;
+  }
+  // Machine wreck bursts: warm flash and expanding ring up front, then embers,
+  // smoke, scrap and a short light wash. Reduced motion freezes the flash, ring
+  // and smoke in place, hides the animated spark fields and turns the light off.
+  for(const effect of this.machineWreckEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started;
+   if(age>=effect.duration){
+    effect.started=null;effect.flash.visible=false;effect.ring.visible=false;effect.embers.visible=false;effect.smoke.visible=false;effect.chunks.visible=false;effect.light.visible=false;effect.light.intensity=0;continue;
+   }
+   const expand=Math.min(1,age/460),flare=Math.max(0,1-age/280),fade=Math.max(0,1-age/effect.duration),seconds=age/1000,scale=effect.scale;
+   effect.flash.visible=!reduced?flare>0:true;effect.flash.position.copy(effect.origin);
+   effect.flash.material.opacity=reduced?.5:flare*.95;
+   effect.flash.scale.setScalar((reduced?1.35:.8+1.1*expand)*scale);
+   effect.ring.visible=true;effect.ring.position.copy(effect.origin);
+   effect.ring.quaternion.copy(this.camera.quaternion);
+   effect.ring.scale.setScalar((reduced?.85:1.15*(.3+1.1*expand))*scale);
+   effect.ring.material.opacity=reduced?.68:Math.min(1,fade*1.5)*.72;
+   effect.embers.visible=!reduced;effect.embers.position.copy(effect.origin);
+   effect.embers.material.opacity=reduced?0:Math.min(1,fade*1.6)*.92;
+   effect.embers.material.size=(.18+.08*fade)*Math.max(.6,Math.min(1.6,scale));
+   const embers=effect.embers.geometry.attributes.position.array;
+   for(let i=0;i<effect.emberCount;i++){
+    const k=i*3;
+    embers[k]=effect.emberVelocities[k]*seconds;
+    embers[k+1]=Math.max(-.1,effect.emberVelocities[k+1]*seconds-4.9*seconds*seconds);
+    embers[k+2]=effect.emberVelocities[k+2]*seconds;
+   }
+   effect.embers.geometry.attributes.position.needsUpdate=true;
+   effect.smoke.visible=true;effect.smoke.position.copy(effect.origin);effect.smoke.position.y+=.35*scale;
+   effect.smoke.material.opacity=reduced?.3:Math.min(1,fade*1.35)*.34;
+   effect.smoke.material.size=(reduced?.28:(.16+.24*expand))*scale;
+   const smoke=effect.smoke.geometry.attributes.position.array;
+   for(let i=0;i<effect.smokeCount;i++){
+    const k=i*3,angle=i*2.399963;
+    if(reduced){smoke[k]=Math.cos(angle)*.85*scale;smoke[k+1]=(.2+(i%5)*.24)*scale;smoke[k+2]=Math.sin(angle)*.85*scale}
+    else{
+     const spread=.55*scale+expand*.9*scale*(.35+((i%4)/3)*.65);
+     smoke[k]=Math.cos(angle)*spread+Math.sin(seconds*.9+i)*.16*scale;
+     smoke[k+1]=(.18+expand*(.4+((i%5)/4)*1.15))*scale;
+     smoke[k+2]=Math.sin(angle)*spread+Math.cos(seconds*.75+i)*.16*scale;
+    }
+   }
+   effect.smoke.geometry.attributes.position.needsUpdate=true;
+   effect.chunks.visible=!reduced;effect.chunks.position.copy(effect.origin);effect.chunks.position.y+=.15*scale;
+   effect.chunks.material.opacity=reduced?0:Math.min(1,(1-age/effect.duration)*1.7)*.88;
+   effect.chunks.material.size=(.26-.08*Math.min(1,age/effect.duration))*Math.max(.6,Math.min(1.6,scale));
+   const chunks=effect.chunks.geometry.attributes.position.array;
+   for(let i=0;i<effect.chunkCount;i++){
+    const k=i*3;
+    chunks[k]=effect.chunkVelocities[k]*seconds;
+    chunks[k+1]=Math.max(-.1,effect.chunkVelocities[k+1]*seconds-4.9*seconds*seconds);
+    chunks[k+2]=effect.chunkVelocities[k+2]*seconds;
+   }
+   effect.chunks.geometry.attributes.position.needsUpdate=true;
+   effect.light.visible=!reduced&&flare>0;effect.light.position.copy(effect.origin);effect.light.position.y+=.5*scale;
+   effect.light.intensity=reduced?0:flare*90*scale;
+  }
   for(const effect of this.blastEffects){
    if(effect.started===null)continue;
    const age=now-effect.started,fade=Math.max(0,1-age/effect.blastDuration);
@@ -923,6 +1201,49 @@ export class RaidView {
   // The ground scorch outlives the flash so the attack leaves readable damage.
   effect.scorchStarted=effect.started;effect.scorch.position.set(x,(y||0)+.025,z);effect.scorch.visible=true;
  }
+ // Visual scale per machine class. A scout's hull break stays compact while the
+ // Warden's going down fills a block; the authoritative kind comes from the hit
+ // token, never from a client raycast.
+ wreckScale(kind){return {scout:1,hunter:1.3,heavy:1.75,flyer:1.35,overlord:2.7}[kind]||1}
+ spawnMachineWreck(x,y,z,{kind='scout',now=performance.now()}={}){
+  if(!this.scene||!this.machineWreckEffects?.length||![x,y,z].every(Number.isFinite))return null;
+  const effect=this.machineWreckEffects[this.wreckCursor++%this.machineWreckEffects.length];
+  const scale=this.wreckScale(kind);
+  effect.started=now;effect.kind=kind;effect.scale=scale;effect.origin.set(x,y,z);
+  effect.flash.visible=false;effect.ring.visible=false;effect.embers.visible=false;effect.smoke.visible=false;effect.chunks.visible=false;effect.light.visible=false;effect.light.intensity=0;
+  effect.flash.position.copy(effect.origin);effect.ring.position.copy(effect.origin);effect.embers.position.copy(effect.origin);effect.smoke.position.copy(effect.origin);effect.chunks.position.copy(effect.origin);effect.light.position.copy(effect.origin);
+  // Deterministic radial jets with a mild upward drift read as escaping coolant,
+  // sparks and scrap rather than a generic fireball.
+  for(let i=0;i<effect.emberCount;i++){
+   const k=i*3,angle=i*2.399963;
+   effect.emberVelocities[k]=Math.cos(angle)*(1.3+((i*7)%6)*.22)*scale;
+   effect.emberVelocities[k+1]=(.9+((i*11)%5)*.36)*scale;
+   effect.emberVelocities[k+2]=Math.sin(angle)*(1.3+((i*13)%6)*.22)*scale;
+  }
+  for(let i=0;i<effect.chunkCount;i++){
+   const k=i*3,angle=i*2.399963;
+   effect.chunkVelocities[k]=Math.cos(angle)*(1.8+((i*5)%5)*.34)*scale;
+   effect.chunkVelocities[k+1]=(2.2+((i*9)%6)*.42)*scale;
+   effect.chunkVelocities[k+2]=Math.sin(angle)*(1.8+((i*7)%5)*.34)*scale;
+  }
+  return effect;
+ }
+ spawnCoreBurst(x,y,z,now=performance.now()){
+  if(!this.scene||!this.coreBurstEffects?.length||![x,y,z].every(Number.isFinite))return null;
+  const effect=this.coreBurstEffects[this.coreBurstCursor++%this.coreBurstEffects.length];
+  effect.started=now;effect.origin.set(x,y,z);
+  effect.flash.visible=false;effect.ring.visible=false;effect.sparks.visible=false;effect.light.visible=false;effect.light.intensity=0;
+  effect.flash.position.copy(effect.origin);effect.ring.position.copy(effect.origin);effect.sparks.position.copy(effect.origin);effect.light.position.copy(effect.origin);
+  // Deterministic radial jets with a small upward bias read as energy escaping
+  // the exposed core rather than a generic omni-directional explosion.
+  for(let i=0;i<effect.burstSparks;i++){
+   const k=i*3,angle=i*2.399963;
+   effect.velocities[k]=Math.cos(angle)*(1+((i*7)%6)*.18);
+   effect.velocities[k+1]=.55+((i*11)%5)*.4;
+   effect.velocities[k+2]=Math.sin(angle)*(1+((i*13)%6)*.18);
+  }
+  return effect;
+ }
  fire(){const s=this.snapshot?.self,item=s&&[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);this.recoilSide=-this.recoilSide;this.recoil=this.settings?.reduced?0:RECOIL_KICK[item?.weapon]??.07;this.muzzleFlashAt=performance.now();this.audio.play(item?'shot:'+item.weapon:'shot');this.spawnShot(performance.now(),item?item.weapon:'shot');this.spawnViewModelEffects()}
  clearChase(eye,desired){
   if(!this.world)return desired;
@@ -1007,15 +1328,36 @@ export class RaidView {
      const w=data.w||3.4,h=Math.min(data.h||2.8,2.8),d=data.d||.32,leaf=model.userData.doorLeaf,sill=model.userData.doorSill;
      if(leaf){leaf.visible=data.closed!==false;leaf.scale.set(w,h,d);leaf.position.set(0,h/2,0);leaf.material.color.setHex(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b)}
      if(sill){sill.scale.set(w,.1,d);sill.position.set(0,.05,0);sill.material.color.setHex(data.locked?0xe07a5b:data.closed?0xd8b062:0x9fe0ad)}
+    }else if(type==='loot'){const beacon=model.userData.lootBeacon;
+     // Presentation-only pickup motion: the gem hovers and turns, the halo and
+     // wisp breathe, and the accent ring pulses. Reduced motion freezes a still,
+     // readable pose; loot state itself is authoritative and never touched here.
+     if(beacon){if(this.settings?.reduced){
+      beacon.gem.position.y=.95;beacon.halo.position.y=.95;beacon.gem.rotation.y=.4;
+      beacon.halo.material.opacity=.4;beacon.wisp.material.opacity=.16;
+      beacon.ring.material.opacity=.55;beacon.ring.scale.setScalar(.58);
+     }else{const phase=(data.x||0)*.21+(data.z||0)*.13,bob=Math.sin(seconds*2.1+phase),pulse=.5+.5*Math.sin(seconds*2.4+phase);
+      beacon.gem.position.y=.95+bob*.08;beacon.halo.position.y=beacon.gem.position.y;beacon.gem.rotation.y=seconds*.9+phase;
+      beacon.halo.material.opacity=.3+.14*pulse;beacon.wisp.material.opacity=.12+.1*pulse;
+      beacon.ring.material.opacity=.36+.24*pulse;beacon.ring.scale.setScalar(.58*(1+.035*pulse));
+     }}
     }else{
-     if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}
+     if(type==='exit'){model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));if(model.userData.exitSignal)updateExitSignal(model.userData.exitSignal,data,this.snapshot.serverTime,seconds,!!this.settings?.reduced);const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}}
     }
   }
   if(this.weather?.visible&&this.weatherState){
    const state=this.weatherState,size=this.world?.size||1440,attr=this.weather.geometry.attributes.position,arr=attr.array;
    if(state.mode==='rain'){
-    for(let i=0;i<state.drops.length;i++){const d=state.drops[i];d.y-=d.speed*dt;d.x+=Math.sin(seconds*.9+i*.7)*.7*dt;
-     if(d.y<-1){d.y=38;d.x=(Math.random()-.5)*size;d.z=(Math.random()-.5)*size}writeRain(arr,i,d)}
+    const ax=pose.x,az=pose.z,reach=state.radius*2;
+    for(let i=0;i<state.drops.length;i++){const d=state.drops[i];d.y-=d.speed*dt;
+     // Keep the field centred on the operator: horizontal offsets wrap at the
+     // volume edge, which is invisible because every drop is interchangeable.
+     d.ox+=d.drift*dt;if(d.ox>state.radius)d.ox-=reach;else if(d.ox<-state.radius)d.ox+=reach;
+     if(d.y<-1){
+      d.y=state.ceiling;
+      d.ox=(Math.random()-.5)*reach;d.oz=(Math.random()-.5)*reach;
+     }
+     writeRain(arr,i,d,ax,az)}
    }else{
     for(let i=0;i<state.points.length;i++){const p=state.points[i];p.y-=p.speed*dt;
      if(p.y<-1){p.y=state.ceiling;p.x=(Math.random()-.5)*size;p.z=(Math.random()-.5)*size}
@@ -1024,6 +1366,7 @@ export class RaidView {
    }
    attr.needsUpdate=true;
   }
+  this.updateRainSplashes(seconds,pose);
   for(const ring of this.effects.values())ring.material.opacity=this.settings?.reduced?.85:.6+.2*Math.sin(seconds*8);
   this.updateCombatEffects(time);
   this.recoil=Math.max(0,this.recoil-dt*.5);

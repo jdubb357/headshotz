@@ -20,3 +20,60 @@ export function insuranceText(result){
  const labels={not_needed:'return not needed',pending:'pending eligibility check after the raid closes',claimed_by_other:'claimed by another operator',returned:'returned',unavailable:'unavailable',destroyed:'destroyed',covered:'covered'};
  return 'Insurance at settlement: '+result.insuranceAtSettlement.map(c=>(c.label||'Equipment')+': '+(labels[c.status]||'unknown status')).join('; ')+'. Pending claims are conditional, not guaranteed returns. Check the base insurance panel for current status.';
 }
+// Record list aggregates for the base "Raid records" card. Every number is read
+// from the authoritative settled results (outcome, credits, XP, machine kills),
+// so online and offline show the same record. Only outcomes the settlement
+// contract defines are counted; unknown values are left uncounted rather than
+// guessed.
+const RECORD_LOSSES=new Set(['death','timeout','disconnect']);
+export function careerSummary(results){
+ const list=Array.isArray(results)?results:[];
+ let extractions=0,losses=0,interrupted=0,credits=0,xp=0,machines=0;
+ for(const result of list){
+  if(!result||typeof result!=='object')continue;
+  if(result.outcome==='extract')extractions++;
+  else if(result.outcome==='aborted')interrupted++;
+  else if(RECORD_LOSSES.has(result.outcome))losses++;
+  if(Number.isSafeInteger(result.credits)&&result.credits>0)credits+=result.credits;
+  if(Number.isSafeInteger(result.xp)&&result.xp>0)xp+=result.xp;
+  const killed=result.facts?.machines;
+  if(Number.isSafeInteger(killed)&&killed>0)machines+=killed;
+ }
+ return {raids:list.length,extractions,losses,interrupted,credits,xp,machines};
+}
+export function careerText(results){
+ const summary=careerSummary(results);
+ if(!summary.raids)return 'No raids recorded yet. Settled deployments appear here with returned, lost and insured items. Deploy to begin.';
+ const counts=`${summary.raids} recorded ${summary.raids===1?'deployment':'deployments'} · ${summary.extractions} ${summary.extractions===1?'extraction':'extractions'} · ${summary.losses} ended without extraction${summary.interrupted?` · ${summary.interrupted} interrupted and refunded`:''}`;
+ return counts+` · +${summary.credits} credits from raid rewards · +${summary.xp} XP · ${summary.machines} ${summary.machines===1?'machine destroyed':'machines destroyed'}.`;
+}
+// Compact one-line reconciliation for the post-raid rewards card. All numbers are
+// read from the settlement record (ledger, progression, returned/lost lists), so
+// offline and online settlement show the same authoritative gap.
+export function settlementGapText(result){
+ const items=Array.isArray(result.items)?result.items.length:0;
+ const lost=Array.isArray(result.lostItems)?result.lostItems.length:0;
+ const l=result.ledger,progression=result.progression||{};
+ const beforeXp=Number.isSafeInteger(progression.xpBefore)?progression.xpBefore:null;
+ const afterXp=Number.isSafeInteger(progression.xpAfter)?progression.xpAfter:(beforeXp!==null&&Number.isSafeInteger(result.xp)?beforeXp+result.xp:null);
+ const xpLine=beforeXp!==null&&afterXp!==null?`XP ${beforeXp} → ${afterXp}`:`XP +${Number.isSafeInteger(result.xp)?result.xp:0}`;
+ let creditLine;
+ if(l&&Number.isFinite(l.before?.total)&&Number.isFinite(l.after?.total)){
+  const delta=l.after.total-l.before.total;
+  creditLine=`Credits ${l.before.total} → ${l.after.total} (${delta>=0?'+':''}${delta})`;
+  if(l.reward>0)creditLine+=` (raid reward +${l.reward})`;
+  if(l.premium>0)creditLine+=` · insurance premium ${l.premium} paid at deployment`;
+  if(l.refund>0)creditLine+=` · insurance refund +${l.refund}`;
+ }else creditLine=`Credits +${Number.isSafeInteger(result.credits)?result.credits:0}`;
+ return `${creditLine} · ${xpLine} · ${items} ${items===1?'item':'items'} returned · ${lost} ${lost===1?'item':'items'} lost or dropped.`;
+}
+// Stash slots after settlement. A non-empty protected overflow means the stash
+// was full and returned gear is not bankable until it is resolved.
+export function stashUsageText(profile,capacity){
+ if(!profile||!Number.isFinite(capacity)||capacity<=0)return '';
+ const used=Array.isArray(profile.items)?profile.items.length:0;
+ const overflow=Array.isArray(profile.overflow)?profile.overflow.length:0;
+ return overflow>0
+  ?`Stash ${used}/${capacity} slots · ${overflow} ${overflow===1?'item':'items'} in protected overflow — resolve before deploying again.`
+  :`Stash ${used}/${capacity} slots · ${Math.max(0,capacity-used)} free after this raid.`;
+}

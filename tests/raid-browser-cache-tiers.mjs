@@ -55,7 +55,8 @@ try {
         tier: entry.model.userData.cacheTier,
         accent: entry.model.userData.cacheAccent,
         matches: !!source && source.tier === entry.model.userData.cacheTier,
-        children: group ? group.children.length : 0
+        children: group ? group.children.length : 0,
+        shell: entry.model.userData.cacheShell === true
       };
     });
     const tierCounts = {};
@@ -73,6 +74,15 @@ try {
     const ladder = [0, 1, 2, 3, 4].map(tier => {
       const model = propModel('cache', 0xd8b062, {tier});
       model.position.set((tier - 2) * 1.8, 0, 0);
+      bench.add(model);
+      return model;
+    });
+    // Evidence-only former flat containers, same tier ladder and lighting, so
+    // the shell pass can be measured and captured before/after.
+    const flatRow = [0, 1, 2, 3, 4].map(tier => {
+      const model = propModel('cache', 0xd8b062, {tier, plain: true});
+      model.position.set((tier - 2) * 1.8, 0, 0);
+      model.visible = false;
       bench.add(model);
       return model;
     });
@@ -100,17 +110,43 @@ try {
       }
       return {tier, id: 'bench_' + tier, changed};
     });
+    // Shell readability: compare the former flat containers with the weathered
+    // stamped-metal shells under identical lighting. Only presentation changes.
+    const shellMaps = ladder.map(model => {
+      let map = null;
+      model.traverse(node => { if (!map && node.isMesh && node.material?.map) map = node.material.map; });
+      return map;
+    });
+    for (const model of ladder) model.visible = false;
+    for (const model of flatRow) model.visible = true;
+    const flatPixels = renderBench();
+    for (const model of flatRow) model.visible = false;
+    for (const model of ladder) model.visible = true;
+    const shellPixels = renderBench();
+    let containerChanged = 0;
+    for (let i = 0; i < shellPixels.length; i += 4) {
+      if (Math.abs(shellPixels[i] - flatPixels[i]) + Math.abs(shellPixels[i + 1] - flatPixels[i + 1]) + Math.abs(shellPixels[i + 2] - flatPixels[i + 2]) > 12) containerChanged++;
+    }
+    const shellTextureShared = shellMaps.every(map => !!map && map === shellMaps[0]);
     view.renderer.setRenderTarget(null);
     target.dispose();
-    window.__cacheTierBench = visible => {
-      for (const model of ladder) model.userData.cacheTierGroup.visible = visible;
+    const screenBench = () => {
       view.renderer.setRenderTarget(null);
       view.renderer.setPixelRatio(1);
       view.renderer.setSize(innerWidth, innerHeight, false);
       view.renderer.clear();
       view.renderer.render(bench, benchCamera);
     };
-    return {badges, tierCounts, tierEntries};
+    window.__cacheTierBench = visible => {
+      for (const model of ladder) model.userData.cacheTierGroup.visible = visible;
+      screenBench();
+    };
+    window.__cacheContainerBench = plain => {
+      for (const model of flatRow) model.visible = plain;
+      for (const model of ladder) model.visible = !plain;
+      screenBench();
+    };
+    return {badges, tierCounts, tierEntries, containerChanged, shellTextureShared};
   })()`);
   assert.deepEqual(page.errors, []);
   assert.equal(result.badges.length, expected.length, 'every authoritative cache has a rendered prop');
@@ -121,17 +157,28 @@ try {
     assert.equal(badge.accent, lootTierColor(source.tier), badge.id + ' uses the shared tier accent');
     assert.equal(badge.children > 0, true, badge.id + ' carries tier accent geometry');
     assert.equal(badge.matches, true, badge.id + ' matches its authored tier');
+    assert.equal(badge.shell, true, badge.id + ' renders the weathered container shell');
   }
   assert.deepEqual(result.tierEntries.map(item => item.tier), [0, 1, 2, 3, 4], 'one production cache prop per tier is rendered');
   for (const item of result.tierEntries) assert.ok(item.changed > 80, 'tier ' + item.tier + ' accent paints ' + item.changed + ' pixels');
+  assert.ok(result.containerChanged > 250, 'the container shell pass paints ' + result.containerChanged + ' pixels, more than the flat baseline');
+  assert.equal(result.shellTextureShared, true, 'every cache shell reuses one shared procedural metal map');
   await page.evaluate('window.__cacheTierBench(false)');
   await screenshot(page, '/tmp/hs-cache-tiers-before.png');
   await page.evaluate('window.__cacheTierBench(true)');
   await screenshot(page, '/tmp/hs-cache-tiers.png');
+  await page.evaluate('window.__cacheContainerBench(true)');
+  await screenshot(page, '/tmp/hs-loot-containers-before.png');
+  await page.evaluate('window.__cacheContainerBench(false)');
+  await screenshot(page, '/tmp/hs-loot-containers.png');
   console.log(JSON.stringify({
     cacheCount: expected.length,
     tierCounts: result.tierCounts,
     tierPixels: result.tierEntries,
+    containerChanged: result.containerChanged,
+    shellTextureShared: result.shellTextureShared,
+    before: '/tmp/hs-loot-containers-before.png',
+    after: '/tmp/hs-loot-containers.png',
     before: '/tmp/hs-cache-tiers-before.png',
     after: '/tmp/hs-cache-tiers.png',
     browserErrors: []

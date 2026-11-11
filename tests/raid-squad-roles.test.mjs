@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {RaidStore} from '../server/store.mjs';
 import {RaidService} from '../server/raids.mjs';
-import {SQUAD_ROLES,SQUAD_ROLE_IDS,squadRole,roleLabel,pingSecondsFor,reviveSecondsFor,engineerPicks} from '../shared/raid-roles.mjs';
+import {SQUAD_ROLES,SQUAD_ROLE_IDS,squadRole,roleLabel,pingSecondsFor,reviveSecondsFor,engineerPicks,packCapacityFor,weightCapacityFor} from '../shared/raid-roles.mjs';
 
 function setup(t){
  const store=new RaidStore();let now=1000;const service=new RaidService(store,{now:()=>now});
@@ -18,13 +18,17 @@ function readyPair(s,roleA=null,roleB=null){
  return party;
 }
 
-test('role catalog exposes the three opt-in roles with summaries',()=>{
- assert.deepEqual(SQUAD_ROLE_IDS,['scout','medic','engineer']);
+test('role catalog exposes the four opt-in roles with summaries',()=>{
+ assert.deepEqual(SQUAD_ROLE_IDS,['scout','medic','engineer','hauler']);
  for(const id of SQUAD_ROLE_IDS){assert.equal(squadRole(id),id);assert.ok(roleLabel(id));assert.ok(SQUAD_ROLES[id].summary)}
  assert.equal(squadRole('sniper'),null);assert.equal(squadRole(42),null);assert.equal(squadRole(undefined),null);
  assert.equal(pingSecondsFor('scout'),30);assert.equal(pingSecondsFor('medic'),20);assert.equal(pingSecondsFor(null),20);
  assert.equal(reviveSecondsFor('medic'),3.5);assert.equal(reviveSecondsFor('scout'),5);assert.equal(reviveSecondsFor(undefined),5);
  assert.equal(engineerPicks('engineer'),true);assert.equal(engineerPicks('medic'),false);assert.equal(engineerPicks(null),false);
+ assert.equal(packCapacityFor(null,false),18);assert.equal(packCapacityFor('scout',false),18);assert.equal(packCapacityFor('hauler',false),22);
+ assert.equal(packCapacityFor('hauler',true),12);assert.equal(packCapacityFor('sniper',false),18);
+ assert.equal(weightCapacityFor(null,false),40);assert.equal(weightCapacityFor('engineer',true),22);assert.equal(weightCapacityFor('hauler',false),48);
+ assert.equal(weightCapacityFor('hauler',true),30);assert.equal(weightCapacityFor('sniper',false),40);
 });
 
 test('party readiness validates and persists a squad role in the member loadout',t=>{
@@ -52,6 +56,15 @@ test('solo deployments never receive a client role and reject invalid ones serve
  const snap=service.deploy(c,{requestId:'roles_solo_0001',mapId:'relay',recovery:true,role:'scout'});
  assert.equal(snap.self.role,null);
  assert.throws(()=>service.deployPlayer(store.register('bad','a long bad password').id,{requestId:'roles_bad_0001',mapId:'relay',recovery:true,role:'sniper'}),/Unknown squad role/);
+});
+
+test('hauler deployment deepens the backpack and weight caps without changing baseline roles',t=>{
+ const s=setup(t),{service,a,b}=s;readyPair(s,'hauler','scout');
+ const snap=service.deploy(a,{requestId:'roles_hauler_0001'}),p=service.byAccount.get(a),q=service.byAccount.get(b);
+ assert.equal(p.role,'hauler');assert.equal(p.cap,12);assert.equal(p.weightCap,30);
+ assert.equal(q.role,'scout');assert.equal(q.cap,8);assert.equal(q.weightCap,22);
+ assert.equal(snap.self.cap,12);assert.equal(snap.self.weightCap,30);
+ assert.equal(snap.squad.find(x=>x.id===a).role,'hauler');
 });
 
 test('scout pings last 30 seconds while base pings last 20',t=>{

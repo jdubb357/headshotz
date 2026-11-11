@@ -1,6 +1,6 @@
 import {sameLoadout,describeLoadout} from './shared/raid-loadout.mjs';
 import {RaidTrigger,deferIdleMovement,lookNeedsSync} from './raid-trigger.mjs';
-import {reasonText,settlementText,insuranceText,objectiveText} from './shared/raid-report.mjs';
+import {reasonText,settlementText,insuranceText,objectiveText,settlementGapText,stashUsageText,careerText} from './shared/raid-report.mjs';
 import {grantBalance,canRecoverGrant} from './shared/raid-grants.mjs';
 import {lootPresentation,lootCelebrationText} from './shared/raid-loot-presentation.mjs';
 import {stackable,compatibleStacks} from './shared/raid-inventory.mjs';
@@ -29,8 +29,48 @@ import {RAID_WORLDS,getWorld,terrainHeightAt} from './shared/raid-worlds.mjs';
 import {objectivesFor} from './shared/raid-objectives.mjs';
 import {vaultTarget,vaultDirection} from './shared/raid-motion.mjs';
 import {baseController} from './raid-base.mjs';
-import {WEAPONS,MODS,weaponStats,itemWeight} from './shared/raid-catalog.mjs';
+import {WEAPONS,MODS,weaponStats,itemWeight,stashCapacity} from './shared/raid-catalog.mjs';
 import {sellValue} from './shared/raid-appraisal.mjs';
+import {isOfflineQuery,readServiceMeta} from './shared/raid-static.mjs';
+
+// Transport selection for the raid client. Static GitHub Pages has no `/api`,
+// so the page switches to an in-page authoritative service instead of fetch.
+// An explicit `offline=1`, the Node-injected service meta, or one profile probe
+// decides the mode once per page; online hosts still use fetch for everything.
+let transportProbe=null,offlineRuntime=null,offlineRuntimeWork=null,offlineMode=false,offlineReadinessCheck=null;
+function decideTransport(){
+ if(isOfflineQuery(location.search))return Promise.resolve('offline');
+ if(readServiceMeta(document))return Promise.resolve('online');
+ return new Promise(resolve=>{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
+  fetch('/api/profile',{cache:'no-store',signal:controller.signal})
+    .then(response=>resolve(response.headers.get('content-type')?.includes('application/json')&&(response.status===200||response.status===401)?'online':'offline'))
+    .catch(()=>resolve('offline'))
+    .finally(()=>clearTimeout(timer));
+ });
+}
+async function offlineEnabled(){
+ if(!transportProbe)transportProbe=decideTransport();
+ const transport=await transportProbe;
+ offlineMode=transport==='offline';
+ try{document.body.dataset.raidTransport=transport}catch{}
+ return offlineMode;
+}
+function offlineService(){
+ offlineRuntimeWork||=import('./shared/raid-offline.mjs').then(async module=>{
+  const guest=new URLSearchParams(location.search).get('guest');
+  offlineRuntime=await module.createPersistentOfflineRaidRuntime({username:guest||'guest'});
+  offlineReadinessCheck=module.offlineReadiness;
+  module.startOfflineTick(offlineRuntime);
+  // Best effort on tab hide/close: IndexedDB saves are already queued after each
+  // committed action, and this flushes the latest debounced state.
+  addEventListener('pagehide',()=>{offlineRuntime?.flush?.().catch(()=>{})});
+  // Diagnostic handle for the static browser grader; absent on Node hosts.
+  window.__hszOfflineRaid={mode:'offline',protocol:RAID_PROTOCOL,persistent:!!offlineRuntime.persistent,storageMode:offlineRuntime.storage?.(),recovery:offlineRuntime.recovery||null,persistenceError:offlineRuntime.lastPersistenceError?String(offlineRuntime.lastPersistenceError.message||offlineRuntime.lastPersistenceError):null,runtime:()=>offlineRuntime,snapshot:()=>snapshot,api:(path,body)=>module.offlineRaidRequest(offlineRuntime,path,body)};
+  return offlineRuntime;
+ });
+ return offlineRuntimeWork;
+}
 installDialogNavigation();
 const chooseQuantity=quantityUI();
 document.getElementById('previewTurn').onclick=()=>preview?.turn();
@@ -59,24 +99,29 @@ let identityUI,authChecking=false,raidGeneration=0,authGeneration=0,wire,predict
 
 const comms=communicationUI({api,run,button,getProfile:()=>profile,action,getRaid:()=>inRaid?snapshot:null});
 const preferences=settingsUI({onChange:settings=>{view?.applySettings(settings);preview?.applySettings(settings);comms.voice.setVolume(settings.voiceVolume);$('voiceVolume').value=settings.voiceVolume}});
-const input=raidInput({settings:()=>preferences.get(),allowed:kind=>!preferences.isModal()&&(kind==='map'?inRaid:['pushTalk','communications'].includes(kind)?!!profile:['settings','help'].includes(kind)?true:inRaid&&$('communications').hidden&&!mapOpen),onTalk:active=>comms.voice.setTalking(active),onClear:stopHeldInput,onMove:sendHeldMovement,onRelease:kind=>{if(kind==='fire')trigger?.release('keyboard')},onAction:controlAction});
+const input=raidInput({settings:()=>preferences.get(),allowed:kind=>!preferences.isModal()&&(kind==='map'?inRaid:['pushTalk','communications'].includes(kind)?!!profile&&!offlineMode:['settings','help'].includes(kind)?true:inRaid&&$('communications').hidden&&!mapOpen),onTalk:active=>comms.voice.setTalking(active),onClear:stopHeldInput,onMove:sendHeldMovement,onRelease:kind=>{if(kind==='fire')trigger?.release('keyboard')},onAction:controlAction});
 trigger=new RaidTrigger({getState:()=>{const s=snapshot?.self;return s?{deploymentId:s.deploymentId,alive:s.alive,downed:s.downed,nextFire:s.nextFire,weapon:[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),serverTime:snapshot.serverTime,sampledAt:stateAt,rttMs:wire?.rtt||0}:null},allowed:()=>!weaponWork&&inRaid&&!!wire&&!wire.closed&&!!snapshot?.self.alive&&!snapshot.self.downed&&!preferences.isModal()&&$('communications').hidden&&!mapOpen&&!document.hidden,send:factory=>action(()=>({...factory(),yaw,pitch})),onEffect:()=>view?.fire(),onError:e=>{input.clear();notice={text:e.message,until:performance.now()+3500};$('hint').textContent=e.message}});
 $('voiceVolume').addEventListener('change',()=>preferences.update({voiceVolume:Number($('voiceVolume').value)}));
 addEventListener('raidsettingschange',()=>{if(inRaid)setPack(!$('pack').hidden)});
 
-identityUI=accountUI({api,run,getProfile:()=>profile,onRotated:async()=>{authGeneration++;await comms.voice.leave('Voice off after account security update.');await refresh()},onRecovered:async()=>{await signedOut('Account recovered. Sign in with your new password.')},onSignOut:async()=>{await api('logout',{});await signedOut('Signed out.')}});
+identityUI=accountUI({api,run,getProfile:()=>profile,offline:()=>offlineMode,onRotated:async()=>{authGeneration++;await comms.voice.leave('Voice off after account security update.');await refresh()},onRecovered:async()=>{await signedOut('Account recovered. Sign in with your new password.')},onSignOut:async()=>{await api('logout',{});await signedOut('Signed out.')}});
 async function signedOut(text){
  const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();resetTacticalMap();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;
- view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();$('identity').textContent='';
- clearHitmarker();lastHitToken=0;for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','sectorStatus','hint','interactionStatus','rewardsTotals','rewardsLoot','rewardsRank','rewardsContract','rewardsOutcome'])$(id).replaceChildren();$('rewards').hidden=true;$('sectorStatus').hidden=true;delete $('sectorStatus').dataset.state;
+ view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();applyOfflineAuth();$('identity').textContent='';
+ clearHitmarker();lastHitToken=0;for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','sectorStatus','hint','interactionStatus','rewardsTotals','rewardsLoot','rewardsRank','rewardsContract','rewardsOutcome','rewardsSettlement','rewardsStashUsage'])$(id).replaceChildren();$('rewards').hidden=true;$('sectorStatus').hidden=true;delete $('sectorStatus').dataset.state;
  $('restoreReady').hidden=true;$('readyMismatch').hidden=true;latencyProof=null;$('latencyStatus').textContent='Check connection before deploying.';
  message(text+(wasAlive?' Your operator remains vulnerable in the raid. Sign in and reconnect to continue.':''));
 }
 async function validateSession(){
- if(authChecking||!profile)return;authChecking=true;const generation=authGeneration;try{const response=await fetch('/api/profile',{cache:'no-store'});if(response.status===401&&generation===authGeneration)await signedOut('Session expired or signed out from another device.')}catch{}finally{authChecking=false}
+ if(authChecking||!profile||await offlineEnabled())return;authChecking=true;const generation=authGeneration;try{const response=await fetch('/api/profile',{cache:'no-store'});if(response.status===401&&generation===authGeneration)await signedOut('Session expired or signed out from another device.')}catch{}finally{authChecking=false}
 }
 
 async function api(path,body,{timeoutMs=15000}={}){
+ if(await offlineEnabled()){
+  const runtime=await offlineService();
+  const {offlineRaidRequest}=await import('./shared/raid-offline.mjs');
+  return offlineRaidRequest(runtime,path,body);
+ }
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
  try{
   const r=await fetch('/api/'+path,{method:body?'POST':'GET',cache:'no-store',signal:controller.signal,headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
@@ -176,6 +221,8 @@ function renderRewards(records){
   rewardMetric(String(result.items?.length||0),'Items returned to stash'),
   rewardMetric(String(result.lostItems?.length||0),'Items lost or dropped')
  );
+ const settlementLine=$('rewardsSettlement');
+ if(settlementLine){settlementLine.hidden=false;settlementLine.textContent=settlementGapText(result)}
  const objectiveLine=objectiveText(result),objectiveCard=$('rewardsObjective');
  if(objectiveLine){objectiveCard.hidden=false;objectiveCard.textContent=objectiveLine;objectiveCard.dataset.state=result.facts?.objective?.completed?'completed':'failed'}
  else{objectiveCard.hidden=true;objectiveCard.textContent='';delete objectiveCard.dataset.state}
@@ -205,6 +252,14 @@ function renderRewards(records){
  $('rewardsContract').textContent=contractRows.length
   ?'Contract stage progress this raid: '+contractRows.map(c=>`${c.name} stage ${(c.stage||0)+1}: +${c.delta||0} → ${c.progress||0}/${c.need||0}${c.requirementsMet?' (claim in Contracts)':''}`).join('; ')+'.'
   :'No contract stage progressed this raid. Review Contracts to accept a sector objective before the next deployment.';
+ const stashLine=$('rewardsStashUsage');
+ if(stashLine){
+  const usage=stashUsageText(profile,stashCapacity(profile));
+  stashLine.hidden=!usage;
+  stashLine.textContent=usage;
+  if((profile.overflow||[]).length)stashLine.dataset.overflow='true';
+  else delete stashLine.dataset.overflow;
+ }
  $('rewardsStash').onclick=()=>focusRewardsSurface('#stash input,#stash button');
  $('rewardsWorkshop').onclick=()=>focusRewardsSurface('#workshop button');
  $('rewardsContracts').onclick=()=>focusRewardsSurface('#contracts button');
@@ -212,10 +267,15 @@ function renderRewards(records){
  $('rewardsDeploy').onclick=()=>focusRewardsSurface('#map');
 }
 async function refresh(){
- const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=false;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;
+ const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
  await baseUI.render(profile);if(generation!==authGeneration)return;
  $('resume').hidden=!profile.activeDeployment;$('deploy').disabled=!!profile.activeDeployment;
- const records=await api('results');if(generation!==authGeneration)return;$('records').replaceChildren();for(const r of records){
+ const records=await api('results');if(generation!==authGeneration)return;$('records').replaceChildren();
+ // A compact aggregate of the authoritative settled results. This is
+ // presentation only: every figure comes from the same `results` rows the
+ // detail list below renders, and it never invents a rule or reward.
+ const recordsSummary=document.createElement('p');recordsSummary.id='recordsSummary';recordsSummary.className='recordsSummary';recordsSummary.textContent=careerText(records);if(!records.length)recordsSummary.dataset.empty='true';$('records').append(recordsSummary);
+ for(const r of records){
   const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent=`${new Date(r.at).toLocaleString()} · ${r.outcome} · ${r.items.length} returned · ${(r.lostItems||[]).length} dropped/lost · +${r.credits} credits · +${r.xp||0} XP`;details.append(summary);
   if(r.progression){const progress=document.createElement('p'),p=r.progression;progress.textContent='Experience '+p.xpBefore+' → '+p.xpAfter+' XP · Rank '+p.rankBefore+' → '+p.rankAfter+' '+p.rankName+(p.unlockedBlueprints.length?' · Blueprints unlocked: '+p.unlockedBlueprints.join(', '):'');details.append(progress)}
   if(r.raid){const context=document.createElement('p');context.textContent=(getWorld(r.raid.map,r.raid.mapVersion)?.name||r.raid.map)+' · '+Math.round(r.raid.durationSeconds||0)+' seconds deployed';details.append(context)}
@@ -228,19 +288,91 @@ async function refresh(){
  await refreshParty();if(generation!==authGeneration)return;await comms.refresh();
 }
 function selectedLoadout(){const recovery=$('recovery').checked,raw=[...$('stash').querySelectorAll('input[data-equip]:checked')].map(e=>e.value),ordered=baseUI?.orderedIds(raw)||raw;return {recovery,itemIds:recovery?[]:ordered,insureIds:recovery?[]:[...$('stash').querySelectorAll('input[data-insure]:checked')].map(e=>e.value)}}
-baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
+baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch();updateDeployReadiness()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
 function updateReadyMismatch(){const member=party?.members.find(m=>m.account===profile?.id),mismatch=!!(member?.ready&&!profile?.activeDeployment&&!sameLoadout(member.loadout,selectedLoadout()));$('readyMismatch').hidden=!mismatch;$('restoreReady').hidden=!mismatch;$('readyMismatch').textContent=mismatch?'Your current selection differs from your readied loadout. Ready again or restore it before deploying.':'';if(mismatch)$('deploy').disabled=true;return mismatch}
+// Offline-only deploy readiness. The verdict and numbers come from the same
+// authoritative preflight the in-page deploy route runs; the client only
+// formats them, so the base screen never duplicates raid rules. Online hosts
+// keep their squad/latency readiness and this line stays hidden.
+function updateDeployReadiness(){
+ const line=$('deployReadiness');if(!line)return;
+ if(!offlineMode||!offlineReadinessCheck||!profile){line.hidden=true;delete line.dataset.ready;delete line.dataset.weight;delete line.dataset.premium;return}
+ line.hidden=false;
+ if(profile.activeDeployment){
+  delete line.dataset.weight;delete line.dataset.premium;line.dataset.ready='false';
+  line.textContent='Operator still in raid — resume the active deployment before deploying again.';
+  $('deploy').disabled=true;return;
+ }
+ let result;
+ try{result=offlineReadinessCheck(offlineRuntime,selectedLoadout())}
+ catch(error){result={ready:false,blocker:error.message||String(error)}}
+ line.dataset.ready=String(!!result.ready);
+ line.dataset.premium=String(result.ready?(result.premium||0):'');
+ line.dataset.weight=String(result.ready&&!result.recovery?(Number(result.weight)||0).toFixed(1):'');
+ line.textContent=result.ready
+  ?(result.recovery?'Recovery kit ready — free starter rifle and medkit; nothing in the kit can be banked.':'Ready to deploy — '+(Number(result.weight)||0).toFixed(1)+'/40 kg carried · insurance premium '+(result.premium||0)+' credits'+(result.insured?' · '+(result.insured===1?'1 insured gear item':result.insured+' insured gear items'):'')+'.')
+  :'Deploy blocked — '+result.blocker+'.';
+ $('deploy').disabled=!result.ready;
+}
 $('restoreReady').onclick=()=>run(async()=>{const account=profile?.id;await refresh();if(profile?.id!==account)return;const member=party?.members.find(m=>m.account===account);if(!member?.ready||profile.activeDeployment)throw new Error('The readied loadout is no longer available. Review your squad.');if((member.loadout.itemIds||[]).some(id=>!profile.items.some(it=>it.id===id)))throw new Error('Readied equipment is no longer in your stash. Select equipment and ready again.');baseUI.selectLoadout(member.loadout);await refreshParty()});
-function selectedMatch(){return matchPreferences(party?.match??{allowMixed:$('allowMixed').checked,maxRttMs:Number($('maxRtt').value)})}
+function selectedMatch(){return matchPreferences(offlineMode?{allowMixed:true,maxRttMs:0}:party?.match??{allowMixed:$('allowMixed').checked,maxRttMs:Number($('maxRtt').value)})}
+// Offline solo raids have no party, voice transport, or remote performance
+// probes. Hide those hosted-only controls once the page has selected the
+// in-page service; the online/Node path keeps every control unchanged.
+function applyOfflineMode(){
+ if(!offlineMode)return;
+ $('squadOnlineControls').hidden=true;$('connectionControls').hidden=true;$('commsToggle').hidden=true;$('communications').hidden=true;
+ $('checkLatency').disabled=true;$('voiceEnable').disabled=true;$('partyMode').disabled=true;$('partyCode').disabled=true;$('partyRole').disabled=true;
+ $('voiceStatus').textContent='Voice is unavailable in offline raid mode.';
+ $('latencyStatus').textContent='Offline raid — no connection check required.';
+ // Explain a reset instead of silently minting a fresh operator, and warn
+ // when local writes fail so the player knows progress may not survive reload.
+ const info=window.__hszOfflineRaid||{},note=$('offlineSaveNote');
+ if(info.recovery){
+  note.hidden=false;note.dataset.state='recovered';
+  note.textContent='Your previous offline save could not be read ('+(info.recovery.reason==='unsupported-version'?'newer save format':'damaged save')+'). A fresh operator and stash were created on this device; new progress will still be saved offline.';
+ }else if(info.persistenceError){
+  note.hidden=false;note.dataset.state='error';
+  note.textContent='Local progress could not be saved: '+info.persistenceError+'. This raid still uses local authority, but new progress may not survive a reload.';
+ }else{
+  note.hidden=true;note.removeAttribute('data-state');note.textContent='';
+ }
+ applyOfflineAuth();
+}
+// The offline session is passwordless, so the sign-out screen must not demand
+// one. Hide the online-only password/register/recovery controls (and keep them
+// out of HTML validation) and explain how to continue as a local operator.
+// Online pages never reach this path, so their auth form is unchanged.
+function applyOfflineAuth(){
+ if(!offlineMode)return;
+ const login=$('login'),password=login.querySelector('[name=password]'),submit=login.querySelector('button[type=submit]');
+ if(password){password.required=false;password.value='';password.closest('label')?.setAttribute('hidden','')}
+ $('offlineAuthNote').hidden=false;
+ $('register').hidden=true;$('recoverOpen').hidden=true;$('recoverPanel').hidden=true;
+ if(submit)submit.textContent='Continue offline';
+}
 async function measureLatency(){
+ if(offlineMode){latencyProof={proofId:'offline-proof',rttMs:0,withinLimit:true,allowMixed:true,offline:true,at:performance.now(),generation:authGeneration,account:profile?.id};return latencyProof}
  const generation=authGeneration,account=profile?.id;if(!account)throw new Error('Sign in to check your connection');if(probeWork?.generation===generation&&probeWork?.account===account)return probeWork.promise;
  const task={generation,account};task.promise=(async()=>{const challenge=await api('matchmaking',{operation:'probe'});if(authGeneration!==generation||profile?.id!==account)throw new Error('Connection check canceled after sign-out');const measured=await api('matchmaking',{operation:'measure',nonce:challenge.nonce});if(authGeneration!==generation||profile?.id!==account)throw new Error('Connection check canceled after sign-out');latencyProof={...measured,at:performance.now(),generation,account};const limit=selectedMatch().maxRttMs;$('latencyStatus').textContent='Server-measured round trip: '+measured.rttMs+' ms'+(limit&&measured.rttMs>limit?' · above your limit; change the limit or try again.':' · checked just now.');return latencyProof})().finally(()=>{if(probeWork===task)probeWork=null});probeWork=task;return task.promise;
 }
 $('checkLatency').onclick=()=>run(measureLatency);
 for(const id of ['allowMixed','maxRtt'])$(id).addEventListener('change',()=>{latencyProof=null;if(party)return run(async()=>{const match=matchPreferences({allowMixed:$('allowMixed').checked,maxRttMs:Number($('maxRtt').value)});await api('party',{type:'configure',match});awaitingParty=false;await refreshParty();message('Squad preferences changed. Everyone must ready again.')});renderMatchSummary()});
-function renderMatchSummary(){const match=selectedMatch(),size=party?.members.length||1;$('matchSummary').textContent='Connected region: '+(matchInfo?.region||'checking')+'. '+size+' operator'+(size===1?'':'s')+' · 10-minute raid · up to 9 operators. Same-size squads preferred; '+(match.allowMixed?'mixed-size fallback allowed.':'same-size sessions only.')+' Gear/skill matching is open. If no safe compatible session exists, a fresh raid starts without a minimum human population. Conditions are assigned by the selected raid.'}
+function renderMatchSummary(){if(offlineMode){$('matchSummary').textContent='Offline raid · solo versus machines. Gear and skill matching are open; machines are the only opposition. No human session or connection check is required.';return}const match=selectedMatch(),size=party?.members.length||1;$('matchSummary').textContent='Connected region: '+(matchInfo?.region||'checking')+'. '+size+' operator'+(size===1?'':'s')+' · 10-minute raid · up to 9 operators. Same-size squads preferred; '+(match.allowMixed?'mixed-size fallback allowed.':'same-size sessions only.')+' Gear/skill matching is open. If no safe compatible session exists, a fresh raid starts without a minimum human population. Conditions are assigned by the selected raid.'}
 async function refreshParty(){
- const generation=authGeneration,updated=await api('party');if(generation!==authGeneration)return;party=updated;if(!party)$('partyRole').value='';if(!matchInfo)matchInfo=await api('matchmaking');if(generation!==authGeneration)return;for(const id of ['allowMixed','maxRtt'])$(id).disabled=!!party&&party.leader!==profile.id;if(party){$('allowMixed').checked=party.match?.allowMixed??true;$('maxRtt').value=String(party.match?.maxRttMs??0)}renderMatchSummary();$('partyState').textContent=party?`Invite ${party.id} · ${party.mode} · ${party.region}`:'Playing solo.';
+ const generation=authGeneration,updated=await api('party');if(generation!==authGeneration)return;party=updated;
+ if(offlineMode){
+  party=null;
+  if(!matchInfo)matchInfo=await api('matchmaking');
+  if(generation!==authGeneration)return;
+  applyOfflineMode();renderMatchSummary();
+  $('partyState').textContent='Playing solo offline — machines are the opposition.';
+  $('deploy').textContent='Deploy solo raid';
+  $('deploy').disabled=!!profile.activeDeployment;
+  updateReadyMismatch();updateDeployReadiness();comms.update(null,null);
+  return;
+ }
+ if(!party)$('partyRole').value='';if(!matchInfo)matchInfo=await api('matchmaking');if(generation!==authGeneration)return;for(const id of ['allowMixed','maxRtt'])$(id).disabled=!!party&&party.leader!==profile.id;if(party){$('allowMixed').checked=party.match?.allowMixed??true;$('maxRtt').value=String(party.match?.maxRttMs??0)}renderMatchSummary();$('partyState').textContent=party?`Invite ${party.id} · ${party.mode} · ${party.region}`:'Playing solo.';
  $('partyRoster').replaceChildren();
  for(const m of party?.members||[]){const p=document.createElement('p'),role=roleLabel(m.loadout?.role);p.textContent=`${m.username}${m.account===party.leader?' · leader':''} · ${m.ready?'READY':'preparing'}${role?' · '+role+' · '+roleSummary(m.loadout.role):''}${m.latency?.rttMs!=null?' · '+m.latency.rttMs+' ms':''}${m.ready&&!m.latency?.withinLimit?' · needs connection check':''}${m.ready?' · '+(m.loadout.recovery?'free recovery kit':m.loadout.itemIds.length+' owned items'):''}${m.readinessError?' · '+m.readinessError:''}`;$('partyRoster').append(p)}
  comms.update(inRaid?snapshot:null,party);
@@ -258,7 +390,14 @@ $('partyReady').onclick=()=>run(async()=>{const generation=authGeneration,accoun
 async function unready(){awaitingParty=false;updateReadyMismatch();if(party?.members.find(m=>m.account===profile.id)?.ready){$('deploy').disabled=true;await api('party',{type:'ready',ready:false,loadout:selectedLoadout()});await refreshParty()}}
 $('stash').addEventListener('change',()=>run(unready));$('recovery').addEventListener('change',()=>run(unready));
 let partyPolling=false;
-setInterval(async()=>{if(!profile||inRaid||partyPolling||busy)return;partyPolling=true;try{const generation=authGeneration,wasActive=profile.activeDeployment,updated=await api('profile');if(generation!==authGeneration||!profile)return;profile.activeDeployment=updated.activeDeployment;if(!wasActive&&updated.activeDeployment)baseUI.risk();$('resume').hidden=!profile.activeDeployment;if(wasActive&&!updated.activeDeployment){await refresh();message('Raid settled. Review your item losses and rewards below.')}else await refreshParty();if(generation!==authGeneration||!profile)return;if(!profile.activeDeployment&&party?.members.find(m=>m.account===profile.id)?.ready&&selectedMatch().maxRttMs&&(!latencyProof||latencyProof.generation!==authGeneration||performance.now()-latencyProof.at>8000))await measureLatency();if(generation!==authGeneration||!profile)return;if(awaitingParty&&profile.activeDeployment){const resumed=await api('raid');if(generation!==authGeneration||!profile||inRaid)return;snapshot=resumed;awaitingParty=false;start()}}catch(e){message(e.message)}finally{partyPolling=false}},2000);
+setInterval(async()=>{if(!profile||inRaid||partyPolling||busy)return;partyPolling=true;try{const generation=authGeneration,wasActive=profile.activeDeployment,updated=await api('profile');if(generation!==authGeneration||!profile)return;
+ // Offline authority resolves pending insurance claims on the in-page 50 ms
+ // tick, up to two minutes after settlement. Poll compares the authoritative
+ // list with the one currently on screen so a claim that becomes eligible
+ // re-renders the base instead of leaving stale "pending" copy behind. Online
+ // keeps its existing deployment-only refresh semantics.
+ const insuranceChanged=offlineMode&&JSON.stringify(updated.insurance||[])!==JSON.stringify(profile.insurance||[]);
+ profile.activeDeployment=updated.activeDeployment;if(!wasActive&&updated.activeDeployment)baseUI.risk();$('resume').hidden=!profile.activeDeployment;if(wasActive&&!updated.activeDeployment){await refresh();message('Raid settled. Review your item losses and rewards below.')}else if(insuranceChanged){await refresh();if(generation!==authGeneration||!profile||inRaid)return;message('Insurance claims updated.')}else await refreshParty();if(generation!==authGeneration||!profile)return;if(!profile.activeDeployment&&party?.members.find(m=>m.account===profile.id)?.ready&&selectedMatch().maxRttMs&&(!latencyProof||latencyProof.generation!==authGeneration||performance.now()-latencyProof.at>8000))await measureLatency();if(generation!==authGeneration||!profile)return;if(awaitingParty&&profile.activeDeployment){const resumed=await api('raid');if(generation!==authGeneration||!profile||inRaid)return;snapshot=resumed;awaitingParty=false;start()}}catch(e){message(e.message)}finally{partyPolling=false}},2000);
 async function auth(register){const data=Object.fromEntries(new FormData($('login')));await api(register?'register':'login',data);authGeneration++;$('login').reset();message('Signed in.');await refresh()}
 $('login').onsubmit=e=>{e.preventDefault();run(()=>auth(false))};$('register').onclick=()=>run(()=>auth(true));
 $('logout').onclick=()=>run(async()=>{await api('logout',{});await signedOut('Signed out.')});
@@ -302,6 +441,24 @@ $('spectate').onclick=()=>{const teammates=snapshot.players.filter(p=>p.team===s
 // exported so the browser graders can verify the mapping without altering
 // snapshot or gameplay state. Numeric values always stay visible in text.
 export function hudVitalState(hp,downed){if(downed)return 'downed';if(hp<=30)return 'critical';if(hp<=60)return 'warn';return 'ok'}
+// Screen-edge vitality haze. Same presentation thresholds as the HUD token and
+// derived only from the authoritative self hp/downed fields; reduced motion is
+// handled entirely by the shared data-reduced-motion CSS gate.
+export function vitalVignetteState(hp,downed){
+ if(downed)return 'downed';
+ const value=Number(hp);
+ if(!Number.isFinite(value))return 'ok';
+ if(value<=30)return 'critical';
+ if(value<=60)return 'warn';
+ return 'ok';
+}
+export function renderVitalVignette(self){
+ const node=document.getElementById('vitalVignette');
+ if(!node||!self)return null;
+ const state=vitalVignetteState(self.hp,!!self.downed);
+ if(node.dataset.state!==state)node.dataset.state=state;
+ return state;
+}
 function hudToken(metric,key,value,state){
  const token=document.createElement('span');token.className='hudToken hudScore';token.dataset.metric=metric;
  if(state)token.dataset.state=state;
@@ -478,7 +635,7 @@ function updateUI(){
  const vaultBody={...({x:s.x,y:s.y||0,z:s.z,grounded:s.grounded!==false,downed:s.downed,carrying:s.carrying,vault:s.vault||null}),...(prediction?.position||{}),yaw,move:movementInput()};
  const vaultWorld=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);const vaultAhead=!!(!s.vaulting&&s.alive&&!s.downed&&!s.carrying&&vaultWorld&&vaultTarget(vaultWorld,vaultBody,vaultDirection(vaultBody)));
  $('vault').disabled=!s.alive||s.downed||s.vaulting||!vaultAhead;$('vault').textContent=s.vaulting?'Vaulting…':'Vault';
- renderHud(s,snapshot);renderThreatIndicators(snapshot);renderHurtDirection(snapshot);renderHitFeedback(s);
+ renderHud(s,snapshot);renderVitalVignette(s);renderThreatIndicators(snapshot);renderHurtDirection(snapshot);renderHitFeedback(s);
  view?.sync(snapshot);$('spectate').hidden=s.alive||!snapshot.camera;if(snapshot.camera)$('spectate').textContent='Watching '+snapshot.camera.name+' · next squadmate';
  for(const event of snapshot.events||[])if(!seenEvents.has(event.id)){
   seenEvents.add(event.id);const text=event.text||event.message||event.kind||event.type;$('events').textContent=text;
@@ -1184,7 +1341,17 @@ function renderHitFeedback(s){
  const hit=s.hit;
  if(!shouldShowHit(hit,lastHitToken))return;
  lastHitToken=hitToken(hit);
- const marker=$('hitmarker'),caption=$('hitmarkerCaption'),kind=hit.kill?'kill':hit.headshot?'headshot':'hit',text=hitCaption(hit);
+ // The server resolves machine weak hits and machine kills and reports the
+ // machine core coordinates; every burst is spawned exactly there, never from a
+ // client raycast. A kill reads as a hull break/wreck; a survivable core hit
+ // keeps the cyan weak-point burst. Missing or malformed coordinates fall back
+ // to the existing marker-only feedback.
+ const core=hit.core&&[hit.core.x,hit.core.y,hit.core.z].every(Number.isFinite)?hit.core:null;
+ if(core){
+  if(hit.kill&&hit.target==='machine')view?.spawnMachineWreck(core.x,core.y,core.z,{kind:hit.kind||'scout'});
+  else if(hit.weak)view?.spawnCoreBurst(core.x,core.y,core.z);
+ }
+ const marker=$('hitmarker'),caption=$('hitmarkerCaption'),kind=hit.kill?'kill':hit.weak?'weak':hit.headshot?'headshot':'hit',text=hitCaption(hit);
  if(marker){marker.dataset.kind=kind;marker.classList.remove('show');void marker.offsetWidth;marker.classList.add('show')}
  if(caption)caption.textContent=text;
  clearTimeout(hitmarkerTimer);hitmarkerTimer=setTimeout(()=>marker?.classList.remove('show'),hit.kill?900:650);

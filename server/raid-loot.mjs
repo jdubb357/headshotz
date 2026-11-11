@@ -1,5 +1,5 @@
 import {item} from './rules.mjs';
-import {randomBytes} from 'node:crypto';
+import {randomBytes,toHex} from '../shared/raid-crypto.mjs';
 import {SECTORS,ARTIFACTS} from '../shared/raid-sectors.mjs';
 import {WEAPONS,MODS} from '../shared/raid-catalog.mjs';
 import {safePoint,findPath} from '../shared/raid-navigation.mjs';
@@ -90,7 +90,7 @@ export function createWeaponCaches(world,seed){
   return {id:'armory_'+index,x,z,y:0,open:false,vault:false,label:names[index]+' · '+arch.tag,tier:3,weaponCache:true,archetype:arch.tag,searchSeconds:arch.search,searcher:null,searchUntil:0,items};
  });
 }
-export function createSectorCaches(world,raidId,seed=randomBytes(16).toString('hex')){
+export function createSectorCaches(world,raidId,seed=toHex(randomBytes(16))){
  const sector=SECTORS[world.id];return world.caches.map(([x,z,y=0],index)=>{
   const meta=world.cacheMeta?.[index]||{},tier=meta.tier||0,random=generator(seed+':'+world.id+':'+index),ammo=weighted(sector.ammunition,random),material=index===7?'fuel':weighted(sector.materials,random),rarity=Math.min(4,tier+(meta.vault?1:0));
   const items=[index===0?item('key'):item('valuable',{label:sector.valuable,value:12+tier*18+Math.floor(random()*12),rarity}),item('material',{material,quantity:2+Math.floor(random()*(tier+1)),rarity:Math.min(2,tier)}),item('ammo',{ammo,quantity:ammo==='heavy'?10:ammo==='shell'?12:30})];

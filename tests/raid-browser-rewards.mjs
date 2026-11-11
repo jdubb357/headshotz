@@ -10,6 +10,8 @@ import {createRaidServer} from '../server/main.mjs';
 import {browserHarness} from './browser-harness.mjs';
 import {earnedPurchase} from './earned-fixture.mjs';
 import {rankProgress} from '../shared/raid-progression.mjs';
+import {settlementGapText,stashUsageText} from '../shared/raid-report.mjs';
+import {stashCapacity} from '../shared/raid-catalog.mjs';
 
 const store = new RaidStore();
 const runtime = createRaidServer(store, {now: () => 1000});
@@ -85,7 +87,7 @@ try {
   await page.wait("document.getElementById('play').style.display==='none' && document.body.getAttribute('aria-busy')==='false'");
   await page.wait("document.getElementById('rewards').hidden===false");
 
-  const card = await page.evaluate("({characterized: document.getElementById('rewards').getAttribute('data-wide')===''||document.getElementById('rewards').hasAttribute('data-wide'), hidden: document.getElementById('rewards').hidden, title: document.getElementById('rewardsTitle').textContent, outcome: document.getElementById('rewardsTotals').textContent, loot: document.getElementById('rewardsLoot').textContent, rank: document.getElementById('rewardsRank').textContent, next: document.getElementById('rewardsNext').textContent, contract: document.getElementById('rewardsContract').textContent, bar: {max: Number(document.getElementById('rewardsRankBar').max), value: Number(document.getElementById('rewardsRankBar').value), label: document.getElementById('rewardsRankBar').getAttribute('aria-label')}, itemId: document.querySelector('#rewardsLoot [data-item-id]')?.getAttribute('data-item-id')})");
+  const card = await page.evaluate("({characterized: document.getElementById('rewards').getAttribute('data-wide')===''||document.getElementById('rewards').hasAttribute('data-wide'), hidden: document.getElementById('rewards').hidden, title: document.getElementById('rewardsTitle').textContent, outcome: document.getElementById('rewardsTotals').textContent, settlement: document.getElementById('rewardsSettlement').textContent, settlementHidden: document.getElementById('rewardsSettlement').hidden, stashUsage: document.getElementById('rewardsStashUsage').textContent, stashUsageHidden: document.getElementById('rewardsStashUsage').hidden, overflowFlag: document.getElementById('rewardsStashUsage').dataset.overflow, loot: document.getElementById('rewardsLoot').textContent, rank: document.getElementById('rewardsRank').textContent, next: document.getElementById('rewardsNext').textContent, contract: document.getElementById('rewardsContract').textContent, bar: {max: Number(document.getElementById('rewardsRankBar').max), value: Number(document.getElementById('rewardsRankBar').value), label: document.getElementById('rewardsRankBar').getAttribute('aria-label')}, itemId: document.querySelector('#rewardsLoot [data-item-id]')?.getAttribute('data-item-id')})");
   assert.equal(card.hidden, false, 'the post-raid rewards card is visible after settlement');
   assert.match(card.title, /Last raid rewards/);
   assert.ok(card.outcome.includes('+' + settled.credits) && card.outcome.includes('Credits earned this raid'), 'credits earned query matches the settlement');
@@ -97,6 +99,14 @@ try {
   assert.ok(card.loot.includes('Returned from raid · 1 item'), 'the returned loot is summarized');
   assert.ok(card.loot.includes('Compact SMG ×1'), 'the returned loot shows the authoritative item name and quantity');
   assert.ok(card.outcome.includes('0') && card.outcome.includes('Items lost or dropped'), 'the lost-item count is shown');
+  const settledProfile = store.profile(account.id);
+  assert.equal(card.settlementHidden, false, 'the settlement reconciliation line is visible after settlement');
+  assert.equal(card.settlement, settlementGapText(settled), 'the settlement line reconciles the authoritative credits, premium, XP and returns');
+  assert.match(card.settlement, new RegExp('Credits ' + settled.ledger.before.total + ' → ' + settled.ledger.after.total), 'the settlement line shows the before → after credit gap');
+  assert.ok(card.settlement.includes('1 item returned') && card.settlement.includes('0 items lost or dropped'), 'the settlement line counts returned and lost items');
+  assert.equal(card.stashUsageHidden, false, 'the stash capacity reminder is visible after settlement');
+  assert.equal(card.stashUsage, stashUsageText(settledProfile, stashCapacity(settledProfile)), 'the stash reminder matches the authoritative profile capacity');
+  assert.equal(card.overflowFlag, undefined, 'a healthy stash has no overflow warning');
   assert.ok(card.next.includes('Returned items are already in your stash'), 'the card explains the extract→store→deploy loop');
   assert.ok(card.title.length < 100 && card.outcome.length < 220, 'summary text stays compact');
   assert.ok(card.bar.max >= 1 && card.bar.value <= card.bar.max, 'rank progress bar has valid bounds');
@@ -173,6 +183,8 @@ try {
     rewardsVisibleAfterExtraction: true,
     lootItemId: card.itemId,
     creditsAndXp: card.outcome,
+    settlementGap: card.settlement,
+    stashUsage: card.stashUsage,
     rankProgress: card.rank,
     contractSummary: card.contract,
     navigationControls: controls,

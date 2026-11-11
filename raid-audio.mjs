@@ -50,6 +50,7 @@ export const ACTION_CUES={
  objectiveSecured:{wave:'triangle',start:680,end:1460,duration:.5,pulses:3},
  hurt:{wave:'triangle',start:90,end:35,duration:.18,pulses:1},
  hit:{wave:'triangle',start:620,end:870,duration:.09,pulses:1},
+ weak:{wave:'square',start:1060,end:1580,duration:.13,pulses:2},
  headshot:{wave:'square',start:980,end:1420,duration:.11,pulses:2},
  kill:{wave:'sawtooth',start:420,end:1080,duration:.22,pulses:2},
  downed:{wave:'sine',start:340,end:85,duration:.65,pulses:3},
@@ -86,7 +87,7 @@ export class RaidAudio {
   const self=snapshot.self,previous=this.previousSelf;
   // Compare copied facts, not mutable snapshot objects. Reconnect/reset starts
   // silently; only current operator transitions can produce these local cues.
-  const current={deploymentId:self.deploymentId,hp:self.hp,alive:self.alive,downed:!!self.downed,board:self.board?.exit||null,outcome:self.result?.outcome||null,hit:self.hit?{token:self.hit.token,headshot:!!self.hit.headshot,kill:!!self.hit.kill}:null};
+  const current={deploymentId:self.deploymentId,hp:self.hp,alive:self.alive,downed:!!self.downed,board:self.board?.exit||null,outcome:self.result?.outcome||null,hit:self.hit?{token:self.hit.token,headshot:!!self.hit.headshot,weak:!!self.hit.weak,kill:!!self.hit.kill}:null};
   this.previousSelf=current;
   if(previous&&previous.deploymentId===current.deploymentId){
    if(previous.alive&&!current.alive)this.play(current.outcome==='extract'?'extracted':'eliminated');
@@ -99,7 +100,7 @@ export class RaidAudio {
    }
    // A hit cue follows the server's monotonic hit token. Repeating the same
    // token on later polls never re-triggers it; a miss has no token at all.
-   if(current.hit&&current.hit.token!==(previous.hit?.token||0))this.play(current.hit.kill?'kill':current.hit.headshot?'headshot':'hit');
+   if(current.hit&&current.hit.token!==(previous.hit?.token||0))this.play(current.hit.kill?'kill':current.hit.weak?'weak':current.hit.headshot?'headshot':'hit');
   }
   for(const [id,until]of this.seen)if(until<now)this.seen.delete(id);
   if(!snapshot.self.alive)return;

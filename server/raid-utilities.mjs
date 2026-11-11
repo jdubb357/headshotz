@@ -1,5 +1,5 @@
 import {raidLine} from './raid-cover.mjs';
-import {randomUUID} from 'node:crypto';
+import {randomUUID} from '../shared/raid-crypto.mjs';
 import {UTILITIES} from '../shared/raid-utilities.mjs';
 import {floorAt,blocked} from '../shared/raid-worlds.mjs';
 import {requireRule} from './rules.mjs';
