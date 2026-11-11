@@ -8,7 +8,7 @@ import {exitColor} from './shared/raid-exits.mjs';
 import {buildEnvironment} from './raid-environment.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 import {TX,makeRaidHorizon} from './gfx.js';
-import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,disposeOwned,part,beaconModel} from './raid-models.mjs';
+import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,updateExitSignal,disposeOwned,part,beaconModel} from './raid-models.mjs';
 
 import {RaidAudio,spatialCue} from './raid-audio.mjs';
 export {RaidAudio} from './raid-audio.mjs';
@@ -1263,7 +1263,7 @@ export class RaidView {
       beacon.ring.material.opacity=.36+.24*pulse;beacon.ring.scale.setScalar(.58*(1+.035*pulse));
      }}
     }else{
-     if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}
+     if(type==='exit'){model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));if(model.userData.exitSignal)updateExitSignal(model.userData.exitSignal,data,this.snapshot.serverTime,seconds,!!this.settings?.reduced);const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}}
     }
   }
   if(this.weather?.visible&&this.weatherState){

@@ -6078,3 +6078,89 @@ verdict is store-authoritative, but human readability on a phone remains UNVERIF
 Next action: iteration 51 returns to a visual/look-feel slice for Extraction Raids (alternating
 rule; 50 was gameplay/UX). Keep the readiness, static P0, lightning, loot-beacon, cache-tier
 and base-economy graders green and record before/after screenshot evidence.
+
+
+## Look/feel iteration 51 — extraction signal flare and smoke column (2026-11-11)
+
+### Acceptance criteria — iteration 51 (post-P0 visual slice)
+
+1. Exit props in both online and offline raids render a presentation-only signal:
+   a coloured flare plus a drifting smoke column.
+2. Visibility and tint derive only from the authoritative snapshot exit fields
+   (`openAt`/`closeAt`, `contested`): smoke vents while a window is scheduled or
+   open, no signal is shown for an inactive exit, and an open/contested exit uses
+   the same green/red colour code as the exit ring and map markers.
+3. The signal animates deterministically from scene time and freezes to a still
+   pose under reduced motion; it never touches boarding, seats, timing,
+   settlement, loot, AI, damage or `/api` transport.
+4. Textures are shared (one authored smoke map and one cached glow map) and
+   per-actor disposal never frees another actor's resources.
+5. A new isolated-Chrome grader proves the production sync builds the signal for
+   every authored exit, the open/inbound/inactive/contested transitions, the
+   animation/freeze behaviour and a measurable pixel delta, with before/after
+   screenshots. The static P0 playability gate, loot-beacon and cache-tier
+   graders and the full unit suite stay green with zero browser errors.
+
+### Implementation — iteration 51 (completed)
+
+- `raid-models.mjs`: added `exitSignalModel`, a presentation-only signal group
+  attached to every `propModel('exit')`: one additive flare sprite using the
+  cached procedural glow map and eight pooled smoke puffs using the existing
+  authored `TX.smoke` texture. Added pure `exitSignalState(exit, now)` and
+  `updateExitSignal(signal, exit, now, seconds, reduced)`; the column rises and
+  widens deterministically, the flare pulses, reduced motion freezes every puff
+  and the flare, and inactive exits hide both while keeping the pooled objects.
+  Colours match the existing exit colour code: open `0x86efbb`, inbound
+  `0xd7a650`, contested `0xff805b`; smoke is neutral (`0xd6d0c4`) when calm and
+  warms (`0xffc2b2`) when contested.
+- `raid-view.mjs`: imports and drives `updateExitSignal` from the per-frame exit
+  actor branch using the authoritative snapshot `serverTime`, scene seconds and
+  reduced-motion setting. No authoritatively graded state is read or written by
+  the effect.
+- New `tests/raid-browser-exit-signal.mjs`: isolated Chrome grader against a real
+  relay deployment; fabricates only window timings for presentation evidence.
+  Asserts the signal exists for all four exits, the call exit opens (green flare,
+  smoke), transport stays inbound (smoke, no flare), hatch is contested (red
+  flare/smoke tint), freight is inactive (no signal); positions advance between
+  frame times and stay identical under reduced motion; puff/flare textures are
+  shared; isolated render delta 2,521 pixels. Screenshots
+  `/tmp/hs-exit-signal-before.png` (signal hidden at the same hero camera) and
+  `/tmp/hs-exit-signal.png` (signal shown) inspected.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-models.mjs raid-view.mjs tests/raid-browser-exit-signal.mjs` → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-exit-signal.mjs` → PASS:
+  `{"exits":["call","transport","hatch","freight"],"activeBlue":8843195,
+  "inboundAmber":14132816,"contestedRed":16744539,"animateMoved":24,"frozen":true,
+  "frozenFlare":true,"smokeMapShared":true,"glowMapShared":true,"changed":2521,
+  "browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (static deploy routing, offline boot, deploy/move/hit/loot/extract 270 credits,
+  zero `/api` traffic, zero browser errors).
+- `node --test tests/*.test.mjs` → 1240 pass, 0 fail (115.3 s).
+
+### Criteria status
+
+1. PASS — every production exit prop carries the flare/smoke signal group and
+   the raid view drives it each frame in both transports.
+2. PASS — scheduled/open windows vent smoke; inactive exits hide the signal; the
+   open flare is the exit green, contested red, inbound amber; boarding and
+   timing fields are never mutated.
+3. PASS — puff coordinates advance over time and are byte-identical between two
+   clocks under reduced motion; flare opacity/scale stay constant; no rules,
+   loot, AI, damage or `/api` code changed.
+4. PASS — all puffs share `TX.smoke` and all flares share the cached glow map;
+   materials own only their own textures.
+5. PASS — new isolated-Chrome grader green (~2,500-pixel delta, before/after
+   screenshots inspected); static P0 gate green; full suite 1240/1240 green. Live
+   human readability on a phone remains UNVERIFIED (P7).
+
+**Status:** Extraction exit signal flare and smoke column are COMPLETE in local
+presentation scope. Subjective in-world readability and physical-device feel remain
+UNVERIFIED (P5/P7).
+
+Next action: iteration 52 alternates back to a gameplay/UX or persistence slice on the
+offline path (for example another base-flow or in-raid UX gap), then iteration 53 returns
+to a visual slice. Keep the exit-signal, readiness, static P0, lightning, loot-beacon,
+cache-tier and base-economy graders green.

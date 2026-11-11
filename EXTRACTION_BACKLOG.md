@@ -41,6 +41,19 @@ zero `/api` traffic, zero browser errors), `tests/raid-offline.test.mjs` readine
 static P0 playability gate, offline dispatch/persist graders, online smoke against an isolated
 `node server/main.mjs`, and full suite 1240/1240. Physical-device feel remains UNVERIFIED (P7).
 
+Post-P0 look/feel resumed 2026-11-11 (iteration 51): every extraction exit prop now carries
+a presentation-only signal — a coloured flare and a pooled eight-puff smoke column. The
+signal vents only while the authoritative `openAt`/`closeAt` window is scheduled or open
+and is tinted by the exit colour code (open green `0x86efbb`, inbound amber `0xd7a650`,
+contested red `0xff805b`); an inactive exit shows nothing. Animation is deterministic from
+scene time, freezes fully under reduced motion, reuses the authored `TX.smoke` texture and
+the cached procedural glow map, and never touches boarding, seats, timing, settlement, AI,
+loot or `/api`. Evidence: new `tests/raid-browser-exit-signal.mjs` (all four exits, open/
+inbound/inactive/contested states, 24 animated fields, frozen pose, shared maps, ~2,500-pixel
+isolated delta, screenshots `/tmp/hs-exit-signal-before.png` / `/tmp/hs-exit-signal.png`),
+static P0 playability gate green, zero browser errors. Human readability on a phone remains
+UNVERIFIED (P7).
+
 Post-P0 look/feel resumed 2026-11-11 (iteration 47): authored ground-loot piles now render a
 presentation-only pickup beacon in both online and offline raids — a floating gem, additive
 halo and light wisp tinted by the pile's brightest authoritative item rarity, plus a pulsing
@@ -714,7 +727,12 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   additive flash sprite, expanding shock ring, 14-spark field and a bounded tinted light
   — with no burst on a miss or a reconnect baseline and a static reduced-motion variant
   (iteration 29, presentation-only; readable pixel delta 4,234 in an isolated frame,
-  subjective live-combat readability UNVERIFIED). Older screenshots may still show the
+  subjective live-combat readability UNVERIFIED). Every extraction exit now vents a
+  presentation-only signal — a coloured flare and an eight-puff smoke column tinted by
+  the authoritative open/inbound/contested window state, deterministic, fully frozen
+  under reduced motion and sharing one smoke map and glow map (iteration 51,
+  presentation-only; ~2,500-pixel isolated delta in `tests/raid-browser-exit-signal.mjs`;
+  live readability on a phone UNVERIFIED). Older screenshots may still show the
   former edge-on ring or the generic "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced

@@ -1,5 +1,5 @@
 import * as THREE from './lib/three.module.min.js';
-import {mergeParts} from './gfx.js';
+import {mergeParts,TX} from './gfx.js';
 import {gunParts,handParts} from './weapons.js';
 import {makeCharacterWithCache,animate} from './chars.js';
 import {WEAPONS} from './shared/raid-catalog.mjs';
@@ -289,8 +289,65 @@ export function propModel(kind,color=0xe0aa4d,options={}){
  }else{
   part(root,'cylinder',0x36474d,0,.07,0,3,.12,3);const ring=part(root,'ring',color,0,.15,0,2.6,2.6,2.6,[Math.PI/2,0,0]);ring.material=ring.material.clone();ring.material.userData.raidOwned=true;root.userData.exitRing=ring;
   part(root,'box',0x53646b,2.3,.8,0,.45,1.6,.45);part(root,'box',color,2.3,1.6,0,.5,.2,.5);
+  const signal=exitSignalModel();root.add(signal.group);root.userData.exitSignal=signal;
  }
  root.userData.actor=kind;return root;
+}
+// Extraction signal: a coloured flare and a drifting smoke column above every
+// exit whose winding window is scheduled or open. Visibility, tint and flare
+// colour come from the authoritative `openAt`/`closeAt`/`contested` snapshot
+// fields; nothing here changes boarding, seats, timing or settlement. The smoke
+// shares the existing card-smoke texture and freezes to a still pose when reduced
+// motion is requested, matching the dust and loot-beacon conventions.
+const EXIT_SIGNAL_PUFFS=8;
+function exitSignalModel(){
+ const group=new THREE.Group();
+ const flareMaterial=new THREE.SpriteMaterial({map:coreGlowTexture(),color:0x86efbb,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+ flareMaterial.userData.raidOwned=true;
+ const flare=new THREE.Sprite(flareMaterial);flare.position.set(0,1.1,0);flare.scale.setScalar(2.34);flare.renderOrder=3;group.add(flare);
+ const smoke=[];
+ for(let i=0;i<EXIT_SIGNAL_PUFFS;i++){
+  const material=new THREE.SpriteMaterial({map:TX.smoke,color:0xd2ccc0,transparent:true,opacity:0,depthWrite:false,blending:THREE.NormalBlending,fog:true});
+  material.userData.raidOwned=true;
+  const puff=new THREE.Sprite(material);
+  puff.userData.exitSignalPhase=i/EXIT_SIGNAL_PUFFS;
+  puff.userData.exitSignalAngle=i*2.399963;
+  puff.position.set(Math.cos(i*2.399963)*.5,2.4+i*.9,Math.sin(i*2.399963)*.5);
+  puff.scale.setScalar(1.2);puff.renderOrder=2;
+  group.add(puff);smoke.push(puff);
+ }
+ group.visible=false;
+ return {group,flare,smoke};
+}
+// Pure phase predicate: exits vent smoke only while their window is scheduled
+// (inbound or open) and carry the same colour code the map and exit cards use.
+export function exitSignalState(exit,now){
+ const scheduled=!!exit&&Number(exit.closeAt)>now,open=scheduled&&Number(exit.openAt)<=now,contested=!!exit?.contested;
+ return {scheduled,open,contested,color:contested?0xff805b:open?0x86efbb:0xd7a650,strength:open?1:.4};
+}
+export function updateExitSignal(signal,exit,now,seconds,reduced){
+ const state=exitSignalState(exit,now);
+ signal.group.visible=state.scheduled;
+ if(!state.scheduled){signal.flare.visible=false;return state}
+ const tint=state.contested?0xffc2b2:state.open?0xd6d0c4:0xcfc3b4;
+ signal.flare.visible=state.open;
+ signal.flare.material.color.setHex(state.color);
+ const pulse=reduced?.78:.72+.18*Math.sin(seconds*2.6+(Number(exit.x)||0)*.02);
+ signal.flare.material.opacity=pulse*state.strength;
+ signal.flare.scale.setScalar((reduced?2.34:2.34+.34*Math.sin(seconds*2.6))*(state.contested?1.15:1));
+ for(const puff of signal.smoke){
+  const phase=puff.userData.exitSignalPhase,angle=puff.userData.exitSignalAngle;
+  // Reduced motion freezes each puff at its authored sample position instead
+  // of scrolling it up the column.
+  const t=reduced?phase:(seconds*.19+phase)%1,spread=reduced?0:.18+t*.58;
+  puff.material.color.setHex(tint);
+  puff.position.y=2.4+t*19;
+  puff.position.x=Math.cos(angle)*(.5+spread)+Math.sin(seconds*.7+angle)*.24*spread;
+  puff.position.z=Math.sin(angle)*(.5+spread)+Math.cos(seconds*.6+angle)*.24*spread;
+  puff.scale.setScalar(reduced?1.55:1.1+t*2.6);
+  puff.material.opacity=(reduced?.16:Math.sin(Math.PI*t)*.34)*state.strength;
+ }
+ return state;
 }
 // Tall additive columns mark the armories and exits from a distance without
 // needing a label sprite. They are built from their own geometry/material so
