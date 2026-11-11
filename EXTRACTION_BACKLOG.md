@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-P0 offline account surface iteration 52). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (post-P0 vitality vignette iteration 53). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,20 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 53): the active raid now paints a
+presentation-only screen-edge vitality haze from the authoritative `self.hp`/`self.downed`
+fields — invisible above 60 health, a restrained amber-red warning at 60 or below, a
+stronger red `vitalPulse` at 30 or below, and a deep maroon while downed. The overlay is
+pointer-transparent, hidden from assistive technology (the numeric HP token remains the
+text authority), spans the raid view, and freezes to a static tint under reduced motion.
+No rules, damage, loot, AI, extraction or `/api` code changed. Evidence:
+`tests/raid-browser-vital-vignette.mjs` (live hp 55 → warn, hp 25 → critical, downed,
+reduced-motion freeze, pointer-events none, 610,031-pixel isolated tint delta,
+zero browser errors; screenshots `/tmp/hs-vital-vignette-clear.png`,
+`/tmp/hs-vital-vignette-dark.png`, `/tmp/hs-vital-vignette-critical.png`), static P0
+gate green, full suite 1239/1240 with the known matchmaking ECONNRESET rerun 11/11.
+Human readability on a phone remains UNVERIFIED (P7).
 
 Post-P0 UX resumed 2026-11-11 (iteration 52): the static offline Account surface is
 passwordless and truthful. The Account dialog explains that the operator and stash
@@ -752,8 +766,13 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   the authoritative open/inbound/contested window state, deterministic, fully frozen
   under reduced motion and sharing one smoke map and glow map (iteration 51,
   presentation-only; ~2,500-pixel isolated delta in `tests/raid-browser-exit-signal.mjs`;
-  live readability on a phone UNVERIFIED). Older screenshots may still show the
-  former edge-on ring or the generic "salvage bag" wording.
+  live readability on a phone UNVERIFIED). A presentation-only vitality haze now spans
+  the raid view from the authoritative hp/downed fields: transparent above 60, restrained
+  amber-red at 60 or below, pulsing red at 30 or below, and deep maroon while downed,
+  with the pulse and transition removed under reduced motion (iteration 53,
+  presentation-only; 610,031-pixel isolated tint delta; live readability UNVERIFIED).
+  Older screenshots may still show the former edge-on ring or the generic "salvage bag"
+  wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.

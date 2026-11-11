@@ -6233,3 +6233,74 @@ Next action: iteration 53 returns to a visual/look-feel slice for Extraction Rai
 (for example HUD readability or another presentation-only raid detail), then
 iteration 54 can take the next offline persistence/UX gap. Keep the static-account,
 exit-signal, readiness, static P0 and base-economy graders green.
+
+## Iteration 53 — Raid vitality vignette
+
+### Acceptance criteria
+
+1. In an active raid a decorative screen-edge haze is derived only from the
+   authoritative `self.hp`/`self.downed` snapshot fields: fully transparent at
+   health above 60, restrained amber-red at 60 or below, stronger red with a slow
+   pulse at 30 or below, and deepest maroon while downed.
+2. The haze never intercepts pointer input, is hidden from assistive technology
+   (the HUD HP token still carries the readable state), and spans the raid view.
+3. Reduced motion removes the pulse and transition while keeping the severity tint
+   visible; the effect touches no gameplay, loot, AI, extraction or `/api` logic.
+4. A new isolated-Chrome grader proves the live authoritative path, boundary
+   mapping, downed/reduced-motion states, pointer transparency and a measurable
+   isolated pixel delta, with before/after screenshots; the static P0 playability
+   gate and full unit suite stay green.
+
+### Implementation — iteration 53 (completed)
+
+- `raid-online.html`: added `#vitalVignette` immediately after the raid canvas,
+  with `aria-hidden="true"` and `data-state="ok"`, and a late-theme CSS block for
+  the radial edge gradient. `warn` uses a restrained amber-red tint, `critical`
+  uses the red tint with `vitalPulse`, and `downed` a deeper maroon. The shared
+  `html[data-reduced-motion=true]` rule removes both animation and transition.
+- `raid-online.mjs`: added exported `vitalVignetteState(hp,downed)` (reusing the
+  HUD's <=30/<=60 thresholds, treating missing hp as healthy) and
+  `renderVitalVignette(self)`, which only mirrors the authoritative `hp`/`downed`
+  fields onto `dataset.state`. `updateUI()` calls it alongside `renderHud` on
+  every snapshot; no game state is read or written.
+- New `tests/raid-browser-vital-vignette.mjs`: real deployment via the shipped UI,
+  machines/world cleared around the fixtures, authoritative operator hp changed to
+  55 then 25 with native movement keys forcing the real action/snapshot loop,
+  pure boundary mapping, a downed fixture, reduced-motion freeze, pointer-events
+  `none`, and an isolated pixel delta with `/tmp/hs-vital-vignette-clear.png`,
+  `/tmp/hs-vital-vignette-dark.png` and `/tmp/hs-vital-vignette-critical.png`.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-online.mjs tests/raid-browser-vital-vignette.mjs` → OK
+  (checked before the run).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-vital-vignette.mjs` → PASS:
+  `{"full":"ok","warn":"warn","critical":"critical","downed":"downed",
+  "reducedAnimation":"none","delta":{"width":1280,"height":720,"changed":610031,
+  "redder":558292},"browserErrors":[]}`. Inspected the critical screenshot: the
+  red edge haze stays off the center and the real HUD/backpack remain untouched.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (static Pages deploy routing, offline boot, deploy/move/machine hit/loot/extract,
+  zero `/api`, zero browser errors).
+- `node --test tests/*.test.mjs` → 1239 pass, 1 fail. The sole failure was the
+  known intermittent `matchmaking.test.mjs` ECONNRESET; isolated rerun passed 11/11.
+
+### Criteria status
+
+1. PASS — live authoritative hp 55 → `warn`, hp 25 → `critical`, fixture downed →
+   `downed`, >60 → fully transparent.
+2. PASS — pointer-events `none`, `aria-hidden="true"`, full-viewport rect; the HP
+   numeric token and recent-damage line remain the text authority.
+3. PASS — reduced motion removes `vitalPulse` and the transition but keeps opacity
+   1; only `raid-online.mjs`/`.html` presentation changed.
+4. PASS — new isolated-Chrome grader green with a 610,031-pixel tint delta, static
+   P0 gate green, and the known matchmaking ECONNRESET resolved on isolated rerun.
+   Physical-device readability of the haze on Austin's phone remains UNVERIFIED (P7).
+
+**Status:** Raid vitality vignette is COMPLETE in local presentation scope.
+Subjective phone readability and human balance/feel remain UNVERIFIED (P5/P7).
+
+Next action: iteration 54 takes a gameplay/persistence slice on the offline path
+(for example the next offline results/records or post-settlement UX gap), then
+iteration 55 returns to a visual slice. Keep the vitality-vignette, static P0,
+static-account, exit-signal, readiness and base-economy graders green.

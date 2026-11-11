@@ -429,6 +429,24 @@ $('spectate').onclick=()=>{const teammates=snapshot.players.filter(p=>p.team===s
 // exported so the browser graders can verify the mapping without altering
 // snapshot or gameplay state. Numeric values always stay visible in text.
 export function hudVitalState(hp,downed){if(downed)return 'downed';if(hp<=30)return 'critical';if(hp<=60)return 'warn';return 'ok'}
+// Screen-edge vitality haze. Same presentation thresholds as the HUD token and
+// derived only from the authoritative self hp/downed fields; reduced motion is
+// handled entirely by the shared data-reduced-motion CSS gate.
+export function vitalVignetteState(hp,downed){
+ if(downed)return 'downed';
+ const value=Number(hp);
+ if(!Number.isFinite(value))return 'ok';
+ if(value<=30)return 'critical';
+ if(value<=60)return 'warn';
+ return 'ok';
+}
+export function renderVitalVignette(self){
+ const node=document.getElementById('vitalVignette');
+ if(!node||!self)return null;
+ const state=vitalVignetteState(self.hp,!!self.downed);
+ if(node.dataset.state!==state)node.dataset.state=state;
+ return state;
+}
 function hudToken(metric,key,value,state){
  const token=document.createElement('span');token.className='hudToken hudScore';token.dataset.metric=metric;
  if(state)token.dataset.state=state;
@@ -605,7 +623,7 @@ function updateUI(){
  const vaultBody={...({x:s.x,y:s.y||0,z:s.z,grounded:s.grounded!==false,downed:s.downed,carrying:s.carrying,vault:s.vault||null}),...(prediction?.position||{}),yaw,move:movementInput()};
  const vaultWorld=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);const vaultAhead=!!(!s.vaulting&&s.alive&&!s.downed&&!s.carrying&&vaultWorld&&vaultTarget(vaultWorld,vaultBody,vaultDirection(vaultBody)));
  $('vault').disabled=!s.alive||s.downed||s.vaulting||!vaultAhead;$('vault').textContent=s.vaulting?'Vaulting…':'Vault';
- renderHud(s,snapshot);renderThreatIndicators(snapshot);renderHurtDirection(snapshot);renderHitFeedback(s);
+ renderHud(s,snapshot);renderVitalVignette(s);renderThreatIndicators(snapshot);renderHurtDirection(snapshot);renderHitFeedback(s);
  view?.sync(snapshot);$('spectate').hidden=s.alive||!snapshot.camera;if(snapshot.camera)$('spectate').textContent='Watching '+snapshot.camera.name+' · next squadmate';
  for(const event of snapshot.events||[])if(!seenEvents.has(event.id)){
   seenEvents.add(event.id);const text=event.text||event.message||event.kind||event.type;$('events').textContent=text;
