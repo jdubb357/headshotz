@@ -5913,3 +5913,25 @@ alternating rule; iteration 47 was visual, 48 was gameplay/UX). Keep the new ava
 grader, the static P0 gate, loot-beacons, cache-tiers and base-economy graders green, and
 record before/after screenshot evidence.
 
+
+## Look/feel iteration 49 — storm-front lightning (2026-11-11)
+
+### Acceptance criteria — iteration 49 (P0 post-raid presentation)
+
+1. Lightning is presentation-only and deterministic: it derives from the scene clock and
+   authoritative weather, flashes only on a rain front, never uses runtime randomness,
+   adds no per-frame geometry/material/light allocation, and changes no raid rule,
+   snapshot, ballistics, loot, settlement or `/api` transport behavior.
+2. A rain-front strike briefly lifts a cold sheet across the sky dome, brightens the
+   existing sun and hemisphere lights (with a cooler hemisphere tint), and lifts the
+   horizon fog haze; between strikes and after the follow-up sheet all values return to
+   the exact pre-flash state.
+3. Reduced motion disables the entire flash (uniform, lights, tint) and clear, mist and
+   ash weather leave every flash-driven value at its neutral rain/clear baseline.
+4. The production frame loop drives the pulse at the authored 8.5 s cycle (first strike
+   ~1.1 s into each cycle, softer sheet ~1.38 s), with no extra lights in the scene.
+5. A new browser grader boots a real relay deployment, imports the production
+   `RaidView`, verifies the pulse/uniform/light/reduced-motion/clear states, measures an
+   isolated sky render-target pixel delta, and captures before/after screenshots. The
+   atmosphere grader, static P0 playability gate and full unit suite stay green with zero
+   browser errors.
