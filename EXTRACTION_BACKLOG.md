@@ -27,6 +27,33 @@ legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
 
+## Post-P0 priority — Mobile/touch HUD declutter (iteration 59, 2026-11-11)
+
+Status: COMPLETE in local/emulated-browser scope. The compact landscape touch HUD leaves
+at least 75% of the 1024x720 and 844x390 raid view unobstructed (92.2% and 82.2% measured
+by union of visible HUD surfaces). A slim translucent top strip carries HP (bar plus
+number, with a damage flash and warn/critical/downed colours), ammunition/magazine,
+raid time and backpack slots. Zone/weather/compass/field-objective copy appears transiently
+on spawn and zone/objective change, then fades; the offline connection/RTT readout stays
+hidden. A bottom-left virtual thumbstick replaces the arrow grid and drives the same
+authoritative move action; a drag on the right half turns the camera through the existing
+touch view handler. The bottom-right action cluster keeps Fire/Aim/Reload/Jump/Sprint/Slide
+at 44px+ with Interact revealed only when the authoritative snapshot has something in
+reach; Utility/Vault/Map live in a compact icon row above it and Backpack stays in its
+top-right context slot. Back to base, Account, Guide and Settings collapse behind one 44px
+raid-menu icon. Safe-area insets are applied throughout, compact surfaces do not overlap,
+and the crosshair centre remains clear. Settings offers Auto/On/Off "Compact HUD"; Auto
+enables on coarse-pointer landscape only, so desktop keyboard/mouse and portrait layouts
+keep their existing readable HUD. Evidence: `tests/raid-browser-mobile-hud.mjs` (static
+server, zero `/api`, touch emulation, compact/briefing screenshots, thumbstick authoritative
+travel, right-half yaw drag, Fire/Reload/Interact by touch, contextual Interact, menu
+collapse and overlap checks) plus
+`tests/raid-browser-hud-layout.mjs`, `tests/raid-browser-hud-theme.mjs`,
+`tests/raid-browser-accessibility.mjs`, `tests/raid-browser-static-offline.mjs` and the
+full unit suite green. Honest gap: physical-device feel on Austin's iPad/phone and
+subjective combat readability remain UNVERIFIED (P7); browser touch emulation covers geometry,
+target size and authoritative input but not sensor/pointer latency or human fatigue.
+
 Post-P0 UX resumed 2026-11-11 (iteration 58): the static offline Deploy card now previews
 an authored field objective from the shared catalogue and remembers the sector/objective
 plan on the device. The readiness line names the objective, site, hold and authoritative

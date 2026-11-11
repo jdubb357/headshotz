@@ -6671,7 +6671,81 @@ a visual/look-feel slice.
 **Status:** Offline deploy planning is COMPLETE in local UX/persistence scope.
 Human feel on a physical phone remains UNVERIFIED (P7); P0 stays complete.
 
-Next action: iteration 59 returns to the visual/look-feel alternation — a
-presentation-only Extraction Raids improvement (for example loot/container
-readability or in-raid atmosphere polish), keeping the offline-plan, readiness,
-static P0, records and insurance-refresh graders green.
+## Iteration 59 — Mobile/touch HUD declutter (2026-11-11)
+
+### Acceptance criteria
+
+1. Compact landscape review at 1024x720 and 844x390 leaves at least 75% of the
+   raid view unobstructed by visible HUD surfaces, with no compact control
+   overlapping another or the crosshair centre.
+2. The status panel is replaced by a slim translucent top strip (HP bar/number,
+   ammo, timer, pack), zone/weather/compass/objective briefing is transient on
+   spawn/zone change, the offline connection readout is hidden, and damage reads
+   as the existing red edge vignette plus an HP bar flash rather than a text line.
+3. Touch controls are mobile-shooter style: a bottom-left virtual thumbstick
+   replaces arrow/turn buttons, a right-half drag turns the camera, the
+   bottom-right cluster keeps Fire/Aim/Reload/Jump/Sprint/Slide at 44px+, Interact
+   only when the authoritative snapshot has something in reach, Utility/Map/Vault
+   are compact row icons, Backpack is a context slot, and Back to base/Account/
+   Guide/Settings collapse behind one 44px menu icon.
+4. Desktop keyboard/mouse and portrait layouts keep their existing readable HUD;
+   Settings persists an Auto/On/Off Compact HUD choice; safe-area insets apply.
+5. `tests/raid-browser-mobile-hud.mjs` covers both target sizes with touch
+   emulation, zero `/api`, authoritative joystick movement, right-drag yaw,
+   Fire/Reload/Interact by touch, screenshots and no browser errors.
+
+### Implementation — iteration 59 (completed)
+
+- `shared/raid-settings.mjs`: added `hudLayout: 'auto'|'compact'|'full'` (default
+  `auto`) and normalization.
+- `raid-settings-ui.mjs`: Auto enables only on coarse-pointer landscape; explicit
+  Settings wins; exposes `effective().compactHud` and `html[data-compact-hud]`.
+- `raid-online.html`: compact HUD CSS and markup — slim strip, transient status,
+  virtual thumbstick, reduced action cluster, tool row, raid menu, safe areas,
+  clipped telemetry so existing text contracts stay mounted.
+- `raid-online.mjs`: authoritative slim render, transient briefing keyed to
+  map/weather/objective change, HP flash, thumbstick axes added to
+  `movementInput()`, contextual compact Interact, offline network readout hidden,
+  compact-aware dock calculation, and raid-menu wiring.
+- `tests/raid-browser-mobile-hud.mjs`: static server with `/api` 404, two
+  viewport sizes, union coverage measurement,
+  thumbstick drag/wait, right-half camera drag, touch Fire/Reload/Interact,
+  contextual Interact check, menu open/close, overlap/crosshair checks.
+
+### Commands/results (2026-11-11)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-mobile-hud.mjs` → PASS:
+  unobstructed 1024x720 0.9215, 844x390 0.8224; thumbstickMoved, rightDragTurned,
+  interactContextual, raidMenuCollapsed, fire/reload/interact by touch; screenshots
+  `/tmp/hs-mobile-hud-1024x720.png`, `/tmp/hs-mobile-hud-844x390.png`,
+  `/tmp/hs-mobile-hud-briefing.png`; browserErrors `[]`.
+- `node tests/raid-browser-hud-layout.mjs` → PASS (desktop plus mobile portrait
+  docking including 320x480, zero overlaps/obscured/undersized targets).
+- `node tests/raid-browser-hud-theme.mjs` → PASS, `touchTargets:true`.
+- `node tests/raid-browser-accessibility.mjs` → PASS (remapping, dialogs,
+  touch boarding, mobile aim, reduced motion, zero overflow/errors).
+- `node tests/raid-browser-static-offline.mjs` → PASS (deploy/move/hit/loot/extract,
+  zero `/api`, zero browser errors).
+- `node --test tests/*.test.mjs` → 1246 pass / 1 known intermittent matchmaking
+  ECONNRESET; isolated rerun `node --test tests/matchmaking.test.mjs` → 11/11 pass.
+
+### Criteria status
+
+1. PASS — measured in the browser grader at both target sizes; overlap and
+   crosshair-centre assertions are green.
+2. PASS — slim strip, transient briefing hide, hidden offline network readout and
+   HP flash shipped. The damage text still exists in the clipped telemetry for
+   screen-reader contracts, but no damage text line is visible in compact mode.
+3. PASS — all listed controls are present behind the compact-only rules; joystick
+   and camera drag are verified against the authoritative snapshot.
+4. PASS — compact is gated to coarse pointer landscape (or explicit setting);
+   desktop/portrait HUD layout, theme and accessibility graders stay green.
+5. PASS — `tests/raid-browser-mobile-hud.mjs` green with screenshots and no errors.
+
+**Status:** Mobile/touch HUD declutter is COMPLETE in emulated-browser geometry
+and authoritative-input scope. Physical-device feel on Austin's iPad/phone and
+subjective combat readability remain UNVERIFIED (P7, blocked on hardware).
+
+Next action: iteration 60 returns to the alternating gameplay/persistence and
+visual-quality slices, keeping the mobile HUD, offline-plan, readiness, static P0,
+records and insurance-refresh graders green.
