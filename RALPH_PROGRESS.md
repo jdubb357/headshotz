@@ -4592,3 +4592,65 @@ Next action: P0 slice 2 — a browser/Node Web Crypto shim (`randomUUID`, `rando
 `createHash`/`digest`) shared by `server/raids.mjs` and `server/raid-*.mjs`, leaving
 `scryptSync` in `server/credentials.mjs` on the Node path and keeping
 `node server/main.mjs` working; add a unit test for the shim.
+
+## Iteration 31 — P0 slice 2: shared Web Crypto shim
+
+### Acceptance criteria — iteration 31 (P0 slice 2, Web Crypto shim)
+
+1. A DOM-free, `node:*`-free shared module exposes `randomUUID`, `randomBytes`, and a
+   synchronous `createHash('sha256').update(value).digest('hex')` usable by both Node
+   and the browser, with unicode/string/Uint8Array inputs.
+2. `server/raids.mjs` and the `server/raid-*.mjs` modules that use crypto import the shim
+   instead of `node:crypto`; `server/credentials.mjs` keeps Node-only `scryptSync` and
+   cookie/password semantics unchanged.
+3. `node server/main.mjs` still boots and serves `/health/live`; affected raid unit
+   suites remain green.
+4. New unit tests prove shim outputs against Node's `node:crypto` oracle and cover the
+   UUID/byte/hex helpers; no gameplay, snapshot, server-rule or other-mode behaviour
+   changes in this slice.
+
+### Implementation — iteration 31 (completed)
+
+- `shared/raid-crypto.mjs` (new): `randomUUID` (Web Crypto when available, v4 fallback),
+  `randomBytes` (Web Crypto `getRandomValues`, `Math.random` fallback), `randomHex`,
+  `toHex`/`fromHex`, and a pure-JS SHA-256 with Node-shaped chainable `createHash`.
+  No `node:*` imports; safe to load in an in-page service.
+- `server/raids.mjs`: `createHash`+`randomUUID` now come from the shim.
+- `server/raid-loot.mjs`: `randomBytes`/`toHex` from the shim; default cache seed is
+  `toHex(randomBytes(16))` (same hex string as before on Node).
+- `server/raid-inventory.mjs`, `server/raid-utilities.mjs`: `randomUUID` from the shim.
+- `tests/raid-crypto.test.mjs` (new): 5 tests — Node-oracle SHA-256 vectors (empty, abc,
+  unicode), FIPS vectors, chain/rejection behaviour, UUIDv4 format+uniqueness, byte/hex
+  sizing and validation.
+- `EXTRACTION_BACKLOG.md`: slice 2 recorded COMPLETE; next slice 3. `EXTRACTION_DESIGN.md`
+  records the shared-primitives contract.
+
+### Commands/results (2026-11-10)
+
+- `node --check shared/raid-crypto.mjs tests/raid-crypto.test.mjs` → OK.
+- `node --test tests/raid-crypto.test.mjs` → 5 pass, 0 fail.
+- Targeted raid suites (game-loop, interactions, transfers, ballistics, exits) → 67/67.
+- Real server boot: `RAID_DATA_DIR=$(mktemp -d) PORT=18099 node server/main.mjs`,
+  `curl /health/live` → HTTP 200, shutdown clean.
+- Full suite `node --test tests/*.test.mjs` → 1191 tests, 1190 pass, 1 fail
+  (`matchmaking.test.mjs:41` ECONNRESET — known intermittent, unrelated); isolated rerun
+  11/11 pass.
+
+### Criteria status
+
+1. PASS — shim is importable without Node globals and its hex digest is byte-identical
+   to Node's crypto oracle.
+2. PASS — `node:crypto` no longer appears in `server/raids.mjs` /
+   `server/raid-loot.mjs` / `server/raid-inventory.mjs` / `server/raid-utilities.mjs`;
+   `server/credentials.mjs` untouched.
+3. PASS — Node host boots and health check returns 200; targeted and full suites green
+   apart from the pre-existing intermittent matchmaking ECONNRESET.
+4. PASS — 5/5 new crypto tests; no gameplay or snapshot changes.
+
+**Status:** P0 slice 2 Web Crypto shim is COMPLETE. Offline combat itself is still not
+playable: slice 3 (in-memory store skeleton) and slices 4–12 remain. No browser grader was
+run because this slice changes no rendered state and wires no client behaviour.
+
+Next action: P0 slice 3 — a new in-memory store adapter (no `node:sqlite`) that constructs
+a `RaidService`, creates a guest account, and returns an empty profile/stash; unit-test
+construct + profile on the Node path.

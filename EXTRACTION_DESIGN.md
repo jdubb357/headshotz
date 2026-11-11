@@ -121,3 +121,12 @@ any raid request:
 stays DOM-free at import time so Node tests can use it directly. No routing or gameplay
 behaviour is wired to the detector yet; that lands with the in-page dispatcher and Pages
 DEPLOY routing slices.
+
+Slice 2 adds `shared/raid-crypto.mjs`, the single crypto primitive source for both
+transports: `randomUUID`/`randomBytes` prefer the Web Crypto global and fall back to
+pure JS, and `createHash('sha256')` is a synchronous FIPS 180-4 implementation whose
+digest hex matches Node's `node:crypto` byte-for-byte, so action receipt hashes and
+checkpoint hashes agree online and offline. `server/raids.mjs` and the `server/raid-*`
+modules that need randomness/hashing import it instead of `node:crypto`;
+`server/credentials.mjs` keeps Node-only scrypt password hashing. The Node host boots
+unchanged (`node server/main.mjs`, `/health/live` 200).

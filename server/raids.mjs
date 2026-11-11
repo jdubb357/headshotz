@@ -16,11 +16,10 @@ import {objectiveFor,createObjectiveState,advanceObjectiveState,settleObjectiveS
 import {ARTIFACTS} from '../shared/raid-sectors.mjs';
 import {createConditionPlan,conditionsAt} from '../shared/raid-conditions.mjs';
 import {RAID_PROTOCOL,RECEIPT_LIMIT,validateAction} from '../shared/raid-protocol.mjs';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from '../shared/raid-crypto.mjs';
 import {PING_TYPES} from '../shared/raid-comms.mjs';
 import {squadRole,pingSecondsFor,reviveSecondsFor,engineerPicks,packCapacityFor,weightCapacityFor} from '../shared/raid-roles.mjs';
 import {blockedBetween} from './comms.mjs';
-import {randomUUID} from 'node:crypto';
 import {item,RuleError} from './store.mjs';
 import {RAID_WORLDS,getWorld,blocked,clearLine,floorAt} from '../shared/raid-worlds.mjs';
 import {safePoint} from '../shared/raid-navigation.mjs';

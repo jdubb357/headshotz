@@ -1,4 +1,4 @@
-import {randomUUID} from 'node:crypto';
+import {randomUUID} from '../shared/raid-crypto.mjs';
 import {maxStack,itemWeight,weaponStats} from '../shared/raid-catalog.mjs';
 import {stackable,compatibleStacks} from '../shared/raid-inventory.mjs';
 import {requireRule} from './rules.mjs';

@@ -17,8 +17,8 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slice 1 (static-mode detection) COMPLETE 2026-11-10; slices 2–12
-open. This project temporarily supersedes P1–P10 and visual-alternation
+Status: IN PROGRESS — slices 1–2 COMPLETE 2026-11-10; slices 3–12 open. This project
+temporarily supersedes P1–P10 and visual-alternation
 until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
 to “do not change the hub/main menu or the original cooperative Extraction”: routing
 may change so DEPLOY opens the new client, but the old `game.js` Extraction must stay
@@ -45,11 +45,18 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    `browserRaidMode` are browser convenience helpers; no game/routing behaviour was
    wired in this slice by design. Evidence: `tests/raid-static-mode.test.mjs` (7/7).
    Next: slice 2 Web Crypto shim.
-2. **Web Crypto shim** — MISSING. Introduce a wrapper the browser and Node can share
-   for `randomUUID`, `randomBytes`, and `createHash`/`digest` used by `server/raids.mjs`
-   and `server/raid-*.mjs`. Leave online password hashing (`scryptSync` in
-   `server/credentials.mjs`) on the Node path. Keep `node server/main.mjs` working;
-   add a unit test for the shim.
+2. **Web Crypto shim** — COMPLETE (iteration 31). `shared/raid-crypto.mjs` is a
+   DOM-free, `node:*`-free wrapper exporting `randomUUID`, `randomBytes`, `randomHex`,
+   `fromHex`/`toHex` and a synchronous `createHash('sha256').update(x).digest('hex')`
+   (pure-JS SHA-256 fallback, Web Crypto `getRandomValues`/`randomUUID` when present).
+   `server/raids.mjs`, `server/raid-loot.mjs`, `server/raid-inventory.mjs` and
+   `server/raid-utilities.mjs` now import it, so those modules no longer pull
+   `node:crypto` and can load in the browser. `server/credentials.mjs` keeps
+   `scryptSync`/`timingSafeEqual` on the Node path. Evidence:
+   `tests/raid-crypto.test.mjs` (5/5: Node-oracle SHA-256 vectors incl. unicode,
+   UUIDv4 format/uniqueness, byte/hex helpers) and a real `node server/main.mjs`
+   boot (`/health/live` 200) plus targeted loot/inventory/ballistics/exits suites.
+   Next: slice 3 in-memory store skeleton.
 3. **In-memory store skeleton** — MISSING. New adapter (no `node:sqlite`) that
    constructs a `RaidService`, creates a guest account, and returns an empty
    profile/stash. Unit-test construct + profile.
