@@ -104,10 +104,10 @@ trigger=new RaidTrigger({getState:()=>{const s=snapshot?.self;return s?{deployme
 $('voiceVolume').addEventListener('change',()=>preferences.update({voiceVolume:Number($('voiceVolume').value)}));
 addEventListener('raidsettingschange',()=>{if(inRaid)setPack(!$('pack').hidden)});
 
-identityUI=accountUI({api,run,getProfile:()=>profile,onRotated:async()=>{authGeneration++;await comms.voice.leave('Voice off after account security update.');await refresh()},onRecovered:async()=>{await signedOut('Account recovered. Sign in with your new password.')},onSignOut:async()=>{await api('logout',{});await signedOut('Signed out.')}});
+identityUI=accountUI({api,run,getProfile:()=>profile,offline:()=>offlineMode,onRotated:async()=>{authGeneration++;await comms.voice.leave('Voice off after account security update.');await refresh()},onRecovered:async()=>{await signedOut('Account recovered. Sign in with your new password.')},onSignOut:async()=>{await api('logout',{});await signedOut('Signed out.')}});
 async function signedOut(text){
  const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();resetTacticalMap();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;
- view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();$('identity').textContent='';
+ view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();applyOfflineAuth();$('identity').textContent='';
  clearHitmarker();lastHitToken=0;for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','sectorStatus','hint','interactionStatus','rewardsTotals','rewardsLoot','rewardsRank','rewardsContract','rewardsOutcome','rewardsSettlement','rewardsStashUsage'])$(id).replaceChildren();$('rewards').hidden=true;$('sectorStatus').hidden=true;delete $('sectorStatus').dataset.state;
  $('restoreReady').hidden=true;$('readyMismatch').hidden=true;latencyProof=null;$('latencyStatus').textContent='Check connection before deploying.';
  message(text+(wasAlive?' Your operator remains vulnerable in the raid. Sign in and reconnect to continue.':''));
@@ -332,6 +332,19 @@ function applyOfflineMode(){
  }else{
   note.hidden=true;note.removeAttribute('data-state');note.textContent='';
  }
+ applyOfflineAuth();
+}
+// The offline session is passwordless, so the sign-out screen must not demand
+// one. Hide the online-only password/register/recovery controls (and keep them
+// out of HTML validation) and explain how to continue as a local operator.
+// Online pages never reach this path, so their auth form is unchanged.
+function applyOfflineAuth(){
+ if(!offlineMode)return;
+ const login=$('login'),password=login.querySelector('[name=password]'),submit=login.querySelector('button[type=submit]');
+ if(password){password.required=false;password.value='';password.closest('label')?.setAttribute('hidden','')}
+ $('offlineAuthNote').hidden=false;
+ $('register').hidden=true;$('recoverOpen').hidden=true;$('recoverPanel').hidden=true;
+ if(submit)submit.textContent='Continue offline';
 }
 async function measureLatency(){
  if(offlineMode){latencyProof={proofId:'offline-proof',rttMs:0,withinLimit:true,allowMixed:true,offline:true,at:performance.now(),generation:authGeneration,account:profile?.id};return latencyProof}

@@ -1,14 +1,25 @@
-export function accountUI({api,run,getProfile,onRotated,onRecovered,onSignOut}){
+export function accountUI({api,run,getProfile,onRotated,onRecovered,onSignOut,offline=()=>false}){
  const $=id=>document.getElementById(id);let codes=[],secretGeneration=0;
+ const isOffline=()=>offline()===true;
+ // Offline identity is a passwordless local guest: there is no server session,
+ // password or recovery-code store to manage. Keep the dialog truthful instead
+ // of exposing online-only controls that can only fail with 501.
+ function setOfflineView(){
+  if(!isOffline())return;
+  const online=$('onlineAccountSecurity');if(online)online.hidden=true;
+  $('offlineAccountNote').hidden=false;
+  const title=$('accountTitle').firstChild;if(title)title.textContent='Account — ';
+ }
  function clearCodes(){secretGeneration++;codes=[];$('recoveryCodeList').textContent='';$('recoveryCodePanel').hidden=true}
  function clearSensitive(){clearCodes();for(const form of ['passwordForm','codesForm'])$(form).reset();$('sessionPassword').value=''}
  async function refresh(){
+  if(isOffline()){$('sessionList').replaceChildren();$('recoveryCount').textContent='';return}
   const account=getProfile()?.id,data=await api('sessions');if(getProfile()?.id!==account||!$('accountDialog').open)return;$('sessionList').replaceChildren();$('recoveryCount').textContent=data.recoveryRemaining+' unused recovery codes saved on the server. Codes are shown only when you generate them.';
   for(const session of data.sessions){const row=document.createElement('div');row.className='item';row.setAttribute('role','group');row.setAttribute('aria-label',session.label);const text=document.createElement('span');text.textContent=`${session.label}${session.current?' · THIS SESSION':''} · signed in ${new Date(session.created).toLocaleString()} · last active ${new Date(session.seen).toLocaleString()} · expires ${new Date(session.expires).toLocaleString()}`;row.append(text);
    if(!session.current){const b=document.createElement('button');b.textContent='Sign out this session';b.dataset.session=session.id;b.onclick=()=>run(async()=>{await api('revoke-session',{id:session.id,currentPassword:$('sessionPassword').value});$('sessionPassword').value='';await refresh();$('securityStatus').textContent='Selected session signed out.'});row.append(b)}$('sessionList').append(row);
   }
  }
- $('accountOpen').onclick=()=>run(async()=>{if(!getProfile())return;clearSensitive();$('securityStatus').textContent='';$('securityIdentity').textContent=getProfile().username;$('securityUsername').value=getProfile().username;document.exitPointerLock?.();dispatchEvent(new Event('raidmenuopen'));$('accountDialog').showModal();$('accountClose').focus();await refresh()});
+ $('accountOpen').onclick=()=>run(async()=>{if(!getProfile())return;clearSensitive();setOfflineView();$('securityStatus').textContent='';$('securityIdentity').textContent=getProfile().username+(isOffline()?' · offline':'');$('securityUsername').value=getProfile().username;document.exitPointerLock?.();dispatchEvent(new Event('raidmenuopen'));$('accountDialog').showModal();$('accountClose').focus();await refresh()});
  $('accountSignOut').onclick=()=>run(onSignOut);
  $('accountClose').onclick=()=>{clearSensitive();$('accountDialog').close()};$('accountDialog').addEventListener('cancel',clearSensitive);$('accountDialog').addEventListener('close',clearSensitive);document.addEventListener('visibilitychange',()=>{if(document.hidden)clearCodes()});
  $('passwordForm').onsubmit=e=>{e.preventDefault();run(async()=>{if($('newPassword').value!==$('confirmPassword').value)throw new Error('New passwords do not match.');try{await api('change-password',{currentPassword:$('currentPassword').value,newPassword:$('newPassword').value});await onRotated();await refresh();$('securityStatus').textContent='Password changed. Other sessions and previous recovery codes are invalidated. Generate a new set of recovery codes. Your operator and equipment stay in their current state.'}finally{$('passwordForm').reset()}})};

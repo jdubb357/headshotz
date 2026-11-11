@@ -6164,3 +6164,72 @@ Next action: iteration 52 alternates back to a gameplay/UX or persistence slice 
 offline path (for example another base-flow or in-raid UX gap), then iteration 53 returns
 to a visual slice. Keep the exit-signal, readiness, static P0, lightning, loot-beacon,
 cache-tier and base-economy graders green.
+
+## Iteration 52 — Offline account/auth surface (passwordless local guest)
+
+### Acceptance criteria
+
+1. In static offline mode the Account dialog states that the operator and stash are
+   stored on this device and hides the online-only password-change, recovery-code
+   and server-session controls that can only return 501.
+2. Signing out of an offline raid returns to a local sign-in screen where only a
+   name is needed: the password field is hidden and non-required, the register and
+   recovery controls are hidden, and the submit button reads "Continue offline".
+3. Signing back in with only the name reuses the same local guest account, stash
+   and progress, and the Account control returns on the base.
+4. Online/Node account security, passwords, recovery codes and session revocation
+   are unchanged.
+5. A new isolated-Chrome grader proves criteria 1–3 with zero `/api` traffic and
+   zero browser errors; the static P0 playability gate, readiness grader and full
+   unit suite stay green.
+
+### Implementation
+
+- `raid-online.html`: added `#offlineAuthNote` on the auth screen and
+  `#offlineAccountNote` in the account dialog; wrapped the online-only password/
+  recovery/session block in `#onlineAccountSecurity` so it can be hidden without
+  altering online markup behaviour.
+- `raid-account-ui.mjs`: `accountUI` accepts an `offline` predicate. Offline it
+  hides `#onlineAccountSecurity`, shows the local-storage note, sets the dialog
+  title to "Account —", appends "· offline" to the identity line, and skips the
+  `/api/sessions` refresh so no misleading "server" recovery text is rendered.
+- `raid-online.mjs`: passes `offlineMode` into `accountUI` and adds
+  `applyOfflineAuth()`, which hides the password field (and clears its `required`
+  flag), hides register/recovery controls, shows the offline note and relabels the
+  submit button. It runs after sign-out and when offline mode is applied; the
+  online path is untouched.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-online.mjs raid-account-ui.mjs tests/raid-browser-static-account.mjs`
+  → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-account.mjs` → PASS:
+  `{"offlineAccountNote":true,"onlineSecurityHidden":true,"passwordlessSignIn":true,
+  "reusedOperator":"guest","stashItems":4,"noApiTraffic":true,"browserErrors":[]}`.
+- `CDP_URL=... node tests/raid-browser-static-offline.mjs` → PASS (static P0 gate:
+  deploy, move, machine hit, loot, extract 270 credits, zero `/api`, zero errors).
+- `CDP_URL=... node tests/raid-browser-static-readiness.mjs` → PASS (blocked/ready/
+  insured/recovery/deployed states unchanged, zero `/api`).
+- `node --test tests/*.test.mjs` → 1240 pass, 0 fail (66.6 s).
+
+### Criteria status
+
+1. PASS — offline Account shows the device-local note and no online security controls.
+2. PASS — offline sign-out shows a name-only sign-in, hidden non-required password,
+   hidden register/recovery, "Continue offline" submit.
+3. PASS — signing back in reuses the same guest and stash; the base and Account
+   control return.
+4. PASS — account UI keeps its original online branch; the full suite (which covers
+   online auth/account services) is green.
+5. PASS — new static-account grader green, static P0 and readiness graders green,
+   full suite 1240/1240. Physical-device feel of the offline account flow remains
+   UNVERIFIED (P7).
+
+**Status:** Offline account and sign-out surfaces are truthful and passwordless in
+local presentation/UX scope. Subjective phone readability and physical-device feel
+remain UNVERIFIED (P7).
+
+Next action: iteration 53 returns to a visual/look-feel slice for Extraction Raids
+(for example HUD readability or another presentation-only raid detail), then
+iteration 54 can take the next offline persistence/UX gap. Keep the static-account,
+exit-signal, readiness, static P0 and base-economy graders green.

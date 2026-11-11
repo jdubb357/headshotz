@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-P0 offline loadout readiness iteration 50). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (post-P0 offline account surface iteration 52). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,19 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 UX resumed 2026-11-11 (iteration 52): the static offline Account surface is
+passwordless and truthful. The Account dialog explains that the operator and stash
+are stored on this device and hides online-only password change, recovery-code and
+server-session controls instead of invoking routes that can only return 501. Signing
+out shows a name-only local sign-in (password hidden and non-required, register and
+recovery controls hidden, "Continue offline" submit); signing back in reuses the same
+guest account, stash and progress. Online/Node account security, cookies and
+passwords are unchanged. Evidence: new `tests/raid-browser-static-account.mjs`
+(dialog note, hidden online controls, passwordless sign-out/sign-in, reused operator
+and stash, zero `/api` traffic, zero browser errors), static P0 playability gate,
+readiness grader and full suite 1240/1240. Physical-device readability remains
+UNVERIFIED (P7).
 
 Post-P0 UX resumed 2026-11-11 (iteration 50): the static offline base Deploy card now shows a
 store-authoritative loadout readiness line. A read-only in-page `readiness` route calls the
@@ -638,6 +651,13 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   Online behavior is unchanged and the line stays hidden. Evidence:
   `tests/raid-browser-static-readiness.mjs`, `tests/raid-offline.test.mjs`, static P0 gate,
   isolated online smoke, full suite 1240/1240; physical-device feel UNVERIFIED (P7).
+- **Offline account surface** — COMPLETE (iteration 52). The static offline Account
+  dialog states that the operator, stash and checkpoints are device-local and hides
+  online-only password, recovery-code and session controls. Sign-out returns to a
+  name-only local sign-in (password hidden/non-required, register and recovery hidden)
+  that reuses the same guest account and stash; online account security is unchanged.
+  Evidence: `tests/raid-browser-static-account.mjs`, static P0 and readiness graders,
+  full suite 1240/1240; physical-device readability UNVERIFIED (P7).
 - **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
   tests and browser grants/loadout/rewards.
 - **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress
