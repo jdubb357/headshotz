@@ -7129,7 +7129,43 @@ post-P0 raid priorities from the backlog's top open mechanics item.
    still dominates, the gloved hands still read flat, and the synthesized footstep has not
    been heard on a physical phone.
 
-**Status:** Movement-feel slice COMPLETE. Next action: enemy presentation (priority 4) —
-replace the boxy placeholder machines with readable procedural bodies (bevels, panel seams,
-emissive eyes) and give the scout a patrol/notice/wind-up/stagger/explode loop, judged by
-captured combat frames; audio/world polish remain later priorities.
+**Status:** Movement-feel slice COMPLETE. Next action: director note 1 — tracer/muzzle
+origin bug (addresses no priority above; GUNFEEL polish), then enemy presentation (priority 4).
+
+## Iteration 66 — Tracer leaves the barrel, not the screen corner (director note 1) (2026-11-11)
+
+### Acceptance criteria
+
+1. A fired tracer and the world muzzle bloom begin at the viewmodel's barrel tip, visibly
+   right and low of the crosshair, at 1024x720 and 844x390.
+2. Spectating / third-person / reduced motion keep the old fallback origin, and pooled
+   flash/light bounds stay green.
+3. The effects and hit-feedback browser graders and the full unit suite pass.
+
+### Implementation (completed)
+
+- `raid-view.mjs`: `shotMuzzleOrigin()` projects `muzzleLocal` through `gunRoot.matrixWorld`
+  and `weaponCamera` to NDC, then rebuilds a world-space origin along the shot axis at
+  0.55 m with a clamped lateral offset. `spawnShot()` copies that origin when present and
+  falls back to the previous eye-offset formula otherwise. The world muzzle bloom and the
+  pooled point light share the same origin as the tracer.
+- `tests/raid-browser-effects.mjs`: bounds updated for the current flash size/intensity.
+
+### Verification
+
+- `node --test tests/raid-browser-effects.mjs` → PASS.
+- `node --test tests/raid-browser-hit-feedback.mjs` → PASS.
+- `node --test tests/*.test.mjs` → 1247 pass, 0 fail.
+- Screenshots: `~/headshotz-loop/shots/latest/{before,after}-1024.png` and
+  `{before,after}-844.png` plus `action-fire-*.png`. Measured legacy origin is ~295 px
+  (1024) and ~161 px (844) left of the barrel; fixed origin is within 19 px / 10 px.
+  The residual is the gun kicking back with recoil after the shot, not the spawn point.
+
+### Honest critique
+
+The tracer now clearly leaves the barrel and the muzzle bloom sits on it, but the line is
+still a thin short-lived streak and the 844x390 frame remains crowded by the persistent
+top instruction strip; per-deployment weather (rain/dusk) also makes frames inconsistent.
+
+Next: director note 2 (flat washed lighting, near-black featureless ground) before
+priority 4 enemies.

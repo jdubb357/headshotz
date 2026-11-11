@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (movement feel iteration 65). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete → MOVEMENT FEEL (iteration 65) complete → ENEMIES (iteration 66) next → WORLD → AUDIO → JUICE.
+Last audited: 2026-11-11 (tracer origin iteration 66). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer/muzzle origin fixed (iteration 66) → NEXT: director art notes (lighting/building/ground, then viewmodel/HUD) → ENEMIES (priority 4) → WORLD → AUDIO → JUICE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the

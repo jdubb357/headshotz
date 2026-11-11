@@ -878,6 +878,28 @@ export class RaidView {
   return 'concrete';
  }
  impactStyle(surface){return IMPACT_PALETTE[surface]||IMPACT_PALETTE.concrete}
+ // Screen-space barrel start: the overlay muzzle is projected through the
+ // first-person camera, then rebuilt as a point on the held gun's aim axis.
+ // Because NDC is preserved, the tracer and flash begin exactly where the
+ // player sees the barrel (right and low of the crosshair) instead of at the
+ // screen's lower-left corner from a hand-authored eye offset.
+ shotMuzzleOrigin(depth=.55){
+  if(!this.muzzleLocal||!this.gunRoot||!this.weaponCamera||this.settings?.reduced||this.viewMode!=='first'||this.gunRoot.visible===false)return null;
+  this.weaponCamera.aspect=this.camera.aspect;
+  this.weaponCamera.updateProjectionMatrix();this.weaponCamera.updateMatrixWorld(true);
+  this.gunRoot.updateMatrixWorld(true);
+  const ndc=this.muzzleLocal.clone().applyMatrix4(this.gunRoot.matrixWorld).project(this.weaponCamera);
+  if(!Number.isFinite(ndc.x)||!Number.isFinite(ndc.y))return null;
+  const quat=new THREE.Quaternion().setFromEuler(new THREE.Euler(this.firePitch||0,(this.fireYaw||0)+Math.PI,0,'YXZ'));
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(quat),up=new THREE.Vector3(0,1,0).applyQuaternion(quat),forward=new THREE.Vector3(0,0,-1).applyQuaternion(quat);
+  const halfTan=Math.tan(this.camera.fov*Math.PI/360),origin=this.fireOrigin||this.visualSelf;
+  if(!origin)return null;
+  // Clamp the width so extreme recoil/sway cannot throw the origin outside the
+  // visible screen area; the projected barrel still owns the placement.
+  const dx=Math.max(-.45,Math.min(.45,ndc.x*halfTan*this.camera.aspect*depth));
+  const dy=Math.max(-.32,Math.min(.32,ndc.y*halfTan*depth));
+  return origin.clone().addScaledVector(forward,depth).addScaledVector(right,dx).addScaledVector(up,dy);
+ }
  spawnShot(now,weapon){
   if(!this.shotEffects.length)return;
   const effect=this.shotEffects[this.shotCursor++%this.shotEffects.length];
@@ -900,9 +922,12 @@ export class RaidView {
   effect.end.copy(origin).addScaledVector(effect.dir,distance);
   const impactSpatial=this.snapshot?spatialCue({x:this.snapshot.self.x,y:this.snapshot.self.y||0,z:this.snapshot.self.z,yaw:this.snapshot.self.yaw||0},{x:effect.end.x,y:effect.end.y,z:effect.end.z}):null;
   if(impactSpatial)this.audio?.play('impact:'+surface,impactSpatial);
-  // The flash and tracer start at the weapon muzzle rather than the eyes, with
-  // a small right/down offset that reads naturally in both camera modes.
-  effect.origin.set(origin.x+effect.dir.x*.55+Math.cos(yaw)*.16,
+  // The flash and tracer start at the weapon muzzle, at the screen point where
+  // the viewmodel barrel is actually painted; fall back to the previous eye
+  // offset when no first-person gun is presented (spectating, reduced motion).
+  const muzzleStart=this.shotMuzzleOrigin(.55);
+  if(muzzleStart)effect.origin.copy(muzzleStart);
+  else effect.origin.set(origin.x+effect.dir.x*.55+Math.cos(yaw)*.16,
    origin.y+effect.dir.y*.55-.12,
    origin.z+effect.dir.z*.55-Math.sin(yaw)*.16);
   effect.muzzle.position.copy(effect.origin);

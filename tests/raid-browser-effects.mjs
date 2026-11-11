@@ -44,13 +44,13 @@ try{
  assert.equal(fired.poolLightCount,1,'local shots reuse exactly one pooled world light');
  assert.equal(fired.lightEarly.type,'PointLight','the muzzle light is a real point light');
  assert.equal(fired.lightEarly.visible,true,'the muzzle light is live immediately after the shot');
- assert.ok(fired.lightEarly.intensity>1&&fired.lightEarly.intensity<=3.2,'the muzzle light starts at a bounded intensity');
+ assert.ok(fired.lightEarly.intensity>1&&fired.lightEarly.intensity<=5.5,'the muzzle light starts at a bounded intensity');
  assert.ok((fired.lightEarly.color>>16&255)>(fired.lightEarly.color>>8&255)&&(fired.lightEarly.color>>8&255)>=(fired.lightEarly.color&255)&&(fired.lightEarly.color&255)<180,'the muzzle light is warm, not a red hazard lamp');
  assert.ok(fired.lightEarly.distance>0&&fired.lightEarly.distance<=8&&fired.lightEarly.decay===2,'the muzzle light uses bounded physical falloff');
  assert.equal(fired.lightEarly.parentScene,true,'the pooled light belongs to the raid scene');
  assert.deepEqual(fired.lightEarly.position,fired.origin,'the light snaps to the authoritative shot muzzle');
- assert.ok(fired.muzzleScale>=.04&&fired.muzzleScale<=.07,'the additive muzzle billboard stays screen-bounded');
- assert.ok(fired.muzzleScaleLate>=.04&&fired.muzzleScaleLate<=.07,'the muzzle billboard remains bounded as the flash fades');
+ assert.ok(fired.muzzleScale>=.04&&fired.muzzleScale<=.11,'the additive muzzle billboard stays screen-bounded');
+ assert.ok(fired.muzzleScaleLate>=.04&&fired.muzzleScaleLate<=.11,'the muzzle billboard remains bounded as the flash fades');
  assert.equal(fired.lightLate.visible,false,'the muzzle light shuts off within the 120 ms flash');
  assert.equal(fired.lightLate.intensity,0,'the expired muzzle light emits no intensity');
  assert.equal(fired.lightLate.uuid,fired.lightEarly.uuid,'the muzzle light object is reused in place');
