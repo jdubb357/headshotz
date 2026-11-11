@@ -175,6 +175,29 @@ function muzzleFlashTexture(profile){
 // y in world space), so a small streak field fills the near view instead of
 // scattering a handful of drops over the whole 1,440 m sector.
 function writeRain(arr,i,d,ax,az){const k=i*6,x=ax+d.ox,y=d.y,z=az+d.oz;arr[k]=x;arr[k+1]=y;arr[k+2]=z;arr[k+3]=x+d.len*.28;arr[k+4]=y-d.len;arr[k+5]=z}
+// Ground-impact ripple for an active rain front. One soft ring texture paints
+// every splash; the instanced quad is laid flat and only its matrix and tint
+// change per frame, so the effect never allocates on the render path. This is
+// presentation-only and does not read or write any snapshot field.
+let RAIN_RIPPLE_TEXTURE=null;
+function rainRippleTexture(){
+ if(RAIN_RIPPLE_TEXTURE)return RAIN_RIPPLE_TEXTURE;
+ const size=64,center=size/2;
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+ const context=canvas.getContext('2d');
+ const gradient=context.createRadialGradient(center,center,0,center,center,center);
+ // Transparent core so the ripple reads as a ring rather than a filled patch,
+ // a faint inner wash for the splash lip, and a bright crest that fades out.
+ gradient.addColorStop(0,'rgba(255,255,255,0)');
+ gradient.addColorStop(.5,'rgba(255,255,255,.08)');
+ gradient.addColorStop(.78,'rgba(255,255,255,.82)');
+ gradient.addColorStop(1,'rgba(255,255,255,0)');
+ context.fillStyle=gradient;context.fillRect(0,0,size,size);
+ RAIN_RIPPLE_TEXTURE=new THREE.CanvasTexture(canvas);RAIN_RIPPLE_TEXTURE.colorSpace=THREE.SRGBColorSpace;
+ return RAIN_RIPPLE_TEXTURE;
+}
+const SPLASH_FLAT_QUAT=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
+const SPLASH_MATRIX=new THREE.Matrix4(),SPLASH_POSITION=new THREE.Vector3(),SPLASH_SCALE=new THREE.Vector3(),SPLASH_TINT=new THREE.Color();
 function lootAccent(data){
  // The brightest authoritative item rarity in the pile picks the pickup accent.
  // Presentation only: items, ownership and values are untouched.
@@ -185,7 +208,7 @@ function lootAccent(data){
 export class RaidView {
  constructor(canvas){
   this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
-  this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;
+  this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;this.splashes=this.splashesState=this.splashesAnchor=null;
 
   this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
  // Presentation-only view-model feel: damped look sway, locomotion bob and a
@@ -216,7 +239,7 @@ export class RaidView {
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.lastTime=0;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
-  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
+  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
@@ -229,7 +252,7 @@ export class RaidView {
   for(const target of this.bloomTargets||[])target.dispose();
   this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.audio.reset();
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
@@ -469,10 +492,36 @@ export class RaidView {
   this.motes=new THREE.Points(geometry,material);this.motes.frustumCulled=false;this.motes.renderOrder=2;this.motes.visible=false;this.scene.add(this.motes);
   this.motesState={offsets,phases};this.motesAnchor=null;
  }
+ buildRainSplashes(){
+  // 48 flat additive rings cycle through a 1.7 s impact rhythm inside a 12 m
+  // disc around the operator. Phases and offsets are authored once and never
+  // randomised, so a replay at the same scene time paints the same field.
+  if(this.splashes){this.scene.remove(this.splashes);disposeOwned(this.splashes)}
+  const count=48;
+  const geometry=new THREE.PlaneGeometry(1,1);geometry.userData.raidOwned=true;
+  const material=new THREE.MeshBasicMaterial({map:rainRippleTexture(),color:0xffffff,transparent:true,opacity:.6,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:true});
+  material.userData.raidOwned=true;
+  const mesh=new THREE.InstancedMesh(geometry,material,count);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const offsets=new Float32Array(count*2),phases=new Float32Array(count);
+  for(let i=0;i<count;i++){
+   const angle=i*2.399963;const radius=Math.sqrt(((i*.6180339)+.11)%1)*12;
+   offsets[i*2]=Math.cos(angle)*radius;offsets[i*2+1]=Math.sin(angle)*radius;
+   phases[i]=(i*.371)%1;
+  }
+  for(let i=0;i<count;i++)mesh.setColorAt(i,SPLASH_TINT.setRGB(0,0,0));
+  mesh.instanceColor.needsUpdate=true;
+  mesh.visible=false;mesh.frustumCulled=false;mesh.renderOrder=2;
+  mesh.userData.raidRainSplashes=true;
+  this.scene.add(mesh);
+  this.splashes=mesh;this.splashesState={offsets,phases,count,period:1.7,radius:12,baseScale:.18,growReach:1.45};
+  this.splashesAnchor=new THREE.Vector3();
+ }
  // Rain renders as additive motion streaks, snow/ash/mist as soft particles. The
  // mesh is rebuilt when the front changes so the flat Points cloud of the old
  // renderer does not hide the weather the snapshot announces.
  buildWeather(kind){
+  if(this.splashes&&kind!=='rain'){this.scene.remove(this.splashes);disposeOwned(this.splashes);this.splashes=null;this.splashesState=null;this.splashesAnchor=null}
   if(this.weather){this.scene.remove(this.weather);disposeOwned(this.weather);this.weather=null}
   const size=this.world?.size||1440;
   let geometry,material,state;
@@ -499,6 +548,7 @@ export class RaidView {
   }
   geometry.userData.raidOwned=true;material.userData.raidOwned=true;
   this.weather.renderOrder=3;this.weather.frustumCulled=false;this.scene.add(this.weather);
+  if(kind==='rain')this.buildRainSplashes();
   this.weatherKind=kind;this.weatherState=state;
  }
  createEnvironmentMap(target){
@@ -575,6 +625,35 @@ export class RaidView {
    position[k+2]=this.motesAnchor.z+offsets[k+2]+Math.sin(seconds*.23+p*.7)*.55;
   }
   this.motes.geometry.attributes.position.needsUpdate=true;
+ }
+ updateRainSplashes(seconds,pose){
+  const mesh=this.splashes;if(!mesh||!pose)return;
+  // Splashes exist only for a live rain front and vanish under reduced motion,
+  // matching the streak field's own visibility rule.
+  const reduced=!!this.settings?.reduced;
+  const visible=!reduced&&this.snapshot?.conditions?.weather==='rain'&&this.weather?.visible!==false;
+  mesh.visible=visible;
+  if(!visible)return;
+  const state=this.splashesState,offsets=state.offsets,phases=state.phases;
+  this.splashesAnchor.set(pose.x||0,pose.y||0,pose.z||0);
+  const anchor=this.splashesAnchor;
+  for(let i=0;i<state.count;i++){
+   // Local splash cycle: each ring starts small and bright, expands, and fades
+   // to nothing before its next impact. No runtime randomness is consumed.
+   const local=((seconds/state.period)+phases[i])%1;
+   const x=anchor.x+offsets[i*2],z=anchor.z+offsets[i*2+1];
+   const y=terrainHeightAt(this.world,x,z)+.03;
+   const grow=state.baseScale+state.growReach*local;
+   const fade=(1-local)*(1-local);
+   SPLASH_POSITION.set(x,y,z);
+   SPLASH_SCALE.set(grow,grow,1);
+   SPLASH_MATRIX.compose(SPLASH_POSITION,SPLASH_FLAT_QUAT,SPLASH_SCALE);
+   mesh.setMatrixAt(i,SPLASH_MATRIX);
+   SPLASH_TINT.setRGB(.46*fade,.64*fade,.82*fade);
+   mesh.setColorAt(i,SPLASH_TINT);
+  }
+  mesh.instanceMatrix.needsUpdate=true;
+  mesh.instanceColor.needsUpdate=true;
  }
  // Weather-responsive PBR: a passing rain front wets roofs, roads and terrain
  // toward a lower roughness / higher environmental sheen; every material keeps
@@ -1287,6 +1366,7 @@ export class RaidView {
    }
    attr.needsUpdate=true;
   }
+  this.updateRainSplashes(seconds,pose);
   for(const ring of this.effects.values())ring.material.opacity=this.settings?.reduced?.85:.6+.2*Math.sin(seconds*8);
   this.updateCombatEffects(time);
   this.recoil=Math.max(0,this.recoil-dt*.5);

@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-settlement insurance refresh iteration 54). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (rain-front ground splashes iteration 55). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -792,6 +792,12 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   amber-red at 60 or below, pulsing red at 30 or below, and deep maroon while downed,
   with the pulse and transition removed under reduced motion (iteration 53,
   presentation-only; 610,031-pixel isolated tint delta; live readability UNVERIFIED).
+  An active rain front now also paints a presentation-only ground-impact ripple field —
+  one 48-instance additive ring mesh on a 1.7 s authored cycle, seated 3 cm above the
+  authoritative terrain and re-anchored to the operator each frame, deterministic per
+  scene time, hidden under clear weather/reduced motion and disposed with the front
+  (iteration 55, presentation-only; 4,903-pixel isolated delta in
+  `tests/raid-browser-rain-splashes.mjs`; live phone readability UNVERIFIED).
   Older screenshots may still show the former edge-on ring or the generic "salvage bag"
   wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus

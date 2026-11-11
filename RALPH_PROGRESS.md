@@ -6371,3 +6371,76 @@ Next action: iteration 55 returns to the visual/look-feel alternation — a
 presentation-only Extraction Raids improvement (for example the base or in-raid HUD),
 keeping the insurance-refresh, static P0, static-account, exit-signal, readiness,
 vitality-vignette and base-economy graders green.
+
+## Iteration 55 — Rain-front ground-impact splashes
+
+### Acceptance criteria
+
+1. An active rain front paints a presentation-only field of ground-impact ripple
+   rings around the authoritative operator; clear weather paints none.
+2. The field follows the operator as they move and resets with a new deployment;
+   ring expansion is deterministic for a given scene time and fully hidden under
+   reduced motion.
+3. No raid rules, snapshots, loot, AI, extraction, `/api` transport or online
+   behaviour change; the effect adds no unbounded per-frame allocation and stays a
+   single instanced draw call with one shared 64x64 texture.
+4. A new isolated-Chrome static grader proves the ring pool, ground placement,
+   local follow, determinism, visibility rules and an isolated pixel delta, with
+   zero `/api` traffic and zero browser errors; the static P0 gate, rain-volume
+   grader and full unit suite stay green.
+
+### Implementation — iteration 55 (completed)
+
+- `raid-view.mjs`: `rainRippleTexture()` paints a single soft ring canvas texture
+  (transparent core, faint lip, bright crest, transparent edge) shared by every
+  splash. `buildRainSplashes()` creates one 48-instance `InstancedMesh` of flat
+  additive quads with authored, non-random offsets inside a 12 m disc and fixed
+  phases on a 1.7 s cycle. `updateRainSplashes(seconds,pose)` reuses module-level
+  matrix/quaternion/vector/colour objects, anchors the disc on the authoritative
+  pose, seats each ring 3 cm above `terrainHeightAt`, and fades the instance tint
+  from cool blue to black as the ring expands. The field is created only when
+  `buildWeather('rain')` runs, removed when the front changes to mist/ash, cleared
+  with the scene on restart, and hidden under reduced motion or without a rain
+  snapshot. No snapshot field is read beyond `conditions.weather` and the pose
+  already used for the camera.
+- New `tests/raid-browser-rain-splashes.mjs`: plain static-file server with no
+  `/api`, real offline deploy, then a direct `RaidView` probe over an authored rain
+  snapshot and a top-down isolated bench that measures the ripple pixel delta.
+  Screenshot `/tmp/hs-rain-splashes.png` inspected: 48 clean crest rings over a
+  black bench, no stray geometry.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-view.mjs tests/raid-browser-rain-splashes.mjs` → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-rain-splashes.mjs` → PASS:
+  `{"ringPool":48,"ringsOnGround":48,"maxDiscRadius":12,"tintBluest":0.79,
+  "animatedRings":48,"deterministicRings":48,"clearHidden":true,"rainVisible":true,
+  "reducedHidden":true,"followsOperator":12,"splashPixels":4903,"noApiTraffic":true,
+  "browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-rain-volume.mjs` → PASS
+  (620-drop local streak field, clear/reduced hidden, follows operator, no `/api`).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (static deploy, machine hit, loot, extract 270 credits, zero `/api`, zero errors).
+- `node --test tests/*.test.mjs` → 1239 pass, 1 known intermittent
+  `matchmaking.test.mjs` ECONNRESET; isolated rerun 11/11.
+
+### Criteria status
+
+1. PASS — rain paints 48 ground rings; clear weather hides them.
+2. PASS — 48/48 rings re-anchored after a 120 m move; 48/48 restored exactly when
+   scene time returns to 2000 ms; all hidden under reduced motion.
+3. PASS — one instanced mesh, shared texture, module-level scratch objects; no
+   rule/snapshot/`/api` change.
+4. PASS — new static grader green, static P0 and rain-volume gates green, full
+   unit suite green apart from the known matchmaking flake. Live phone readability
+   of the splashes remains UNVERIFIED (P7).
+
+**Status:** Rain-front ground splashes are COMPLETE in local presentation scope.
+Human readability/feel of the effect and physical-device acceptance remain
+UNVERIFIED (P5/P7).
+
+Next action: iteration 56 takes a gameplay/UX slice on the offline path (for
+example a post-settlement results/records gap), then iteration 57 returns to a
+visual slice. Keep the rain-splash, rain-volume, vitality-vignette, static P0,
+static-account, exit-signal, readiness, insurance-refresh and base-economy graders
+green.
