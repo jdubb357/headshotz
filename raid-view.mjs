@@ -18,7 +18,7 @@ const bobReach=speed=>.016*Math.max(0,Math.min(1,speed));
 // Gradient sky dome: cheap, no textures, follows the authoritative sky/sun so
 // dusk, night and storm fronts read as depth instead of a flat clear colour.
 const SKY_VERT=`varying vec3 vD;void main(){vD=position;vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}`;
-const SKY_FRAG=`uniform vec3 top,mid,bot,sunCol;uniform vec3 sunDir;uniform float sunI;uniform float uScatter;uniform vec3 cloudCol;uniform float uCloud;uniform float cloudTime;varying vec3 vD;
+const SKY_FRAG=`uniform vec3 top,mid,bot,sunCol;uniform vec3 sunDir;uniform float sunI;uniform float uScatter;uniform vec3 cloudCol;uniform float uCloud;uniform float cloudTime;uniform vec3 flashCol;uniform float uFlash;varying vec3 vD;
 #include <common>
 // Deterministic value-noise fbm used for the overcast deck. There is no runtime
 // randomness: the same view direction and cloud time always paint the same deck.
@@ -48,11 +48,27 @@ void main(){vec3 d=normalize(vD);float y=d.y;
  // night and storm fronts stay cold while golden hour gains a soft hush of light.
  float horizon=exp(-abs(y)*3.2);
  c+=sunCol*uScatter*(pow(s,4.)*.20+pow(s,1.8)*horizon*.15+horizon*.045);
+ // Lightning sheet: a cold, cloud-lit lift concentrated overhead with a faint
+ // horizon echo. uFlash is a deterministic storm-front pulse (zero otherwise),
+ // so the flash never paints under clear skies or reduced motion.
+ c+=flashCol*uFlash*(.45+.55*smoothstep(-.15,.75,y)+smoothstep(.0,.4,horizon)*.32);
  gl_FragColor=vec4(c,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
 const SKY_MID=new THREE.Color(),CLOUD_MIX=new THREE.Color(),CLOUD_WHITE=new THREE.Color(0xffffff);
+// Deterministic storm-front lightning envelope. Clear weather and reduced
+// motion never flash; a rain front gets one sharp strike per 8.5 s cycle plus
+// a softer follow-up sheet. Pure function of scene time so the same deployment
+// paints the same flashes on every client, with no runtime randomness.
+export function lightningPulse(seconds,weather){
+ if(weather!=='rain')return 0;
+ const cycle=8.5,phase=Math.max(0,seconds||0)%cycle,age=phase-1.1;
+ const strike=Math.exp(-Math.pow(age/.06,2));
+ const tail=age>0?Math.max(0,.38*(1-age/1.45)):0;
+ const sheet=Math.exp(-Math.pow((age-.3)/.075,2))*.55;
+ return Math.min(1,strike+tail+sheet);
+}
 // Presentation-only frame composite drawn after the world and weapon overlay:
 // a soft edge vignette with fine, temporally animated film grain. Both effects
 // are procedural, resolution-independent and never touch gameplay state.
@@ -221,7 +237,7 @@ export class RaidView {
   this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.environmentRoot=buildEnvironment(this.world);this.scene.add(this.environmentRoot);this.glowPoints=this.environmentRoot.userData.raidGlowPoints||null;this.glowPools=this.environmentRoot.userData.raidGlowPools||null;this.wetReflections=this.environmentRoot.userData.raidWetReflections||null;this.terrainMaterial=this.environmentRoot.userData.raidTerrainMaterial||null;this.wetMaterials=[];this.windMaterials=this.environmentRoot.userData.raidWindMaterials||[];if(this.terrainMaterial)this.wetMaterials.push(this.terrainMaterial);for(const material of this.environmentRoot.userData.materials?.values()||[])if(material.userData.raidDry&&material.userData.raidWet>0)this.wetMaterials.push(material);const initialWeather=snapshot.conditions?.weather||'clear';this.wetness=initialWeather==='rain'?1:initialWeather==='mist'?.35:0;this.applyWetness();this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
   const selfWeapon=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId&&it.kind==='weapon')?.weapon??null;
   this.selfActor=humanModel(snapshot.self.name||'Operator','raid_local_operator',true,selfWeapon);if(this.selfActor.userData.tag)this.selfActor.userData.tag.visible=false;this.selfActor.visible=this.viewMode!=='first';this.scene.add(this.selfActor);
-  this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.sun,this.sun.target);this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
+  this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.sun,this.sun.target);this.hemiNeutral=new THREE.Color(0xe5f2ed);this.flashColor=new THREE.Color(0xcfe4ff);this.sunBase=null;this.hemiBase=null;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
   this.environmentTarget=null;this.buildSky(snapshot);
   this.overlay=new THREE.Scene();this.weaponCamera=new THREE.PerspectiveCamera(58,1,.02,8);
   // Three-point first-person lighting: a warm key (sun through the scene), a
@@ -417,7 +433,7 @@ export class RaidView {
  }
  buildSky(snapshot=null){
   const skyMaterial=new THREE.ShaderMaterial({vertexShader:SKY_VERT,fragmentShader:SKY_FRAG,side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
-   uniforms:{top:{value:new THREE.Color(0x16233d)},mid:{value:new THREE.Color(0x2c3a4e)},bot:{value:new THREE.Color(0x7a766b)},sunDir:{value:new THREE.Vector3(0,1,0)},sunCol:{value:new THREE.Color(0xffd7a5)},sunI:{value:1},uScatter:{value:0},cloudCol:{value:new THREE.Color(0x8b8b86)},uCloud:{value:0},cloudTime:{value:0}}});
+   uniforms:{top:{value:new THREE.Color(0x16233d)},mid:{value:new THREE.Color(0x2c3a4e)},bot:{value:new THREE.Color(0x7a766b)},sunDir:{value:new THREE.Vector3(0,1,0)},sunCol:{value:new THREE.Color(0xffd7a5)},sunI:{value:1},uScatter:{value:0},cloudCol:{value:new THREE.Color(0x8b8b86)},uCloud:{value:0},cloudTime:{value:0},flashCol:{value:new THREE.Color(0xcfe4ff)},uFlash:{value:0}}});
   skyMaterial.userData.raidOwned=true;
   const skyGeometry=new THREE.SphereGeometry(195*this.viewScale,32,16);skyGeometry.userData.raidOwned=true;
   this.skyDome=new THREE.Mesh(skyGeometry,skyMaterial);this.skyDome.renderOrder=-11;this.skyDome.frustumCulled=false;this.scene.add(this.skyDome);
@@ -498,7 +514,13 @@ export class RaidView {
   texture.dispose();pmrem.dispose();return renderTarget;
  }
  updateEnvironment(blend){
-  const target=this.environmentTarget;if(!target)return;const weather=this.snapshot?.conditions?.weather||'clear';this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(24*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(125*this.viewScale*target.visibility-this.scene.fog.far)*blend;this.sun.intensity+=(target.light-this.sun.intensity)*blend;this.hemi.intensity+=(target.ambient-this.hemi.intensity)*blend;
+  const target=this.environmentTarget;if(!target)return;const weather=this.snapshot?.conditions?.weather||'clear';this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(24*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(125*this.viewScale*target.visibility-this.scene.fog.far)*blend;
+  // Keep the smoothed ambient baselines separate from the transient lightning
+  // boost applied in updateAtmosphere, so a storm flash never warps the weather
+  // blend itself.
+  this.sunBase=this.sunBase==null?target.light:this.sunBase+(target.light-this.sunBase)*blend;
+  this.hemiBase=this.hemiBase==null?target.ambient:this.hemiBase+(target.ambient-this.hemiBase)*blend;
+  this.sun.intensity=this.sunBase;this.hemi.intensity=this.hemiBase;
   const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
   if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;u.top.value.lerp(target.sky,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
    // Cloud deck follows the weather: thin haze by day, heavy low ceiling under
@@ -521,11 +543,25 @@ export class RaidView {
  this.updateWetReflections();
  }
  updateAtmosphere(seconds){
-  const reduced=!!this.settings?.reduced;
+  const reduced=!!this.settings?.reduced,weather=this.snapshot?.conditions?.weather||'clear';
   // The cloud deck drifts with scene time but is frozen for reduced motion, so
   // the sky shares the same stillness guarantee as the dust field.
-  if(this.skyDome)this.skyDome.material.uniforms.cloudTime.value=reduced?0:seconds;
-  if(!this.motes)return;const weather=this.snapshot?.conditions?.weather||'clear',target=this.environmentTarget;
+  if(this.skyDome){
+   const uniforms=this.skyDome.material.uniforms;
+   uniforms.cloudTime.value=reduced?0:seconds;
+   // Rain-front lightning is a deterministic presentation pulse: it lifts the
+   // sky sheet and briefly brightens the existing sun/hemisphere lights, so no
+   // extra scene light is allocated and clear weather stays unchanged.
+   const flash=reduced?0:lightningPulse(seconds,weather);
+   uniforms.uFlash.value=flash;
+   if(this.sun)this.sun.intensity=(this.sunBase??this.environmentTarget?.light??0)+flash*2.6;
+   if(this.hemi)this.hemi.intensity=(this.hemiBase??this.environmentTarget?.ambient??0)+flash*1.4;
+   if(this.hemi&&this.hemiNeutral&&this.flashColor)this.hemi.color.copy(this.hemiNeutral).lerp(this.flashColor,flash*.6);
+   // A storm sheet also lifts the horizon haze, so distant silhouettes flash
+   // with the sky instead of staying a flat fog band beneath it.
+   if(this.scene?.fog&&this.flashColor)this.scene.fog.color.lerp(this.flashColor,flash*.3);
+  }
+  if(!this.motes)return;const target=this.environmentTarget;
   const visible=!reduced&&!!target&&target.daylight>.25&&weather==='clear';
   this.motes.visible=visible;this.motes.material.opacity=visible?Math.min(.55,.5*target.daylight):0;
   if(!visible)return;

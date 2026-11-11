@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-P0 loot pickup beacons iteration 47). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (post-P0 storm-front lightning iteration 49). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -50,6 +50,19 @@ Online trader/contract UI is unchanged. Evidence: new
 seeded sale 250 → 275 credits with favorited wire retained, persisted reload, zero browser
 errors; screenshot `/tmp/hs-offline-availability.png`), static P0 playability gate and full
 suite 1239/1239 green. Physical-device feel remains UNVERIFIED (P7).
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 49): rain fronts ("Electrical squall") now
+carry a deterministic lightning sheet in Extraction Raids — the sky dome lifts cold overhead
+light with a horizon echo, the existing sun and hemisphere lights briefly brighten and cool,
+and the fog haze lifts with the strike. A pure `lightningPulse(seconds, weather)` schedules a
+full strike ~1.1 s into every 8.5 s cycle plus a softer sheet ~1.38 s, with no runtime
+randomness or extra scene light. Clear, mist, ash and reduced-motion states leave every
+flash-driven value at its neutral baseline, and all values return exactly between strikes.
+Loot, rules, snapshots and `/api` transport are unchanged. Evidence:
+`tests/raid-browser-lightning.mjs` (pulse determinism/cycle, uniform + light + tint transition,
+reduced/clear/ash gating, 57,600-pixel sky delta, before/after screenshots
+`/tmp/hs-lightning-before.png` / `/tmp/hs-lightning.png`), atmosphere grader and full unit
+suite green. Live storm readability on a phone remains UNVERIFIED (P7).
 
 Post-P0 economy resumed 2026-11-11 (iteration 46): the static offline base workshop now
 crafts, repairs, upgrades and moves stash stacks through `MemoryRaidStore.trade`, using

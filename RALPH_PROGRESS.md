@@ -5935,3 +5935,57 @@ record before/after screenshot evidence.
    isolated sky render-target pixel delta, and captures before/after screenshots. The
    atmosphere grader, static P0 playability gate and full unit suite stay green with zero
    browser errors.
+
+### Implementation — iteration 49 (completed)
+
+- `raid-view.mjs`: exported a pure `lightningPulse(seconds, weather)` envelope. It returns
+  zero unless the authoritative weather is a rain front, then schedules one sharp strike
+  ~1.1 s into every 8.5 s cycle, a softer follow-up sheet ~1.38 s later, and nothing in the
+  gaps. The sky dome shader gains a cold `uFlash` sheet (overhead lift plus a horizon echo),
+  and `updateAtmosphere` drives it from the scene clock and snapshot weather. The existing
+  sun and hemisphere lights brighten during a strike, the hemisphere tint cools toward the
+  flash colour, and the horizon fog haze lifts. No new scene light, geometry or material is
+  allocated; the smoothed ambient baselines (`sunBase`/`hemiBase`) are kept separate from
+  the transient boost so the weather blend is never warped. Reduced motion, clear, mist and
+  ash states set the flash and all derived values back to their exact neutral baselines.
+- New `tests/raid-browser-lightning.mjs`: real relay deployment plus production `RaidView`,
+  rain/clear conditions, pulse determinism and cycle, uniform/light/tint transitions, the
+  production frame loop, reduced-motion and clear-weather gating, a 320×180 rendered sky
+  delta (57,600 changed pixels, illuminated brightness lift), zero errors and before/after
+  street screenshots `/tmp/hs-lightning-before.png` / `/tmp/hs-lightning.png`.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-view.mjs tests/raid-browser-lightning.mjs` → OK.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-lightning.mjs` → PASS:
+  `{"pulse":{"quiet":6.9e-31,"peak":1,"sheet":0.819,"gap":0,"clear":0,"ash":0},
+  "flash":{"uFlash":1,"sun":3.9,"hemi":2.8},"gap":{"uFlash":0,"sun":1.3,"hemi":1.4},
+  "reducedMotion":{"uFlash":0,"sun":1.3,"hemi":1.4},"clear":{"uFlash":0,"sun":2,"hemi":1.8},
+  "pixels":{"changed":57600,"brightness":30223712},"browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-atmosphere.mjs` → PASS, including
+  the existing cloud deck, dust, scattering, reduced-motion and disposal assertions.
+- `node --test tests/*.test.mjs` → 1239 pass, 0 fail (99.2 s).
+
+### Criteria status
+
+1. PASS — lightning is presentation-only, deterministic and rain-front gated; no snapshot,
+   rules, ballistics, loot, settlement, transport or per-frame allocation changed.
+2. PASS — a strike lifts the sky sheet, sun (1.3 → 3.9) and hemisphere fill (1.4 → 2.8),
+   cools the hemisphere tint and lifts fog haze; the post-strike gap returns the uniform,
+   sun and tint exactly to the quiet baseline.
+3. PASS — reduced motion disables all flash-driven values (uniform 0, sun 1.3, hemi 1.4,
+   neutral tint); clear and ash leave every flashed value neutral (clear sun 2, hemi 1.8).
+4. PASS — the production frame loop reports `uFlash` 1 at 1.1 s and 0 at 5.2 s; no new
+   scene light was added (the existing sun and hemisphere are only modulated).
+5. PASS — new isolated-Chrome grader, atmosphere grader and full unit suite 1239/1239 are
+   green with zero browser errors; screenshots inspected. Live storm readability on a phone
+   remains UNVERIFIED (P7).
+
+**Status:** Rain-front lightning is COMPLETE in local presentation scope. No raid rules, AI,
+damage, loot, settlement or `/api` transport changed. Human aesthetic judgment and
+physical-device frame pacing remain UNVERIFIED (P5/P7).
+
+Next action: iteration 50 alternates back to gameplay/UX on the offline path — take the
+highest-impact open post-P0 persistence/UX slice (for example offline pre-deploy loadout
+readiness or another base-flow gap) while keeping the static P0 gate, lightning, loot-beacon,
+cache-tier and base-economy graders green; then return to a visual slice.
