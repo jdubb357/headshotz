@@ -115,6 +115,36 @@ try {
   await page.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
   assert.deepEqual(await page.evaluate("performance.getEntriesByType('resource').map(r=>new URL(r.name).pathname).filter(p=>p.startsWith('/api/'))"), [], 'no Node API traffic');
 
+  // Offline boot must never paint the online account form (it briefly showed a
+  // username/password prompt while the local store hydrates). Reload with an
+  // instrumented document-start observer to prove the password field is never
+  // visible at any point between parse and the guest base resolving.
+  await page.command('Page.addScriptToEvaluateOnNewDocument', {source: `
+    window.__hsAuthPaint = false;
+    const scanAuth = () => {
+      try {
+        const auth = document.getElementById('auth');
+        if (!auth) return;
+        const pw = document.querySelector('#login [name=password]');
+        const show = !auth.hidden && getComputedStyle(auth).display !== 'none';
+        if (show && pw && pw.getClientRects().length > 0 && getComputedStyle(pw).visibility !== 'hidden') window.__hsAuthPaint = true;
+      } catch {}
+    };
+    const authTimer = setInterval(scanAuth, 20);
+    addEventListener('load', () => { scanAuth(); clearInterval(authTimer); }, {once: true});
+    document.addEventListener('DOMContentLoaded', scanAuth);
+  `});
+  await page.command('Page.reload');
+  await page.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
+  assert.equal(await page.evaluate("document.getElementById('auth').hidden"), true, 'offline boot keeps the account form hidden');
+  assert.equal(await page.evaluate("window.__hsAuthPaint"), false, 'offline boot never paints a username/password form');
+  assert.equal(await page.evaluate("!!document.querySelector('#login [name=password]').closest('label').hidden"), true, 'offline boot hides the password field');
+  for (const [label, width, height] of [['1024x720', 1024, 720], ['844x390', 844, 390]]) {
+    await size(page, width, height, true);
+    await shot(page, '/tmp/hs-offline-base-' + label + '.png');
+  }
+  await size(page, 1024, 720, false);
+
   // Player-facing naming: the mode is "THE SECTOR" and the base copy avoids
   // developer jargon (authority, settlement reconciliation, server ownership).
   assert.equal(await page.evaluate("document.title"), 'HeadShotz — The Sector', 'page title uses the player-facing mode name');

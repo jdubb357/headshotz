@@ -273,7 +273,7 @@ function renderRewards(records){
  $('rewardsDeploy').onclick=()=>focusRewardsSurface('#map');
 }
 async function refresh(){
- const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
+ const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;bootNotice(null);$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
  await baseUI.render(profile);if(generation!==authGeneration)return;
  $('resume').hidden=!profile.activeDeployment;$('deploy').disabled=!!profile.activeDeployment;
  restoreOfflineRaidPlan();
@@ -1010,7 +1010,14 @@ const MAP_KIND_COLORS={
  settlement:{concrete:'#aaa29b',plaster:'#bdb1a1',planks:'#93704f',brick:'#b47d60',metal:'#6e7d82',container:'#665650',rock:'#726d63',crate:'#9a7449',barrier:'#c3a66c',roof:'#505260'}
 };
 const MAP_BACKGROUNDS=new Map();
-busy=true;document.body.setAttribute('aria-busy','true');try{await refresh()}catch(error){message(error.status===401?'Sign in or create an account.':error.message)}finally{busy=false;document.body.setAttribute('aria-busy','false')}
+const bootStatus=$('bootStatus');
+function bootNotice(text){if(!bootStatus)return;bootStatus.hidden=!text;if(text)bootStatus.textContent=text}
+// Static Pages always boots through the offline guest session. Hide the online
+// account/profile form before the first paint when `offline=1` is present, so a
+// fresh load never shows a username/password prompt while the local store
+// hydrates. Online hosts keep their sign-in screen untouched.
+if(isOfflineQuery(location.search)){offlineMode=true;try{document.body.dataset.raidTransport='offline'}catch{};$('auth').hidden=true;bootNotice('Preparing the sector…')}
+busy=true;document.body.setAttribute('aria-busy','true');try{await refresh();bootNotice(null)}catch(error){bootNotice(null);if(!offlineMode&&!profile)$('auth').hidden=false;message(error.status===401?'Sign in or create an account.':error.message)}finally{busy=false;document.body.setAttribute('aria-busy','false')}
 
 $('aim').onclick=()=>{if(inRaid&&snapshot?.self.alive&&!snapshot.self.downed)aimTouch=!aimTouch};
 $('view').addEventListener('contextmenu',e=>e.preventDefault());

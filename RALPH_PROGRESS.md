@@ -6817,3 +6817,59 @@ the base into a hero deploy screen plus tabs (Loadout & Stash, Traders, Workshop
 Contracts, Records) showing one panel at a time, collapse the first-raid guide to
 a one-line dismissible tip, and add a sibling grader at 1024x720 and 844x390 that
 also checks those four banned phrases.
+
+## Iteration 61 — Offline boot never paints the account/password form (2026-11-11)
+
+### Acceptance criteria
+
+1. A fresh `raid-online.html?offline=1` load at 1024x720 never shows the online
+   Account/Username/Password form (password input never visible) and boots the
+   guest base directly.
+2. Online-host boot/sign-out paths still show the account form when a profile is
+   missing (401) and keep the static offline sign-out screen passwordless.
+3. `tests/raid-browser-mobile-hud.mjs` asserts criterion 1 with an instrumented
+   document-start observer and saves base screenshots at 1024x720 and 844x390;
+   raid compact-HUD checks stay green.
+
+### Implementation — iteration 61 (completed)
+
+- `raid-online.html`: `#auth` now ships `hidden` so no username/password form is
+  painted before module scripts run; added a translucruded `#bootStatus` line.
+- `raid-online.mjs`: on `?offline=1`, synchronously sets `offlineMode` /
+  transport, hides `#auth` and shows "Preparing the sector…"; `refresh()` and the
+  boot catch hide the notice. The catch only re-shows `#auth` on online hosts
+  without a profile, preserving the hosted sign-in path.
+- `tests/raid-browser-mobile-hud.mjs`: reloads with a document-start observer
+  that flags a visible `#login [name=password]`, asserts it never fires, and
+  captures `/tmp/hs-offline-base-1024x720.png` and `-844x390.png`.
+
+### Commands/results (2026-11-11)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-mobile-hud.mjs` → PASS:
+  no auth/password paint, unobstructed 0.9215 / 0.8227, touch actions green,
+  5 screenshots, browserErrors `[]`.
+- `node tests/raid-browser-account.mjs` → PASS (online sign-in, password
+  rotation, recovery, remote sign-out).
+- `node tests/raid-browser-static-account.mjs` → PASS (offline sign-out shows the
+  passwordless local screen; password field hidden).
+- `node tests/raid-browser-static-offline.mjs` → PASS (deploy → move → machine
+  hit → loot → extract under static hosting).
+- `node --test tests/*.test.mjs` → 1,247 pass + one known intermittent
+  matchmaking ECONNRESET that passed on isolated rerun.
+
+### Criteria status
+
+1. PASS — base screenshot and observer show the account form never paints.
+2. PASS — account graders green for online and offline sign-out.
+3. PASS — assertions and screenshots added to the mobile HUD grader.
+
+**Status:** Boot-form slice COMPLETE. Block still open: the base stacks ~20
+panels in one scroll, needs a hero deploy screen plus tabs, and the first-raid
+guide is still a card rather than a one-line dismissible tip.
+
+Next action: iteration 62 — collapse the base into a one-panel-at-a-time tabbed
+lobby: hero DEPLOY + loadout/stash/credits summary, tabs for Loadout & Stash,
+Traders, Workshop, Contracts, Records; hide offline account/password, recovery,
+sessions, squad, comms and latency surfaces; reduce the first-raid guide to a
+one-line dismissible tip; assert fit/no-scroll at 1024x720 and usability at
+844x390 in a sibling grader.

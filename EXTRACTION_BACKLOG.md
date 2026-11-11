@@ -59,9 +59,17 @@ heading and main-menu raid banner, with the original co-op raid kept as CLASSIC 
 Visible base copy no longer says Persistent Extraction, Server-owned, authoritative or
 reconciliation, and `tests/raid-browser-mobile-hud.mjs` asserts that.
 
-Still open for the block: the between-raid base stacks ~20 panels in one scroll, a fresh
-offline load can briefly show the username/password form before the guest base resolves,
-and the first-raid guide is a large card rather than a one-line dismissible tip.
+Fixed for the block 2026-11-11 (iteration 61): the offline boot path no longer paints the
+online account/password form at any point — `#auth` is hidden in the markup, `?offline=1`
+is honored synchronously, a "Preparing the sector…" notice covers store hydration, and
+`tests/raid-browser-mobile-hud.mjs` reloads under a document-start observer that proves the
+password field never becomes visible.
+
+Still open for the block: the between-raid base stacks ~20 panels in one scroll and needs
+a hero deploy screen plus one-panel-at-a-time tabs (Loadout & Stash, Traders, Workshop,
+Contracts, Records), offline-only surfaces (account/password, recovery, sessions, squad,
+comms, latency) need hiding, and the first-raid guide is still a large card rather than a
+one-line dismissible tip.
 
 Post-P0 UX resumed 2026-11-11 (iteration 58): the static offline Deploy card now previews
 an authored field objective from the shared catalogue and remembers the sector/objective
