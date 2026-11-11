@@ -5037,3 +5037,57 @@ Next action: P0 slice 9 — fill remaining offline dispatcher routes so a guest 
 deploy, move, shoot machines, take loot, and extract through the real
 `raid-online` UI; verify with the static-file grader path and keep the Node path
 authoritative.
+
+## Iteration 38 — P0 slice 9: offline loot, combat, and extraction routes
+
+### Acceptance criteria — iteration 38 (P0 slice 9)
+
+1. The in-page dispatcher serves the authoritative `take` route: a guest can pick
+   up a nearby ground-loot item, it enters the backpack, and the source pile loses it.
+2. The dispatcher serves `fire` against machines: authoritative machine health drops
+   and the snapshot returns hit feedback for a shot aimed at the insertion patrol.
+3. The dispatcher serves `call`, boarding (`extract`), and settlement: a called
+   beacon opens, a boarded operator settles with `outcome:'extract'`, gear returns,
+   credits/XP persist, and the active deployment clears.
+4. `MemoryRaidStore` implements the store contract the gameplay path calls, including
+   online-parity loot ownership (`claimLoot`) that invalidates rival insurance claims.
+5. The online/Node path is unchanged; targeted offline/store suites, the static
+   dispatch browser grader, and the full unit suite pass.
+
+### Implementation — iteration 38 (completed)
+
+- `shared/raid-store-memory.mjs`: added `claimLoot(itemId, account)`, which marks any
+  other account's `covered`/`pending` insurance claim on that item as
+  `claimed_by_other` (exactly the online store's rule). This was the missing store
+  method causing an in-page `take` action to throw before any item was picked up.
+- `tests/raid-offline.test.mjs`: added three dispatcher gameplay tests — loot take
+  through the authoritative claim path, machine fire with hit feedback, and a
+  call → boarding → extraction settlement — all driven through
+  `offlineRaidRequest`/`offlineRaidRoute`, not a client-trusted shortcut.
+- `tests/raid-store-memory.test.mjs`: added a `claimLoot` parity test covering rival
+  covered/pending claims, the taker's own claim, and settled claims.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-offline.test.mjs tests/raid-store-memory.test.mjs` → 22/22.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-offline-dispatch.mjs` →
+  staticOffline, probeFallback, deploy, moving, firing, noApiTraffic, tick, soloUI,
+  staticDeployRouting, classicExtraction; 0 browser exceptions.
+- Full suite `node --test tests/*.test.mjs` → 1219 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — loot take returns `ok`, the item is in `state.self.pack`, and the pile drops it.
+2. PASS — aimed fire reduces machine health and the snapshot carries a hit token.
+3. PASS — call opens the beacon; boarding settles `extract` with returned gear and 270 credits.
+4. PASS — `claimLoot` matches online ownership behaviour and no longer throws offline.
+5. PASS — Node/server modules untouched; targeted suites, the static browser grader and 1219 unit tests are green.
+
+**Status:** P0 slice 9 is COMPLETE for dispatcher routes. UI-level end-to-end
+acceptance of looting/extraction on static hosted pages and the DEPLOY entry path is
+the slice 10 playability grader, which remains open. No human/hosted Pages acceptance
+is claimed.
+
+Next action: P0 slice 10 — add `tests/raid-browser-static-offline.mjs`: serve the repo
+as static files with no Node `/api`, follow static DEPLOY into `raid-online.html?offline=1`,
+and assert deploy, movement, shooting a machine, looting, and extraction all succeed.

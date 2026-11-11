@@ -171,3 +171,93 @@ test('unknown offline endpoints fail with 404 instead of inventing behaviour', a
     rt.dispose();
   }
 });
+
+// Slice 9 gameplay wiring: the dispatcher must serve the real authoritative
+// loot, machine combat, and extraction routes in-page, not just deploy.
+function offlineGameplayRuntime(username = 'offline_gameplay') {
+  let clock = 1000;
+  const rt = createOfflineRaidRuntime({username, now: () => clock});
+  const advance = seconds => { clock += seconds; rt.raids.tick(0.05); return clock; };
+  return {rt, advance, clock: () => clock};
+}
+
+test('offline take loot resolves through the authoritative store claim route', async () => {
+  const game = offlineGameplayRuntime('offline_looter');
+  const {rt, advance} = game;
+  try {
+    const deployed = deploy(rt, 'offline-deploy-loot');
+    const pile = deployed.loot[0];
+    assert.ok(pile, 'a nearby ground-loot pile is exposed by the offline snapshot');
+    const it = pile.items[0];
+    // Stand inside the 3 m interaction reach the client requires. Movement is
+    // still simulated by the service; this test targets the dispatcher/store
+    // contract behind the Take button.
+    const p = rt.raids.byAccount.get(rt.account);
+    p.x = pile.x; p.z = pile.z; p.lastInput = game.clock();
+    advance(0.2);
+    const base = {raidId: deployed.raidId, deploymentId: deployed.self.deploymentId, protocol: RAID_PROTOCOL, includeState: true};
+    const taken = await offlineRaidRequest(rt, 'action', {type: 'take', sourceId: pile.id, itemId: it.id, seq: 2, ...base});
+    assert.equal(taken.ok, true);
+    assert.equal(taken.ack.accepted, true);
+    assert.ok(taken.state.self.pack.some(entry => entry.id === it.id), 'the taken item is in the authoritative backpack');
+    assert.equal(rt.raids.raids.get(deployed.raidId).floorLoot.find(l => l.id === pile.id).items.some(entry => entry.id === it.id), false, 'the loot pile loses the taken item');
+  } finally {
+    rt.dispose();
+  }
+});
+
+test('offline fire damages machines and records authoritative hit feedback', async () => {
+  const game = offlineGameplayRuntime('offline_shooter');
+  const {rt, advance, clock} = game;
+  try {
+    const deployed = deploy(rt, 'offline-deploy-fire');
+    const visible = deployed.machines[0];
+    assert.ok(visible, 'the insertion patrol machine is visible offline');
+    const raid = rt.raids.raids.get(deployed.raidId), p = rt.raids.byAccount.get(rt.account);
+    const machine = raid.machines.find(m => m.id === visible.id);
+    const before = machine.hp;
+    const yaw = Math.atan2(machine.x - p.x, machine.z - p.z);
+    const pitch = Math.atan2((machine.y || 0) + 0.9 - ((p.y || 0) + 1.55), Math.hypot(machine.x - p.x, machine.z - p.z));
+    const base = {raidId: deployed.raidId, deploymentId: deployed.self.deploymentId, protocol: RAID_PROTOCOL, includeState: true};
+    let hit = null;
+    for (let seq = 2; seq <= 5 && machine.hp === before; seq++) {
+      advance(0.5);
+      const attemptYaw = Math.atan2(machine.x - p.x, machine.z - p.z);
+      const result = await offlineRaidRequest(rt, 'action', {type: 'fire', yaw: attemptYaw, pitch, seq, ...base});
+      if (result.state?.self?.hit && result.state.self.hit.zone) hit = result.state.self.hit;
+    }
+    assert.ok(machine.hp < before || machine.hp <= 0, 'machine health changed from the authoritative shot');
+    assert.ok(hit, 'the snapshot carries authoritative hit feedback');
+    assert.ok(clock() > 1000);
+  } finally {
+    rt.dispose();
+  }
+});
+
+test('offline call beacon, boarding, and extraction settle through the dispatcher', async () => {
+  const game = offlineGameplayRuntime('offline_extractor');
+  const {rt, advance, clock} = game;
+  try {
+    const deployed = deploy(rt, 'offline-deploy-extract');
+    const raid = rt.raids.raids.get(deployed.raidId), p = rt.raids.byAccount.get(rt.account);
+    const exit = raid.exits.find(e => e.kind === 'call');
+    p.x = exit.x; p.z = exit.z; p.lastInput = clock();
+    const base = {raidId: deployed.raidId, deploymentId: deployed.self.deploymentId, protocol: RAID_PROTOCOL, includeState: true};
+    const called = await offlineRaidRequest(rt, 'action', {type: 'call', exitId: exit.id, seq: 2, ...base});
+    assert.equal(called.ok, true);
+    advance(40);
+    const boarded = await offlineRaidRequest(rt, 'action', {type: 'extract', exitId: exit.id, seq: 3, ...base});
+    assert.equal(boarded.ok, true);
+    assert.equal(boarded.ack.accepted, true);
+    advance(3);
+    assert.equal(p.result?.outcome, 'extract');
+    assert.ok(p.result.items.length >= 1, 'extraction returns equipment');
+    assert.equal(p.result.lostItems.length, 0);
+    const profile = rt.store.profile(rt.account);
+    assert.equal(profile.credits, 270);
+    assert.equal(profile.activeDeployment, null);
+    assert.equal(rt.store.results(rt.account).length, 1);
+  } finally {
+    rt.dispose();
+  }
+});

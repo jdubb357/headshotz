@@ -17,7 +17,7 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slices 1–8 COMPLETE 2026-11-10; slices 9–12 open. This project
+Status: IN PROGRESS — slices 1–9 COMPLETE 2026-11-10; slices 10–12 open. This project
 temporarily supersedes P1–P10 and visual-alternation
 until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
 to “do not change the hub/main menu or the original cooperative Extraction”: routing
@@ -141,10 +141,19 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    `raid-online.html?offline=1` then boots offline; `tests/raid-browser-entry.mjs`
    re-checks the server-marker removal path, deep-link entry and saved-session entry.
    Full unit suite 1215/1215.
-9. **Playable combat/loot/extract wiring** — MISSING. Fill any remaining dispatcher
-   routes so a guest can deploy, move, shoot machines, take loot, and extract through
-   the real `raid-online` UI. Prefer covering gaps this slice rather than expanding
-   scope.
+9. **Playable combat/loot/extract wiring** — COMPLETE (iteration 38). The dispatcher
+   gameplay routes now work offline: `RAID_WORLDS` deploy, `move`, `fire` (machine
+   health/hit feedback), `take` ground loot plus container claims, `call`/`extract`
+   boarding and settlement all run through the real `RaidService` and
+   `MemoryRaidStore`. The missing store method was `claimLoot`: it now invalidates
+   rival `covered`/`pending` insurance claims exactly like `server/store.mjs`, so an
+   in-page Take no longer throws. No new endpoints or client-trusted shortcuts were
+   added. Evidence: three new dispatcher tests in `tests/raid-offline.test.mjs`
+   (loot take, machine shot/hit token, call → boarding → extraction settlement with
+   returned gear and 270 credits), a `claimLoot` parity test in
+   `tests/raid-store-memory.test.mjs`, the static dispatch browser grader, and the
+   full suite 1219/1219. UI-level looting/extraction on static hosting is covered by
+   the slice 10 grader. Next: slice 10 static Pages playability grader.
 10. **Static Pages browser grader** — MISSING. New grader (for example
     `tests/raid-browser-static-offline.mjs`) that serves the repo as static files
     with no Node raid `/api`, follows DEPLOY into raid-online offline mode, and

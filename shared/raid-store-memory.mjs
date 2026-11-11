@@ -305,6 +305,13 @@ export class MemoryRaidStore {
     });
   }
 
+  // Online parity for loot ownership: when any operator picks up an item, every
+  // other account's live insurance claim on that item is invalidated. This runs
+  // inside RaidService.takeLoot and must exist offline for `take` to settle.
+  claimLoot(itemId,account){
+    for(const claim of this.insurance.values())if(claim.item===itemId&&claim.account!==account&&['covered','pending'].includes(claim.status))claim.status='claimed_by_other';
+  }
+
   results(account){
     return [...this.deployments.values()].filter(deployment=>deployment.account===account&&deployment.result)
       .sort((a,b)=>b.serial-a.serial).slice(0,20).map(deployment=>structuredClone(deployment.result));

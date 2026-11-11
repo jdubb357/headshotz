@@ -95,6 +95,21 @@ test('candidate profile has no active deployment and an empty audit history for 
   assert.throws(()=>store.profile('missing'),RuleError);
 });
 
+test('claimLoot invalidates rival insurance claims, matching the online store', () => {
+  const store=new MemoryRaidStore();
+  const guest=store.createGuest();
+  const rival=store.createGuest('rival');
+  store.insurance.set('claim-covered',{account:rival.id,item:'loot-1',deployment:'d1',status:'covered',due:null,premium:5});
+  store.insurance.set('claim-pending',{account:rival.id,item:'loot-1',deployment:'d2',status:'pending',due:0,premium:5});
+  store.insurance.set('claim-own',{account:guest.id,item:'loot-1',deployment:'d3',status:'covered',due:null,premium:5});
+  store.insurance.set('claim-returned',{account:rival.id,item:'loot-1',deployment:'d4',status:'returned',due:null,premium:5});
+  store.claimLoot('loot-1',guest.id);
+  assert.equal(store.insurance.get('claim-covered').status,'claimed_by_other');
+  assert.equal(store.insurance.get('claim-pending').status,'claimed_by_other');
+  assert.equal(store.insurance.get('claim-own').status,'covered','the taker keeps their own claim');
+  assert.equal(store.insurance.get('claim-returned').status,'returned','settled claims are untouched');
+});
+
 const deployRequest=(profile,requestId)=>({
   itemIds:[profile.items.find(it=>it.kind==='weapon').id,profile.items.find(it=>it.kind==='armor').id],
   mapId:'relay',requestId,recovery:false,insureIds:[],
