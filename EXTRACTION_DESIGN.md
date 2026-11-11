@@ -82,9 +82,12 @@ Observed differences and gaps:
    procedural worn-plating texture with seams, bolts, rust and chips; blue-lit cores gain
    an additive halo that follows the authoritative state/phase colour, and each class
    carries a distinct detail silhouette (scout antenna/fins, hunter dorsal ridge/mast,
-   heavy hazard chevrons/vents, flyer rotors/struts, overlord crown/vents). Presentation
-   only; rules, AI, hit detection and other modes are unchanged (iteration 27, COMPLETE
-   in local presentation scope; human aesthetic acceptance UNVERIFIED).
+   heavy hazard chevrons/vents, flyer rotors/struts, overlord crown/vents). Weak core
+   hits additionally spawn a pooled camera-facing cyan flash/ring/spark burst and a
+   bounded tinted light at the authoritative core, anchored by the weak hit token's new
+   `core` coordinate and suppressed/turned static under reduced motion. Presentation
+   only; rules, AI, hit detection and other modes are unchanged (iterations 27 and 29,
+   COMPLETE in local presentation scope; human aesthetic acceptance UNVERIFIED).
 8. Authoritative idle look synchronization: while standing still, the client now sends
    a view-only move packet when the local view has not reached `self.yaw`/`self.pitch`,
    so the compass, minimap, threat ring and hurt arrow stay authoritative instead of

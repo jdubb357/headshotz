@@ -24,13 +24,16 @@ test('hit tokens are monotonic and describe only server-resolved outcomes',()=>{
  const machine={kind:'overlord',hp:0,elite:true,y:0};
  const boss=hitFeedback(shooter,machine,{y:1.5},1006);
  assert.deepEqual([boss.target,boss.kill,boss.boss,boss.elite],['machine',true,true,true]);
- const liveMachine={kind:'hunter',hp:100,y:0};
+ const liveMachine={kind:'hunter',hp:100,y:0,x:7,z:-3};
  const weak=hitFeedback(shooter,liveMachine,{y:1.2},1007,{weak:true});
  assert.equal(weak.weak,true);assert.equal(weak.target,'machine');assert.equal(weak.headshot,false);
- const normal=hitFeedback(shooter,liveMachine,{y:1.2},1008);
+ assert.deepEqual(weak.core,{x:7,y:1.2,z:-3},'a weak hit reports the machine core position');
+ const normal=hitFeedback(shooter,liveMachine,{y:.4},1008);
  assert.equal(normal.weak,undefined,'ordinary machine hits omit the weak flag');
+ assert.equal(normal.core,undefined,'ordinary machine hits omit the core position');
  const humanWeak=hitFeedback(shooter,{account:'enemy',alive:true,hp:80,downed:false},{y:1.6},1009,{weak:true});
  assert.equal(humanWeak.weak,undefined,'human hits never claim a machine weak point');
+ assert.equal(humanWeak.core,undefined,'human hits never carry a machine core position');
 });
 
 test('reconnect baselines the current token and only later tokens replay',()=>{
@@ -124,6 +127,7 @@ test('legacy machine core hits carry the authoritative weak flag',t=>{
  const hit=f.snapshot().self.hit;
  assert.equal(hit?.target,'machine');
  assert.equal(hit.weak,true,'a scout core hit at eye level is weak without armor');
+ assert.deepEqual(hit.core,{x:0,y:1.55,z:4},'the legacy token carries the authoritative scout core position');
 });
 
 test('incoming positioned damage exposes a bounded attacker bearing',t=>{

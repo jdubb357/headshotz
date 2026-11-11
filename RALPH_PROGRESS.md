@@ -4445,3 +4445,87 @@ Next action: alternate back to a visual/asset slice (iteration 28 gameplay, iter
 visual): a machine weak-point hit spark/burst VFX at the authoritative core (or an impact
 debris pass) would make the new stagger readable. Keep raid scoping opt-in, avoid claiming
 human balance/pacing, and record source/license if any asset is added.
+
+## Visual iteration 29 — authoritative weak-point core hit burst VFX (2026-11-10)
+
+### Acceptance criteria — iteration 29
+
+1. The authoritative weak-hit token carries the machine core position (`core:{x,y,z}`)
+   derived from the resolved target coordinates plus its class core offset, and only for
+   non-human weak hits; every other machine/operator/rival token keeps its prior shape.
+2. The raid client spawns one pooled core-hit burst — additive flash sprite, expanding
+   cyan ring, spark field and a pooled tinted light — at that exact authoritative
+   coordinate for each new weak token; misses, kills without `weak:true`, and reconnect
+   baselineing spawn nothing.
+3. Bursts come from a fixed pool, every owner is tagged `raidOwned` for scene disposal, and
+   reduced motion keeps a readable static burst with no animated sparks or light wash.
+4. A browser grader fires through the real client at a machine core, asserts the server
+   token and spawn coordinates agree, measures a meaningful pixel delta for the burst in an
+   isolated frame, and reports `browserErrors:[]`. Affected unit suites and the full unit
+   suite pass except the known intermittent matchmaking ECONNRESET. No damage, AI,
+   snapshot, mode or blueprint rules change; all assets remain procedural (no ASSETS.md
+   change).
+
+### What changed (iteration 29)
+
+- `server/raid-hit-feedback.mjs`: non-human weak tokens now append
+  `core:{x,y,z}` from the machine's resolved base position plus its class
+  `MACHINES[kind].core` offset. Every operator/rival token and every non-weak machine
+  token keeps its exact prior key set.
+- `raid-online.mjs`: `renderHitFeedback` spawns one pooled burst at `hit.core` when a new
+  weak token arrives; misses, non-weak kills and reconnect baselines spawn nothing
+  because the existing `shouldShowHit`/`hitToken` gate is unchanged.
+- `raid-view.mjs`: added a 4-slot `coreBurstEffects` pool (additive soft flash sprite,
+  camera-facing additive cyan torus shock ring, 14-spark gravity field and one bounded
+  cyan point light per slot). All owners are `raidOwned` so `disposeOwned`/`clear()`
+  release them; reduced motion freezes the flash/ring, hides sparks and disables the
+  light. The ring now billboards to the camera so it reads as a ring instead of an
+  edge-on line, and its tube/colour are deeper cyan so it does not wash out to white
+  over bright terrain.
+- `tests/raid-hit-feedback.test.mjs` and `tests/raid-browser-weak-hit-vfx.mjs`: token
+  shape assertions, real-client spawn/token agreement, camera-facing ring, pooled
+  ownership, miss/reconnect no-spawn, 480x270 pixel-delta bench and reduced-motion
+  assertions.
+
+### Commands/results (2026-11-10)
+
+- `node --check raid-view.mjs raid-online.mjs server/raid-hit-feedback.mjs
+  tests/raid-browser-weak-hit-vfx.mjs` (separately) → OK.
+- `node --test tests/raid-hit-feedback.test.mjs` → 11 pass, 0 fail.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-weak-hit-vfx.mjs` → exit 0,
+  `core burst pixel delta 4234`; `spawnCalls:[{"x":0,"y":1.5499999999999998,"z":4}]`,
+  token `{"weak":true,"kill":false,"core":{"x":0,"y":1.5499999999999998,"z":4}}`,
+  pool 4, ring/light/sparks live, `ringCameraFacing:true`, `missNoBurst:true`,
+  `reconnectNoReplay:true`, reduced motion static, `browserErrors:[]`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-hit-feedback.mjs` → exit 0,
+  weak marker/caption/cue, one cue per token, miss/reconnect behaviours unchanged,
+  `browserErrors:[]`.
+- `node --test tests/*.test.mjs` → 1179 pass, 0 fail (72.7 s).
+- Screenshots inspected: `/tmp/hs-weak-hit-vfx-before.png` (framed weak machine before
+  the hit), `/tmp/hs-weak-hit-vfx-live.png` (after: a full cyan shock ring around the
+  machine core, where the prior build showed an edge-on white sliver),
+  `/tmp/hs-weak-hit-vfx-bench-before.png` (isolated scene, no burst) and
+  `/tmp/hs-weak-hit-vfx-bench-after.png` (a complete billboarded ring with flash and
+  sparks; the pixel delta rose from 1,892 to 4,234 with this shape).
+
+### Criteria status
+
+1. PASS — the weak token carries `core:{x,y,z}` only for non-human machines and all
+   other token shapes were asserted unchanged.
+2. PASS — one pooled burst spawns at the authoritative core per new weak token; misses,
+   non-weak kills and reconnect baselines spawn nothing, verified in real Chrome.
+3. PASS — 4-slot fixed pool, `raidOwned` on every owner, `clear()` empties it, and the
+   reduced-motion refresh shows a static readable flash/ring with no sparks or light.
+4. PASS — affected units 11/11, hit-feedback and weak-VFX graders exit 0 with
+   `browserErrors:[]`, a 4,234-pixel isolated-frame delta and a camera-facing ring, and
+   the full suite is 1,179/1,179 with no damage/AI/snapshot/mode/blueprint change and
+   no asset/license addition.
+
+**Status:** Iteration 29 authoritative core-hit burst VFX is COMPLETE in local
+authoritative/presentation scope. Subjective readability and aesthetic acceptance under
+live human combat remain UNVERIFIED, as do hosted transport and physical-device
+behaviour. Older screenshots may still show the edge-on ring.
+
+Next action: alternate back to a gameplay slice — the next locally verifiable backlog
+item — while keeping raid progression, equipment loss and deployment rules scoped to
+raids and avoiding human balance/pacing claims.

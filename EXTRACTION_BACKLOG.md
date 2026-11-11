@@ -400,8 +400,13 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   (iteration 27, presentation-only; live-combat readability and human aesthetics remain
   UNVERIFIED). Machine core hits now carry authoritative weak feedback — a cyan hit
   marker, "Weak point hit" caption and a distinct synthesized cue — and stagger a charged
-  attack by a bounded 0.22 s (iteration 28). Older screenshots may still show the former
-  generic "salvage bag" wording.
+  attack by a bounded 0.22 s (iteration 28). A weak token now also carries the resolved
+  core coordinate, and the client renders one pooled camera-facing cyan burst there —
+  additive flash sprite, expanding shock ring, 14-spark field and a bounded tinted light
+  — with no burst on a miss or a reconnect baseline and a static reduced-motion variant
+  (iteration 29, presentation-only; readable pixel delta 4,234 in an isolated frame,
+  subjective live-combat readability UNVERIFIED). Older screenshots may still show the
+  former edge-on ring or the generic "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.

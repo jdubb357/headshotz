@@ -10,7 +10,12 @@ export function hitFeedback(shooter,target,point,now=0,{weak=false}={}){
  const human=!!target.account||!!target.rival;
  const zone=human?(relative>1.6?'head':relative<.65?'leg':'body'):(relative>height*.72?'head':'body');
  const killed=target.rival?target.alive===false:target.account?!target.alive:(target.hp??0)<=0;
- const next={token:(shooter.hitFeedback?.token||0)+1,at:now,zone,headshot:zone==='head',target:target.rival?'rival':target.account?'operator':'machine',kill:!!killed,boss:target.kind==='overlord',elite:!!target.elite,...(!human&&weak?{weak:true}:{})};
+ // A weak core hit also reports the authoritative core position so the raid
+ // client can render the burst at the machine it actually hit, instead of
+ // guessing from the camera or the nearest actor. Ordinary tokens keep their
+ // exact prior shape; only machine weak hits gain coordinates.
+ const core=!human&&weak&&MACHINES[target.kind]&&[target.x,target.y,target.z].every(Number.isFinite)?{x:target.x,y:target.y+MACHINES[target.kind].core,z:target.z}:null;
+ const next={token:(shooter.hitFeedback?.token||0)+1,at:now,zone,headshot:zone==='head',target:target.rival?'rival':target.account?'operator':'machine',kill:!!killed,boss:target.kind==='overlord',elite:!!target.elite,...(!human&&weak?{weak:true}:{}),...(core?{core}:{})};
  shooter.hitFeedback=next;
  return next;
 }
