@@ -4279,3 +4279,92 @@ Next action: prefer a visual/asset slice next (iteration 25 visual, iteration 26
 gameplay): e.g., machine-enemy model/material/lighting detailing (readable worn plating,
 glowing core, distinct class silhouettes) or a raid-loot container/lighting VFX pass.
 Avoid claiming human balance/pacing or hosted/device acceptance.
+
+## Visual iteration 27 — machine-enemy worn plating, core glow and class silhouettes (2026-11-10)
+
+### Acceptance criteria — iteration 27
+
+1. Every machine class built by the production `machineModel` carries a procedural,
+   deterministic worn-plating texture on its hull/armor parts plus a per-class detail
+   silhouette (scout antenna/fins, hunter dorsal ridge/mast, heavy hazard chevrons/vents,
+   flyer rotor blades/struts, overlord crown/vents) and a camera-facing additive core halo.
+   The construction must not mutate shared caches owned by other models or other modes.
+2. Presentation-only: authoritative machine ids, classes, positions, HP/state, hit flash,
+   telegraph, boss phases, core recolor and reduced-motion behavior stay unchanged; the
+   models remain usable for map markers, collision and settlement. No third-party assets
+   are introduced, so ASSETS.md needs no entry.
+3. A new isolated-Chrome grader exercises the real deployment sync path (all five classes)
+   and asserts worn map, halo and per-class feature presence; isolated bench renders prove
+   each class's detail pass changes measurable pixels versus the plain model; before/after
+   screenshots are captured for inspection.
+4. `browserErrors: []` and the affected browser regressions (performers, scenery/render
+   resources, boss) stay green; targeted unit suites and the full unit suite pass.
+
+### Implementation — iteration 27 (completed)
+
+- `raid-models.mjs`: added procedural, deterministic shared textures — a 256 px worn
+  metal canvas (panel seams, bolt rows, rust blooms, chips/scuffs, grime speckle) and a
+  64 px additive core-glow sprite. `wornMat(color)` tints the shared wear map per hull
+  colour in the same non-owning module cache as `mat()`, so per-actor disposal cannot
+  free another machine's map. `machineModel(kind,{plain})` now routes hull/armour parts
+  through the worn material, adds a per-class silhouette group, attaches a camera-facing
+  halo sprite to the authoritative core, and publishes `machineDetail` metadata
+  (`worn`, `halo`, feature names, part count). The `plain` option exists only for the
+  evidence bench and reconstructs the former generic model.
+- Per-class silhouettes: scout antenna mast/lamp, stabiliser fins and lens housing;
+  hunter dorsal ridge, taller sensor mast, head lens, wider shoulder cowls and hip fins;
+  heavy hazard chevrons, rear vent slats, shoulder plates and exposed piston stacks;
+  flyer rotor blades, belly sensor, rear thruster and landing struts; overlord crown
+  spikes, furnace chest vents and shoulder pylons. All parts reuse the existing shared
+  geometry cache and remain presentation-only.
+- `updateActor` now copies the authoritative core colour into the halo sprite and
+  varies its opacity by windup/furnace/meltdown phase and reduced motion, so the glow
+  tracks state without adding a new client rule or light.
+- `tests/raid-browser-machine-models.mjs` (new) drives the real relay deployment plus
+  one synthetic machine per class through production `RaidView.sync`, asserts worn
+  meshes, core halo sprite/map, per-class feature names, shared wear texture, and
+  isolated plain-vs-detailed pixel deltas for all five classes, with `browserErrors: []`.
+- `EXTRACTION_BACKLOG.md`, `RALPH_PROGRESS.md`: document the presentation-only pass. No
+  third-party assets were added, so `ASSETS.md` is unchanged.
+
+### Commands/results (2026-11-10)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-machine-models.mjs` → exit 0,
+  detail deltas scout 254, hunter 260, heavy 1376, flyer 229, overlord 2130 pixels;
+  `wornMapShared:true`, `browserErrors:[]`; screenshots inspected
+  `/tmp/hs-machine-models-before.png` (flat colours, no wear or glow) and
+  `/tmp/hs-machine-models-after.png` (worn plating seams on every hull, red core halos,
+  antenna/lamp, dorsal ridge, hazard chevrons, rotor blades and crown spikes).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-render-resources.mjs` → exit 0,
+  textures 69/69 before/after, no leaks from the shared wear map.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-performance.mjs` → exit 0,
+  `{"allTargets":true,"noBrowserErrors":true}` across all three maps and both viewports
+  (draw p50 about 1223–1305, frame p95 16.8 ms, render CPU p95 ≤7.3 ms).
+- `node --test tests/*.test.mjs` → 1176 tests, 1175 pass, 1 fail
+  (`matchmaking.test.mjs` known intermittent ECONNRESET); isolated rerun
+  `node --test tests/matchmaking.test.mjs` → 11 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — all five production machine classes carry the shared worn-plating map, a
+   camera-facing additive halo on the authoritative core, and their named silhouette
+   features; the same wear texture instance is reused between machines.
+2. PASS — only mesh/material construction and core-opacity presentation changed; no
+   snapshot, HP/state, hit-flash, boss-phase, marker, collision or settlement logic was
+   touched, and no third-party asset was added.
+3. PASS — the new isolated-Chrome grader exercises the real deployment sync path for the
+   relay scout plus synthetic instances of every class, and all five plain-vs-detailed
+   benches exceed the 200-pixel bar with no browser errors.
+4. PASS — render-resources ownership stays clean, all performance targets and
+   `noBrowserErrors` pass, and the full 1176-test suite is green apart from the known
+   intermittent matchmaking ECONNRESET (11/11 isolated).
+
+**Status:** Iteration 27 machine-enemy visual pass is COMPLETE in local presentation
+scope. Subjective readability/aesthetics in live third-person combat, the shipped night
+and storm fronts, and human acceptance are UNVERIFIED, as are hosted transport and
+physical-device behavior. Do not claim P5/P6/P7 or human acceptance.
+
+Next action: alternate back to a gameplay slice (iteration 27 visual, iteration 26
+gameplay). Candidates: a small authoritative P8/P9/P10 refinement, e.g. contract or
+objective reward feedback in the field, or a machine weak-point/tell readability
+behavior slice. Keep raid scoping opt-in and avoid claiming human balance/pacing.

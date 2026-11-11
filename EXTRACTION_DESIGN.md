@@ -78,13 +78,20 @@ Observed differences and gaps:
    radius remains the single E target even when ambush salvage is nearer; ordinary loot
    ordering still applies outside the open window (iteration 18, COMPLETE in local
    presentation scope; natural extract/secure acceptance still PARTIAL).
-7. Authoritative idle look synchronization: while standing still, the client now sends
+7. Machine-enemy presentation detail: every machine hull now carries a deterministic
+   procedural worn-plating texture with seams, bolts, rust and chips; blue-lit cores gain
+   an additive halo that follows the authoritative state/phase colour, and each class
+   carries a distinct detail silhouette (scout antenna/fins, hunter dorsal ridge/mast,
+   heavy hazard chevrons/vents, flyer rotors/struts, overlord crown/vents). Presentation
+   only; rules, AI, hit detection and other modes are unchanged (iteration 27, COMPLETE
+   in local presentation scope; human aesthetic acceptance UNVERIFIED).
+8. Authoritative idle look synchronization: while standing still, the client now sends
    a view-only move packet when the local view has not reached `self.yaw`/`self.pitch`,
    so the compass, minimap, threat ring and hurt arrow stay authoritative instead of
    freezing on the last movement packet. Pure idle with unchanged look still defers
    (iteration 19, COMPLETE in local authoritative scope).
-8. Encounter pacing review with human playtesters (blocked: no playtest cohort).
-9. Hosted transport/reconnect and physical-device acceptance (blocked: no deployed WAN
+9. Encounter pacing review with human playtesters (blocked: no playtest cohort).
+10. Hosted transport/reconnect and physical-device acceptance (blocked: no deployed WAN
    or devices owned/testable here).
 
 Human balance, pacing and "fun" judgments are explicitly unverified by automated tests.

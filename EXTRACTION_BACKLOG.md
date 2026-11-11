@@ -388,8 +388,13 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   reinforcement feet and riveted lid seams (iteration 23, presentation-only). Base
   stash weapon/armor rows now carry a compact condition meter, a READY/WORN/CRITICAL
   grade chip and a severity stripe driven by the authoritative condition, alongside
-  the existing salvage/repair note (iteration 25, presentation-only). Older screenshots
-  may still show the former generic "salvage bag" wording.
+  the existing salvage/repair note (iteration 25, presentation-only). All five machine
+  classes now carry a shared procedural worn-plating map (seams, bolts, rust, chips), a
+  camera-facing additive halo on the authoritative core that follows state/phase colour,
+  and class-specific silhouette details — scout antenna/fins, hunter dorsal ridge/mast,
+  heavy hazard chevrons/vents, flyer rotor blades/struts and overlord crown/chest vents
+  (iteration 27, presentation-only; live-combat readability and human aesthetics remain
+  UNVERIFIED). Older screenshots may still show the former generic "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.
