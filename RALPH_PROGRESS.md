@@ -7253,3 +7253,21 @@ little pale and flat under full sun while the drums/crate are small against a wi
 asphalt foreground, and on desktop the backpack dock covers half the frame — director note 3.
 
 Next: director note 3 (auto-fade HUD / kill the quarter-frame box), then ENEMIES (priority 4).
+
+## Iteration 69 — Slim raid HUD + fading brief (director note 3, 2026-11-11)
+
+### Acceptance criteria (recorded before implementation)
+1. Live raids default (pointer-fine or touch landscape) to a slim HP/ammo/clock/pack strip; the quarter-frame telemetry panel never shows in normal play.
+2. Location/weather/clock/facing shows at deploy and fades within ~5s; the armory objective route rides in that fade and no objective strip persists.
+3. Desktop compact hides the touch deck and shows the hint only for nearest loot/door/body/cache/exit; touch keeps its deck and 44px targets.
+4. Before/after frames at 1024x720 and 844x390; hud-layout, hud-theme, mobile-hud and static-offline stay green; the Node suite passes.
+
+### Implementation / verification
+- `raid-settings-ui.mjs`: auto compact opens for raids on pointer-fine or coarse landscape; portrait touch stays full; `apply` exposed and called at raid entry/exit/sign-out.
+- `raid-online.mjs`: zone/weather/clock/facing + armory objective live in the 4.8s `#hudStatus` pill; compact suppresses the old objective/help hint while contextual prompts remain; pack dock closes on start.
+- `raid-online.html`: compact HUD is global; `@media(pointer:fine)` hides the touch deck, centers a contextual hint pill (`#hint:empty` hides), and the backpack toggle is 44px tall; hud-theme asserts slim first, then explicit full.
+- Criteria 1-4 PASS. 1024x720 compact frame shows a 480x36 strip with no telemetry/dock/deck; the brief fades to an empty field. Graders green: hud-layout, hud-theme, mobile-hud (.919 desktop / .819 mobile unobstructed), static-offline. Node suite 1247/1247. Shots in `~/headshotz-loop/shots/latest/`.
+
+### Honest critique
+The quarter-frame HUD, open dock and touch deck are gone and the deploy brief now dissolves into the sector; still weak: at 844 the briefing wraps to three lines and its 422px glass pill covers the upper sightline for ~5s, and the viewmodel still reads flat tan/grey with a stray line below the barrel (director note 4).
+Next: director note 4 (viewmodel), then note 5 (tracer), then ENEMIES (priority 4).

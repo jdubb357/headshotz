@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (director material note, iteration 68). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety, metal siding ribs/rust and daylight glass landed (iteration 68) → NEXT: director note 3 auto-fade HUD → ENEMIES (priority 4) → WORLD → AUDIO → JUICE.
+Last audited: 2026-11-11 (director HUD note, iteration 69). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety, metal siding ribs/rust, daylight glass (iteration 68) and slim auto-fading raid HUD (iteration 69) complete → NEXT: director note 4 viewmodel → note 5 tracer → ENEMIES (priority 4) → WORLD → AUDIO → JUICE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the

@@ -3,10 +3,13 @@ const STORAGE='headshotz.raid.settings.v1';
 export function settingsUI({onChange}){
  const $=id=>document.getElementById(id);let value;try{value=normalizeSettings(JSON.parse(localStorage.getItem(STORAGE)||'null'))}catch{value=normalizeSettings(null)}
  let capture=null,returnFocus=null;const media=matchMedia('(prefers-reduced-motion: reduce)');
- // Compact HUD auto-detection: a coarse pointer held in landscape (iPad/phone
- // Safari and Chrome) gets the slim touch layout; explicit Settings wins.
+ // A live raid defaults to the slim strip on mouse/keyboard and on touch screens
+ // held in landscape: only health, ammunition, raid clock and pack count stay on
+ // screen, with the sector briefing fading after a few seconds. A coarse-pointer
+ // portrait still gets the full layout because its bottom-centre controls need
+ // the room; an explicit Settings choice wins either way.
  const compactQuery=matchMedia('(pointer:coarse)');
- const automaticCompact=()=>compactQuery.matches&&innerWidth>innerHeight;
+ const automaticCompact=()=>compactQuery.matches?innerWidth>innerHeight:document.body.dataset.inRaid==='true';
  const compactActive=()=>value.hudLayout==='compact'||(value.hudLayout==='auto'&&automaticCompact());
  const effective=()=>({...value,reduced:value.reducedMotion==='on'||value.reducedMotion==='system'&&media.matches,compactHud:compactActive()});
  function apply(){document.documentElement.style.setProperty('--hud-scale',value.hudScale);document.documentElement.dataset.hudLarge=String(value.hudScale>1.2);document.documentElement.dataset.reducedMotion=String(effective().reduced);document.documentElement.dataset.highContrast=String(value.highContrast);document.documentElement.dataset.compactHud=String(compactActive());$('welcome').hidden=value.onboardingDismissed;onChange?.(effective());dispatchEvent(new Event('raidsettingschange'))}
@@ -36,5 +39,5 @@ export function settingsUI({onChange}){
  $('dismissWelcome').onclick=()=>{value.onboardingDismissed=true;save()};
  $('helpOpen').onclick=()=>{document.exitPointerLock?.();dispatchEvent(new Event('raidmenuopen'));render();$('helpDialog').showModal()};$('welcomeGuide').onclick=()=>$('helpOpen').click();$('helpClose').onclick=()=>$('helpDialog').close();
  media.addEventListener('change',apply);render();apply();
- return {get:effective,open,update(patch){value=normalizeSettings({...value,...patch});render();save()},isModal:()=>!!document.querySelector('dialog[open]')};
+ return {get:effective,apply,open,update(patch){value=normalizeSettings({...value,...patch});render();save()},isModal:()=>!!document.querySelector('dialog[open]')};
 }
