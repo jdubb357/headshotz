@@ -17,7 +17,7 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slices 1–4 COMPLETE 2026-11-10; slices 5–12 open. This project
+Status: IN PROGRESS — slices 1–5 COMPLETE 2026-11-10; slices 6–12 open. This project
 temporarily supersedes P1–P10 and visual-alternation
 until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
 to “do not change the hub/main menu or the original cooperative Extraction”: routing
@@ -85,8 +85,18 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    rejection), targeted raid suites 56/56, full suite 1200/1200.
    No browser acceptance for offline mode yet — the dispatcher/grader slices are next.
    Next: slice 5 guest/local session.
-5. **Guest/local session** — MISSING. Offline auth is an automatic guest profile with
-   no password, cookies, or scrypt. Online register/login/cookies stay unchanged.
+5. **Guest/local session** — COMPLETE (iteration 34). `shared/raid-session.mjs` is a
+   DOM-free, `node:*`-free passwordless guest session: `createGuestSession`/`GuestSession`
+   claim the store guest (no password, token, cookie, or scrypt) and expose
+   `authenticate`/`profile`/`results`/`sessions`/`signIn`/`logout`. Its
+   `offlineSessionRoute` contract maps the client's auth/profile calls (`profile`,
+   `results`, `sessions`, `login`, `register`, `logout`) and rejects password-only
+   routes with 501; gameplay routes stay with `RaidService`. Login/register are the
+   same local operation (typed name picks or creates the guest; the password field
+   is ignored). Online register/login/cookies are unchanged. Evidence:
+   `tests/raid-session.test.mjs` 6/6 (guest profile shape, name reuse, route contract,
+   501 password routes, deployment bound to the session account), targeted 22/22,
+   full suite 1206/1206. Next: slice 6 in-page dispatcher/tick.
 6. **In-page dispatcher and 50 ms tick** — MISSING. When static/offline,
    `raid-online.mjs` `api(path, body)` calls an in-page dispatcher backed by the
    in-browser `RaidService` instead of `fetch('/api/...')`. Start the same 50 ms

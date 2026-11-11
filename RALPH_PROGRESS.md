@@ -4775,3 +4775,65 @@ Next action: P0 slice 5 — an offline guest/local session path with no password
 or scrypt, while online register/login/cookies stay unchanged; the store already
 auto-creates the passwordless guest, so wire a session module/API contract and unit-test
 that offline auth returns the guest profile.
+
+## Iteration 34 — P0 slice 5: guest/local session
+
+### Acceptance criteria — iteration 34 (P0 slice 5)
+
+1. A browser-safe, `node:*`-free session module provides passwordless offline identity:
+   it selects/creates the store guest with no password, token, HttpOnly cookie, or
+   scrypt, and returns the authoritative guest profile from the same store.
+2. The offline session contract covers the auth/profile routes the raid client calls
+   (`profile`, `results`, `sessions`, `login`, `register`, `logout`) while password-only
+   operations are explicitly unavailable offline rather than silently accepted.
+3. Online register/login/cookies in `server/main.mjs` and `server/store.mjs` are unchanged.
+4. Unit tests prove offline auth returns the guest profile (250 credits, 4 starter
+   items, empty overflow/insurance), reuses the same guest for the same name, and that
+   deployments still bind to that account through `RaidService`.
+
+### Implementation — iteration 34 (completed)
+
+- `shared/raid-session.mjs`: DOM-free, `node:*`-free passwordless offline identity.
+  `GuestSession(store)` claims (or reuses) the store's guest account through
+  `createGuest`, exposes `authenticate()`/`profile()`/`results()`/`sessions()`,
+  an offline `signIn(username)` that ignores the online password field, and a
+  no-op `logout()` that therefore leaves the local operator intact.
+  `offlineSessionRoute(session, path, body)` is the session-owned route contract for
+  the slice 6 dispatcher: `profile`, `results`, `sessions`, `login`, `register`
+  and `logout`; password-only routes (`change-password`, `recovery-codes`,
+  `revoke-session`, `recover`) throw `RuleError(..., 501)`, and any gameplay path
+  returns `undefined` so raid rules stay owned by `RaidService`.
+- Online register/login/cookie code in `server/main.mjs`, `server/store.mjs` and
+  `server/credentials.mjs` is untouched (the security module is not imported by
+  the session path, and offline credentials were never needed).
+- `tests/raid-session.test.mjs`: 6 tests — no `node:*`/credential primitives;
+  automatic guest profile (250 credits, weapon/armor/med/med, no overflow or
+  insurance); same-name reuse and new-name account creation; profile/results/
+  sessions/logout contract; password routes fail offline; deployment binds to the
+  session account through the authoritative `RaidService`.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-session.test.mjs` → 6 pass, 0 fail.
+- Targeted raid suites (session, memory store, static mode) → 22/22.
+- Full suite `node --test tests/*.test.mjs` → 1206 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — offline session cleans up passwordless guest identity and returns the
+   profile from the same store; no password/token/cookie/scrypt appears in the path.
+2. PASS — profile/results/sessions/login/register/logout are covered; password-only
+   routes fail explicitly with 501.
+3. PASS — online server session/credentials code was not modified.
+4. PASS — unit tests prove the guest profile, name reuse and service-bind deployment.
+
+**Status:** P0 slice 5 is COMPLETE in local module/test scope. Offline combat is still
+not playable in the browser: in-page dispatcher/50 ms tick (6), offline multiplayer
+stubs (7), Pages DEPLOY routing (8), combat wiring (9) and the static grader (10)
+remain. No browser or human/hosted acceptance is claimed for offline mode.
+
+Next action: P0 slice 6 — add the in-page dispatcher: construct a `MemoryRaidStore`
+and `RaidService` in static mode, route `api(path, body)` through
+`offlineSessionRoute` plus authoritative service routes (`capabilities`, `worlds`,
+`deploy`, `raid`, `action`, 50 ms tick, results/market), and stub party/voice/
+matchmaking probes so the client can boot offline.
