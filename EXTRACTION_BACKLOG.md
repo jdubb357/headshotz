@@ -29,7 +29,9 @@ client. Offline mode is an in-page copy of the same `RaidService` rules.
 
 ## Post-P0 priority — Mobile/touch HUD declutter (iteration 59, 2026-11-11)
 
-Status: OPEN — raid-view HUD slice complete; base redesign, offline boot form and naming remain. The compact landscape touch HUD leaves
+Status: COMPLETE 2026-11-11 (tabbed base lobby shipped iteration 62) — raid-view HUD and
+between-raid base slices are complete; offline boot form, offline-only surface hiding and
+naming remain covered by the graders below. The compact landscape touch HUD leaves
 at least 75% of the 1024x720 and 844x390 raid view unobstructed (92.2% and 82.2% measured
 by union of visible HUD surfaces). A slim translucent top strip carries HP (bar plus
 number, with a damage flash and warn/critical/downed colours), ammunition/magazine,
@@ -54,6 +56,28 @@ full unit suite green. Honest gap: physical-device feel on Austin's iPad/phone a
 subjective combat readability remain UNVERIFIED (P7); browser touch emulation covers geometry,
 target size and authoritative input but not sensor/pointer latency or human fatigue.
 
+Base lobby shipped 2026-11-11 (iteration 62): the between-raid base is now one hero Deploy
+screen with credits/stash/loadout/sector at a glance, map/objective/recovery/primary
+controls, and one big DEPLOY action. A compact tab bar (Loadout, Traders, Workshop,
+Contracts, Records, Sector, online-only Squad) shows exactly one group of panels at a
+time, with the tab bar, the hero card and the operator row fixed while long panels scroll
+inside their own region. Offline hides the Account control and account dialog (no
+password/recovery/session surfaces can open), the Squad tab, connection/latency controls,
+squad communication and the network badge; local sign-out remains in the identity row.
+The first-raid guide is a one-line dismissible strip (and is hidden entirely in compact
+landscape). Player-facing naming stays THE SECTOR / CLASSIC EXTRACTION and forbidden jargon
+(protected overflow, appraisal, vitality, field-objective deploy plan, persistent
+extraction, server-owned, authoritative, reconciliation) is asserted absent. Evidence:
+`tests/raid-browser-base-lobby.mjs` — static server, zero `/api`, 1024x720 and 844x390
+touch layouts, page does not scroll, one panel group per tab, offline surfaces hidden,
+big DEPLOY target, one-line dismissible tip, banned phrases absent, screenshots
+`/tmp/hs-base-lobby-1024x720.png` and `/tmp/hs-base-lobby-844x390.png`. `tests/raid-browser-menu.mjs`
+was rewritten for lobby semantics (flex lobby, hero DEPLOY, tab switching, 44px targets,
+no page scroll desktop/mobile, `/tmp/hs-menu-desktop.png`, `/tmp/hs-menu-mobile.png`).
+`tests/raid-browser-static-account.mjs` now proves offline exposes no Account entry point.
+Honest gap: portrait 390x844 is usable but tabs scroll horizontally; 1024x720 base was
+not exercised on a physical iPad.
+
 Naming shipped 2026-11-11 (iteration 60): the mode is "THE SECTOR" in the page title, base
 heading and main-menu raid banner, with the original co-op raid kept as CLASSIC EXTRACTION.
 Visible base copy no longer says Persistent Extraction, Server-owned, authoritative or
@@ -65,11 +89,11 @@ is honored synchronously, a "Preparing the sector…" notice covers store hydrat
 `tests/raid-browser-mobile-hud.mjs` reloads under a document-start observer that proves the
 password field never becomes visible.
 
-Still open for the block: the between-raid base stacks ~20 panels in one scroll and needs
-a hero deploy screen plus one-panel-at-a-time tabs (Loadout & Stash, Traders, Workshop,
-Contracts, Records), offline-only surfaces (account/password, recovery, sessions, squad,
-comms, latency) need hiding, and the first-raid guide is still a large card rather than a
-one-line dismissible tip.
+Closed for the block 2026-11-11 (iteration 62): the between-raid base no longer stacks ~20
+panels in one scroll; it is a hero Deploy screen with one-panel-at-a-time tabs (Loadout,
+Traders, Workshop, Contracts, Records plus Sector and online-only Squad). Offline-only
+surfaces (account/password, recovery codes, sessions, squad, comms, latency) are hidden,
+and the first-raid guide is a one-line dismissible tip.
 
 Post-P0 UX resumed 2026-11-11 (iteration 58): the static offline Deploy card now previews
 an authored field objective from the shared catalogue and remembers the sector/objective

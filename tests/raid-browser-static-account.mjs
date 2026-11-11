@@ -57,32 +57,20 @@ try {
     return {usernameFromApi:rt.session.username,items:p.items.length};
   })()`);
 
-  // The account dialog exists offline but must not offer password, recovery-code
-  // or server session controls that can only fail with 501.
-  assert.equal(await page.evaluate("document.getElementById('accountOpen').hidden"), false, 'the offline base exposes the Account control');
+  // Offline mode hides the Account surface entirely: no password, recovery-code
+  // or server session controls are offered. Local sign-out stays in the base
+  // identity row.
+  assert.equal(await page.evaluate("document.getElementById('accountOpen').hidden"), true, 'the offline base hides the Account control');
   await page.evaluate("document.getElementById('accountOpen').click()");
-  await page.wait("document.getElementById('accountDialog').open");
-  const dialog = await page.evaluate(`(()=>{const d=document.getElementById('accountDialog');return {
-    noteVisible:!document.getElementById('offlineAccountNote').hidden,
-    note:document.getElementById('offlineAccountNote').textContent,
-    securityHidden:document.getElementById('onlineAccountSecurity').hidden,
-    signOutVisible:getComputedStyle(document.getElementById('accountSignOut')).display!=='none',
-    passwordFormHidden:document.getElementById('passwordForm').closest('#onlineAccountSecurity').hidden,
-    codesFormHidden:document.getElementById('codesForm').closest('#onlineAccountSecurity').hidden,
-    identity:document.getElementById('securityIdentity').textContent,
-  }})()`);
-  assert.equal(dialog.noteVisible, true, 'the offline account note is visible');
-  assert.match(dialog.note, /stored on this device/i, 'the note explains local storage');
-  assert.match(dialog.note, /no password, recovery codes or server/i, 'the note states offline account security is unavailable');
-  assert.equal(dialog.securityHidden, true, 'online-only account security controls are hidden offline');
-  assert.equal(dialog.passwordFormHidden, true, 'password changes are unavailable offline');
-  assert.equal(dialog.codesFormHidden, true, 'recovery codes are unavailable offline');
-  assert.equal(dialog.signOutVisible, true, 'local sign-out remains available');
-  assert.match(dialog.identity, /offline/i, 'the identity line labels the offline session');
+  await new Promise(r => setTimeout(r, 120));
+  assert.equal(await page.evaluate("document.getElementById('accountDialog').open"), false, 'offline never opens the account dialog');
+  assert.equal(await page.evaluate("document.getElementById('onlineAccountSecurity').hidden"), true, 'online account security stays hidden offline');
+  assert.equal(await page.evaluate("document.getElementById('passwordForm').closest('#onlineAccountSecurity').hidden"), true, 'password changes are unavailable offline');
+  assert.equal(await page.evaluate("document.getElementById('codesForm').closest('#onlineAccountSecurity').hidden"), true, 'recovery codes are unavailable offline');
 
   // Signing out must show a passwordless local sign-in screen, not the online
   // password/recovery form.
-  await page.evaluate("document.getElementById('accountSignOut').click()");
+  await page.evaluate("document.getElementById('logout').click()");
   await page.wait("document.getElementById('auth').hidden===false");
   const auth = await page.evaluate(`(()=>{const pw=document.querySelector('#login [name=password]');return {
     noteVisible:!document.getElementById('offlineAuthNote').hidden,
@@ -108,12 +96,12 @@ try {
   await page.wait("!document.getElementById('base').hidden && document.getElementById('auth').hidden");
   const back = await page.evaluate(`(()=>{const rt=window.__hszOfflineRaid.runtime(),p=rt.store.profile(rt.account);return {
     authHidden:document.getElementById('auth').hidden,baseVisible:!document.getElementById('base').hidden,
-    accountOpenVisible:!document.getElementById('accountOpen').hidden,
+    accountOpenHidden:document.getElementById('accountOpen').hidden,
     username:p.username,items:p.items.length,activeDeployment:p.activeDeployment,
   }})()`);
   assert.equal(back.authHidden, true, 'signing in hides the offline auth screen');
   assert.equal(back.baseVisible, true, 'signing in returns to the base');
-  assert.equal(back.accountOpenVisible, true, 'the account control returns after sign-in');
+  assert.equal(back.accountOpenHidden, true, 'the account control stays hidden after offline sign-in');
   assert.equal(back.username, start.usernameFromApi, 'the same local guest operator is reused');
   assert.equal(back.items, start.items, 'the stash survives an offline sign-out/sign-in');
 

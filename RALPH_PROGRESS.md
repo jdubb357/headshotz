@@ -6873,3 +6873,78 @@ Traders, Workshop, Contracts, Records; hide offline account/password, recovery,
 sessions, squad, comms and latency surfaces; reduce the first-raid guide to a
 one-line dismissible tip; assert fit/no-scroll at 1024x720 and usability at
 844x390 in a sibling grader.
+
+## Iteration 62 — Tabbed base lobby with hero DEPLOY (2026-11-11)
+
+### Acceptance criteria
+
+1. The between-raid base paints as one hero deploy screen: big DEPLOY, credits, stash,
+   loadout and sector at a glance, map/objective/recovery/primary controls, styled as a
+   lobby rather than a stack of ~20 visible cards.
+2. A compact tab bar shows exactly one group of panels at a time: Loadout, Traders,
+   Workshop, Contracts, Records, Sector and online-only Squad. Existing ids and event
+   wiring survive; keyboard tab navigation remains usable.
+3. Offline mode hides every account/password/recovery-code/signed-session surface, the
+   Squad tab and squad communication, connection/latency controls and the network badge;
+   local sign-out stays available and the offline base never paints a username/password
+   form.
+4. The first-raid guide collapses to a slim one-line dismissible tip (hidden entirely in
+   compact landscape).
+5. Fit/no page scroll at 1024x720; usable layout and 44px targets at 844x390 and portrait
+   mobile; rewarded navigation switches tabs before focusing hidden targets.
+6. New sibling grader with screenshots, plus updated menu/static-account graders, green;
+   raid mobile-HUD grader and unit suite still green.
+
+### Implementation — iteration 62 (completed)
+
+- `raid-online.html`: replaced the stacked-panel base with `#deployCard` hero
+  (`#heroStats`, DEPLOY `#deploy`, Map/Objective/Recovery/Primary, readiness/risk) and a
+  `#baseTabs` / `#basePanels` structure; existing cards carry `data-panel` and only the
+  active tab group paints. The Sector map/exit plan moved into its own tab. Added lobby
+  CSS: `body[data-base-lobby=true]` locks the page to 100dvh, keeps the hero, operator row
+  and tabs fixed, and scrolls long panel content internally. Compact landscape keeps
+  44px targets; portrait stacks the hero and deploy action. Offline account surfaces and
+  the guide tip are styled/hidden accordingly, and safe-area insets are preserved.
+- `raid-online.mjs`: added `setBaseLobby`, `updateHeroSummary`, `setBaseTab` and tab
+  selection (click + ArrowLeft/Right/Home/End). `refresh()` shows the lobby, hides the
+  offline Account control, populates hero stats and chooses the Records tab when a settled
+  raid exists. `applyOfflineMode()` hides the Squad tab, account dialog security and
+  connection/comms handles and switches away from Squad. Map/objective/selection changes
+  and loadout changes refresh the summary. `start()` clears lobby mode. Rewards actions
+  switch to their tab before focusing. `#logout` drives the offline account sign-out.
+- `raid-account-ui.mjs`: the account dialog cannot open in offline mode (no password,
+  recovery-code or session surface is reachable).
+- Tests: new `tests/raid-browser-base-lobby.mjs` (static offline, both touch sizes,
+  no page scroll, one panel group per tab, hidden offline surfaces, big DEPLOY,
+  one-line dismissible tip, banned phrases, screenshots). Rewrote `raid-browser-menu.mjs`
+  for lobby semantics and updated `raid-browser-static-account.mjs` for the hidden Account
+  entry point.
+
+### Commands/results (2026-11-11)
+
+- `node tests/raid-browser-base-lobby.mjs` → PASS; screenshots
+  `/tmp/hs-base-lobby-1024x720.png` and `/tmp/hs-base-lobby-844x390.png`.
+- `node tests/raid-browser-menu.mjs` → PASS (lobby flex, one tab group, 44px targets,
+  no page scroll at 1280x800 and 390x844; screenshots `/tmp/hs-menu-desktop.png`,
+  `/tmp/hs-menu-mobile.png`).
+- `node tests/raid-browser-mobile-hud.mjs` → PASS: 92.1% / 82.4% unobstructed raid view,
+  thumbstick/right-drag/Fire/Reload/Interact, menu collapse, screenshots.
+- `node tests/raid-browser-static-account.mjs` → PASS (Account control and dialog hidden
+  offline; passwordless sign-out/sign-in still works).
+- `node tests/raid-browser-rewards.mjs`, `raid-browser-static-records.mjs`,
+  `raid-browser-static-base-economy.mjs`, `raid-browser-static-plan.mjs`,
+  `raid-browser-static-readiness.mjs`, `raid-browser-offline-dispatch.mjs` → PASS.
+- Full unit suite (see commit run) → PASS.
+
+### Criteria status
+
+1. PASS — hero DEPLOY with credits/stash/loadout/sector summary and controls.
+2. PASS — tab bar shows one group at a time; all ids and keyboard tab navigation remain.
+3. PASS — offline account dialog cannot open; Squad/comms/latency controls hidden.
+4. PASS — guide is one dismissible line; hidden in compact landscape.
+5. PASS — no page scroll at 1024x720; usable 44px targets at 844x390.
+6. PASS — sibling/updated graders and screenshots green.
+
+**Status:** Mobile/touch HUD + base lobby block COMPLETE. Honest gap: physical iPad feel
+and subjective combat readability remain UNVERIFIED (P7). Next action: resume the normal
+post-P0 raid priorities from the backlog's top open mechanics item.

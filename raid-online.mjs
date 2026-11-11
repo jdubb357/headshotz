@@ -88,6 +88,50 @@ new ResizeObserver(syncRaidDock).observe($('packToggle'));
 addEventListener('raidsettingschange',syncRaidDock);
 addEventListener('resize',()=>{syncTouchHeight();syncRaidDock()});
 syncTouchHeight();syncRaidDock();
+// Base lobby navigation. The hero deploy card is always visible; the lower
+// panel area shows exactly one tab group at a time. Cards keep their ids and
+// event wiring, so every existing control stays where it is.
+let baseTabName='loadout',baseTabChosen=false;
+const BASE_TABS=['loadout','traders','workshop','contracts','records','sector','squad'];
+function setBaseLobby(on){if(on)document.body.dataset.baseLobby='true';else delete document.body.dataset.baseLobby}
+function updateHeroSummary(){
+ if(!profile)return;
+ const items=Array.isArray(profile.items)?profile.items:[];
+ const credits=Number.isFinite(profile.credits)?profile.credits:0;
+ const map=$('map')?.selectedOptions?.[0]?.textContent?.trim()||'—';
+ const objective=$('fieldObjective')?.selectedOptions?.[0];
+ const objectiveName=objective&&objective.value?objective.textContent.trim():'';
+ const recovery=!!$('recovery')?.checked;
+ const primary=$('primaryWeapon')?.selectedOptions?.[0]?.textContent?.trim();
+ const gear=recovery?'Recovery kit':profile.activeDeployment?'Operator deployed':(!(''===($('primaryWeapon')?.value||''))&&primary)||'Select gear';
+ const creditsNode=$('heroCredits'),stashNode=$('heroStash'),loadoutNode=$('heroLoadout'),sectorNode=$('heroSector');
+ if(creditsNode)creditsNode.textContent=credits.toLocaleString()+' cr';
+ if(stashNode)stashNode.textContent=items.length+' item'+(items.length===1?'':'s');
+ if(loadoutNode)loadoutNode.textContent=gear;
+ if(sectorNode)sectorNode.textContent=objectiveName?map+' · '+objectiveName:map;
+}
+function setBaseTab(name){
+ baseTabName=BASE_TABS.includes(name)?name:'loadout';
+ const base=$('base');
+ if(base)base.dataset.baseTab=baseTabName;
+ for(const tab of document.querySelectorAll('#baseTabs [role=tab]')){
+  const on=tab.dataset.baseTab===baseTabName;
+  tab.setAttribute('aria-selected',String(on));
+  tab.tabIndex=on?0:-1;
+ }
+ updateHeroSummary();
+}
+for(const tab of document.querySelectorAll('#baseTabs [role=tab]')){
+ tab.addEventListener('click',()=>setBaseTab(tab.dataset.baseTab));
+ tab.addEventListener('keydown',event=>{
+  if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+  const tabs=[...document.querySelectorAll('#baseTabs [role=tab]')].filter(node=>!node.hidden);
+  const index=tabs.indexOf(tab);if(index<0)return;
+  event.preventDefault();
+  const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+  tabs[next].focus();setBaseTab(tabs[next].dataset.baseTab);
+ });
+}
 let baseUI,previewLoadout={primary:null,secondary:null,armor:null};
 let profile,party,snapshot,view,preview,yaw=0,pitch=0,seq=0,busy=false,tickBusy=false,inRaid=false,nearest=null,awaitingParty=false,notice={text:'',until:0};
 let latencyProof=null,probeWork=null,matchInfo=null;
@@ -113,7 +157,7 @@ addEventListener('raidsettingschange',()=>{if(inRaid)setPack(!$('pack').hidden)}
 identityUI=accountUI({api,run,getProfile:()=>profile,offline:()=>offlineMode,onRotated:async()=>{authGeneration++;await comms.voice.leave('Voice off after account security update.');await refresh()},onRecovered:async()=>{await signedOut('Account recovered. Sign in with your new password.')},onSignOut:async()=>{await api('logout',{});await signedOut('Signed out.')}});
 async function signedOut(text){
  const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();resetTacticalMap();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;
- view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();applyOfflineAuth();$('identity').textContent='';
+ view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();setBaseLobby(false);baseTabChosen=false;baseTabName='loadout';$('base').hidden=true;$('auth').hidden=false;$('login').reset();applyOfflineAuth();$('identity').textContent='';
  clearHitmarker();lastHitToken=0;for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','sectorStatus','hint','interactionStatus','rewardsTotals','rewardsLoot','rewardsRank','rewardsContract','rewardsOutcome','rewardsSettlement','rewardsStashUsage'])$(id).replaceChildren();$('rewards').hidden=true;$('sectorStatus').hidden=true;delete $('sectorStatus').dataset.state;
  $('restoreReady').hidden=true;$('readyMismatch').hidden=true;latencyProof=null;$('latencyStatus').textContent='Check connection before deploying.';hudStatusKey='';const statusNode=$('hudStatus');if(statusNode){statusNode.hidden=true;statusNode.classList.remove('show')}$('networkStatus').hidden=false;
  message(text+(wasAlive?' Your operator remains vulnerable in the raid. Sign in and reconnect to continue.':''));
@@ -266,14 +310,14 @@ function renderRewards(records){
   if((profile.overflow||[]).length)stashLine.dataset.overflow='true';
   else delete stashLine.dataset.overflow;
  }
- $('rewardsStash').onclick=()=>focusRewardsSurface('#stash input,#stash button');
- $('rewardsWorkshop').onclick=()=>focusRewardsSurface('#workshop button');
- $('rewardsContracts').onclick=()=>focusRewardsSurface('#contracts button');
- $('rewardsRecords').onclick=()=>{const latest=$('records').querySelector('details');if(latest){latest.open=true;latest.scrollIntoView({block:'center',behavior:'auto'});latest.querySelector('summary')?.focus({preventScroll:true})}};
- $('rewardsDeploy').onclick=()=>focusRewardsSurface('#map');
+ $('rewardsStash').onclick=()=>{setBaseTab('loadout');focusRewardsSurface('#stash input,#stash button')};
+ $('rewardsWorkshop').onclick=()=>{setBaseTab('workshop');focusRewardsSurface('#workshop button')};
+ $('rewardsContracts').onclick=()=>{setBaseTab('contracts');focusRewardsSurface('#contracts button')};
+ $('rewardsRecords').onclick=()=>{setBaseTab('records');const latest=$('records').querySelector('details');if(latest){latest.open=true;latest.scrollIntoView({block:'center',behavior:'auto'});latest.querySelector('summary')?.focus({preventScroll:true})}};
+ $('rewardsDeploy').onclick=()=>{setBaseTab('loadout');focusRewardsSurface('#map')};
 }
 async function refresh(){
- const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;bootNotice(null);$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
+ const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=offlineMode;$('auth').hidden=true;$('base').hidden=false;setBaseLobby(true);bootNotice(null);$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
  await baseUI.render(profile);if(generation!==authGeneration)return;
  $('resume').hidden=!profile.activeDeployment;$('deploy').disabled=!!profile.activeDeployment;
  restoreOfflineRaidPlan();
@@ -292,10 +336,12 @@ async function refresh(){
   $('records').append(details);
  }
  renderRewards(records);
+ updateHeroSummary();
+ if(!baseTabChosen){baseTabChosen=true;setBaseTab(records.length&&!profile.activeDeployment?'records':'loadout')}
  await refreshParty();if(generation!==authGeneration)return;await comms.refresh();
 }
 function selectedLoadout(){const recovery=$('recovery').checked,raw=[...$('stash').querySelectorAll('input[data-equip]:checked')].map(e=>e.value),ordered=baseUI?.orderedIds(raw)||raw;return {recovery,itemIds:recovery?[]:ordered,insureIds:recovery?[]:[...$('stash').querySelectorAll('input[data-insure]:checked')].map(e=>e.value)}}
-baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch();updateDeployReadiness()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
+baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch();updateDeployReadiness();updateHeroSummary()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
 function updateReadyMismatch(){const member=party?.members.find(m=>m.account===profile?.id),mismatch=!!(member?.ready&&!profile?.activeDeployment&&!sameLoadout(member.loadout,selectedLoadout()));$('readyMismatch').hidden=!mismatch;$('restoreReady').hidden=!mismatch;$('readyMismatch').textContent=mismatch?'Your current selection differs from your readied loadout. Ready again or restore it before deploying.':'';if(mismatch)$('deploy').disabled=true;return mismatch}
 // Offline raid plan persistence. The sector and optional field objective are an
 // operator preference for the static base only: they prefill the Deploy card and
@@ -356,6 +402,8 @@ function applyOfflineMode(){
  // never a real reading and only added clutter to the raid HUD.
  $('networkStatus').hidden=true;
  $('squadOnlineControls').hidden=true;$('connectionControls').hidden=true;$('commsToggle').hidden=true;$('communications').hidden=true;
+ $('tabSquad').hidden=true;$('accountOpen').hidden=true;$('onlineAccountSecurity').hidden=true;
+ if(baseTabName==='squad')setBaseTab('loadout');
  $('checkLatency').disabled=true;$('voiceEnable').disabled=true;$('partyMode').disabled=true;$('partyCode').disabled=true;$('partyRole').disabled=true;
  $('voiceStatus').textContent='Voice is unavailable in offline raid mode.';
  $('latencyStatus').textContent='Offline raid — no connection check required.';
@@ -401,7 +449,7 @@ async function refreshParty(){
   if(generation!==authGeneration)return;
   applyOfflineMode();renderMatchSummary();
   $('partyState').textContent='Playing solo offline — machines are the opposition.';
-  $('deploy').textContent='Deploy solo raid';
+  $('deploy').textContent='Deploy';
   $('deploy').disabled=!!profile.activeDeployment;
   updateReadyMismatch();updateDeployReadiness();comms.update(null,null);
   return;
@@ -445,7 +493,7 @@ function sendHeldMovement(){if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&
 function start(){
  if(snapshot.protocol!==RAID_PROTOCOL)throw new Error('Client update required. Reload to reconnect safely.');
  if(!getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion))throw new Error('Map update required. Reload to reconnect safely.');
- wire?.close();stateAt=performance.now();controlsDisabled=false;resetTacticalMap();clearHitmarker();lastHitToken=hitToken(snapshot.self.hit);inRaid=true;raidGeneration++;document.body.dataset.inRaid='true';lastHealth=snapshot.self.hp;lastOutcome='';lastBoard=false;hudStatusKey='';document.querySelector('main').inert=true;seq=snapshot.self.seq;yaw=snapshot.self.yaw;pitch=snapshot.self.pitch||0;input.clear();$('play').style.display='block';syncTouchHeight();syncRaidDock();
+ wire?.close();stateAt=performance.now();controlsDisabled=false;resetTacticalMap();clearHitmarker();lastHitToken=hitToken(snapshot.self.hit);inRaid=true;raidGeneration++;setBaseLobby(false);document.body.dataset.inRaid='true';lastHealth=snapshot.self.hp;lastOutcome='';lastBoard=false;hudStatusKey='';document.querySelector('main').inert=true;seq=snapshot.self.seq;yaw=snapshot.self.yaw;pitch=snapshot.self.pitch||0;input.clear();$('play').style.display='block';syncTouchHeight();syncRaidDock();
  view||=new RaidView($('view'));view.start(snapshot);view.applySettings(preferences.get());prediction=new LocalPrediction(snapshot);wire?.close();const generation=raidGeneration;wire=new ReliableActions({state:snapshot,request:packet=>api('action',packet,{timeoutMs:2500}),onState:(state,network)=>{if(!inRaid||generation!==raidGeneration)return;snapshot=state;stateAt=performance.now();seq=state.self.seq;prediction?.reconcile(state,network);updateUI()},onNetwork:network=>{if(inRaid&&generation===raidGeneration&&!offlineMode)$('networkStatus').textContent=network.status==='connected'?'Connected · '+Math.round(network.rttMs/10)*10+' ms RTT':network.status==='retrying'?'Connection interrupted · retrying safely':network.status==='update_required'?'Client update required · reload to reconnect safely':'Connection lost · movement prediction paused'}});setPack(!(matchMedia('(pointer:coarse)').matches||document.documentElement.dataset.compactHud==='true'));packKey='';seenEvents.clear();$('events').textContent='';$('view').focus();updateUI();
 }
 let lastFrame=0;
@@ -985,7 +1033,7 @@ $('jump').onclick=()=>controlAction('jump');$('vault').onclick=()=>controlAction
 $('sprint').onclick=()=>{touchSprint=!touchSprint;$('sprint').setAttribute('aria-pressed',String(touchSprint));if(touchSprint&&inRaid&&wire&&!wire.closed)sendHeldMovement()};
 $('slide').onclick=()=>controlAction('slide');
 $('fire').onclick=e=>{if(e.detail===0)trigger.tap()};$('reload').onclick=()=>run(()=>action({type:'reload'}));$('interact').onclick=()=>run(interact);
-$('leave').onclick=()=>run(async()=>{const alive=snapshot.self.alive;inRaid=false;wire?.close();wire=null;prediction=null;raidGeneration++;resetTacticalMap();clearHitmarker();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;await comms.voice.leave();comms.update(null);input.clear();document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;view?.clear();snapshot=null;message(alive?'Your operator remains in the raid. Reconnect within 45 seconds to continue.':'Raid recorded.');await refresh()});
+$('leave').onclick=()=>run(async()=>{const alive=snapshot.self.alive;inRaid=false;wire?.close();wire=null;prediction=null;raidGeneration++;resetTacticalMap();clearHitmarker();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;await comms.voice.leave();comms.update(null);input.clear();document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;view?.clear();snapshot=null;message(alive?'Your operator remains in the raid. Reconnect within 45 seconds to continue.':'Raid recorded.');await refresh();if(!alive)setBaseTab('records')});
 // Compact raid menu: one icon holds Back to base, Account, Guide and Settings.
 function setRaidMenu(open){
  if(!inRaid||document.documentElement.dataset.compactHud!=='true')open=false;
@@ -1490,7 +1538,7 @@ function deploymentObjectiveOptions(){
  for(const objective of list){const option=document.createElement('option');option.value=objective.id;option.textContent=objective.name+' · hold '+objective.holdSeconds+' s · +'+objective.rewardCredits+' credits, +'+objective.rewardXp+' XP';select.append(option)}
  select.value=list.some(objective=>objective.id===current)?current:'';
 }
-$('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan();deploymentObjectiveOptions();persistOfflineRaidPlan();updateDeployReadiness()});$('fieldObjective').addEventListener('change',()=>{persistOfflineRaidPlan();updateDeployReadiness()});deploymentExitPlan();deploymentObjectiveOptions();
+$('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan();deploymentObjectiveOptions();persistOfflineRaidPlan();updateDeployReadiness();updateHeroSummary()});$('fieldObjective').addEventListener('change',()=>{persistOfflineRaidPlan();updateDeployReadiness();updateHeroSummary()});deploymentExitPlan();deploymentObjectiveOptions();
 drawMap($('mapPreview'),$('map').value);
 
 let lastHealth=100,lastOutcome='',lastBoard=false,lastWounds='',lastHitToken=0,hitmarkerTimer=0;
