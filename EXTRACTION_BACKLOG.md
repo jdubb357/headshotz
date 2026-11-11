@@ -17,7 +17,7 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slices 1–7 COMPLETE 2026-11-10; slices 8–12 open. This project
+Status: IN PROGRESS — slices 1–8 COMPLETE 2026-11-10; slices 9–12 open. This project
 temporarily supersedes P1–P10 and visual-alternation
 until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
 to “do not change the hub/main menu or the original cooperative Extraction”: routing
@@ -128,11 +128,19 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    `tests/raid-browser-offline-dispatch.mjs` asserts the hidden/disabled controls
    on both static boot paths and still deploys, moves, fires and shows zero `/api`
    traffic; `tests/raid-browser-smoke.mjs` is green online; full suite 1215/1215.
-8. **Pages DEPLOY routing** — MISSING. On static Pages (no Node-injected
-   `headshotz-raid-service` meta), `#raidBtn` goes to `raid-online.html` with the
-   offline flag instead of `raidOpenBase()`. Add a clearly labeled secondary control
-   (for example “Classic Extraction”) that still opens the old `game.js` RAID BASE.
-   Do not change Battle Royale.
+8. **Pages DEPLOY routing** — COMPLETE (iteration 37). `game.js` now routes the
+   hub `#raidBtn` to `raid-online.html?offline=1` when the Node-injected
+   `headshotz-raid-service` meta is absent (and to plain `raid-online.html` when it
+   is present, as before), so the GitHub Pages DEPLOY enters the in-page offline
+   raid client instead of `raidOpenBase()`. A new clearly labeled secondary control
+   (`#raidLegacyBtn`, "🧓 CLASSIC EXTRACTION · original co-op raid base") is shown
+   only on static pages and still opens the original `game.js` RAID BASE; Battle
+   Royale and all other modes are untouched. Evidence: a plain static-file server
+   (no meta, no `/api`) in `tests/raid-browser-offline-dispatch.mjs` asserts the
+   legacy control is visible, opens the classic base, and DEPLOY navigates to
+   `raid-online.html?offline=1` then boots offline; `tests/raid-browser-entry.mjs`
+   re-checks the server-marker removal path, deep-link entry and saved-session entry.
+   Full unit suite 1215/1215.
 9. **Playable combat/loot/extract wiring** — MISSING. Fill any remaining dispatcher
    routes so a guest can deploy, move, shoot machines, take loot, and extract through
    the real `raid-online` UI. Prefer covering gaps this slice rather than expanding

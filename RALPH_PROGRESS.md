@@ -4976,3 +4976,64 @@ Next action: P0 slice 8 — on static Pages (no `headshotz-raid-service` meta),
 route the main-menu `#raidBtn` to `raid-online.html?offline=1` instead of
 `raidOpenBase()`, and expose the original cooperative Extraction through a clearly
 labeled secondary control without changing Battle Royale or other modes.
+
+## Iteration 37 — P0 slice 8: static Pages DEPLOY routing
+
+### Acceptance criteria — iteration 37 (P0 slice 8)
+
+1. On plain static files (no Node-injected `headshotz-raid-service` meta, no `/api`),
+   clicking the hub EXTRACTION RAIDS DEPLOY (`#raidBtn`) navigates to
+   `raid-online.html?offline=1` and boots the offline transport instead of opening
+   the old `raidOpenBase()` RAID BASE.
+2. A clearly labeled secondary control (`#raidLegacyBtn`, Classic Extraction) is
+   visible on static pages and opens the original `game.js` RAID BASE, still on `/`.
+3. Hosted Node pages are unchanged: DEPLOY opens `raid-online.html`, the legacy
+   control is hidden, and no raid server validation/API changed.
+4. Battle Royale and other modes are untouched.
+5. Static routing, the offline dispatcher grader, the entry grader and the full
+   unit suite pass.
+
+### Implementation — iteration 37 (completed)
+
+- `index.html`: added `#raidLegacyBtn` ("🧓 CLASSIC EXTRACTION · original co-op
+  raid base") directly below the raid banner; `style.css` styles it as a quiet,
+  dashed secondary control.
+- `game.js`: new `raidOnlineUrl()` returns `raid-online.html?offline=1` when the
+  service meta is absent (GitHub Pages) and plain `raid-online.html` when the Node
+  host injected it. `#raidBtn` now navigates through it, so static DEPLOY no longer
+  calls `raidOpenBase()`. `raidBindUI()` hides the legacy control on hosted pages
+  and always wires it to `raidOpenBase()`, which keeps its existing meta guard.
+  Battle Royale/other modes and the online raid transport are unchanged.
+- `tests/raid-browser-entry.mjs`: the removed-marker case now expects
+  `/raid-online.html?offline=1` plus the offline transport, and the secondary
+  control is asserted to still open the classic base.
+- `tests/raid-browser-offline-dispatch.mjs`: on the plain static server it asserts
+  legacy visibility, classic base open, and DEPLOY navigation to
+  `raid-online.html?offline=1` with `raidTransport==='offline'`.
+
+### Commands/results (2026-11-10)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-entry.mjs` →
+  mainGameEntry, persistentRaidNavigation, savedQueryEntry, savedSessionEntry,
+  staticDeployOffline, classicExtractionPreserved, 0 browser exceptions.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-offline-dispatch.mjs` →
+  staticOffline, probeFallback, deploy, moving, firing, noApiTraffic, tick, soloUI,
+  staticDeployRouting, classicExtraction, 0 browser exceptions.
+- Full suite `node --test tests/*.test.mjs` → 1215 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — static DEPLOY routes to the offline raid client and boots offline.
+2. PASS — the labeled secondary control opens the classic RAID BASE on static pages.
+3. PASS — hosted DEPLOY path unchanged, legacy hidden, raid API untouched.
+4. PASS — Battle Royale/other mode markup and handlers not modified.
+5. PASS — both browser graders and 1215/1215 unit tests are green.
+
+**Status:** P0 slice 8 is COMPLETE. Playable combat/loot/extraction wiring (slice 9)
+and the static Pages playability grader (slice 10) remain. No human/hosted Pages
+acceptance is claimed.
+
+Next action: P0 slice 9 — fill remaining offline dispatcher routes so a guest can
+deploy, move, shoot machines, take loot, and extract through the real
+`raid-online` UI; verify with the static-file grader path and keep the Node path
+authoritative.

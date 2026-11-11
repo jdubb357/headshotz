@@ -138,6 +138,24 @@ try {
 
   assert.deepEqual(page.errors, []);
 
+  // Static Pages DEPLOY routing: the hub banner must send users to the offline
+  // raid client, and the clearly labeled secondary control must keep the
+  // original co-op raid base reachable on a plain static page.
+  const hub = await harness.page('/?q=low&noassets&nohum');
+  await hub.wait("!!window.__hsz?.raid");
+  assert.equal(await hub.evaluate("document.getElementById('raidLegacyBtn').classList.contains('hidden')"), false, 'static hub exposes classic extraction');
+  await hub.evaluate("document.getElementById('raidLegacyBtn').click()");
+  await hub.wait("!document.getElementById('raid').classList.contains('hidden')");
+  assert.equal(await hub.evaluate("location.pathname"), '/');
+  assert.deepEqual(hub.errors, []);
+
+  const deployPage = await harness.page('/?q=low&noassets&nohum');
+  await deployPage.wait("!!window.__hsz?.raid");
+  await deployPage.evaluate("document.getElementById('raidBtn').click()");
+  await deployPage.wait("location.pathname==='/raid-online.html' && location.search.includes('offline=1')");
+  await deployPage.wait("document.body.dataset.raidTransport==='offline'");
+  assert.deepEqual(deployPage.errors, []);
+
   // Without the explicit flag, a failed /api/profile probe must still select
   // offline mode; GitHub Pages serves this instance with no service meta.
   const probed = await harness.page('/raid-online.html?guest=probe_dispatch');
@@ -147,7 +165,7 @@ try {
   assert.equal(await probed.evaluate("document.getElementById('squadOnlineControls').hidden"), true);
   assert.deepEqual(probed.errors, []);
 
-  console.log(JSON.stringify({staticOffline: true, probeFallback: true, deploy: true, moving: true, firing: true, noApiTraffic: true, tick: true, soloUI: true, browserExceptions: []}));
+  console.log(JSON.stringify({staticOffline: true, probeFallback: true, deploy: true, moving: true, firing: true, noApiTraffic: true, tick: true, soloUI: true, staticDeployRouting: true, classicExtraction: true, browserExceptions: []}));
 } finally {
   await harness.close();
   server.close();
