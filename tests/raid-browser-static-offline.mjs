@@ -10,6 +10,8 @@ import {readFile, writeFile} from 'node:fs/promises';
 import {extname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {browserHarness} from './browser-harness.mjs';
+import {settlementGapText,stashUsageText} from '../shared/raid-report.mjs';
+import {stashCapacity} from '../shared/raid-catalog.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const MIME = {
@@ -180,6 +182,24 @@ try {
   assert.ok(profile.credits >= 250, 'the guest account keeps its credits');
 
   await writeFile('/tmp/raid-static-offline.png', Buffer.from((await page.command('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+
+  // 7. Return to base through the shipped control. The settlement card must
+  //    reconcile credits/XP and returned vs lost items from the offline
+  //    RaidService result, and show the authoritative stash capacity reminder.
+  //    A protected-overflow fixture proves the offline card flags gear that
+  //    could not be banked because the stash was full.
+  const offlineResult = await page.evaluate("window.__hszOfflineRaid.api('results').then(records=>records[0])");
+  await page.evaluate(`(()=>{const rt=window.__hszOfflineRaid.runtime();rt.store.inventory.set('overflow-grader-fixture',{account:rt.account,location:'overflow',deployment:null,payload:{id:'overflow-grader-fixture',kind:'weapon',weapon:'smg',quantity:1,condition:100}});return true})()`);
+  const overflowProfile = await page.evaluate("window.__hszOfflineRaid.api('profile')");
+  assert.equal(overflowProfile.overflow.length, 1, 'the offline profile exposes the protected overflow fixture');
+  await page.evaluate("document.getElementById('leave').click()");
+  await page.wait("document.getElementById('rewards').hidden===false");
+  const rewardsCard = await page.evaluate("({settlement:document.getElementById('rewardsSettlement').textContent,stash:document.getElementById('rewardsStashUsage').textContent,stashHidden:document.getElementById('rewardsStashUsage').hidden,overflow:document.getElementById('rewardsStashUsage').dataset.overflow||null})");
+  assert.equal(rewardsCard.settlement, settlementGapText(offlineResult), 'the offline settlement panel reconciles the authoritative result');
+  assert.equal(rewardsCard.stash, stashUsageText(overflowProfile, stashCapacity(overflowProfile)), 'the offline settlement panel shows authoritative stash capacity');
+  assert.equal(rewardsCard.stashHidden, false, 'the offline stash capacity reminder is visible');
+  assert.equal(rewardsCard.overflow, 'true', 'protected overflow is flagged on the offline settlement card');
+  assert.match(rewardsCard.stash, /1 item in protected overflow — resolve before deploying again/, 'the overflow warning is actionable');
   assert.deepEqual(page.errors, []);
   console.log(JSON.stringify({
     staticDeployRouting: true,
@@ -193,6 +213,8 @@ try {
     itemsReturned: result.items,
     lostItems: result.lost,
     credits: profile.credits,
+    settlementGap: rewardsCard.settlement,
+    stashUsage: rewardsCard.stash,
     noApiTraffic: true,
     screenshot: '/tmp/raid-static-offline.png',
     browserErrors: [],

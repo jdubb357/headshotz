@@ -27,6 +27,14 @@ legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
 
+Post-P0 UX resumed 2026-11-11 (iteration 42): the post-raid rewards card now shows
+an authoritative settlement reconciliation line (credits before → after with raid
+reward and insurance premium/refund, XP before → after, returned vs lost items) and
+a stash capacity reminder that flags protected overflow with an actionable warning.
+Both render offline from `MemoryRaidStore` results and online from Node facts via
+shared `settlementGapText`/`stashUsageText`; the static offline grader and full suite
+stay green. Human-readable feel on Austin's phone remains UNVERIFIED (P7).
+
 Post-P0 look/feel resumed 2026-11-10 (iteration 41): rain fronts are now a
 camera-local 620-drop streak volume instead of a sparse sector-wide field, so the
 static offline client reads rain near the operator. Presentation-only; the P0

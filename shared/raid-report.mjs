@@ -20,3 +20,33 @@ export function insuranceText(result){
  const labels={not_needed:'return not needed',pending:'pending eligibility check after the raid closes',claimed_by_other:'claimed by another operator',returned:'returned',unavailable:'unavailable',destroyed:'destroyed',covered:'covered'};
  return 'Insurance at settlement: '+result.insuranceAtSettlement.map(c=>(c.label||'Equipment')+': '+(labels[c.status]||'unknown status')).join('; ')+'. Pending claims are conditional, not guaranteed returns. Check the base insurance panel for current status.';
 }
+// Compact one-line reconciliation for the post-raid rewards card. All numbers are
+// read from the settlement record (ledger, progression, returned/lost lists), so
+// offline and online settlement show the same authoritative gap.
+export function settlementGapText(result){
+ const items=Array.isArray(result.items)?result.items.length:0;
+ const lost=Array.isArray(result.lostItems)?result.lostItems.length:0;
+ const l=result.ledger,progression=result.progression||{};
+ const beforeXp=Number.isSafeInteger(progression.xpBefore)?progression.xpBefore:null;
+ const afterXp=Number.isSafeInteger(progression.xpAfter)?progression.xpAfter:(beforeXp!==null&&Number.isSafeInteger(result.xp)?beforeXp+result.xp:null);
+ const xpLine=beforeXp!==null&&afterXp!==null?`XP ${beforeXp} → ${afterXp}`:`XP +${Number.isSafeInteger(result.xp)?result.xp:0}`;
+ let creditLine;
+ if(l&&Number.isFinite(l.before?.total)&&Number.isFinite(l.after?.total)){
+  const delta=l.after.total-l.before.total;
+  creditLine=`Credits ${l.before.total} → ${l.after.total} (${delta>=0?'+':''}${delta})`;
+  if(l.reward>0)creditLine+=` (raid reward +${l.reward})`;
+  if(l.premium>0)creditLine+=` · insurance premium ${l.premium} paid at deployment`;
+  if(l.refund>0)creditLine+=` · insurance refund +${l.refund}`;
+ }else creditLine=`Credits +${Number.isSafeInteger(result.credits)?result.credits:0}`;
+ return `${creditLine} · ${xpLine} · ${items} ${items===1?'item':'items'} returned · ${lost} ${lost===1?'item':'items'} lost or dropped.`;
+}
+// Stash slots after settlement. A non-empty protected overflow means the stash
+// was full and returned gear is not bankable until it is resolved.
+export function stashUsageText(profile,capacity){
+ if(!profile||!Number.isFinite(capacity)||capacity<=0)return '';
+ const used=Array.isArray(profile.items)?profile.items.length:0;
+ const overflow=Array.isArray(profile.overflow)?profile.overflow.length:0;
+ return overflow>0
+  ?`Stash ${used}/${capacity} slots · ${overflow} ${overflow===1?'item':'items'} in protected overflow — resolve before deploying again.`
+  :`Stash ${used}/${capacity} slots · ${Math.max(0,capacity-used)} free after this raid.`;
+}

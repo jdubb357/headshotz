@@ -1,6 +1,6 @@
 import {sameLoadout,describeLoadout} from './shared/raid-loadout.mjs';
 import {RaidTrigger,deferIdleMovement,lookNeedsSync} from './raid-trigger.mjs';
-import {reasonText,settlementText,insuranceText,objectiveText} from './shared/raid-report.mjs';
+import {reasonText,settlementText,insuranceText,objectiveText,settlementGapText,stashUsageText} from './shared/raid-report.mjs';
 import {grantBalance,canRecoverGrant} from './shared/raid-grants.mjs';
 import {lootPresentation,lootCelebrationText} from './shared/raid-loot-presentation.mjs';
 import {stackable,compatibleStacks} from './shared/raid-inventory.mjs';
@@ -29,7 +29,7 @@ import {RAID_WORLDS,getWorld,terrainHeightAt} from './shared/raid-worlds.mjs';
 import {objectivesFor} from './shared/raid-objectives.mjs';
 import {vaultTarget,vaultDirection} from './shared/raid-motion.mjs';
 import {baseController} from './raid-base.mjs';
-import {WEAPONS,MODS,weaponStats,itemWeight} from './shared/raid-catalog.mjs';
+import {WEAPONS,MODS,weaponStats,itemWeight,stashCapacity} from './shared/raid-catalog.mjs';
 import {sellValue} from './shared/raid-appraisal.mjs';
 import {isOfflineQuery,readServiceMeta} from './shared/raid-static.mjs';
 
@@ -107,7 +107,7 @@ identityUI=accountUI({api,run,getProfile:()=>profile,onRotated:async()=>{authGen
 async function signedOut(text){
  const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();resetTacticalMap();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;
  view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();$('identity').textContent='';
- clearHitmarker();lastHitToken=0;for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','sectorStatus','hint','interactionStatus','rewardsTotals','rewardsLoot','rewardsRank','rewardsContract','rewardsOutcome'])$(id).replaceChildren();$('rewards').hidden=true;$('sectorStatus').hidden=true;delete $('sectorStatus').dataset.state;
+ clearHitmarker();lastHitToken=0;for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','sectorStatus','hint','interactionStatus','rewardsTotals','rewardsLoot','rewardsRank','rewardsContract','rewardsOutcome','rewardsSettlement','rewardsStashUsage'])$(id).replaceChildren();$('rewards').hidden=true;$('sectorStatus').hidden=true;delete $('sectorStatus').dataset.state;
  $('restoreReady').hidden=true;$('readyMismatch').hidden=true;latencyProof=null;$('latencyStatus').textContent='Check connection before deploying.';
  message(text+(wasAlive?' Your operator remains vulnerable in the raid. Sign in and reconnect to continue.':''));
 }
@@ -220,6 +220,8 @@ function renderRewards(records){
   rewardMetric(String(result.items?.length||0),'Items returned to stash'),
   rewardMetric(String(result.lostItems?.length||0),'Items lost or dropped')
  );
+ const settlementLine=$('rewardsSettlement');
+ if(settlementLine){settlementLine.hidden=false;settlementLine.textContent=settlementGapText(result)}
  const objectiveLine=objectiveText(result),objectiveCard=$('rewardsObjective');
  if(objectiveLine){objectiveCard.hidden=false;objectiveCard.textContent=objectiveLine;objectiveCard.dataset.state=result.facts?.objective?.completed?'completed':'failed'}
  else{objectiveCard.hidden=true;objectiveCard.textContent='';delete objectiveCard.dataset.state}
@@ -249,6 +251,14 @@ function renderRewards(records){
  $('rewardsContract').textContent=contractRows.length
   ?'Contract stage progress this raid: '+contractRows.map(c=>`${c.name} stage ${(c.stage||0)+1}: +${c.delta||0} → ${c.progress||0}/${c.need||0}${c.requirementsMet?' (claim in Contracts)':''}`).join('; ')+'.'
   :'No contract stage progressed this raid. Review Contracts to accept a sector objective before the next deployment.';
+ const stashLine=$('rewardsStashUsage');
+ if(stashLine){
+  const usage=stashUsageText(profile,stashCapacity(profile));
+  stashLine.hidden=!usage;
+  stashLine.textContent=usage;
+  if((profile.overflow||[]).length)stashLine.dataset.overflow='true';
+  else delete stashLine.dataset.overflow;
+ }
  $('rewardsStash').onclick=()=>focusRewardsSurface('#stash input,#stash button');
  $('rewardsWorkshop').onclick=()=>focusRewardsSurface('#workshop button');
  $('rewardsContracts').onclick=()=>focusRewardsSurface('#contracts button');

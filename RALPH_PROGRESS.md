@@ -5343,3 +5343,74 @@ allocations.
 Next action: alternate gameplay/UX with the visual goal — add a numeric/capacity
 gap reminder on the offline raid settlement panel (credits, XP, returned vs lost
 items) or pick the next non-human-verifiable gameplay slice; keep P0 green.
+
+## UX iteration 42 — offline settlement reconciliation + stash capacity reminder (2026-11-10)
+
+### Acceptance criteria — iteration 42
+
+1. The post-raid rewards card shows a compact authoritative reconciliation line derived
+   from the settlement record: credits before → after with signed delta, XP before → after
+   (or a ledger-less fallback), and returned vs lost item counts. Values must not be
+   invented client-side.
+2. When the settlement ledger records an insurance premium or refund, that line states it
+   (e.g. premium charged at deployment, refund returned for an aborted deployment).
+3. A stash capacity reminder derived from the refreshed profile shows slots used/capacity
+   after settlement; when returned items could not fit in the stash it flags the protected
+   overflow count and tells the player to resolve it before deploying again.
+4. Both lines render in offline mode (`raid-online.html?offline=1`, no `/api`) from a real
+   `MemoryRaidStore` settlement and in the online Node path; older records without a ledger
+   degrade gracefully.
+5. The existing rewards browser grader and the static offline playability grader pass, the
+   focused report unit suite passes, and the full unit suite passes.
+
+### Implementation — iteration 42 (completed)
+
+- `shared/raid-report.mjs`: added `settlementGapText(result)` (credits before → after
+  with signed delta, raid reward, insurance premium/refund, XP before → after, and
+  returned/lost counts, all from the settlement record) and `stashUsageText(profile,
+  capacity)` (slots used/capacity with a free-slot count, or an explicit protected-overflow
+  warning).
+- `raid-online.html`: the rewards card now has `#rewardsSettlement` under the totals and
+  `#rewardsStashUsage` before the next-step line, with a `data-overflow` warning style.
+- `raid-online.mjs`: `renderRewards` populates both lines from the authoritative `/api/results`
+  record and the refreshed `/api/profile` (with the shared `stashCapacity`), and clears
+  them when the base is reset. Online and offline transports use the same code and values.
+
+### Commands/results (2026-11-11)
+
+- `node --check shared/raid-report.mjs raid-online.mjs` → OK.
+- `node --test tests/raid-report.test.mjs` → 21/21 pass.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-rewards.mjs` → PASS:
+  `settlementGap:"Credits 250 → 270 (+20) (raid reward +20) · XP 0 → 69 · 1 item returned
+  · 0 items lost or dropped."`, `stashUsage:"Stash 7/20 slots · 13 free after this raid."`,
+  `browserErrors:[]`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS with
+  the plain static-file server: deploy → move → machine hit → loot → extract, then Back to
+  base shows the offline reconciliation line and, with a protected-overflow fixture,
+  `stashUsage:"Stash 5/20 slots · 1 item in protected overflow — resolve before deploying
+  again."`; `noApiTraffic:true`, `browserErrors:[]`.
+- Full suite `node --test tests/*.test.mjs` → 1228 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — settlement line carries credits before → after (+20), XP before → after, and
+   returned vs lost counts straight from the result and ledger.
+2. PASS — the extract fixture line states `insurance premium 20 paid at deployment`;
+   abort/refund records append `insurance refund +N` (unit test).
+3. PASS — stash reminder reports used/capacity and free slots; a protected-overflow
+   profile renders the warning branch and `data-overflow=true` through the shipped offline
+   UI (static grader).
+4. PASS — offline (`?offline=1`, no `/api`) static grader asserts exact helper parity, and
+   the online Node rewards grader asserts the same; ledger-less records use the credit/XP
+   fallback (unit test).
+5. PASS — rewards and static offline browser graders green; report suite 21/21; full suite
+   1228/1228.
+
+**Status:** Offline settlement reconciliation and stash capacity reminder are COMPLETE in
+local authoritative/UX scope. The card is presentation driven by server/offline-store
+facts; no rules, settlement authority or `/api` transport changed. Human readability on a
+physical phone remains UNVERIFIED (P7); P0 playability graders stay green.
+
+Next action: alternate to the visual goal — a presentation-only Extraction Raids
+look/feel improvement (for example machine hit VFX, lighting/fog, or environment detail)
+verified with a screenshot browser grader; keep the P0 offline graders green.
