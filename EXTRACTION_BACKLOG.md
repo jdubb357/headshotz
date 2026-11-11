@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (viewmodel materials + optic iteration 64). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete → MOVEMENT FEEL (iteration 65) next → ENEMIES → WORLD → AUDIO → JUICE.
+Last audited: 2026-11-11 (movement feel iteration 65). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete → MOVEMENT FEEL (iteration 65) complete → ENEMIES (iteration 66) next → WORLD → AUDIO → JUICE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -114,6 +114,29 @@ one soft dark mass without knuckle seams, stock top faces stay flat, world still
 and boxy (priority 5), and the actual trigger punch/physical-device feel remain UNVERIFIED
 (P7). Next feel priority: MOVEMENT FEEL (acceleration, bob, sprint FOV, landing dip,
 footsteps, touch dead zones).
+
+Movement feel shipped 2026-11-11 (iteration 65): a presentation-only camera feel layer now
+adds a grounded stride scaled by server movement and sprint, suspends it when aiming or
+airborne, widens the view by ~6 degrees while sprinting (+4 while sliding) with the optic
+FOV still winning, crouches and pitches the camera on slide, and drops/pitches it on landing
+with a spring recovery scaled by fall height. Footfalls alternate stereo pan through a new
+synthesized `footstep` cue. The touch thumbstick gained a 12% dead zone and rim curve for
+precision walking, and touch look now banks sub-pixel jitter so a resting finger no longer
+shivers the crosshair; authoritative pose, fire origin and ballistics are untouched, and
+reduced motion keeps every offset at zero. Evidence: runtime probe
+`/tmp/hs-move-check.mjs` (idle bob 0, walk .0077, sprint fov 80.83/bob .025, aim fov 61.11/
+bob 0, landing dip .0346 m/pitch −.0242 then recovered, 1 px look jitter 0 rad vs 40 px
+drag −.24 rad, phone sprint fov 80.86), `tests/raid-browser-viewmodel.mjs` PASS,
+`tests/raid-browser-mobile-hud.mjs` PASS 92.1%/82.2%, `tests/raid-browser-static-offline.mjs`
+PASS, `tests/raid-browser-audio.mjs` PASS 23 distinct action cues,
+`tests/raid-audio.test.mjs` 6/6, full suite 1246 pass + the known intermittent matchmaking
+ECONNRESET that passes 11/11 alone. Screenshots: `/tmp/hs-move-idle-1024x720.png`,
+`/tmp/hs-move-walk-1024x720.png`, `/tmp/hs-move-sprint-1024x720.png`,
+`/tmp/hs-move-sprint-aim-1024x720.png`, `/tmp/hs-move-stop-1024x720.png`,
+`/tmp/hs-move-landback-1024x720.png`, `/tmp/hs-move-sprint-844x390.png`. Honest gap: a still
+cannot show the stride/landing pulses, the world and gloved hands remain dark and flat
+(priority 5/4), and the synthesized footstep is unjudged on a physical phone. Next feel
+priority: ENEMIES (readable procedural machines and a scout telegraph/stagger loop).
 
 Naming shipped 2026-11-11 (iteration 60): the mode is "THE SECTOR" in the page title, base
 heading and main-menu raid banner, with the original co-op raid kept as CLASSIC EXTRACTION.

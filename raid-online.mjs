@@ -1076,10 +1076,16 @@ for(const element of [$('fire'),$('view')]){
  for(const type of ['pointerup','pointercancel','lostpointercapture'])element.addEventListener(type,e=>trigger.release('pointer:'+e.pointerId));
 }
 addEventListener('pointerup',e=>trigger.release('pointer:'+e.pointerId));
-let look=null;
-$('view').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){e.preventDefault();look={id:e.pointerId,x:e.clientX,y:e.clientY};$('view').setPointerCapture(e.pointerId);view?.audio.resume()}});
-$('view').addEventListener('pointermove',e=>{if(preferences.isModal()||!$('communications').hidden){look=null;return}if(look?.id===e.pointerId){aim(e.clientX-look.x,e.clientY-look.y,.006);look={id:e.pointerId,x:e.clientX,y:e.clientY}}});
-for(const type of ['pointerup','pointercancel'])$('view').addEventListener(type,()=>look=null);
+let look=null,lookBankX=0,lookBankY=0;
+$('view').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){e.preventDefault();look={id:e.pointerId,x:e.clientX,y:e.clientY};lookBankX=lookBankY=0;$('view').setPointerCapture(e.pointerId);view?.audio.resume()}});
+$('view').addEventListener('pointermove',e=>{if(preferences.isModal()||!$('communications').hidden){look=null;return}if(look?.id===e.pointerId){
+ // iOS fires sub-pixel drift while a finger rests, which makes the crosshair
+ // shiver; bank the movement and only turn once it clears a small dead zone.
+ const dx=e.clientX-look.x,dy=e.clientY-look.y;look={id:e.pointerId,x:e.clientX,y:e.clientY};
+ lookBankX+=dx;lookBankY+=dy;
+ if(Math.abs(lookBankX)+Math.abs(lookBankY)>=1.2){aim(lookBankX,lookBankY,.006);lookBankX=lookBankY=0}
+}});
+for(const type of ['pointerup','pointercancel'])$('view').addEventListener(type,()=>{look=null;lookBankX=lookBankY=0});
 // Bottom-left virtual thumbstick for the compact touch HUD. It replaces the
 // arrow buttons with a continuous analogue vector; the same vector feeds the
 // authoritative move action, so prediction and the server see one source.
@@ -1088,8 +1094,12 @@ for(const type of ['pointerup','pointercancel'])$('view').addEventListener(type,
   let pointer=null,origin=null,radius=38;
   const apply=(dx,dy)=>{
    const length=Math.hypot(dx,dy),scale=length>radius?radius/length:1;
-   const x=dx*scale,y=dy*scale;
-   stickAxisX=x/radius;stickAxisZ=-y/radius;
+   const x=dx*scale,y=dy*scale,dead=radius*.12,reach=radius-dead;
+   // A resting thumb still holds a direction; below the dead zone that is noise,
+   // not intent. Past it, ease into the rim so precision walking stays possible.
+   const magnitude=Math.max(0,Math.min(1,(Math.hypot(x,y)-dead)/reach)),gain=magnitude?Math.pow(magnitude,1.25):0;
+   const dirLength=Math.hypot(x,y)||1;
+   stickAxisX=(x/dirLength)*gain;stickAxisZ=-(y/dirLength)*gain;
    knob.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px)';
    sendHeldMovement();
   };

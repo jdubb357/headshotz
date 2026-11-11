@@ -15,6 +15,9 @@ export {RaidAudio} from './raid-audio.mjs';
 // Bounded first-person locomotion bob; shared by the frame loop so the hand
 // motion stays below the recoil and aim budgets.
 const bobReach=speed=>.016*Math.max(0,Math.min(1,speed));
+// Presentation-only camera feel state. The authoritative pose still comes from
+// the snapshot/prediction; these offsets only move the render camera.
+const freshFeel=()=>({bob:0,step:0,footSide:0,dip:0,dipVel:0,slide:0,sprintFov:0,grounded:null});
 // Gradient sky dome: cheap, no textures, follows the authoritative sky/sun so
 // dusk, night and storm fronts read as depth instead of a flat clear colour.
 const SKY_VERT=`varying vec3 vD;void main(){vD=position;vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}`;
@@ -219,6 +222,7 @@ export class RaidView {
  // transient additive muzzle glow. None of these feed snapshot, ballistics or
  // prediction.
  this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;
+ this.feel=freshFeel();
  // First-person firing particulate: a fixed recycled casing pool and one
  // short-lived muzzle-smoke puff. Both live on the weapon root so they inherit
  // sway, bob and recoil, and neither touches snapshot or ballistics state.
@@ -245,6 +249,7 @@ export class RaidView {
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
   for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
+ this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
   this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
@@ -258,6 +263,7 @@ export class RaidView {
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
+ this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
   this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
@@ -1277,17 +1283,46 @@ export class RaidView {
   for(const material of this.windMaterials||[]){const shader=material.userData.raidShader;if(shader)shader.uniforms.uWindTime.value=this.settings?.reduced?0:seconds}
   const pose=s.alive&&predicted?predicted:s,target=new THREE.Vector3(pose.x,(pose.y||0)+(s.downed?.65:s.ballisticsVersion===1?SHOT_EYE_HEIGHT:1.65),pose.z);
   if(!s.alive&&this.snapshot.camera)target.set(this.snapshot.camera.x,(this.snapshot.camera.y||0)+2,this.snapshot.camera.z);
+  // Grounded stride, sprint FOV, slide crouch and landing compression are
+  // presentation-only. The authoritative pose, fire origin and ballistics never
+  // read these offsets.
+  const reduced=!!this.settings?.reduced,moveSpeed=Math.min(1,Math.hypot(s.move?.x||0,s.move?.z||0));
+  const sliding=s.sliding===true||((predicted?.slideUntil||0)>seconds);
+  const grounded=s.alive&&!s.downed&&s.grounded!==false&&!s.vaulting;
+  const feel=this.feel||(this.feel=freshFeel());
+  if(!reduced&&grounded&&moveSpeed>.05&&!sliding){
+   const before=Math.floor(feel.step/Math.PI);
+   feel.step+=dt*((s.sprint?7.4:5.2)+moveSpeed*2.2);
+   // One footfall per stride, alternating the pan so a sustained run reads as
+   // left-right steps instead of a single centred metronome.
+   if(Math.floor(feel.step/Math.PI)!==before){feel.footSide=feel.footSide?0:1;this.audio.play('footstep',{gain:s.sprint?.95:.6,pan:feel.footSide?.16:-.16})}
+  }
+  const rush=!reduced&&s.alive&&!s.downed&&!aiming&&!s.vaulting&&grounded&&moveSpeed>.05?(sliding?4:s.sprint?6:0):0;
+  feel.sprintFov+=(rush-feel.sprintFov)*(reduced?1:1-Math.exp(-dt*(rush?5:9)));
+  if(feel.grounded===null)feel.grounded=grounded;
+  if(!reduced&&feel.grounded===false&&grounded){
+   // Height above the landing surface sets the impact, so a step off a kerb
+   // barely moves the camera while a rooftop fall compresses it fully.
+   const fall=Math.max(0,(s.fallPeak??(s.y||0))-(s.y||0));
+   feel.dipVel=Math.min(2.6,1.1+fall*.24);
+  }
+  feel.grounded=grounded;
+  if(!reduced&&(feel.dip!==0||feel.dipVel!==0)){feel.dipVel+=(-150*feel.dip-13*feel.dipVel)*dt;feel.dip+=feel.dipVel*dt;if(feel.dip>.26)feel.dip=.26;if(feel.dip<0){feel.dip=0;if(feel.dipVel<0)feel.dipVel=0}if(Math.abs(feel.dip)<.0006&&Math.abs(feel.dipVel)<.008)feel.dip=feel.dipVel=0}
+  const bobTarget=reduced||!grounded||aiming||sliding||moveSpeed<=.05?0:Math.abs(Math.sin(feel.step))*.032*moveSpeed*(s.sprint?1.35:1);
+  feel.bob+=(bobTarget-feel.bob)*(reduced?1:1-Math.exp(-dt*14));
+  const slideTarget=!reduced&&sliding?.18:0;feel.slide+=(slideTarget-feel.slide)*(reduced?1:1-Math.exp(-dt*(sliding?18:22)));
   if(this.visualSelf.distanceTo(target)>5)this.visualSelf.copy(target);else this.visualSelf.lerp(target,Math.min(1,dt*16));this.camera.position.copy(this.visualSelf);
+  if(!reduced)this.camera.position.y+=feel.bob-feel.dip-feel.slide;
   if(this.horizonDepth){this.horizonDepth.position.copy(this.camera.position);if(this.horizonDepth.userData.raidHorizonTick)this.horizonDepth.userData.raidHorizonTick(seconds,!!this.settings?.reduced)}
   // Keep the 2048 shadow frustum centred on the player instead of the fixed
   // map origin; without this, shadows disappear once the operator walks more
   // than 80 m from centre. The light direction itself is kept at 90 m.
   const anchor=s.alive?pose:this.snapshot.camera||pose;this.sunAnchor.set(anchor.x,(anchor.y||0),anchor.z);
-  this.sun.target.position.copy(this.sunAnchor);this.sun.position.copy(this.sunAnchor).addScaledVector(this.sunDirection,90);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),targetFov=aiming&&held?aimFieldOfView(this.settings?.fov||75,weaponStats(held)):this.settings?.fov||75;this.camera.fov+=(targetFov-this.camera.fov)*(this.settings?.reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
+  this.sun.target.position.copy(this.sunAnchor);this.sun.position.copy(this.sunAnchor).addScaledVector(this.sunDirection,90);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),baseFov=this.settings?.fov||75,targetFov=aiming&&held?aimFieldOfView(baseFov,weaponStats(held)):baseFov+(reduced?0:feel.sprintFov);this.camera.fov+=(targetFov-this.camera.fov)*(reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
   // Presentation-only muzzle rise; authoritative ballistics still use the snapshot pose.
   // The stronger pitch/roll split makes each discharge visibly punch the camera
   // before the impulse recovers, without touching the aim or the shot ray.
-  if(!this.settings?.reduced){this.camera.rotation.x+=this.recoil*.52;this.camera.rotation.z+=this.recoil*this.recoilSide*.46}
+  if(!reduced){this.camera.rotation.x+=this.recoil*.52;this.camera.rotation.z+=this.recoil*this.recoilSide*.46;this.camera.rotation.x-=feel.dip*.7}
   // The aim camera above stays at eye height for authoritative ballistics and
   // network graders; the chase camera is the presentational third-person view.
   const viewYaw=!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw,viewPitch=!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch;
@@ -1304,13 +1339,12 @@ export class RaidView {
   this.vmLastYaw=viewYaw;this.vmLastPitch=viewPitch;
   // Locomotion bob: a small two-beat rise/fall tied to the server-reported
   // movement vector. It is bounded and suspended while stopped, downed or aiming.
-  const moveSpeed=Math.min(1,Math.hypot(s.move?.x||0,s.move?.z||0));
   let bobX=0,bobY=0;
-  if(!this.settings?.reduced&&s.alive&&!s.downed&&!aiming&&moveSpeed>.05){
+  if(!reduced&&s.alive&&!s.downed&&!aiming&&moveSpeed>.05){
    this.vmStep+=dt*(5.4+moveSpeed*5);const reach=bobReach(moveSpeed);
    bobX=Math.cos(this.vmStep)*reach*.85;bobY=Math.abs(Math.sin(this.vmStep))*reach*1.1;
   }
-  const sliding=s.sliding===true||((predicted?.slideUntil||0)>seconds),eyeHeight=1.55+(s.downed?-.9:0);
+  const eyeHeight=1.55+(s.downed?-.9:0);
   this.fireOrigin.set(pose.x,(pose.y||0)+eyeHeight,pose.z);this.fireYaw=viewYaw;this.firePitch=viewPitch;
   if(this.selfActor&&this.selfActor.userData.actor==='human'){
    const show=this.viewMode!=='first'&&!!s.alive;

@@ -7056,6 +7056,80 @@ post-P0 raid priorities from the backlog's top open mechanics item.
    faces stay flat under the key light, and the world beyond the gun remains washed-out
    and boxy (priority 5).
 
-**Status:** Viewmodel material/optic slice COMPLETE. Next action: movement feel (iteration
-65) — acceleration/deceleration, head bob, sprint FOV, landing dip, footsteps and touch
-stick/look dead zones — judged by runtime values plus moving/sprinting frames.
+**Status:** Viewmodel material/optic slice COMPLETE.
+
+## Iteration 65 — Movement feel: stride, sprint FOV, landing and touch (2026-11-11)
+
+### Acceptance criteria
+
+1. Walking produces a subtle grounded camera stride; sprinting raises its amplitude
+   and cadence; stopped, airborne and aiming suspend it smoothly instead of snapping.
+2. Sprinting smoothly widens the view by about 6 degrees and restores it on release,
+   with slide getting a smaller boost; aiming still wins over the sprint FOV.
+3. Landing after a fall or vault dips the camera and pitches it down with a damped
+   spring recovery; back-to-back landings restart the dip cleanly.
+4. The touch stick gains a dead zone and fine-control curve while still driving the
+   authoritative move; touch look banks sub-pixel jitter and keeps a deliberate nudge.
+5. Footsteps are audible at stride and cheaper while sprinting, without doubling into
+   the gunshot/reload cues; reduced motion does not add hidden camera motion.
+6. Existing viewmodel, mobile-HUD and static-offline graders and full suite stay green;
+   before/after moving and sprinting frames at 1024x720 and 844x390 are judged by eye.
+
+### Implementation — iteration 65 (completed)
+
+- `raid-view.mjs`: new `freshFeel()` presentation state (stride phase, bob, landing dip
+  spring, slide crouch, sprint FOV), reset in `clear()`/`start()`. The frame now adds a
+  grounded camera stride scaled by server movement and sprint, suspends it when stopped,
+  airborne, sliding or aiming, eases sprint FOV +6 and slide FOV +4 through the camera's
+  existing fov lerp (aim FOV still wins), drops the camera and pitches it down on landing
+  with a spring recovery keyed to fall height, and crouches `0.18 m` while sliding.
+  Footfalls alternate pan through a new one-shot cue. Authoritative pose, `fireOrigin`,
+  ballistics and snapshot state are untouched; reduced motion pins every offset off.
+- `raid-audio.mjs`: authored `footstep` action cue (triangle 110→46 Hz, 90 ms).
+- `raid-online.mjs`: stick gains a 12% dead zone plus a 1.25-power rim curve for precision
+  walking; touch look banks sub-pixel movement and only turns once the bank clears 1.2 px,
+  so a resting thumb no longer shivers the crosshair.
+
+### Commands/results (2026-11-11)
+
+- Runtime diagnostic `/tmp/hs-move-check.mjs` (offline touch gameplay, no browser errors):
+  idle fov 75 / bob 0; walk bob .0077; sprint fov 80.83 / bob .025; sprint+aim fov 61.11 /
+  bob 0; stop fov 75 / bob 0; airborne bob 0; landing peak dip .0346 m with pitch −.0242,
+  recovered to zero; touch 1 px jitter 0 rad, 40 px drag −.24 rad; 844x390 sprint fov 80.86.
+- `node tests/raid-browser-viewmodel.mjs` → PASS on rerun (first run hit the accepted
+  reload-beat timing flake); lighting/PBR/sway/bob/aim/reload/visibility all true.
+- `node tests/raid-browser-mobile-hud.mjs` → PASS 92.1% / 82.2% unobstructed; stick travel,
+  right-half yaw drag and touch actions all true.
+- `node tests/raid-browser-static-offline.mjs` → PASS deploy/move/headshot/loot/extract,
+  +20 credits/XP, no `/api` traffic.
+- `node tests/raid-browser-audio.mjs` → PASS; 23 distinct action cues, footstep included,
+  real Web Audio rendering and mute/nodes-released checks true.
+- `node --test tests/raid-audio.test.mjs` → PASS 6/6.
+- `node --test tests/*.test.mjs` → 1246 pass, 1 failure in the known intermittent
+  matchmaking latency wire test (`ECONNRESET`); `tests/matchmaking.test.mjs` alone → 11/11.
+- Screenshots: `/tmp/hs-move-idle-1024x720.png`, `/tmp/hs-move-walk-1024x720.png`,
+  `/tmp/hs-move-sprint-1024x720.png`, `/tmp/hs-move-sprint-aim-1024x720.png`,
+  `/tmp/hs-move-stop-1024x720.png`, `/tmp/hs-move-landback-1024x720.png`,
+  `/tmp/hs-move-sprint-844x390.png`.
+
+### Criteria status
+
+1. PASS — walk bob non-zero, sprint bob and cadence rise, and stop/aim/airborne settle to 0.
+2. PASS — sprint measures +5.8–5.9° fov and restores to 75; slide gets +4; aim's optic FOV
+   takes precedence.
+3. PASS — landing peak camera drop .0346 m with a −.0242 pitch dip, springing back to zero;
+   a second landing restarts cleanly.
+4. PASS — 12% stick dead zone with rim curve; authoritative stick travel still passes; touch
+   jitter under 1.2 px does not turn the view while a deliberate drag does.
+5. PASS — footstep cue renders and alternates pan; sprint cue gain is louder; the audio
+   grader's cue signatures and unit audio suite are green.
+6. PASS — viewmodel/mobile-HUD/static-offline graders green, full suite only the known
+   intermittent matchmaking reset; moving frames at both sizes captured. Honest gap: stills
+   can show the wider sprint view but not the stride/landing pulses, the dark boxy world
+   still dominates, the gloved hands still read flat, and the synthesized footstep has not
+   been heard on a physical phone.
+
+**Status:** Movement-feel slice COMPLETE. Next action: enemy presentation (priority 4) —
+replace the boxy placeholder machines with readable procedural bodies (bevels, panel seams,
+emissive eyes) and give the scout a patrol/notice/wind-up/stagger/explode loop, judged by
+captured combat frames; audio/world polish remain later priorities.
