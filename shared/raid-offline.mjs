@@ -91,13 +91,19 @@ export async function createPersistentOfflineRaidRuntime({ username = 'guest', n
     return buildOfflineRaidRuntime(new MemoryRaidStore(), { username, now });
   }
   const runtime = buildOfflineRaidRuntime(store, { username, now });
+  runtime.recoveredSnapshot = store.recoveredSnapshot;
+  runtime.recovery = store.recoveredSnapshot
+    ? { recoveredFromCorruptSnapshot: true, ...store.recoveredSnapshot }
+    : null;
   try {
     // Persist the guest account creation (and any restored-state migration)
-    // before the client starts interacting.
+    // before the client starts interacting. After a rejected snapshot this
+    // flush replaces the quarantined save with clean state.
     await store.flushNow();
   } catch (error) {
     store.lastPersistenceError = error;
   }
+  runtime.lastPersistenceError = store.lastPersistenceError;
   return runtime;
 }
 

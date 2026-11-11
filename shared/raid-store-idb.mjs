@@ -59,5 +59,15 @@ export function createIndexedDbBackend({name=RAID_IDB_NAME,version=RAID_IDB_VERS
         transaction.objectStore(storeName).put(copy,key);
       });
     },
+    async discard(){
+      const db=await open();
+      await new Promise((resolve,reject)=>{
+        const transaction=db.transaction(storeName,'readwrite');
+        transaction.oncomplete=()=>resolve();
+        transaction.onerror=()=>reject(transaction.error||new Error('Could not clear the offline raid save'));
+        transaction.onabort=()=>reject(transaction.error||new Error('Offline raid save clear was aborted'));
+        transaction.objectStore(storeName).delete(key);
+      });
+    },
   };
 }

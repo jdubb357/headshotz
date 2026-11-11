@@ -16,14 +16,24 @@ export function createLocalStorageBackend({key=RAID_LOCAL_KEY, storage=null}={})
   return {
     name:'localStorage',
     async load(){
-      const raw=requireStorage().getItem(key);
+      const store=requireStorage();
+      const raw=store.getItem(key);
       if(!raw)return null;
-      return JSON.parse(raw);
+      try{return JSON.parse(raw)}
+      catch{
+        // A truncated or hand-edited value is treated as "no save" rather than
+        // breaking boot; drop the poisoned key so the next flush starts clean.
+        store.removeItem?.(key);
+        return null;
+      }
     },
     async save(snapshot){
       // JSON drops undefined optional metadata, same as a JSON-over-the-wire
       // snapshot; the store contract treats absent optional fields as defaults.
       requireStorage().setItem(key,JSON.stringify(snapshot));
+    },
+    async discard(){
+      requireStorage().removeItem?.(key);
     },
   };
 }

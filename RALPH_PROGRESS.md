@@ -5486,3 +5486,63 @@ overlord's large-scale wreck is data-driven but not human-rated.
 Next action: alternate back to gameplay/UX for iteration 44 — continue remaining offline
 persistence/UX slices (for example stale/partial IndexedDB rehydration or post-raid rewards
 depth) while keeping the P0 static-Pages graders green; then return to a visual slice.
+
+---
+
+## Iteration 44 — offline save recovery (2026-11-11)
+
+### Task
+
+A stale, partial, future-version or corrupted offline save must never block the static
+raid client or silently discard the durable store. Offline boot should quarantine the bad
+snapshot, keep persistence active, explain the reset, and replace the poisoned save with
+clean state that survives a reload.
+
+### Implementation — iteration 44 (completed)
+
+- `shared/raid-store-memory.mjs`: `importState` validates/clones all seven sections before
+  assigning, so a rejected snapshot leaves accounts, stash, deployments and counters
+  untouched; added `resetState()`.
+- `shared/raid-store-persist.mjs`: `hydrate` quarantines invalid snapshots
+  (`recoveredSnapshot={reason,message}`), resets to clean state and best-effort discards.
+  `createFallbackSnapshotBackend` now reads a degraded localStorage save when IndexedDB
+  loads empty, and `discard()` clears both backends. Added `snapshotRecoveryReason`.
+- `shared/raid-store-idb.mjs`/`shared/raid-store-local.mjs`: `discard()` deletes the save;
+  the local backend removes truncated JSON and returns `null`.
+- `shared/raid-offline.mjs`: recovery keeps the `PersistentRaidStore` (instead of
+  degrading to memory), exposes `runtime.recovery`/`lastPersistenceError`, and flushes
+  the clean guest state over the bad save.
+- `raid-online.mjs`/`raid-online.html`: `window.__hszOfflineRaid.recovery` diagnostics plus
+  a visible `#offlineSaveNote` explaining a reset or a failed local write. Online/`/api`
+  path untouched.
+
+### Commands/results (2026-11-11)
+
+- `node --check shared/raid-store-memory.mjs shared/raid-store-local.mjs shared/raid-store-idb.mjs shared/raid-store-persist.mjs shared/raid-offline.mjs raid-online.mjs` → OK.
+- `node --test tests/raid-store-persist.test.mjs tests/raid-offline.test.mjs` → 23/23 pass.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-recovery.mjs` → PASS:
+  partial and future-version snapshots quarantine with the expected reason, corrupt
+  localStorage boots through the fallback, the recovered operator/stash persist by
+  identity across reloads, zero browser errors.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-persist.mjs` → PASS.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS; P0
+  playability gate green, no `/api` traffic.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-offline-dispatch.mjs` → PASS.
+- `node --test tests/*.test.mjs` → 1233 pass, 0 fail (one isolated matchmaking ECONNRESET
+  flake rerun once, then green).
+
+### Criteria status
+
+1. PASS — invalid snapshot never breaks boot: persistent store remains, clean state is written.
+2. PASS — rejected `importState` is atomic; live account/stash/counters unchanged.
+3. PASS — corrupted localStorage value is treated as no save and removed.
+4. PASS — recovered guest identity, starter kit and stash survive a normal reload; P0
+   playability, persistence and dispatch graders green.
+5. PASS — server/online authority and `/api` transport unchanged; only static offline code touched.
+
+**Status:** Offline save recovery is COMPLETE. Physical-device feel and contrast of the new
+notice remain UNVERIFIED (P7); no raid rules, AI or settlement code changed.
+
+Next action: iteration 45 returns to a visual slice (per the alternating rule) — improve
+raid presentation (for example loot container/machine material readability or HUD clarity)
+while keeping the P0 static-Pages graders green.

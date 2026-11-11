@@ -65,7 +65,7 @@ function offlineService(){
   // committed action, and this flushes the latest debounced state.
   addEventListener('pagehide',()=>{offlineRuntime?.flush?.().catch(()=>{})});
   // Diagnostic handle for the static browser grader; absent on Node hosts.
-  window.__hszOfflineRaid={mode:'offline',protocol:RAID_PROTOCOL,persistent:!!offlineRuntime.persistent,storageMode:offlineRuntime.storage?.(),runtime:()=>offlineRuntime,snapshot:()=>snapshot,api:(path,body)=>module.offlineRaidRequest(offlineRuntime,path,body)};
+  window.__hszOfflineRaid={mode:'offline',protocol:RAID_PROTOCOL,persistent:!!offlineRuntime.persistent,storageMode:offlineRuntime.storage?.(),recovery:offlineRuntime.recovery||null,persistenceError:offlineRuntime.lastPersistenceError?String(offlineRuntime.lastPersistenceError.message||offlineRuntime.lastPersistenceError):null,runtime:()=>offlineRuntime,snapshot:()=>snapshot,api:(path,body)=>module.offlineRaidRequest(offlineRuntime,path,body)};
   return offlineRuntime;
  });
  return offlineRuntimeWork;
@@ -295,6 +295,18 @@ function applyOfflineMode(){
  $('checkLatency').disabled=true;$('voiceEnable').disabled=true;$('partyMode').disabled=true;$('partyCode').disabled=true;$('partyRole').disabled=true;
  $('voiceStatus').textContent='Voice is unavailable in offline raid mode.';
  $('latencyStatus').textContent='Offline raid — no connection check required.';
+ // Explain a reset instead of silently minting a fresh operator, and warn
+ // when local writes fail so the player knows progress may not survive reload.
+ const info=window.__hszOfflineRaid||{},note=$('offlineSaveNote');
+ if(info.recovery){
+  note.hidden=false;note.dataset.state='recovered';
+  note.textContent='Your previous offline save could not be read ('+(info.recovery.reason==='unsupported-version'?'newer save format':'damaged save')+'). A fresh operator and stash were created on this device; new progress will still be saved offline.';
+ }else if(info.persistenceError){
+  note.hidden=false;note.dataset.state='error';
+  note.textContent='Local progress could not be saved: '+info.persistenceError+'. This raid still uses local authority, but new progress may not survive a reload.';
+ }else{
+  note.hidden=true;note.removeAttribute('data-state');note.textContent='';
+ }
 }
 async function measureLatency(){
  if(offlineMode){latencyProof={proofId:'offline-proof',rttMs:0,withinLimit:true,allowMixed:true,offline:true,at:performance.now(),generation:authGeneration,account:profile?.id};return latencyProof}

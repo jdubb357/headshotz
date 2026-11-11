@@ -12,6 +12,13 @@ import {MemoryRaidStore} from './raid-store-memory.mjs';
 
 const backendShape=backend=>backend&&typeof backend.load==='function'&&typeof backend.save==='function';
 
+// A snapshot that cannot be imported is quarantined, not fatal: boot continues
+// from a fresh in-memory store and the next flush replaces the bad save.
+export function snapshotRecoveryReason(error){
+ const text=String(error?.message||error||'');
+ return /Unsupported persisted raid state version/.test(text)?'unsupported-version':'malformed';
+}
+
 export class PersistentRaidStore extends MemoryRaidStore {
   constructor({backend, flushDelayMs=80, ...options}={}){
     requireRule(backendShape(backend),'Persistent raid store needs a snapshot backend',500);
@@ -21,14 +28,27 @@ export class PersistentRaidStore extends MemoryRaidStore {
     this.flushTimer=null;
     this.flushChain=Promise.resolve();
     this.lastPersistenceError=null;
+    this.lastRecoveryError=null;
+    this.recoveredSnapshot=null;
     this.savedState=null;
   }
 
   async hydrate(){
     const snapshot=await this.backend.load();
     if(snapshot){
-      this.importState(snapshot);
-      this.savedState=structuredClone(snapshot);
+      try{
+        this.importState(snapshot);
+        this.savedState=structuredClone(snapshot);
+      }catch(error){
+        // Stale, truncated or future-version state must never block the raid.
+        // Import is atomic, so the store is still clean; best-effort discard
+        // removes the poisoned snapshot so it cannot shadow a fallback save.
+        this.lastRecoveryError=error;
+        this.recoveredSnapshot={reason:snapshotRecoveryReason(error),message:String(error?.message||error)};
+        this.resetState();
+        this.savedState=null;
+        try{await this.backend.discard?.()}catch{}
+      }
     }
     return this;
   }
@@ -89,10 +109,15 @@ export function createFallbackSnapshotBackend(primary, fallback){
     getActiveName(){return active===primary?(primary.name||'primary'):(fallback.name||'fallback')},
     async load(){
       if(active===primary){
-        try{return await primary.load()}
+        try{
+          const value=await primary.load();
+          if(value!=null)return value;
+        }
         catch{active=fallback}
       }
-      return await fallback.load();
+      // An empty primary does not rule out a degraded save the fallback kept
+      // when the last IndexedDB write failed; prefer restoring it.
+      try{return await fallback.load()}catch{return null}
     },
     async save(snapshot){
       if(active===primary){
@@ -100,6 +125,11 @@ export function createFallbackSnapshotBackend(primary, fallback){
         catch{active=fallback}
       }
       await fallback.save(snapshot);
+    },
+    async discard(){
+      for(const backend of [primary,fallback]){
+        try{await backend.discard?.()}catch{}
+      }
     },
   };
 }

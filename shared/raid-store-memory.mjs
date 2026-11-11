@@ -78,17 +78,36 @@ export class MemoryRaidStore {
         return entry;
       });
     };
-    this.accounts=new Map(entries('accounts'));
-    this.byUsername=new Map(entries('byUsername'));
-    this.inventory=new Map(entries('inventory'));
-    this.deployments=new Map(entries('deployments'));
-    this.requests=new Map(entries('requests'));
-    this.insurance=new Map(entries('insurance'));
-    this.checkpoints=new Map(entries('checkpoints'));
-    this.commitSerial=Number.isSafeInteger(snapshot.commitSerial)?snapshot.commitSerial:0;
-    this.deploymentSerial=Number.isSafeInteger(snapshot.deploymentSerial)?snapshot.deploymentSerial:0;
-    this.auditLog=Array.isArray(snapshot.auditLog)?structuredClone(snapshot.auditLog):[];
-    if(this.auditLog.length>this.maxAudit)this.auditLog.splice(0,this.auditLog.length-this.maxAudit);
+    // Validate and clone every section before touching live maps. A rejected
+    // snapshot leaves the store exactly as it was, so partial persisted state
+    // never leaks into an otherwise fresh runtime.
+    const sections={};
+    for(const name of ['accounts','byUsername','inventory','deployments','requests','insurance','checkpoints'])sections[name]=entries(name);
+    const commitSerial=Number.isSafeInteger(snapshot.commitSerial)?snapshot.commitSerial:0;
+    const deploymentSerial=Number.isSafeInteger(snapshot.deploymentSerial)?snapshot.deploymentSerial:0;
+    const auditLog=Array.isArray(snapshot.auditLog)?structuredClone(snapshot.auditLog):[];
+    if(auditLog.length>this.maxAudit)auditLog.splice(0,auditLog.length-this.maxAudit);
+    this.resetState();
+    for(const [name,list]of Object.entries(sections))this[name]=new Map(structuredClone([...list]));
+    this.commitSerial=commitSerial;
+    this.deploymentSerial=deploymentSerial;
+    this.auditLog=auditLog;
+    return this;
+  }
+
+  // Drop every piece of persisted state and return to a clean in-memory store.
+  // Persistence recovery calls this when a snapshot cannot be trusted.
+  resetState(){
+    this.accounts=new Map();
+    this.byUsername=new Map();
+    this.inventory=new Map();
+    this.deployments=new Map();
+    this.requests=new Map();
+    this.insurance=new Map();
+    this.checkpoints=new Map();
+    this.commitSerial=0;
+    this.deploymentSerial=0;
+    this.auditLog=[];
     return this;
   }
 

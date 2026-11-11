@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (post-P0 visual iteration 43). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (post-P0 UX iteration 44). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -42,6 +42,16 @@ embers, matte smoke plume, angular scrap and a short pooled light, scaled by mac
 class and static/quiet under reduced motion. No rules, AI, damage, loot or transport
 changed; the hit-feedback browser grader and the static offline playability gate are
 green. Human readability/feel on a phone remains UNVERIFIED (P7).
+
+Post-P0 UX resumed 2026-11-11 (iteration 44): stale/partial/future-version IndexedDB
+snapshots and truncated localStorage JSON no longer block offline raid boot. The bad
+save is quarantined, a clean local profile and persistent store are created, the base
+screen explains the reset or a failed local write, and a normal reload restores the new
+operator/stash by identity. Snapshot import is atomic, the localStorage fallback restores
+degraded saves when IndexedDB loads empty, and online `/api` authority is unchanged.
+Evidence: `tests/raid-store-persist.test.mjs`, `tests/raid-browser-static-recovery.mjs`,
+static persistence/playability and offline-dispatch graders green; full suite 1233/1233.
+P7 physical-device feel of the notice remains UNVERIFIED.
 
 Post-P0 look/feel resumed 2026-11-10 (iteration 41): rain fronts are now a
 camera-local 620-drop streak volume instead of a sparse sector-wide field, so the

@@ -94,6 +94,69 @@ test('importState rejects a malformed snapshot instead of accepting partial stat
   assert.throws(()=>store.importState(null),/Invalid persisted raid state/);
 });
 
+test('a rejected importState is atomic and leaves live state untouched', () => {
+  const store=new MemoryRaidStore();
+  const guest=store.createGuest('atomic_import_guard');
+  const serial=store.commitSerial;
+  const snapshot=store.exportState();
+  assert.throws(()=>store.importState({...snapshot,accounts:[[guest.id,{id:guest.id,username:'placeholder',state:{}}]],byUsername:undefined}),/missing byUsername/);
+  assert.equal(store.accounts.get(guest.id)?.username,'atomic_import_guard','the live account survived the rejected snapshot');
+  assert.equal(store.byUsername.get('atomic_import_guard'),guest.id);
+  assert.equal(store.commitSerial,serial,'counters are not bumped by a failed import');
+  assert.deepEqual(store.profile(guest.id).items.length,4,'the starter kit is intact');
+  const malformed=structuredClone(snapshot);malformed.inventory=[['only-a-key']];
+  assert.throws(()=>store.importState(malformed),/malformed inventory/);
+  assert.equal(store.accounts.get(guest.id)?.username,'atomic_import_guard','an entry-shape failure is also atomic');
+});
+
+test('hydrate quarantines a malformed snapshot and persists a clean replacement', async () => {
+  const backend=createMemorySnapshotBackend();
+  await backend.save({version:1,accounts:[['orphan',{id:'orphan',username:'orphan',state:{}}]]});
+  const store=new PersistentRaidStore({backend,flushDelayMs:0});
+  await store.hydrate();
+  assert.equal(store.recoveredSnapshot?.reason,'malformed','the rejected save is recorded for the UI');
+  assert.ok(store.lastRecoveryError);
+  assert.equal(store.accounts.size,0,'the poisoned snapshot did not restore an account');
+  const guest=store.createGuest('quarantine_malformed');
+  await store.flushNow();
+  const saved=await backend.peek();
+  assert.equal(saved.version,1,'a fresh snapshot is written over the bad save');
+  assert.ok(saved.accounts.some(([id])=>id===guest.id),'the fresh guest is durable');
+  assert.ok(saved.byUsername.some(([name,id])=>name==='quarantine_malformed'&&id===guest.id));
+});
+
+test('hydrate quarantines an unsupported future-version snapshot', async () => {
+  const backend=createMemorySnapshotBackend();
+  await backend.save({version:99,accounts:[]});
+  const store=new PersistentRaidStore({backend,flushDelayMs:0});
+  await store.hydrate();
+  assert.equal(store.recoveredSnapshot?.reason,'unsupported-version');
+  const guest=store.createGuest('quarantine_version');
+  await store.flushNow();
+  const saved=await backend.peek();
+  assert.equal(saved.version,1);
+  assert.ok(saved.accounts.some(([id])=>id===guest.id));
+});
+
+test('a corrupted localStorage value is removed and treated as no save', async () => {
+  const storage=fakeLocalStorage();
+  storage.setItem(RAID_LOCAL_KEY,'{"version":1,"accounts":[');
+  const backend=createLocalStorageBackend({storage});
+  assert.equal(await backend.load(),null,'truncated JSON does not break boot');
+  assert.equal(storage.getItem(RAID_LOCAL_KEY),null,'the poisoned key is cleared');
+});
+
+test('the fallback backend restores a degraded fallback save when the primary is empty', async () => {
+  const storage=fakeLocalStorage();
+  const local=createLocalStorageBackend({storage});
+  await local.save({version:1,accounts:[['local',{}]],byUsername:[],inventory:[],deployments:[],requests:[],insurance:[],checkpoints:[]});
+  const primary={name:'indexeddb',async load(){return null},async save(){throw new Error('quota')}};
+  const backend=createFallbackSnapshotBackend(primary,local);
+  const snapshot=await backend.load();
+  assert.ok(snapshot,'an empty primary falls through to the fallback save');
+  assert.equal(snapshot.accounts[0][0],'local','the degraded localStorage save is restored');
+});
+
 test('the persistent adapter remains free of node: imports', async () => {
   const {readFileSync}=await import('node:fs');
   for(const name of ['shared/raid-store-persist.mjs','shared/raid-store-idb.mjs']){
