@@ -94,3 +94,66 @@ test('candidate profile has no active deployment and an empty audit history for 
   assert.deepEqual(store.auditLog.map(entry=>entry.event),['account_created']);
   assert.throws(()=>store.profile('missing'),RuleError);
 });
+
+const deployRequest=(profile,requestId)=>({
+  itemIds:[profile.items.find(it=>it.kind==='weapon').id,profile.items.find(it=>it.kind==='armor').id],
+  mapId:'relay',requestId,recovery:false,insureIds:[],
+});
+
+test('a guest can deploy, act, board an extraction and settle through the authoritative service', () => {
+  const store=new MemoryRaidStore();const guest=store.createGuest();let clock=1000;
+  const service=new RaidService(store,{now:()=>clock,owner:'offline-owner'});
+  const request=deployRequest(store.profile(guest.id),'deploy-0001');
+  const snapshot=service.deploy(guest.id,request);
+  assert.equal(snapshot.self.alive,true);
+  assert.equal(snapshot.self.equipment.length,2);
+  assert.equal(snapshot.self.ammo,30);
+  assert.equal(service.raids.size,1);
+  assert.equal(store.profile(guest.id).items.length,2,'deployed gear leaves the stash');
+  assert.equal(store.profile(guest.id).activeDeployment.equipment.length,2);
+  assert.throws(()=>store.deploy(guest.id,{...request,requestId:'deploy-0002'}),RuleError,'one active deployment at a time');
+
+  service.action(guest.id,{type:'move',seq:1,x:0,z:1,yaw:0,pitch:0,protocol:11});
+  clock+=.5;service.tick(.05);
+  service.action(guest.id,{type:'fire',seq:2,yaw:0,pitch:0,protocol:11});
+  clock+=1;
+  const raid=service.raids.get(snapshot.raidId),player=service.byAccount.get(guest.id);
+  const exit=raid.exits[0];
+  player.x=exit.x;player.y=exit.y||0;player.z=exit.z;
+  exit.openAt=clock-1;exit.closeAt=clock+60;exit.seats=10;
+  service.action(guest.id,{type:'extract',seq:3,exitId:exit.id,protocol:11});
+  assert.ok(player.board,'boarding action is authoritative');
+  clock+=4;
+  service.tick(.05);
+  assert.equal(player.result.outcome,'extract');
+  assert.equal(player.result.credits,20);
+  assert.equal(player.result.items.length,2);
+  assert.equal(player.result.lostItems.length,0);
+  const finished=store.profile(guest.id);
+  assert.equal(finished.items.length,4,'two starter meds and both deployed items return');
+  assert.equal(finished.items.every(it=>it.grantOwner===guest.id),true);
+  assert.equal(finished.credits,270);
+  assert.equal(finished.xp,20);
+  assert.equal(finished.activeDeployment,null);
+  assert.equal(store.results(guest.id).length,1,'authoritative results are recorded');
+  service.close();
+});
+
+test('a death settlement drops raid gear to lost inventory instead of returning it', () => {
+  const store=new MemoryRaidStore();const guest=store.createGuest();const clock=1000;
+  const service=new RaidService(store,{now:()=>clock,owner:'offline-owner'});
+  const snapshot=service.deploy(guest.id,deployRequest(store.profile(guest.id),'deploy-0003'));
+  const raid=service.raids.get(snapshot.raidId),player=service.byAccount.get(guest.id);
+  service.end(raid,player,'death','machine_fire');
+  assert.equal(player.result.outcome,'death');
+  assert.equal(player.result.items.length,0,'no secure pocket item survives this run');
+  assert.equal(player.result.credits,0);
+  const profile=store.profile(guest.id);
+  assert.equal(profile.items.length,2,'only the two starter meds remain in the stash');
+  assert.equal(profile.items.every(it=>it.kind==='med'),true);
+  const lost=[...store.inventory.values()].filter(entry=>entry.location==='lost');
+  assert.equal(lost.length,2,'both deployed gear items are lost, not silently returned');
+  assert.equal(store.results(guest.id)[0].lostItems.length,2);
+  assert.equal(store.profile(guest.id).activeDeployment,null);
+  service.close();
+});

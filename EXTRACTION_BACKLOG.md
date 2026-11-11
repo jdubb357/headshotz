@@ -17,7 +17,7 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slices 1–3 COMPLETE 2026-11-10; slices 4–12 open. This project
+Status: IN PROGRESS — slices 1–4 COMPLETE 2026-11-10; slices 5–12 open. This project
 temporarily supersedes P1–P10 and visual-alternation
 until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
 to “do not change the hub/main menu or the original cooperative Extraction”: routing
@@ -69,10 +69,22 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    `node:crypto`. Evidence: `tests/raid-store-memory.test.mjs` 7/7, targeted raid
    suites 130/130, full suite 1198/1198, `node server/main.mjs` `/health/live` 200.
    Next: slice 4 in-memory deployments and checkpoints.
-4. **In-memory deployments and checkpoints** — MISSING. Implement the store methods
-   `RaidService` needs to deploy, snapshot, apply an action, and settle/extract
-   (inventory locations, raid checkpoints; audit may be simplified). Unit-test a
-   scripted deploy → action → settle against `RaidService` using this adapter in Node.
+4. **In-memory deployments and checkpoints** — COMPLETE (iteration 33).
+   `MemoryRaidStore.deploy/preflightLoadout/checkpoint/settle/processInsurance/results/
+   latestDeploymentId/purgeRaid/blockedBetween` now implement the authoritative store
+   contract: gear leaves the stash for raid inventory, checkpointing records every
+   carried/container item canonically, extraction returns equipment and pack, death
+   returns only the protected pocket while dropped gear becomes `lost` (so insurance can
+   resolve), credits/XP/progression/contracts match the online settlement shape, and
+   aborted deployments refund the premium. `server/raids.mjs` reaches the store through
+   `latestDeploymentId`/`purgeRaid` instead of `store.db`, and `server/comms.mjs`
+   delegates block checks to `store.blockedBetween`; `RaidStore` implements both, so the
+   Node path is unchanged. Evidence: `tests/raid-store-memory.test.mjs` 9/9 (scripted
+   deploy → move → fire → boarding → extract settles 20 credits/20 XP with gear back in
+   stash; death loses both deployed items and returns no gear; one-active-deployment
+   rejection), targeted raid suites 56/56, full suite 1200/1200.
+   No browser acceptance for offline mode yet — the dispatcher/grader slices are next.
+   Next: slice 5 guest/local session.
 5. **Guest/local session** — MISSING. Offline auth is an automatic guest profile with
    no password, cookies, or scrypt. Online register/login/cookies stay unchanged.
 6. **In-page dispatcher and 50 ms tick** — MISSING. When static/offline,

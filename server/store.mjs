@@ -226,6 +226,14 @@ export class RaidStore {
   let count=0;for(const row of rows)if(!retained.has(row.id)){this.settle(row.id,{outcome:'aborted'});count++}
   return count;
  }
+ latestDeploymentId(account){return this.db.prepare('SELECT id FROM deployments WHERE account=? ORDER BY active DESC,rowid DESC LIMIT 1').get(account)?.id??null}
+ purgeRaid(raidId){
+  this.transaction(()=>{
+   this.db.prepare('DELETE FROM raid_checkpoints WHERE id=?').run(raidId);
+   this.db.prepare("UPDATE inventory SET location='lost',account=NULL WHERE raid=? AND location='raid'").run(raidId);
+  });
+ }
+ blockedBetween(a,b){return !!this.db.prepare("SELECT 1 FROM comm_blocks WHERE mode='block' AND ((account=? AND target=?) OR (account=? AND target=?))").get(a,b,b,a)}
  acquireLease(owner,now=Date.now(),ttl=15000){return this.transaction(()=>{
   const lease=this.db.prepare("SELECT * FROM leases WHERE name='simulation'").get();requireRule(!lease||lease.owner===owner||lease.expires<=now,'Another simulation process owns this database');
   this.db.prepare("INSERT INTO leases VALUES('simulation',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires=excluded.expires").run(owner,now+ttl);

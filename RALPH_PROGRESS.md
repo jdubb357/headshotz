@@ -4715,3 +4715,63 @@ Next action: P0 slice 4 — implement the in-memory store methods `RaidService` 
 deploy, snapshot, apply an action and settle/extract (inventory locations, raid
 checkpoints; audit simplified), and unit-test a scripted deploy → action → settle through
 the authoritative `RaidService` in Node.
+
+## Iteration 33 — P0 slice 4: in-memory deployments and checkpoints
+
+### Acceptance criteria — iteration 33 (P0 slice 4)
+
+1. `MemoryRaidStore` implements the store methods the authoritative `RaidService` needs
+   to deploy, checkpoint, apply actions and settle/extract with the same rules as the
+   online store: one active deployment per account, starter gear moved from stash to
+   raid inventory, and settlement returning gear to the stash (or `lost`).
+2. `RaidService` reaches backend-specific queries through store methods
+   (`latestDeploymentId`, `purgeRaid`, `blockedBetween`) instead of `store.db`, with the
+   Node `RaidStore` implementing the same methods and its rules unchanged.
+3. A scripted deploy → move → fire → boarding → extract settles through the real
+   service in Node, and a death settlement drops deployed gear to `lost` inventory.
+4. Targeted raid suites, real server boot and the full unit suite stay green.
+
+### Implementation — iteration 33 (completed)
+
+- `shared/raid-store-memory.mjs`: added `preflightLoadout`, `deploy` (request-id reuse,
+  owned gear validation, recovery kit, insurance premiums, raid inventory entries),
+  canonical `checkpoint` (records equipment/pack/secure/pending items and container
+  items as location `raid`), `settle` (online-shaped result with returned/stash and
+  `lost` inventory, credits, XP, rank progression, contracts, insurance claim
+  transitions, premium refunds for aborted deployments), `applyContractFacts`,
+  `processInsurance`, `results`, `latestDeploymentId`, `purgeRaid` and
+  `blockedBetween`. `profile` now exposes insurance claims with catalog labels.
+- `server/raids.mjs`: restored deployment binding and expired-raid cleanup now call
+  `store.latestDeploymentId`/`store.purgeRaid`; party/SQL paths are untouched.
+- `server/store.mjs`: added `latestDeploymentId`, `purgeRaid` and `blockedBetween`.
+- `server/comms.mjs`: `blockedBetween` delegates to the store method (same SQL on Node).
+- `tests/raid-store-memory.test.mjs`: two per-rule fixtures — deploy/action/extract
+  settles 20 credits + 20 XP with both deployed items back in the stash, and a death
+  settlement returns nothing while both deployed items become `lost`.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-store-memory.test.mjs` → 9 pass, 0 fail.
+- Targeted suites (game-loop, exits, interactions, checkpoints, rewards, memory) → 56/56.
+- Full suite `node --test tests/*.test.mjs` → 1200 pass, 0 fail.
+- Real server boot: `RAID_DATA_DIR=$(mktemp -d) PORT=18123 node server/main.mjs`,
+  `/health/live` HTTP 200; clean shutdown.
+
+### Criteria status
+
+1. PASS — deploy/checkpoint/settle run on the same `RaidService` rules and inventory
+   locations; one active deployment and stash/raid transitions are enforced.
+2. PASS — no `store.db` access remains in `server/raids.mjs`; the Node store implements
+   the new methods.
+3. PASS — scripted extract settles correctly; death loses deployed gear.
+4. PASS — targeted and full suites are green.
+
+**Status:** P0 slice 4 is COMPLETE in local module/test scope. Offline combat is still
+not playable in the browser: guest session (5), in-page dispatcher/50 ms tick (6),
+offline multiplayer stubs (7), Pages DEPLOY routing (8), combat wiring (9) and the static
+grader (10) remain. No browser or human/hosted acceptance is claimed for offline mode.
+
+Next action: P0 slice 5 — an offline guest/local session path with no password, cookies
+or scrypt, while online register/login/cookies stay unchanged; the store already
+auto-creates the passwordless guest, so wire a session module/API contract and unit-test
+that offline auth returns the guest profile.

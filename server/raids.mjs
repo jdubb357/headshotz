@@ -48,7 +48,7 @@ export class RaidService {
    for(const p of r.players.values()){
     p.receipts||=[];p.lastMoveAt??=p.lastInput;if(p.weaponId===undefined)p.weaponId=[...p.equipment,...p.pack].find(it=>it.kind==='weapon')?.id??null;
     for(const it of [...p.equipment,...p.pack])if(it.kind==='weapon'&&it.loaded==null)it.loaded=it.id===p.weaponId?(p.ammo??WEAPONS[it.weapon]?.mag??30):(WEAPONS[it.weapon]?.mag||30);
-    if(!selected.has(p.account))selected.set(p.account,this.store.db.prepare('SELECT id FROM deployments WHERE account=? ORDER BY active DESC,rowid DESC LIMIT 1').get(p.account)?.id);
+    if(!selected.has(p.account))selected.set(p.account,this.store.latestDeploymentId(p.account));
     if(selected.get(p.account)===p.deploymentId)this.byAccount.set(p.account,p);
    }
   }
@@ -410,8 +410,7 @@ export class RaidService {
   for(const r of this.raids.values()){
    const live=[...r.players.values()].some(p=>p.alive||p.pending);
    if(now>r.deadline+120&&!live){
-    this.store.db.prepare('DELETE FROM raid_checkpoints WHERE id=?').run(r.id);
-    this.store.db.prepare("UPDATE inventory SET location='lost',account=NULL WHERE raid=? AND location='raid'").run(r.id);
+    this.store.purgeRaid(r.id);
     for(const p of r.players.values())if(this.byAccount.get(p.account)?.raidId===r.id)this.byAccount.delete(p.account);
     this.raids.delete(r.id);continue;
    }

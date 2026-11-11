@@ -136,4 +136,14 @@ Slice 3 adds `shared/raid-store-memory.mjs`, the `node:sqlite`-free store adapte
 primitives re-exported by `server/rules.mjs`. The adapter's passwordless guest account
 mirrors the online starter account (250 starter credits and a bound AR, armor and two
 medkits) so the same authoritative `RaidService` can be constructed offline with a
-deployable stash. Deployments, checkpoints and persistence are later slices (4, 11, 12).
+deployable stash.
+
+Slice 4 gives that adapter the authoritative deployment and settlement contract: owned
+gear moves from stash to raid inventory, checkpoints canonically record carried items,
+extraction returns gear with a result shaped like the online settlement (credits, XP,
+rank progression, contracts, insurance claims), and a non-extraction death returns only
+the protected pocket while dropping the rest to `lost`. `RaidService` now reads the
+active deployment / expired-raid cleanup / comm block state through store methods rather
+than SQL, with the Node store implementing the same contract, so online rules are
+unchanged. Persistence across reloads remains slices 11–12; the in-page dispatcher and
+static grader are slices 5–10.
