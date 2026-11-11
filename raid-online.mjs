@@ -32,6 +32,7 @@ import {baseController} from './raid-base.mjs';
 import {WEAPONS,MODS,weaponStats,itemWeight,stashCapacity} from './shared/raid-catalog.mjs';
 import {sellValue} from './shared/raid-appraisal.mjs';
 import {isOfflineQuery,readServiceMeta} from './shared/raid-static.mjs';
+import {readRaidPlan,writeRaidPlan} from './shared/raid-plan.mjs';
 
 // Transport selection for the raid client. Static GitHub Pages has no `/api`,
 // so the page switches to an in-page authoritative service instead of fetch.
@@ -270,6 +271,7 @@ async function refresh(){
  const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
  await baseUI.render(profile);if(generation!==authGeneration)return;
  $('resume').hidden=!profile.activeDeployment;$('deploy').disabled=!!profile.activeDeployment;
+ restoreOfflineRaidPlan();
  const records=await api('results');if(generation!==authGeneration)return;$('records').replaceChildren();
  // A compact aggregate of the authoritative settled results. This is
  // presentation only: every figure comes from the same `results` rows the
@@ -290,27 +292,51 @@ async function refresh(){
 function selectedLoadout(){const recovery=$('recovery').checked,raw=[...$('stash').querySelectorAll('input[data-equip]:checked')].map(e=>e.value),ordered=baseUI?.orderedIds(raw)||raw;return {recovery,itemIds:recovery?[]:ordered,insureIds:recovery?[]:[...$('stash').querySelectorAll('input[data-insure]:checked')].map(e=>e.value)}}
 baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch();updateDeployReadiness()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
 function updateReadyMismatch(){const member=party?.members.find(m=>m.account===profile?.id),mismatch=!!(member?.ready&&!profile?.activeDeployment&&!sameLoadout(member.loadout,selectedLoadout()));$('readyMismatch').hidden=!mismatch;$('restoreReady').hidden=!mismatch;$('readyMismatch').textContent=mismatch?'Your current selection differs from your readied loadout. Ready again or restore it before deploying.':'';if(mismatch)$('deploy').disabled=true;return mismatch}
+// Offline raid plan persistence. The sector and optional field objective are an
+// operator preference for the static base only: they prefill the Deploy card and
+// never determine loot, damage, extraction or settlement. Every id is
+// re-validated by the authoritative deploy route. Online pages never read or
+// write this preference. Failures (private mode, quota) are silent because the
+// base still works without a saved plan.
+let offlinePlanRestored=false;
+function planStorage(){try{return typeof localStorage==='undefined'?null:localStorage}catch{return null}}
+function restoreOfflineRaidPlan(){
+ if(offlinePlanRestored||!offlineMode)return;
+ offlinePlanRestored=true;
+ const plan=readRaidPlan(planStorage(),RAID_WORLDS);
+ if(!plan)return;
+ $('map').value=plan.mapId;drawMap($('mapPreview'),plan.mapId);deploymentExitPlan();deploymentObjectiveOptions();
+ $('fieldObjective').value=plan.objective||'';
+ updateDeployReadiness();
+}
+function persistOfflineRaidPlan(){
+ if(!offlineMode||!profile)return;
+ writeRaidPlan(planStorage(),{mapId:$('map').value,objective:$('fieldObjective').value||null},RAID_WORLDS);
+}
 // Offline-only deploy readiness. The verdict and numbers come from the same
 // authoritative preflight the in-page deploy route runs; the client only
 // formats them, so the base screen never duplicates raid rules. Online hosts
 // keep their squad/latency readiness and this line stays hidden.
 function updateDeployReadiness(){
  const line=$('deployReadiness');if(!line)return;
- if(!offlineMode||!offlineReadinessCheck||!profile){line.hidden=true;delete line.dataset.ready;delete line.dataset.weight;delete line.dataset.premium;return}
+ if(!offlineMode||!offlineReadinessCheck||!profile){line.hidden=true;delete line.dataset.ready;delete line.dataset.weight;delete line.dataset.premium;delete line.dataset.objective;return}
  line.hidden=false;
  if(profile.activeDeployment){
-  delete line.dataset.weight;delete line.dataset.premium;line.dataset.ready='false';
+  delete line.dataset.weight;delete line.dataset.premium;delete line.dataset.objective;line.dataset.ready='false';
   line.textContent='Operator still in raid — resume the active deployment before deploying again.';
   $('deploy').disabled=true;return;
  }
  let result;
- try{result=offlineReadinessCheck(offlineRuntime,selectedLoadout())}
+ try{result=offlineReadinessCheck(offlineRuntime,{...selectedLoadout(),mapId:$('map').value,objective:$('fieldObjective').value||null})}
  catch(error){result={ready:false,blocker:error.message||String(error)}}
+ const objective=result.objective||null;
+ if(objective)line.dataset.objective=objective.id;else delete line.dataset.objective;
+ const objectiveSuffix=objective?' · field objective '+objective.name+' ('+objective.site+') · +'+objective.rewardCredits+' credits / +'+objective.rewardXp+' XP after a '+objective.holdSeconds+' s hold':'';
  line.dataset.ready=String(!!result.ready);
  line.dataset.premium=String(result.ready?(result.premium||0):'');
  line.dataset.weight=String(result.ready&&!result.recovery?(Number(result.weight)||0).toFixed(1):'');
  line.textContent=result.ready
-  ?(result.recovery?'Recovery kit ready — free starter rifle and medkit; nothing in the kit can be banked.':'Ready to deploy — '+(Number(result.weight)||0).toFixed(1)+'/40 kg carried · insurance premium '+(result.premium||0)+' credits'+(result.insured?' · '+(result.insured===1?'1 insured gear item':result.insured+' insured gear items'):'')+'.')
+  ?(result.recovery?'Recovery kit ready — free starter rifle and medkit; nothing in the kit can be banked':'Ready to deploy — '+(Number(result.weight)||0).toFixed(1)+'/40 kg carried · insurance premium '+(result.premium||0)+' credits'+(result.insured?' · '+(result.insured===1?'1 insured gear item':result.insured+' insured gear items'):''))+objectiveSuffix+'.'
   :'Deploy blocked — '+result.blocker+'.';
  $('deploy').disabled=!result.ready;
 }
@@ -1328,7 +1354,7 @@ function deploymentObjectiveOptions(){
  for(const objective of list){const option=document.createElement('option');option.value=objective.id;option.textContent=objective.name+' · hold '+objective.holdSeconds+' s · +'+objective.rewardCredits+' credits, +'+objective.rewardXp+' XP';select.append(option)}
  select.value=list.some(objective=>objective.id===current)?current:'';
 }
-$('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan();deploymentObjectiveOptions()});deploymentExitPlan();deploymentObjectiveOptions();
+$('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan();deploymentObjectiveOptions();persistOfflineRaidPlan();updateDeployReadiness()});$('fieldObjective').addEventListener('change',()=>{persistOfflineRaidPlan();updateDeployReadiness()});deploymentExitPlan();deploymentObjectiveOptions();
 drawMap($('mapPreview'),$('map').value);
 
 let lastHealth=100,lastOutcome='',lastBoard=false,lastWounds='',lastHitToken=0,hitmarkerTimer=0;

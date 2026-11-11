@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (base stash rarity/appraisal iteration 57). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (offline deploy plan iteration 58). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,21 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 UX resumed 2026-11-11 (iteration 58): the static offline Deploy card now previews
+an authored field objective from the shared catalogue and remembers the sector/objective
+plan on the device. The readiness line names the objective, site, hold and authoritative
+`rewardCredits`/`rewardXp`; a stale or unknown plan is discarded instead of prefilled;
+changing either selection saves the plan and a reload restores it. Deploying that plan
+sends the objective to the real in-page `RaidService`, and the offline store settles the
+authored bonus on extraction. This is base UX and device-local preference only — no loot,
+damage, extraction, reward or transport rule changed, and online pages never read or write
+the plan. Evidence: new `tests/raid-browser-static-plan.mjs` (static server, no `/api`,
+six options, selected switchyard objective, reload-restored map/objective, exact
+"+42 credits / +20 XP after a 12 s hold" copy, deployed snapshot objective matching
+`objectivesFor`, zero browser errors; screenshot `/tmp/hs-offline-plan.png`), unit tests in
+`tests/raid-offline.test.mjs` and `tests/raid-plan.test.mjs`, static readiness and P0 gates
+green. Physical-device readability remains UNVERIFIED (P7).
 
 Post-P0 UX resumed 2026-11-11 (iteration 56): the base "Raid records" card now opens
 with an honest empty state and an aggregate line computed from the authoritative
@@ -706,6 +721,15 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   destroys or invalidates it — no reload and no client rule duplication. Evidence:
   `tests/raid-browser-static-insurance-refresh.mjs`, static P0 and persistence graders,
   full suite 1240/1240; physical-device feel UNVERIFIED (P7).
+- **Offline deploy plan** — COMPLETE (iteration 58). The static base previews the selected
+  field objective from the shared catalogue (name, site, hold, authoritative credits and
+  XP) through the read-only `readiness` route, discards stale/unknown plan ids, persists the
+  sector and objective on the device, restores them after reload, and deploys them into the
+  real in-page `RaidService`; the offline store settles the authored extraction bonus.
+  No rules, loot, damage, rewards or transport changed and online ignores the preference.
+  Evidence: `tests/raid-browser-static-plan.mjs`, `tests/raid-plan.test.mjs`,
+  `tests/raid-offline.test.mjs` objective/deploy/settlement cases, P0 and readiness gates;
+  physical-device readability UNVERIFIED (P7).
 - **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
   tests and browser grants/loadout/rewards.
 - **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress

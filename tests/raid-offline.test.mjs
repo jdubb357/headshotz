@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {RAID_PROTOCOL} from '../shared/raid-protocol.mjs';
 import {RAID_WORLDS} from '../shared/raid-worlds.mjs';
+import {objectivesFor} from '../shared/raid-objectives.mjs';
 import {item} from '../shared/raid-rules.mjs';
 import {
   createOfflineRaidRuntime,
@@ -201,6 +202,87 @@ test('offline readiness previews the authoritative preflight without deploying g
     const deployed = offlineReadiness(rt, { recovery: true });
     assert.equal(deployed.ready, false);
     assert.match(deployed.blocker, /only one raid at a time/);
+  } finally {
+    rt.dispose();
+  }
+});
+
+test('offline readiness previews an authored field objective and rejects stale ids', () => {
+  const rt = runtime({username: 'offline_plan'});
+  try {
+    const profile = offlineRaidRoute(rt, 'profile');
+    const weapon = starterWeapon(profile);
+    const definition = objectivesFor(RAID_WORLDS[0])[0];
+    const plan = { recovery: false, itemIds: [weapon.id], mapId: definition.map, objective: definition.id };
+    const preview = offlineRaidRoute(rt, 'readiness', plan);
+    assert.equal(preview.ready, true);
+    assert.deepEqual(preview.objective, {
+      id: definition.id,
+      name: definition.name,
+      site: definition.site,
+      holdSeconds: definition.holdSeconds,
+      rewardCredits: definition.rewardCredits,
+      rewardXp: definition.rewardXp,
+    }, 'the preview reports the authored hold and rewards');
+    assert.ok(rt.store.profile(rt.account).items.some(it => it.id === weapon.id), 'the preview never deploys gear');
+    const unknown = offlineReadiness(rt, { ...plan, objective: 'relay-field-missing' });
+    assert.equal(unknown.ready, false);
+    assert.match(unknown.blocker, /Unknown field objective/);
+    assert.equal(unknown.objective, null);
+    const unsafe = offlineReadiness(rt, { ...plan, objective: 'Bad Id' });
+    assert.equal(unsafe.ready, false);
+    assert.match(unsafe.blocker, /Invalid field objective/);
+    const badMap = offlineReadiness(rt, { ...plan, mapId: 'nope' });
+    assert.equal(badMap.ready, false);
+    assert.match(badMap.blocker, /Choose a valid map/);
+    const none = offlineReadiness(rt, { recovery: false, itemIds: [weapon.id] });
+    assert.equal(none.ready, true);
+    assert.equal(none.objective, null, 'no objective stays optional');
+  } finally {
+    rt.dispose();
+  }
+});
+
+test('offline objective deployments secure on the tick and settle the authored bonus', () => {
+  let clock = 1000;
+  const rt = createOfflineRaidRuntime({username: 'offline_objective', now: () => clock});
+  try {
+    const profile = offlineRaidRoute(rt, 'profile');
+    const weapon = starterWeapon(profile);
+    const definition = objectivesFor(RAID_WORLDS[0])[0];
+    const deployed = offlineRaidRoute(rt, 'deploy', {
+      protocol: RAID_PROTOCOL,
+      requestId: 'offline-objective-deploy-1',
+      mapId: definition.map,
+      objective: definition.id,
+      match: {allowMixed: true, maxRttMs: 0},
+      itemIds: [weapon.id],
+    });
+    assert.equal(deployed.objective.id, definition.id, 'the authoritative snapshot owns the objective');
+    assert.equal(deployed.objective.stage, 'approach');
+    assert.equal(deployed.objective.rewardCredits, definition.rewardCredits);
+    const player = rt.raids.byAccount.get(rt.account);
+    const raid = rt.raids.raids.get(player.raidId);
+    raid.machines = [];
+    raid.rivals = [];
+    player.protectedUntil = 0;
+    Object.assign(player, {x: definition.x, z: definition.z, y: 0, move: {x: 0, z: 0}, lastInput: clock});
+    for (let i = 0; i < 140 && player.objective.stage !== 'secured'; i++) {
+      clock += 0.1;
+      player.lastInput = clock;
+      rt.raids.advance(0.1, clock);
+    }
+    assert.equal(player.objective.stage, 'secured', 'the in-page tick completes the authored hold');
+    assert.ok(raid.events.some(event => event.kind === 'objective' && /secured/i.test(event.text)), 'the secure event is published');
+    rt.raids.end(raid, player, 'extract');
+    assert.equal(player.result.outcome, 'extract');
+    assert.equal(player.result.credits, 20 + definition.rewardCredits, 'extraction pays the base reward plus the objective bonus');
+    const explorationXp = Math.min(50, (player.result.facts.machines || 0) * 5 + (player.result.facts.explorations || []).length * 3);
+    assert.equal(player.result.xp, 20 + definition.rewardXp + explorationXp, 'settlement awards the objective XP');
+    assert.equal(player.result.facts.objective.completed, true);
+    const results = offlineRaidRoute(rt, 'results');
+    assert.equal(results.length, 1);
+    assert.equal(results[0].facts.objective.id, definition.id, 'the settled record carries the objective');
   } finally {
     rt.dispose();
   }
