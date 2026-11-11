@@ -5715,3 +5715,36 @@ Next action: iteration 47 returns to a visual slice (per the alternating rule), 
 example improving raid presentation (loot-container motion, machine VFX readability or
 HUD clarity) while keeping the static P0 gate, base-economy grader and cache-tiers
 grader green.
+
+---
+
+## Iteration 47 — ground-loot pickup beacons and gentle pickup-pile motion (2026-11-11)
+
+### Task
+
+Make the loose ground loot piles (production `propModel('loot', ...)`, the "Dropped weapon",
+"Field supply", "Fallen operator's kit" and "Overrun outpost" drops) read as intentional
+pickups rather than flat stacked boxes. Add a tinted floating gem, additive halo, a short
+vertical wisp and a restrained pulse on the existing accent ring so the pile is legible in
+the dusty/green district at day and night, while loot ownership, containment, snapshot
+fields, settlement and the online/Node transport stay exactly as they are.
+
+### Acceptance criteria (recorded before implementation)
+
+1. Production loot piles add a presentation-only pickup beacon (tinted floating gem,
+   additive halo, short wisp and a pulsing ground/accent ring) derived from the pile's
+   existing authored accent colour; loot items, ids, positions, bag/container semantics and
+   settlement facts are unchanged.
+2. Beacon textures and base geometries are shared module resources and the per-actor
+   disposal path never frees another loot actor's map/material; `plain` is an evidence-only
+   reconstruction of the former flat pile used by graders, never by production sync.
+3. The gem hovers/rotates and the halo/ring pulse subtly at runtime, and both freeze to a
+   readable static pose (no motion) when reduced motion is enabled.
+4. An isolated Chrome bench proves the production piles differ measurably from the former
+   flat piles and writes before/after screenshots; every live crawl loot actor exposes the
+   beacon group.
+5. `tests/raid-browser-loot-beacons.mjs` (new), the static P0 offline playability gate, the
+   loot-excitement grader and the cache-tiers grader pass with zero browser errors; targeted
+   unit tests and the full `node --test tests/*.test.mjs` suite pass.
+6. Online/Node transport, raid loot rules, authoritative damage/extraction decisions and all
+   other modes remain unchanged; no client-trusted shortcut is added.
