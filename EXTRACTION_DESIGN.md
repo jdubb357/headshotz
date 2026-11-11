@@ -98,3 +98,26 @@ Observed differences and gaps:
    or devices owned/testable here).
 
 Human balance, pacing and "fun" judgments are explicitly unverified by automated tests.
+
+## Static Pages offline deployment (P0)
+
+Austin's playable target is `https://jdubb357.github.io/headshotz/`, where no Node raid
+host exists. The ordered slices in `EXTRACTION_BACKLOG.md` (P0) build a same-rules
+in-page `RaidService` for that static site while leaving `node server/main.mjs`, the
+hosted transport, and all other modes intact.
+
+Slice 1 adds `shared/raid-static.mjs`, the single transport-mode detector used before
+any raid request:
+
+- `offline=1` in the query string selects offline mode explicitly.
+- A missing `<meta name="headshotz-raid-service">` means the page was served statically
+  (only the Node host injects that meta).
+- An explicitly failed `/api/profile` probe is also treated as offline; an unchecked
+  probe does not change the decision.
+- The result carries a reason string (`offline-query`, `no-service-meta`,
+  `profile-unreachable`, `service-meta`) for later diagnostic logging.
+
+`readServiceMeta`/`browserRaidMode` read the browser document defensively, and the module
+stays DOM-free at import time so Node tests can use it directly. No routing or gameplay
+behaviour is wired to the detector yet; that lands with the in-page dispatcher and Pages
+DEPLOY routing slices.

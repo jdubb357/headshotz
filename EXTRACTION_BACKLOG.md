@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-10 (gameplay audit iteration 22).
+Last audited: 2026-11-10 (gameplay audit iteration 22). Current project: P0 Static Pages offline raid (added 2026-11-10).
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -9,6 +9,87 @@ only when the authoritative service and the playable raid client both support th
 behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
+
+## P0 — Static Pages offline raid (CURRENT PROJECT — do this first)
+
+Austin plays only at https://jdubb357.github.io/headshotz/ (static GitHub Pages). There
+will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that site must
+launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
+browser can complete a solo raid versus AI machines with no `/api` backend.
+
+Status: IN PROGRESS — slice 1 (static-mode detection) COMPLETE 2026-11-10; slices 2–12
+open. This project temporarily supersedes P1–P10 and visual-alternation
+until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
+to “do not change the hub/main menu or the original cooperative Extraction”: routing
+may change so DEPLOY opens the new client, but the old `game.js` Extraction must stay
+reachable from a clearly labeled secondary button. Do not weaken the online/Node path
+or move hosted-server authority onto an untrusted client. Offline mode is an in-page
+copy of the same `RaidService` rules.
+
+Required pieces: (a) browser store adapter replacing `node:sqlite` — in-memory first
+if that unblocks play, then IndexedDB with localStorage fallback; (b) Web Crypto shims
+for `node:crypto` imports in `server/raids.mjs` and `server/raid-*.mjs`; (c) guest/local
+session, no password, no HttpOnly cookies or scrypt offline; (d) in-page dispatcher so
+`raid-online.mjs` `api(path, body)` calls in-browser `RaidService` when `/api` is
+unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbed;
+(e) static Pages DEPLOY → `raid-online.html` offline instead of `raidOpenBase()`;
+(f) keep `node server/main.mjs` working; (g) a static-file browser grader.
+
+### Ordered slices (one per iteration, about 15–30 minutes)
+
+1. **Static-mode detection** — COMPLETE (iteration 30). `shared/raid-static.mjs` is a
+   DOM-free detector returning `{mode:'offline'|'online', reason:'offline-query'|
+   'no-service-meta'|'profile-unreachable'|'service-meta'}` from `offline=1`, the
+   absence of the Node-injected `headshotz-raid-service` meta, or an explicit failed
+   `/api/profile` probe (unchecked never forces offline). `readServiceMeta` and
+   `browserRaidMode` are browser convenience helpers; no game/routing behaviour was
+   wired in this slice by design. Evidence: `tests/raid-static-mode.test.mjs` (7/7).
+   Next: slice 2 Web Crypto shim.
+2. **Web Crypto shim** — MISSING. Introduce a wrapper the browser and Node can share
+   for `randomUUID`, `randomBytes`, and `createHash`/`digest` used by `server/raids.mjs`
+   and `server/raid-*.mjs`. Leave online password hashing (`scryptSync` in
+   `server/credentials.mjs`) on the Node path. Keep `node server/main.mjs` working;
+   add a unit test for the shim.
+3. **In-memory store skeleton** — MISSING. New adapter (no `node:sqlite`) that
+   constructs a `RaidService`, creates a guest account, and returns an empty
+   profile/stash. Unit-test construct + profile.
+4. **In-memory deployments and checkpoints** — MISSING. Implement the store methods
+   `RaidService` needs to deploy, snapshot, apply an action, and settle/extract
+   (inventory locations, raid checkpoints; audit may be simplified). Unit-test a
+   scripted deploy → action → settle against `RaidService` using this adapter in Node.
+5. **Guest/local session** — MISSING. Offline auth is an automatic guest profile with
+   no password, cookies, or scrypt. Online register/login/cookies stay unchanged.
+6. **In-page dispatcher and 50 ms tick** — MISSING. When static/offline,
+   `raid-online.mjs` `api(path, body)` calls an in-page dispatcher backed by the
+   in-browser `RaidService` instead of `fetch('/api/...')`. Start the same 50 ms
+   `raids.tick()` loop in the page. Implement routes needed for capabilities, worlds,
+   profile, deploy, raid snapshot, and action. Party/voice/trade/matchmaking probes
+   may return explicit offline stubs.
+7. **Stub offline multiplayer** — MISSING. Hide or disable party create/join, voice,
+   and latency probes in offline mode so the base UI can deploy solo versus machines
+   without matchmaking failures.
+8. **Pages DEPLOY routing** — MISSING. On static Pages (no Node-injected
+   `headshotz-raid-service` meta), `#raidBtn` goes to `raid-online.html` with the
+   offline flag instead of `raidOpenBase()`. Add a clearly labeled secondary control
+   (for example “Classic Extraction”) that still opens the old `game.js` RAID BASE.
+   Do not change Battle Royale.
+9. **Playable combat/loot/extract wiring** — MISSING. Fill any remaining dispatcher
+   routes so a guest can deploy, move, shoot machines, take loot, and extract through
+   the real `raid-online` UI. Prefer covering gaps this slice rather than expanding
+   scope.
+10. **Static Pages browser grader** — MISSING. New grader (for example
+    `tests/raid-browser-static-offline.mjs`) that serves the repo as static files
+    with no Node raid `/api`, follows DEPLOY into raid-online offline mode, and
+    asserts deploy, movement, shooting a machine, looting, and extracting succeed.
+    **This slice is the playability gate.** When it is COMPLETE, P0 no longer blocks
+    visual/look-feel work.
+11. **IndexedDB persistence** — MISSING. Upgrade the in-memory adapter so guest
+    profile, stash, and unfinished raid checkpoints survive a reload via IndexedDB.
+12. **localStorage fallback** — MISSING. If IndexedDB is missing or fails, persist
+    to localStorage without breaking the online path; add a test for the fallback.
+
+After slice 10 is COMPLETE, continue with slices 11–12 if unfinished, then resume
+look/feel and the P5–P10 items below.
 
 ## How statuses are judged
 

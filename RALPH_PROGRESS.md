@@ -4529,3 +4529,66 @@ behaviour. Older screenshots may still show the edge-on ring.
 Next action: alternate back to a gameplay slice — the next locally verifiable backlog
 item — while keeping raid progression, equipment loss and deployment rules scoped to
 raids and avoiding human balance/pacing claims.
+
+## Static Pages P0 iteration 30 — shared static-mode detection (2026-11-10)
+
+### Acceptance criteria — iteration 30 (P0 slice 1, static-mode detection)
+
+1. A DOM-free shared module `shared/raid-static.mjs` exposes a deterministic detector for
+   the raid client's transport mode: static/offline when the URL carries `offline=1`,
+   when the Node-injected `headshotz-raid-service` meta is absent, or when a
+   `/api/profile` probe is explicitly reported unreachable; online otherwise.
+2. The detector returns a structured reason (`offline-query`, `no-service-meta`,
+   `profile-unreachable`, or `service-meta`) so later slices can log/announce why offline
+   mode was chosen, and an unknown/unchecked probe never forces offline by itself.
+3. A browser-env helper reads the meta tag without assuming a DOM exists, and the module
+   stays free of DOM/browser globals at import time so Node tests and the static grader
+   can import it directly.
+4. `tests/raid-static-mode.test.mjs` covers the signal matrix (query, missing/present
+   meta, checked/unchecked/failed probe, query precedence) and passes; no gameplay,
+   server, routing or snapshot behaviour changes in this slice.
+
+### Implementation — iteration 30 (completed)
+
+- `shared/raid-static.mjs` (new): pure `isOfflineQuery`, `detectRaidMode`,
+  `isStaticRaidMode`, defensive `readServiceMeta` and `browserRaidMode`. Signal
+  precedence/mapping documented in the module header; the module has no DOM
+  dependency at import time and no behaviour other than the returned decision.
+- `tests/raid-static-mode.test.mjs` (new): 7 tests covering query precedence, online
+  default, missing meta, failed vs unchecked profile probe, fake-document helper
+  safety, browser wrapper, and purity/repeatability.
+- `EXTRACTION_BACKLOG.md`: P0 status changed to IN PROGRESS; slice 1 recorded
+  COMPLETE with evidence and next slice.
+- `EXTRACTION_DESIGN.md`: added the static Pages offline deployment section and the
+  detector's signal precedence contract.
+
+### Commands/results (2026-11-10)
+
+- `node --check shared/raid-static.mjs && node --check tests/raid-static-mode.test.mjs`
+  → OK.
+- `node --test tests/raid-static-mode.test.mjs` → 7 pass, 0 fail.
+- `node --test tests/*.test.mjs` → 1186 pass, 0 fail (64.6 s).
+- No browser grader was run because this slice deliberately wires no client behaviour
+  and changes no rendered state. No server, raid rule, snapshot or other-mode code was
+  touched.
+
+### Criteria status
+
+1. PASS — the shared detector selects offline for `offline=1`, absent service meta, or
+   an explicit failed `/api/profile` probe and online otherwise, with a bounded pure
+   module.
+2. PASS — every decision carries `mode` and `reason`; an `unchecked`/`reached` probe
+   never forces offline.
+3. PASS — import in Node unit tests works without a document; fake-environment calls to
+   `readServiceMeta`/`browserRaidMode` prove the helpers do not touch globals.
+4. PASS — 7/7 new unit tests and the full 1,186-test suite pass; no gameplay, routing,
+   server or mode behaviour changed in this slice.
+
+**Status:** P0 slice 1 static-mode detection is COMPLETE in local module/test scope.
+Offline combat itself is not yet playable: slices 2–12 remain open. No human, hosted or
+physical-device acceptance is claimed.
+
+Next action: P0 slice 2 — a browser/Node Web Crypto shim (`randomUUID`, `randomBytes`,
+`createHash`/`digest`) shared by `server/raids.mjs` and `server/raid-*.mjs`, leaving
+`scryptSync` in `server/credentials.mjs` on the Node path and keeping
+`node server/main.mjs` working; add a unit test for the shim.
