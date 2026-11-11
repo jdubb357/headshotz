@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (rain-front ground splashes iteration 55). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (offline record summary iteration 56). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,19 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+Post-P0 UX resumed 2026-11-11 (iteration 56): the base "Raid records" card now opens
+with an honest empty state and an aggregate line computed from the authoritative
+settled results — recorded deployments, extractions, deployments that ended without
+extraction, interrupted/refunded deployments, raid-reward credits, XP and machines
+destroyed. The line updates in place after each settlement and survives a reload
+from the same `results` rows the detail list renders; online and offline show it
+identically, and no rule, reward, transport or record was invented. Evidence: new
+`tests/raid-browser-static-records.mjs` (empty state → death settlement → recovery
+extraction → reload, exact parity with `careerText(api('results'))`, zero `/api`,
+zero browser errors; screenshots `/tmp/hs-records-summary.png` /
+`/tmp/hs-records-summary-extracted.png`), unit cases in `tests/raid-report.test.mjs`,
+static P0 gate and online rewards grader green.
 
 Post-P0 UX resumed 2026-11-11 (iteration 54): static offline insurance claims now
 update themselves. After a death settlement the base shows the authoritative pending
@@ -705,6 +718,15 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   incompatible with recovery boundary; loadout/accessibility/rewards graders.
 - **Post-raid rewards** — COMPLETE. `#rewards` card from `/api/results` plus sign-out/
   account isolation, focus/navigation and no invented state; rewards grader.
+- **Record aggregate on the base** — COMPLETE (iteration 56). The "Raid records"
+  card leads with an authoritative aggregate over the same settled results the
+  details list — recorded deployments, extractions, deployments ended without
+  extraction, interrupted/refunded deployments, raid-reward credits, XP and machine
+  destroys — with a first-run empty state, in-place update after settlement and
+  reload parity. `careerSummary`/`careerText` in `shared/raid-report.mjs` read only
+  the records the store returns; no rules, rewards or client state are invented.
+  Evidence: `tests/raid-report.test.mjs` and
+  `tests/raid-browser-static-records.mjs`, static P0 gate, online rewards grader.
 - **Equipment repair grades** — COMPLETE local (iteration 22). Damaged weapons and armor
   can receive an authoritative partial field patch (+25 condition, capped at 100, one
   wire, credits priced per restored points) or a full workshop repair (100%, one steel,

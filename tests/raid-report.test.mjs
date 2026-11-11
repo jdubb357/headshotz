@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {RaidStore} from '../server/store.mjs';
 import {RaidService} from '../server/raids.mjs';
-import {reasonText,outcomeReason,settlementText,insuranceText,settlementGapText,stashUsageText} from '../shared/raid-report.mjs';
+import {reasonText,outcomeReason,settlementText,insuranceText,settlementGapText,stashUsageText,careerSummary,careerText} from '../shared/raid-report.mjs';
 function setup(t,{insured=false}={}){const store=new RaidStore(),id=store.register('report_operator','a long report password').id;let now=1000;const service=new RaidService(store,{now:()=>now}),weapon=store.profile(id).items.find(it=>it.kind==='weapon');service.deploy(id,{mapId:'relay',requestId:'report_deployment',itemIds:[weapon.id],insureIds:insured?[weapon.id]:[]});const p=()=>service.byAccount.get(id),r=()=>service.raids.get(p().raidId);p().protectedUntil=0;t.after(()=>{service.close();store.close()});return {store,service,id,p,r,time:v=>now=v}}
 for(const options of [{source:'operator'},{source:'machine'},{kind:'blast'},{kind:'fall'},{kind:'hazard'},{kind:'bleed'},{}])test('lethal damage records a bounded public cause: '+JSON.stringify(options),t=>{const f=setup(t);f.service.atomic(()=>f.service.damage(f.r(),f.p(),500,options));const result=f.store.results(f.id)[0];assert.equal(result.reason,options.source||options.kind||'combat');assert.ok(reasonText(result).startsWith('Eliminated'));assert.equal(result.raid.map,'relay');assert.equal(result.raid.durationSeconds,0);assert.equal(JSON.stringify(result).includes('attacker'),false)});
 for(const [outcome,reason] of [['timeout','raid_expired'],['disconnect','connection_expired'],['extract','extracted']])test('non-combat outcome records its own explanation: '+outcome,t=>{const f=setup(t);f.time(1015);f.service.atomic(()=>f.service.end(f.r(),f.p(),outcome,'machine'));const result=f.store.results(f.id)[0];assert.equal(result.reason,reason);assert.equal(result.raid.durationSeconds,15)});
@@ -33,4 +33,33 @@ test('stash usage line reports free slots and flags protected overflow',t=>{
  assert.equal(stashUsageText(null,20),'');
  assert.equal(stashUsageText({items:[]},0),'');
  assert.equal(stashUsageText({items:[]},NaN),'');
+});
+test('record summary counts authoritative settled outcomes only',()=>{
+ const results=[
+  {outcome:'extract',credits:26,xp:30,facts:{machines:3}},
+  {outcome:'death',credits:0,xp:5,facts:{machines:2}},
+  {outcome:'timeout'},
+  {outcome:'aborted',credits:0,xp:0},
+  {outcome:'extract',credits:6,xp:10,facts:{machines:1}},
+ ];
+ assert.deepEqual(careerSummary(results),{raids:5,extractions:2,losses:2,interrupted:1,credits:32,xp:45,machines:6});
+ assert.equal(careerText(results),'5 recorded deployments · 2 extractions · 2 ended without extraction · 1 interrupted and refunded · +32 credits from raid rewards · +45 XP · 6 machines destroyed.');
+});
+test('record summary is honest for empty and malformed rows',()=>{
+ assert.equal(careerText([]),'No raids recorded yet. Settled deployments appear here with returned, lost and insured items. Deploy to begin.');
+ assert.deepEqual(careerSummary(null),{raids:0,extractions:0,losses:0,interrupted:0,credits:0,xp:0,machines:0});
+ const text=careerText([{outcome:'extract',credits:-5,xp:'big',facts:{machines:NaN}},null,{outcome:'unknown',credits:2}]);
+ assert.equal(text,'3 recorded deployments · 1 extraction · 0 ended without extraction · +2 credits from raid rewards · +0 XP · 0 machines destroyed.');
+});
+test('record summary reads real authoritative settlements',t=>{
+ const f=setup(t,{insured:true}),before=f.store.profile(f.id).xp;
+ f.service.atomic(()=>f.service.end(f.r(),f.p(),'extract'));
+ const results=f.store.results(f.id),summary=careerSummary(results);
+ assert.equal(summary.raids,1);
+ assert.equal(summary.extractions,1);
+ assert.equal(summary.losses,0);
+ assert.equal(summary.credits,20);
+ assert.equal(summary.xp,results[0].xp);
+ assert.ok(summary.xp>=before);
+ assert.match(careerText(results),/^1 recorded deployment · 1 extraction · 0 ended without extraction · \+20 credits from raid rewards · \+/);
 });

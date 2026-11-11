@@ -6444,3 +6444,84 @@ example a post-settlement results/records gap), then iteration 57 returns to a
 visual slice. Keep the rain-splash, rain-volume, vitality-vignette, static P0,
 static-account, exit-signal, readiness, insurance-refresh and base-economy graders
 green.
+
+## Iteration 56 — Offline raid record aggregate
+
+### Acceptance criteria
+
+1. The base "Raid records" card shows a compact aggregate derived only from the
+   authoritative settled `results` rows: recorded deployments, extractions,
+   deployments that ended without extraction, interrupted/refunded deployments,
+   raid-reward credits, XP and machines destroyed; a fresh operator sees an honest
+   empty state instead of a blank card.
+2. The aggregate updates in place after an authoritative settlement (no reload) and
+   survives a full reload with the same text and detail rows; online and offline
+   render the same shared copy.
+3. No raid rules, rewards, snapshots, loot, AI, extraction or `/api` transport
+   change; the helper is presentation-only aggregation over records the store
+   already returns.
+4. A static-file browser grader proves the empty state, a machine-death
+   settlement, a recovery-kit extraction, in-place updates, reload parity, exact
+   parity with `careerText(api('results'))`, zero `/api` traffic and zero browser
+   errors; the static P0 gate, online rewards grader and full unit suite stay green.
+
+### Implementation — iteration 56 (completed)
+
+- `shared/raid-report.mjs`: added `careerSummary(results)` and `careerText(results)`.
+  Only settlement-record fields are read (`outcome`, `credits`, `xp`,
+  `facts.machines`); unknown/malformed rows and negative/invalid numbers are not
+  counted, and empty input returns the first-run explanation. `death`, `timeout`
+  and `disconnect` are the settled non-extraction outcomes; `aborted` is reported
+  separately as interrupted and refunded.
+- `raid-online.mjs`: `refresh()` appends a `#recordsSummary` paragraph before the
+  existing detail list, using the exact same `results` payload; `data-empty` marks
+  the empty state for styling. The shared path renders identically online and in
+  the in-page offline service.
+- `raid-online.html`: small card-level style for the summary and its empty state
+  (green-tinted aggregate, muted empty state, `overflow-wrap`).
+- New `tests/raid-browser-static-records.mjs`: plain static-file server with no
+  `/api`, fresh offline guest → empty-state copy → starter-weapon deploy →
+  authoritative machine death through `RaidService.damage` → records card matches
+  `careerText(results)` without reload → recovery-kit deploy → authoritative
+  `RaidService.end(...,'extract')` → 2-record aggregate updates in place → full
+  reload restores both records and the same aggregate text; zero `/api` requests,
+  zero browser errors.
+- `tests/raid-report.test.mjs`: unit coverage for outcome counting, credit/XP/
+  machine sums (including the real extract settlement), empty input and malformed
+  rows.
+
+### Commands/results (2026-11-11)
+
+- `node --test tests/raid-report.test.mjs` → 24/24.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-records.mjs` → PASS:
+  `{"offline":true,"emptyState":true,"recordsAfterDeath":1,"recordsAfterExtract":2,
+  "extractions":1,"summary":"2 recorded deployments · 1 extraction · 1 ended without
+  extraction · +20 credits from raid rewards · +20 XP · 0 machines destroyed.",
+  "persistedAcrossReload":true,"noReload":true,"apiRequests":[],"browserErrors":[]}`.
+  Screenshots `/tmp/hs-records-summary.png` and
+  `/tmp/hs-records-summary-extracted.png` inspected.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (static P0 deploy/move/hit/loot/extract, zero `/api`, zero errors).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-rewards.mjs` → PASS
+  (online settlement, rewards navigation, repair grades, zero errors).
+- `node --test tests/*.test.mjs` → 1242 pass, 1 known intermittent
+  `matchmaking.test.mjs` ECONNRESET (isolated rerun 11/11).
+
+### Criteria status
+
+1. PASS — aggregate counts outcomes and sums credits/XP/machines; fresh guest gets
+   the empty-state sentence.
+2. PASS — death then extraction updated the same summary paragraph in place; a
+   reload restored both details and identical text.
+3. PASS — presentation-only aggregation of the existing `results` payload; no
+   rules, rewards, AI, loot, extraction or `/api` changed.
+4. PASS — new static grader green, static P0 gate and online rewards grader green.
+
+**Status:** Offline/online raid-record aggregate is COMPLETE in local presentation
+scope. Human readability/feel and physical-device acceptance remain UNVERIFIED (P7).
+
+Next action: iteration 57 returns to the visual/look-feel alternation — a
+presentation-only Extraction Raids improvement (for example base stash rows or
+in-raid cue polish), keeping the records-summary, rain-splash, rain-volume,
+vitality-vignette, exit-signal, insurance-refresh, readiness, static P0 and
+base-economy graders green.

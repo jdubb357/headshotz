@@ -1,6 +1,6 @@
 import {sameLoadout,describeLoadout} from './shared/raid-loadout.mjs';
 import {RaidTrigger,deferIdleMovement,lookNeedsSync} from './raid-trigger.mjs';
-import {reasonText,settlementText,insuranceText,objectiveText,settlementGapText,stashUsageText} from './shared/raid-report.mjs';
+import {reasonText,settlementText,insuranceText,objectiveText,settlementGapText,stashUsageText,careerText} from './shared/raid-report.mjs';
 import {grantBalance,canRecoverGrant} from './shared/raid-grants.mjs';
 import {lootPresentation,lootCelebrationText} from './shared/raid-loot-presentation.mjs';
 import {stackable,compatibleStacks} from './shared/raid-inventory.mjs';
@@ -270,7 +270,12 @@ async function refresh(){
  const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
  await baseUI.render(profile);if(generation!==authGeneration)return;
  $('resume').hidden=!profile.activeDeployment;$('deploy').disabled=!!profile.activeDeployment;
- const records=await api('results');if(generation!==authGeneration)return;$('records').replaceChildren();for(const r of records){
+ const records=await api('results');if(generation!==authGeneration)return;$('records').replaceChildren();
+ // A compact aggregate of the authoritative settled results. This is
+ // presentation only: every figure comes from the same `results` rows the
+ // detail list below renders, and it never invents a rule or reward.
+ const recordsSummary=document.createElement('p');recordsSummary.id='recordsSummary';recordsSummary.className='recordsSummary';recordsSummary.textContent=careerText(records);if(!records.length)recordsSummary.dataset.empty='true';$('records').append(recordsSummary);
+ for(const r of records){
   const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent=`${new Date(r.at).toLocaleString()} · ${r.outcome} · ${r.items.length} returned · ${(r.lostItems||[]).length} dropped/lost · +${r.credits} credits · +${r.xp||0} XP`;details.append(summary);
   if(r.progression){const progress=document.createElement('p'),p=r.progression;progress.textContent='Experience '+p.xpBefore+' → '+p.xpAfter+' XP · Rank '+p.rankBefore+' → '+p.rankAfter+' '+p.rankName+(p.unlockedBlueprints.length?' · Blueprints unlocked: '+p.unlockedBlueprints.join(', '):'');details.append(progress)}
   if(r.raid){const context=document.createElement('p');context.textContent=(getWorld(r.raid.map,r.raid.mapVersion)?.name||r.raid.map)+' · '+Math.round(r.raid.durationSeconds||0)+' seconds deployed';details.append(context)}
