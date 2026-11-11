@@ -5158,3 +5158,99 @@ acceptance; visual quality on a real phone remains subjective and unverified.
 Next action: P0 slice 11 — IndexedDB persistence so the guest profile, stash, and
 unfinished raid checkpoints survive a reload on static pages, with slice 12's
 localStorage fallback after it.
+
+## Iteration 40 — P0 slices 11–12: durable browser raid state (IndexedDB + localStorage fallback)
+
+### Acceptance criteria — iteration 40 (P0 slices 11 and 12)
+
+1. Guest profile, stash items, deployment records, insurance claims and unfinished raid
+   checkpoints survive a full page reload in the static Pages offline client.
+2. The durable snapshot contains the authoritative store state and is restored before
+   `RaidService` is constructed, so an active deployment can Resume after reload.
+3. IndexedDB is preferred and writes after committed transactions without blocking the
+   50 ms spawn tick or gameplay actions.
+4. A reloaded settled profile keeps credits, XP and item identity; relic or starter gear
+   is not minted with new ids.
+5. If IndexedDB is missing or its first read/write fails, the same snapshot persists to
+   localStorage and reload/resume still works.
+6. If neither durable backend exists, gameplay still boots from a clean in-memory store.
+7. The online Node/cookie path and hosted authority are unchanged; unit suites and the
+   static browser graders pass without `/api` traffic.
+
+### Implementation — iteration 40 (completed)
+
+- `shared/raid-store-memory.mjs`: added versioned `exportState()`/`importState()` that
+  flatten the accounts, inventory, deployments, requests, insurance, checkpoints,
+  audit log and serial counters into a structured-clone-safe snapshot.
+- `shared/raid-store-persist.mjs`: `PersistentRaidStore` hydrates that snapshot,
+  schedules a debounced write after every top-level transaction, coalesces queued
+  writes, retries after failures and records `lastPersistenceError`. Exposes
+  `flush()`/`flushNow()`. `createFallbackSnapshotBackend` selects the durable backend
+  once (primary load success), degrades to the fallback after a failed read/write, and
+  exposes its active name for diagnostics.
+- `shared/raid-store-idb.mjs`: single-key IndexedDB backend (`headshotz-raid-offline`,
+  object store `raid-state-v1`) with upgradeneeded creation, blocked/error handling and
+  atomic readwrite completion.
+- `shared/raid-store-local.mjs`: localStorage backend with the same JSON snapshot under
+  `headshotz.raid-offline.store.v1`, storage injectable for tests; quota/parse failures
+  surface to the persistent store instead of breaking gameplay.
+- `shared/raid-offline.mjs`: `createPersistentOfflineRaidRuntime()` picks the
+  IndexedDB→localStorage fallback, hydrates before constructing `RaidService`, flushes
+  the initial guest account, and falls back to the in-memory runtime if neither backend
+  loads. Runtime exposes `persistent`, `storage()` and `flush()`; the synchronous
+  `createOfflineRaidRuntime()` used by Node unit tests is unchanged.
+- `raid-online.mjs`: offline boot now awaits the persistent factory, flushes on
+  `pagehide`, and publishes `persistent`/`storageMode` on `window.__hszOfflineRaid`.
+  Online transport is untouched.
+
+### Tests added/updated
+
+- `tests/raid-store-persist.test.mjs` (6 tests): export/import round-trip through a
+  MemoryRaidService with an active deployment; hydrate → resume → settle from a fresh
+  store; malformed-snapshot rejection; fallback to localStorage when IndexedDB is
+  unavailable; degraded write after a failed primary save; node-free source check.
+- `tests/raid-browser-static-persist.mjs`: static-file server, no Node `/api`, three
+  scenarios across real reloads — (1) deploy, move, extract then reload and verify
+  credits/XP/stash id identity and durable settlement; (2) deploy, move, reload and
+  Resume the same deployment at the persisted position/HP; (3) remove IndexedDB via
+  `Page.addScriptToEvaluateOnNewDocument` and verify `storageMode==='localStorage'`,
+  a durable localStorage checkpoint, and Resume after reload. Zero `/api` resource
+  requests and zero browser errors.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-store-persist.test.mjs` → 6/6.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-persist.mjs` →
+  `{"persistence":true,"profileReload":{"credits":270,"xp":20,"items":4},
+  "checkpointReload":{...},"localStorageFallback":{"accounts":1,"checkpoints":1,...},
+  "noApiTraffic":true,"browserErrors":[]}`. PASS.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → all
+  deploy/move/machine-hit/loot/extract flags true, zero errors. PASS.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-offline-dispatch.mjs` → all
+  static transport flags true, zero exceptions. PASS.
+- Full suite `node --test tests/*.test.mjs` → 1225 pass, 0 fail.
+- Existing online Node server on the workstation (`127.0.0.1:8021`) still returns
+  `/health/live` 200; a fresh server boot correctly refused a second simulation lease,
+  so the online authority path is unchanged and active.
+
+### Criteria status
+
+1. PASS — browser reload restores profile/stash; active deployment is restored.
+2. PASS — hydration completes before `RaidService`; Resume restores deployment id,
+   position and HP.
+3. PASS — debounced after-transaction writes; playability grader remains green.
+4. PASS — settled credits 270, XP 20, identical item ids after reload.
+5. PASS — browser scenario with `indexedDB` undefined reports localStorage persistence
+   and resumes across reload; units cover fallback/degraded writes.
+6. PASS — both backends unavailable falls back to `buildOfflineRaidRuntime(memory)`.
+7. PASS — Node store/cookie path untouched; no `/api` calls; all suites green.
+
+**Status:** P0 slices 11–12 are COMPLETE. All ordered P0 static-Pages offline raid work
+(1–12) is complete, including the playability gate from slice 10. Evidence is the
+static-file browser harness and unit suite, not physical-device/hosted GitHub Pages
+human acceptance; iOS localStorage/IndexedDB quota and visual feel on Austin's phone
+remain unverified.
+
+Next action: resume the visual quality alternation — start with an Extraction Raids
+look/feel improvement (lighting/shadows/fog or machine feedback) and verify with a
+browser screenshot grader.

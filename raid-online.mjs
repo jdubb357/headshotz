@@ -57,12 +57,15 @@ async function offlineEnabled(){
  return offlineMode;
 }
 function offlineService(){
- offlineRuntimeWork||=import('./shared/raid-offline.mjs').then(module=>{
+ offlineRuntimeWork||=import('./shared/raid-offline.mjs').then(async module=>{
   const guest=new URLSearchParams(location.search).get('guest');
-  offlineRuntime=module.createOfflineRaidRuntime({username:guest||'guest'});
+  offlineRuntime=await module.createPersistentOfflineRaidRuntime({username:guest||'guest'});
   module.startOfflineTick(offlineRuntime);
+  // Best effort on tab hide/close: IndexedDB saves are already queued after each
+  // committed action, and this flushes the latest debounced state.
+  addEventListener('pagehide',()=>{offlineRuntime?.flush?.().catch(()=>{})});
   // Diagnostic handle for the static browser grader; absent on Node hosts.
-  window.__hszOfflineRaid={mode:'offline',protocol:RAID_PROTOCOL,runtime:()=>offlineRuntime,snapshot:()=>snapshot,api:(path,body)=>module.offlineRaidRequest(offlineRuntime,path,body)};
+  window.__hszOfflineRaid={mode:'offline',protocol:RAID_PROTOCOL,persistent:!!offlineRuntime.persistent,storageMode:offlineRuntime.storage?.(),runtime:()=>offlineRuntime,snapshot:()=>snapshot,api:(path,body)=>module.offlineRaidRequest(offlineRuntime,path,body)};
   return offlineRuntime;
  });
  return offlineRuntimeWork;

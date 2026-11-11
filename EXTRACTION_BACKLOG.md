@@ -17,12 +17,13 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: PLAYABILITY GATE PASSED — slices 1–10 COMPLETE 2026-11-10; slices 11–12 open. The
-solo offline raid loop is verified end to end on a static-file harness. Remaining work
-is persistence (IndexedDB + localStorage fallback), after which P0's approved
-exception to “do not change the hub/main menu or the original cooperative Extraction”
-is over. For that exception: routing may change so DEPLOY opens the new client, but the
-old `game.js` Extraction must stay reachable from a clearly labeled secondary button.
+Status: COMPLETE 2026-11-10 — all ordered slices 1–12 are COMPLETE. A solo offline
+raid versus AI machines is playable and persists on static-file/GitHub-Pages-style
+hosting with no Node raid server: deploy, move, fight machines, loot, extract, reload
+a settled profile/stash, or reload and resume an unfinished raid. IndexedDB is the
+primary browser store with a localStorage fallback. P0's approved exception to “do not
+change the hub/main menu or the original cooperative Extraction” ends here: its
+legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
 
@@ -165,13 +166,27 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
     in-page `RaidService`. Result: all assertions pass, no `/api` traffic, zero browser
     errors. **The playability gate is green.** Remaining P0 work is persistence
     (slices 11–12); after that resume visual/look-feel work.
-11. **IndexedDB persistence** — MISSING. Upgrade the in-memory adapter so guest
-    profile, stash, and unfinished raid checkpoints survive a reload via IndexedDB.
-12. **localStorage fallback** — MISSING. If IndexedDB is missing or fails, persist
-    to localStorage without breaking the online path; add a test for the fallback.
+11. **IndexedDB persistence** — COMPLETE. `MemoryRaidStore`
+    now snapshots its accounts, stash inventory, deployment records, insurance claims
+    and active raid checkpoints to a single async backend. `PersistentRaidStore`
+    flushes after committed transactions (debounced, with an unload flush), and
+    `shared/raid-store-idb.mjs` stores the flattened snapshot under one IndexedDB key.
+    `createPersistentOfflineRaidRuntime` hydrates before constructing `RaidService`,
+    so the static client boots with the same guest, stash and unfinished raids.
+    Evidence: `tests/raid-store-persist.test.mjs` round-trip and reload/resume tests;
+    `tests/raid-browser-static-persist.mjs` reloads a settled guest and resumes an
+    active deployment from IndexedDB with zero `/api` traffic or browser errors.
+12. **localStorage fallback** — COMPLETE. If IndexedDB is
+    absent or its first read/write fails, `createFallbackSnapshotBackend` switches to
+    `shared/raid-store-local.mjs`, which JSON-persists the same snapshot under one
+    localStorage key. Both backends are absent-safe; gameplay falls back to the
+    in-memory store if neither is available. The online Node store and cookie path
+    are untouched. Evidence: fallback/degraded-write unit tests, and a browser reload/
+    resume scenario with `window.indexedDB` removed that reports
+    `storageMode:'localStorage'`.
 
-After slice 10 is COMPLETE, continue with slices 11–12 if unfinished, then resume
-look/feel and the P5–P10 items below.
+All P0 slices are COMPLETE. Resume look/feel work (alternating with gameplay) and the
+P5–P10 items below.
 
 ## How statuses are judged
 

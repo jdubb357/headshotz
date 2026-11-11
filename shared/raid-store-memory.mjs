@@ -49,6 +49,49 @@ export class MemoryRaidStore {
 
   close(){this.leases.clear();this.depth=0}
 
+  // Browser persistence snapshots. Maps are flattened to entry arrays because
+  // that is the shape IndexedDB/localStorage backends portably clone; nothing
+  // here decides raid rules, it only carries the in-memory state across reloads.
+  exportState(){
+    return structuredClone({
+      version:1,
+      accounts:[...this.accounts.entries()],
+      byUsername:[...this.byUsername.entries()],
+      inventory:[...this.inventory.entries()],
+      deployments:[...this.deployments.entries()],
+      requests:[...this.requests.entries()],
+      insurance:[...this.insurance.entries()],
+      checkpoints:[...this.checkpoints.entries()],
+      commitSerial:this.commitSerial,
+      deploymentSerial:this.deploymentSerial,
+      auditLog:this.auditLog,
+    });
+  }
+
+  importState(snapshot){
+    requireRule(snapshot&&typeof snapshot==='object'&&!Array.isArray(snapshot),'Invalid persisted raid state',500);
+    requireRule(snapshot.version===1,'Unsupported persisted raid state version',500);
+    const entries=name=>{
+      requireRule(Array.isArray(snapshot[name]),'Persisted raid state is missing '+name,500);
+      return snapshot[name].map(entry=>{
+        requireRule(Array.isArray(entry)&&entry.length===2,'Persisted raid state has a malformed '+name,500);
+        return entry;
+      });
+    };
+    this.accounts=new Map(entries('accounts'));
+    this.byUsername=new Map(entries('byUsername'));
+    this.inventory=new Map(entries('inventory'));
+    this.deployments=new Map(entries('deployments'));
+    this.requests=new Map(entries('requests'));
+    this.insurance=new Map(entries('insurance'));
+    this.checkpoints=new Map(entries('checkpoints'));
+    this.commitSerial=Number.isSafeInteger(snapshot.commitSerial)?snapshot.commitSerial:0;
+    this.deploymentSerial=Number.isSafeInteger(snapshot.deploymentSerial)?snapshot.deploymentSerial:0;
+    this.auditLog=Array.isArray(snapshot.auditLog)?structuredClone(snapshot.auditLog):[];
+    if(this.auditLog.length>this.maxAudit)this.auditLog.splice(0,this.auditLog.length-this.maxAudit);
+    return this;
+  }
+
   transaction(fn){
     this.depth++;
     try{const value=fn();if(this.depth===1)this.commitSerial++;return value}

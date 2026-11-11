@@ -15,6 +15,9 @@ import {RAID_PROTOCOL, validateAction} from './raid-protocol.mjs';
 import {RAID_WORLDS} from './raid-worlds.mjs';
 import {MATCH_POLICY,matchPreferences} from './raid-matchmaking.mjs';
 import {MemoryRaidStore} from './raid-store-memory.mjs';
+import {PersistentRaidStore,createFallbackSnapshotBackend} from './raid-store-persist.mjs';
+import {createIndexedDbBackend} from './raid-store-idb.mjs';
+import {createLocalStorageBackend} from './raid-store-local.mjs';
 import {createGuestSession, offlineSessionRoute} from './raid-session.mjs';
 
 // RaidService lives on the Node-hosted source tree but is itself node-free (the
@@ -38,21 +41,21 @@ function offlineSnapshot(runtime) {
   return runtime.raids.snapshot(runtime.account);
 }
 
-// Build the in-page authority. `now` is injectable so unit tests can advance
-// simulation deterministically; the page uses wall-clock seconds like Node.
-export function createOfflineRaidRuntime({ username = 'guest', now = () => Date.now() / 1000 } = {}) {
-  const store = new MemoryRaidStore();
+function buildOfflineRaidRuntime(store, { username = 'guest', now = () => Date.now() / 1000 } = {}) {
   const session = createGuestSession(store, { username });
   const raids = new RaidService(store, { now, owner: 'offline-' + session.account, region: 'local' });
   const matchInfo = { region: 'local', policy: MATCH_POLICY };
   return {
     mode: 'offline',
+    persistent: store instanceof PersistentRaidStore,
+    storage: () => (store instanceof PersistentRaidStore ? store.backend.getActiveName?.() || 'snapshot' : 'memory'),
     store,
     session,
     raids,
     matchInfo,
     account: session.account,
     tickTimer: null,
+    flush: () => (typeof store.flushNow === 'function' ? store.flushNow() : Promise.resolve()),
     dispose() {
       if (this.tickTimer !== null) {
         clearInterval(this.tickTimer);
@@ -62,6 +65,40 @@ export function createOfflineRaidRuntime({ username = 'guest', now = () => Date.
       store.close();
     },
   };
+}
+
+// Build the in-page authority. `now` is injectable so unit tests can advance
+// simulation deterministically; the page uses wall-clock seconds like Node.
+export function createOfflineRaidRuntime(options = {}) {
+  return buildOfflineRaidRuntime(new MemoryRaidStore(), options);
+}
+
+// Async browser factory: hydrate the durable snapshot before constructing the
+// RaidService, so active checkpoints, stash and deployment records are restored
+// before the client's first profile/raid request. IndexedDB is preferred, with a
+// localStorage fallback when it is missing or fails to open/write. If neither
+// store is available, gameplay still runs from a clean in-memory store.
+export async function createPersistentOfflineRaidRuntime({ username = 'guest', now, flushDelayMs = 80, databaseName } = {}) {
+  const backend = createFallbackSnapshotBackend(
+    createIndexedDbBackend(databaseName ? { name: databaseName } : undefined),
+    createLocalStorageBackend(),
+  );
+  const store = new PersistentRaidStore({ backend, flushDelayMs });
+  try {
+    await store.hydrate();
+  } catch {
+    try { await store.close(); } catch {}
+    return buildOfflineRaidRuntime(new MemoryRaidStore(), { username, now });
+  }
+  const runtime = buildOfflineRaidRuntime(store, { username, now });
+  try {
+    // Persist the guest account creation (and any restored-state migration)
+    // before the client starts interacting.
+    await store.flushNow();
+  } catch (error) {
+    store.lastPersistenceError = error;
+  }
+  return runtime;
 }
 
 // Start the same 50 ms simulation loop server/main.mjs runs. Returns the timer
