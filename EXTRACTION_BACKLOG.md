@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (offline record summary iteration 56). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (offline deploy plan iteration 58). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,48 @@ change the hub/main menu or the original cooperative Extraction” ends here: it
 legacy entry remains reachable from a clearly labeled secondary button.
 Do not weaken the online/Node path or move hosted-server authority onto an untrusted
 client. Offline mode is an in-page copy of the same `RaidService` rules.
+
+## Post-P0 priority — Mobile/touch HUD declutter (iteration 59, 2026-11-11)
+
+Status: COMPLETE in local/emulated-browser scope. The compact landscape touch HUD leaves
+at least 75% of the 1024x720 and 844x390 raid view unobstructed (92.2% and 82.2% measured
+by union of visible HUD surfaces). A slim translucent top strip carries HP (bar plus
+number, with a damage flash and warn/critical/downed colours), ammunition/magazine,
+raid time and backpack slots. Zone/weather/compass/field-objective copy appears transiently
+on spawn and zone/objective change, then fades; the offline connection/RTT readout stays
+hidden. A bottom-left virtual thumbstick replaces the arrow grid and drives the same
+authoritative move action; a drag on the right half turns the camera through the existing
+touch view handler. The bottom-right action cluster keeps Fire/Aim/Reload/Jump/Sprint/Slide
+at 44px+ with Interact revealed only when the authoritative snapshot has something in
+reach; Utility/Vault/Map live in a compact icon row above it and Backpack stays in its
+top-right context slot. Back to base, Account, Guide and Settings collapse behind one 44px
+raid-menu icon. Safe-area insets are applied throughout, compact surfaces do not overlap,
+and the crosshair centre remains clear. Settings offers Auto/On/Off "Compact HUD"; Auto
+enables on coarse-pointer landscape only, so desktop keyboard/mouse and portrait layouts
+keep their existing readable HUD. Evidence: `tests/raid-browser-mobile-hud.mjs` (static
+server, zero `/api`, touch emulation, compact/briefing screenshots, thumbstick authoritative
+travel, right-half yaw drag, Fire/Reload/Interact by touch, contextual Interact, menu
+collapse and overlap checks) plus
+`tests/raid-browser-hud-layout.mjs`, `tests/raid-browser-hud-theme.mjs`,
+`tests/raid-browser-accessibility.mjs`, `tests/raid-browser-static-offline.mjs` and the
+full unit suite green. Honest gap: physical-device feel on Austin's iPad/phone and
+subjective combat readability remain UNVERIFIED (P7); browser touch emulation covers geometry,
+target size and authoritative input but not sensor/pointer latency or human fatigue.
+
+Post-P0 UX resumed 2026-11-11 (iteration 58): the static offline Deploy card now previews
+an authored field objective from the shared catalogue and remembers the sector/objective
+plan on the device. The readiness line names the objective, site, hold and authoritative
+`rewardCredits`/`rewardXp`; a stale or unknown plan is discarded instead of prefilled;
+changing either selection saves the plan and a reload restores it. Deploying that plan
+sends the objective to the real in-page `RaidService`, and the offline store settles the
+authored bonus on extraction. This is base UX and device-local preference only — no loot,
+damage, extraction, reward or transport rule changed, and online pages never read or write
+the plan. Evidence: new `tests/raid-browser-static-plan.mjs` (static server, no `/api`,
+six options, selected switchyard objective, reload-restored map/objective, exact
+"+42 credits / +20 XP after a 12 s hold" copy, deployed snapshot objective matching
+`objectivesFor`, zero browser errors; screenshot `/tmp/hs-offline-plan.png`), unit tests in
+`tests/raid-offline.test.mjs` and `tests/raid-plan.test.mjs`, static readiness and P0 gates
+green. Physical-device readability remains UNVERIFIED (P7).
 
 Post-P0 UX resumed 2026-11-11 (iteration 56): the base "Raid records" card now opens
 with an honest empty state and an aggregate line computed from the authoritative
@@ -706,6 +748,15 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   destroys or invalidates it — no reload and no client rule duplication. Evidence:
   `tests/raid-browser-static-insurance-refresh.mjs`, static P0 and persistence graders,
   full suite 1240/1240; physical-device feel UNVERIFIED (P7).
+- **Offline deploy plan** — COMPLETE (iteration 58). The static base previews the selected
+  field objective from the shared catalogue (name, site, hold, authoritative credits and
+  XP) through the read-only `readiness` route, discards stale/unknown plan ids, persists the
+  sector and objective on the device, restores them after reload, and deploys them into the
+  real in-page `RaidService`; the offline store settles the authored extraction bonus.
+  No rules, loot, damage, rewards or transport changed and online ignores the preference.
+  Evidence: `tests/raid-browser-static-plan.mjs`, `tests/raid-plan.test.mjs`,
+  `tests/raid-offline.test.mjs` objective/deploy/settlement cases, P0 and readiness gates;
+  physical-device readability UNVERIFIED (P7).
 - **Vendors** — COMPLETE. Trader stock, prices, locks and starter boundary; `economy`
   tests and browser grants/loadout/rewards.
 - **Contracts** — COMPLETE. Accept active contracts, survey/elimination stages, progress
@@ -714,6 +765,17 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   tests and browser progression/ranks graders.
 - **Persistent stash** — COMPLETE. Inventory checkpoints, insurance/recovery, sell/
   recycle/craft/attach all preserve ownership and revision; loss/recycling tests.
+- **Stash rarity and appraisal readability** — COMPLETE (iteration 57). Every base
+  stash row now carries a decorative rarity gem in the shared loot palette and one
+  compact appraisal line whose weight and sale value come from the authoritative
+  `itemWeight` and the store's `profile.sellValues` (fallback `sellValue`); the
+  existing condition border/chip and all action controls are unchanged, and no
+  rules or persistence changed. Evidence: `tests/raid-browser-stash-rarity.mjs`
+  (rarity 3/4/0 seeded rows, palette colours, exact `4.0 kg · 36 cr` / `1.0 kg · 90 cr` /
+  `0.6 kg · 6 cr`, one gem/facts per row, zero `/api`, zero browser errors; screenshots
+  `/tmp/hs-stash-rarity-before.png` / `/tmp/hs-stash-rarity.png`), plus the static P0
+  gate, hud-theme and recycling graders green. Physical-device/human aesthetic
+  acceptance remains UNVERIFIED (P7).
 - **Loadout selection** — COMPLETE. Chosen gear is authoritative, earn-only and
   incompatible with recovery boundary; loadout/accessibility/rewards graders.
 - **Post-raid rewards** — COMPLETE. `#rewards` card from `/api/results` plus sign-out/

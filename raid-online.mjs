@@ -32,6 +32,7 @@ import {baseController} from './raid-base.mjs';
 import {WEAPONS,MODS,weaponStats,itemWeight,stashCapacity} from './shared/raid-catalog.mjs';
 import {sellValue} from './shared/raid-appraisal.mjs';
 import {isOfflineQuery,readServiceMeta} from './shared/raid-static.mjs';
+import {readRaidPlan,writeRaidPlan} from './shared/raid-plan.mjs';
 
 // Transport selection for the raid client. Static GitHub Pages has no `/api`,
 // so the page switches to an in-page authoritative service instead of fetch.
@@ -77,8 +78,9 @@ document.getElementById('previewTurn').onclick=()=>preview?.turn();
 const $=id=>document.getElementById(id),message=text=>$('message').textContent=text;
 const syncTouchHeight=()=>document.documentElement.style.setProperty('--touch-h',Math.round($('touch').getBoundingClientRect().height)+'px');
 new ResizeObserver(syncTouchHeight).observe($('touch'));
-const syncRaidDock=()=>{const tele=Math.round($('telemetry').getBoundingClientRect().height),toggle=Math.round($('packToggle').getBoundingClientRect().height),root=document.documentElement;root.style.setProperty('--toggle-top',(64+tele+12)+'px');root.style.setProperty('--dock-top',(64+tele+20+toggle)+'px')};
+const syncRaidDock=()=>{const root=document.documentElement,compact=root.dataset.compactHud==='true',tele=compact?0:Math.round($('telemetry').getBoundingClientRect().height),slim=compact?Math.round($('hudSlim').getBoundingClientRect().height):0,toggle=Math.round($('packToggle').getBoundingClientRect().height),top=compact?52+slim+8:64+tele+12;root.style.setProperty('--toggle-top',top+'px');root.style.setProperty('--dock-top',(top+toggle+8)+'px')};
 new ResizeObserver(syncRaidDock).observe($('telemetry'));
+new ResizeObserver(syncRaidDock).observe($('hudSlim'));
 new ResizeObserver(syncRaidDock).observe($('packToggle'));
 // The text-scale slider changes the telemetry font size before the next
 // ResizeObserver notification; re-dock immediately so the backpack toggle and
@@ -94,6 +96,10 @@ function readPackOrder(){try{return typeof localStorage==='undefined'?[]:normali
 let packOrder=readPackOrder();
 function savePackOrder(ids){packOrder=normalizePackOrder(ids);try{if(typeof localStorage!=='undefined')localStorage.setItem(PACK_ORDER_KEY,JSON.stringify(packOrder))}catch{}}
 let aimMouse=false,aimTouch=false,aiming=false,touchSprint=false;
+// Virtual thumbstick axes: x is strafe (right positive), z is forward (up
+// positive), both -1..1. It is added to the keyboard axes before the client
+// turns them into a yaw-relative world vector.
+let stickAxisX=0,stickAxisZ=0;
 let trigger,weaponWork=null,stateAt=performance.now();
 let identityUI,authChecking=false,raidGeneration=0,authGeneration=0,wire,prediction;
 
@@ -109,7 +115,7 @@ async function signedOut(text){
  const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();resetTacticalMap();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;
  view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();applyOfflineAuth();$('identity').textContent='';
  clearHitmarker();lastHitToken=0;for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','sectorStatus','hint','interactionStatus','rewardsTotals','rewardsLoot','rewardsRank','rewardsContract','rewardsOutcome','rewardsSettlement','rewardsStashUsage'])$(id).replaceChildren();$('rewards').hidden=true;$('sectorStatus').hidden=true;delete $('sectorStatus').dataset.state;
- $('restoreReady').hidden=true;$('readyMismatch').hidden=true;latencyProof=null;$('latencyStatus').textContent='Check connection before deploying.';
+ $('restoreReady').hidden=true;$('readyMismatch').hidden=true;latencyProof=null;$('latencyStatus').textContent='Check connection before deploying.';hudStatusKey='';const statusNode=$('hudStatus');if(statusNode){statusNode.hidden=true;statusNode.classList.remove('show')}$('networkStatus').hidden=false;
  message(text+(wasAlive?' Your operator remains vulnerable in the raid. Sign in and reconnect to continue.':''));
 }
 async function validateSession(){
@@ -270,6 +276,7 @@ async function refresh(){
  const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
  await baseUI.render(profile);if(generation!==authGeneration)return;
  $('resume').hidden=!profile.activeDeployment;$('deploy').disabled=!!profile.activeDeployment;
+ restoreOfflineRaidPlan();
  const records=await api('results');if(generation!==authGeneration)return;$('records').replaceChildren();
  // A compact aggregate of the authoritative settled results. This is
  // presentation only: every figure comes from the same `results` rows the
@@ -290,27 +297,51 @@ async function refresh(){
 function selectedLoadout(){const recovery=$('recovery').checked,raw=[...$('stash').querySelectorAll('input[data-equip]:checked')].map(e=>e.value),ordered=baseUI?.orderedIds(raw)||raw;return {recovery,itemIds:recovery?[]:ordered,insureIds:recovery?[]:[...$('stash').querySelectorAll('input[data-insure]:checked')].map(e=>e.value)}}
 baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch();updateDeployReadiness()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
 function updateReadyMismatch(){const member=party?.members.find(m=>m.account===profile?.id),mismatch=!!(member?.ready&&!profile?.activeDeployment&&!sameLoadout(member.loadout,selectedLoadout()));$('readyMismatch').hidden=!mismatch;$('restoreReady').hidden=!mismatch;$('readyMismatch').textContent=mismatch?'Your current selection differs from your readied loadout. Ready again or restore it before deploying.':'';if(mismatch)$('deploy').disabled=true;return mismatch}
+// Offline raid plan persistence. The sector and optional field objective are an
+// operator preference for the static base only: they prefill the Deploy card and
+// never determine loot, damage, extraction or settlement. Every id is
+// re-validated by the authoritative deploy route. Online pages never read or
+// write this preference. Failures (private mode, quota) are silent because the
+// base still works without a saved plan.
+let offlinePlanRestored=false;
+function planStorage(){try{return typeof localStorage==='undefined'?null:localStorage}catch{return null}}
+function restoreOfflineRaidPlan(){
+ if(offlinePlanRestored||!offlineMode)return;
+ offlinePlanRestored=true;
+ const plan=readRaidPlan(planStorage(),RAID_WORLDS);
+ if(!plan)return;
+ $('map').value=plan.mapId;drawMap($('mapPreview'),plan.mapId);deploymentExitPlan();deploymentObjectiveOptions();
+ $('fieldObjective').value=plan.objective||'';
+ updateDeployReadiness();
+}
+function persistOfflineRaidPlan(){
+ if(!offlineMode||!profile)return;
+ writeRaidPlan(planStorage(),{mapId:$('map').value,objective:$('fieldObjective').value||null},RAID_WORLDS);
+}
 // Offline-only deploy readiness. The verdict and numbers come from the same
 // authoritative preflight the in-page deploy route runs; the client only
 // formats them, so the base screen never duplicates raid rules. Online hosts
 // keep their squad/latency readiness and this line stays hidden.
 function updateDeployReadiness(){
  const line=$('deployReadiness');if(!line)return;
- if(!offlineMode||!offlineReadinessCheck||!profile){line.hidden=true;delete line.dataset.ready;delete line.dataset.weight;delete line.dataset.premium;return}
+ if(!offlineMode||!offlineReadinessCheck||!profile){line.hidden=true;delete line.dataset.ready;delete line.dataset.weight;delete line.dataset.premium;delete line.dataset.objective;return}
  line.hidden=false;
  if(profile.activeDeployment){
-  delete line.dataset.weight;delete line.dataset.premium;line.dataset.ready='false';
+  delete line.dataset.weight;delete line.dataset.premium;delete line.dataset.objective;line.dataset.ready='false';
   line.textContent='Operator still in raid — resume the active deployment before deploying again.';
   $('deploy').disabled=true;return;
  }
  let result;
- try{result=offlineReadinessCheck(offlineRuntime,selectedLoadout())}
+ try{result=offlineReadinessCheck(offlineRuntime,{...selectedLoadout(),mapId:$('map').value,objective:$('fieldObjective').value||null})}
  catch(error){result={ready:false,blocker:error.message||String(error)}}
+ const objective=result.objective||null;
+ if(objective)line.dataset.objective=objective.id;else delete line.dataset.objective;
+ const objectiveSuffix=objective?' · field objective '+objective.name+' ('+objective.site+') · +'+objective.rewardCredits+' credits / +'+objective.rewardXp+' XP after a '+objective.holdSeconds+' s hold':'';
  line.dataset.ready=String(!!result.ready);
  line.dataset.premium=String(result.ready?(result.premium||0):'');
  line.dataset.weight=String(result.ready&&!result.recovery?(Number(result.weight)||0).toFixed(1):'');
  line.textContent=result.ready
-  ?(result.recovery?'Recovery kit ready — free starter rifle and medkit; nothing in the kit can be banked.':'Ready to deploy — '+(Number(result.weight)||0).toFixed(1)+'/40 kg carried · insurance premium '+(result.premium||0)+' credits'+(result.insured?' · '+(result.insured===1?'1 insured gear item':result.insured+' insured gear items'):'')+'.')
+  ?(result.recovery?'Recovery kit ready — free starter rifle and medkit; nothing in the kit can be banked':'Ready to deploy — '+(Number(result.weight)||0).toFixed(1)+'/40 kg carried · insurance premium '+(result.premium||0)+' credits'+(result.insured?' · '+(result.insured===1?'1 insured gear item':result.insured+' insured gear items'):''))+objectiveSuffix+'.'
   :'Deploy blocked — '+result.blocker+'.';
  $('deploy').disabled=!result.ready;
 }
@@ -321,6 +352,9 @@ function selectedMatch(){return matchPreferences(offlineMode?{allowMixed:true,ma
 // in-page service; the online/Node path keeps every control unchanged.
 function applyOfflineMode(){
  if(!offlineMode)return;
+ // There is no network transport to report offline; the 0 ms RTT badge was
+ // never a real reading and only added clutter to the raid HUD.
+ $('networkStatus').hidden=true;
  $('squadOnlineControls').hidden=true;$('connectionControls').hidden=true;$('commsToggle').hidden=true;$('communications').hidden=true;
  $('checkLatency').disabled=true;$('voiceEnable').disabled=true;$('partyMode').disabled=true;$('partyCode').disabled=true;$('partyRole').disabled=true;
  $('voiceStatus').textContent='Voice is unavailable in offline raid mode.';
@@ -411,8 +445,8 @@ function sendHeldMovement(){if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&
 function start(){
  if(snapshot.protocol!==RAID_PROTOCOL)throw new Error('Client update required. Reload to reconnect safely.');
  if(!getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion))throw new Error('Map update required. Reload to reconnect safely.');
- wire?.close();stateAt=performance.now();controlsDisabled=false;resetTacticalMap();clearHitmarker();lastHitToken=hitToken(snapshot.self.hit);inRaid=true;raidGeneration++;document.body.dataset.inRaid='true';lastHealth=snapshot.self.hp;lastOutcome='';lastBoard=false;document.querySelector('main').inert=true;seq=snapshot.self.seq;yaw=snapshot.self.yaw;pitch=snapshot.self.pitch||0;input.clear();$('play').style.display='block';syncTouchHeight();syncRaidDock();
- view||=new RaidView($('view'));view.start(snapshot);view.applySettings(preferences.get());prediction=new LocalPrediction(snapshot);wire?.close();const generation=raidGeneration;wire=new ReliableActions({state:snapshot,request:packet=>api('action',packet,{timeoutMs:2500}),onState:(state,network)=>{if(!inRaid||generation!==raidGeneration)return;snapshot=state;stateAt=performance.now();seq=state.self.seq;prediction?.reconcile(state,network);updateUI()},onNetwork:network=>{if(inRaid&&generation===raidGeneration)$('networkStatus').textContent=network.status==='connected'?'Connected · '+Math.round(network.rttMs/10)*10+' ms RTT':network.status==='retrying'?'Connection interrupted · retrying safely':network.status==='update_required'?'Client update required · reload to reconnect safely':'Connection lost · movement prediction paused'}});setPack(!matchMedia('(pointer:coarse)').matches);packKey='';seenEvents.clear();$('events').textContent='';$('view').focus();updateUI();
+ wire?.close();stateAt=performance.now();controlsDisabled=false;resetTacticalMap();clearHitmarker();lastHitToken=hitToken(snapshot.self.hit);inRaid=true;raidGeneration++;document.body.dataset.inRaid='true';lastHealth=snapshot.self.hp;lastOutcome='';lastBoard=false;hudStatusKey='';document.querySelector('main').inert=true;seq=snapshot.self.seq;yaw=snapshot.self.yaw;pitch=snapshot.self.pitch||0;input.clear();$('play').style.display='block';syncTouchHeight();syncRaidDock();
+ view||=new RaidView($('view'));view.start(snapshot);view.applySettings(preferences.get());prediction=new LocalPrediction(snapshot);wire?.close();const generation=raidGeneration;wire=new ReliableActions({state:snapshot,request:packet=>api('action',packet,{timeoutMs:2500}),onState:(state,network)=>{if(!inRaid||generation!==raidGeneration)return;snapshot=state;stateAt=performance.now();seq=state.self.seq;prediction?.reconcile(state,network);updateUI()},onNetwork:network=>{if(inRaid&&generation===raidGeneration&&!offlineMode)$('networkStatus').textContent=network.status==='connected'?'Connected · '+Math.round(network.rttMs/10)*10+' ms RTT':network.status==='retrying'?'Connection interrupted · retrying safely':network.status==='update_required'?'Client update required · reload to reconnect safely':'Connection lost · movement prediction paused'}});setPack(!(matchMedia('(pointer:coarse)').matches||document.documentElement.dataset.compactHud==='true'));packKey='';seenEvents.clear();$('events').textContent='';$('view').focus();updateUI();
 }
 let lastFrame=0;
 function renderFrame(time){
@@ -466,6 +500,64 @@ function hudToken(metric,key,value,state){
  const val=document.createElement('b');val.className='hudVal';val.textContent=value;token.append(val);return token
 }
 function hudAlert(text,state){const alert=document.createElement('span');alert.className='hudAlert';if(state)alert.dataset.state=state;alert.textContent=text;return alert}
+// Compact touch HUD: a slim translucent strip carries the four essentials
+// (health bar, ammunition, raid clock, backpack count) while the detailed
+// telemetry panel stays mounted but visually clipped for assistive tech and
+// existing status/readout behaviour. Presentation only; every value comes from
+// the same authoritative snapshot fields the full scoreboard renders.
+const slimAmmoText=s=>{
+ if(!s.weaponId)return {text:'Unarmed',state:'unarmed'};
+ const weapon=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),cap=Math.max(0,Math.round(Number(WEAPONS[weapon?.weapon]?.mag)||0)),ammo=Math.max(0,Math.round(Number(s.ammo)||0));
+ return {text:ammo+(cap?'/'+cap:''),state:ammo===0?'critical':cap>0&&ammo<=cap*.25?'warn':'ok'};
+};
+function renderSlimHud(s,snapshot){
+ const root=document.getElementById('hudSlim');if(!root||!s)return;
+ const hp=Math.max(0,Math.min(100,Math.ceil(Number(s.hp)||0))),state=s.downed?'downed':hudVitalState(s.hp,false);
+ root.dataset.vital=state;
+ const fill=document.getElementById('slimHpFill'),track=document.getElementById('slimHpTrack');
+ if(fill)fill.style.width=Math.max(0,Math.min(100,(s.downed?0:hp)))+'%';
+ if(track){track.setAttribute('aria-valuenow',String(s.downed?0:hp));track.setAttribute('aria-label',s.downed?'Operator downed':'Operator health '+hp+' of 100')}
+ const text=document.getElementById('slimHpText');if(text)text.textContent=s.downed?'DOWNED':String(hp);
+ const ammo=document.getElementById('slimAmmo'),ammoInfo=slimAmmoText(s);
+ if(ammo){ammo.textContent=ammoInfo.text;ammo.dataset.state=ammoInfo.state}
+ const left=Math.max(0,Math.ceil(Number(snapshot.left)||0)),clock=document.getElementById('slimTimer');
+ if(clock)clock.textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+ const pack=document.getElementById('slimPack');if(pack)pack.textContent=(s.pack?.length||0)+'/'+(s.cap||0);
+}
+function flashSlimHud(){
+ const root=document.getElementById('hudSlim');if(!root)return;
+ root.classList.remove('hpFlash');void root.offsetWidth;root.classList.add('hpFlash');
+ clearTimeout(flashSlimHud.timer);flashSlimHud.timer=setTimeout(()=>root.classList.remove('hpFlash'),620);
+}
+// The compact briefing is intentionally transient: zone, clock, weather,
+// compass bearing and field objective appear on spawn or when the sector
+// state changes, then fade instead of holding a permanent banner over the
+// world. Values are the same authoritative fields the full telemetry renders.
+let hudStatusKey='',hudStatusTimer=0;
+function compactStatusBrief(s,snapshot){
+ const world=RAID_WORLDS.find(w=>w.id===snapshot.map),heading=mapBearing(s.x,s.z,s.x+Math.sin(inRaid?yaw:Number(s.yaw)||0),s.z+Math.cos(inRaid?yaw:Number(s.yaw)||0));
+ const parts=[world?.name||snapshot.map];
+ const clock=snapshot.conditions?.clock,weather=snapshot.conditions?.name||snapshot.conditions?.weather||'clear';
+ parts.push(weather+(clock?' · '+clock:''));
+ parts.push('Facing '+mapCardinal(heading)+' '+mapDegree(heading));
+ const o=snapshot.objective;
+ if(o)parts.push(o.stage==='approach'?'Objective '+o.name+' · '+o.site:o.stage==='secure'?'Holding '+o.site:o.stage==='secured'?'Objective secured · extract':'Objective '+o.stage);
+ return parts.filter(Boolean).join(' · ');
+}
+function showCompactStatus(text){
+ const node=document.getElementById('hudStatus');if(!node||!text)return;
+ clearTimeout(hudStatusTimer);
+ node.textContent=text;node.hidden=false;
+ void node.offsetWidth;node.classList.add('show');
+ hudStatusTimer=setTimeout(()=>{node.classList.remove('show');hudStatusTimer=setTimeout(()=>{node.hidden=true},520)},4800);
+}
+function syncCompactStatus(s,snapshot){
+ if(document.documentElement.dataset.compactHud!=='true'||!s)return;
+ const o=snapshot.objective,world=snapshot.map+'|'+(snapshot.conditions?.name||snapshot.conditions?.weather||'')+'|'+(o?o.stage+'|'+o.site:'');
+ if(world===hudStatusKey)return;
+ hudStatusKey=world;
+ showCompactStatus(compactStatusBrief(s,snapshot));
+}
 function renderHud(s,snapshot){
  const now=snapshot.serverTime,parts=[];
  if(s.downed)parts.push(hudToken('vital','DOWNED','· bleed '+Math.ceil(s.bleedLeft)+'s','downed'));
@@ -635,7 +727,7 @@ function updateUI(){
  const vaultBody={...({x:s.x,y:s.y||0,z:s.z,grounded:s.grounded!==false,downed:s.downed,carrying:s.carrying,vault:s.vault||null}),...(prediction?.position||{}),yaw,move:movementInput()};
  const vaultWorld=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);const vaultAhead=!!(!s.vaulting&&s.alive&&!s.downed&&!s.carrying&&vaultWorld&&vaultTarget(vaultWorld,vaultBody,vaultDirection(vaultBody)));
  $('vault').disabled=!s.alive||s.downed||s.vaulting||!vaultAhead;$('vault').textContent=s.vaulting?'Vaulting…':'Vault';
- renderHud(s,snapshot);renderVitalVignette(s);renderThreatIndicators(snapshot);renderHurtDirection(snapshot);renderHitFeedback(s);
+ renderHud(s,snapshot);renderSlimHud(s,snapshot);syncCompactStatus(s,snapshot);renderVitalVignette(s);renderThreatIndicators(snapshot);renderHurtDirection(snapshot);renderHitFeedback(s);
  view?.sync(snapshot);$('spectate').hidden=s.alive||!snapshot.camera;if(snapshot.camera)$('spectate').textContent='Watching '+snapshot.camera.name+' · next squadmate';
  for(const event of snapshot.events||[])if(!seenEvents.has(event.id)){
   seenEvents.add(event.id);const text=event.text||event.message||event.kind||event.type;$('events').textContent=text;
@@ -650,6 +742,10 @@ function updateUI(){
  const downed=snapshot.players.filter(p=>p.team===s.team&&p.downed&&(distance(p,s)<=2||p.rescue?.carriedByYou));
  nearest=extractionInteractionTarget(snapshot.exits,s,snapshot.serverTime,4)||[...sources,...snapshot.exits.filter(e=>distance(e,s)<4)].sort((a,b)=>distance(a,s)-distance(b,s))[0];
  updateInteraction(s);
+ // Compact HUD keeps Interact out of the way until something is actually
+ // within reach. Desktop and portrait layouts retain the permanent control;
+ // keyboard E and the field-guide hint are unchanged in both cases.
+ $('interact').hidden=document.documentElement.dataset.compactHud==='true'&&(!nearest||disabled);
  const nextPackKey=JSON.stringify([s.alive,s.downed,s.role||null,s.weaponId,s.equipment,s.pack,s.secure,sources.map(c=>c.source==='door'?[c.id,c.closed,c.locked]:[c.id,c.open,c.items]),(snapshot.squad||[]).map(q=>[q.id,q.name,q.alive,q.downed,q.hp,q.role||null]),downed.map(p=>[p.id,p.name,p.rescue,(snapshot.squad||[]).find(q=>q.id===p.id)?.role||null]),[...s.equipment,...s.pack].filter(it=>it.kind==='med').map(it=>s.combatVersion!==2||!!medicalNeed(s,it,snapshot.serverTime)&&snapshot.serverTime>=s.nextMedicalAt)]);
  if(nextPackKey!==packKey){packKey=nextPackKey;renderPack(s,sources,downed)}
  updateExitCards(snapshot.serverTime);
@@ -727,7 +823,13 @@ function renderPack(s,sources,downed){
  for(const exit of snapshot.exits||[])$('pack').append(exitCard(exit,snapshot.serverTime));
  restoreInventoryFocus($('pack'),priorFocus);
 }
-function movementInput(){const forward=Number(input.held('forward'))-Number(input.held('back')),side=Number(input.held('right'))-Number(input.held('left'));return {x:Math.sin(yaw)*forward-Math.cos(yaw)*side,z:Math.cos(yaw)*forward+Math.sin(yaw)*side}}
+function movementInput(){
+ let forward=Number(input.held('forward'))-Number(input.held('back'))+stickAxisZ;
+ let side=Number(input.held('right'))-Number(input.held('left'))+stickAxisX;
+ const len=Math.hypot(forward,side);
+ if(len>1){forward/=len;side/=len}
+ return {x:Math.sin(yaw)*forward-Math.cos(yaw)*side,z:Math.cos(yaw)*forward+Math.sin(yaw)*side};
+}
 async function action(data){
  if(!inRaid||!wire)throw new Error('Raid input canceled after leaving this session.');
  const actor=wire,generation=raidGeneration,doorBefore=data?.type==='door'?snapshot.doors?.find(d=>d.id===data.doorId):null;
@@ -788,7 +890,7 @@ setInterval(async()=>{
 function controlAction(kind){
  if(kind==='map')return toggleTacticalMap();
  if(kind==='settings')return preferences.open();if(kind==='help')return $('helpOpen').click();if(kind==='communications')return $('commsToggle').click();if(kind==='pack')return setPack($('pack').hidden,true);
- if(kind==='status'){$('statusAnnouncement').textContent=$('hud').textContent+'. '+$('conditions').textContent+'. '+$('hint').textContent+'. '+$('interactionStatus').textContent+'. '+$('networkStatus').textContent;return}
+ if(kind==='status'){const parts=[$('hud').textContent,$('conditions').textContent,$('hint').textContent,$('interactionStatus').textContent];if(!$('networkStatus').hidden)parts.push($('networkStatus').textContent);$('statusAnnouncement').textContent=parts.filter(Boolean).join('. ');return}
  if(kind==='ping')return run(()=>action({type:'ping',kind:$('pingKind').value}));
  if(kind==='fire')return trigger.press('keyboard');if(kind==='jump'){prediction?.jump();return run(()=>action({type:'jump'}))}
  if(kind==='vault'){
@@ -807,6 +909,11 @@ function controlAction(kind){
 function packToggleLabel(open){const compact=innerWidth<=340;$('packToggle').textContent=(compact?(open?'Close':'Pack'):(open?'Hide backpack':'Backpack'))+' / '+keyName(preferences.get().bindings.pack);$('packToggle').setAttribute('aria-label',open?'Close backpack':'Backpack')}
 function setPack(open,focus=false){$('play').dataset.packOpen=String(open);if(open)input.clear();$('pack').hidden=!open;$('packToggle').setAttribute('aria-expanded',String(open));packToggleLabel(open);if(focus){if(open)($('pack').querySelector('button')||$('pack')).focus();else $('view').focus()}}
 matchMedia('(max-width:340px)').addEventListener('change',()=>packToggleLabel(!$('pack').hidden));
+// Reveal the world when a device becomes a landscape touch layout: the backpack
+// panel otherwise starts open from a previous mouse session and hides most of
+// the compact HUD. Opening it again stays a deliberate player action.
+matchMedia('(pointer:coarse)').addEventListener('change',()=>{if(inRaid&&document.documentElement.dataset.compactHud==='true'&&!$('pack').hidden)setPack(false)});
+addEventListener('raidsettingschange',()=>{if(inRaid&&document.documentElement.dataset.compactHud==='true'&&!$('pack').hidden)setPack(false)});
 $('packToggle').onclick=()=>setPack($('pack').hidden,true);
 // Backpack rows support pointer drag: dropping on another pack row persists a
 // presentation-only order, and dropping on a squadmate drop zone hands the
@@ -879,6 +986,19 @@ $('sprint').onclick=()=>{touchSprint=!touchSprint;$('sprint').setAttribute('aria
 $('slide').onclick=()=>controlAction('slide');
 $('fire').onclick=e=>{if(e.detail===0)trigger.tap()};$('reload').onclick=()=>run(()=>action({type:'reload'}));$('interact').onclick=()=>run(interact);
 $('leave').onclick=()=>run(async()=>{const alive=snapshot.self.alive;inRaid=false;wire?.close();wire=null;prediction=null;raidGeneration++;resetTacticalMap();clearHitmarker();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;await comms.voice.leave();comms.update(null);input.clear();document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;view?.clear();snapshot=null;message(alive?'Your operator remains in the raid. Reconnect within 45 seconds to continue.':'Raid recorded.');await refresh()});
+// Compact raid menu: one icon holds Back to base, Account, Guide and Settings.
+function setRaidMenu(open){
+ if(!inRaid||document.documentElement.dataset.compactHud!=='true')open=false;
+ $('raidMenu').setAttribute('aria-expanded',String(open));
+ $('raidMenuPanel').classList.toggle('open',open);
+ if(open)$('raidMenuAccount').hidden=$('accountOpen').hidden;
+}
+$('raidMenu').onclick=()=>setRaidMenu($('raidMenu').getAttribute('aria-expanded')!=='true');
+$('raidMenuBack').onclick=()=>{$('raidMenuBack').disabled=!!$('leave').disabled;$('leave').click();setRaidMenu(false)};
+$('raidMenuAccount').onclick=()=>{setRaidMenu(false);$('accountOpen').click()};
+$('raidMenuGuide').onclick=()=>{setRaidMenu(false);$('helpOpen').click()};
+$('raidMenuSettings').onclick=()=>{setRaidMenu(false);$('settingsOpen').click()};
+document.addEventListener('pointerdown',event=>{if(!event.target.closest?.('#raidMenu,#raidMenuPanel'))setRaidMenu(false)});
 const MAP_PALETTES={
  industrial:{ground:'#404643',road:'#2c3233',sidewalk:'#85857b',plaza:'#6f6b5e',field:'#56634a',window:'#f6cf7e',tree:'#3c6b3d',hedge:'#355934'},
  wilderness:{ground:'#566448',road:'#3d4438',sidewalk:'#898b79',plaza:'#6f6b58',field:'#617650',window:'#f5d78b',tree:'#2f6235',hedge:'#2f5431'},
@@ -905,6 +1025,41 @@ let look=null;
 $('view').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){e.preventDefault();look={id:e.pointerId,x:e.clientX,y:e.clientY};$('view').setPointerCapture(e.pointerId);view?.audio.resume()}});
 $('view').addEventListener('pointermove',e=>{if(preferences.isModal()||!$('communications').hidden){look=null;return}if(look?.id===e.pointerId){aim(e.clientX-look.x,e.clientY-look.y,.006);look={id:e.pointerId,x:e.clientX,y:e.clientY}}});
 for(const type of ['pointerup','pointercancel'])$('view').addEventListener(type,()=>look=null);
+// Bottom-left virtual thumbstick for the compact touch HUD. It replaces the
+// arrow buttons with a continuous analogue vector; the same vector feeds the
+// authoritative move action, so prediction and the server see one source.
+{const pad=$('stick'),knob=$('stickKnob');
+ if(pad&&knob){
+  let pointer=null,origin=null,radius=38;
+  const apply=(dx,dy)=>{
+   const length=Math.hypot(dx,dy),scale=length>radius?radius/length:1;
+   const x=dx*scale,y=dy*scale;
+   stickAxisX=x/radius;stickAxisZ=-y/radius;
+   knob.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px)';
+   sendHeldMovement();
+  };
+  const release=event=>{
+   if(pointer===null||event&&pointer!==event.pointerId)return;
+   pointer=null;origin=null;stickAxisX=0;stickAxisZ=0;
+   knob.style.transform='';sendHeldMovement();
+  };
+  pad.addEventListener('pointerdown',event=>{
+   if(!inRaid||preferences.isModal()||!$('communications').hidden||mapOpen)return;
+   event.preventDefault();pointer=event.pointerId;
+   const rect=pad.getBoundingClientRect();
+   origin={x:rect.left+rect.width/2,y:rect.top+rect.height/2};
+   radius=Math.max(28,Math.min(44,rect.width/2-8));
+   pad.setPointerCapture?.(event.pointerId);
+   apply(event.clientX-origin.x,event.clientY-origin.y);
+   view?.audio.resume();
+  });
+  pad.addEventListener('pointermove',event=>{
+   if(pointer!==event.pointerId||!origin||(event.buttons===0&&event.pointerType!=='touch'))return;
+   event.preventDefault();apply(event.clientX-origin.x,event.clientY-origin.y);
+  });
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(type,release);
+ }
+}
 function mapBackground(world,n,compact=false){
  // Live tactical minimaps are CSS-downscaled to 80–100 px, so their per-pixel
  // grain and rooftop microdetail dissolve into visual static; the compact
@@ -1328,7 +1483,7 @@ function deploymentObjectiveOptions(){
  for(const objective of list){const option=document.createElement('option');option.value=objective.id;option.textContent=objective.name+' · hold '+objective.holdSeconds+' s · +'+objective.rewardCredits+' credits, +'+objective.rewardXp+' XP';select.append(option)}
  select.value=list.some(objective=>objective.id===current)?current:'';
 }
-$('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan();deploymentObjectiveOptions()});deploymentExitPlan();deploymentObjectiveOptions();
+$('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan();deploymentObjectiveOptions();persistOfflineRaidPlan();updateDeployReadiness()});$('fieldObjective').addEventListener('change',()=>{persistOfflineRaidPlan();updateDeployReadiness()});deploymentExitPlan();deploymentObjectiveOptions();
 drawMap($('mapPreview'),$('map').value);
 
 let lastHealth=100,lastOutcome='',lastBoard=false,lastWounds='',lastHitToken=0,hitmarkerTimer=0;
@@ -1360,7 +1515,7 @@ function woundStatus(s,at=snapshot.serverTime){return s.alive&&!s.downed?[s.woun
 function updateInteraction(s){
  const boardExit=s.board?snapshot.exits?.find(e=>e.id===s.board.exit):null,boardLink=Math.min(SQUAD_LINK.maxCompanions,Math.max(0,Math.trunc(Number(boardExit?.squadNear)||0))),searching=snapshot.caches.find(c=>c.searchRemaining!=null)||(snapshot.bodies||[]).find(b=>b.searchRemaining!=null),searchTarget=searching?(searching.label||searching.name||'target'):'',text=s.board?'Boarding · '+Math.max(0,Math.ceil(s.board.until-snapshot.serverTime))+'s · keep still in the exit'+(boardLink?' · squad link +'+squadLinkBonus(boardLink)+' credits':''):s.reviving?'Reviving squadmate · '+Math.max(0,Math.ceil(s.reviving.until-snapshot.serverTime))+'s · keep still':searching?'Searching '+searchTarget+' · '+Math.ceil(searching.searchRemaining)+'s · keep still':s.downed?'Downed · wait for a squadmate to revive or carry you':'';
  if($('interactionStatus').textContent!==text)$('interactionStatus').textContent=text;
- if(s.hp<lastHealth){if(preferences.get().captions)$('events').textContent='Taking damage · '+Math.max(0,Math.ceil(s.hp))+' health';if(s.hp<=30||s.downed)$('statusAnnouncement').textContent=s.downed?'You are downed. Call for help.':'Low health. '+Math.ceil(s.hp)+' remaining.'}
+ if(s.hp<lastHealth){flashSlimHud();if(preferences.get().captions)$('events').textContent='Taking damage · '+Math.max(0,Math.ceil(s.hp))+' health';if(s.hp<=30||s.downed)$('statusAnnouncement').textContent=s.downed?'You are downed. Call for help.':'Low health. '+Math.ceil(s.hp)+' remaining.'}
  const wounds=woundStatus(s);if(wounds&&wounds!==lastWounds){$('statusAnnouncement').textContent=wounds;if(preferences.get().captions)$('events').textContent=wounds}else if(!wounds&&lastWounds&&s.alive&&!s.downed){$('statusAnnouncement').textContent='No active bleeding or leg injury.';if(preferences.get().captions)$('events').textContent='No active bleeding or leg injury.'}lastWounds=wounds;
  if(s.result?.outcome&&s.result.outcome!==lastOutcome){lastOutcome=s.result.outcome;$('statusAnnouncement').textContent='Raid '+lastOutcome+'. Back to base is available.';$('leave').focus()}
  if(!!s.board!==lastBoard){lastBoard=!!s.board;$('statusAnnouncement').textContent=s.board?'Boarding started.'+(boardLink?' Squad link-up bonus active with '+boardLink+' squadmate'+(boardLink===1?'':'s')+'.':'')+' Stay in the exit.':'Boarding ended.'}

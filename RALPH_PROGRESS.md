@@ -6525,3 +6525,227 @@ presentation-only Extraction Raids improvement (for example base stash rows or
 in-raid cue polish), keeping the records-summary, rain-splash, rain-volume,
 vitality-vignette, exit-signal, insurance-refresh, readiness, static P0 and
 base-economy graders green.
+
+## Iteration 57 — Base stash rarity gem and authoritative appraisal line (2026-11-11)
+
+### Acceptance criteria
+
+1. Every base stash row derives its rarity index from the authoritative item
+   field (clamped 0–5), shows a decorative rarity gem tinted in the shared loot
+   palette, and keeps the existing condition grade border/chip and every action
+   control.
+2. Each row shows one compact appraisal line: weight from `itemWeight` and sale
+   value from the authoritative profile `sellValues` (falling back to
+   `sellValue`), formatted like the backpack chips; the values match the store's
+   own sale arithmetic for weapon, valuable and material stacks.
+3. Presentation-only: no raid rules, rewards, loot, AI, extraction, transport,
+   store or persistence changes; the rarity word already in the row label is
+   unchanged.
+4. A static-file browser grader proves rarity index, palette colour, decorative
+   `aria-hidden`, exact facts text for seeded items, one gem/facts line per row,
+   zero `/api` traffic and zero browser errors, and records inspectable
+   before/after screenshots; the static P0 gate, hud-theme and recycling graders
+   stay green.
+
+### Implementation — iteration 57 (completed)
+
+- `raid-base.mjs`: each stash row now exposes `data-rarity` from the
+  authoritative item, prepends a decorative `.rarityGem`, and appends a
+  `.stashFacts` line built from `itemWeight(it)` and the store's
+  `profile.sellValues[it.id]` (with `sellValue(it)` as a safe fallback). No
+  selection, insurance, repair, sale, recycle, split/merge, filter or
+  persistence path was changed.
+- `raid-online.html`: added presentation-only styles for the 10 px rotated gem
+  using the same palette as backpack/loot cues (common grey through special
+  red), plus a muted `.stashFacts` line and a hover lift. Existing condition
+  border, grade chip and controls are untouched.
+- New `tests/raid-browser-stash-rarity.mjs`: plain static-file server with no
+  `/api`, boots offline, seeds rarity-3 SMG, rarity-4 valuable and rarity-0 steel
+  through the authoritative store transaction + snapshot flush, reloads, and
+  asserts row rarity, gem colour/rotation/shadow, one-line facts exact against
+  Node `itemWeight`/`sellValue`, one gem/facts per row, zero `/api`, zero browser
+  errors. Screenshots `/tmp/hs-stash-rarity-before.png` and
+  `/tmp/hs-stash-rarity.png` inspected (purple Epic gem, `4.0 kg · 36 cr`).
+
+### Commands/results (2026-11-11)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-stash-rarity.mjs` → PASS:
+  `{"rarityRows":7,"gems":7,"facts":7,"rare":{"rarity":"3","facts":"4.0 kg · 36 cr"},
+  "epic":{"rarity":"4","facts":"1.0 kg · 90 cr"},"common":{"rarity":"0","facts":"0.6 kg · 6 cr"},
+  "noApiTraffic":true,"browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-hud-theme.mjs` → PASS
+  (`baseTheme:true`, `controlIdsIntact:true`, `browserErrors:[]`).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-recycling.mjs` → PASS
+  (all stash controls, condition grades, no browser errors).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (static P0 deploy/move/hit/loot/extract, zero `/api`, zero errors).
+- `node --test tests/*.test.mjs` → 1243 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — seeded rows show `data-rarity` plus palette-tinted, decorative gems;
+   condition borders/chips and all controls remain.
+2. PASS — facts match `itemWeight`/`sellValue` for all three seeded items and the
+   profile's own `sellValues`; formatting matches the backpack appraisal chips.
+3. PASS — raid-base/HTML presentation only; no rules, rewards, loot, AI,
+   extraction, transport, store or persistence changed.
+4. PASS — new static grader green and the P0/hud-theme/recycling regressions green.
+
+**Status:** Base stash rarity/appraisal readability is COMPLETE in local
+presentation scope. Human aesthetic acceptance, physical-device readability and
+live-raid feel remain UNVERIFIED (P7); P0 stays complete and green.
+
+Next action: iteration 58 takes a gameplay/persistence slice on the offline path
+(for example an authoritative offline field-objective deploy option or another
+store-backed base control), keeping the stash-rarity, static P0, records,
+insurance-refresh and persistence graders green. Iteration 59 can then return to
+a visual/look-feel slice.
+
+## Iteration 58 — Offline deploy plan: authoritative field-objective readiness and device persistence (2026-11-11)
+
+### Acceptance criteria
+
+1. The static offline Deploy card previews the selected field objective from the
+   shared catalogue: objective id, name, site, authored hold duration and the
+   authoritative `rewardCredits`/`rewardXp`, with stale or unknown ids blocked by
+   the same messages deploy uses and never prefilled into a deployment.
+2. The base remembers the chosen sector and field objective on the device, a
+   reload restores them without `/api`, and the restored selection updates the
+   readiness line in place. Damaged, stale or unavailable storage silently falls
+   back to no plan.
+3. Deploying the planned objective runs through the real in-page `RaidService`,
+   and an extraction after the authoritative hold pays the authored credits and
+   XP in settlement. No loot, damage, extraction, reward or transport rule moves
+   to the client, and the online/Node path never reads or writes the plan.
+4. A static-file browser grader proves catalogue option values, readiness copy,
+   reload-restored map/objective, deployed snapshot fields, zero `/api` traffic
+   and zero browser errors with inspectable screenshots; the static readiness and
+   P0 playability gates stay green.
+
+### Implementation — iteration 58 (completed)
+
+- `shared/raid-plan.mjs` (new): DOM-free `resolveRaidPlan`/`readRaidPlan`/
+  `writeRaidPlan` for a `{mapId, objective}` device preference. Sectors must exist
+  and objectives must be authored for that sector; malformed saves are discarded.
+- `shared/raid-offline.mjs`: `offlineReadiness` now accepts the optional plan on
+  the existing read-only `readiness` route, validates it with the same shared
+  catalogue deploy uses, and returns the objective reward summary without
+  touching the store.
+- `raid-online.mjs`: offline-only restore/persist of the plan (localStorage,
+  silent failure), change hooks on `#map` and `#fieldObjective`, and an
+  objective suffix on the readiness line driven by the authoritative result. No
+  changes to deploy payloads, action routing or online behaviour.
+- Tests: new `tests/raid-plan.test.mjs` (resolution/scoping/round-trip/fallbacks),
+  new readiness and offline objective tick/settlement cases in
+  `tests/raid-offline.test.mjs`, and new `tests/raid-browser-static-plan.mjs`
+  (static server, no `/api`).
+
+### Commands/results (2026-11-11)
+
+- `node --test tests/raid-plan.test.mjs tests/raid-offline.test.mjs` → 18/18 PASS.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-plan.mjs` → PASS:
+  `{"staticServer":true,"noApiTraffic":true,"objectiveOptions":6,
+  "selectedMap":"switchyard","selectedObjective":"switchyard-field-freight-office",
+  "readinessCopy":"field objective Secure Freight Office (Freight Office) · +42 credits / +20 XP after a 12 s hold.",
+  "restoredMap":"switchyard","restoredObjective":"switchyard-field-freight-office",
+  "deployedObjective":"switchyard-field-freight-office","deployedReward":{"credits":42,
+  "xp":20,"holdSeconds":12},"screenshot":"/tmp/hs-offline-plan.png","browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-readiness.mjs` → PASS
+  (blocked → ready → insured → recovery → cleared → active, zero `/api`, zero errors).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (deploy/move/hit/loot/extract, zero `/api`, zero errors).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-offline-dispatch.mjs` → PASS.
+- `node --test tests/*.test.mjs` → 1246 pass, 1 known intermittent
+  `matchmaking.test.mjs` ECONNRESET; isolated rerun → 11/11 pass.
+
+### Criteria status
+
+1. PASS — readiness copy matches the catalogue for switchyard and unknown/invalid
+   ids fail closed without deploying.
+2. PASS — reload-restored map/objective verified with no `/api` traffic; stale and
+   unavailable storage fall back safely in `tests/raid-plan.test.mjs`.
+3. PASS — deployed snapshot owns the objective; offline tick secures it and
+   settlement pays base credits plus the authored objective credits/XP.
+4. PASS — new static grader and readiness/P0/dispatch regressions are green.
+
+**Status:** Offline deploy planning is COMPLETE in local UX/persistence scope.
+Human feel on a physical phone remains UNVERIFIED (P7); P0 stays complete.
+
+## Iteration 59 — Mobile/touch HUD declutter (2026-11-11)
+
+### Acceptance criteria
+
+1. Compact landscape review at 1024x720 and 844x390 leaves at least 75% of the
+   raid view unobstructed by visible HUD surfaces, with no compact control
+   overlapping another or the crosshair centre.
+2. The status panel is replaced by a slim translucent top strip (HP bar/number,
+   ammo, timer, pack), zone/weather/compass/objective briefing is transient on
+   spawn/zone change, the offline connection readout is hidden, and damage reads
+   as the existing red edge vignette plus an HP bar flash rather than a text line.
+3. Touch controls are mobile-shooter style: a bottom-left virtual thumbstick
+   replaces arrow/turn buttons, a right-half drag turns the camera, the
+   bottom-right cluster keeps Fire/Aim/Reload/Jump/Sprint/Slide at 44px+, Interact
+   only when the authoritative snapshot has something in reach, Utility/Map/Vault
+   are compact row icons, Backpack is a context slot, and Back to base/Account/
+   Guide/Settings collapse behind one 44px menu icon.
+4. Desktop keyboard/mouse and portrait layouts keep their existing readable HUD;
+   Settings persists an Auto/On/Off Compact HUD choice; safe-area insets apply.
+5. `tests/raid-browser-mobile-hud.mjs` covers both target sizes with touch
+   emulation, zero `/api`, authoritative joystick movement, right-drag yaw,
+   Fire/Reload/Interact by touch, screenshots and no browser errors.
+
+### Implementation — iteration 59 (completed)
+
+- `shared/raid-settings.mjs`: added `hudLayout: 'auto'|'compact'|'full'` (default
+  `auto`) and normalization.
+- `raid-settings-ui.mjs`: Auto enables only on coarse-pointer landscape; explicit
+  Settings wins; exposes `effective().compactHud` and `html[data-compact-hud]`.
+- `raid-online.html`: compact HUD CSS and markup — slim strip, transient status,
+  virtual thumbstick, reduced action cluster, tool row, raid menu, safe areas,
+  clipped telemetry so existing text contracts stay mounted.
+- `raid-online.mjs`: authoritative slim render, transient briefing keyed to
+  map/weather/objective change, HP flash, thumbstick axes added to
+  `movementInput()`, contextual compact Interact, offline network readout hidden,
+  compact-aware dock calculation, and raid-menu wiring.
+- `tests/raid-browser-mobile-hud.mjs`: static server with `/api` 404, two
+  viewport sizes, union coverage measurement,
+  thumbstick drag/wait, right-half camera drag, touch Fire/Reload/Interact,
+  contextual Interact check, menu open/close, overlap/crosshair checks.
+
+### Commands/results (2026-11-11)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-mobile-hud.mjs` → PASS:
+  unobstructed 1024x720 0.9215, 844x390 0.8224; thumbstickMoved, rightDragTurned,
+  interactContextual, raidMenuCollapsed, fire/reload/interact by touch; screenshots
+  `/tmp/hs-mobile-hud-1024x720.png`, `/tmp/hs-mobile-hud-844x390.png`,
+  `/tmp/hs-mobile-hud-briefing.png`; browserErrors `[]`.
+- `node tests/raid-browser-hud-layout.mjs` → PASS (desktop plus mobile portrait
+  docking including 320x480, zero overlaps/obscured/undersized targets).
+- `node tests/raid-browser-hud-theme.mjs` → PASS, `touchTargets:true`.
+- `node tests/raid-browser-accessibility.mjs` → PASS (remapping, dialogs,
+  touch boarding, mobile aim, reduced motion, zero overflow/errors).
+- `node tests/raid-browser-static-offline.mjs` → PASS (deploy/move/hit/loot/extract,
+  zero `/api`, zero browser errors).
+- `node --test tests/*.test.mjs` → 1246 pass / 1 known intermittent matchmaking
+  ECONNRESET; isolated rerun `node --test tests/matchmaking.test.mjs` → 11/11 pass.
+
+### Criteria status
+
+1. PASS — measured in the browser grader at both target sizes; overlap and
+   crosshair-centre assertions are green.
+2. PASS — slim strip, transient briefing hide, hidden offline network readout and
+   HP flash shipped. The damage text still exists in the clipped telemetry for
+   screen-reader contracts, but no damage text line is visible in compact mode.
+3. PASS — all listed controls are present behind the compact-only rules; joystick
+   and camera drag are verified against the authoritative snapshot.
+4. PASS — compact is gated to coarse pointer landscape (or explicit setting);
+   desktop/portrait HUD layout, theme and accessibility graders stay green.
+5. PASS — `tests/raid-browser-mobile-hud.mjs` green with screenshots and no errors.
+
+**Status:** Mobile/touch HUD declutter is COMPLETE in emulated-browser geometry
+and authoritative-input scope. Physical-device feel on Austin's iPad/phone and
+subjective combat readability remain UNVERIFIED (P7, blocked on hardware).
+
+Next action: iteration 60 returns to the alternating gameplay/persistence and
+visual-quality slices, keeping the mobile HUD, offline-plan, readiness, static P0,
+records and insurance-refresh graders green.

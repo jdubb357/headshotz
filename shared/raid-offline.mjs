@@ -20,6 +20,7 @@ import {PersistentRaidStore,createFallbackSnapshotBackend} from './raid-store-pe
 import {createIndexedDbBackend} from './raid-store-idb.mjs';
 import {createLocalStorageBackend} from './raid-store-local.mjs';
 import {createGuestSession, offlineSessionRoute} from './raid-session.mjs';
+import {objectiveFor} from './raid-objectives.mjs';
 
 // RaidService lives on the Node-hosted source tree but is itself node-free (the
 // crypto/rules primitives were moved to shared/ in slices 2–3). Importing it
@@ -47,8 +48,35 @@ function offlineSnapshot(runtime) {
 // Read-only deploy readiness preview. It runs the same authoritative
 // MemoryRaidStore.preflightLoadout rules the deploy route uses, so the base
 // screen can say why a selection cannot deploy without duplicating game rules
-// on the client. It never mutates the store and never deploys anything.
+// on the client. The optional `mapId`/`objective` plan is validated against the
+// same shared catalogue the deploy route consults, and its reward summary is
+// surfaced so the operator can see what the hold is worth. It never mutates the
+// store and never deploys anything.
 export function offlineReadiness(runtime, loadout = {}) {
+  const mapId = loadout && typeof loadout.mapId === 'string' ? loadout.mapId : null;
+  const objectiveId = loadout && loadout.objective != null ? loadout.objective : null;
+  let objective = null;
+  try {
+    if (mapId != null) requireRule(RAID_WORLDS.some(world => world.id === mapId), 'Choose a valid map', 400);
+    if (objectiveId != null) {
+      requireRule(typeof objectiveId === 'string' && /^[a-z0-9-]{1,80}$/.test(objectiveId), 'Invalid field objective', 400);
+      const world = RAID_WORLDS.find(candidate => candidate.id === mapId);
+      requireRule(world, 'Choose a valid map', 400);
+      const definition = objectiveFor(world, objectiveId);
+      requireRule(definition, 'Unknown field objective', 400);
+      objective = {
+        id: definition.id,
+        name: definition.name,
+        site: definition.site,
+        holdSeconds: definition.holdSeconds,
+        rewardCredits: definition.rewardCredits,
+        rewardXp: definition.rewardXp,
+      };
+    }
+  } catch (error) {
+    if (error instanceof RuleError) return { ready: false, blocker: error.message, status: error.status || 400, objective: null };
+    throw error;
+  }
   try {
     const result = runtime.store.preflightLoadout(runtime.account, loadout);
     return {
@@ -58,9 +86,10 @@ export function offlineReadiness(runtime, loadout = {}) {
       weight: result.equipment.reduce((total, it) => total + itemWeight(it), 0),
       insured: result.insured.length,
       equipped: result.equipment.length,
+      objective,
     };
   } catch (error) {
-    if (error instanceof RuleError) return { ready: false, blocker: error.message, status: error.status || 400 };
+    if (error instanceof RuleError) return { ready: false, blocker: error.message, status: error.status || 400, objective };
     throw error;
   }
 }

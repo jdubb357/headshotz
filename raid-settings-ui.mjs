@@ -3,12 +3,17 @@ const STORAGE='headshotz.raid.settings.v1';
 export function settingsUI({onChange}){
  const $=id=>document.getElementById(id);let value;try{value=normalizeSettings(JSON.parse(localStorage.getItem(STORAGE)||'null'))}catch{value=normalizeSettings(null)}
  let capture=null,returnFocus=null;const media=matchMedia('(prefers-reduced-motion: reduce)');
- const effective=()=>({...value,reduced:value.reducedMotion==='on'||value.reducedMotion==='system'&&media.matches});
- function apply(){document.documentElement.style.setProperty('--hud-scale',value.hudScale);document.documentElement.dataset.hudLarge=String(value.hudScale>1.2);document.documentElement.dataset.reducedMotion=String(effective().reduced);document.documentElement.dataset.highContrast=String(value.highContrast);$('welcome').hidden=value.onboardingDismissed;onChange?.(effective());dispatchEvent(new Event('raidsettingschange'))}
+ // Compact HUD auto-detection: a coarse pointer held in landscape (iPad/phone
+ // Safari and Chrome) gets the slim touch layout; explicit Settings wins.
+ const compactQuery=matchMedia('(pointer:coarse)');
+ const automaticCompact=()=>compactQuery.matches&&innerWidth>innerHeight;
+ const compactActive=()=>value.hudLayout==='compact'||(value.hudLayout==='auto'&&automaticCompact());
+ const effective=()=>({...value,reduced:value.reducedMotion==='on'||value.reducedMotion==='system'&&media.matches,compactHud:compactActive()});
+ function apply(){document.documentElement.style.setProperty('--hud-scale',value.hudScale);document.documentElement.dataset.hudLarge=String(value.hudScale>1.2);document.documentElement.dataset.reducedMotion=String(effective().reduced);document.documentElement.dataset.highContrast=String(value.highContrast);document.documentElement.dataset.compactHud=String(compactActive());$('welcome').hidden=value.onboardingDismissed;onChange?.(effective());dispatchEvent(new Event('raidsettingschange'))}
  function save(){try{localStorage.setItem(STORAGE,JSON.stringify(value));$('settingsStatus').textContent='Settings saved on this device.'}catch{$('settingsStatus').textContent='Browser storage unavailable. Settings apply for this visit.'}apply()}
  function render(){
   for(const [id,key]of Object.entries({sensitivity:'sensitivity',hudScale:'hudScale',fieldOfView:'fov',sfxVolume:'sfxVolume',settingsVoiceVolume:'voiceVolume'})){$(id).value=value[key];$(id+'Value').textContent=value[key]}
-  $('invertY').checked=value.invertY;$('viewMode').value=value.viewMode;$('reduceMotion').value=value.reducedMotion;$('captions').checked=value.captions;$('highContrast').checked=value.highContrast;
+  $('invertY').checked=value.invertY;$('viewMode').value=value.viewMode;$('reduceMotion').value=value.reducedMotion;$('captions').checked=value.captions;$('highContrast').checked=value.highContrast;$('hudLayout').value=value.hudLayout;
   for(const b of $('bindings').querySelectorAll('[data-bind]')){b.textContent=keyName(value.bindings[b.dataset.bind]);b.setAttribute('aria-label',ACTIONS[b.dataset.bind]+': '+b.textContent+'. Change key')}
   for(const e of document.querySelectorAll('[data-key-label]'))e.textContent=keyName(value.bindings[e.dataset.keyLabel]);
  }
@@ -20,6 +25,10 @@ export function settingsUI({onChange}){
  for(const [id,key]of Object.entries({invertY:'invertY',captions:'captions',highContrast:'highContrast'}))$(id).onchange=()=>{value[key]=$(id).checked;save()};
  $('reduceMotion').onchange=()=>{value.reducedMotion=$('reduceMotion').value;save()};
  $('viewMode').onchange=()=>{value=normalizeSettings({...value,viewMode:$('viewMode').value});save()};
+ $('hudLayout').onchange=()=>{value=normalizeSettings({...value,hudLayout:$('hudLayout').value});save()};
+ compactQuery.addEventListener('change',apply);
+ addEventListener('resize',()=>{if(value.hudLayout==='auto')apply()});
+ addEventListener('orientationchange',()=>{if(value.hudLayout==='auto')apply()});
  function open(){returnFocus=document.activeElement;document.exitPointerLock?.();dispatchEvent(new Event('raidmenuopen'));capture=null;render();$('settingsDialog').showModal();$('settingsClose').focus()}
  function close(){capture=null;$('settingsDialog').close();returnFocus?.focus();render()}
  $('settingsOpen').onclick=open;$('settingsClose').onclick=close;$('settingsDialog').addEventListener('cancel',()=>{capture=null});$('settingsDialog').addEventListener('close',()=>{capture=null;returnFocus?.focus()});
