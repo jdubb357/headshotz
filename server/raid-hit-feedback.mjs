@@ -10,12 +10,14 @@ export function hitFeedback(shooter,target,point,now=0,{weak=false}={}){
  const human=!!target.account||!!target.rival;
  const zone=human?(relative>1.6?'head':relative<.65?'leg':'body'):(relative>height*.72?'head':'body');
  const killed=target.rival?target.alive===false:target.account?!target.alive:(target.hp??0)<=0;
- // A weak core hit also reports the authoritative core position so the raid
- // client can render the burst at the machine it actually hit, instead of
- // guessing from the camera or the nearest actor. Ordinary tokens keep their
- // exact prior shape; only machine weak hits gain coordinates.
- const core=!human&&weak&&MACHINES[target.kind]&&[target.x,target.y,target.z].every(Number.isFinite)?{x:target.x,y:target.y+MACHINES[target.kind].core,z:target.z}:null;
- const next={token:(shooter.hitFeedback?.token||0)+1,at:now,zone,headshot:zone==='head',target:target.rival?'rival':target.account?'operator':'machine',kill:!!killed,boss:target.kind==='overlord',elite:!!target.elite,...(!human&&weak?{weak:true}:{}),...(core?{core}:{})};
+ // A weak core hit and a confirmed machine kill both report the authoritative
+ // machine core position so the raid client can anchor its burst where the
+ // machine actually died, instead of guessing from the camera or the nearest
+ // actor. Ordinary tokens keep their exact prior shape; only machine weak hits
+ // and machine kills gain coordinates, and kills also name the machine class so
+ // the client can scale its wreck presentation.
+ const core=!human&&(weak||killed)&&MACHINES[target.kind]&&Number.isFinite(target.x)&&Number.isFinite(target.z)?{x:target.x,y:(target.y||0)+MACHINES[target.kind].core,z:target.z}:null;
+ const next={token:(shooter.hitFeedback?.token||0)+1,at:now,zone,headshot:zone==='head',target:target.rival?'rival':target.account?'operator':'machine',kill:!!killed,boss:target.kind==='overlord',elite:!!target.elite,...(!human&&weak?{weak:true}:{}),...(!human&&killed&&core?{kind:target.kind}:{}),...(core?{core}:{})};
  shooter.hitFeedback=next;
  return next;
 }

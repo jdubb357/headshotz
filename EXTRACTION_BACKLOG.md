@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-10 (gameplay audit iteration 22). Current project: P0 Static Pages offline raid (added 2026-11-10).
+Last audited: 2026-11-11 (post-P0 visual iteration 43). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -34,6 +34,14 @@ a stash capacity reminder that flags protected overflow with an actionable warni
 Both render offline from `MemoryRaidStore` results and online from Node facts via
 shared `settlementGapText`/`stashUsageText`; the static offline grader and full suite
 stay green. Human-readable feel on Austin's phone remains UNVERIFIED (P7).
+
+Post-P0 look/feel resumed 2026-11-11 (iteration 43): a confirmed machine kill now
+reports its authoritative core coordinate and class through the hit token, and the
+raid client renders a pooled hull-break wreck there — a warm flash, camera-facing ring,
+embers, matte smoke plume, angular scrap and a short pooled light, scaled by machine
+class and static/quiet under reduced motion. No rules, AI, damage, loot or transport
+changed; the hit-feedback browser grader and the static offline playability gate are
+green. Human readability/feel on a phone remains UNVERIFIED (P7).
 
 Post-P0 look/feel resumed 2026-11-10 (iteration 41): rain fronts are now a
 camera-local 620-drop streak volume instead of a sparse sector-wide field, so the

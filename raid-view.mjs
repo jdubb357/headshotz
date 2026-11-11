@@ -163,7 +163,7 @@ export class RaidView {
   this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
   this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;
 
-  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
+  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
  // Presentation-only view-model feel: damped look sway, locomotion bob and a
  // transient additive muzzle glow. None of these feed snapshot, ballistics or
  // prediction.
@@ -190,7 +190,7 @@ export class RaidView {
   // Directional shadow targets are not reachable from scene disposal, so release
   // the sun's map explicitly or each restart leaves one texture on the GPU.
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.lastWeapon=null;this.lastTime=0;
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.lastTime=0;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
   for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
@@ -205,7 +205,7 @@ export class RaidView {
   for(const target of this.bloomTargets||[])target.dispose();
   this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.audio.reset();
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.audio.reset();
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
@@ -693,6 +693,37 @@ export class RaidView {
    const light=new THREE.PointLight(0x8fe9ff,0,9,2);light.visible=false;light.castShadow=false;light.userData.raidOwned=true;light.userData.raidCoreBurstLight=true;this.scene.add(light);
    this.coreBurstEffects.push({flash,ring,sparks,light,started:null,origin:new THREE.Vector3(),velocities:new Float32Array(burstSparks*3),burstSparks,duration:520});
   }
+  // Machine destruction uses its own small pool: a warm hull-break flash, an
+  // expanding ring, a rising smoke plume, embers, angular scrap and one pooled
+  // light. It is anchored to the authoritative machine core coordinate carried
+  // by the kill token, so a destroyed machine leaves a readable wreck instead
+  // of disappearing between snapshots. Presentation-only; no rules changed.
+  const wreckCount=4,wreckEmbers=20,wreckChunks=10,wreckSmoke=18,wreckDuration=1100;
+  for(let i=0;i<wreckCount;i++){
+   const flashMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xfff0d2,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   flashMaterial.userData.raidOwned=true;
+   const flash=new THREE.Sprite(flashMaterial);flash.visible=false;flash.frustumCulled=false;flash.renderOrder=5;this.scene.add(flash);
+   const ringGeometry=new THREE.TorusGeometry(1,.08,5,40);
+   const ringMaterial=new THREE.MeshBasicMaterial({color:0xff8a4a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+   ringGeometry.userData.raidOwned=ringMaterial.userData.raidOwned=true;
+   const ring=new THREE.Mesh(ringGeometry,ringMaterial);ring.rotation.x=Math.PI/2;ring.visible=false;ring.frustumCulled=false;ring.renderOrder=4;this.scene.add(ring);
+   const emberGeometry=new THREE.BufferGeometry();emberGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckEmbers*3),3));
+   const emberMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xffb05e,size:.18,transparent:true,opacity:0,vertexColors:false,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+   emberGeometry.userData.raidOwned=emberMaterial.userData.raidOwned=true;
+   const embers=new THREE.Points(emberGeometry,emberMaterial);embers.visible=false;embers.frustumCulled=false;embers.renderOrder=4;this.scene.add(embers);
+   // Matte powder smoke keeps the wreck readable after the flash: it rises and
+   // widens toward the hull silhouette rather than blooming additively.
+   const smokeGeometry=new THREE.BufferGeometry();smokeGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckSmoke*3),3));
+   const smokeMaterial=new THREE.PointsMaterial({map:TX.smoke,color:0x9a978d,size:.3,transparent:true,opacity:0,depthWrite:false,depthTest:true,sizeAttenuation:true,blending:THREE.NormalBlending,fog:true});
+   smokeGeometry.userData.raidOwned=smokeMaterial.userData.raidOwned=true;
+   const smoke=new THREE.Points(smokeGeometry,smokeMaterial);smoke.visible=false;smoke.frustumCulled=false;smoke.renderOrder=3;this.scene.add(smoke);
+   const chunkGeometry=new THREE.BufferGeometry();chunkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckChunks*3),3));
+   const chunkMaterial=new THREE.PointsMaterial({map:chipTexture,color:0x6f6658,size:.26,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true,alphaTest:.15});
+   chunkGeometry.userData.raidOwned=chunkMaterial.userData.raidOwned=true;
+   const chunks=new THREE.Points(chunkGeometry,chunkMaterial);chunks.visible=false;chunks.frustumCulled=false;chunks.renderOrder=4;this.scene.add(chunks);
+   const light=new THREE.PointLight(0xff9a3c,0,20,2);light.visible=false;light.castShadow=false;light.userData.raidOwned=true;light.userData.raidWreckLight=true;this.scene.add(light);
+   this.machineWreckEffects.push({flash,ring,embers,smoke,chunks,light,started:null,kind:'scout',scale:1,origin:new THREE.Vector3(),emberVelocities:new Float32Array(wreckEmbers*3),chunkVelocities:new Float32Array(wreckChunks*3),emberCount:wreckEmbers,chunkCount:wreckChunks,smokeCount:wreckSmoke,duration:wreckDuration});
+  }
  }
  shotSurface(x,y,z,terrainHit){
   if(terrainHit)return this.world?.theme==='wilderness'?'forest':this.world?.theme==='settlement'?'dirt':'gravel';
@@ -898,6 +929,63 @@ export class RaidView {
    effect.light.visible=!reduced&&flare>0;effect.light.position.copy(effect.origin);
    effect.light.intensity=reduced?0:flare*2.6;
   }
+  // Machine wreck bursts: warm flash and expanding ring up front, then embers,
+  // smoke, scrap and a short light wash. Reduced motion freezes the flash, ring
+  // and smoke in place, hides the animated spark fields and turns the light off.
+  for(const effect of this.machineWreckEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started;
+   if(age>=effect.duration){
+    effect.started=null;effect.flash.visible=false;effect.ring.visible=false;effect.embers.visible=false;effect.smoke.visible=false;effect.chunks.visible=false;effect.light.visible=false;effect.light.intensity=0;continue;
+   }
+   const expand=Math.min(1,age/460),flare=Math.max(0,1-age/280),fade=Math.max(0,1-age/effect.duration),seconds=age/1000,scale=effect.scale;
+   effect.flash.visible=!reduced?flare>0:true;effect.flash.position.copy(effect.origin);
+   effect.flash.material.opacity=reduced?.5:flare*.95;
+   effect.flash.scale.setScalar((reduced?1.35:.8+1.1*expand)*scale);
+   effect.ring.visible=true;effect.ring.position.copy(effect.origin);
+   effect.ring.quaternion.copy(this.camera.quaternion);
+   effect.ring.scale.setScalar((reduced?.85:1.15*(.3+1.1*expand))*scale);
+   effect.ring.material.opacity=reduced?.68:Math.min(1,fade*1.5)*.72;
+   effect.embers.visible=!reduced;effect.embers.position.copy(effect.origin);
+   effect.embers.material.opacity=reduced?0:Math.min(1,fade*1.6)*.92;
+   effect.embers.material.size=(.18+.08*fade)*Math.max(.6,Math.min(1.6,scale));
+   const embers=effect.embers.geometry.attributes.position.array;
+   for(let i=0;i<effect.emberCount;i++){
+    const k=i*3;
+    embers[k]=effect.emberVelocities[k]*seconds;
+    embers[k+1]=Math.max(-.1,effect.emberVelocities[k+1]*seconds-4.9*seconds*seconds);
+    embers[k+2]=effect.emberVelocities[k+2]*seconds;
+   }
+   effect.embers.geometry.attributes.position.needsUpdate=true;
+   effect.smoke.visible=true;effect.smoke.position.copy(effect.origin);effect.smoke.position.y+=.35*scale;
+   effect.smoke.material.opacity=reduced?.3:Math.min(1,fade*1.35)*.34;
+   effect.smoke.material.size=(reduced?.28:(.16+.24*expand))*scale;
+   const smoke=effect.smoke.geometry.attributes.position.array;
+   for(let i=0;i<effect.smokeCount;i++){
+    const k=i*3,angle=i*2.399963;
+    if(reduced){smoke[k]=Math.cos(angle)*.85*scale;smoke[k+1]=(.2+(i%5)*.24)*scale;smoke[k+2]=Math.sin(angle)*.85*scale}
+    else{
+     const spread=.55*scale+expand*.9*scale*(.35+((i%4)/3)*.65);
+     smoke[k]=Math.cos(angle)*spread+Math.sin(seconds*.9+i)*.16*scale;
+     smoke[k+1]=(.18+expand*(.4+((i%5)/4)*1.15))*scale;
+     smoke[k+2]=Math.sin(angle)*spread+Math.cos(seconds*.75+i)*.16*scale;
+    }
+   }
+   effect.smoke.geometry.attributes.position.needsUpdate=true;
+   effect.chunks.visible=!reduced;effect.chunks.position.copy(effect.origin);effect.chunks.position.y+=.15*scale;
+   effect.chunks.material.opacity=reduced?0:Math.min(1,(1-age/effect.duration)*1.7)*.88;
+   effect.chunks.material.size=(.26-.08*Math.min(1,age/effect.duration))*Math.max(.6,Math.min(1.6,scale));
+   const chunks=effect.chunks.geometry.attributes.position.array;
+   for(let i=0;i<effect.chunkCount;i++){
+    const k=i*3;
+    chunks[k]=effect.chunkVelocities[k]*seconds;
+    chunks[k+1]=Math.max(-.1,effect.chunkVelocities[k+1]*seconds-4.9*seconds*seconds);
+    chunks[k+2]=effect.chunkVelocities[k+2]*seconds;
+   }
+   effect.chunks.geometry.attributes.position.needsUpdate=true;
+   effect.light.visible=!reduced&&flare>0;effect.light.position.copy(effect.origin);effect.light.position.y+=.5*scale;
+   effect.light.intensity=reduced?0:flare*90*scale;
+  }
   for(const effect of this.blastEffects){
    if(effect.started===null)continue;
    const age=now-effect.started,fade=Math.max(0,1-age/effect.blastDuration);
@@ -988,6 +1076,33 @@ export class RaidView {
   }
   // The ground scorch outlives the flash so the attack leaves readable damage.
   effect.scorchStarted=effect.started;effect.scorch.position.set(x,(y||0)+.025,z);effect.scorch.visible=true;
+ }
+ // Visual scale per machine class. A scout's hull break stays compact while the
+ // Warden's going down fills a block; the authoritative kind comes from the hit
+ // token, never from a client raycast.
+ wreckScale(kind){return {scout:1,hunter:1.3,heavy:1.75,flyer:1.35,overlord:2.7}[kind]||1}
+ spawnMachineWreck(x,y,z,{kind='scout',now=performance.now()}={}){
+  if(!this.scene||!this.machineWreckEffects?.length||![x,y,z].every(Number.isFinite))return null;
+  const effect=this.machineWreckEffects[this.wreckCursor++%this.machineWreckEffects.length];
+  const scale=this.wreckScale(kind);
+  effect.started=now;effect.kind=kind;effect.scale=scale;effect.origin.set(x,y,z);
+  effect.flash.visible=false;effect.ring.visible=false;effect.embers.visible=false;effect.smoke.visible=false;effect.chunks.visible=false;effect.light.visible=false;effect.light.intensity=0;
+  effect.flash.position.copy(effect.origin);effect.ring.position.copy(effect.origin);effect.embers.position.copy(effect.origin);effect.smoke.position.copy(effect.origin);effect.chunks.position.copy(effect.origin);effect.light.position.copy(effect.origin);
+  // Deterministic radial jets with a mild upward drift read as escaping coolant,
+  // sparks and scrap rather than a generic fireball.
+  for(let i=0;i<effect.emberCount;i++){
+   const k=i*3,angle=i*2.399963;
+   effect.emberVelocities[k]=Math.cos(angle)*(1.3+((i*7)%6)*.22)*scale;
+   effect.emberVelocities[k+1]=(.9+((i*11)%5)*.36)*scale;
+   effect.emberVelocities[k+2]=Math.sin(angle)*(1.3+((i*13)%6)*.22)*scale;
+  }
+  for(let i=0;i<effect.chunkCount;i++){
+   const k=i*3,angle=i*2.399963;
+   effect.chunkVelocities[k]=Math.cos(angle)*(1.8+((i*5)%5)*.34)*scale;
+   effect.chunkVelocities[k+1]=(2.2+((i*9)%6)*.42)*scale;
+   effect.chunkVelocities[k+2]=Math.sin(angle)*(1.8+((i*7)%5)*.34)*scale;
+  }
+  return effect;
  }
  spawnCoreBurst(x,y,z,now=performance.now()){
   if(!this.scene||!this.coreBurstEffects?.length||![x,y,z].every(Number.isFinite))return null;

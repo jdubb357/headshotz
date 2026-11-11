@@ -5414,3 +5414,75 @@ physical phone remains UNVERIFIED (P7); P0 playability graders stay green.
 Next action: alternate to the visual goal — a presentation-only Extraction Raids
 look/feel improvement (for example machine hit VFX, lighting/fog, or environment detail)
 verified with a screenshot browser grader; keep the P0 offline graders green.
+
+## Visual iteration 43 — machine destruction wreck burst (2026-11-11)
+
+### Acceptance criteria — iteration 43
+
+1. A confirmed machine kill carries the authoritative machine core coordinate and class
+   (machine targets only) through the existing hit token; no client raycast or invented
+   position, and no change to damage, AI, ballistics or settlement rules.
+2. The raid client renders a pooled wreck burst at exactly that token core: warm hull-break
+   flash, expanding ring, embers, matte smoke plume, angular scrap and one pooled light.
+   Non-kill machine hits keep the existing marker-only or weak-point burst behaviour.
+3. The wreck pool is fixed (4 slots), allocations only at start, reused in place, and
+   released by clear()/start(); reduced motion freezes flash, ring and smoke, hides embers,
+   scrap and the light wash, and keeps a readable static signature.
+4. The focused hit-token unit suite, the hit-feedback browser grader (with screenshots),
+   and the P0 static-Pages playability gate all pass, `/api` traffic changes nowhere, and
+   the full unit suite stays green.
+
+### Implementation — iteration 43 (completed)
+
+- `server/raid-hit-feedback.mjs`: machine weak hits and confirmed machine kills now report
+  `core` from the authoritative target position (`x`, `y + class core height`, `z`);
+  machine kills also carry `kind`. The guard requires finite `x`/`z`, so malformed or
+  origin-less hits still omit the burst fields. Human/rival tokens keep their prior shape.
+- `raid-view.mjs`: added `machineWreckEffects` fixed pool of 4. `spawnMachineWreck` picks a
+  slot, applies class scale (scout 1.0 → overlord 2.7) and deterministic ember/scrap jets.
+  `updateCombatEffects` drives flash flare, camera-facing ring, embers, smoke spread/rise,
+  scrap gravity and a short warm light; reduced motion is a static flash/ring/plume with
+  no animated fields or light. Queue reset in constructor, `clear()` and `start()`.
+- `raid-online.mjs`: `renderHitFeedback` now spends the token core on
+  `spawnMachineWreck` for `kill && target === 'machine'`; surviving weak hits keep the cyan
+  core burst and ordinary hits keep their marker-only feedback.
+- `tests/raid-hit-feedback.test.mjs`: asserts the kill token origin/class, the no-origin
+  guard, and that ordinary machine hits still omit both.
+- `tests/raid-browser-hit-feedback.mjs`: real Chrome UI deployment; a real `KeyF` machine
+  kill records one wreck spawn exactly at the `/api/raid` token core, the hunter class and
+  pool size, then exhibits `wreckEarly` layers, forced-clock expiry and the reduced-motion
+  static variant. Screenshot `/tmp/headshotz-hit-wreck.png`.
+
+### Commands/results (2026-11-11)
+
+- `node --check raid-view.mjs raid-online.mjs server/raid-hit-feedback.mjs` → OK.
+- `node --test tests/raid-hit-feedback.test.mjs` → 11/11 pass.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-hit-feedback.mjs` → PASS:
+  kill marker/caption, one kill cue, one anchored hunter wreck, flash/ring/embers/smoke/
+  scrap/light live, forced expiry clears all layers, reduced motion static, zero browser
+  errors; `/tmp/headshotz-hit-wreck.png` inspected (warm ring + embers at the kill).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (static files, no `/api`) deploy → move → machine hit → loot → extract; `noApiTraffic:true`,
+  `browserErrors:[]`; the P0 playability gate stays green.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-effects.mjs` → PASS; fixed pools,
+  one world muzzle light, all pooled owners dispose-tagged, geometry/texture counts unchanged,
+  zero browser errors.
+- `node --test tests/*.test.mjs` → 1228 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — token origin/class come from `hitFeedback`'s authoritative target; rules untouched.
+2. PASS — real UI kill spawn at token core; no wreck on miss/ordinary hit (existing miss and
+   weak assertions still green).
+3. PASS — pool 4, reused in place, clear()/start() reset; reduced-motion variant asserted
+   static and light-dark.
+4. PASS — focused suite, three browser graders and full suite green.
+
+**Status:** Machine destruction wreck is COMPLETE in local presentation scope. No AI,
+damage, ballistics, loot, settlement or `/api` transport changed. Human aesthetic judgment,
+live-combat readability and physical-device frame pacing remain UNVERIFIED (P5/P7); the
+overlord's large-scale wreck is data-driven but not human-rated.
+
+Next action: alternate back to gameplay/UX for iteration 44 — continue remaining offline
+persistence/UX slices (for example stale/partial IndexedDB rehydration or post-raid rewards
+depth) while keeping the P0 static-Pages graders green; then return to a visual slice.

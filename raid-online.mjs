@@ -1261,11 +1261,16 @@ function renderHitFeedback(s){
  const hit=s.hit;
  if(!shouldShowHit(hit,lastHitToken))return;
  lastHitToken=hitToken(hit);
- // The server resolves the machine core hit and reports its coordinates; the
- // burst is spawned exactly there, never from a client raycast. Missing or
- // malformed coordinates fall back to the existing marker-only feedback.
- const core=hit.weak&&hit.core&&[hit.core.x,hit.core.y,hit.core.z].every(Number.isFinite)?hit.core:null;
- if(core)view?.spawnCoreBurst(core.x,core.y,core.z);
+ // The server resolves machine weak hits and machine kills and reports the
+ // machine core coordinates; every burst is spawned exactly there, never from a
+ // client raycast. A kill reads as a hull break/wreck; a survivable core hit
+ // keeps the cyan weak-point burst. Missing or malformed coordinates fall back
+ // to the existing marker-only feedback.
+ const core=hit.core&&[hit.core.x,hit.core.y,hit.core.z].every(Number.isFinite)?hit.core:null;
+ if(core){
+  if(hit.kill&&hit.target==='machine')view?.spawnMachineWreck(core.x,core.y,core.z,{kind:hit.kind||'scout'});
+  else if(hit.weak)view?.spawnCoreBurst(core.x,core.y,core.z);
+ }
  const marker=$('hitmarker'),caption=$('hitmarkerCaption'),kind=hit.kill?'kill':hit.weak?'weak':hit.headshot?'headshot':'hit',text=hitCaption(hit);
  if(marker){marker.dataset.kind=kind;marker.classList.remove('show');void marker.offsetWidth;marker.classList.add('show')}
  if(caption)caption.textContent=text;

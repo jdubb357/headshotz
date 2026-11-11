@@ -31,6 +31,16 @@ test('hit tokens are monotonic and describe only server-resolved outcomes',()=>{
  const normal=hitFeedback(shooter,liveMachine,{y:.4},1008);
  assert.equal(normal.weak,undefined,'ordinary machine hits omit the weak flag');
  assert.equal(normal.core,undefined,'ordinary machine hits omit the core position');
+ const wreckedMachine={kind:'hunter',hp:0,x:9,y:.35,z:-2};
+ const wreck=hitFeedback(shooter,wreckedMachine,{y:1.2},1010);
+ assert.equal(wreck.target,'machine');assert.equal(wreck.kill,true);
+ assert.equal(wreck.core.x,9);assert.equal(wreck.core.z,-2);
+ assert.ok(Math.abs(wreck.core.y-1.55)<1e-9,'a machine kill reports the wreck origin at its authoritative core');
+ assert.equal(wreck.kind,'hunter','a machine kill names the class for wreck presentation scaling');
+ assert.equal(normal.kind,undefined,'ordinary machine hits omit the class');
+ const unlodged=hitFeedback(shooter,{kind:'scout',hp:0,elite:false},{y:.7},1011);
+ assert.equal(unlodged.core,undefined,'a kill without a finite position invents no burst origin');
+ assert.equal(unlodged.kind,undefined,'a kill without an origin omits the class');
  const humanWeak=hitFeedback(shooter,{account:'enemy',alive:true,hp:80,downed:false},{y:1.6},1009,{weak:true});
  assert.equal(humanWeak.weak,undefined,'human hits never claim a machine weak point');
  assert.equal(humanWeak.core,undefined,'human hits never carry a machine core position');
@@ -107,6 +117,8 @@ test('a machine kill reports machine kill and elite flags from authoritative sta
  f.fire({pitch:0});
  const hit=f.snapshot().self.hit;
  assert.equal(hit.target,'machine');assert.equal(hit.kill,true);assert.equal(hit.elite,true);assert.equal(hit.boss,false);
+ assert.deepEqual(hit.core,{x:0,y:1.2,z:4},'the live kill token carries the authoritative hunter core origin');
+ assert.equal(hit.kind,'hunter','the live kill token carries the authoritative machine class');
  assert.ok(f.r().machines[0].hp<=0,'the machine is destroyed by authoritative damage');
 });
 
