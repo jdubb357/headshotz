@@ -5,7 +5,7 @@
 // navigation into stash/workshop/contracts/records/deploy controls.
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
-import {RaidStore,RuleError} from '../server/store.mjs';
+import {RaidStore,RuleError,item} from '../server/store.mjs';
 import {createRaidServer} from '../server/main.mjs';
 import {browserHarness} from './browser-harness.mjs';
 import {earnedPurchase} from './earned-fixture.mjs';
@@ -72,6 +72,14 @@ try {
   assert.equal(settled.xp, 69, 'the settlement awards extraction, combat and survey XP');
   assert.equal(settled.progression.xpAfter, 69, 'the settled profile XP matches the award');
   assert.deepEqual(settled.contracts.map(c => [c.id, c.stage, c.progress, c.need, c.delta, c.requirementsMet]), [['survey', 0, 3, 3, 3, true]], 'the accepted survey advanced exactly once by the surveyed sites');
+  // Damage the returned weapon to a realistic worn state and supply both field
+  // and workshop materials so the base renders and executes each repair grade.
+  store.transaction(() => {
+    const s = store.state(account.id), returned = s.items.find(it => it.id === weapon.id);
+    returned.condition = 40;
+    s.items.push(item('material', {material: 'wire', quantity: 2}), item('material', {material: 'steel', quantity: 2}));
+    store.save(account.id, s);
+  });
   await page.wait(`document.getElementById('hud').textContent.includes('EXTRACT') || document.getElementById('hint').textContent.includes('EXTRACT')`);
   await page.evaluate("document.getElementById('leave').click()");
   await page.wait("document.getElementById('play').style.display==='none' && document.body.getAttribute('aria-busy')==='false'");
@@ -94,6 +102,33 @@ try {
   assert.ok(card.bar.max >= 1 && card.bar.value <= card.bar.max, 'rank progress bar has valid bounds');
   assert.ok(/Progress to next rank/.test(card.bar.label), 'the progress bar has an accessible label');
   assert.equal(await page.evaluate("Boolean(document.getElementById('rewards').compareDocumentPosition(document.getElementById('stash')) & Node.DOCUMENT_POSITION_FOLLOWING)"), true, 'the rewards card precedes the stash/equipment bench in document order');
+
+  // Repair grades are the base's equipment-condition choice. Both must be
+  // rendered from authoritative damage and material costs, and the cheaper
+  // field patch must leave the rifle degraded until a full workshop repair.
+  const repairLabels = await page.evaluate(`(()=>{const row=[...document.querySelectorAll('#stash .item')].find(r=>r.dataset.itemId===${JSON.stringify(weapon.id)});return row?[...row.querySelectorAll('button')].map(b=>b.textContent):[]})()`);
+  assert.ok(repairLabels.some(text => text.startsWith('Field patch → 65% · 15 credits + 1 wire')), 'field patch offers 25 condition points for 15 credits and one wire');
+  assert.ok(repairLabels.some(text => text.startsWith('Full repair · 30 credits + 1 steel')), 'full repair prices the full 60-point restoration separately');
+  const clickRepair = async prefix => {
+    await page.wait("document.body.getAttribute('aria-busy')==='false'");
+    const clicked = await page.evaluate(`(()=>{const row=[...document.querySelectorAll('#stash .item')].find(r=>r.dataset.itemId===${JSON.stringify(weapon.id)});const b=[...row.querySelectorAll('button')].find(b=>b.textContent.startsWith(${JSON.stringify(prefix)}));if(!b||b.disabled)return false;b.click();return true})()`);
+    assert.equal(clicked, true, 'available repair grade: ' + prefix);
+  };
+  const creditsBeforeRepair = store.profile(account.id).credits;
+  await clickRepair('Field patch');
+  await page.wait(`document.body.getAttribute('aria-busy')==='false' && [...document.querySelectorAll('#stash .item')].some(r=>r.dataset.itemId===${JSON.stringify(weapon.id)} && r.textContent.includes('65%'))`);
+  const patched = store.profile(account.id);
+  assert.equal(patched.items.find(it => it.id === weapon.id).condition, 65, 'the field patch left the rifle at partial condition');
+  assert.equal(creditsBeforeRepair - patched.credits, 15, 'the field patch charged its authoritative credits');
+  await clickRepair('Full repair');
+  await page.wait(`document.body.getAttribute('aria-busy')==='false' && [...document.querySelectorAll('#stash .item')].some(r=>r.dataset.itemId===${JSON.stringify(weapon.id)} && r.textContent.includes('100%'))`);
+  const repaired = store.profile(account.id);
+  assert.equal(repaired.items.find(it => it.id === weapon.id).condition, 100, 'the workshop repair restored the remaining condition');
+  assert.equal(patched.credits - repaired.credits, 20, 'the workshop repair charged the remaining condition');
+  assert.equal(repaired.items.filter(it => it.id === weapon.id).length, 1, 'no duplicate stash item was invented by the repair grades');
+  assert.equal(repaired.items.filter(it => it.kind === 'material' && it.material === 'wire').reduce((n, it) => n + it.quantity, 0), 1, 'the field patch consumed exactly one wire');
+  assert.equal(repaired.items.filter(it => it.kind === 'material' && it.material === 'steel').reduce((n, it) => n + it.quantity, 0), 1, 'the workshop repair consumed exactly one steel');
+
   const controls = await page.evaluate("[...document.querySelectorAll('#rewards .rewardsActions button')].map(b => ({tag: b.tagName, name: b.textContent.trim(), tabIndex: b.tabIndex, disabled: b.disabled}))");
   assert.equal(controls.length, 5, 'all five navigation controls are present');
   assert.equal(controls.every(control => control.tag === 'BUTTON' && control.tabIndex === 0 && !control.disabled), true, 'every navigation control is a focusable enabled native button');
@@ -145,6 +180,7 @@ try {
     presentationOnly: stateAfterActions.revision === stateBeforeActions.revision,
     signOutClearsRewards: signedOutState.hidden && signedOutState.loot === '' && signedOutState.item === null,
     accountSwitchKeepsRewardsHidden: switchedState.hidden,
+    repairGrades: {labels: repairLabels.filter(text => /patch|repair/i.test(text)), fieldPatchTo: patched.items.find(it => it.id === weapon.id).condition, fullRepairTo: repaired.items.find(it => it.id === weapon.id).condition},
     browserErrors: [],
     scope: 'Fresh account, UI deployment and authoritative extraction settlement; rewards are read from /api/profile and /api/results only.'
   }));

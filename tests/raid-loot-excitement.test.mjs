@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {LOOT_TIERS,lootPresentation,lootCelebrationText} from '../shared/raid-loot-presentation.mjs';
+import {LOOT_TIERS,lootPresentation,lootCelebrationText,lootTierColor} from '../shared/raid-loot-presentation.mjs';
 import {ACTION_CUES} from '../raid-audio.mjs';
 
 test('rarity tiers and their presentation are deterministic', () => {
@@ -28,6 +28,15 @@ test('rarity input is clamped and missing values are common', () => {
   assert.ok(presentation.rarity>=0&&presentation.rarity<=5);
  }
  assert.equal(lootPresentation({}).tier,'common');
+});
+
+test('cache tier accents share the authoritative loot palette', () => {
+ const colors=[0,1,2,3,4,5].map(lootTierColor);
+ assert.deepEqual(colors,[0x94a6ae,0x72e2b0,0x63d9f2,0xc790ff,0xffb44a,0xff645f],'each tier maps to its pickup accent');
+ assert.equal(new Set(colors).size,6,'every tier is visually distinct');
+ assert.equal(lootTierColor(undefined),0x94a6ae,'a missing tier reads as common');
+ assert.equal(lootTierColor(-3),0x94a6ae,'negative tiers clamp to common');
+ assert.equal(lootTierColor(99),0xff645f,'overflow tiers clamp to special');
 });
 
 test('pickup narration names the item and its rarity', () => {

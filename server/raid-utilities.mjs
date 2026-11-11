@@ -27,7 +27,7 @@ export function advanceUtilities(service,raid,now){
   if(e.kind==='decoy'&&now>=e.nextPulse){raid.noises||=[];raid.noises.push({x:e.x,y:e.y,z:e.z,radius:e.radius,until:now+1.1});e.nextPulse=now+1}
   if(e.kind!=='frag'||e.detonated)continue;e.detonated=true;
   for(const p of raid.players.values())if(p.alive&&(p.team!==e.team||p.account===e.owner)){
-   const distance=Math.hypot(p.x-e.x,p.z-e.z,(p.y||0)-e.y);if(distance<e.radius&&raidLine(raid,e.x,e.z,p.x,p.z,e.y+.3,(p.y||0)+1))service.damage(raid,p,70*(1-distance/e.radius),{kind:'blast'});
+   const distance=Math.hypot(p.x-e.x,p.z-e.z,(p.y||0)-e.y);if(distance<e.radius&&raidLine(raid,e.x,e.z,p.x,p.z,e.y+.3,(p.y||0)+1))service.damage(raid,p,70*(1-distance/e.radius),{kind:'blast',from:{x:e.x,z:e.z}});
   }
   for(const m of raid.machines)if(m.hp>0){const distance=Math.hypot(m.x-e.x,m.z-e.z,(m.y||0)-e.y);if(distance<e.radius&&raidLine(raid,e.x,e.z,m.x,m.z,e.y+.3,(m.y||0)+1))hitMachine(service,raid,m,100*(1-distance/e.radius),(m.y||0)+.1,e.team)}
   event(raid,now,'Shatter Charge detonated','combat');

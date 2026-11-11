@@ -41,7 +41,9 @@ function drag(page, sourceId, targetSelector) {
     const target = document.querySelector(${JSON.stringify(targetSelector)});
     if (!row) throw new Error('backpack row unavailable: ${sourceId}');
     if (!target) throw new Error('drop target unavailable: ' + ${JSON.stringify(targetSelector)});
-    document.getElementById('pack').style.maxHeight = 'none';
+    // Keep the real pack scrollport so hand-off targets below the fold are
+    // reachable exactly as they are for a player with a full backpack.
+    document.getElementById('pack').style.maxHeight = 'calc(100dvh - 260px)';
     row.scrollIntoView({block: 'nearest'});
     target.scrollIntoView({block: 'nearest'});
     const a = row.getBoundingClientRect(), b = target.getBoundingClientRect();

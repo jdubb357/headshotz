@@ -185,11 +185,11 @@ export function advanceMachines(service,raid,dt,now){
   }
   if(m.attack){
    m.state='windup';if(now<m.attack.at)continue;
-   const shot=m.attack;m.attack=null;m.nextAttack=now+def.cooldown*(m.bossPhase==='meltdown'?.55:m.enraged?.7:1);m.state='recover';
+   const shot=m.attack,from={x:m.x,z:m.z};m.attack=null;m.nextAttack=now+def.cooldown*(m.bossPhase==='meltdown'?.55:m.enraged?.7:1);m.state='recover';
    if(def.attack==='pounce'&&raidLine(raid,m.x,m.z,shot.point.x,shot.point.z,(m.y||0)+1,(shot.point.y||0)+1)){
     const at=safePoint(raid.world,shot.point.x,shot.point.z,{radius:def.radius,height:def.height,y:shot.point.y||0});if(at){m.x=at.x;m.y=at.y;m.z=at.z}
    }
-   for(const p of raid.players.values())if(p.alive&&distance(p,shot.point)<shot.radius&&raidLine(raid,shot.point.x,shot.point.z,p.x,p.z,(shot.point.y||0)+1,(p.y||0)+1))service.damage(raid,p,def.damage,{source:'machine'});
+   for(const p of raid.players.values())if(p.alive&&distance(p,shot.point)<shot.radius&&raidLine(raid,shot.point.x,shot.point.z,p.x,p.z,(shot.point.y||0)+1,(p.y||0)+1))service.damage(raid,p,def.damage,{source:'machine',from});
    continue;
   }
   if(target&&distance(m,target)<=def.range&&now>=m.nextAttack){
@@ -257,19 +257,19 @@ export function advanceEvents(service,raid,now){
  }
  if(raid.weatherAt&&now>=raid.weatherAt){raid.weatherAt=0;if(raid.conditionPlan)event(raid,now,'Weather front arrived: '+raid.conditions.name+'.','weather');else{raid.conditions={...mapConditions(raid.world,1),name:'Nightfall front',light:.85,visibility:.65};event(raid,now,'Nightfall front incoming. Visibility is falling.','weather')}}
  for(const h of raid.world.hazards||[]){const state=hazardState(h,now-raid.started);if(!state.active)continue;
-  for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard'})}
+  for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard',from:{x:h.x,z:h.z}})}
  }
  // Boss phase hazards are authored by authoritative phase transitions rather
  // than the world; each id is ticked once a second like a static hazard.
  for(const h of raid.phaseHazards||[]){
   if(h.until<=now)continue;
-  for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard'})}
+  for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard',from:{x:h.x,z:h.z}})}
  }
  for(const h of raid.dynamicHazards||[]){
   if(now>=h.until)continue;
   if(now>=h.start&&!h.announced){h.announced=true;event(raid,now,h.name+' is active · '+Math.round(h.until-now)+' seconds.','hazard')}
   if(now<h.start)continue;
-  for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard'})}
+  for(const p of alive)if(distance(p,h)<h.radius&&(raid.hazardTicks[p.account+':'+h.id]||0)<=now){raid.hazardTicks[p.account+':'+h.id]=now+1;service.damage(raid,p,h.damage,{kind:'hazard',from:{x:h.x,z:h.z}})}
  }
  raid.dynamicHazards=(raid.dynamicHazards||[]).filter(h=>h.until>now);
 }

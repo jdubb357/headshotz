@@ -1,5 +1,5 @@
 import {sameLoadout,describeLoadout} from './shared/raid-loadout.mjs';
-import {RaidTrigger,deferIdleMovement} from './raid-trigger.mjs';
+import {RaidTrigger,deferIdleMovement,lookNeedsSync} from './raid-trigger.mjs';
 import {reasonText,settlementText,insuranceText,objectiveText} from './shared/raid-report.mjs';
 import {grantBalance,canRecoverGrant} from './shared/raid-grants.mjs';
 import {lootPresentation,lootCelebrationText} from './shared/raid-loot-presentation.mjs';
@@ -14,7 +14,7 @@ import {RAID_PROTOCOL} from './shared/raid-protocol.mjs';
 import {ReliableActions} from './raid-transport.mjs';
 import {LocalPrediction} from './raid-prediction.mjs';
 import {ARTIFACTS,SECTORS} from './shared/raid-sectors.mjs';
-import {createRaidExits,exitDescription,exitColor,exitState,exitCost,squadLinkBonus,SQUAD_LINK} from './shared/raid-exits.mjs';
+import {createRaidExits,exitDescription,exitColor,exitState,exitCost,extractionInteractionTarget,squadLinkBonus,SQUAD_LINK} from './shared/raid-exits.mjs';
 import {roleLabel,roleSummary,engineerPicks} from './shared/raid-roles.mjs';
 import {accountUI} from './raid-account-ui.mjs';
 import {installDialogNavigation} from './raid-dialogs.mjs';
@@ -23,13 +23,14 @@ import {raidInput} from './raid-input.mjs';
 import {keyName,aimDelta} from './shared/raid-settings.mjs';
 import {rankProgress} from './shared/raid-progression.mjs';
 import {communicationUI} from './raid-comms-ui.mjs';
-import {BOSS_PHASES} from './shared/raid-enemies.mjs';
+import {BOSS_PHASES,MACHINES} from './shared/raid-enemies.mjs';
 import {RaidView,BasePreview} from './raid-view.mjs';
 import {RAID_WORLDS,getWorld,terrainHeightAt} from './shared/raid-worlds.mjs';
 import {objectivesFor} from './shared/raid-objectives.mjs';
 import {vaultTarget,vaultDirection} from './shared/raid-motion.mjs';
 import {baseController} from './raid-base.mjs';
 import {WEAPONS,MODS,weaponStats,itemWeight} from './shared/raid-catalog.mjs';
+import {sellValue} from './shared/raid-appraisal.mjs';
 installDialogNavigation();
 const chooseQuantity=quantityUI();
 document.getElementById('previewTurn').onclick=()=>preview?.turn();
@@ -86,14 +87,24 @@ async function api(path,body,{timeoutMs=15000}={}){
 async function run(fn){if(busy)return;busy=true;document.body.setAttribute('aria-busy','true');try{await fn()}catch(e){if(e.canceled)return;message(e.message);notice={text:e.message,until:performance.now()+3500};if(inRaid)$('hint').textContent=e.message}finally{busy=false;document.body.setAttribute('aria-busy','false')}}
 function button(text,fn){const b=document.createElement('button');b.textContent=text;b.onclick=()=>run(fn);return b}
 function label(it){return `${(it.kind==='armor'?armorStats(it).name:it.kind==='med'?(MEDICAL[it.medical]||MEDICAL.field).name:null)||UTILITIES[it.utility]?.name||ARTIFACTS[it.artifact]?.name||WEAPONS[it.weapon]?.name||MODS[it.mod]?.name||it.label||it.material||it.ammo||it.kind} ×${it.quantity||1} · ${Math.round(it.condition??100)}%${it.kind==='weapon'?' · '+(it.loaded||0)+' loaded':''} · ${['Common','Uncommon','Rare','Epic','Legendary'][it.rarity||0]||'Special'}${it.grantOwner?' · Starter supply':''}${it.grantLoaded?' · '+it.grantLoaded+' starter rounds':''}`}
-function itemRow(it,parent,buttons=[]){
+function appraisal(it){
+ const weight=Math.round(itemWeight(it)*10)/10,value=sellValue(it);
+ return {weight,value,text:weight+' kg'+' · '+value+' cr',label:weight+' kilograms, '+value+' credit'+(value===1?'':'s')+' base sale'};
+}
+function itemRow(it,parent,buttons=[],warning=''){
  const row=document.createElement('div'),condition=Math.max(0,Math.min(100,Math.round(it.condition??100))),accent=['#94a6ae','#72e2b0','#63d9f2','#c790ff','#ffb44a','#ff645f'][Math.min(5,it.rarity||0)];
- row.className='item';row.dataset.itemId=it.id;row.dataset.kind=it.kind||'item';row.dataset.rarity=String(it.rarity||0);row.dataset.conditionValue=String(condition);row.dataset.condition=condition<35?'critical':condition<70?'worn':'ready';
- row.style.setProperty('--item-accent',accent);row.setAttribute('role','group');row.setAttribute('aria-label',label(it));
+ const value=appraisal(it);
+ row.className='item';row.dataset.itemId=it.id;row.dataset.kind=it.kind||'item';row.dataset.rarity=String(it.rarity||0);row.dataset.conditionValue=String(condition);row.dataset.condition=condition<35?'critical':condition<70?'worn':'ready';row.dataset.weight=String(value.weight);row.dataset.sellValue=String(value.value);
+ row.style.setProperty('--item-accent',accent);row.setAttribute('role','group');row.setAttribute('aria-label',label(it)+' · '+value.label+(warning?' · '+warning:''));
  const span=document.createElement('span');span.className='itemLabel';span.textContent=label(it);
  const meter=document.createElement('span');meter.className='itemCondition';meter.setAttribute('aria-hidden','true');meter.style.setProperty('--condition',condition+'%');
  const head=document.createElement('div');head.className='itemHead';head.append(span,meter);
- row.append(head,...buttons);parent.append(row);return row
+ const chips=document.createElement('span');chips.className='itemAppraisal';chips.setAttribute('aria-hidden','true');
+ const chip=(text,kind)=>{const el=document.createElement('span');el.className='metaChip '+kind;el.textContent=text;chips.append(el)};
+ chip(value.weight+' kg','metaWeight');if(value.value>0)chip(value.value+' cr','metaValue');
+ row.append(head,chips);
+ if(warning){const warn=document.createElement('span');warn.className='itemWarn';warn.textContent=warning;row.append(warn)}
+ row.append(...buttons);parent.append(row);return row
 }
 const EXIT_BADGE={open:'Boarding',full:'Full',inbound:'Inbound',departed:'Departed',exhausted:'Exhausted',ready:'Ready',locked:'Access'};
 function exitProgress(exit,state,now){
@@ -305,7 +316,13 @@ function renderHud(s,snapshot){
  if(s.armor)parts.push(hudToken('armor','Armor',Math.ceil(s.armor.protection)+'/'+s.armor.capacity));
  if(s.wounds?.bleedingUntil>now)parts.push(hudAlert('BLEEDING','critical'));
  if(s.wounds?.limpUntil>now)parts.push(hudAlert('LEG INJURY','warn'));
- parts.push(s.weaponId?hudToken('ammo','Ammo',String(s.ammo)):hudToken('ammo','','UNARMED','unarmed'));
+ if(s.weaponId){
+  const weapon=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),cap=Math.max(0,Math.round(Number(WEAPONS[weapon?.weapon]?.mag)||0)),ammo=Math.max(0,Math.round(Number(s.ammo)||0));
+  const token=hudToken('ammo','Ammo',ammo+(cap?'/'+cap:''),ammo===0?'critical':cap>0&&ammo<=cap*.25?'warn':undefined);
+  token.setAttribute('aria-label','Ammo '+ammo+(cap?' of '+cap:'')+(ammo===0?', empty':cap>0&&ammo<=cap*.25?', low':''));
+  parts.push(token);
+  if(ammo===0)parts.push(hudAlert('EMPTY · RELOAD','critical'));
+ }else parts.push(hudToken('ammo','','UNARMED','unarmed'));
  if(s.vaulting)parts.push(hudAlert('VAULTING','warn'));
  else if(s.sliding)parts.push(hudAlert('SLIDING','warn'));
  else if(s.sprint&&Math.hypot(s.move?.x||0,s.move?.z||0)>.01)parts.push(hudAlert('SPRINT','warn'));
@@ -317,6 +334,78 @@ function renderHud(s,snapshot){
  const out=[];for(const part of parts)out.push(out.length?' · ':null,part);
  $('hud').replaceChildren(...out.filter(Boolean));
 }
+// Off-screen awareness comes only from snapshot machines the server has already
+// line-of-sight-checked. Markers are placed by operator yaw so a flank or rear
+// contact is readable without audio; forward contacts stay in the scene.
+export function threatIndicators(snapshot){
+ const s=snapshot?.self,machines=snapshot?.machines||[];
+ if(!s||!s.alive||s.downed)return [];
+ const found=[];
+ for(const m of machines){
+  if(!(m.hp>0)||!Number.isFinite(m.x)||!Number.isFinite(m.z))continue;
+  const dx=m.x-s.x,dz=m.z-s.z,dist=Math.hypot(dx,dz);
+  if(!Number.isFinite(dist)||dist>40||dist<1)continue;
+  const cos=Math.cos(s.yaw||0),sin=Math.sin(s.yaw||0);
+  const right=-dx*cos+dz*sin,forward=dx*sin+dz*cos;
+  if(Math.abs(Math.atan2(right,forward))<55*Math.PI/180)continue;
+  found.push({m,dist,angle:Math.atan2(right,forward)});
+ }
+ return found.sort((a,b)=>a.dist-b.dist).slice(0,4);
+}
+// The server records the bearing of the most recent positioned incoming damage
+// for 1.6 s. The same yaw/right-vector math places a transient arrow; ambient
+// damage with no attacker position is deliberately absent, never fabricated.
+export function hurtIndicator(snapshot){
+ const s=snapshot?.self,h=s?.hurt;
+ if(!s||!s.alive||s.downed||!h)return null;
+ const dx=Number(h.dx)||0,dz=Number(h.dz)||0,distance=Math.hypot(dx,dz);
+ if(!Number.isFinite(distance)||distance<1e-4)return null;
+ const cos=Math.cos(s.yaw||0),sin=Math.sin(s.yaw||0);
+ const right=-dx*cos+dz*sin,forward=dx*sin+dz*cos;
+ const angle=Math.atan2(right,forward),deg=angle*180/Math.PI;
+ const source=String(h.source||'combat');
+ return {angle,deg,source,side:Math.abs(deg)>128?'behind':deg>0?'right':'left',
+  label:{machine:'machine fire',rival:'rival fire',hazard:'hazard',blast:'explosion',operator:'operator fire'}[source]||'damage'};
+}
+function renderHurtDirection(snapshot){
+ const layer=$('hurt'),dir=hurtIndicator(snapshot);
+ if(!dir){layer.hidden=true;layer.replaceChildren();return}
+ layer.hidden=false;layer.replaceChildren();
+ // The damage arrow sits inside the threat ring so a machine warning and a hit
+ // source at the same bearing stay visually distinct.
+ const ring=Math.round(Math.max(56,Math.min(92,Math.min(innerWidth,innerHeight)*.075)));
+ const marker=document.createElement('span');
+ marker.className='hurtMarker';marker.dataset.source=dir.source;marker.dataset.side=dir.side;
+ marker.style.setProperty('--tx',Math.round(Math.sin(dir.angle)*ring)+'px');
+ marker.style.setProperty('--ty',Math.round(-Math.cos(dir.angle)*ring)+'px');
+ marker.style.setProperty('--rot',Math.round(dir.deg)+'deg');
+ marker.setAttribute('role','img');
+ marker.setAttribute('aria-label','Incoming damage from '+dir.side+' · '+dir.label);
+ const glyph=document.createElement('span');glyph.className='hurtGlyph';glyph.setAttribute('aria-hidden','true');
+ marker.append(glyph);layer.append(marker);
+}
+function renderThreatIndicators(snapshot){
+ const layer=$('threats'),defs=threatIndicators(snapshot);
+ if(!defs.length){layer.hidden=true;layer.replaceChildren();return}
+ layer.hidden=false;layer.replaceChildren();
+ const ring=Math.round(Math.max(96,Math.min(150,Math.min(innerWidth,innerHeight)*.17)));
+ for(const {m,dist,angle} of defs){
+  const deg=angle*180/Math.PI,side=Math.abs(deg)>128?'behind':deg>0?'right':'left';
+  const name=MACHINES[m.kind]?.name||String(m.kind||'Machine');
+  const charging=m.state==='windup';
+  const marker=document.createElement('span');
+  marker.className='threatMarker';marker.dataset.kind=m.kind||'machine';marker.dataset.state=charging?'windup':'tracking';marker.dataset.machineId=m.id;
+  if(m.elite)marker.dataset.elite='true';
+  marker.style.setProperty('--tx',Math.round(Math.sin(angle)*ring)+'px');
+  marker.style.setProperty('--ty',Math.round(-Math.cos(angle)*ring)+'px');
+  marker.setAttribute('role','img');
+  marker.setAttribute('aria-label',name+' '+Math.round(dist)+' m '+side+' '+Math.round(Math.abs(deg))+'°'+(charging?' · charging':''));
+  const glyph=document.createElement('span');glyph.className='threatGlyph';glyph.setAttribute('aria-hidden','true');glyph.textContent=charging?'!':'◆';
+  const meta=document.createElement('span');meta.className='threatMeta';meta.setAttribute('aria-hidden','true');meta.textContent=Math.round(dist)+' m';
+  marker.append(glyph,meta);layer.append(marker);
+ }
+}
+
 // The sector status line is derived exclusively from authoritative snapshot
 // escalation data: threat level, the nearest environmental front and the
 // endgame squeeze countdown. It never predicts or fabricates contacts.
@@ -389,7 +478,7 @@ function updateUI(){
  const vaultBody={...({x:s.x,y:s.y||0,z:s.z,grounded:s.grounded!==false,downed:s.downed,carrying:s.carrying,vault:s.vault||null}),...(prediction?.position||{}),yaw,move:movementInput()};
  const vaultWorld=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);const vaultAhead=!!(!s.vaulting&&s.alive&&!s.downed&&!s.carrying&&vaultWorld&&vaultTarget(vaultWorld,vaultBody,vaultDirection(vaultBody)));
  $('vault').disabled=!s.alive||s.downed||s.vaulting||!vaultAhead;$('vault').textContent=s.vaulting?'Vaulting…':'Vault';
- renderHud(s,snapshot);renderHitFeedback(s);
+ renderHud(s,snapshot);renderThreatIndicators(snapshot);renderHurtDirection(snapshot);renderHitFeedback(s);
  view?.sync(snapshot);$('spectate').hidden=s.alive||!snapshot.camera;if(snapshot.camera)$('spectate').textContent='Watching '+snapshot.camera.name+' · next squadmate';
  for(const event of snapshot.events||[])if(!seenEvents.has(event.id)){
   seenEvents.add(event.id);const text=event.text||event.message||event.kind||event.type;$('events').textContent=text;
@@ -402,7 +491,7 @@ function updateUI(){
  renderEscalation(snapshot);renderObjectivePanel({self:s,objective:snapshot.objective});renderMinimap(snapshot);updateCompass(s);if(mapOpen)drawTactical();
  const sources=[...snapshot.caches.map(c=>({...c,source:'cache'})),...(snapshot.loot||[]).map(l=>({...l,source:'loot'})),...snapshot.bags.map(b=>({...b,source:'bag'})),...(snapshot.bodies||[]).filter(b=>b.team!==s.team).map(b=>({...b,source:'body'})),...(snapshot.doors||[]).map(door=>({...door,source:'door'}))].filter(c=>distance(c,s)<3);
  const downed=snapshot.players.filter(p=>p.team===s.team&&p.downed&&(distance(p,s)<=2||p.rescue?.carriedByYou));
- nearest=[...sources,...snapshot.exits.filter(e=>distance(e,s)<4)].sort((a,b)=>distance(a,s)-distance(b,s))[0];
+ nearest=extractionInteractionTarget(snapshot.exits,s,snapshot.serverTime,4)||[...sources,...snapshot.exits.filter(e=>distance(e,s)<4)].sort((a,b)=>distance(a,s)-distance(b,s))[0];
  updateInteraction(s);
  const nextPackKey=JSON.stringify([s.alive,s.downed,s.role||null,s.weaponId,s.equipment,s.pack,s.secure,sources.map(c=>c.source==='door'?[c.id,c.closed,c.locked]:[c.id,c.open,c.items]),(snapshot.squad||[]).map(q=>[q.id,q.name,q.alive,q.downed,q.hp,q.role||null]),downed.map(p=>[p.id,p.name,p.rescue,(snapshot.squad||[]).find(q=>q.id===p.id)?.role||null]),[...s.equipment,...s.pack].filter(it=>it.kind==='med').map(it=>s.combatVersion!==2||!!medicalNeed(s,it,snapshot.serverTime)&&snapshot.serverTime>=s.nextMedicalAt)]);
  if(nextPackKey!==packKey){packKey=nextPackKey;renderPack(s,sources,downed)}
@@ -414,13 +503,15 @@ async function chooseRaidQuantity(type,it,extra={}){const generation=raidGenerat
 function renderPack(s,sources,downed){
  const priorFocus=inventoryFocus($('pack'));
  $('pack').replaceChildren();
+ const secureCap=s.secureCap??(s.cap===8?1:2),salvage=[...s.pack,...s.secure].reduce((n,it)=>n+sellValue(it),0);
  const header=document.createElement('div');header.className='packHead';
- const title=document.createElement('strong');title.textContent='Backpack '+s.pack.length+'/'+s.cap+' · protected '+s.secure.length+'/'+(s.secureCap??(s.cap===8?1:2));
+ const title=document.createElement('strong');title.textContent='Backpack '+s.pack.length+'/'+s.cap+' · protected '+s.secure.length+'/'+secureCap+' · salvage '+salvage+' cr';
  const meters=document.createElement('div');meters.className='packMeters';meters.setAttribute('aria-hidden','true');
  const meter=(name,value,max,display)=>{const el=document.createElement('div'),label=document.createElement('span'),read=document.createElement('b'),track=document.createElement('div'),fill=document.createElement('span');el.className='packMeter';label.className='meterLabel';label.textContent=name;read.textContent=display||(value+'/'+max);track.className='meterTrack';fill.style.setProperty('--meter-fill',Math.max(0,Math.min(100,max?Math.round(value/max*100):0))+'%');track.append(fill);el.append(label,read,track);return el};
- const secureCap=s.secureCap??(s.cap===8?1:2);
  meters.append(meter('Slots',s.pack.length,s.cap),meter('Weight',Math.round((s.weight||0)*10)/10,s.weightCap||40,`${(s.weight||0).toFixed(1)}/${s.weightCap||40} kg`),meter('Protected',s.secure.length,secureCap));
  header.append(title,meters);$('pack').append(header);
+ const freeSlots=Math.max(0,(s.cap||0)-(s.pack.length||0)),freeWeight=(s.weightCap||40)-(s.weight||0);
+ const capacityWarning=it=>freeSlots<1?'Backpack full':itemWeight(it)>freeWeight+1e-9?'Over weight by '+Math.round((itemWeight(it)-freeWeight)*10)/10+' kg':'';
  const mates=(snapshot?.squad||[]).filter(q=>q.alive&&!q.downed&&q.id!==profile.id),roleOf=id=>roleLabel((snapshot?.squad||[]).find(q=>q.id===id)?.role);
  function addItemRow(it,inPack){
   const controls=[button('Inspect',()=>inspect(it))];
@@ -473,7 +564,7 @@ function renderPack(s,sources,downed){
   const heading=document.createElement('p'),count=c.items.length,items=count+' item'+(count===1?'':'s');heading.textContent=c.source==='cache'?(c.label||'Salvage cache')+(c.open?' · searched':' · unsearched'):c.source==='body'?(c.name||'Downed operator')+(c.open?' · searched body':' · downed · searchable'):c.source==='loot'?'On the ground · '+(c.label||'Ground loot'):lootBagLabel(c)+' · '+(count?items:'out of reach');$('pack').append(heading);
   if(c.source==='cache'&&!c.open)$('pack').append(button('Search '+(c.label||'cache'),()=>action({type:'search',sourceId:c.id})));
   if(c.source==='body'&&!c.open)$('pack').append(button('Search '+(c.name||'downed operator'),()=>action({type:'search',sourceId:c.id})));
-  for(const it of c.items){const controls=[button('Inspect',()=>inspect(it)),button('Take',()=>action({type:'take',sourceId:c.id,itemId:it.id}))];if(stackable(it)&&it.quantity>1)controls.push(button('Take amount',()=>chooseRaidQuantity('take',it,{sourceId:c.id})));if(!canRecoverGrant(it,profile.id))for(const control of controls.slice(1)){control.disabled=true;control.title='Starter supplies can only be recovered by their original operator'}itemRow(it,$('pack'),controls)}
+  for(const it of c.items){const controls=[button('Inspect',()=>inspect(it)),button('Take',()=>action({type:'take',sourceId:c.id,itemId:it.id}))];if(stackable(it)&&it.quantity>1)controls.push(button('Take amount',()=>chooseRaidQuantity('take',it,{sourceId:c.id})));if(!canRecoverGrant(it,profile.id))for(const control of controls.slice(1)){control.disabled=true;control.title='Starter supplies can only be recovered by their original operator'}itemRow(it,$('pack'),controls,capacityWarning(it))}
  }
  const exitTitle=document.createElement('h3');exitTitle.textContent='Extraction sites';$('pack').append(exitTitle);
  for(const exit of snapshot.exits||[])$('pack').append(exitCard(exit,snapshot.serverTime));
@@ -529,7 +620,10 @@ async function interact(){
 setInterval(async()=>{
  if(!inRaid||tickBusy)return;tickBusy=true;const generation=raidGeneration;
  try{
-  if(snapshot.self.alive){if(!deferIdleMovement({input:movementInput(),confirmed:snapshot.self.move,engaged:trigger.engaged,sampleAgeMs:performance.now()-stateAt,sprint:sprintIntent()}))await action(()=>({type:'move',...movementInput(),yaw,pitch,sprint:sprintIntent()}))}
+  if(snapshot.self.alive){
+   const syncedLook={yaw:snapshot.self.yaw||0,pitch:snapshot.self.pitch||0};
+   if(lookNeedsSync(yaw,pitch,syncedLook)||!deferIdleMovement({input:movementInput(),confirmed:snapshot.self.move,engaged:trigger.engaged,sampleAgeMs:performance.now()-stateAt,sprint:sprintIntent()}))await action(()=>({type:'move',...movementInput(),yaw,pitch,sprint:sprintIntent()}));
+  }
   else{const updated=await api('raid'+(spectateId?'?spectate='+encodeURIComponent(spectateId):''));if(!inRaid||generation!==raidGeneration)return;snapshot=updated;stateAt=performance.now();prediction?.reconcile(updated);updateUI()}
  }catch(e){if(inRaid&&!snapshot?.self.result)$('hint').textContent=e.message}finally{tickBusy=false}
 },150);

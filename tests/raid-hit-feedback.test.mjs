@@ -105,3 +105,21 @@ test('legacy active raids also report server-resolved hit feedback',t=>{
  const hit=f.snapshot().self.hit;
  assert.equal(hit.target,'operator');assert.equal(hit.token,1);assert.equal(hit.zone,'body');
 });
+
+test('incoming positioned damage exposes a bounded attacker bearing',t=>{
+ const f=setup(t);
+ assert.equal(f.snapshot().self.hurt,undefined,'no incoming damage yet');
+ f.service.damage(f.r(),f.p(),7,{source:'machine',from:{x:0,z:-5}});
+ const h=f.snapshot().self.hurt;
+ assert.ok(h,'positioned incoming damage is visible in the victim snapshot');
+ assert.equal(h.source,'machine');assert.equal(h.dx,0);assert.equal(h.dz,-5);
+ f.time(2000);assert.equal(f.snapshot().self.hurt,undefined,'incoming bearing expires with the hit window');
+});
+
+test('ambient damage without an attacker position invents no bearing',t=>{
+ const f=setup(t);
+ f.service.damage(f.r(),f.p(),3,{kind:'bleed'});
+ assert.equal(f.snapshot().self.hurt,undefined,'bleed has no positioned attacker');
+ f.service.damage(f.r(),f.p(),2,{kind:'fall'});
+ assert.equal(f.snapshot().self.hurt,undefined,'falls are not reported as fake directions');
+});

@@ -22,6 +22,15 @@ export function exitState(exit,now){
  else phase=exit.kind==='call'?'ready':'locked';
  return {phase,remaining,available,usesRemaining:exit.maxActivations==null?null:Math.max(0,exit.maxActivations-(exit.activations||0))};
 }
+// At an open extraction window the exit is the player's primary interaction:
+// nearby salvage or loot must not steal the boarding press. Client presentation
+// only; the server still enforces reach, seats, wave, and seat availability.
+export function extractionInteractionTarget(exits,actor,now,radius=4){
+ if(!actor||!Array.isArray(exits))return null;
+ const d=e=>Math.hypot(e.x-actor.x,(e.y||0)-(actor.y||0),e.z-actor.z);
+ const open=exits.filter(e=>exitState(e,now).phase==='open'&&d(e)<radius).sort((a,b)=>d(a)-d(b));
+ return open[0]||null;
+}
 export function exitCost(exit){const cost=exit.cost||(exit.kind==='key'?{kind:'key',quantity:1}:null);return !cost?'No access cost':cost.kind==='key'?'1 access key':cost.quantity+' '+cost.material}
 const counted=(n,word)=>n+' '+word+(n===1?'':'s');
 export function exitDescription(exit,now){

@@ -302,13 +302,57 @@ try{
    shutterHero={x:shutterSite.x,z:shutterSite.z,onZ:shutterSite.onZ,panels:shutterSite.panels,siteY:shutterSite.y};
    view.applySettings({reduced:false,sfxVolume:0,fov:75,viewMode:'third'});
   }
-  return {fieldWidth:w2,fieldHeight:h2,alive:!!view.snapshot?.self?.alive,selfPose:[clear.self.x,clear.self.y||0,clear.self.z],utilityPose:utilityHero&&window.__structureUtility&&window.__structureUtility.pose,cabinetPose:window.__structureCabinet&&window.__structureCabinet.pose,signPose:window.__structureSign&&window.__structureSign.pose,roofPose:window.__structureRoof&&window.__structureRoof.pose,gritPose:window.__structureGrit&&window.__structureGrit.pose,weatherPose:window.__structureWeather&&window.__structureWeather.pose,building:{dist:Math.round(building.dist),w:building.w,d:building.d,h:building.h},detail,detailPixels,vinePixels,boardingPixels,doorwayPixels,awningPixels,utilityPixels,signPixels,roofPlantPixels,streetGritPixels,weatherPixels,windowShutterPixels,doorwayHero:doorwayHero&&{x:doorwayHero.x,z:doorwayHero.z,face:doorwayHero.face,windows:doorwayHero.windows,awning:doorwayHero.awning},utilityHero,signHero,roofPlantHero,streetGritHero,weatherHero,shutterHero,deterministic,detailRestart,tagCounts,pbr,changesDetailOnly:{meshes:structureMeshes.length},reduced:{sameMatrices:Math.abs(reducedA-reducedB)<1e-5,changed:countDiff(reducedFirst,reducedSecond)<=2},memory:{before:memBefore,after:memAfter},stateUntouched:worldSig===JSON.stringify([view.world.blocks?.length,view.world.props?.length,view.world.size])};
+  // Window-sill and flower-box evidence: a close first-person street pose looking
+  // up at an opening with a planter so both the projecting stone ledge and the
+  // hanging flower box are inspectable. Each tag group is hidden independently
+  // so its changed-pixel contribution is isolated after the lifecycle restart.
+  const sillSites=view.environmentRoot.userData.raidWindowSills||[];
+  let sillSite=null,sillBias=-1;
+  for(const u of sillSites){
+   const hx=u.x+u.outX*3.0,hz=u.z+u.outZ*3.0;
+   let inside=false;
+   for(const b of view.world.blocks||[]){
+    if(Math.abs(hx-b[0])<=b[2]/2+.4&&Math.abs(hz-b[1])<=b[3]/2+.4){inside=true;break}
+   }
+   if(inside)continue;
+   let clearance=1e9;
+   for(const p of view.world.props||[]){
+    if(!weatherBlockers.has(p.kind))continue;
+    const dx=(p.x||0)-hx,dz=(p.z||0)-hz,dd=Math.hypot(dx,dz);
+    if(dd<clearance)clearance=dd;
+   }
+   const score=(u.planter?24:0)+10*Math.min(u.wide||0,1.15)+clearance-Math.max(0,(u.y||0)-2.4)*4;
+   if(score>sillBias){sillBias=score;sillSite=u}
+  }
+  let sillPixels=0,flowerBoxPixels=0,sillHero=null;
+  const sillMeshes=[],flowerBoxMeshes=[];
+  view.scene.traverse(o=>{
+   if((o.isMesh||o.isInstancedMesh)&&o.userData.raidStructure==='windowSill')sillMeshes.push(o);
+   if((o.isMesh||o.isInstancedMesh)&&o.userData.raidStructure==='flowerBox')flowerBoxMeshes.push(o);
+  });
+  if(sillSite){
+   const hx=sillSite.x+sillSite.outX*3.0,hz=sillSite.z+sillSite.outZ*3.0;
+   const hy=terrainHeightAt(view.world,hx,hz),dx=sillSite.x-hx,dz=sillSite.z-hz,wd=Math.hypot(dx,dz);
+   const sYaw=Math.atan2(dx,dz),sPitch=Math.atan2(sillSite.y-(hy+1.65),wd),sPose={x:hx,y:hy,z:hz};
+   window.__structureSill={yaw:sYaw,pitch:sPitch,pose:sPose,fov:58};
+   view.applySettings({reduced:true,sfxVolume:0,fov:58,viewMode:'first'});
+   const overlayVisible=view.overlay?view.overlay.visible:true;if(view.overlay)view.overlay.visible=false;
+   for(let i=0;i<24;i++)frameAtPose(2100,sYaw,sPitch,sPose);const withSill=capture();
+   for(const m of sillMeshes)m.visible=false;for(let i=0;i<24;i++)frameAtPose(2100,sYaw,sPitch,sPose);const withoutSill=capture();
+   sillPixels=countDiff(withSill,withoutSill);for(const m of sillMeshes)m.visible=true;
+   for(const m of flowerBoxMeshes)m.visible=false;for(let i=0;i<24;i++)frameAtPose(2100,sYaw,sPitch,sPose);const withoutFlowerBox=capture();
+   flowerBoxPixels=countDiff(withSill,withoutFlowerBox);for(const m of flowerBoxMeshes)m.visible=true;
+   if(view.overlay)view.overlay.visible=overlayVisible;
+   sillHero={x:sillSite.x,z:sillSite.z,onZ:sillSite.onZ,planter:sillSite.planter,siteY:sillSite.y,wide:sillSite.wide};
+   view.applySettings({reduced:false,sfxVolume:0,fov:75,viewMode:'third'});
+  }
+  return {fieldWidth:w2,fieldHeight:h2,alive:!!view.snapshot?.self?.alive,selfPose:[clear.self.x,clear.self.y||0,clear.self.z],utilityPose:utilityHero&&window.__structureUtility&&window.__structureUtility.pose,cabinetPose:window.__structureCabinet&&window.__structureCabinet.pose,signPose:window.__structureSign&&window.__structureSign.pose,roofPose:window.__structureRoof&&window.__structureRoof.pose,gritPose:window.__structureGrit&&window.__structureGrit.pose,weatherPose:window.__structureWeather&&window.__structureWeather.pose,building:{dist:Math.round(building.dist),w:building.w,d:building.d,h:building.h},detail,detailPixels,vinePixels,boardingPixels,doorwayPixels,awningPixels,utilityPixels,signPixels,roofPlantPixels,streetGritPixels,weatherPixels,windowShutterPixels,sillPixels,flowerBoxPixels,doorwayHero:doorwayHero&&{x:doorwayHero.x,z:doorwayHero.z,face:doorwayHero.face,windows:doorwayHero.windows,awning:doorwayHero.awning},utilityHero,signHero,roofPlantHero,streetGritHero,weatherHero,shutterHero,sillHero,deterministic,detailRestart,tagCounts,pbr,changesDetailOnly:{meshes:structureMeshes.length},reduced:{sameMatrices:Math.abs(reducedA-reducedB)<1e-5,changed:countDiff(reducedFirst,reducedSecond)<=2},memory:{before:memBefore,after:memAfter},stateUntouched:worldSig===JSON.stringify([view.world.blocks?.length,view.world.props?.length,view.world.size])};
  })()`);
  assert.ok(result.detail.structures>=250,'relay reports the authored structure count (got '+result.detail.structures+')');
  assert.equal(result.detail.plinths,result.detail.structures,'every structure gets a foundation plinth');
  assert.equal(result.detail.cornices,result.detail.structures,'every structure gets a roof cornice');
  assert.ok(result.detail.vents>100&&result.detail.antennas>20&&result.detail.debris>20&&result.detail.beacons>10,'rooftop vents, masts, debris and beacons are populated');
- assert.deepEqual(Object.keys(result.tagCounts).sort(),['antenna','beacon','boarding','cornice','debris','doorAwning','doorway','facadeSign','facadeUtility','facadeWeather','fireEscape','framing','groundGrit','plinth','roofPlant','vent','vines','windowShutter'],'all detail tags are grouped as instanced meshes');
+ assert.deepEqual(Object.keys(result.tagCounts).sort(),['antenna','beacon','boarding','cornice','debris','doorAwning','doorway','facadeSign','facadeUtility','facadeWeather','fireEscape','flowerBox','framing','groundGrit','plinth','roofPlant','vent','vines','windowShutter','windowSill'],'all detail tags are grouped as instanced meshes');
  assert.ok((result.detail.frames||0)>200,'window openings gain four authored frame pieces each ('+result.detail.frames+')');
  assert.ok((result.detail.fireEscapes||0)>10,'tall blocks carry readable fire escapes ('+result.detail.fireEscapes+')');
  assert.ok((result.detail.vines||0)>20,'facades are reclaimed by climbing vines ('+result.detail.vines+' blocks)');
@@ -323,7 +367,9 @@ try{
  assert.ok((result.detail.streetGritClusters||0)>100,'foundations collect masonry and weed clusters ('+result.detail.streetGritClusters+' ground-grit clusters)');
  assert.ok((result.detail.facadeStains||0)>100,'weathered façades carry damp stains and rain streaks ('+result.detail.facadeStains+' façade stain sites)');
  assert.ok((result.detail.windowShutters||0)>100,'a deterministic share of dark windows gain weathered plank shutters ('+result.detail.windowShutters+' shuttered openings)');
- assert.ok(result.tagCounts.framing>0&&result.tagCounts.fireEscape>0&&result.tagCounts.vines>100&&result.tagCounts.boarding>1500&&result.tagCounts.doorway>800&&result.tagCounts.doorAwning>150&&result.tagCounts.facadeUtility>500&&result.tagCounts.facadeSign>250&&result.tagCounts.roofPlant>200&&result.tagCounts.groundGrit>800&&result.tagCounts.facadeWeather>1200&&result.tagCounts.windowShutter>1000,'frame, fire-escape, vine, boarding, doorway, awning, utility, sign, roof-plant, ground-grit, weathering and shutter instances are rendered');
+ assert.ok((result.detail.windowSills||0)>8000,'every façade opening gains a projecting stone sill ledge ('+result.detail.windowSills+' sill ledges)');
+ assert.ok((result.detail.flowerBoxes||0)>1500,'a deterministic share of window sills carries a hanging flower box ('+result.detail.flowerBoxes+' planters)');
+ assert.ok(result.tagCounts.framing>0&&result.tagCounts.fireEscape>0&&result.tagCounts.vines>100&&result.tagCounts.boarding>1500&&result.tagCounts.doorway>800&&result.tagCounts.doorAwning>150&&result.tagCounts.facadeUtility>500&&result.tagCounts.facadeSign>250&&result.tagCounts.roofPlant>200&&result.tagCounts.groundGrit>800&&result.tagCounts.facadeWeather>1200&&result.tagCounts.windowShutter>1000&&result.tagCounts.windowSill>15000&&result.tagCounts.flowerBox>10000,'frame, fire-escape, vine, boarding, doorway, awning, utility, sign, roof-plant, ground-grit, weathering, shutter, sill and flower-box instances are rendered');
  assert.ok(result.changesDetailOnly.meshes>=7,'detail groups are separate instanced meshes ('+result.changesDetailOnly.meshes+')');
  assert.equal(result.pbr,true,'detail surfaces (except the beacon glow) use textured PBR materials + normal maps');
  assert.ok(result.building.dist<100,'a nearby authored building is aimed at (dist '+result.building.dist+' m)');
@@ -338,7 +384,10 @@ try{
  assert.ok(result.streetGritPixels>150,'foundation grit and weeds visibly break up the street ('+result.streetGritPixels+' changed pixels)');
  assert.ok(result.weatherPixels>150,'façade rain streaks and damp stains visibly weather the wall ('+result.weatherPixels+' changed pixels)');
  assert.ok(result.windowShutterPixels>150,'weathered shutters visibly frame dark windows ('+result.windowShutterPixels+' changed pixels)');
+ assert.ok(result.sillPixels>100,'projecting stone sill ledges visibly ground the façade openings ('+result.sillPixels+' changed pixels)');
+ assert.ok(result.flowerBoxPixels>60,'hanging flower boxes with foliage and blooms contribute to the street façade ('+result.flowerBoxPixels+' changed pixels)');
  assert.ok(result.shutterHero,'a window-shutter evidence pose is available for inspection');
+ assert.ok(result.sillHero&&result.sillHero.planter,'a flower-box sill evidence pose is available for inspection');
  assert.ok(result.doorwayHero,'a doorway evidence pose is available for inspection');
  assert.ok(result.utilityHero,'a facade utility evidence pose is available for inspection');
  assert.ok(result.signHero,'a storefront blade-sign evidence pose is available for inspection');
@@ -369,6 +418,8 @@ try{
  await new Promise(r=>setTimeout(r,200));await shot(p,'/tmp/hs-facade-weather.png');
  await p.evaluate(`(async()=>{const v=window.__structureView,s=window.__structureShutter;if(!s)return;v.applySettings({reduced:false,sfxVolume:0,fov:s.fov||60,viewMode:'first'});v.selfActor.userData.actor='none';v.selfActor.visible=false;if(v.overlay)v.overlay.visible=false;for(let i=0;i<60;i++)v.frame(308000+i*16,s.yaw,s.pitch,s.pose,false);v.renderer.getContext().finish()})()`);
  await new Promise(r=>setTimeout(r,200));await shot(p,'/tmp/hs-window-shutters.png');
- await p.evaluate("(()=>{delete window.__structureView;delete window.__structureHero;delete window.__structureDoor;delete window.__structureUtility;delete window.__structureCabinet;delete window.__structureSign;delete window.__structureRoof;delete window.__structureGrit;delete window.__structureWeather;delete window.__structureShutter;document.getElementById('structuresProbe').remove()})()");
- console.log(JSON.stringify({field:[result.fieldWidth,result.fieldHeight],alive:result.alive,selfPose:result.selfPose,utilityPose:result.utilityPose,cabinetPose:result.cabinetPose,signPose:result.signPose,roofPose:result.roofPose,gritPose:result.gritPose,weatherPose:result.weatherPose,building:result.building,detail:result.detail,doorwayHero:result.doorwayHero,utilityHero:result.utilityHero,signHero:result.signHero,roofPlantHero:result.roofPlantHero,streetGritHero:result.streetGritHero,weatherHero:result.weatherHero,shutterHero:result.shutterHero,tagCounts:result.tagCounts,detailPixels:result.detailPixels,vinePixels:result.vinePixels,boardingPixels:result.boardingPixels,doorwayPixels:result.doorwayPixels,awningPixels:result.awningPixels,utilityPixels:result.utilityPixels,signPixels:result.signPixels,roofPlantPixels:result.roofPlantPixels,streetGritPixels:result.streetGritPixels,weatherPixels:result.weatherPixels,windowShutterPixels:result.windowShutterPixels,pbr:result.pbr,deterministic:result.deterministic,restart:result.detailRestart,reduced:result.reduced,memory:result.memory,screenshots:['/tmp/hs-structure-detail.png','/tmp/hs-doorway.png','/tmp/hs-facade-utility.png','/tmp/hs-facade-cabinet.png','/tmp/hs-facade-sign.png','/tmp/hs-roof-plant.png','/tmp/hs-street-grit.png','/tmp/hs-facade-weather.png','/tmp/hs-window-shutters.png'],browserErrors:p.errors}));
+ await p.evaluate(`(async()=>{const v=window.__structureView,s=window.__structureSill;if(!s)return;v.applySettings({reduced:false,sfxVolume:0,fov:s.fov||58,viewMode:'first'});v.selfActor.userData.actor='none';v.selfActor.visible=false;if(v.overlay)v.overlay.visible=false;for(let i=0;i<60;i++)v.frame(309000+i*16,s.yaw,s.pitch,s.pose,false);v.renderer.getContext().finish()})()`);
+ await new Promise(r=>setTimeout(r,200));await shot(p,'/tmp/hs-window-sills.png');
+ await p.evaluate("(()=>{delete window.__structureView;delete window.__structureHero;delete window.__structureDoor;delete window.__structureUtility;delete window.__structureCabinet;delete window.__structureSign;delete window.__structureRoof;delete window.__structureGrit;delete window.__structureWeather;delete window.__structureShutter;delete window.__structureSill;document.getElementById('structuresProbe').remove()})()");
+ console.log(JSON.stringify({field:[result.fieldWidth,result.fieldHeight],alive:result.alive,selfPose:result.selfPose,utilityPose:result.utilityPose,cabinetPose:result.cabinetPose,signPose:result.signPose,roofPose:result.roofPose,gritPose:result.gritPose,weatherPose:result.weatherPose,building:result.building,detail:result.detail,doorwayHero:result.doorwayHero,utilityHero:result.utilityHero,signHero:result.signHero,roofPlantHero:result.roofPlantHero,streetGritHero:result.streetGritHero,weatherHero:result.weatherHero,shutterHero:result.shutterHero,sillHero:result.sillHero,tagCounts:result.tagCounts,detailPixels:result.detailPixels,vinePixels:result.vinePixels,boardingPixels:result.boardingPixels,doorwayPixels:result.doorwayPixels,awningPixels:result.awningPixels,utilityPixels:result.utilityPixels,signPixels:result.signPixels,roofPlantPixels:result.roofPlantPixels,streetGritPixels:result.streetGritPixels,weatherPixels:result.weatherPixels,windowShutterPixels:result.windowShutterPixels,sillPixels:result.sillPixels,flowerBoxPixels:result.flowerBoxPixels,pbr:result.pbr,deterministic:result.deterministic,restart:result.detailRestart,reduced:result.reduced,memory:result.memory,screenshots:['/tmp/hs-structure-detail.png','/tmp/hs-doorway.png','/tmp/hs-facade-utility.png','/tmp/hs-facade-cabinet.png','/tmp/hs-facade-sign.png','/tmp/hs-roof-plant.png','/tmp/hs-street-grit.png','/tmp/hs-facade-weather.png','/tmp/hs-window-shutters.png','/tmp/hs-window-sills.png'],browserErrors:p.errors}));
 }finally{await h.close();runtime.server.close();await once(runtime.server,'close');store.close();if(prior===undefined)delete process.env.RAID_TEST_URL;else process.env.RAID_TEST_URL=prior}

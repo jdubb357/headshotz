@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-09 (gameplay audit iteration 13).
+Last audited: 2026-11-10 (gameplay audit iteration 22).
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -32,7 +32,7 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 | Loot | COMPLETE | Ground loot, deterministic random spawns, caches, rarity, inspection, take/drop and downed-body transfer are covered by server and browser graders. |
 | PvP | COMPLETE (local) | Downing, crawl, finish, revive, full-body looting, armor and death penalties are authoritative; live human-hosted balance is UNVERIFIED. |
 | Extraction | COMPLETE | Four exit kinds, markers, activation, countdown, contested states, boarding and gear retention have server/browser evidence. |
-| Navigation | COMPLETE | Minimap, full tactical map, compass, pings, waypoints and squad/extraction markers are driven by snapshots. |
+| Navigation | COMPLETE | Minimap, full tactical map, compass, pings, waypoints and squad/extraction markers are driven by snapshots, and idle look input now stays synchronized to the authority (iteration 19). |
 | Inventory | COMPLETE | Slots, backpack, stacks, weight/cap, consumables, drag/drop, give and persistent stash are enforced server-side. |
 | Combat | COMPLETE | Weapons, recoil, reload, switching, hit feedback, armor, healing, throwables and movement are complete; authoritative hit tokens, markers, captions and cues are graded. Balance is tracked under game feel. |
 | Enemy AI | COMPLETE | Patrols, detection, noise investigation, pursuit, five machine classes, weak points, boss phases and salvage drops exist and are graded. |
@@ -91,8 +91,10 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
    celebration is now server-snapshot-driven and browser-graded (iteration 10). The
    loop's addictiveness and pacing are still not proven by humans.
 10. **P10 — Persistent richer home-base economy** (COMPLETE baseline, PARTIAL depth):
-    vendors/crafting/contracts/upgrades work; deeper equipment condition and
-    progression choices are not yet human-evaluated.
+    vendors/crafting/contracts/upgrades work, and damaged equipment now offers two
+    authoritative repair grades — a cheap partial field patch (+25 condition, one wire)
+    and a full workshop restoration (100%, one steel). The relative value of those
+    choices is not yet human-evaluated.
 
 ## 1. Loot
 
@@ -321,6 +323,12 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   incompatible with recovery boundary; loadout/accessibility/rewards graders.
 - **Post-raid rewards** — COMPLETE. `#rewards` card from `/api/results` plus sign-out/
   account isolation, focus/navigation and no invented state; rewards grader.
+- **Equipment repair grades** — COMPLETE local (iteration 22). Damaged weapons and armor
+  can receive an authoritative partial field patch (+25 condition, capped at 100, one
+  wire, credits priced per restored points) or a full workshop repair (100%, one steel,
+  existing formula); unknown grades and no-op repairs are rejected, and the stash renders
+  both costs and starter-binding hints. `raid-progression.test.mjs` and the real-UI
+  repair flow in `raid-browser-rewards.mjs` are green.
 - **Deeper human-evaluated economically meaningful choices** — PARTIAL (P10); baseline
   systems work, but depth/values are not human-accepted.
 
@@ -363,7 +371,17 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 - **Visual/sound feedback** — PARTIAL. Muzzle/reload/boss/incoming-hurt cues exist, and
   authoritative outgoing hit/kill markers, captions and cues are COMPLETE (iteration 6).
   Body/bag labels and map markers are now distinct by container kind (iteration 9, P4);
-  older screenshots may still show the former generic "salvage bag" wording.
+  the server now records a 1.6 s positioned incoming-damage bearing for every machine,
+  rival, hazard, blast and operator shot, and the raid client draws a transient red
+  direction arrow with an accessible source/side label (iteration 16). Façade detail is
+  richer at street range: 8009 detected exterior window openings now carry projecting
+  stone sill ledges and 1681 carry hanging flower-box planters with foliage and blooms,
+  proven as instanced PBR `windowSill`/`flowerBox` groups with isolated pixel evidence
+  (iteration 21, presentation-only). Salvage cache props now carry a shared-palette tier
+  accent — a ground ring, lid rim strips, side ribbons, a front badge and a top seal
+  derived from the authoritative cache tier with the vault bonus — plus procedural
+  reinforcement feet and riveted lid seams (iteration 23, presentation-only). Older
+  screenshots may still show the former generic "salvage bag" wording.
 - **UI usability/accessibility** — COMPLETE at automated level. Keyboard/touch, focus
   restoration, next-step announcement, native dialogs, mobile overflow and reduced
   motion validated by accessibility/tactical-map/rewards graders.
@@ -476,6 +494,221 @@ engineer pick with zero key use; zero browser errors); squad-extraction, party, 
 comms, accessibility, HUD layout, doors, exits and extraction UI regressions green.
 Honest gaps: live hosted role coordination, human balance and richer role depth remain
 UNVERIFIED.
+
+## Completed in iteration 14
+
+**P10 — Field salvage appraisal.** COMPLETE in local authoritative scope.
+`shared/raid-appraisal.mjs` owns the single base sale-value calculation for weapons,
+armor, meds, mods, utilities, valuables, contracts, ammunition, materials and other
+kinds; `RaidStore.value()` delegates to it, so appraisals and payouts cannot drift.
+`raid-online.mjs` renders a compact `N kg · N cr` appraisal chip row on every backpack
+and nearby-loot item (from shared `itemWeight` and `sellValue`), exposes
+`data-weight`/`data-sell-value`, and includes both in the row accessible name. The
+backpack header adds `salvage N cr`, the total base sale value in pack and protected
+pocket, and refreshes on take/secure. Nearby container rows display an accessible
+`Backpack full` or `Over weight by N kg` warning before a whole-stack take would fail;
+buttons stay enabled so partial takes and squad hand-off remain valid. Evidence:
+`raid-appraisal.test.mjs` 2/2 (all item kinds, real store sale), full unit suite
+1,168/1,168 sequential; `raid-browser-appraisal.mjs` green (real deployment, chips,
+header 0 → 17 cr, Take then Secure, full and overweight warnings, zero browser
+errors, screenshot `/tmp/raid-appraisal.png`); inventory, accessibility, loot
+excitement, bag metadata, body loot and HUD layout regressions green; the inventory
+drag grader now scopes pointer drags to the real pack scrollport so hand-off zones
+below the fold stay exercised. Honest gaps: whether a player judges the salvage
+"worth it", human loot excitement and hosted multiplayer remain UNVERIFIED.
+
+## Completed in iteration 15
+
+**Combat awareness — directional off-screen threat readability.** COMPLETE in local
+authoritative scope. `raid-online.mjs` exports `threatIndicators(snapshot)`, which derives markers only
+from living snapshot machines at most 40 m away whose relative bearing is outside a 55°
+forward cone, nearest four; `renderThreatIndicators` places them around a fixed ring
+using the operator yaw and right-vector math (right/left/behind), exposes `data-machine-id`,
+`data-kind`, `data-state`, `data-elite` and an accessible name with machine name, rounded
+distance, side, degrees and `· charging`, and reuses a single labelled `#threats` group.
+A machine in `windup` gets a red pulsing `!` treatment; reduced motion suppresses the
+animation. Forward and >40 m machines produce nothing, and empty snapshots hide and empty
+the layer. Evidence: `raid-browser-threats.mjs` green with authoritative fixtures
+(forward excluded; three markers at right (+150, 0), left (−150, 0), behind (0, +150);
+labels "Prowler 7 m right 90°", "Needle Scout 9 m left 90°", "Bulwark 7 m behind 180° ·
+charging"; hidden empty state; zero browser errors; screenshot `/tmp/raid-threats.png`).
+Boss, crosshair, HUD layout, accessibility, HUD theme, appraisal and inventory browser
+regressions green; sequential unit suite 1,168/1,168. Honest gaps: real-combat readability,
+telegraph fairness and organic raid pacing are UNVERIFIED without human playtesters; P5
+human balance, P6 hosted transport and P7 physical-device touch remain BLOCKED.
+
+## Completed in iteration 16
+
+**Combat awareness — incoming damage direction.** COMPLETE in local authoritative scope.
+`RaidService.damage()` records `hurtFeedback` (`at`, attacker-relative `dx`/`dz`, source)
+whenever a finite `from` position is supplied; `snapshot()` exposes it as `self.hurt` for
+1.6 s and omits expired or unpositioned damage. Machine strikes (including hazards and
+pounce-safe displacement), rival fire, explosive utilities and operator shots pass true
+positions; fall and bleed intentionally pass none. The raid client exports
+`hurtIndicator()` and renders one transient red arrow inside the threat ring using operator
+yaw/right-vector math, with `data-source`/`data-side` and the accessible name
+"Incoming damage from behind · machine fire"; it hides and empties when the snapshot has no
+recent positioned damage, leaving the hitmarker and threat markers independent. Evidence:
+two new unit tests in `raid-hit-feedback.test.mjs` (positioned bearing and expiry; ambient
+damage invents none), full sequential suite 1170/1170; `raid-browser-hurt-direction.mjs`
+green through a real deployment and an authoritative behind mortar strike (HP 100 → 70 after
+armor absorption, single behind marker at (0, 90), label, arrow, cleared after a 3 s clock
+advance, zero browser errors, screenshot `/tmp/raid-hurt-direction.png`); hit-feedback,
+threats, boss, crosshair, HUD layout, accessibility, HUD theme, ballistics, medical,
+appraisal and inventory browser regressions green. Honest gaps: whether the cue feels fair
+and legible in live human combat, balance and hosted/device acceptance remain UNVERIFIED.
+
+## Completed in iteration 17
+
+**Combat readiness — ammunition visibility.** COMPLETE in local scope. The raid HUD now
+shows the equipped weapon's magazine and catalog capacity (`Ammo N/M`), derived from the
+authoritative `self.ammo` and the equipped weapon's catalog `mag`, with warn below 25%
+and critical at zero. Empty magazines add a visible, red-cased `EMPTY · RELOAD` alert; an
+`aria-label` announces total capacity and empty/low status. Unarmed keeps the existing
+`UNARMED` token, and fire/reload remain server-guarded without client-side blocking.
+Evidence: `raid-browser-ammo-readiness.mjs` green with a real deployment and native shot
+(30/30 → 29/30, exactly one server round), authoritative low/empty fixtures (`7/30` warn,
+`0/30` critical + alert), real Reload button restoring `30/30` and consuming a compatible
+stack, zero browser errors, screenshots `/tmp/raid-ammo-low.png` and
+`/tmp/raid-ammo-empty.png` inspected; 15 affected browser regressions green; sequential
+unit suite 1170/1170 on two consecutive runs. Honest gaps: human balance, pacing,
+loot-excitement, hosted multiplayer and physical-device acceptance remain UNVERIFIED.
+
+## Completed in iteration 18
+
+**Extraction interaction priority.** COMPLETE in local presentation scope. A natural
+acceptance run found that an open evacuation beacon could lose the shipped `E` press to
+nearby ambush salvage: the single interaction target was chosen purely by distance, so a
+closer machine bag could be looted instead of starting authoritative boarding. Added the
+pure shared helper `extractionInteractionTarget(exits,actor,now,radius)` and used it in
+`raid-online.mjs` before the ordinary source distance sort. When an exit window is open
+(and not full) and within 4 m, the exit is both the hint target and the interact target;
+when no window is open, the previous distance ordering and call/unlock/loot behaviour are
+unchanged. No server boarding, seat, wave, settlement or other-mode code changed; salvage
+remains reachable through its backpack source row, so nothing is silently removed.
+
+Evidence: new unit test in `tests/raid-exits.test.mjs` (reach boundary 3.9 m/4.1 m, window
+gating, full exit does not outrank loot); new isolated Chrome grader
+`tests/raid-browser-extraction-priority.mjs` — a real deployment, native E presses, labeled
+runtime fixture bags. With a locked hatch and nearer salvage, E took the bag SMG and did not
+board; with an open call beacon and nearer salvage, E started boarding on `call`, salvaged
+bag untouched, authoritative settlement `extract`, zero browser errors. Screenshots
+`/tmp/raid-extraction-priority-loot.png` and `/tmp/raid-extraction-priority-open.png`
+inspected. Green sequential browser set: exits, interactions, accessibility, bag-metadata,
+loot-excitement, ranks, squad-extraction, extraction-ui, doors, body-loot, inventory,
+appraisal, ballistics, medical, rescue, sectors, tactical-map, vault, grants, and
+loss-report (run against a fresh isolated data dir; the shared stale 8021 service returned a
+client-protocol mismatch and was left untouched). Sequential unit suite 1171/1171, all pass.
+Honest gaps: the fixture-free natural acceptance run died to a machine after looting and
+engaging at the insertion site; with an empty secure pocket because no supply item was
+reached, the natural "secure/extract" path is PARTIAL and its script assertion fails. Human
+balance, pacing and atmosphere judgments remain UNVERIFIED.
+
+## Completed in iteration 19
+
+**Client view — authoritative idle look synchronization.** COMPLETE in local
+authoritative scope. Holding a look key while stationary is still a real authoritative
+action: `raid-trigger.mjs` now exports the pure helper `lookNeedsSync(yaw,pitch,synced)`
+and the raid client's 150 ms tick uses it before the idle-movement deferral decision. When
+the local view has not reached the snapshot (`self.yaw`/`self.pitch`), a view-only move
+packet is sent; pure idle with unchanged look still defers the periodic packet. This keeps
+the compass, minimap operator bearing, interaction bearings, off-screen threat markers
+and incoming-hurt direction driven by authoritative yaw instead of frozen local state.
+Yaw comparison is wrap-safe; `NaN` input and missing samples are handled.
+
+Evidence: new unit test in `tests/raid-trigger-latency.test.mjs`; new isolated Chrome
+grader `tests/raid-browser-view-sync.mjs` (real deployment, no fixtures) syncs yaw −1.33161 rad
+and pitch up +0.86338/down −0.53662 rad with 0 m movement, matching compass 180° → 256°,
+zero browser errors, screenshot `/tmp/raid-view-sync.png`. Threat-ring and hurt-direction
+browser graders remain green. The fixture-free natural acceptance now locks the nearest
+medical/material supply pile, secures a bandage in the protected pocket before engaging a
+scout, fires 18 authoritative rounds with native keys, and settles by natural death with
+the secured bandage returned and the carried starter/field gear lost; it exits 0. The
+natural run's snapshot-driven aim did not land a hit (0 pelletsHit), so hit-rate quality in
+motion remains a probe gap. Affected regressions and 1171 other unit tests pass; the
+whole suite reports one pre-existing intermittent ECONNRESET in the unrelated matchmaking
+wire-latency test (11/11 green when rerun standalone). Honest gaps: natural extraction was
+not reached in this run (covered by exit graders), and human balance, paced combat and
+loot excitement remain UNVERIFIED.
+
+## Completed in iteration 20
+
+**Natural acceptance — precise aim and a stall-free native route.** COMPLETE in local
+authoritative scope. The fixture-free probe now drives the shipped `Arrow` bindings with
+exact in-page 100 ms hold timers (`lookPulse`), so the authoritative look changes at the
+client rate (yaw 1.7 rad/s, pitch 1.4 rad/s) instead of overshooting from CDP transport
+latency. `turnTo` covers the full bearing in one closed-loop pulse and lets the client's
+150 ms view-only move packet land before steering again. `walkTo` gained a width-aware
+`arrive` band: route legs accept a crossed waypoint (a previous sample inside 3.5 m plus
+growing distance) instead of orbiting an overshot point, while loot/exit points stop,
+re-aim and take bounded 60–260 ms steps once within 8 m of a tight 1.4 m interaction
+target. Evidence: a temporary 69-waypoint relay probe completed 799 m in 262 s with no
+stall; the final natural acceptance exited 0 with a `material` secured in the protective
+pocket, 772 m travelled, 11 of 17 authoritative pellets hit, settlement `extract`
+(5 items returned, 0 lost), and zero browser errors. A second natural run settled by
+`death` with 4 hits and a securely pocketed item. New `raid-browser-look-pulse.mjs` proves
+the 100 ms pulses at the client's yaw 1.7 rad/s and pitch 1.4 rad/s within one
+animation-frame quantum (0.03 rad), green in five consecutive runs (yaw exactly 0.17;
+pitch 0.14, or 0.163 when the hold rounds up one 60 Hz frame); view-sync, hit-feedback
+and the full 1,172-test unit suite are green. Honest gaps: human playtest
+balance/pacing, hosted transport and physical-device acceptance remain UNVERIFIED; the
+probe only exercises the local loopback service, and loot/machine placement still varies
+per raid.
+
+## Completed in iteration 21
+
+**Façade window sill ledges and flower-box planters.** COMPLETE in local presentation
+scope. `raid-environment.mjs` builds a presentation-only 12 m footprint grid from the
+frozen block layer so each authored window prop can find its exterior parent face without
+quadratic block scans. Every detected opening (8009 of 8823) gains a two-tier projecting
+stone sill ledge (`windowSill`); a deterministic share (1681) of broad openings gains a
+sun-bleached wooden planter (`flowerBox`) with thin soil, two wind-shared foliage clumps
+and three warm flower spheres. Sites publish through `userData.raidWindowSills` with
+`planter` metadata and counts ship in `raidStructureDetail`. Evidence:
+`tests/raid-browser-structures.mjs` green (counts, deterministic rebuild, lifecycle
+restart, `sillPixels: 6153`, `flowerBoxPixels: 29542`, `pbr: true`,
+`stateUntouched: true`, `browserErrors: []`) with screenshot `/tmp/hs-window-sills.png`
+inspected; full unit suite `1172 pass / 0 fail`. Honest gap: the 814 window props authored
+inside/floating in earlier district fabric match no block face and receive no ledge;
+human aesthetic acceptance remains UNVERIFIED. This is visual detail only and changes no
+raid rules or other modes.
+
+## Completed in iteration 22
+
+**Equipment repair grades — field patch vs workshop repair.** COMPLETE in local
+authoritative scope. `shared/raid-grants.mjs` now exposes `patchTarget` and a
+target-aware `repairCost`; the base `repair` trade action takes an optional
+`quality` (`full` default, or `patch`). A patch restores at most 25 condition points
+(capped at 100) and consumes one wire, while full repair restores to 100 with one
+steel. Unknown grades and repairs that would restore no condition are rejected, and
+the exact restored range/credits are recorded in an `equipment_repair` audit event.
+The stash renders both controls for damaged weapons/armor with authoritative costs
+and starter-binding hints. Evidence: `tests/raid-progression.test.mjs` proves a
+40→65 patch costs 15 credits and one wire, the following 65→100 repair costs 20
+credits and one steel, and invalid/no-op grades fail without changing inventory;
+`raid-browser-rewards.mjs` exercises both controls through the real post-extraction
+UI (`repairGrades`: patch→65%, full→100%, one wire and one steel consumed,
+`browserErrors: []`); full unit suite `1173 pass / 0 fail`. Honest gap: the relative
+balance/feel of paying partial vs full prices, and hosted/device behavior, remain
+UNVERIFIED (P5/P6/P10), so P10 depth stays PARTIAL as a human-acceptance question.
+
+## Completed in iteration 23
+
+**Tiered salvage cache container props.** COMPLETE in local presentation scope. The
+authoritative snapshot already carries each cache's authored `tier` and `vault`; the raid
+client now feeds `tier + vault bonus` (clamped 0–5) into `propModel('cache', ...)`, which
+marks the crate with the same accent the shared loot palette assigns to that rarity. The
+tier group adds a ground ring, two lid rim strips, two side ribbons, a front badge and a
+corner-seated top seal; independent procedural reinforcement feet and lid rivets improve
+the plain body. Opening/lid status colours, lock/search rules, container ownership,
+collision and settlement are unchanged. Evidence: `tests/raid-browser-cache-tiers.mjs`
+deploys a real relay raid (15 cache props), asserts every prop's tier/accent and geometry
+and measures each tier's contribution (571, 605, 656, 614 and 641 changed pixels in a
+production-prop bench), with before/after screenshots `/tmp/hs-cache-tiers-before.png` and
+`/tmp/hs-cache-tiers.png` inspected; the full unit suite is 1174/1174 and an isolated
+smoke browser run stays green. Honest gap: subjective in-world readability (especially the
+authored night/rain front), human aesthetic acceptance, hosted multiplayer and
+physical-device behavior remain UNVERIFIED; do not claim P5/P6/P7 or human acceptance.
 
 ## Later items (not yet closed)
 
