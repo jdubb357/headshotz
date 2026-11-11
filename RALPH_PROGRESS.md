@@ -4907,3 +4907,72 @@ Pages acceptance is claimed.
 Next action: P0 slice 7 — hide/disable party create/join, voice, and latency probes
 in offline mode so the base UI deploys solo-versus-machines without matchmaking
 controls, keeping the online/Node behaviour unchanged.
+
+## Iteration 36 — P0 slice 7: stub offline multiplayer UI
+
+### Acceptance criteria — iteration 36 (P0 slice 7)
+
+1. On a static page (no Node `/api`), squad create/join/leave/ready, squad-size and
+   invite-code inputs, the Squad/voice toggle, voice controls, and the connection
+   probe controls (Check connection, maximum round trip, mixed-size) are hidden or
+   disabled, and the base screen states the raid is solo versus machines.
+2. Offline deploy uses the authoritative in-page service, does not run a latency
+   probe or send a latency proof, and still deploys/moves/fires with zero `/api`
+   traffic.
+3. Online/Node-hosted pages keep all squad, voice and latency controls visible and
+   unchanged; server-side probe validation is not weakened.
+4. The static browser grader and the online smoke regression pass, and the full
+   unit suite is green.
+
+### Implementation — iteration 36 (completed)
+
+- `raid-online.html`: squad controls (roster, ready/restore, size, invite, join,
+  role, leave) are wrapped in `#squadOnlineControls`; the connection controls
+  (`allowMixed`, `maxRtt`, `checkLatency`, `latencyStatus`) are wrapped in
+  `#connectionControls`.
+- `raid-online.mjs`: `offlineEnabled()` now records a module-level `offlineMode`
+  once the transport decision lands. `applyOfflineMode()` hides `#squadOnlineControls`
+  and `#connectionControls`, disables the party/voice selectors, keeps the
+  communications panel closed, marks voice unavailable, and replaces the latency
+  status. The keyboard input bindings no longer open communications/voice offline.
+  `refreshParty()` renders "Playing solo offline — machines are the opposition.",
+  retitles deploy as "Deploy solo raid", and never enters peer readiness.
+  `selectedMatch()` pins offline deployment to a neutral no-limit match, so the
+  `#deploy` handler skips `measureLatency()`, sends no latency proof, and the
+  probe/measure operations are unused; `measureLatency()` also short-circuits
+  offline. Online branches (fetch transport, party, readiness, probe validation)
+  are unchanged.
+- Tests: `tests/raid-browser-offline-dispatch.mjs` asserts hidden squad mutation
+  controls, hidden/disabled latency probe, hidden Squad/voice toggle, disabled
+  voice, offline match summary and voice-unavailable status on both static boot
+  selections, while still deploying, moving, firing, and showing zero `/api`
+  traffic. Online `tests/raid-browser-smoke.mjs` passes against a fresh Node server.
+
+### Commands/results (2026-11-10)
+
+- Targeted transport/store suites (`raid-offline`, `raid-static-mode`,
+  `raid-session`, `raid-store-memory`) → 31/31.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-offline-dispatch.mjs` →
+  staticOffline, probeFallback, deploy, moving, firing, noApiTraffic, tick,
+  soloUI true; 0 browser exceptions.
+- Online regression: fresh Node server on 8022; `tests/raid-browser-smoke.mjs` →
+  account/recovery/render/serverMovement/reconnect true, 0 browser exceptions.
+- Full suite `node --test tests/*.test.mjs` → 1215 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — offline hides squad/voice/probe controls and states solo versus machines.
+2. PASS — offline deploy/action remain authoritative; no probe or proof is sent and
+   zero `/api` resource traffic is observed.
+3. PASS — online smoke and the unchanged server probe calls stay green; no server
+   or transport authority moved to the client.
+4. PASS — static grader, online smoke and the 1215-test suite are green.
+
+**Status:** P0 slice 7 is COMPLETE. Pages DEPLOY routing (slice 8), full
+combat/loot/extraction playability wiring (slice 9) and the static playability
+grader (slice 10) remain. No human/hosted Pages acceptance is claimed.
+
+Next action: P0 slice 8 — on static Pages (no `headshotz-raid-service` meta),
+route the main-menu `#raidBtn` to `raid-online.html?offline=1` instead of
+`raidOpenBase()`, and expose the original cooperative Extraction through a clearly
+labeled secondary control without changing Battle Royale or other modes.

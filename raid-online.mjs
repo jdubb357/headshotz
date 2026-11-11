@@ -37,7 +37,7 @@ import {isOfflineQuery,readServiceMeta} from './shared/raid-static.mjs';
 // so the page switches to an in-page authoritative service instead of fetch.
 // An explicit `offline=1`, the Node-injected service meta, or one profile probe
 // decides the mode once per page; online hosts still use fetch for everything.
-let transportProbe=null,offlineRuntime=null,offlineRuntimeWork=null;
+let transportProbe=null,offlineRuntime=null,offlineRuntimeWork=null,offlineMode=false;
 function decideTransport(){
  if(isOfflineQuery(location.search))return Promise.resolve('offline');
  if(readServiceMeta(document))return Promise.resolve('online');
@@ -52,8 +52,9 @@ function decideTransport(){
 async function offlineEnabled(){
  if(!transportProbe)transportProbe=decideTransport();
  const transport=await transportProbe;
+ offlineMode=transport==='offline';
  try{document.body.dataset.raidTransport=transport}catch{}
- return transport==='offline';
+ return offlineMode;
 }
 function offlineService(){
  offlineRuntimeWork||=import('./shared/raid-offline.mjs').then(module=>{
@@ -94,7 +95,7 @@ let identityUI,authChecking=false,raidGeneration=0,authGeneration=0,wire,predict
 
 const comms=communicationUI({api,run,button,getProfile:()=>profile,action,getRaid:()=>inRaid?snapshot:null});
 const preferences=settingsUI({onChange:settings=>{view?.applySettings(settings);preview?.applySettings(settings);comms.voice.setVolume(settings.voiceVolume);$('voiceVolume').value=settings.voiceVolume}});
-const input=raidInput({settings:()=>preferences.get(),allowed:kind=>!preferences.isModal()&&(kind==='map'?inRaid:['pushTalk','communications'].includes(kind)?!!profile:['settings','help'].includes(kind)?true:inRaid&&$('communications').hidden&&!mapOpen),onTalk:active=>comms.voice.setTalking(active),onClear:stopHeldInput,onMove:sendHeldMovement,onRelease:kind=>{if(kind==='fire')trigger?.release('keyboard')},onAction:controlAction});
+const input=raidInput({settings:()=>preferences.get(),allowed:kind=>!preferences.isModal()&&(kind==='map'?inRaid:['pushTalk','communications'].includes(kind)?!!profile&&!offlineMode:['settings','help'].includes(kind)?true:inRaid&&$('communications').hidden&&!mapOpen),onTalk:active=>comms.voice.setTalking(active),onClear:stopHeldInput,onMove:sendHeldMovement,onRelease:kind=>{if(kind==='fire')trigger?.release('keyboard')},onAction:controlAction});
 trigger=new RaidTrigger({getState:()=>{const s=snapshot?.self;return s?{deploymentId:s.deploymentId,alive:s.alive,downed:s.downed,nextFire:s.nextFire,weapon:[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),serverTime:snapshot.serverTime,sampledAt:stateAt,rttMs:wire?.rtt||0}:null},allowed:()=>!weaponWork&&inRaid&&!!wire&&!wire.closed&&!!snapshot?.self.alive&&!snapshot.self.downed&&!preferences.isModal()&&$('communications').hidden&&!mapOpen&&!document.hidden,send:factory=>action(()=>({...factory(),yaw,pitch})),onEffect:()=>view?.fire(),onError:e=>{input.clear();notice={text:e.message,until:performance.now()+3500};$('hint').textContent=e.message}});
 $('voiceVolume').addEventListener('change',()=>preferences.update({voiceVolume:Number($('voiceVolume').value)}));
 addEventListener('raidsettingschange',()=>{if(inRaid)setPack(!$('pack').hidden)});
@@ -252,7 +253,7 @@ function renderRewards(records){
  $('rewardsDeploy').onclick=()=>focusRewardsSurface('#map');
 }
 async function refresh(){
- const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=false;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;
+ const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
  await baseUI.render(profile);if(generation!==authGeneration)return;
  $('resume').hidden=!profile.activeDeployment;$('deploy').disabled=!!profile.activeDeployment;
  const records=await api('results');if(generation!==authGeneration)return;$('records').replaceChildren();for(const r of records){
@@ -271,16 +272,39 @@ function selectedLoadout(){const recovery=$('recovery').checked,raw=[...$('stash
 baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
 function updateReadyMismatch(){const member=party?.members.find(m=>m.account===profile?.id),mismatch=!!(member?.ready&&!profile?.activeDeployment&&!sameLoadout(member.loadout,selectedLoadout()));$('readyMismatch').hidden=!mismatch;$('restoreReady').hidden=!mismatch;$('readyMismatch').textContent=mismatch?'Your current selection differs from your readied loadout. Ready again or restore it before deploying.':'';if(mismatch)$('deploy').disabled=true;return mismatch}
 $('restoreReady').onclick=()=>run(async()=>{const account=profile?.id;await refresh();if(profile?.id!==account)return;const member=party?.members.find(m=>m.account===account);if(!member?.ready||profile.activeDeployment)throw new Error('The readied loadout is no longer available. Review your squad.');if((member.loadout.itemIds||[]).some(id=>!profile.items.some(it=>it.id===id)))throw new Error('Readied equipment is no longer in your stash. Select equipment and ready again.');baseUI.selectLoadout(member.loadout);await refreshParty()});
-function selectedMatch(){return matchPreferences(party?.match??{allowMixed:$('allowMixed').checked,maxRttMs:Number($('maxRtt').value)})}
+function selectedMatch(){return matchPreferences(offlineMode?{allowMixed:true,maxRttMs:0}:party?.match??{allowMixed:$('allowMixed').checked,maxRttMs:Number($('maxRtt').value)})}
+// Offline solo raids have no party, voice transport, or remote performance
+// probes. Hide those hosted-only controls once the page has selected the
+// in-page service; the online/Node path keeps every control unchanged.
+function applyOfflineMode(){
+ if(!offlineMode)return;
+ $('squadOnlineControls').hidden=true;$('connectionControls').hidden=true;$('commsToggle').hidden=true;$('communications').hidden=true;
+ $('checkLatency').disabled=true;$('voiceEnable').disabled=true;$('partyMode').disabled=true;$('partyCode').disabled=true;$('partyRole').disabled=true;
+ $('voiceStatus').textContent='Voice is unavailable in offline raid mode.';
+ $('latencyStatus').textContent='Offline raid — no connection check required.';
+}
 async function measureLatency(){
+ if(offlineMode){latencyProof={proofId:'offline-proof',rttMs:0,withinLimit:true,allowMixed:true,offline:true,at:performance.now(),generation:authGeneration,account:profile?.id};return latencyProof}
  const generation=authGeneration,account=profile?.id;if(!account)throw new Error('Sign in to check your connection');if(probeWork?.generation===generation&&probeWork?.account===account)return probeWork.promise;
  const task={generation,account};task.promise=(async()=>{const challenge=await api('matchmaking',{operation:'probe'});if(authGeneration!==generation||profile?.id!==account)throw new Error('Connection check canceled after sign-out');const measured=await api('matchmaking',{operation:'measure',nonce:challenge.nonce});if(authGeneration!==generation||profile?.id!==account)throw new Error('Connection check canceled after sign-out');latencyProof={...measured,at:performance.now(),generation,account};const limit=selectedMatch().maxRttMs;$('latencyStatus').textContent='Server-measured round trip: '+measured.rttMs+' ms'+(limit&&measured.rttMs>limit?' · above your limit; change the limit or try again.':' · checked just now.');return latencyProof})().finally(()=>{if(probeWork===task)probeWork=null});probeWork=task;return task.promise;
 }
 $('checkLatency').onclick=()=>run(measureLatency);
 for(const id of ['allowMixed','maxRtt'])$(id).addEventListener('change',()=>{latencyProof=null;if(party)return run(async()=>{const match=matchPreferences({allowMixed:$('allowMixed').checked,maxRttMs:Number($('maxRtt').value)});await api('party',{type:'configure',match});awaitingParty=false;await refreshParty();message('Squad preferences changed. Everyone must ready again.')});renderMatchSummary()});
-function renderMatchSummary(){const match=selectedMatch(),size=party?.members.length||1;$('matchSummary').textContent='Connected region: '+(matchInfo?.region||'checking')+'. '+size+' operator'+(size===1?'':'s')+' · 10-minute raid · up to 9 operators. Same-size squads preferred; '+(match.allowMixed?'mixed-size fallback allowed.':'same-size sessions only.')+' Gear/skill matching is open. If no safe compatible session exists, a fresh raid starts without a minimum human population. Conditions are assigned by the selected raid.'}
+function renderMatchSummary(){if(offlineMode){$('matchSummary').textContent='Offline raid · solo versus machines. Gear and skill matching are open; machines are the only opposition. No human session or connection check is required.';return}const match=selectedMatch(),size=party?.members.length||1;$('matchSummary').textContent='Connected region: '+(matchInfo?.region||'checking')+'. '+size+' operator'+(size===1?'':'s')+' · 10-minute raid · up to 9 operators. Same-size squads preferred; '+(match.allowMixed?'mixed-size fallback allowed.':'same-size sessions only.')+' Gear/skill matching is open. If no safe compatible session exists, a fresh raid starts without a minimum human population. Conditions are assigned by the selected raid.'}
 async function refreshParty(){
- const generation=authGeneration,updated=await api('party');if(generation!==authGeneration)return;party=updated;if(!party)$('partyRole').value='';if(!matchInfo)matchInfo=await api('matchmaking');if(generation!==authGeneration)return;for(const id of ['allowMixed','maxRtt'])$(id).disabled=!!party&&party.leader!==profile.id;if(party){$('allowMixed').checked=party.match?.allowMixed??true;$('maxRtt').value=String(party.match?.maxRttMs??0)}renderMatchSummary();$('partyState').textContent=party?`Invite ${party.id} · ${party.mode} · ${party.region}`:'Playing solo.';
+ const generation=authGeneration,updated=await api('party');if(generation!==authGeneration)return;party=updated;
+ if(offlineMode){
+  party=null;
+  if(!matchInfo)matchInfo=await api('matchmaking');
+  if(generation!==authGeneration)return;
+  applyOfflineMode();renderMatchSummary();
+  $('partyState').textContent='Playing solo offline — machines are the opposition.';
+  $('deploy').textContent='Deploy solo raid';
+  $('deploy').disabled=!!profile.activeDeployment;
+  updateReadyMismatch();comms.update(null,null);
+  return;
+ }
+ if(!party)$('partyRole').value='';if(!matchInfo)matchInfo=await api('matchmaking');if(generation!==authGeneration)return;for(const id of ['allowMixed','maxRtt'])$(id).disabled=!!party&&party.leader!==profile.id;if(party){$('allowMixed').checked=party.match?.allowMixed??true;$('maxRtt').value=String(party.match?.maxRttMs??0)}renderMatchSummary();$('partyState').textContent=party?`Invite ${party.id} · ${party.mode} · ${party.region}`:'Playing solo.';
  $('partyRoster').replaceChildren();
  for(const m of party?.members||[]){const p=document.createElement('p'),role=roleLabel(m.loadout?.role);p.textContent=`${m.username}${m.account===party.leader?' · leader':''} · ${m.ready?'READY':'preparing'}${role?' · '+role+' · '+roleSummary(m.loadout.role):''}${m.latency?.rttMs!=null?' · '+m.latency.rttMs+' ms':''}${m.ready&&!m.latency?.withinLimit?' · needs connection check':''}${m.ready?' · '+(m.loadout.recovery?'free recovery kit':m.loadout.itemIds.length+' owned items'):''}${m.readinessError?' · '+m.readinessError:''}`;$('partyRoster').append(p)}
  comms.update(inRaid?snapshot:null,party);

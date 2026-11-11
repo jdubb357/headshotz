@@ -54,6 +54,36 @@ try {
   assert.match(await page.evaluate("document.getElementById('identity').textContent"), /250 credits/);
   assert.match(await page.evaluate("document.getElementById('partyState').textContent"), /Playing solo/);
 
+  // Offline is a solo-versus-machines mode: squad create/join, voice and
+  // connection probes are hosted-only controls and must not be surfaced.
+  const soloUI = await page.evaluate(`(()=>{
+    const hidden=id=>{for(let el=document.getElementById(id);el;el=el.parentElement)if(el.hidden)return true;return false};
+    return {
+      squadControlsHidden:hidden('squadOnlineControls'),
+      partyCreateHidden:hidden('partyCreate'),
+      partyJoinHidden:hidden('partyJoin'),
+      partyModeDisabled:document.getElementById('partyMode').disabled,
+      partyRoleDisabled:document.getElementById('partyRole').disabled,
+      connectionControlsHidden:hidden('connectionControls'),
+      checkLatencyDisabled:document.getElementById('checkLatency').disabled,
+      commsToggleHidden:hidden('commsToggle'),
+      voiceEnableDisabled:document.getElementById('voiceEnable').disabled,
+      voiceStatus:document.getElementById('voiceStatus').textContent,
+      matchSummary:document.getElementById('matchSummary').textContent,
+    };
+  })()`);
+  assert.equal(soloUI.squadControlsHidden, true, 'offline hides squad mutation controls');
+  assert.equal(soloUI.partyCreateHidden, true);
+  assert.equal(soloUI.partyJoinHidden, true);
+  assert.equal(soloUI.partyModeDisabled, true);
+  assert.equal(soloUI.partyRoleDisabled, true);
+  assert.equal(soloUI.connectionControlsHidden, true, 'offline hides latency probes');
+  assert.equal(soloUI.checkLatencyDisabled, true);
+  assert.equal(soloUI.commsToggleHidden, true, 'offline hides squad voice');
+  assert.equal(soloUI.voiceEnableDisabled, true);
+  assert.match(soloUI.voiceStatus, /unavailable in offline/);
+  assert.match(soloUI.matchSummary, /Offline raid/);
+
   // The offline dispatcher must exist and its 50 ms tick must be running.
   assert.equal(await page.evaluate("!!window.__hszOfflineRaid && window.__hszOfflineRaid.mode==='offline'"), true);
   assert.equal(await page.evaluate("window.__hszOfflineRaid.runtime().tickTimer!==null"), true);
@@ -114,9 +144,10 @@ try {
   await probed.wait("document.body.dataset.raidTransport==='offline'");
   await probed.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
   assert.match(await probed.evaluate("document.getElementById('identity').textContent"), /250 credits/);
+  assert.equal(await probed.evaluate("document.getElementById('squadOnlineControls').hidden"), true);
   assert.deepEqual(probed.errors, []);
 
-  console.log(JSON.stringify({staticOffline: true, probeFallback: true, deploy: true, moving: true, firing: true, noApiTraffic: true, tick: true, browserExceptions: []}));
+  console.log(JSON.stringify({staticOffline: true, probeFallback: true, deploy: true, moving: true, firing: true, noApiTraffic: true, tick: true, soloUI: true, browserExceptions: []}));
 } finally {
   await harness.close();
   server.close();

@@ -17,7 +17,7 @@ will be no public Node raid host. The EXTRACTION RAIDS DEPLOY button on that sit
 launch the new `raid-online.html` / `RaidService` stack in offline mode so a phone
 browser can complete a solo raid versus AI machines with no `/api` backend.
 
-Status: IN PROGRESS — slices 1–6 COMPLETE 2026-11-10; slices 7–12 open. This project
+Status: IN PROGRESS — slices 1–7 COMPLETE 2026-11-10; slices 8–12 open. This project
 temporarily supersedes P1–P10 and visual-alternation
 until slice 10 (the static grader) is COMPLETE. It is an explicit, approved exception
 to “do not change the hub/main menu or the original cooperative Extraction”: routing
@@ -117,9 +117,17 @@ unavailable, with the 50 ms tick running in the page and squads/PvP/voice stubbe
    offline boot with/without flag, deploy, keyboard movement, fire action,
    ticking; browser exceptions empty). Targeted 31/31; full suite 1215/1215.
    Next: slice 7 offline multiplayer UI stub.
-7. **Stub offline multiplayer** — MISSING. Hide or disable party create/join, voice,
-   and latency probes in offline mode so the base UI can deploy solo versus machines
-   without matchmaking failures.
+7. **Stub offline multiplayer** — COMPLETE (iteration 36). Offline mode hides the
+   squad mutation controls (`#squadOnlineControls`: size, create/join/leave/ready,
+   invite code, roster, role) and hosted connection probes (`#connectionControls`:
+   mixed-size, round-trip limit, Check connection), hides the Squad/voice toggle
+   and voice controls, and states "Playing solo offline — machines are the
+   opposition." Deploy pins a neutral no-limit match, skips the latency probe and
+   sends no proof, and the interpolation/matchmaking probe paths are bypassed.
+   Online/Node pages keep every control and their probe validation. Evidence:
+   `tests/raid-browser-offline-dispatch.mjs` asserts the hidden/disabled controls
+   on both static boot paths and still deploys, moves, fires and shows zero `/api`
+   traffic; `tests/raid-browser-smoke.mjs` is green online; full suite 1215/1215.
 8. **Pages DEPLOY routing** — MISSING. On static Pages (no Node-injected
    `headshotz-raid-service` meta), `#raidBtn` goes to `raid-online.html` with the
    offline flag instead of `raidOpenBase()`. Add a clearly labeled secondary control
