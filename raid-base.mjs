@@ -76,7 +76,15 @@ export function baseController({api,run,button,label,getProfile,refresh,selected
    for(const it of profile.items){
     const row=document.createElement('div');row.className='item';row.dataset.itemId=it.id;row.dataset.kind=it.kind;row.dataset.name=label(it).toLowerCase();row.dataset.condition=it.condition;row.dataset.favorite=it.favorite?'1':'0';
     const choice=document.createElement('input');choice.type='checkbox';choice.dataset.equip='1';choice.value=it.id;choice.checked=selected.itemIds.includes(it.id);choice.disabled=it.kind==='contract'||it.condition<=0||!!profile.activeDeployment;choice.setAttribute('aria-label','Select '+label(it));row.append(choice);
+    // Presentation-only rarity gem: the crate colour matches the shared loot
+    // palette but the authoritative item fields, sale value and weight below are
+    // unchanged and mirrored from `sellValue`/`itemWeight` exactly as the store
+    // would pay or carry them. The rarity word also remains in the row label.
+    const rarity=Math.max(0,Math.min(5,Math.floor(Number(it.rarity)||0)));
+    row.dataset.rarity=String(rarity);
+    const gem=document.createElement('span');gem.className='rarityGem';gem.dataset.rarity=String(rarity);gem.setAttribute('aria-hidden','true');row.append(gem);
     const text=document.createElement('span'),equipment=it.kind==='weapon'||it.kind==='armor',condition=Math.max(0,Math.min(100,Math.round(it.condition??100)));text.className='stashLabel';text.textContent=label(it)+(it.favorite?' ★':'');row.append(text);
+    const facts=document.createElement('span');facts.className='stashFacts';facts.textContent=itemWeight(it).toFixed(1)+' kg · '+((profile.sellValues&&Object.hasOwn(profile.sellValues,it.id))?profile.sellValues[it.id]:sellValue(it))+' cr';row.append(facts);
     if(equipment){
       const grade=condition<35?'critical':condition<70?'worn':'ready';row.dataset.grade=grade;row.dataset.conditionState=grade;
       const status=document.createElement('span');status.className='conditionStatus';status.dataset.grade=grade;status.setAttribute('aria-hidden','true');

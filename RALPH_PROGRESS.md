@@ -6525,3 +6525,78 @@ presentation-only Extraction Raids improvement (for example base stash rows or
 in-raid cue polish), keeping the records-summary, rain-splash, rain-volume,
 vitality-vignette, exit-signal, insurance-refresh, readiness, static P0 and
 base-economy graders green.
+
+## Iteration 57 — Base stash rarity gem and authoritative appraisal line (2026-11-11)
+
+### Acceptance criteria
+
+1. Every base stash row derives its rarity index from the authoritative item
+   field (clamped 0–5), shows a decorative rarity gem tinted in the shared loot
+   palette, and keeps the existing condition grade border/chip and every action
+   control.
+2. Each row shows one compact appraisal line: weight from `itemWeight` and sale
+   value from the authoritative profile `sellValues` (falling back to
+   `sellValue`), formatted like the backpack chips; the values match the store's
+   own sale arithmetic for weapon, valuable and material stacks.
+3. Presentation-only: no raid rules, rewards, loot, AI, extraction, transport,
+   store or persistence changes; the rarity word already in the row label is
+   unchanged.
+4. A static-file browser grader proves rarity index, palette colour, decorative
+   `aria-hidden`, exact facts text for seeded items, one gem/facts line per row,
+   zero `/api` traffic and zero browser errors, and records inspectable
+   before/after screenshots; the static P0 gate, hud-theme and recycling graders
+   stay green.
+
+### Implementation — iteration 57 (completed)
+
+- `raid-base.mjs`: each stash row now exposes `data-rarity` from the
+  authoritative item, prepends a decorative `.rarityGem`, and appends a
+  `.stashFacts` line built from `itemWeight(it)` and the store's
+  `profile.sellValues[it.id]` (with `sellValue(it)` as a safe fallback). No
+  selection, insurance, repair, sale, recycle, split/merge, filter or
+  persistence path was changed.
+- `raid-online.html`: added presentation-only styles for the 10 px rotated gem
+  using the same palette as backpack/loot cues (common grey through special
+  red), plus a muted `.stashFacts` line and a hover lift. Existing condition
+  border, grade chip and controls are untouched.
+- New `tests/raid-browser-stash-rarity.mjs`: plain static-file server with no
+  `/api`, boots offline, seeds rarity-3 SMG, rarity-4 valuable and rarity-0 steel
+  through the authoritative store transaction + snapshot flush, reloads, and
+  asserts row rarity, gem colour/rotation/shadow, one-line facts exact against
+  Node `itemWeight`/`sellValue`, one gem/facts per row, zero `/api`, zero browser
+  errors. Screenshots `/tmp/hs-stash-rarity-before.png` and
+  `/tmp/hs-stash-rarity.png` inspected (purple Epic gem, `4.0 kg · 36 cr`).
+
+### Commands/results (2026-11-11)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-stash-rarity.mjs` → PASS:
+  `{"rarityRows":7,"gems":7,"facts":7,"rare":{"rarity":"3","facts":"4.0 kg · 36 cr"},
+  "epic":{"rarity":"4","facts":"1.0 kg · 90 cr"},"common":{"rarity":"0","facts":"0.6 kg · 6 cr"},
+  "noApiTraffic":true,"browserErrors":[]}`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-hud-theme.mjs` → PASS
+  (`baseTheme:true`, `controlIdsIntact:true`, `browserErrors:[]`).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-recycling.mjs` → PASS
+  (all stash controls, condition grades, no browser errors).
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-static-offline.mjs` → PASS
+  (static P0 deploy/move/hit/loot/extract, zero `/api`, zero errors).
+- `node --test tests/*.test.mjs` → 1243 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — seeded rows show `data-rarity` plus palette-tinted, decorative gems;
+   condition borders/chips and all controls remain.
+2. PASS — facts match `itemWeight`/`sellValue` for all three seeded items and the
+   profile's own `sellValues`; formatting matches the backpack appraisal chips.
+3. PASS — raid-base/HTML presentation only; no rules, rewards, loot, AI,
+   extraction, transport, store or persistence changed.
+4. PASS — new static grader green and the P0/hud-theme/recycling regressions green.
+
+**Status:** Base stash rarity/appraisal readability is COMPLETE in local
+presentation scope. Human aesthetic acceptance, physical-device readability and
+live-raid feel remain UNVERIFIED (P7); P0 stays complete and green.
+
+Next action: iteration 58 takes a gameplay/persistence slice on the offline path
+(for example an authoritative offline field-objective deploy option or another
+store-backed base control), keeping the stash-rarity, static P0, records,
+insurance-refresh and persistence graders green. Iteration 59 can then return to
+a visual/look-feel slice.

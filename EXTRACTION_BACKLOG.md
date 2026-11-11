@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (offline record summary iteration 56). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (base stash rarity/appraisal iteration 57). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -714,6 +714,17 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   tests and browser progression/ranks graders.
 - **Persistent stash** — COMPLETE. Inventory checkpoints, insurance/recovery, sell/
   recycle/craft/attach all preserve ownership and revision; loss/recycling tests.
+- **Stash rarity and appraisal readability** — COMPLETE (iteration 57). Every base
+  stash row now carries a decorative rarity gem in the shared loot palette and one
+  compact appraisal line whose weight and sale value come from the authoritative
+  `itemWeight` and the store's `profile.sellValues` (fallback `sellValue`); the
+  existing condition border/chip and all action controls are unchanged, and no
+  rules or persistence changed. Evidence: `tests/raid-browser-stash-rarity.mjs`
+  (rarity 3/4/0 seeded rows, palette colours, exact `4.0 kg · 36 cr` / `1.0 kg · 90 cr` /
+  `0.6 kg · 6 cr`, one gem/facts per row, zero `/api`, zero browser errors; screenshots
+  `/tmp/hs-stash-rarity-before.png` / `/tmp/hs-stash-rarity.png`), plus the static P0
+  gate, hud-theme and recycling graders green. Physical-device/human aesthetic
+  acceptance remains UNVERIFIED (P7).
 - **Loadout selection** — COMPLETE. Chosen gear is authoritative, earn-only and
   incompatible with recovery boundary; loadout/accessibility/rewards graders.
 - **Post-raid rewards** — COMPLETE. `#rewards` card from `/api/results` plus sign-out/
