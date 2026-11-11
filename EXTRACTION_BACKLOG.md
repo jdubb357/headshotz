@@ -91,10 +91,12 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
    celebration is now server-snapshot-driven and browser-graded (iteration 10). The
    loop's addictiveness and pacing are still not proven by humans.
 10. **P10 — Persistent richer home-base economy** (COMPLETE baseline, PARTIAL depth):
-    vendors/crafting/contracts/upgrades work, and damaged equipment now offers two
-    authoritative repair grades — a cheap partial field patch (+25 condition, one wire)
-    and a full workshop restoration (100%, one steel). The relative value of those
-    choices is not yet human-evaluated.
+    vendors/crafting/contracts/upgrades work, damaged equipment offers two authoritative
+    repair grades — a cheap partial field patch (+25 condition, one wire) and a full
+    workshop restoration (100%, one steel) — and worn weapons/armor now dismantle into
+    condition-scaled steel (3/2/1) with a salvage-versus-repair comparison shown in the
+    base stash (iteration 24). The relative value of those choices is not yet
+    human-evaluated.
 
 ## 1. Loot
 
@@ -330,7 +332,8 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
   both costs and starter-binding hints. `raid-progression.test.mjs` and the real-UI
   repair flow in `raid-browser-rewards.mjs` are green.
 - **Deeper human-evaluated economically meaningful choices** — PARTIAL (P10); baseline
-  systems work, but depth/values are not human-accepted.
+  systems work, and condition-scaled equipment recycling now presents a visible repair-
+  versus-scrap price, but depth/values are not human-accepted.
 
 ## 10. Multiplayer
 
@@ -709,6 +712,27 @@ production-prop bench), with before/after screenshots `/tmp/hs-cache-tiers-befor
 smoke browser run stays green. Honest gap: subjective in-world readability (especially the
 authored night/rain front), human aesthetic acceptance, hosted multiplayer and
 physical-device behavior remain UNVERIFIED; do not claim P5/P6/P7 or human acceptance.
+
+## Completed in iteration 24
+
+**Condition-aware equipment salvage versus repair.** COMPLETE in local authoritative/UI
+scope. `shared/raid-inventory.mjs` now exports `equipmentSalvage(condition)` and the shared
+`recyclingQuote` uses it for weapons/armor: three steel at 75–100% condition, two at
+50–74%, and one below 50%. The base stash labels worn equipment recycling with the
+condition and gives each damaged weapon/armor row a small comparison note (steel and its
+sale credits versus the full-repair credit/material cost), while the store records the
+input condition in the `item_recycled` audit. Repair grades, sale values, favorites,
+contract reservations and starter-ownership binding are unchanged. Evidence: a new case in
+`tests/raid-recycling.test.mjs` asserts the thresholds, quote quantities, store recycle
+output and audited condition; `tests/raid-browser-recycling.mjs` injects one 60-condition
+weapon into a real account, asserts the production base row
+(`Recycle · 2 steel · worn 60%`, repair/scrap note, title), recycles it and counts 2 steel,
+with `conditionScaledEquipmentSalvage:true`, `repairVersusScrapNote:true`,
+`browserErrors:[]`; the targeted grants/progression suites are green (27/27); the full
+unit suite is 1174 pass / 1 intermittent `matchmaking.test.mjs` ECONNRESET (isolated
+rerun 11/11). Honest gap: whether the presented repair-versus-scrap trade is fun or
+well-balanced is human-evaluated and UNVERIFIED; hosted/device behavior also remains
+UNVERIFIED (P5/P6/P7), so P10 depth stays PARTIAL.
 
 ## Later items (not yet closed)
 

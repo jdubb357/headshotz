@@ -381,7 +381,7 @@ export class RaidStore {
     requireRule(!contractItemReserved(s,it),'Contract item reserved: deliver it or complete its contract before recycling');const quote=recyclingQuote(it);requireRule(quote,'Item cannot be recycled; use salvage directly');requireRule(quote.quantity>0,'Need at least '+quote.batchSize+' rounds of this ammunition to recycle');
     if(quote.remaining)it.quantity=quote.remaining;else s.items.splice(i,1);
     for(const child of flatten(it.attachments||[]))this.db.prepare("UPDATE inventory SET location='consumed',account=NULL WHERE id=?").run(child.id);
-    const output=bindGrant(item('material',{material:quote.material,quantity:quote.quantity}),account,!!it.grantOwner);this.addItem(s,output);this.audit(account,'item_recycled',{itemId:it.id,outputId:output.id,...quote});
+    const output=bindGrant(item('material',{material:quote.material,quantity:quote.quantity}),account,!!it.grantOwner);this.addItem(s,output);this.audit(account,'item_recycled',{itemId:it.id,outputId:output.id,...quote,condition:it.condition});
    }else if(action.type==='upgrade'){
     requireRule(['stash','bay','bench'].includes(action.upgrade),'Unknown base upgrade');const level=s.upgrades[action.upgrade],max=action.upgrade==='stash'?3:2;
     requireRule(level<max,'Upgrade already at maximum');const cost=100+50*level;requireRule(s.credits>=cost,'Insufficient credits');this.consumeMaterials(s,{steel:2+level,wire:1});spendCredits(s,cost);s.upgrades[action.upgrade]++;

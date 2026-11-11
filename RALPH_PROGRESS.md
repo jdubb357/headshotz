@@ -4068,3 +4068,72 @@ Next action: prefer a gameplay slice next. Candidates: run the fixture-free natu
 acceptance probe and fix the highest-impact observed raid gap, or extend P10 with a
 condition-aware repair/salvage trade decision that is verifiable by unit tests and the
 real base UI. Do not claim human balance, pacing, hosted transport or device acceptance.
+
+## Gameplay iteration 24 — condition-aware equipment salvage versus repair (2026-11-10)
+
+### Acceptance criteria — iteration 24 (P10 repair/salvage trade slice)
+
+1. Recycling a weapon or armor yields steel scaled only by its authoritative condition:
+   three at 75–100%, two at 50–74%, one below 50%, computed once in shared code.
+2. The base stash shows a player-visible worn-condition recycling label and a
+   salvage-versus-full-repair cost note on every damaged equipment row; recycling the
+   worn item creates exactly the quoted steel stack.
+3. Unit tests cover thresholds, quote quantities, store recycling and the audited input
+   condition; the browser grade exercises the real production base UI with zero errors.
+4. Repair, sale, favorite, contract-reservation and starter-ownership rules are unchanged,
+   and the full unit suite remains green.
+
+### Implementation — iteration 24 (completed)
+
+- `shared/raid-inventory.mjs`: added `equipmentSalvage(condition)` and used it inside
+  `recyclingQuote` for weapons/armor, replacing the flat three-steel yield with a
+  condition-derived 3/2/1 yield. Ammunition batches, medical/utility stack yields and
+  recovery guards are unchanged.
+- `server/store.mjs`: the `item_recycled` audit now records the recycled item's condition
+  alongside the shared quote fields.
+- `raid-base.mjs`: worn equipment recycling controls read
+  `Recycle · N steel · worn X%` and explain that worn gear dismantles to N steel; each
+  damaged weapon/armor row also gets a small note comparing the salvage's sale credits
+  (`sellValue` from the shared appraisal module) with the full-repair credit/material
+  cost, making repair-versus-scrap a readable base decision.
+- `INVENTORY.md`: documents the condition-scaled equipment salvage rule and the
+  displayed repair comparison.
+- `tests/raid-recycling.test.mjs`: new test for the 100/75/74/50/49/1/0 thresholds, quote
+  quantities, store recycle output and audited condition.
+- `tests/raid-browser-recycling.mjs`: injects one 60-condition SMG into a real account,
+  reloads the production base UI, asserts the worn recycling label, title and
+  repair/scrap note, then recycles it and verifies two steel were created.
+
+### Commands/results (2026-11-10)
+
+- `node --test tests/raid-recycling.test.mjs` → 8 pass, 0 fail (new condition-scaled test
+  green).
+- `node --test tests/raid-grants.test.mjs tests/raid-progression.test.mjs` → 27 pass,
+  0 fail.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-recycling.mjs` → exit 0,
+  `{"quotedBatchYield":true,"mergedPurchasedAmmo":true,"partialBatchKeepsOriginalItem":true,"insufficientBatchDisabled":true,"serverRejectsBypass":true,"favoriteGuard":true,"medicalStackYield":true,"conditionScaledEquipmentSalvage":true,"repairVersusScrapNote":true,"noSalvageTransmutation":true,"browserErrors":[]}`.
+- Full unit suite `node --test tests/*.test.mjs` → 1175 tests, 1174 pass, 1 fail
+  (`matchmaking.test.mjs:41` `read ECONNRESET`, the known intermittent);
+  `node --test tests/matchmaking.test.mjs` isolated rerun → 11 pass, 0 fail.
+
+### Criteria status
+
+1. PASS — the production store and base UI both call `equipmentSalvage`/`recyclingQuote`;
+   the 60-condition fixture quoted and delivered 2 steel.
+2. PASS — the real base UI rendered `Recycle · 2 steel · worn 60%`, the worn dismantle
+   title and the repair/scrap note before the click.
+3. PASS — the targeted unit suites and the real-account browser grade are green with
+   `browserErrors: []`; unit thresholds 75→3, 74→2, 50→2, 49→1, 0→1 are asserted.
+4. PARTIAL in suite-run terms only — repair/sale/favorites/contract/starter tests stayed
+   green (27/27); the full suite's sole failure was the known intermittent matchmaking
+   ECONNREFUSED-adjacent ECONNRESET, green on isolated rerun. No product regression found.
+
+**Status:** Iteration 24 condition-aware equipment salvage is COMPLETE in local
+authoritative/UI scope. Whether the repair-versus-scrap decision is fun, well-balanced and
+readable to humans is UNVERIFIED (P10 depth stays PARTIAL), as are hosted transport and
+physical-device behavior; do not claim P5/P6/P7 or human acceptance.
+
+Next action: prefer a visual/asset slice next (iteration 23 was visual, iteration 24
+gameplay): e.g., a compact condition meter/repair-grade chip next to the new worn-equipment
+salvage note in the base stash, or machine-enemy model/lighting detailing. Do not claim
+human balance, pacing, hosted transport or device acceptance.
