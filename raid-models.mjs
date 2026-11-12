@@ -620,7 +620,11 @@ export function beaconModel(color=0x83efc2,height=16){
  root.userData.beacon=true;root.userData.beaconShaft=shaft;root.userData.beaconRing=ring;return root;
 }
 export function updateActor(root,state,dt,time){
- const previous=root.userData.last||{x:state.x,z:state.z,at:time-.15};
+ // Seed the tracker on the actor's first frame. Falling back to the *current*
+ // state on every frame made the first snapshot look unmoved forever: the last
+ // position was never written, so speed stayed 0 and legs never gait.
+ if(!root.userData.last)root.userData.last={x:state.x,z:state.z,at:time};
+ const previous=root.userData.last;
  if(previous.x!==state.x||previous.z!==state.z){root.userData.speed=Math.min(8,Math.hypot(state.x-previous.x,state.z-previous.z)/Math.max(.1,time-previous.at));root.userData.last={x:state.x,z:state.z,at:time}}else if(time-previous.at>.4)root.userData.speed=(root.userData.speed||0)*.9;
  const speed=root.userData.speed||0;
  // A visible HP drop is the only evidence of incoming damage, so unchanged

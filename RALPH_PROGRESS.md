@@ -7590,3 +7590,36 @@ The ground now has actual asphalt grain under the first 5 m and the roadside dis
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR). Next director note is 5 (confirm feet planted and gait-synced while moving, then drop); keep P1 controls frozen until Austin has played the current build. If playtesting still sees the hillside seam, extend vegetation and a graded dirt shoulder along the distinct terrain cut edge rather than further road UV tweaks.
+
+## Iteration 81 — Seed the actor speed tracker so machine legs gait while moving (director note 5, 2026-11-12)
+
+### Acceptance criteria
+1. The first update stores the actor's initial `{x,z,time}` in `root.userData.last`, so a later snapshot with displacement computes non-zero snapshot speed and starts the walk gait instead of leaving it at zero forever.
+2. At steady 3.2 m/s the machine's hips swing, knees flex on the swing leg, and the foot pads remain level in world space (no pitch tilt), stay attached, and lift off the ground during a stride; when movement stops the blend eases back to a level planted stance (walkBlend 0, hip/foot rotation 0).
+3. Gait cadence scales with snapshot speed and alternates between the leg phase pairs.
+4. Presentation-only: no collision, world data, AI, controls, server rules or `game.js` changes; static offline, mobile HUD, HUD theme and machine-model graders stay green; Node suite stays 1247/1247; before/after shots at both viewports plus a live action frame exist in `~/headshotz-loop/shots/latest/`.
+
+### Implementation
+- `raid-models.mjs:updateActor` now seeds `root.userData.last` once from the actor's first snapshot before the speed branch. The old fallback rebuilt `{x:state.x,z:state.z,at:time-.15}` whenever `root.userData.last` was absent, which was on every frame, so `previous` always equalled the current position, no displacement was observed, speed stayed 0 ("undefined"), and the machine gait never advanced while its root merely slid. The seed makes the tracker persistent across frames; subsequent snapshot displacements now feed the existing `speed` value used by the gait, hip/knee and foot-pad code.
+- No movement, collision, AI, server-rule, controls or `game.js` changes. `raid-view.mjs` still hands per-frame `dt`/`time` and the sync snapshot data unchanged; the gait math (swing amplitude, knee flex, foot pitch cancellation and blend) is untouched.
+
+### Verification
+- `node --check raid-models.mjs`: OK.
+- Isolated gait bench (`/tmp/hsz-fix/gait-probe.mjs`, headless Chrome, 1024x720 and 844x390):
+  - Before the fix, simulated 3.2 m/s over 50 updates returned `speed: undefined`, `gait: 0`, `walkBlend: 0`, `hip: 0`; neutral pads stayed at 0.09 m — legs never moved no matter how far the actor position changed.
+  - After the fix, the same run returns `speed 3.2`, `gait 5.735 rad`, `walkBlend 1`, hip swing ±0.3876 rad (knee/foot pitch-bias cancelled); pad world pitch stayed 0 across all 50 frames (stability 0); pad world y ranged 0.0845–0.3967 m vs 0.09 m at rest, all pads attached.
+  - Cadence scales with speed: mean gait step 0.7414 rad/frame at 1 m/s vs 1.2692 rad/frame at 4 m/s.
+  - Wind-down: after 8 moving frames `walkBlend` 1; after 4 s of unchanged snapshots speed decayed to 0.072 (<0.15 gate), `walkBlend` 0, hip and foot rotation 0 — level planted stance.
+- Live offline dusk raid at 844x390 (`/tmp/hsz-fix/walk-live.mjs`): hunter pursued to 5.6 m (`target:true`), with visible stride/hip swing in the pursuit frame, pads attached and level; 1024 strafe frame captured while firing a semi-automatic pistol. Only a small crop of the live 844 capture was needed to read the feet because the hunter is still a distant machine in gameplay.
+- `raid-browser-machine-models.mjs`: green; hunter 11 worn meshes and detail pixel delta 510 unchanged; browserErrors [].
+- `raid-browser-static-offline.mjs`: green (deploy/move, headshot, loot, extract; no API traffic); `raid-browser-hud-theme.mjs`: green; `raid-browser-mobile-hud.mjs`: green after one transient harness wait timeout (rerun gave .0798 desktop / .1787 mobile covered, touch actions all pass).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and repopulated: before-1024.png / after-1024.png, before-844.png / after-844.png (same bench pose, neutral vs walking stance), after-1024-action.png (offline live strafe/fire), after-844-action.png (live pursuing hunter) and after-844-feet.png (crop showing attached, level pads in stride).
+
+### Honest critique
+The machine now visibly strides instead of sliding with rigid legs, and the feet pads stay level and attached, which fixes the "feet planted" report at both viewports. But locomotion is still purely cosmetic: the root lerps toward snapshot positions while the legs cycle with no ground-contact or foot-planting solve, so a planted pad can slide across the ground and the swing pad can float slightly above sloped verge; every machine class shares the same gait tuning, so a heavy chassis moves its legs as fast as a hunter. The evidence is offline dusk headless captures at iPad/desktop sizes, not a real device playtest.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Director note 5 is confirmed and dropped; notes 2–4 were already closed. No further director note is pending — note 1 (P1 controls) remains frozen until Austin's own playtest. Next loop iteration should re-inspect the live first three minutes against the priority list (GUNFEEL, MOVEMENT FEEL, ENEMIES, WORLD, AUDIO, JUICE) and choose one presentation-only slice that helps deploy→move→fight→loot→extract, without adding panels, currencies, or changing controls/server/game.js.
