@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (director note 3 ground pass, iteration 73). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72) and readable foreground road at spawn (iteration 73) complete → NEXT: director note 2, in-game enemy read at mid distance → note 5 viewmodel edge highlights and thicker tracer.
+Last audited: 2026-11-11 (director note 2 in-game enemy read, iteration 74). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72) and readable foreground road at spawn (iteration 73), and cohesive articulated machines with planted feet (iteration 74) complete → NEXT: director note 5 viewmodel edge highlights and thicker tracer.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -49,6 +49,24 @@ Grader `raid-browser-machine-models` green (hunter detail 256 px changed), Mobil
 static-offline green, Node 1247/1247. Known gap: the cycle is time-driven, not foot-locked,
 so the stance foot can skate slightly; scout/flyer hover with no locomotion animation.
 Next: P3 fix the map.
+
+## Director note 2 — readable in-world machines (iteration 74, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — the scout at spawn is rebuilt as one cohesive amber armoured
+sensor pod: graphite belly yoke with hip sockets buried inside it, dark visor/brow cowl around
+the glowing eye, dorsal plate, sensor beak, side plates, steel fins and antenna, on three
+articulated hip→knee→foot legs with amber knee guards and round planted pads. Hunter hull
+covers its four hip pivots with a pelvic girdle and socket balls; thighs/shins are parented to
+the hip/knee groups via a new local `limb()` helper (the old `hull` closure was bound to the
+model root, so struts dropped below the hips). Foot pads cancel hip+knee pitch to stay level
+with terrain. Presentation only: no world/collision/spawn/loot/extraction rule changes.
+Evidence: `raid-browser-machine-models` green (scout detail 311 px, hunter 416; worn meshes
+15/11, features and core halo unchanged), `raid-browser-mobile-hud` green, static offline
+green, Node 1247/1247. Screenshots `~/headshotz-loop/shots/latest/` before/after 1024 and
+844, action frames at both sizes, close attachment frame and a 3x crop. Known gap: at
+844x390 and 10 m the leg articulation collapses to a few pixels, and the hunter attachment
+was verified on the isolated bench rather than a live wandering frame. Next: director note 5
+viewmodel edge highlights, sleeve cuff and thicker brighter tracer.
 
 ## Director P3 — fix the map (iteration 72, 2026-11-11)
 

@@ -7377,3 +7377,30 @@ The insertion sign now reads as a built street fixture and the duplicate solids 
 
 ### Honest critique
 The near road now reads as cracked, worn asphalt instead of a void, and the spawn frame is no longer a dark bottom band, but the extra ambient fill slightly flattens façade shadows and the wear decals are still low-contrast fine flecks at phone distance — the bigger remaining deficits are director note 2 (the mid-distance walker still reads as detached grey slabs) and note 5 (viewmodel edge highlights and a thicker tracer). Next: director note 2, in-game enemy read, same pinned-daylight comparison.
+
+## Iteration 74 — Cohesive in-world machine legs and bodies (director note 2, 2026-11-11)
+
+### Acceptance criteria (director note 2, recorded before implementation)
+1. In-world machines match the isolated bench: hips operate inside the belly/girdle, thighs and shins remain parented to hip/knee groups through the gait, and foot pads stay flat and planted on terrain.
+2. The scout (the first machine the player meets at spawn) reads as one connected machine at close and mid distance instead of a yellow canister with detached grey sticks.
+3. At 1024x720 and 844x390, same-spawn before/after and a mid-distance machine frame must show the improved silhouette; no new world/collision/rules changes.
+
+### Implementation
+- `raid-models.mjs` scout rebuilt as an amber armoured sensor pod: graphite belly yoke with hip sockets buried inside it, dark visor/brow cowl around the glowing eye, sensor beak, dorsal plate, side plates, steel fins, antenna, and three articulated hip→knee→foot legs (figured phases) with amber knee guards and round pad feet.
+- Hunter: widened hull covers the four hip pivots; added pelvic girdle and socket balls; thighs/shins now use `limb()` so they are children of the hip/knee groups.
+- Added local `limb()` helper after discovering leg hulls were being added to the root (so struts did not follow the joints); foot pads now cancel the full hip+knee pitch and stay level with the ground.
+- Presentation-only: no world data, collision, loot, spawn, extraction or server rules change.
+
+### Verification
+- `node --check raid-models.mjs`: SYNTAX_OK.
+- `raid-browser-machine-models`: green; scout detail delta 311 px (threshold 200), hunter 416, worn mesh counts 15/11, features unchanged, hip sockets visible, errors [].
+- `raid-browser-mobile-hud`: green (unobstructed 0.9194 / 0.8194, desktop compact 0.0806, touch interactions).
+- `raid-browser-static-offline`: green (deploy/move/hit/loot/extract, no API traffic, errors []).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- Captures: same-spawn before/after 1024x720 and 844x390, mid-distance machine frames, close leg attachment frame and 3x crop.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-844.png / after-844.png, before-1024-action.png / after-1024-action.png, before-844-action.png / after-844-action.png, before-1024-close.png / after-1024-close.png, after-1024-detail.png.
+
+### Honest critique
+The scout now reads as one connected amber machine with a glowing sensor eye and three jointed planted legs instead of a barrel with floating sticks, and the hunter's thighs grow out of the girdle; but at 844x390 and 10 m the leg articulation collapses into a few bright pixels, and the hunter attachment was verified only on the isolated bench, not in a live wandering frame. Next: director note 5 viewmodel edge highlights and cuff, then the thicker/brighter tracer.
