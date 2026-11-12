@@ -24,6 +24,8 @@ import {keyName} from './shared/raid-settings.mjs';
 import {rankProgress} from './shared/raid-progression.mjs';
 import {communicationUI} from './raid-comms-ui.mjs';
 import {BOSS_PHASES,MACHINES} from './shared/raid-enemies.mjs';
+import {loadAssets,HQP} from './assets.js';
+import {loadHumans,HUM} from './humans.js';
 import {RaidView,BasePreview} from './raid-view.mjs';
 import {RAID_WORLDS,getWorld,terrainHeightAt,clearLine} from './shared/raid-worlds.mjs';
 import {objectivesFor} from './shared/raid-objectives.mjs';
@@ -495,6 +497,22 @@ function start(){
  if(!getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion))throw new Error('Map update required. Reload to reconnect safely.');
  wire?.close();stateAt=performance.now();controlsDisabled=false;resetTacticalMap();clearHitmarker();lastHitToken=hitToken(snapshot.self.hit);inRaid=true;raidGeneration++;setBaseLobby(false);document.body.dataset.inRaid='true';preferences.apply();lastHealth=snapshot.self.hp;lastOutcome='';lastBoard=false;hudStatusKey='';document.querySelector('main').inert=true;seq=snapshot.self.seq;yaw=snapshot.self.yaw;pitch=snapshot.self.pitch||0;input.clear();$('play').style.display='block';syncTouchHeight();syncRaidDock();
  view||=new RaidView($('view'));view.start(snapshot);view.applySettings(preferences.get());prediction=new LocalPrediction(snapshot);wire?.close();const generation=raidGeneration;wire=new ReliableActions({state:snapshot,request:packet=>api('action',packet,{timeoutMs:2500}),onState:(state,network)=>{if(!inRaid||generation!==raidGeneration)return;snapshot=state;stateAt=performance.now();seq=state.self.seq;prediction?.reconcile(state,network);updateUI()},onNetwork:network=>{if(inRaid&&generation===raidGeneration&&!offlineMode)$('networkStatus').textContent=network.status==='connected'?'Connected · '+Math.round(network.rttMs/10)*10+' ms RTT':network.status==='retrying'?'Connection interrupted · retrying safely':network.status==='update_required'?'Client update required · reload to reconnect safely':'Connection lost · movement prediction paused'}});setPack(!(matchMedia('(pointer:coarse)').matches||document.documentElement.dataset.compactHud==='true'));packKey='';seenEvents.clear();$('events').textContent='';$('view').focus();updateUI();
+}
+// The raid boots instantly on procedural textures so the base and a deployment
+// are playable while the already-shipped photo surfaces and MakeHuman bodies
+// load in the background. Nothing here is downloaded from a new source: it is
+// the same assets.js / humans.js the main game already uses.
+let raidArtStarted=false;
+function loadRaidArt(){
+ if(raidArtStarted)return;
+ raidArtStarted=true;
+ const started=performance.now();
+ Promise.allSettled([loadAssets(),loadHumans()]).then(results=>{
+  const assets=results[0].status==='fulfilled'&&results[0].value===true;
+  window.__raidArt={ms:Math.round(performance.now()-started),assets,humans:HUM.ready,photos:HQP.ready};
+  view?.refreshArt?.();
+  preview?.refreshArt?.();
+ }).catch(()=>{});
 }
 let lastFrame=0,autoReloadAt=0;
 // Main-game touch contract: an empty magazine reloads itself while the player
@@ -1195,6 +1213,7 @@ function bootNotice(text){if(!bootStatus)return;bootStatus.hidden=!text;if(text)
 // hydrates. Online hosts keep their sign-in screen untouched.
 if(isOfflineQuery(location.search)){offlineMode=true;try{document.body.dataset.raidTransport='offline'}catch{};$('auth').hidden=true;bootNotice('Preparing the sector…')}
 busy=true;document.body.setAttribute('aria-busy','true');try{await refresh();bootNotice(null)}catch(error){bootNotice(null);if(!offlineMode&&!profile)$('auth').hidden=false;message(error.status===401?'Sign in or create an account.':error.message)}finally{busy=false;document.body.setAttribute('aria-busy','false')}
+setTimeout(loadRaidArt,200);
 
 // Aim is a hold-to-zoom control, like bZoom in the main game: keeping a thumb
 // on the crosshair keeps the optic up, and lifting it returns to hip fire.

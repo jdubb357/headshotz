@@ -109,3 +109,6 @@ No third-party assets: all new geometry (ladders, stair runs) and code are origi
 
 ## v98 — Godly/Secret chests, sculpted add-ons, Galaxy rebuild
 No third-party assets: ears, horns, tails, wings, crowns, halos and the Galaxy helmet/visor (`addons.js`, `galaxyhead.js`) and the nebula/starfield shader (`wskins.js`) are original procedural code.
+
+## Raid mode (iteration 87) — ships the main game's art
+No new downloads or third-party files. Raids opt in to the art the main game already ships and reuse the existing registry above: the CC0 Poly Haven surface textures (`assets/tex/*.jpg`) through `assets.js`/`loadAssets()`, the CC0 MakeHuman bodies and skins through `humans.js`/`loadHumans()`, and the CC0 scanned guns already registered for v60. Everything is the same origin-relative static payload; raid-specific procedural fallbacks remain in place until the load resolves.
