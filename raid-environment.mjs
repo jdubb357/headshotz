@@ -298,7 +298,7 @@ export function buildEnvironment(world){
   if(i%4===0)for(const side of [-1,1])add('box',palette.metal,x+(ramp.axis==='z'?side*ramp.w/2:0),y+.55,z+(ramp.axis==='x'?side*ramp.d/2:0),.1,1.1,.1);
  }}
  // Roads and lane paint establish readable routes through every district.
- for(const axis of ['x','z']){add('box',0x666b65,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
+ for(const axis of ['x','z']){add('box',0x8d9189,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
  // Window props are authored 0.27 m proud of their parent block face. Scanning
  // every block for every window would be quadratic at relay scale (≈8.8k windows
  // × 10k blocks), so a coarse footprint grid narrows each lookup to the blocks
@@ -387,8 +387,22 @@ export function buildEnvironment(world){
   else if(prop.kind==='antenna'){add('cylinder',0x5f7075,x,y+7,z,.2,14,.2,0,'metal');add('box',0x26363b,x,y+12,z,2.4,.24,.24,0,'metal');add('sphere',0xdf6b4e,x,y+13,z,.35,.35,.35,0,'glow')}
   else if(prop.kind==='wreck'){add('box',0x3d302c,x,y+.8,z,6,1.4,2.4,0,'metal');add('box',0x6e4c38,x+1.6,y+1.6,z-.4,2.6,.4,1.6,0,'metal');add('cylinder',0x24201f,x-1.8,y+.5,z+.9,.45,.6,.45,0,'metal');add('box',0x3f4446,x+2.4,y+1.1,z+.2,2.2,.5,2.2,0,'metal')}
   else if(prop.kind==='road'||prop.kind==='sidewalk'||prop.kind==='plaza'){
-   const color=prop.kind==='sidewalk'?0xb5afa2:prop.kind==='plaza'?0x9a9080:0x64675f;
+   const color=prop.kind==='sidewalk'?0xb5afa2:prop.kind==='plaza'?0x9a9080:0x8d9189;
    add('box',color,x,y,z,prop.w,.024,prop.d,prop.ry||0,prop.kind==='road'?'asphalt':prop.kind==='plaza'?'tiles':'concrete');
+   if(prop.kind==='road'){
+    // Deterministic street wear so the near asphalt holds readable detail even
+    // when the sun pass is in shadow: worn dark patches, pothole scars, cracked
+    // seams and pale gravel chips lying just above the road plane. Presentation
+    // only — no collision, no authored prop or frozen data is touched.
+    const seed=Math.abs(Math.round(Math.sin(x*12.9898+z*78.233)*43758.5453)),h=i=>hash01(seed*.013+i*5.37+.21),ry=prop.ry||0,cosR=Math.cos(ry),sinR=Math.sin(ry);
+    const spots=3+Math.floor(h(1)*3);
+    for(let i=0;i<spots;i++){
+     const lx=(h(i*2+3)-.5)*prop.w*.84,lz=(h(i*2+4)-.5)*prop.d*.6,px=x+lx*cosR+lz*sinR,pz=z-lx*sinR+lz*cosR,spin=h(i*3+9)*Math.PI;
+     if(i%3===0)add('sphere',0x72766a,px,y+.021,pz,.35+h(i+11)*.7,.012,.28+h(i+13)*.4,spin,'rock');
+     else if(i%3===1)add('box',0x55594f,px,y+.024,pz,.05+h(i+15)*.07,.014,.35+h(i+17)*.8,spin,'rock');
+     else add('box',0xb4b5a8,px,y+.023,pz,.16+h(i+19)*.26,.012,.11+h(i+21)*.17,spin,'gravel');
+    }
+   }
   }
   else if(prop.kind==='crosswalk'){
    const n=5,step=prop.w/(n*2.2);
