@@ -7623,3 +7623,34 @@ The machine now visibly strides instead of sliding with rigid legs, and the feet
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR). Director note 5 is confirmed and dropped; notes 2–4 were already closed. No further director note is pending — note 1 (P1 controls) remains frozen until Austin's own playtest. Next loop iteration should re-inspect the live first three minutes against the priority list (GUNFEEL, MOVEMENT FEEL, ENEMIES, WORLD, AUDIO, JUICE) and choose one presentation-only slice that helps deploy→move→fight→loot→extract, without adding panels, currencies, or changing controls/server/game.js.
+
+## Iteration 82 — Give machine steps weight with footfall dust and a spatial thud (ENEMIES/AUDIO/JUICE, 2026-11-12)
+
+### Acceptance criteria
+1. While an articulated machine is walking (snapshot speed >0.15 m/s, within 22 m, reduced motion off), each planted diagonal foot pair emits a small dust puff at the pads' world positions; the puff expands and fades over about 1.2 s and does not ride the swinging foot. Stationary machines emit none.
+2. The same plant also plays one quiet synthesized machine-step cue, spatialized to the machine's direction and attenuated with distance (audible only within 55 m); the cue never fires for stationary or reduced-motion machines.
+3. Presentation-only and bounded: a fixed pool of dust sprites allocated once at scene start, no per-step allocation, hidden under reduced motion; no collision, world data, AI, controls, server rules or `game.js` changes.
+4. Browser graders (static offline, mobile HUD, HUD theme, machine models) and the full Node suite remain green; before/after screenshots at 1024x720 and 844x390 show the live walking-machine moment, and a held machine-step cue log is captured for evidence.
+
+### Implementation
+- `raid-view.mjs`: added a fixed 24-sprite dust pool in `buildMachineStepDust()`, allocated once at scene start (`footDust`, `footDustCursor`) and disposed with the scene. Puffs use the existing generated `TX.smoke` canvas at meter scale (not the 9× world `viewScale`). `emitMachineSteps()` compares `model.userData.gait` each frame, reads only `leg.foot` pads from hunter/scout models, and places one puff at each planted pad's world position when a diagonal pair crosses (phase 0 or π). Nothing is parented to a swinging leg. Dust appears only for snapshot speed >0.15 m/s within 22 m and is hidden/skipped under reduced motion; each puff fades linearly over 1.2 s while expanding `.95→1.8` and rising `.1 m`. A quiet spatial thud plays at any plant within `spatialCue`'s 55 m horizon (`machineStep`, gain×0.55, stereo pan).
+- `raid-audio.mjs`: added `machineStep` to `ACTION_CUES` as a single 0.14 s square pulse (96→38 Hz); the existing oscillator/envelope/pan path needed no other change.
+- No collision, world data, AI, controls, server rules, other game modes or `game.js` changes; human actors keep their original smooth-lerp branch.
+
+### Verification
+- `node --check raid-view.mjs raid-audio.mjs`: OK.
+- Live offline footfall bench (`/tmp/hsz-fix/footfall.mjs`, hunter in pursue, clear sight line, dust toggled between frames): at 1024×720 the hunter was 10.2 m away with gait at 26 crossings and 10 puffs active; at 844×390 it was 8.6 m away with gait at 38 crossings and 10 puffs active. Dust-off/on screenshots show detached pale puffs around the planted pads that expand and fade; a crop of each viewport shows the dust at the pads and the same pads dark in the before frame.
+- Reduced motion (`/tmp/hsz-fix/reduced.mjs`): while walking, 10 puffs active with `settings.reduced=false`; setting `settings.reduced=true` cleared the pool to 0 within 400 ms and it stayed 0 for the next 900 ms while the machine kept moving (speed fell to 1.37 m/s); restoring `false` resumed emission (2 puffs after 400 ms).
+- Stationary machine (`/tmp/hsz-fix/stationary.mjs`): hunter stopped at 5.05 m with snapshot speed 0 for 3 s; dust stayed 0 and the machineStep cue count held at 31 (no new plants/cues).
+- Live WebAudio (`/tmp/hsz-fix/audio-live.mjs`) with real CDP pointer activation of deploy (programmatic `.click()` leaves the context suspended): context reached `running`; 9 machineStep attempts all returned `played:true`, with spatial gains 0.176–0.196 and pan −0.21 to −0.02. Cues beyond 55 m are rejected by `spatialCue`, and reduced/stationary machines never reach the call.
+- Graders: `raid-browser-machine-models.mjs` green (hunter 510 px delta, browserErrors []); `raid-browser-static-offline.mjs` green (deploy/move/headshot/loot/extract, no API traffic); `raid-browser-hud-theme.mjs` and `raid-browser-mobile-hud.mjs` green (desktop 0.0806 / mobile 0.1806 covered, touch actions pass); `raid-browser-audio.mjs` green (24 distinct action cues, real WebAudio, directional stereo, bounded voices).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and repopulated: before-1024.png / after-1024.png and before-844.png / after-844.png (same live walking hunter, dust hidden vs emitted), after-1024-action.png (live pursuing hunter with red reticle and foot dust), after-1024-feet.png and after-844-feet.png (crops showing detached puffs at the planted pads). The dust is easier to read at 1024 than at 844.
+
+### Honest critique
+The puffs now detach from the swinging legs and visibly mark planted pads, and the thud gives machines an audible weight; but the dust is still a flat sprite with no lit-edge or ground-shadow coupling, and at 844 the machine is small enough that the effect reads only as a faint pale smear near the feet, so the improvement is easy to miss on iPad in actual play.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). No new director note; note 1 (P1 controls) remains frozen until Austin's playtest. Next loop iteration re-inspects the live first three minutes (deploy→move→fight→loot→extract) and picks one presentation-only improvement from the remaining feel priorities without adding panels, currencies, controls or server/game.js changes.
