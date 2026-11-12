@@ -57,6 +57,34 @@ export function createSectorGroundLoot(world,seed){
  });
  return loot;
 }
+// The walk out is the game: drop small, readable pickups at a fixed cadence
+// along the insertion-to-exit path so the first three minutes have something to
+// walk toward, not an empty street. Positions are chosen by the raid service
+// from the walkable route; this function only authors the contents.
+export const ROUTE_LOOT_MARKS=[55,95,140,185];
+export function createRouteLoot(world,seed,spawnIndex,points){
+ const sector=SECTORS[world.id],loot=[];
+ const random=generator(seed+':'+world.id+':route:'+spawnIndex);
+ points.forEach((point,slot)=>{
+  const items=[];
+  if(slot%3===0){
+   const weapon=weighted(sector.weapons,random),def=WEAPONS[weapon],ammo=def.ammo;
+   items.push(item('weapon',{weapon,condition:55+Math.floor(random()*46),rarity:1+Math.floor(random()*2),loaded:Math.max(1,Math.round(def.mag*(.35+random()*.65)))}));
+   items.push(item('ammo',{ammo,quantity:Math.max(8,Math.round(AMMO_ROUNDS[ammo]*(.5+random()*.8)))}));
+  }else if(slot%3===1){
+   const ammo=weighted(sector.ammunition,random);
+   items.push(item('ammo',{ammo,quantity:Math.max(8,Math.round(AMMO_ROUNDS[ammo]*(.5+random()*.8)))}));
+   items.push(item('med',{medical:random()>.5?'bandage':'trauma'}));
+   items.push(item('material',{material:weighted(sector.materials,random),quantity:1+Math.floor(random()*3)}));
+  }else{
+   items.push(item('mod',{mod:Object.keys(MODS)[Math.floor(random()*3)],rarity:1+Math.floor(random()*2)}));
+   items.push(item('valuable',{label:sector.valuable,value:18+Math.floor(random()*32),rarity:2}));
+  }
+  const weapon=items.find(it=>it.kind==='weapon'),label=weapon?'Dropped weapon · '+WEAPONS[weapon.weapon].name:slot%3===1?'Field supply':'Route salvage';
+  loot.push({id:'route_'+spawnIndex+'_'+slot,x:point.x,y:point.y||0,z:point.z,label,spawn:spawnIndex,slot:10+slot,ground:true,items});
+ });
+ return loot;
+}
 const ARMORY_ARCHETYPES=[
  {tag:'Assault pattern',search:3.4,attachment:0,utility:'smoke',med:null,armor:null,extraMod:false},
  {tag:'Field pattern',search:4.4,attachment:1,utility:null,med:'trauma',armor:'light',extraMod:true},

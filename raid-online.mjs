@@ -1614,11 +1614,15 @@ function drawNavMap(canvas,state){
    ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.94)';ctx.lineWidth=2.4;
    ctx.fillRect(-7.2,-7.2,14.4,14.4);ctx.strokeRect(-7.2,-7.2,14.4,14.4);ctx.restore();
   }else{
-   const angle=Math.atan2(p.y-cy,p.x-cx),ax=cx+Math.cos(angle)*(R-12),ay=cy+Math.sin(angle)*(R-12);
+   // The rim marker has to survive the 360→120 px downscale: a 13 px glyph
+   // shrinks to under 5 CSS pixels and disappears at arm's length. Keep the
+   // badge and chevron ~36 px tall here so it reads at ~12 px on the glass.
+   const angle=Math.atan2(p.y-cy,p.x-cx),ax=cx+Math.cos(angle)*(R-28),ay=cy+Math.sin(angle)*(R-28);
    ctx.save();ctx.translate(ax,ay);ctx.rotate(angle+Math.PI/2);
-   ctx.beginPath();ctx.arc(0,0,13,0,TAU);ctx.fillStyle='rgba(4,10,14,.68)';ctx.fill();
-   ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(8,5.8);ctx.lineTo(0,1.8);ctx.lineTo(-8,5.8);ctx.closePath();
-   ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.94)';ctx.lineWidth=2.6;ctx.fill();ctx.stroke();ctx.restore();
+   ctx.beginPath();ctx.arc(0,0,21,0,TAU);ctx.fillStyle='rgba(4,10,14,.82)';ctx.fill();
+   ctx.strokeStyle='rgba(4,10,14,.94)';ctx.lineWidth=3;ctx.stroke();
+   ctx.beginPath();ctx.moveTo(0,-26);ctx.lineTo(14,10);ctx.lineTo(0,4);ctx.lineTo(-14,10);ctx.closePath();
+   ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.96)';ctx.lineWidth=3.4;ctx.lineJoin='round';ctx.fill();ctx.stroke();ctx.restore();
   }
  }
  for(const m of state.machines||[])if(m.hp>0){const p=project(m.x,m.z);if(p.d>NAV_RADIUS)continue;ctx.beginPath();ctx.arc(p.x,p.y,8.8,0,TAU);ctx.fillStyle='rgba(255,102,91,.2)';ctx.fill();ctx.beginPath();ctx.arc(p.x,p.y,5.4,0,TAU);ctx.fillStyle='#ff665b';ctx.fill();ctx.lineWidth=1.6;ctx.strokeStyle='rgba(6,12,16,.9)';ctx.stroke()}
@@ -1853,8 +1857,11 @@ function armoryObjective(s,state){
  if(!s?.alive)return '';
  const caches=(state?.caches||[]).filter(c=>c.weaponCache);
  if(!caches.length)return '';
- const target=caches.map(c=>({cache:c,d:distance(c,s)})).sort((a,b)=>a.d-b.d)[0],dx=target.cache.x-s.x,dz=target.cache.z-s.z;
- const bearing=((Math.atan2(dx,dz)*180/Math.PI)+360)%360,compass=['north','northeast','east','southeast','south','southwest','west','northwest'][Math.round(bearing/45)%8];
+ const target=caches.map(c=>({cache:c,d:distance(c,s)})).sort((a,b)=>a.d-b.d)[0];
+ // Use the same north-is-minus-z bearing contract as the radar, compass and
+ // tactical map. The old atan2(dx,dz) read every target as a mirror across the
+ // east-west axis, so the briefing could point the reader away from the cache.
+ const bearing=mapBearing(s.x,s.z,target.cache.x,target.cache.z),compass=['north','northeast','east','southeast','south','southwest','west','northwest'][Math.round(bearing/45)%8];
  return `Armory objective · ${target.cache.label}: ${Math.round(target.d)} m ${compass} · bearing ${String(Math.round(bearing)%360).padStart(3,'0')}°`;
 }
 function deploymentExitPlan(){const world=getWorld($('map').value),sector=SECTORS[world.id],artifact=ARTIFACTS[sector.artifact];$('sectorPlan').textContent=sector.summary+' Recovery objective: '+artifact.name+' at '+artifact.site+'. Light and weather change during the raid; check the sector clock after deployment.';$('exitPlan').replaceChildren();for(const exit of createRaidExits(world,0)){const line=document.createElement('p');line.textContent=exit.name+': '+exitDescription(exit,0);$('exitPlan').append(line)}}

@@ -7800,3 +7800,35 @@ The ground and walls now read as photographed asphalt, brick and metal instead o
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR, no `main`). Then advance to director note 3 (route encounters/loot along the spawn road); notes 4–5 follow, and note 1 still awaits Austin's live playtest.
+
+## Iteration 88 — Encounters and loot on the walked path + HUD fixes (director notes 1–2, 2026-11-12)
+
+### Acceptance criteria
+1. 2–3 machines seeded on the insertion→nearest-exit path, one scout approaching in front of the camera, no teleports; within 90 s of normal walking a machine and a ground-loot pile are visible in a screenshot and the exit bearing is on the HUD.
+2. Exit chip arrow is camera-relative, the Objective bearing is not mirrored, the radar rim exit arrow is ~12 px in the exit colour, and flat green/brown disc stickers are replaced by grass tufts or removed.
+3. Offline raids still mirror the authoritative `RaidService`; existing modes, main menu, mobile HUD and raid progression are unchanged; Node and relevant browser graders are green.
+
+### Changed
+- `server/raids.mjs`: `findPath` insertion route; contacts at 42 m (front scout), 110 m (hunter) and 175 m (scout), all authored inside `MACHINE_CAP` with a `room()` check so reinforcement respawn still works; route machines carry `approach`, `routeGuard`, `home` and `patrolRadius`; route loot seeded at 55/95/140/185 m via `createRouteLoot`.
+- `server/raid-loot.mjs`: `ROUTE_LOOT_MARKS` and deterministic `createRouteLoot` piles along the walk (weapon+ammo, field supply, route salvage).
+- `raid-models.mjs` / `raid-view.mjs`: ground loot chooses a recognizable gun/chest/crate asset from the main game's loaded models by contents, keeps the rarity beacon and ring, and refreshes swapped props.
+- `raid-online.mjs`: `armoryObjective` now uses `mapBearing` with cardinal south/east so the tour objective agrees with the chip; rim exit marker enlarged and tinted exit-colour.
+- `raid-online.html`: status pill moved under the HP bar; secondary status hidden on short landscape screens where the compact chip carries the exit.
+- `raid-environment.mjs`: flat moss spheres/discs replaced with upright cone tufts and small dirt debris along road borders, verges and grit clusters.
+
+### Verification
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail (87.6 s).
+- `node tests/raid-browser-loot-beacons.mjs` pass: 3 piles, beacons/gem/halo/wisp/ring, shared glow/gem resources, animation and static pose, changed 14287, `browserErrors:[]`.
+- `node tests/raid-browser-structures.mjs` pass: tag counts unchanged (no moss/misc tag), `browserErrors:[]`.
+- `node tests/raid-browser-static-offline.mjs` pass: deploy → move → fire (headshot) → loot → extract, 2 items returned, 0 lost, credits +20, no API traffic, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` pass (rerun): 1024×720 91.9% unobstructed, 844×390 81.8%, contextual USE, `browserErrors:[]`. `raid-browser-scenery.mjs` pass.
+- Known pre-existing, unrelated: `raid-browser-hud-theme.mjs` queries the removed `#fire` button; `raid-browser-viewmodel.mjs` pack-open timeout; `raid-browser-escalation.mjs` hazard paint.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared first; `before-1024.png`/`before-844.png` show the old empty street, mirrored objective and flat discs; `after-1024.png`/`after-844.png` show the spawn loot beacon, tufts and `EXIT 603 m ▲ south`; `after-1024-action.png`/`after-844-action.png` show a scout machine at ~12–20 m plus a loot beacon and the exit chip. Source frames in `/tmp/hsz-iter88/`.
+
+### Honest critique
+The bearing and flat stickers are fixed and the first 90 seconds now contain a machine and a loot pile on the road, but the scout still closes in from the side and reads as a yellow dot at distance, while the loot is mostly a cyan beacon rather than a readable gun or crate silhouette, so the walk is clearer rather than dramatic.
+
+### Next action
+Commit on `cypert/dev` (no push, no PR, no `main`). Next slice: director note 3 — prop colliders kind by kind in `blocked()`/nav (`shared/raid-worlds.mjs`): cars, trucks, tanks, dumpsters, crates, barrels, sandbags, then raidScenery and raid-environment decorative walls/crates/stoops; re-walk spawn-to-exit after each kind. Notes 4–5 follow; notes 1–2 still await Austin's live playtest.

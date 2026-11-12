@@ -11,7 +11,7 @@ import {MATCH_POLICY,matchPreferences,squadPool} from '../shared/raid-matchmakin
 import {throwUtility,advanceUtilities} from './raid-utilities.mjs';
 import {stepOperator,beginVault,vaultTarget,vaultDirection} from '../shared/raid-motion.mjs';
 import {createRaidExits,exitState,SQUAD_LINK,squadLinkBonus} from '../shared/raid-exits.mjs';
-import {createSectorCaches,createSectorGroundLoot,createWeaponCaches} from './raid-loot.mjs';
+import {createSectorCaches,createSectorGroundLoot,createWeaponCaches,createRouteLoot,ROUTE_LOOT_MARKS} from './raid-loot.mjs';
 import {objectiveFor,createObjectiveState,advanceObjectiveState,settleObjectiveState} from '../shared/raid-objectives.mjs';
 import {ARTIFACTS} from '../shared/raid-sectors.mjs';
 import {createConditionPlan,conditionsAt} from '../shared/raid-conditions.mjs';
@@ -22,14 +22,37 @@ import {squadRole,pingSecondsFor,reviveSecondsFor,engineerPicks,packCapacityFor,
 import {blockedBetween} from './comms.mjs';
 import {item,RuleError} from '../shared/raid-rules.mjs';
 import {RAID_WORLDS,getWorld,blocked,clearLine,floorAt} from '../shared/raid-worlds.mjs';
-import {safePoint} from '../shared/raid-navigation.mjs';
+import {findPath,safePoint} from '../shared/raid-navigation.mjs';
 import {MACHINES,hazardState} from '../shared/raid-enemies.mjs';
-import {populateMachines,hitMachine,advanceMachines,advanceEvents,event,spawnMachine,escalate} from './raid-ai.mjs';
+import {populateMachines,hitMachine,advanceMachines,advanceEvents,event,spawnMachine,escalate,MACHINE_CAP} from './raid-ai.mjs';
 import {populateRivals,advanceRivals,rivalSnapshotData} from './raid-rivals.mjs';
 import {WEAPONS,weaponStats,itemWeight,maxStack} from '../shared/raid-catalog.mjs';
 const check=(v,m)=>{if(!v)throw new RuleError(m)};
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z,(a.y||0)-(b.y||0));
 const near=(a,b,r)=>dist(a,b)<=r;
+// The insertion walk to the extraction exit is a first-class gameplay surface:
+// the service samples the authoritative path once per spawn, then keeps both
+// the early contact and the route pickups on ground a player can actually walk.
+function insertionRoute(world,at,exit){
+ const path=findPath(world,{x:at.x,y:at.y||0,z:at.z},{x:exit.x,y:exit.y||0,z:exit.z},{radius:.5,height:1.2,maxNodes:640000});
+ if(path.length<2)return [];
+ const trail=[];let walked=0,previous={x:at.x,z:at.z,y:at.y||0};
+ for(const point of path)walked+=Math.hypot(point.x-previous.x,point.z-previous.z),trail.push({x:point.x,y:point.y||0,z:point.z,walked,previous}),previous=point;
+ return trail;
+}
+function routeStop(trail,distance){
+ let best=trail[0];
+ for(const point of trail)if(Math.abs(point.walked-distance)<Math.abs(best.walked-distance))best=point;
+ return best;
+}
+function routeSidePoint(world,point,side){
+ const dx=point.x-(point.previous?.x??point.x),dz=point.z-(point.previous?.z??point.z),length=Math.hypot(dx,dz)||1;
+ const placed=sidePoint(world,point.x+(-dz/length)*side,point.z+(dx/length)*side,point.y||0);
+ return placed||point;
+}
+function sidePoint(world,x,z,y){
+ return safePoint(world,x,z,{radius:.4,y,height:1.2});
+}
 export class RaidService {
  constructor(store,{now=()=>Date.now()/1000,owner=randomUUID(),region='local',maxOperators}={}){
   this.maxOperators=operatorLimit(maxOperators);this.store=store;this.now=now;this.owner=owner;this.region=region;this.raids=new Map();this.byAccount=new Map();this.renewAt=Date.now()+5000;this.insuranceAt=0;store.acquireLease(owner);
@@ -147,12 +170,35 @@ export class RaidService {
  seedInsertionPatrol(raid,at,now){
   raid.approachSpawns||={};
   if(!at||at.index==null||raid.approachSpawns[at.index])return;
-  const bait=(raid.floorLoot||[]).filter(l=>l.spawn===at.index&&l.items.some(it=>it.kind==='weapon')).sort((a,b)=>Math.hypot(a.x-at.x,a.z-at.z)-Math.hypot(b.x-at.x,b.z-at.z))[0];
-  if(!bait)return;raid.approachSpawns[at.index]=1;
-  const machine=spawnMachine(raid,'scout',bait.x+3,bait.z+3,now);
-  if(!machine)return;
-  machine.approach=true;machine.home={x:bait.x,y:bait.y||0,z:bait.z};machine.patrolRadius=6;
-  machine.investigate={x:at.x,y:at.y||0,z:at.z,until:now+12};
+  raid.approachSpawns[at.index]=1;
+  const exit=(raid.exits||[]).filter(e=>e.kind!=='departed').sort((a,b)=>Math.hypot(a.x-at.x,a.z-at.z)-Math.hypot(b.x-at.x,b.z-at.z))[0];
+  if(!exit)return;
+  const trail=insertionRoute(raid.world,at,exit);
+  if(!trail.length)return;
+  // Route contacts are authored into the sector's machine cap like any other
+  // spawn: the walk to the exit should feel dangerous, never overflow the
+  // sector. With a base patrol already filling most of the cap the near guard
+  // and the first follow-up arrive; the far contact queues only when room
+  // remains.
+  const room=()=>raid.machines.filter(m=>m.hp>0).length<MACHINE_CAP;
+  // 42 m ahead is close enough to show an approaching patrol before the first
+  // building corner hides it, and far enough that the operator can read the
+  // street and pick a direction. The later stops belong to the walk itself.
+  const first=routeStop(trail,42);
+  if(room()){
+   const machine=spawnMachine(raid,'scout',first.x,first.z,now);
+   if(machine){
+    machine.approach=true;machine.routeGuard=true;machine.home={x:first.x,y:first.y||0,z:first.z};machine.patrolRadius=7;
+    machine.investigate={x:at.x,y:at.y||0,z:at.z,until:now+30};
+   }
+  }
+  for(const [kind,distance]of [['hunter',110],['scout',175]]){
+   if(!room())break;
+   const stop=routeStop(trail,distance),contact=spawnMachine(raid,kind,stop.x,stop.z,now);
+   if(contact){contact.approach=true;contact.routeGuard=true;contact.home={x:stop.x,y:stop.y||0,z:stop.z};contact.patrolRadius=9}
+  }
+  const marks=ROUTE_LOOT_MARKS.map((distance,index)=>routeSidePoint(raid.world,routeStop(trail,distance),index%2?-1.8:1.8));
+  raid.floorLoot.push(...createRouteLoot(raid.world,raid.lootSeed||raid.id,at.index,marks));
   event(raid,now,'A machine patrol picked up your insertion signature and is closing in.','warning');
  }
  seedExitAmbush(raid,exit,now){

@@ -5,6 +5,8 @@ import {makeCharacterWithCache,animate} from './chars.js';
 import {WEAPONS} from './shared/raid-catalog.mjs';
 import {MACHINES} from './shared/raid-enemies.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
+import {HQP} from './assets.js';
+import {photoItems} from './photoguns.js';
 const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,12,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,5,24),gem:new THREE.OctahedronGeometry(1,0)};
 const HIT_FLASH_COLOR=new THREE.Color(0xffffff);
 const materials=new Map();
@@ -534,9 +536,39 @@ export function propModel(kind,color=0xe0aa4d,options={}){
   root.userData.cacheTier=tier;root.userData.cacheAccent=accent;root.userData.cacheTierGroup=tierGroup;
  }else if(kind==='loot'){
   // `plain` reconstructs the former flat pile for evidence benches only;
-  // production sync never passes it.
-  const plain=options.plain===true;
-  part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]);part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]);part(root,'box',0x343933,.05,.22,0,.2,.2,.16);part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
+  // production sync never passes it. Once the main game's CC0 props have
+  // loaded, a pile is dressed as a real object: a photo-scanned gun for weapon
+  // drops, a treasure chest for valuables, or a wooden crate for supplies. The
+  // beacon and rarity ring stay on the root, so pickup state is unchanged.
+  const plain=options.plain===true,visual=plain?'pile':(options.visual||'crate');
+  const place=mesh=>{root.add(mesh);return mesh};
+  let dressed=false;
+  if(!plain&&HQP.models.crate){
+   // Every dressed pile gets a dark landing mat so it does not appear to float
+   // on the photo asphalt.
+   part(root,'box',0x1f2622,0,.018,0,1.02,.035,.74);
+   if(visual==='gun'&&HQP.guns){
+    const slots=options.weapon?photoItems({ar:'ar',smg:'smg',shotgun:'shotgun',sniper:'sniper',pistol:'handgun',lmg:'ar'}[options.weapon]||'ar',false,HQP):null;
+    if(slots&&slots.length){
+     const bounds=new THREE.Box3();
+     for(const slot of slots){slot.geo.computeBoundingBox();bounds.union(slot.geo.boundingBox)}
+     const gun=new THREE.Group(),scale=.72;
+     for(const slot of slots){const mesh=new THREE.Mesh(slot.geo,slot.mat);mesh.castShadow=false;gun.add(mesh)}
+     gun.scale.setScalar(scale);gun.rotation.y=.42;
+     gun.position.set(-.06,.1-bounds.min.y*scale,.04);
+     place(gun);dressed=true;
+    }
+   }
+   if(!dressed&&HQP.models.chest&&visual==='chest'){
+    const chest=new THREE.Mesh(HQP.models.chest.geo,HQP.models.chest.mat);
+    chest.scale.setScalar(.55);chest.rotation.y=.38;place(chest);dressed=true;
+   }
+   if(!dressed){
+    const crate=new THREE.Mesh(HQP.models.crate.geo,HQP.models.crate.mat);
+    crate.scale.setScalar(.58);crate.rotation.y=.34;place(crate);dressed=true;
+   }
+  }
+  if(!dressed)part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]),part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]),part(root,'box',0x343933,.05,.22,0,.2,.2,.16),part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
   const ring=part(root,'ring',color,0,.3,0,.58,.58,.58,[Math.PI/2,0,0]);
   part(root,'cylinder',color,0,.48,0,.035,.55,.035);
   if(!plain){

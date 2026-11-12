@@ -342,7 +342,7 @@ html[data-reduced-motion=true] #vitalVignette{animation:none!important;transitio
    joystick/action deck; mouse/keyboard raids hide it for an unobstructed scene.
    ------------------------------------------------------------------------- */
 #hudSlim{display:none}
-#hudStatus{display:block;position:absolute;top:calc(96px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:6;max-width:min(560px,calc(100vw - 32px));padding:6px 12px;border-radius:9px;background:linear-gradient(180deg,rgba(9,17,23,.88),rgba(9,17,23,.68));border:1px solid var(--hs-border);box-shadow:0 8px 22px rgba(0,0,0,.34),0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(9px) saturate(120%);color:#cfe9ff;font-size:calc(.8rem * var(--hud-scale));font-weight:600;line-height:1.35;text-align:center;text-shadow:0 1px 2px #000;opacity:0;visibility:hidden;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .5s ease,visibility 0s linear .5s;pointer-events:none}
+#hudStatus{display:block;position:absolute;top:calc(90px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:6;max-width:min(560px,calc(100vw - 32px));padding:6px 12px;border-radius:9px;background:linear-gradient(180deg,rgba(9,17,23,.88),rgba(9,17,23,.68));border:1px solid var(--hs-border);box-shadow:0 8px 22px rgba(0,0,0,.34),0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(9px) saturate(120%);color:#cfe9ff;font-size:calc(.8rem * var(--hud-scale));font-weight:600;line-height:1.35;text-align:center;text-shadow:0 1px 2px #000;opacity:0;visibility:hidden;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .5s ease,visibility 0s linear .5s;pointer-events:none}
 #hudStatus.show{opacity:1;visibility:visible;transition:opacity .5s ease,visibility 0s linear 0s}
 html[data-reduced-motion=true] #hudStatus{transition:none!important}
 /* Clip the detailed scoreboard without removing it from the accessibility tree
@@ -431,6 +431,12 @@ html[data-compact-hud=true] #touchActions #jump{grid-area:jump}
  html[data-compact-hud=true] #hudStatus{top:calc(88px + env(safe-area-inset-top,0px));font-size:calc(.7rem * var(--hud-scale))}
  html[data-compact-hud=true] #touchActions{grid-template-columns:repeat(3,52px);grid-auto-rows:52px;gap:7px}
  html[data-compact-hud=true] #touchActions .tb{width:52px;height:52px;min-width:52px;min-height:52px}
+}
+/* On short landscape phones the transient briefing would sit across the
+   street at eye level. The always-visible exit chip already answers "where do
+   I go"; drop the secondary pill rather than stacking two directions. */
+@media(max-height:480px){
+ html[data-compact-hud=true] #hudStatus{display:none}
 }
 /* Mouse/keyboard raids drop the touch deck entirely: the scene stays clean and
    a contextual interaction prompt appears only when something is in reach. */
