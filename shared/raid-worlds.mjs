@@ -336,17 +336,21 @@ function townWindowRows(m,x,z,w,d,base,height,R,litChance=.55){
  }
 }
 
-function townBuilding(m,x,z,R,theme,facing,names){
+function townBuilding(m,x,z,R,theme,facing,names,wallOverride=null){
  const walls=theme==='wilderness'?['planks','brick','concrete']:theme==='settlement'?['brick','brick','concrete','planks']:['brick','concrete','planks','metal'];
- const wall=walls[Math.floor(R()*walls.length)];
+ // Consume the original random draw even when the caller pins a wall kind, so
+ // every later dimension and window in the deterministic layout is unchanged.
+ const wallPick=R();
+ const wall=wallOverride||walls[Math.floor(wallPick*walls.length)];
+ const tint=tintFor(theme,x,z,wall);
  const w=12+Math.floor(R()*9),d=11+Math.floor(R()*7);
  const h=4.2+R()*1.8,floors=R()<(theme==='reservoir'?.22:.36)?2:1;
  if(!clearFootprint(m,x,z,w,d,5))return false;
- room(m,x,z,w,d,h,R()<.5?['n','e']:['s','w'],wall,'roof');
+ room(m,x,z,w,d,h,R()<.5?['n','e']:['s','w'],wall,'roof',tint);
  let top=h;
  if(floors===2){
   const up=2.8+R()*.7;
-  box(m,x,z,w-.4,d-.4,up,h,wall);
+  box(m,x,z,w-.4,d-.4,up,h,wall,tint);
   townWindowRows(m,x,z,w-.4,d-.4,h,up,R,.6);
   top=h+up;
  }
@@ -388,16 +392,26 @@ function townStreet(m,cx,cz,width=14,length=220){
  }
 }
 
+const WALL_CYCLES={
+ industrial:['planks','brick','concrete','metal','concrete','brick','planks','concrete','brick','metal','metal','concrete'],
+ wilderness:['planks','planks','brick','concrete','planks','brick','planks','concrete','brick','planks','concrete','brick'],
+ settlement:['brick','concrete','brick','planks','metal','brick','concrete','brick','planks','brick','metal','concrete']
+};
 function settlement(m,cx,cz,R,theme,names,district=false,facingHint){
  townStreet(m,cx,cz,district?16:14,district?240:220);
  const lots=district
   ?[[-72,-48],[-36,-54],[0,-56],[36,-54],[72,-48],[-86,-14],[-86,20],[-72,54],[-36,58],[0,58],[36,58],[72,54],[86,-14],[86,20]]
   :[[-46,-32],[-46,-2],[-46,28],[46,-32],[46,-2],[46,28],[-15,-46],[17,-46],[-15,44],[17,44],[-78,-26],[78,24]];
+ // A deterministic material rotation gives each settlement street a legible
+ // mix of concrete, brick, metal siding and timber instead of a row of the
+ // same warm plank facade. Only the surface material changes; footprints,
+ // heights, windows and doorway gaps are untouched.
+ const wallCycle=(WALL_CYCLES[theme]||WALL_CYCLES.industrial);
  let built=0;
- for(const [lx,lz] of lots){
+ for(const [k,[lx,lz]] of lots.entries()){
   const x=cx+lx,z=cz+lz;
   const facing=Math.abs(lx)>=Math.abs(lz)?(lx<0?'e':'w'):(lz<0?'s':'n');
-  if(townBuilding(m,x,z,R,theme,R()<.7?facing:facingHint||facing,names))built++;
+  if(townBuilding(m,x,z,R,theme,R()<.7?facing:facingHint||facing,names,wallCycle[k%wallCycle.length]))built++;
  }
  // A settlement square with supplies, shelter and abandoned transport.
  for(let i=0;i<4;i++){
@@ -473,13 +487,37 @@ const BUILDING_TINTS={
  wilderness:[0xa98f69,0xbb9b70,0x8c7a56,0xc0a379,0x9a865f,0x8a704f],
  settlement:[0xc08862,0xb99673,0xd1a47b,0xaa8067,0xbfa088,0x9f8a74,0xc5b29a]
 };
+// Walls read by material, not by theme alone: concrete is pale cool cement,
+// brick is a muted fired clay, metal is galvanised siding, timber is weathered
+// grey-brown. The tints multiply the shared white-ish surface maps, so a metal
+// block no longer inherits the warm tan that made every facade look like planks.
+const WALL_TINTS={
+ industrial:{
+  concrete:[0xb7b8ae,0xabaea8,0xc2c1b8,0x9da3a1,0xbfbdb0],
+  brick:[0x9a7d6c,0x8d6f61,0xa78b7a,0x7f6357,0x94796b],
+  metal:[0xc4c6bf,0xb4b8b2,0xcbcdc6,0xa5a9a3,0xbcc0b8],
+  planks:[0x8a7b66,0x7c6e59,0x95866f,0x6d6053,0x9b8a74]
+ },
+ wilderness:{
+  concrete:[0xa9aba2,0x9fa59d,0xb4b3a8],
+  brick:[0x9b7663,0x8e6b58,0xb0836d],
+  metal:[0x969a94,0x878c88,0x9c9f99],
+  planks:[0x957d5f,0x8a7357,0xa38c6b,0x796446]
+ },
+ settlement:{
+  concrete:[0xb8b2a4,0xcac4b6,0xaba598,0xbfb5a4],
+  brick:[0x9e6752,0x8d5c48,0xb4795f,0x835344,0xa97a64],
+  metal:[0x929693,0x838884,0x9fa3a0],
+  planks:[0x93755a,0x877058,0xa0856b,0x775d45]
+ }
+};
 const ROOF_TINTS={
  industrial:[0x3f4b4e,0x505a58,0x5e5d4c,0x465d5b],
  wilderness:[0x4f5847,0x5f5f4c,0x6c5d49,0x45584a],
  settlement:[0x53545e,0x6a5b50,0x5f6672,0x7a6b5c,0x4d4948]
 };
-function tintFor(theme,x,z){
- const list=BUILDING_TINTS[theme]||BUILDING_TINTS.industrial;
+function tintFor(theme,x,z,kind=null){
+ const list=(kind&&WALL_TINTS[theme]&&WALL_TINTS[theme][kind])||BUILDING_TINTS[theme]||BUILDING_TINTS.industrial;
  return list[Math.round(Math.abs((x*7+z*13+(x+z)*3)))%list.length];
 }
 function roofTintFor(theme,x,z){
@@ -509,7 +547,7 @@ function addUnit(m,cx,cz,w,d,R,theme,height){
  // taller apartment or silo.
  const h=height??(R()<.22?10+R()*7.5:R()<.45?7.4+R()*2.2:4.4+R()*2.2);
  if(!clearFootprint(m,cx,cz,w,d,2.5))return false;
- const wall=wallKindFor(theme,R),tint=tintFor(theme,cx,cz);
+ const wall=wallKindFor(theme,R),tint=tintFor(theme,cx,cz,wall);
  box(m,cx,cz,w,d,h,0,wall,tint);
  box(m,cx,cz,w+.7,d+.7,.24,h,'roof',roofTintFor(theme,cx,cz));
  facadeWindows(m,cx,cz,w,d,0,h,R,'z',1,.45);
@@ -526,7 +564,7 @@ function rowHouses(m,cx,cz,units,R,theme,horiz=true){
  for(let i=0;i<units;i++){
   const x=horiz?cx+(i-(units-1)/2)*uw:cx,z=horiz?cz:cz+(i-(units-1)/2)*uw;
   const uW=horiz?uw:depth,uD=horiz?depth:uw;
-  box(m,x,z,uW-.2,uD-.2,h,0,wall,tintFor(theme,x,z));
+  box(m,x,z,uW-.2,uD-.2,h,0,wall,tintFor(theme,x,z,wall));
   facadeWindows(m,x,z,uW-.2,uD-.2,0,h,R,horiz?'z':'x',1,.55);
   facadeWindows(m,x,z,uW-.2,uD-.2,0,h,R,horiz?'z':'x',-1,.5);
   if(R()<.22){
@@ -566,10 +604,10 @@ function residentialCell(m,cx,cz,R){
  for(let i=0;i<9;i++){const a=R()*Math.PI*2,r=26+R()*32,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r;if(R()<.45)hedgeSegment(m,x,z,2.4+R()*2.4,2.2,0,0x477045);else addTree(m,x,z,R,[0x556b4f,0x6d835f,0x47583d])}
 }
 function industrialCell(m,cx,cz,R){
- warehouse(m,cx-28,cz-40,R,tintFor('industrial',cx-28,cz-40));shed(m,cx+40,cz-38,R,'metal','metal',tintFor('industrial',cx+40,cz-38));containers(m,cx-42,cz+38,R);containers(m,cx+42,cz+40,R);
+ warehouse(m,cx-28,cz-40,R,tintFor('industrial',cx-28,cz-40,'concrete'));shed(m,cx+40,cz-38,R,'metal','metal',tintFor('industrial',cx+40,cz-38,'metal'));containers(m,cx-42,cz+38,R);containers(m,cx+42,cz+40,R);
  const fw=30+Math.round(R()*16),fd=20+Math.round(R()*12),fh=7+Math.round(R()*4),fx=cx+15,fz=cz-4;
  if(clearFootprint(m,fx,fz,fw,fd,3)){
-  box(m,fx,fz,fw,fd,fh,0,'concrete',tintFor('industrial',fx,fz));box(m,fx,fz,fw+.8,fd+.8,.28,fh,'roof',roofTintFor('industrial',fx,fz));
+  box(m,fx,fz,fw,fd,fh,0,'concrete',tintFor('industrial',fx,fz,'concrete'));box(m,fx,fz,fw+.8,fd+.8,.28,fh,'roof',roofTintFor('industrial',fx,fz));
   facadeWindows(m,fx,fz,fw,fd,0,fh,R,'z',1,.3);facadeWindows(m,fx,fz,fw,fd,0,fh,R,'z',-1,.25);
   rooftop(m,fx,fz,fw,fd,fh,R);
   m.props.push({kind:'floor',x:fx,y:.02,z:fz+fd/2+9,w:fw*.9,d:12,color:0x7b807a});
@@ -592,9 +630,9 @@ function industrialCell(m,cx,cz,R){
 function ruralCell(m,cx,cz,R){
  if(R()<.5){
   fieldPatch(m,cx-12,cz-8,116,78,0x5d7248);fieldPatch(m,cx+44,cz+44,54,38,0x6a7a52);
-  house(m,cx-48,cz-40,R,'planks','planks',tintFor('wilderness',cx-48,cz-40));shed(m,cx-22,cz-56,R,'planks','planks',tintFor('wilderness',cx-22,cz-56));shed(m,cx+54,cz-34,R,'planks','planks',tintFor('wilderness',cx+54,cz-34));
+  house(m,cx-48,cz-40,R,'planks','planks',tintFor('wilderness',cx-48,cz-40,'planks'));shed(m,cx-22,cz-56,R,'planks','planks',tintFor('wilderness',cx-22,cz-56,'planks'));shed(m,cx+54,cz-34,R,'planks','planks',tintFor('wilderness',cx+54,cz-34,'planks'));
   const bw=34+Math.round(R()*16),bd=20+Math.round(R()*10),bh=7+R()*2,bx=cx+12,bz=cz+12;
-  if(clearFootprint(m,bx,bz,bw,bd,4)){box(m,bx,bz,bw,bd,bh,0,'planks',tintFor('wilderness',bx,bz));box(m,bx,bz,bw+.9,bd+.9,.3,bh,'roof',roofTintFor('wilderness',bx,bz));facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',1,.45);facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',-1,.4)}
+  if(clearFootprint(m,bx,bz,bw,bd,4)){box(m,bx,bz,bw,bd,bh,0,'planks',tintFor('wilderness',bx,bz,'planks'));box(m,bx,bz,bw+.9,bd+.9,.3,bh,'roof',roofTintFor('wilderness',bx,bz));facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',1,.45);facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',-1,.4)}
   m.props.push({kind:'tank',x:cx+46,y:0,z:cz+2,scale:.8+R()*.5,color:0x9a9a8a});
   m.props.push({kind:'tank',x:cx-56,y:0,z:cz+34,scale:.6+R()*.4,color:0x7b8b7c});
   for(let i=0;i<9;i++)hayProp(m,cx+(R()*2-1)*70,cz+(R()*2-1)*58,.8+R()*.5);
@@ -604,7 +642,7 @@ function ruralCell(m,cx,cz,R){
  }else{
   fieldPatch(m,cx,cz,26,26,0x6a704f);
   for(const [dx,dz] of [[-58,-42],[56,-40],[-54,42],[52,44],[-18,-62],[24,58]]){
-   const roll=R(),tint=tintFor('wilderness',cx+dx,cz+dz);if(roll<.55)house(m,cx+dx,cz+dz,R,'planks','planks',tint);else if(roll<.8)ruin(m,cx+dx,cz+dz,R,'planks',tint);else shed(m,cx+dx,cz+dz,R,'planks','planks',tint);
+   const roll=R(),tint=tintFor('wilderness',cx+dx,cz+dz,'planks');if(roll<.55)house(m,cx+dx,cz+dz,R,'planks','planks',tint);else if(roll<.8)ruin(m,cx+dx,cz+dz,R,'planks',tint);else shed(m,cx+dx,cz+dz,R,'planks','planks',tint);
   }
   m.props.push({kind:'campfire',x:cx,z:cz,y:0,scale:.8,color:0xffb64d});
   for(const [dx,dz] of [[-11,-7],[11,7],[-9,10],[10,-9]])m.props.push({kind:'tent',x:cx+dx,z:cz+dz,y:0,scale:.75+R()*.3,color:0x8a9b7a});
@@ -651,7 +689,7 @@ function districtTower(m,cx,cz,R,theme){
  const w=14+Math.round(R()*8),d=12+Math.round(R()*6),h=18+Math.round(R()*14);
  if(!clearFootprint(m,cx,cz,w,d,8))return false;
  const wall=theme==='wilderness'?'planks':theme==='settlement'?'brick':'concrete';
- box(m,cx,cz,w,d,h,0,wall,tintFor(theme,cx,cz));
+ box(m,cx,cz,w,d,h,0,wall,tintFor(theme,cx,cz,wall));
  box(m,cx,cz,w+.9,d+.9,.32,h,'roof',roofTintFor(theme,cx,cz));
  facadeWindows(m,cx,cz,w,d,0,h,R,'z',1,.3);
  facadeWindows(m,cx,cz,w,d,0,h,R,'z',-1,.28);

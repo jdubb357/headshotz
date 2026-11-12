@@ -1,16 +1,16 @@
 import * as THREE from './lib/three.module.min.js';
 import {getTex,normalTex,TX} from './gfx.js';
 import {terrainHeightAt,raidScenery} from './shared/raid-worlds.mjs';
-const palettes={industrial:{ground:0x6c7469,concrete:0x9ba0a0,brick:0x92968b,planks:0x8a6f52,roof:0x354951,metal:0x748889,container:0x426a72,rock:0x6d6a60,crate:0x9c7b4d,barrier:0xc6ab65},wilderness:{ground:0x6c795b,concrete:0x9d9d8f,brick:0x9a9a7e,planks:0x82684e,roof:0x455f5b,metal:0x7e9292,container:0x716645,rock:0x8a8777,crate:0x8d7850,barrier:0x9c956c},settlement:{ground:0x756a60,concrete:0x9f9b95,brick:0xb08063,planks:0x946f4f,roof:0x50505b,metal:0x7e8a90,container:0x6d5751,rock:0x766f64,crate:0x9b744a,barrier:0xc4a86e}};
+const palettes={industrial:{ground:0x969684,concrete:0xadb0a8,brick:0x9b8272,planks:0x8a7c68,roof:0x44565f,metal:0x8ea0a1,container:0x4e7b81,rock:0x7f7c72,crate:0xac8755,barrier:0xccb173},wilderness:{ground:0x8a9375,concrete:0xb0b0a4,brick:0xa88977,planks:0x8a7357,roof:0x4c6662,metal:0x8fa2a2,container:0x7c7050,rock:0x99958a,crate:0x9c8559,barrier:0xa8a176},settlement:{ground:0x9c8d78,concrete:0xb3ada3,brick:0xb0836a,planks:0x94785c,roof:0x5c5f6a,metal:0x8d989d,container:0x7a625a,rock:0x857d70,crate:0xac8252,barrier:0xceb379}};
 const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':kind==='crate'?'crate':kind==='rock'?'rock':kind==='barrier'?'hazard':kind==='planks'?'planks':kind==='brick'?'brick':'concrete';
 // Per-surface physical response: [roughness, metalness, normalScale]. Asphalt and
 // barriers keep a wet sheen so the sky environment map reads as surface reflection,
 // while concrete/rock stay diffuse. The table also feeds terrain shading.
-const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.72,.12,.4],crate:[.8,.02,.55],plain:[.86,0,0],glow:[.35,.1,0]};
+const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.86,.04,.45],crate:[.8,.02,.55],window:[.18,.88,0],plain:[.86,0,0],glow:[.35,.1,0]};
 // How strongly each surface responds to rain: roofs/asphalt/stone wet hardest,
 // vegetation and timber only dampen. The value scales the shared wetness state
 // against a material's authored dry baseline.
-const WET_RESPONSE={asphalt:1,gravel:.92,tiles:.88,concrete:.78,rock:.7,brick:.62,dirt:.5,forest:.38,planks:.55,crate:.42};
+const WET_RESPONSE={asphalt:1,gravel:.92,tiles:.88,window:.85,concrete:.78,rock:.7,brick:.62,dirt:.5,forest:.38,planks:.55,crate:.42};
 // The sector terrain is one vertex-shaded heightfield rather than a flat slab.
 // Heights are sampled from shared world data, so hills match authoritative
 // collision and offline/raid-minimap previews. Line tint keeps ridges readable
@@ -31,19 +31,19 @@ function terrainMesh(world,palette){
   const height=position[i*3+1],slope=1-normals.array[i*3+1];
   tint.copy(low).lerp(high,Math.min(1,height/34));
   if(slope>0)tint.lerp(rock,Math.min(.55,slope*1.5));
-  const variation=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.075;
+  const variation=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.13;
   tint.multiplyScalar(1+variation);
   colors[i*3]=tint.r;colors[i*3+1]=tint.g;colors[i*3+2]=tint.b;
  }
  geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
  geometry.userData.raidOwned=true;
  const map=getTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel').clone();
- map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(54,54);map.anisotropy=4;map.needsUpdate=true;
+ map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(200,200);map.anisotropy=8;map.needsUpdate=true;
  // The terrain grid is large enough that a single normal tile would smear; tile
  // the relief texture at the same density as the albedo so sun-lit ridges and
  // gravel keep readable surface detail at first-person range.
  const normal=normalTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel',1.6).clone();
- normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.set(54,54);normal.anisotropy=4;normal.needsUpdate=true;
+ normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.set(200,200);normal.anisotropy=8;normal.needsUpdate=true;
  const material=new THREE.MeshStandardMaterial({map,normalMap:normal,normalScale:new THREE.Vector2(.55,.55),vertexColors:true,roughness:.93,metalness:.04,envMapIntensity:.4,side:THREE.FrontSide});
  material.userData.raidOwned=true;material.userData.raidOwnTexture=true;material.userData.raidOwnNormalTexture=true;
  material.userData.raidDry={roughness:.93,metalness:.04,envMapIntensity:.4,normalScale:.55};material.userData.raidWet=1;
@@ -115,11 +115,20 @@ export function buildEnvironment(world){
  };
  const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,4,20)};
  const matrix=new THREE.Matrix4(),position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3(),euler=new THREE.Euler();
+ // Daytime windows are dark glass that mirrors the sky; a lit window carries its
+ // authored lamp colour in the group tag so RaidView can restore its warm emissive
+ // only after the sun goes down. One material per distinct glow colour, no per-frame
+ // texture or matrix updates.
+ const windowMaterials=[],WLIT='windowLit:';
  function add(type,color,x,y,z,sx,sy,sz,ry=0,texture='plain',rx=0,rz=0,wind=false,tag=''){const key=type+'|'+color+'|'+texture+(wind?'|wind':'')+(tag?'|'+tag:'');let group=groups.get(key);if(!group){
-   const glow=texture==='glow',spec=SURFACE_PBR[texture]||SURFACE_PBR.plain;
+   const glow=texture==='glow',glass=texture==='window',spec=SURFACE_PBR[texture]||SURFACE_PBR.plain;
+  const windowLit=tag.startsWith(WLIT)?(Number(tag.slice(WLIT.length))||0xffd79a):null;
   const mat=new THREE.MeshStandardMaterial(glow
     ?{color,emissive:color,emissiveIntensity:1.7,roughness:spec[0],metalness:spec[1]}
+    :glass
+    ?{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:1.8,emissive:windowLit??0x000000,emissiveIntensity:0}
     :{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:spec[1]>.1?1.3:.55,...(spec[2]>0?{normalMap:normalTex(texture),normalScale:new THREE.Vector2(spec[2],spec[2])}:{})});
+  if(windowLit!==null){mat.userData.raidWindowGlass=true;mat.userData.raidWindowGlowColor=windowLit;windowMaterials.push(mat)}
   mat.userData.raidOwned=true;mat.userData.raidDry={roughness:mat.roughness,metalness:mat.metalness,envMapIntensity:mat.envMapIntensity??1,normalScale:mat.normalScale?mat.normalScale.x:null};mat.userData.raidWet=glow?0:(WET_RESPONSE[texture]||0);
   if(tag)mat.userData.raidStructure=tag;
   // Only the foliage groups sway; the uniform is exposed through the root so
@@ -132,7 +141,17 @@ export function buildEnvironment(world){
  add('box',palette.ground,0,-.12,0,world.size,.2,world.size,0,world.theme==='wilderness'?'forest':'gravel');
  const terrain=world.terrain?terrainMesh(world,palette):null;if(terrain)root.add(terrain);
  root.userData.raidTerrainMaterial=terrain?terrain.material:null;
- for(const [x,z,w,d,h,y=0,kind='concrete',tint]of world.blocks)add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
+  // A handful of generated street props (0.45 m posts) are authored twice at the
+ // exact same footprints. Both copies are identical collision volumes, so the
+ // authoritative world data stays frozen; drawing one avoids two coincident
+ // meshes fighting for the same depth plane.
+ const renderedBlocks=new Set();
+ for(const [x,z,w,d,h,y=0,kind='concrete',tint]of world.blocks){
+  const signature=x+','+z+','+w+','+d+','+h+','+y+','+kind+','+tint;
+  if(renderedBlocks.has(signature))continue;
+  renderedBlocks.add(signature);
+  add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
+ }
  // Presentation-only structure weathering derived from the frozen block layer:
  // solid street-level buildings gain a dark foundation plinth and an overhanging
  // roof cornice, then a deterministic share of roof vents, antenna masts and
@@ -279,7 +298,7 @@ export function buildEnvironment(world){
   if(i%4===0)for(const side of [-1,1])add('box',palette.metal,x+(ramp.axis==='z'?side*ramp.w/2:0),y+.55,z+(ramp.axis==='x'?side*ramp.d/2:0),.1,1.1,.1);
  }}
  // Roads and lane paint establish readable routes through every district.
- for(const axis of ['x','z']){add('box',0x3e4546,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
+ for(const axis of ['x','z']){add('box',0x666b65,0,.012,0,axis==='x'?world.size-4:7,.025,axis==='z'?world.size-4:7,0,'asphalt');for(let i=-world.size/2+8;i<world.size/2;i+=8)add('box',0xc8ba79,axis==='x'?i:0,.032,axis==='z'?i:0,axis==='x'?3:.12,.015,axis==='z'?3:.12)}
  // Window props are authored 0.27 m proud of their parent block face. Scanning
  // every block for every window would be quadratic at relay scale (≈8.8k windows
  // × 10k blocks), so a coarse footprint grid narrows each lookup to the blocks
@@ -312,6 +331,25 @@ export function buildEnvironment(world){
    }
   }
   return 0;
+ };
+ // Sign faces are painted into one cached, readable texture per name. The
+ // lettering sits on a value-contrast panel (dark slate against cream) so the
+ // notices read under daylight, dusk and emergency lighting without bloom.
+ const signPlaneGeometry=new THREE.PlaneGeometry(1,1),signMaterials=new Map();
+ const signMaterial=name=>{
+  let material=signMaterials.get(name);if(material)return material;
+  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
+  const ctx=canvas.getContext('2d'),bg=ctx.createLinearGradient(0,0,0,128);
+  bg.addColorStop(0,'#2a4146');bg.addColorStop(1,'#17282c');ctx.fillStyle=bg;ctx.fillRect(0,0,512,128);
+  ctx.fillStyle='#d8b867';ctx.fillRect(0,0,512,7);ctx.fillRect(0,121,512,7);
+  ctx.strokeStyle='#cdb378';ctx.lineWidth=4;ctx.strokeRect(10,10,492,108);
+  ctx.fillStyle='#f2e3bc';ctx.font='bold 42px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(name,256,68,462);
+  ctx.fillStyle='#c9c0a1';for(const [rx,rz] of [[20,20],[492,20],[20,108],[492,108]]){ctx.beginPath();ctx.arc(rx,rz,4,0,Math.PI*2);ctx.fill()}
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;
+  material=new THREE.MeshStandardMaterial({map:texture,roughness:.72,metalness:.08,side:THREE.DoubleSide,emissive:0xffffff,emissiveMap:texture,emissiveIntensity:.17});
+  material.userData.raidOwned=true;material.userData.raidOwnTexture=true;signMaterials.set(name,material);
+  return material;
  };
  const scenery=raidScenery(world);
  for(const prop of [...(world.props||[]),...scenery]){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
@@ -349,7 +387,7 @@ export function buildEnvironment(world){
   else if(prop.kind==='antenna'){add('cylinder',0x5f7075,x,y+7,z,.2,14,.2,0,'metal');add('box',0x26363b,x,y+12,z,2.4,.24,.24,0,'metal');add('sphere',0xdf6b4e,x,y+13,z,.35,.35,.35,0,'glow')}
   else if(prop.kind==='wreck'){add('box',0x3d302c,x,y+.8,z,6,1.4,2.4,0,'metal');add('box',0x6e4c38,x+1.6,y+1.6,z-.4,2.6,.4,1.6,0,'metal');add('cylinder',0x24201f,x-1.8,y+.5,z+.9,.45,.6,.45,0,'metal');add('box',0x3f4446,x+2.4,y+1.1,z+.2,2.2,.5,2.2,0,'metal')}
   else if(prop.kind==='road'||prop.kind==='sidewalk'||prop.kind==='plaza'){
-   const color=prop.kind==='sidewalk'?0x9e9a90:prop.kind==='plaza'?0x7a7264:0x34393b;
+   const color=prop.kind==='sidewalk'?0xb5afa2:prop.kind==='plaza'?0x9a9080:0x64675f;
    add('box',color,x,y,z,prop.w,.024,prop.d,prop.ry||0,prop.kind==='road'?'asphalt':prop.kind==='plaza'?'tiles':'concrete');
   }
   else if(prop.kind==='crosswalk'){
@@ -358,7 +396,10 @@ export function buildEnvironment(world){
   }
   else if(prop.kind==='window'){
    const w=prop.w||.16,d=prop.d||1.15,h=prop.h||1.3,lit=!!(prop.lit&&prop.color!=null);
-   add('box',lit?prop.color:0x11191d,x,y+h/2,z,w,h,d,0,lit?'glow':'metal');
+   // Dark glazing by daylight, warm lamp by night: the pane keeps the same material
+   // and the authored colour travels in the tag, so nothing changes shape or per-window
+   // draw state when the sun sets.
+   add('box',0x56727d,x,y+h/2,z,w,h,d,0,'window',0,0,false,lit?'windowLit:'+(prop.color&0xffffff):'windowDark');
    // Presentation-only masonry reveal: a sill, a lintel and two jambs turn the
    // flat opening into an authored window frame. The trim faces outward by a
    // few centimetres so rain wetness and lamplight catch it, and it is derived
@@ -500,8 +541,62 @@ export function buildEnvironment(world){
   else if(prop.kind==='bench'){add('box',0xb07a45,x,y+.45,z,2.1,.12,.45,0,'planks');add('box',0xb07a45,x,y+.66,z-.18,2.1,.32,.08,0,'planks');for(const s of [-.8,.8])add('box',0x31383c,x+s,y+.2,z,.08,.4,.4,0,'metal')}
   else if(prop.kind==='dumpster'){const s=prop.scale||1,c=prop.color||0x4e6550;add('box',c,x,y+.7*s,z,2.1*s,1.4*s,1.25*s,0,'metal');add('box',0x333d3f,x,y+1.42*s,z,2.15*s,.1*s,1.3*s,0,'metal');for(const s2 of [-.7,.7])add('cylinder',0x1f2420,x+s2*s,y+.22*s,z+.52*s,.2*s,.2*s,.2*s,0,'metal')}
   else if(prop.kind==='sign'){
-   const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const ctx=canvas.getContext('2d');ctx.fillStyle='#25373c';ctx.fillRect(0,0,512,96);ctx.strokeStyle='#ddbe7e';ctx.lineWidth=8;ctx.strokeRect(4,4,504,88);ctx.fillStyle='#f2e3bc';ctx.font='bold 38px system-ui';ctx.textAlign='center';ctx.fillText(prop.name.toUpperCase(),256,62,480);
-   const texture=new THREE.CanvasTexture(canvas),material=new THREE.SpriteMaterial({map:texture});material.userData.raidOwned=true;material.userData.raidOwnTexture=true;const sprite=new THREE.Sprite(material);sprite.position.set(x,y,z);sprite.scale.set(7,1.32,1);root.add(sprite);
+   const name=String(prop.name||'SECTOR').toUpperCase();
+   let boardY=Number.isFinite(prop.y)?prop.y:2.8;
+   let host=null;
+   // Street signs are authored a short distance outside a building face. Find
+   // that façade from the same coarse block index used for window trim; the sign
+   // then keeps its readable offset but gains two metal jibs tying it back to the
+   // wall. Free-standing notices get real posts and footings below.
+   for(let ix=Math.floor(prop.x/FACADE_CELL)-1;ix<=Math.floor(prop.x/FACADE_CELL)+1&&!host;ix++){
+    for(let iz=Math.floor(prop.z/FACADE_CELL)-1;iz<=Math.floor(prop.z/FACADE_CELL)+1&&!host;iz++){
+     const list=facadeGrid.get(ix+','+iz);if(!list)continue;
+     for(const [bx,bz,bw,bd,bh,base=0] of list){
+      if((base||0)>.3||bh<Math.max(2.6,boardY-1.2)||bw<5||bd<5)continue;
+      const xInside=Math.abs(prop.x-bx)<=bw/2+.15,zInside=Math.abs(prop.z-bz)<=bd/2+.15;
+      if(xInside&&Math.abs(prop.z-bz)>=bd/2-.1&&Math.abs(prop.z-bz)<bd/2+1.05){
+       const nz=prop.z>bz?1:-1;host={nx:0,nz,onZ:true,wallX:bx,wallZ:bz+nz*bd/2,top:base+bh};break;
+      }
+      if(zInside&&Math.abs(prop.x-bx)>=bw/2-.1&&Math.abs(prop.x-bx)<bw/2+1.75){
+       const nx=prop.x>bx?1:-1;host={nx,nz:0,onZ:false,wallX:bx+nx*bw/2,wallZ:bz,top:base+bh};break;
+      }
+     }
+    }
+   }
+   let toX=prop.x,toZ=prop.z-1,best=Infinity;
+   if(!host)for(const [px2,pz2] of world.spawns||[]){const dist=Math.hypot(px2-prop.x,pz2-prop.z);if(dist<best){best=dist;toX=px2;toZ=pz2}}
+   const ry=host?Math.atan2(host.nx,host.nz):Math.atan2(toX-prop.x,toZ-prop.z);
+   const nx=Math.sin(ry),nz=Math.cos(ry),panelW=host?3.6:5.2,panelH=host?.86:1.24;
+   if(host)boardY=Math.max(1.4,Math.min(boardY,host.top-.35));
+   else boardY=Math.max(terrainHeightAt(world,prop.x,prop.z)+2.15,boardY);
+   if(host){
+    const off=Math.max(.22,host.nx?Math.abs(prop.x-host.wallX):Math.abs(prop.z-host.wallZ));
+    // The two mounting jibs sit just outside the board edge so they stay visible
+    // from the street instead of disappearing behind the panel.
+    for(const side of [-1,1]){
+     const lateral=side*(panelW/2+.12);
+     if(host.onZ)add('box',0x46565b,prop.x+lateral,boardY,prop.z-host.nz*off/2,off+.10,.08,.08,0,'metal',0,0,false,'');
+     else add('box',0x46565b,prop.x-host.nx*off/2,boardY,prop.z+lateral,.08,.08,off+.10,0,'metal',0,0,false,'');
+    }
+   }else{
+    // The posts sit well outside the board footprint with a tall hazard band so
+    // the sign reads as a built street fixture from the insertion distance, not
+    // a flat panel hovering above the road. Each post samples its own terrain
+    // height, so a sign on a grade stays planted at both feet.
+    for(const side of [-1,1]){
+     const lateral=side*(panelW/2+.58),px2=prop.x+Math.cos(ry)*lateral,pz2=prop.z-Math.sin(ry)*lateral;
+     const ground=terrainHeightAt(world,px2,pz2),postH=boardY+panelH/2+.05-ground;
+     add('box',0x7d8883,px2,ground+postH/2,pz2,.28,postH,.28,0,'metal',0,0,false,'');
+     add('box',palette.barrier,px2,ground+.95,pz2,.31,1.86,.31,0,'hazard',0,0,false,'');
+     add('box',0x8d8b80,px2,ground+.10,pz2,.72,.20,.72,0,'concrete',0,0,false,'');
+    }
+    add('box',0x384b52,prop.x,boardY+panelH/2+.10,prop.z,panelW+1.4,.12,.14,ry,'metal',0,0,false,'');
+    add('box',0x384b52,prop.x,boardY-panelH/2-.12,prop.z,panelW+.9,.09,.11,ry,'metal',0,0,false,'');
+   }
+   add('box',0x26363b,prop.x,boardY,prop.z,panelW+.14,panelH+.14,.08,ry,'metal',0,0,false,'');
+   const panel=new THREE.Mesh(signPlaneGeometry,signMaterial(name));
+   panel.position.set(prop.x+nx*.052,boardY,prop.z+nz*.052);panel.rotation.y=ry;panel.scale.set(panelW,panelH,1);
+   panel.castShadow=true;panel.receiveShadow=true;panel.userData.raidOwned=true;root.add(panel);
   }
  }
  // Presentation-only street-level doorways derived from the frozen block and
@@ -605,7 +700,8 @@ export function buildEnvironment(world){
  for(const block of world.blocks){
   const [x,z,w,d,h,y=0,kind='concrete']=block;
   if(y>.4||h<2.8||w<6||d<6)continue;
-  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks'&&kind!=='metal')continue;
+  const rust=kind==='metal';
   const weatherHash=hash01(x*29.7+z*67.3+world.id.length*4.1+h*7.9);
   if(weatherHash>=.62)continue;
   let face=-1,onZ=false,nx=0,nz=0,wallX=0,wallZ=0,span=0,wins=null,outX=0,outZ=0;
@@ -629,20 +725,21 @@ export function buildEnvironment(world){
    const top=Math.min(p.y-.10,roofY-.30),bot=Math.max(y+.30,top-(.55+hash01(weatherHash*7.7+i*3.1)*.9));
    if(top-bot<.28)continue;
    const sw=.15+hash01(weatherHash*11.9+i*2.7)*.13;
-   add('box',i%2?0xb5ae9b:0x77806b,onZ?along:wallX+outX*.014,(top+bot)/2,onZ?wallZ+outZ*.014:along,...since(sw,top-bot,.024),0,i%2?'concrete':'rock',0,0,false,'facadeWeather');
+   add('box',rust?(i%2?0x9a6749:0x6f4a37):(i%2?0xb5ae9b:0x77806b),onZ?along:wallX+outX*.014,(top+bot)/2,onZ?wallZ+outZ*.014:along,...since(sw,top-bot,.024),0,rust?'concrete':i%2?'concrete':'rock',0,0,false,'facadeWeather');
   }
   // A ragged damp foundation instead of one flat slab: overlapping stains of
   // varying width and shallow height key the wall to the pavement above the plinth.
   for(let i=0;i<5;i++){
    const t=hash01(weatherHash*13.7+i*2.93),sw2=.55+t*.35,sh2=.18+hash01(weatherHash*5.3+i)*.38;
    const off=(i/4-.5)*Math.min(span*.55,2.4)+(hash01(weatherHash*7.1+i*1.9)-.5)*.16;
-   add('box',i%2?0x59614e:0x495646,onZ?wallX+off:wallX+outX*.012,y+.37+sh2/2,onZ?wallZ+outZ*.012:wallZ+off,...since(sw2,sh2,.02),0,'rock',0,0,false,'facadeWeather');
+   add('box',rust?(i%2?0x6d4b36:0x563c2c):(i%2?0x59614e:0x495646),onZ?wallX+off:wallX+outX*.012,y+.37+sh2/2,onZ?wallZ+outZ*.012:wallZ+off,...since(sw2,sh2,.02),0,rust?'concrete':'rock',0,0,false,'facadeWeather');
   }
-  // Faded efflorescence drips under the cornice weep onto the masonry.
+  // Faded efflorescence drips under the cornice weep onto the masonry; on metal
+  // they read as zinc bloom and run-off instead of lime, so keep them dull.
   for(let i=0;i<4;i++){
    const t=hash01(weatherHash*23.9+i*3.1),sw2=.12+t*.16,sh2=.34+hash01(weatherHash*6.7+i)*.86;
    const off=(i/3-.5)*Math.min(span*.42,1.9)+(hash01(weatherHash*11.3+i)-.5)*.12,top=roofY-.22;
-   add('box',i%2?0x928c78:0x616956,onZ?wallX+off:wallX+outX*.014,top-sh2/2,onZ?wallZ+outZ*.014:wallZ+off,...since(sw2,sh2,.02),0,i%2?'concrete':'rock',0,0,false,'facadeWeather');
+   add('box',rust?(i%2?0x8a8272:0x665f52):(i%2?0x928c78:0x616956),onZ?wallX+off:wallX+outX*.014,top-sh2/2,onZ?wallZ+outZ*.014:wallZ+off,...since(sw2,sh2,.02),0,'concrete',0,0,false,'facadeWeather');
   }
   weatherList.push({x:wallX,z:wallZ,y:y+.62,face,onZ,outX,outZ,span,h:roofY});
   facadeStains++;
@@ -656,7 +753,7 @@ export function buildEnvironment(world){
  for(const block of world.blocks){
   const [x,z,w,d,h,y=0,kind='concrete']=block;
   if(y>.4||h<3||w<6||d<6)continue;
-  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks'&&kind!=='metal')continue;
   const uHash=hash01(x*41.3+z*73.9+world.id.length*5.1+h*2.7);
   const pipeShare=uHash<.40,boxShare=hash01(uHash*17.3+x*3.7-z*5.9)<.28;
   if(!pipeShare&&!boxShare)continue;
@@ -718,6 +815,47 @@ export function buildEnvironment(world){
  }
  structureDetail.facadeUtilities=facadeUtilities;structureDetail.downpipes=downpipes;structureDetail.utilityBoxes=utilityBoxes;
  root.userData.raidFacadeUtilities=utilityList;
+ // Metal halls read as clipped industrial siding rather than planks: slender
+ // vertical ribs run the height of each face at a deterministic pitch, and a
+ // horizontal belt ties them at mid-eave. The rib depth is real geometry (not a
+ // texture swap) so daylight throws a fine highlight/shadow line down every
+ // panel; all ribs share one instanced draw call.
+ const sidingRibs=[];
+ for(const block of world.blocks){
+  const [x,z,w,d,h,y=0,kind='concrete']=block;
+  if(kind!=='metal'||y>.4||h<2.8||w<5||d<5)continue;
+  for(const side of ['n','s','e','w']){
+   const along=(side==='n'||side==='s')?w:d;
+   const count=Math.max(2,Math.min(6,Math.round(along/2.6)));
+   for(let i=0;i<count;i++){
+    const offset=(i+.5)/count*along-along/2;
+    if(side==='n')add('box',0x667878,x+offset,y+.12+h*.5,z-d/2-.035,.075,h-.24,.07,0,'metal',0,0,false,'sidingRib');
+    else if(side==='s')add('box',0x667878,x+offset,y+.12+h*.5,z+d/2+.035,.075,h-.24,.07,0,'metal',0,0,false,'sidingRib');
+    else if(side==='e')add('box',0x667878,x+w/2+.035,y+.12+h*.5,z+offset,.07,h-.24,.075,0,'metal',0,0,false,'sidingRib');
+    else add('box',0x667878,x-w/2-.035,y+.12+h*.5,z+offset,.07,h-.24,.075,0,'metal',0,0,false,'sidingRib');
+   }
+  }
+  add('box',0x7c8d8c,x,y+.10+h*.52,z,w+.09,.11,d+.09,0,'metal',0,0,false,'sidingBelt');
+  sidingRibs.push({x,z,w,d,h,y});
+ }
+ structureDetail.sidingRibs=sidingRibs.length;
+ // Spawn dressing: a knot of drums and a supply crate on the apron beside each
+ // insertion point. These are presentation-only street clutter, never blocks, so
+ // authoritative collision and offline/server agreement are untouched.
+ const spawnProps=[[-3.2,11.4,0x4b5344],[-1.4,12.8,0x8a5a3e],[1.8,13.8,0x4b5344]];
+ const atSpawn=(sx,sz)=>{
+  const hit=(x,z)=>world.blocks.some(b=>Math.abs(x-b[0])<b[2]/2+.7&&Math.abs(z-b[1])<b[3]/2+.7);
+  for(const [dx,dz,color] of spawnProps){
+   const x=sx+dx,z=sz+dz;if(hit(x,z))continue;
+   const y=terrainHeightAt(world,x,z);
+   add('cylinder',color,x,y+.65,z,.52,1.3,.52,0,'metal');
+   add('cylinder',0x2a2f2c,x,y+1.25,z,.54,.09,.54,0,'metal');
+   add('cylinder',0x232824,x,y+.07,z,.54,.10,.54,0,'metal');
+  }
+  const x=sx-4.4,z=sz+9.7;
+  if(!hit(x,z))add('box',0x8a6a45,x,terrainHeightAt(world,x,z)+.55,z,1.05,1.1,1.05,0,'crate');
+ };
+ for(const [sx,sz] of world.spawns||[])atSpawn(sx,sz);
  // Perimeter hills and warning posts frame the playable region without blocking routes.
  for(let i=0;i<24;i++){const angle=i*Math.PI/12,x=Math.sin(angle)*(world.size/2+15),z=Math.cos(angle)*(world.size/2+15);add('cone',palette.rock,x,7,z,15,18,15,angle,'rock')}
  const sceneryCounts={};for(const item of scenery)sceneryCounts[item.kind]=(sceneryCounts[item.kind]||0)+1;
@@ -823,9 +961,9 @@ export function buildEnvironment(world){
   glintMesh.frustumCulled=false;glintMesh.renderOrder=1;glintMesh.visible=false;glintMesh.userData.raidWetReflections=true;
   root.add(glintMesh);root.userData.raidWetReflections=glintMesh;
  }
- root.userData.raidWindMaterials=windMaterials;
+ root.userData.raidWindMaterials=windMaterials;root.userData.raidWindowMaterials=windowMaterials;
  for(const {type,transforms,material,tag}of groups.values()){
-  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;if(tag)mesh.userData.raidStructure=tag;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
+  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;if(tag&&tag!=='windowDark'&&!tag.startsWith(WLIT))mesh.userData.raidStructure=tag;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
  }
  root.userData.materials=materials;return root;
 }

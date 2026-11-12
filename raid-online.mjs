@@ -20,7 +20,7 @@ import {accountUI} from './raid-account-ui.mjs';
 import {installDialogNavigation} from './raid-dialogs.mjs';
 import {settingsUI} from './raid-settings-ui.mjs';
 import {raidInput} from './raid-input.mjs';
-import {keyName,aimDelta} from './shared/raid-settings.mjs';
+import {keyName} from './shared/raid-settings.mjs';
 import {rankProgress} from './shared/raid-progression.mjs';
 import {communicationUI} from './raid-comms-ui.mjs';
 import {BOSS_PHASES,MACHINES} from './shared/raid-enemies.mjs';
@@ -88,6 +88,50 @@ new ResizeObserver(syncRaidDock).observe($('packToggle'));
 addEventListener('raidsettingschange',syncRaidDock);
 addEventListener('resize',()=>{syncTouchHeight();syncRaidDock()});
 syncTouchHeight();syncRaidDock();
+// Base lobby navigation. The hero deploy card is always visible; the lower
+// panel area shows exactly one tab group at a time. Cards keep their ids and
+// event wiring, so every existing control stays where it is.
+let baseTabName='loadout',baseTabChosen=false;
+const BASE_TABS=['loadout','traders','workshop','contracts','records','sector','squad'];
+function setBaseLobby(on){if(on)document.body.dataset.baseLobby='true';else delete document.body.dataset.baseLobby}
+function updateHeroSummary(){
+ if(!profile)return;
+ const items=Array.isArray(profile.items)?profile.items:[];
+ const credits=Number.isFinite(profile.credits)?profile.credits:0;
+ const map=$('map')?.selectedOptions?.[0]?.textContent?.trim()||'—';
+ const objective=$('fieldObjective')?.selectedOptions?.[0];
+ const objectiveName=objective&&objective.value?objective.textContent.trim():'';
+ const recovery=!!$('recovery')?.checked;
+ const primary=$('primaryWeapon')?.selectedOptions?.[0]?.textContent?.trim();
+ const gear=recovery?'Recovery kit':profile.activeDeployment?'Operator deployed':(!(''===($('primaryWeapon')?.value||''))&&primary)||'Select gear';
+ const creditsNode=$('heroCredits'),stashNode=$('heroStash'),loadoutNode=$('heroLoadout'),sectorNode=$('heroSector');
+ if(creditsNode)creditsNode.textContent=credits.toLocaleString()+' cr';
+ if(stashNode)stashNode.textContent=items.length+' item'+(items.length===1?'':'s');
+ if(loadoutNode)loadoutNode.textContent=gear;
+ if(sectorNode)sectorNode.textContent=objectiveName?map+' · '+objectiveName:map;
+}
+function setBaseTab(name){
+ baseTabName=BASE_TABS.includes(name)?name:'loadout';
+ const base=$('base');
+ if(base)base.dataset.baseTab=baseTabName;
+ for(const tab of document.querySelectorAll('#baseTabs [role=tab]')){
+  const on=tab.dataset.baseTab===baseTabName;
+  tab.setAttribute('aria-selected',String(on));
+  tab.tabIndex=on?0:-1;
+ }
+ updateHeroSummary();
+}
+for(const tab of document.querySelectorAll('#baseTabs [role=tab]')){
+ tab.addEventListener('click',()=>setBaseTab(tab.dataset.baseTab));
+ tab.addEventListener('keydown',event=>{
+  if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+  const tabs=[...document.querySelectorAll('#baseTabs [role=tab]')].filter(node=>!node.hidden);
+  const index=tabs.indexOf(tab);if(index<0)return;
+  event.preventDefault();
+  const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+  tabs[next].focus();setBaseTab(tabs[next].dataset.baseTab);
+ });
+}
 let baseUI,previewLoadout={primary:null,secondary:null,armor:null};
 let profile,party,snapshot,view,preview,yaw=0,pitch=0,seq=0,busy=false,tickBusy=false,inRaid=false,nearest=null,awaitingParty=false,notice={text:'',until:0};
 let latencyProof=null,probeWork=null,matchInfo=null;
@@ -112,8 +156,8 @@ addEventListener('raidsettingschange',()=>{if(inRaid)setPack(!$('pack').hidden)}
 
 identityUI=accountUI({api,run,getProfile:()=>profile,offline:()=>offlineMode,onRotated:async()=>{authGeneration++;await comms.voice.leave('Voice off after account security update.');await refresh()},onRecovered:async()=>{await signedOut('Account recovered. Sign in with your new password.')},onSignOut:async()=>{await api('logout',{});await signedOut('Signed out.')}});
 async function signedOut(text){
- const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();resetTacticalMap();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;
- view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();$('base').hidden=true;$('auth').hidden=false;$('login').reset();applyOfflineAuth();$('identity').textContent='';
+ const wasAlive=inRaid&&snapshot?.self.alive;authGeneration++;wire?.close();wire=null;prediction=null;inRaid=false;raidGeneration++;awaitingParty=false;input.clear();resetTacticalMap();profile=null;party=null;snapshot=null;baseUI?.selectLoadout({recovery:false,itemIds:[],insureIds:[]});previewLoadout={primary:null,secondary:null,armor:null,recovery:false};preview?.clear();document.body.dataset.inRaid='false';preferences.apply();document.querySelector('main').inert=false;document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;
+ view?.clear();await comms.reset();identityUI.reset();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();setBaseLobby(false);baseTabChosen=false;baseTabName='loadout';$('base').hidden=true;$('auth').hidden=false;$('login').reset();applyOfflineAuth();$('identity').textContent='';
  clearHitmarker();lastHitToken=0;for(const id of ['stash','records','partyRoster','contracts','insurance','overflow','trader','workshop','upgrades','installedMods','primaryWeapon','weaponSlots','basePreviewCaption','presetStatus','riskSummary','stashCapacity','readyMismatch','pack','hud','conditions','events','sectorStatus','hint','interactionStatus','rewardsTotals','rewardsLoot','rewardsRank','rewardsContract','rewardsOutcome','rewardsSettlement','rewardsStashUsage'])$(id).replaceChildren();$('rewards').hidden=true;$('sectorStatus').hidden=true;delete $('sectorStatus').dataset.state;
  $('restoreReady').hidden=true;$('readyMismatch').hidden=true;latencyProof=null;$('latencyStatus').textContent='Check connection before deploying.';hudStatusKey='';const statusNode=$('hudStatus');if(statusNode){statusNode.hidden=true;statusNode.classList.remove('show')}$('networkStatus').hidden=false;
  message(text+(wasAlive?' Your operator remains vulnerable in the raid. Sign in and reconnect to continue.':''));
@@ -266,14 +310,14 @@ function renderRewards(records){
   if((profile.overflow||[]).length)stashLine.dataset.overflow='true';
   else delete stashLine.dataset.overflow;
  }
- $('rewardsStash').onclick=()=>focusRewardsSurface('#stash input,#stash button');
- $('rewardsWorkshop').onclick=()=>focusRewardsSurface('#workshop button');
- $('rewardsContracts').onclick=()=>focusRewardsSurface('#contracts button');
- $('rewardsRecords').onclick=()=>{const latest=$('records').querySelector('details');if(latest){latest.open=true;latest.scrollIntoView({block:'center',behavior:'auto'});latest.querySelector('summary')?.focus({preventScroll:true})}};
- $('rewardsDeploy').onclick=()=>focusRewardsSurface('#map');
+ $('rewardsStash').onclick=()=>{setBaseTab('loadout');focusRewardsSurface('#stash input,#stash button')};
+ $('rewardsWorkshop').onclick=()=>{setBaseTab('workshop');focusRewardsSurface('#workshop button')};
+ $('rewardsContracts').onclick=()=>{setBaseTab('contracts');focusRewardsSurface('#contracts button')};
+ $('rewardsRecords').onclick=()=>{setBaseTab('records');const latest=$('records').querySelector('details');if(latest){latest.open=true;latest.scrollIntoView({block:'center',behavior:'auto'});latest.querySelector('summary')?.focus({preventScroll:true})}};
+ $('rewardsDeploy').onclick=()=>{setBaseTab('loadout');focusRewardsSurface('#map')};
 }
 async function refresh(){
- const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=false;$('auth').hidden=true;$('base').hidden=false;$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
+ const generation=authGeneration,updated=await api('profile');if(generation!==authGeneration)return;profile=updated;$('commsToggle').hidden=offlineMode;$('accountOpen').hidden=offlineMode;$('auth').hidden=true;$('base').hidden=false;setBaseLobby(true);bootNotice(null);$('identity').textContent=`${profile.username} · ${profile.credits} credits (${grantBalance(profile)} starter · ${profile.credits-grantBalance(profile)} earned)`;applyOfflineMode();
  await baseUI.render(profile);if(generation!==authGeneration)return;
  $('resume').hidden=!profile.activeDeployment;$('deploy').disabled=!!profile.activeDeployment;
  restoreOfflineRaidPlan();
@@ -292,10 +336,12 @@ async function refresh(){
   $('records').append(details);
  }
  renderRewards(records);
+ updateHeroSummary();
+ if(!baseTabChosen){baseTabChosen=true;setBaseTab(records.length&&!profile.activeDeployment?'records':'loadout')}
  await refreshParty();if(generation!==authGeneration)return;await comms.refresh();
 }
 function selectedLoadout(){const recovery=$('recovery').checked,raw=[...$('stash').querySelectorAll('input[data-equip]:checked')].map(e=>e.value),ordered=baseUI?.orderedIds(raw)||raw;return {recovery,itemIds:recovery?[]:ordered,insureIds:recovery?[]:[...$('stash').querySelectorAll('input[data-insure]:checked')].map(e=>e.value)}}
-baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch();updateDeployReadiness()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
+baseUI=baseController({api,run,button,label,getProfile:()=>profile,refresh,selectedLoadout,offline:()=>offlineMode,onLoadoutChanged:unready,chooseQuantity,onInspect:inspect,onSelectionChanged:()=>{awaitingParty=false;updateReadyMismatch();updateDeployReadiness();updateHeroSummary()},onPreviewLoadout:loadout=>{previewLoadout=loadout;preview?.setLoadout(loadout)}});
 function updateReadyMismatch(){const member=party?.members.find(m=>m.account===profile?.id),mismatch=!!(member?.ready&&!profile?.activeDeployment&&!sameLoadout(member.loadout,selectedLoadout()));$('readyMismatch').hidden=!mismatch;$('restoreReady').hidden=!mismatch;$('readyMismatch').textContent=mismatch?'Your current selection differs from your readied loadout. Ready again or restore it before deploying.':'';if(mismatch)$('deploy').disabled=true;return mismatch}
 // Offline raid plan persistence. The sector and optional field objective are an
 // operator preference for the static base only: they prefill the Deploy card and
@@ -356,6 +402,8 @@ function applyOfflineMode(){
  // never a real reading and only added clutter to the raid HUD.
  $('networkStatus').hidden=true;
  $('squadOnlineControls').hidden=true;$('connectionControls').hidden=true;$('commsToggle').hidden=true;$('communications').hidden=true;
+ $('tabSquad').hidden=true;$('accountOpen').hidden=true;$('onlineAccountSecurity').hidden=true;
+ if(baseTabName==='squad')setBaseTab('loadout');
  $('checkLatency').disabled=true;$('voiceEnable').disabled=true;$('partyMode').disabled=true;$('partyCode').disabled=true;$('partyRole').disabled=true;
  $('voiceStatus').textContent='Voice is unavailable in offline raid mode.';
  $('latencyStatus').textContent='Offline raid — no connection check required.';
@@ -401,7 +449,7 @@ async function refreshParty(){
   if(generation!==authGeneration)return;
   applyOfflineMode();renderMatchSummary();
   $('partyState').textContent='Playing solo offline — machines are the opposition.';
-  $('deploy').textContent='Deploy solo raid';
+  $('deploy').textContent='Deploy';
   $('deploy').disabled=!!profile.activeDeployment;
   updateReadyMismatch();updateDeployReadiness();comms.update(null,null);
   return;
@@ -439,18 +487,27 @@ for(const w of RAID_WORLDS){const o=document.createElement('option');o.value=w.i
 $('deploy').onclick=()=>run(async()=>{const generation=authGeneration,measured=selectedMatch().maxRttMs?await measureLatency():null;if(generation!==authGeneration||!profile)throw new Error('Deployment canceled after account change');const deployed=await api('deploy',{protocol:RAID_PROTOCOL,requestId:crypto.randomUUID(),mapId:$('map').value,objective:$('fieldObjective').value||null,match:selectedMatch(),latencyProof:measured?.proofId,...selectedLoadout()});if(generation!==authGeneration||!profile)return;snapshot=deployed;awaitingParty=false;start()});
 $('resume').onclick=()=>run(async()=>{const generation=authGeneration,resumed=await api('raid');if(generation!==authGeneration||!profile)return;snapshot=resumed;start()});
 let packKey='',frame=0,controlsDisabled=false;
-function sprintIntent(){return touchSprint||input.held('sprint')}
-function stopHeldInput(){aimMouse=aimTouch=aiming=false;$('aim').setAttribute('aria-pressed','false');trigger?.clear();comms.voice.quiet();if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send({type:'move',x:0,z:0,yaw,pitch,sprint:false}).catch(()=>{})}
+function sprintIntent(){return touchSprint||stickSprint||input.held('sprint')}
+function stopHeldInput(){aimMouse=aimTouch=aiming=false;cancelTouch();$('aim').setAttribute('aria-pressed','false');trigger?.clear();comms.voice.quiet();if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send({type:'move',x:0,z:0,yaw,pitch,sprint:false}).catch(()=>{})}
 function sendHeldMovement(){if(inRaid&&snapshot?.self.alive&&wire&&!wire.closed&&wire.actor.deploymentId===snapshot.self.deploymentId)wire.send(()=>({type:'move',...movementInput(),yaw,pitch,sprint:sprintIntent()})).catch(()=>{})}
 function start(){
  if(snapshot.protocol!==RAID_PROTOCOL)throw new Error('Client update required. Reload to reconnect safely.');
  if(!getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion))throw new Error('Map update required. Reload to reconnect safely.');
- wire?.close();stateAt=performance.now();controlsDisabled=false;resetTacticalMap();clearHitmarker();lastHitToken=hitToken(snapshot.self.hit);inRaid=true;raidGeneration++;document.body.dataset.inRaid='true';lastHealth=snapshot.self.hp;lastOutcome='';lastBoard=false;hudStatusKey='';document.querySelector('main').inert=true;seq=snapshot.self.seq;yaw=snapshot.self.yaw;pitch=snapshot.self.pitch||0;input.clear();$('play').style.display='block';syncTouchHeight();syncRaidDock();
+ wire?.close();stateAt=performance.now();controlsDisabled=false;resetTacticalMap();clearHitmarker();lastHitToken=hitToken(snapshot.self.hit);inRaid=true;raidGeneration++;setBaseLobby(false);document.body.dataset.inRaid='true';preferences.apply();lastHealth=snapshot.self.hp;lastOutcome='';lastBoard=false;hudStatusKey='';document.querySelector('main').inert=true;seq=snapshot.self.seq;yaw=snapshot.self.yaw;pitch=snapshot.self.pitch||0;input.clear();$('play').style.display='block';syncTouchHeight();syncRaidDock();
  view||=new RaidView($('view'));view.start(snapshot);view.applySettings(preferences.get());prediction=new LocalPrediction(snapshot);wire?.close();const generation=raidGeneration;wire=new ReliableActions({state:snapshot,request:packet=>api('action',packet,{timeoutMs:2500}),onState:(state,network)=>{if(!inRaid||generation!==raidGeneration)return;snapshot=state;stateAt=performance.now();seq=state.self.seq;prediction?.reconcile(state,network);updateUI()},onNetwork:network=>{if(inRaid&&generation===raidGeneration&&!offlineMode)$('networkStatus').textContent=network.status==='connected'?'Connected · '+Math.round(network.rttMs/10)*10+' ms RTT':network.status==='retrying'?'Connection interrupted · retrying safely':network.status==='update_required'?'Client update required · reload to reconnect safely':'Connection lost · movement prediction paused'}});setPack(!(matchMedia('(pointer:coarse)').matches||document.documentElement.dataset.compactHud==='true'));packKey='';seenEvents.clear();$('events').textContent='';$('view').focus();updateUI();
 }
 let lastFrame=0;
 function renderFrame(time){
- const dt=Math.min(.2,(time-lastFrame)/1000||.016);lastFrame=time;aiming=!!(inRaid&&snapshot?.self.alive&&!snapshot.self.downed&&snapshot.self.weaponId&&!weaponWork&&!preferences.isModal()&&$('communications').hidden&&!mapOpen&&(aimMouse||aimTouch||input.held('aim')));$('aim').setAttribute('aria-pressed',String(aiming));$('play').dataset.aiming=String(aiming);trigger.hold('keyboard',input.held('fire'));trigger.tick();if(inRaid&&!preferences.isModal()&&$('communications').hidden&&!mapOpen){yaw-=(Number(input.held('lookRight'))-Number(input.held('lookLeft')))*dt*1.7*(aiming?.45:1);pitch=Math.max(-1.2,Math.min(1.2,pitch+(Number(input.held('lookUp'))-Number(input.held('lookDown')))*dt*1.4*(aiming?.45:1)))}
+ const dt=Math.min(.2,(time-lastFrame)/1000||.016);lastFrame=time;aiming=!!(inRaid&&snapshot?.self.alive&&!snapshot.self.downed&&snapshot.self.weaponId&&!weaponWork&&!preferences.isModal()&&$('communications').hidden&&!mapOpen&&(aimMouse||aimTouch||input.held('aim')));$('aim').setAttribute('aria-pressed',String(aiming));$('play').dataset.aiming=String(aiming);
+ applyTouchLook(dt);
+ if(inRaid&&!preferences.isModal()&&$('communications').hidden&&!mapOpen){yaw-=(Number(input.held('lookRight'))-Number(input.held('lookLeft')))*dt*1.7*(aiming?.45:1);pitch=Math.max(-1.2,Math.min(1.2,pitch+(Number(input.held('lookUp'))-Number(input.held('lookDown')))*dt*1.4*(aiming?.45:1)))}
+ // The reticle turns red over a visible machine, and the weapon fires itself
+ // while it is there — the main game's crosshair-owned trigger (primary phone
+ // control, and the same convenience on desktop).
+ const sighted=inRaid&&snapshot?.self.alive&&!preferences.isModal()&&$('communications').hidden&&!mapOpen?machineUnderCrosshair():null;
+ $('play').dataset.target=String(!!sighted);
+ if(sighted&&!input.held('fire'))trigger.tap();
+ trigger.hold('keyboard',input.held('fire'));trigger.tick();
  frame=requestAnimationFrame(renderFrame);
  if(inRaid)view?.frame(time,yaw,pitch,prediction?.frame(movementInput(),time),aiming);
  else if(profile&&!$('base').hidden){preview||=new BasePreview($('basePreview'));preview.setLoadout(previewLoadout);preview.applySettings(preferences.get());preview.frame(time,true)}
@@ -542,6 +599,7 @@ function compactStatusBrief(s,snapshot){
  parts.push('Facing '+mapCardinal(heading)+' '+mapDegree(heading));
  const o=snapshot.objective;
  if(o)parts.push(o.stage==='approach'?'Objective '+o.name+' · '+o.site:o.stage==='secure'?'Holding '+o.site:o.stage==='secured'?'Objective secured · extract':'Objective '+o.stage);
+ else parts.push(armoryObjective(s,snapshot));
  return parts.filter(Boolean).join(' · ');
 }
 function showCompactStatus(text){
@@ -750,7 +808,8 @@ function updateUI(){
  if(nextPackKey!==packKey){packKey=nextPackKey;renderPack(s,sources,downed)}
  updateExitCards(snapshot.serverTime);
  const interactKey=keyName(preferences.get().bindings.interact);
- $('hint').textContent=performance.now()<notice.until?notice.text: s.result?`${s.result.outcome.toUpperCase()} · ${s.result.items.length} items returned. Use Back to base.`:nearest?(nearest.source==='door'?`${interactKey} / Interact: ${nearest.locked?'unlock':nearest.closed?'open':'close'} ${nearest.label||'door'}`:nearest.source==='body'?`${interactKey} / Interact: ${nearest.open?'loot':'search'} ${nearest.name||'downed operator'}${nearest.open?' · '+nearest.items.length+' item'+(nearest.items.length===1?'':'s')+' · check backpack':''}`:nearest.source==='cache'?`${interactKey} / Interact: ${nearest.open?'open':'search'} ${nearest.label||nearest.id}`:nearest.source?`${interactKey} / Interact: ${lootBagHint(nearest)}`:`${interactKey} / Interact: ${nearest.kind} exit · ${exitDescription(nearest,snapshot.serverTime)}`): armoryObjective(s,snapshot)||('Move / aim · '+keyName(preferences.get().bindings.fire)+' fire · '+interactKey+' interact · '+keyName(preferences.get().bindings.pack)+' backpack · '+keyName(preferences.get().bindings.help)+' field guide'+(s.role?' · '+roleLabel(s.role)+' role':''));
+ const compactRaid=document.documentElement.dataset.compactHud==='true';
+ $('hint').textContent=performance.now()<notice.until?notice.text: s.result?`${s.result.outcome.toUpperCase()} · ${s.result.items.length} items returned. Use Back to base.`:nearest?(nearest.source==='door'?`${interactKey} / Interact: ${nearest.locked?'unlock':nearest.closed?'open':'close'} ${nearest.label||'door'}`:nearest.source==='body'?`${interactKey} / Interact: ${nearest.open?'loot':'search'} ${nearest.name||'downed operator'}${nearest.open?' · '+nearest.items.length+' item'+(nearest.items.length===1?'':'s')+' · check backpack':''}`:nearest.source==='cache'?`${interactKey} / Interact: ${nearest.open?'open':'search'} ${nearest.label||nearest.id}`:nearest.source?`${interactKey} / Interact: ${lootBagHint(nearest)}`:`${interactKey} / Interact: ${nearest.kind} exit · ${exitDescription(nearest,snapshot.serverTime)}`): compactRaid?'': armoryObjective(s,snapshot)||('Move / aim · '+keyName(preferences.get().bindings.fire)+' fire · '+interactKey+' interact · '+keyName(preferences.get().bindings.pack)+' backpack · '+keyName(preferences.get().bindings.help)+' field guide'+(s.role?' · '+roleLabel(s.role)+' role':''));
 }
 async function chooseRaidQuantity(type,it,extra={}){const generation=raidGeneration,deployment=snapshot?.self.deploymentId,quantity=await chooseQuantity({label:(type==='take'?'Take ':'Split ')+label(it),max:type==='take'?it.quantity:it.quantity-1,initial:type==='take'?1:Math.floor(it.quantity/2)});if(quantity==null||!inRaid||generation!==raidGeneration||deployment!==snapshot?.self.deploymentId)return;return action({type,itemId:it.id,quantity,...extra})}
 function renderPack(s,sources,downed){
@@ -979,13 +1038,79 @@ $('pack').addEventListener('dblclick',event=>{
  }
 });
 $('view').onclick=e=>{if(e.pointerType==='touch'||preferences.isModal()||!$('communications').hidden)return;if(inRaid){if(document.pointerLockElement!==$('view')){const request=$('view').requestPointerLock();request?.catch(()=>{notice={text:'Mouse capture was unavailable. Use arrow keys, touch aim, or click the view to retry.',until:performance.now()+5000}})}}};
-addEventListener('mousemove',e=>{if(document.pointerLockElement===$('view'))aim(e.movementX,e.movementY,.003)});
-function aim(dx,dy,multiplier){const settings=preferences.get();if(aiming)multiplier*=view?.camera.fov/settings.fov||.45;({yaw,pitch}=aimDelta({yaw,pitch},dx*multiplier,dy*multiplier,settings))}
+// Look tuning matches the main HeadShotz game (game.js mousemove / zoomSens /
+// applyTouchLook): .0021 rad/px on mouse, .0052 on touch, aim slows with the
+// field-of-view ratio, touch vertical look is damped 10%, and a faster swipe
+// turns a little quicker so a whole turn fits in one thumb flick.
+const MOUSE_LOOK=.0021,TOUCH_LOOK=.0052;
+function adsLookScale(){
+ const fov=Number(view?.camera?.fov),r=Math.tan((Number.isFinite(fov)?fov:preferences.get().fov)*Math.PI/360)/Math.tan(75*Math.PI/360);
+ return Math.pow(r,.85);
+}
+function aim(dx,dy,base,vscale=1){
+ const settings=preferences.get(),multiplier=base*settings.sensitivity*(aiming?adsLookScale():1);
+ yaw-=dx*multiplier;
+ pitch=Math.max(-1.2,Math.min(1.2,pitch-dy*multiplier*vscale*(settings.invertY?-1:1)));
+}
+addEventListener('mousemove',e=>{if(document.pointerLockElement===$('view')&&!preferences.isModal()&&$('communications').hidden&&!mapOpen)aim(e.movementX,e.movementY,MOUSE_LOOK)});
+const machineBody=m=>MACHINES[m.kind]||{height:1.3,radius:.55};
+const machineChest=m=>{const body=MACHINES[m.kind]||{height:1.3,radius:.55};return {x:m.x,y:(m.y||0)+body.height*.55,z:m.z}};
+function machinesInView(){
+ const s=snapshot?.self;if(!s?.alive||!snapshot.machines?.length)return [];
+ const eye=(s.y||0)+1.55,cp=Math.cos(pitch),fx=Math.sin(yaw)*cp,fy=Math.sin(pitch),fz=Math.cos(yaw)*cp,out=[];
+ for(const m of snapshot.machines){
+  if(!(m.hp>0))continue;
+  const c=machineChest(m),dx=c.x-s.x,dy=c.y-eye,dz=c.z-s.z,dist=Math.hypot(dx,dy,dz);
+  if(dist<.4||dist>90)continue;
+  const angle=Math.acos(Math.max(-1,Math.min(1,(dx*fx+dy*fy+dz*fz)/dist)));
+  out.push({m,dist,angle,chest:c});
+ }
+ return out;
+}
+// Aim assist mirrors game.js aimPull/nearAim on touch: within ~5° the camera is
+// gently drawn to the nearest visible machine and fine-look sensitivity eases
+// to 60% so the crosshair settles instead of shivering.
+function nearestMachine(cone){
+ let best=null;
+ for(const target of machinesInView())if(target.angle<=cone&&(!best||target.angle<best.angle))best=target;
+ return best;
+}
+function machineUnderCrosshair(){
+ let best=null;
+ for(const target of machinesInView()){
+  const tolerance=Math.atan(((machineBody(target.m).radius||.55)*1.05)/Math.max(1.4,target.dist));
+  if(target.angle<=tolerance&&(!best||target.angle<best.angle))best=target;
+ }
+ return best;
+}
+function aimPull(dt,target){
+ const s=snapshot?.self;if(!s||!target)return;
+ const dx=target.chest.x-s.x,dy=target.chest.y-((s.y||0)+1.55),dz=target.chest.z-s.z;
+ let delta=Math.atan2(dx,dz)-yaw;delta=Math.atan2(Math.sin(delta),Math.cos(delta));
+ const turn=Math.min(1,dt*3.2),lift=Math.atan2(dy,Math.hypot(dx,dz));
+ yaw+=delta*turn;
+ pitch=Math.max(-1.2,Math.min(1.2,pitch+(lift-pitch)*turn*.6));
+}
+let lookPointer=null,lookLast=null,lookBankX=0,lookBankY=0,lookPX=0,lookPY=0;
+let movePointer=null,moveStart=null,moveRadius=52,stickSprint=false;
+function applyTouchLook(dt){
+ if(!lookPX&&!lookPY)return;
+ const kept=Math.min(1,dt*38);let ax=lookPX*kept,ay=lookPY*kept;
+ lookPX-=ax;lookPY-=ay;
+ if(Math.abs(lookPX)<.05)lookPX=0;if(Math.abs(lookPY)<.05)lookPY=0;
+ if(!inRaid||preferences.isModal()||!$('communications').hidden||mapOpen)return;
+ const speed=Math.hypot(ax,ay)/Math.max(dt,.001),accel=1+Math.min(.5,speed/4000);
+ const near=nearestMachine(.09),damp=near&&near.angle<.06?.6:1;
+ aim(ax*accel,ay*accel,TOUCH_LOOK*damp,.9);
+ // game.js only magnetises enemies within 60 m for the pull; the damping is
+ // the wider under-reticle check, so a far machine does not tug the camera.
+ if(near&&near.dist<=60)aimPull(dt,near);
+}
 $('jump').onclick=()=>controlAction('jump');$('vault').onclick=()=>controlAction('vault');
 $('sprint').onclick=()=>{touchSprint=!touchSprint;$('sprint').setAttribute('aria-pressed',String(touchSprint));if(touchSprint&&inRaid&&wire&&!wire.closed)sendHeldMovement()};
 $('slide').onclick=()=>controlAction('slide');
 $('fire').onclick=e=>{if(e.detail===0)trigger.tap()};$('reload').onclick=()=>run(()=>action({type:'reload'}));$('interact').onclick=()=>run(interact);
-$('leave').onclick=()=>run(async()=>{const alive=snapshot.self.alive;inRaid=false;wire?.close();wire=null;prediction=null;raidGeneration++;resetTacticalMap();clearHitmarker();document.body.dataset.inRaid='false';document.querySelector('main').inert=false;await comms.voice.leave();comms.update(null);input.clear();document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;view?.clear();snapshot=null;message(alive?'Your operator remains in the raid. Reconnect within 45 seconds to continue.':'Raid recorded.');await refresh()});
+$('leave').onclick=()=>run(async()=>{const alive=snapshot.self.alive;inRaid=false;wire?.close();wire=null;prediction=null;raidGeneration++;resetTacticalMap();clearHitmarker();document.body.dataset.inRaid='false';preferences.apply();document.querySelector('main').inert=false;await comms.voice.leave();comms.update(null);input.clear();document.exitPointerLock?.();$('play').style.display='none';$('bossPanel').hidden=true;view?.clear();snapshot=null;message(alive?'Your operator remains in the raid. Reconnect within 45 seconds to continue.':'Raid recorded.');await refresh();if(!alive)setBaseTab('records')});
 // Compact raid menu: one icon holds Back to base, Account, Guide and Settings.
 function setRaidMenu(open){
  if(!inRaid||document.documentElement.dataset.compactHud!=='true')open=false;
@@ -1010,7 +1135,14 @@ const MAP_KIND_COLORS={
  settlement:{concrete:'#aaa29b',plaster:'#bdb1a1',planks:'#93704f',brick:'#b47d60',metal:'#6e7d82',container:'#665650',rock:'#726d63',crate:'#9a7449',barrier:'#c3a66c',roof:'#505260'}
 };
 const MAP_BACKGROUNDS=new Map();
-busy=true;document.body.setAttribute('aria-busy','true');try{await refresh()}catch(error){message(error.status===401?'Sign in or create an account.':error.message)}finally{busy=false;document.body.setAttribute('aria-busy','false')}
+const bootStatus=$('bootStatus');
+function bootNotice(text){if(!bootStatus)return;bootStatus.hidden=!text;if(text)bootStatus.textContent=text}
+// Static Pages always boots through the offline guest session. Hide the online
+// account/profile form before the first paint when `offline=1` is present, so a
+// fresh load never shows a username/password prompt while the local store
+// hydrates. Online hosts keep their sign-in screen untouched.
+if(isOfflineQuery(location.search)){offlineMode=true;try{document.body.dataset.raidTransport='offline'}catch{};$('auth').hidden=true;bootNotice('Preparing the sector…')}
+busy=true;document.body.setAttribute('aria-busy','true');try{await refresh();bootNotice(null)}catch(error){bootNotice(null);if(!offlineMode&&!profile)$('auth').hidden=false;message(error.status===401?'Sign in or create an account.':error.message)}finally{busy=false;document.body.setAttribute('aria-busy','false')}
 
 $('aim').onclick=()=>{if(inRaid&&snapshot?.self.alive&&!snapshot.self.downed)aimTouch=!aimTouch};
 $('view').addEventListener('contextmenu',e=>e.preventDefault());
@@ -1021,45 +1153,70 @@ for(const element of [$('fire'),$('view')]){
  for(const type of ['pointerup','pointercancel','lostpointercapture'])element.addEventListener(type,e=>trigger.release('pointer:'+e.pointerId));
 }
 addEventListener('pointerup',e=>trigger.release('pointer:'+e.pointerId));
-let look=null;
-$('view').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){e.preventDefault();look={id:e.pointerId,x:e.clientX,y:e.clientY};$('view').setPointerCapture(e.pointerId);view?.audio.resume()}});
-$('view').addEventListener('pointermove',e=>{if(preferences.isModal()||!$('communications').hidden){look=null;return}if(look?.id===e.pointerId){aim(e.clientX-look.x,e.clientY-look.y,.006);look={id:e.pointerId,x:e.clientX,y:e.clientY}}});
-for(const type of ['pointerup','pointercancel'])$('view').addEventListener(type,()=>look=null);
-// Bottom-left virtual thumbstick for the compact touch HUD. It replaces the
-// arrow buttons with a continuous analogue vector; the same vector feeds the
-// authoritative move action, so prediction and the server see one source.
-{const pad=$('stick'),knob=$('stickKnob');
- if(pad&&knob){
-  let pointer=null,origin=null,radius=38;
-  const apply=(dx,dy)=>{
-   const length=Math.hypot(dx,dy),scale=length>radius?radius/length:1;
-   const x=dx*scale,y=dy*scale;
-   stickAxisX=x/radius;stickAxisZ=-y/radius;
-   knob.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px)';
-   sendHeldMovement();
-  };
-  const release=event=>{
-   if(pointer===null||event&&pointer!==event.pointerId)return;
-   pointer=null;origin=null;stickAxisX=0;stickAxisZ=0;
-   knob.style.transform='';sendHeldMovement();
-  };
-  pad.addEventListener('pointerdown',event=>{
-   if(!inRaid||preferences.isModal()||!$('communications').hidden||mapOpen)return;
-   event.preventDefault();pointer=event.pointerId;
-   const rect=pad.getBoundingClientRect();
-   origin={x:rect.left+rect.width/2,y:rect.top+rect.height/2};
-   radius=Math.max(28,Math.min(44,rect.width/2-8));
-   pad.setPointerCapture?.(event.pointerId);
-   apply(event.clientX-origin.x,event.clientY-origin.y);
-   view?.audio.resume();
-  });
-  pad.addEventListener('pointermove',event=>{
-   if(pointer!==event.pointerId||!origin||(event.buttons===0&&event.pointerType!=='touch'))return;
-   event.preventDefault();apply(event.clientX-origin.x,event.clientY-origin.y);
-  });
-  for(const type of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(type,release);
+// Touch controls match the main game: move anywhere on the left 42% of the
+// screen (the pad appears under the thumb) and look with the other thumb on
+// the right. Raw movement is smoothed once per frame by applyTouchLook so a
+// swipe does not step, jitter or race the animation loop.
+function touchAllowed(){return inRaid&&!preferences.isModal()&&$('communications').hidden&&!mapOpen}
+function cancelTouch(){
+ lookPointer=null;lookLast=null;lookBankX=lookBankY=0;lookPX=lookPY=0;
+ if(movePointer!==null){
+  movePointer=null;moveStart=null;stickSprint=false;stickAxisX=stickAxisZ=0;
+  const pad=$('stick');if(pad){pad.classList.remove('dragging');pad.style.left='';pad.style.top='';pad.style.bottom='';pad.style.right=''}
+  sendHeldMovement();
  }
 }
+function dockStick(){
+ const pad=$('stick');if(!pad)return;
+ pad.classList.remove('dragging');
+ for(const prop of ['left','top','bottom','right'])pad.style.removeProperty(prop);
+}
+$('view').addEventListener('pointerdown',e=>{
+ if(e.pointerType!=='touch'||!touchAllowed())return;
+ e.preventDefault();view?.audio.resume();
+ if(movePointer===null&&e.clientX<innerWidth*.42){
+  movePointer=e.pointerId;moveStart={x:e.clientX,y:e.clientY};moveRadius=52;stickSprint=false;
+  const pad=$('stick');if(pad){pad.classList.add('dragging');pad.style.left=(e.clientX-60)+'px';pad.style.top=(e.clientY-60)+'px';pad.style.bottom='auto'}
+  $('stickKnob')?.style.removeProperty('transform');stickAxisX=stickAxisZ=0;sendHeldMovement();
+  $('view').setPointerCapture?.(e.pointerId);
+ }else if(lookPointer===null){
+  lookPointer=e.pointerId;lookLast={x:e.clientX,y:e.clientY};lookBankX=lookBankY=0;
+  $('view').setPointerCapture?.(e.pointerId);
+ }
+});
+$('view').addEventListener('pointermove',e=>{
+ if(e.pointerType!=='touch')return;
+ if(e.pointerId===lookPointer&&lookLast){
+  if(!touchAllowed()){cancelTouch();return}
+  e.preventDefault();
+  // iOS fires sub-pixel drift while a finger rests; bank the movement and only
+  // queue it once it clears a small threshold. applyTouchLook then eases the
+  // queued swipe out over following frames, as the main game does.
+  lookBankX+=e.clientX-lookLast.x;lookBankY+=e.clientY-lookLast.y;lookLast={x:e.clientX,y:e.clientY};
+  if(Math.abs(lookBankX)+Math.abs(lookBankY)>=1.2){lookPX+=lookBankX;lookPY+=lookBankY;lookBankX=lookBankY=0}
+ }else if(e.pointerId===movePointer&&moveStart){
+  if(!touchAllowed()){cancelTouch();return}
+  e.preventDefault();
+  let dx=e.clientX-moveStart.x,dy=e.clientY-moveStart.y;
+  const radius=moveRadius,length=Math.hypot(dx,dy);
+  if(length>radius){dx=dx/length*radius;dy=dy/length*radius}
+  // Main-game joystick response: 14% dead zone, eased 1.15 curve, and sprint
+  // when the thumb is held at the front rim.
+  const n=Math.min(1,length/radius),dead=.14,gain=n<dead?0:Math.pow((n-dead)/(1-dead),1.15);
+  const dirLength=Math.hypot(dx,dy)||1;
+  stickAxisX=(dx/dirLength)*gain;stickAxisZ=-(dy/dirLength)*gain;
+  stickSprint=length>radius*.88&&dy<-radius*.5;
+  $('stickKnob').style.transform='translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px)';
+  sendHeldMovement();
+ }
+});
+for(const type of ['pointerup','pointercancel','lostpointercapture'])$('view').addEventListener(type,e=>{
+ if(e.pointerId===lookPointer){lookPointer=null;lookLast=null;lookBankX=lookBankY=0}
+ if(e.pointerId===movePointer){
+  movePointer=null;moveStart=null;stickSprint=false;stickAxisX=stickAxisZ=0;
+  dockStick();sendHeldMovement();
+ }
+});
 function mapBackground(world,n,compact=false){
  // Live tactical minimaps are CSS-downscaled to 80–100 px, so their per-pixel
  // grain and rooftop microdetail dissolve into visual static; the compact
@@ -1483,7 +1640,7 @@ function deploymentObjectiveOptions(){
  for(const objective of list){const option=document.createElement('option');option.value=objective.id;option.textContent=objective.name+' · hold '+objective.holdSeconds+' s · +'+objective.rewardCredits+' credits, +'+objective.rewardXp+' XP';select.append(option)}
  select.value=list.some(objective=>objective.id===current)?current:'';
 }
-$('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan();deploymentObjectiveOptions();persistOfflineRaidPlan();updateDeployReadiness()});$('fieldObjective').addEventListener('change',()=>{persistOfflineRaidPlan();updateDeployReadiness()});deploymentExitPlan();deploymentObjectiveOptions();
+$('map').addEventListener('change',()=>{drawMap($('mapPreview'),$('map').value);deploymentExitPlan();deploymentObjectiveOptions();persistOfflineRaidPlan();updateDeployReadiness();updateHeroSummary()});$('fieldObjective').addEventListener('change',()=>{persistOfflineRaidPlan();updateDeployReadiness();updateHeroSummary()});deploymentExitPlan();deploymentObjectiveOptions();
 drawMap($('mapPreview'),$('map').value);
 
 let lastHealth=100,lastOutcome='',lastBoard=false,lastWounds='',lastHitToken=0,hitmarkerTimer=0;

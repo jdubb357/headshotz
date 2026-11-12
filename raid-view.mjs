@@ -15,6 +15,9 @@ export {RaidAudio} from './raid-audio.mjs';
 // Bounded first-person locomotion bob; shared by the frame loop so the hand
 // motion stays below the recoil and aim budgets.
 const bobReach=speed=>.016*Math.max(0,Math.min(1,speed));
+// Presentation-only camera feel state. The authoritative pose still comes from
+// the snapshot/prediction; these offsets only move the render camera.
+const freshFeel=()=>({bob:0,step:0,footSide:0,dip:0,dipVel:0,slide:0,sprintFov:0,grounded:null});
 // Gradient sky dome: cheap, no textures, follows the authoritative sky/sun so
 // dusk, night and storm fronts read as depth instead of a flat clear colour.
 const SKY_VERT=`varying vec3 vD;void main(){vD=position;vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}`;
@@ -56,7 +59,7 @@ void main(){vec3 d=normalize(vD);float y=d.y;
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
-const SKY_MID=new THREE.Color(),CLOUD_MIX=new THREE.Color(),CLOUD_WHITE=new THREE.Color(0xffffff);
+const SKY_MID=new THREE.Color(),SKY_TOP=new THREE.Color(),CLOUD_MIX=new THREE.Color(),CLOUD_WHITE=new THREE.Color(0xffffff);
 // Deterministic storm-front lightning envelope. Clear weather and reduced
 // motion never flash; a rain front gets one sharp strike per 8.5 s cycle plus
 // a softer follow-up sheet. Pure function of scene time so the same deployment
@@ -142,16 +145,20 @@ void main(){
 const IMPACT_PALETTE={concrete:[0xffcf82,0xb9b3a4],gravel:[0xffcf82,0xa8a394],dirt:[0xffc878,0xbfab7f],forest:[0x9ddf63,0x738b57],foliage:[0x9ddf63,0x738b57],brick:[0xe99b62,0xa57b64],planks:[0xffbf78,0x9b6b3f],metal:[0xfff1c6,0x8a8e93],rock:[0xffc890,0xa5a293],container:[0xa7d7df,0x778b8f],crate:[0xe4cf9b,0x9c8459],hazard:[0xffd75a,0xbfae7f],tiles:[0xcbd3d8,0x9a9d98],asphalt:[0xffc98d,0x8e8b8a]};
 // Authoritative recoil amplitude per weapon class; presenting the same kick to
 // the gun and camera keeps heavy weapons distinct without touching ballistics.
-const RECOIL_KICK={ar:.07,smg:.045,shotgun:.14,sniper:.12,pistol:.06,lmg:.09};
+const RECOIL_KICK={ar:.095,smg:.06,shotgun:.18,sniper:.16,pistol:.08,lmg:.13};
+// First-person view-model home pose. Raised and pulled closer than the earlier
+// low-slung pose so the weapon and both hands stay above the bottom touch row
+// at 844x390 and read as a held firearm rather than a sliver at the screen edge.
+const VIEW_HIP={x:.2,y:-.135,z:-.46},VIEW_SCALE=.74;
 // Authored first-person muzzle silhouettes per weapon family. Each profile is
 // painted once when the weapon is equipped; the draw path adds no objects.
 const FLASH_PROFILES={
- rifle:{spikes:4,core:44,tint:0xffe6b0,scale:.034,line:4},
- smg:{spikes:6,core:37,tint:0xffd898,scale:.028,line:3},
- shotgun:{spikes:8,core:57,tint:0xffcf76,scale:.062,line:9},
- sniper:{spikes:2,core:31,tint:0xfff0ca,scale:.044,line:4},
- pistol:{spikes:5,core:39,tint:0xffdc98,scale:.024,line:5},
- heavy:{spikes:10,core:51,tint:0xffc160,scale:.058,line:6}
+ rifle:{spikes:4,core:44,tint:0xffe6b0,scale:.048,line:4},
+ smg:{spikes:6,core:37,tint:0xffd898,scale:.04,line:3},
+ shotgun:{spikes:8,core:57,tint:0xffcf76,scale:.085,line:9},
+ sniper:{spikes:2,core:31,tint:0xfff0ca,scale:.062,line:4},
+ pistol:{spikes:5,core:39,tint:0xffdc98,scale:.036,line:5},
+ heavy:{spikes:10,core:51,tint:0xffc160,scale:.08,line:6}
 };
 function muzzleFlashTexture(profile){
  const p=FLASH_PROFILES[profile]||FLASH_PROFILES.rifle,size=128,center=64;
@@ -207,7 +214,7 @@ function lootAccent(data){
 }
 export class RaidView {
  constructor(canvas){
-  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
+  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.22;
   this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;this.splashes=this.splashesState=this.splashesAnchor=null;
 
   this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
@@ -215,6 +222,7 @@ export class RaidView {
  // transient additive muzzle glow. None of these feed snapshot, ballistics or
  // prediction.
  this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;
+ this.feel=freshFeel();
  // First-person firing particulate: a fixed recycled casing pool and one
  // short-lived muzzle-smoke puff. Both live on the weapon root so they inherit
  // sway, bob and recoil, and neither touches snapshot or ballistics state.
@@ -239,8 +247,9 @@ export class RaidView {
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.lastTime=0;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
-  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
+  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
+ this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
   this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
@@ -254,24 +263,25 @@ export class RaidView {
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
+ this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
   this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
-  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.environmentRoot=buildEnvironment(this.world);this.scene.add(this.environmentRoot);this.glowPoints=this.environmentRoot.userData.raidGlowPoints||null;this.glowPools=this.environmentRoot.userData.raidGlowPools||null;this.wetReflections=this.environmentRoot.userData.raidWetReflections||null;this.terrainMaterial=this.environmentRoot.userData.raidTerrainMaterial||null;this.wetMaterials=[];this.windMaterials=this.environmentRoot.userData.raidWindMaterials||[];if(this.terrainMaterial)this.wetMaterials.push(this.terrainMaterial);for(const material of this.environmentRoot.userData.materials?.values()||[])if(material.userData.raidDry&&material.userData.raidWet>0)this.wetMaterials.push(material);const initialWeather=snapshot.conditions?.weather||'clear';this.wetness=initialWeather==='rain'?1:initialWeather==='mist'?.35:0;this.applyWetness();this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
+  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.environmentRoot=buildEnvironment(this.world);this.scene.add(this.environmentRoot);this.glowPoints=this.environmentRoot.userData.raidGlowPoints||null;this.glowPools=this.environmentRoot.userData.raidGlowPools||null;this.wetReflections=this.environmentRoot.userData.raidWetReflections||null;this.terrainMaterial=this.environmentRoot.userData.raidTerrainMaterial||null;this.wetMaterials=[];this.windMaterials=this.environmentRoot.userData.raidWindMaterials||[];this.windowMaterials=this.environmentRoot.userData.raidWindowMaterials||[];if(this.terrainMaterial)this.wetMaterials.push(this.terrainMaterial);for(const material of this.environmentRoot.userData.materials?.values()||[])if(material.userData.raidDry&&material.userData.raidWet>0)this.wetMaterials.push(material);const initialWeather=snapshot.conditions?.weather||'clear';this.wetness=initialWeather==='rain'?1:initialWeather==='mist'?.35:0;this.applyWetness();this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
   const selfWeapon=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId&&it.kind==='weapon')?.weapon??null;
   this.selfActor=humanModel(snapshot.self.name||'Operator','raid_local_operator',true,selfWeapon);if(this.selfActor.userData.tag)this.selfActor.userData.tag.visible=false;this.selfActor.visible=this.viewMode!=='first';this.scene.add(this.selfActor);
-  this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.sun,this.sun.target);this.hemiNeutral=new THREE.Color(0xe5f2ed);this.flashColor=new THREE.Color(0xcfe4ff);this.sunBase=null;this.hemiBase=null;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
+  this.hemi=new THREE.HemisphereLight(0xbfd6ee,0x4a4234,1.8);this.sun=new THREE.DirectionalLight(0xffe9c6,2);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.sun,this.sun.target);this.hemiNeutral=new THREE.Color(0xe5f2ed);this.flashColor=new THREE.Color(0xcfe4ff);this.sunBase=null;this.hemiBase=null;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
   this.environmentTarget=null;this.buildSky(snapshot);
   this.overlay=new THREE.Scene();this.weaponCamera=new THREE.PerspectiveCamera(58,1,.02,8);
   // Three-point first-person lighting: a warm key (sun through the scene), a
   // cool rim from behind the shoulder, and a sky/ground hemisphere fill. The
   // weapon is near the camera and gets no shadow map; these lights read the
   // metal highlights without touching the world pass.
-  this.overlayFill=new THREE.HemisphereLight(0xdff3ff,0x3a2c24,1.5);
-  this.overlayKey=new THREE.DirectionalLight(0xffd8a6,3.2);this.overlayKey.position.set(2.4,2.8,4.2);
-  this.overlayRim=new THREE.DirectionalLight(0x9ddcff,1.75);this.overlayRim.position.set(-2.8,1.4,2.4);
+  this.overlayFill=new THREE.HemisphereLight(0xdbe8ee,0x2c241d,1.05);
+  this.overlayKey=new THREE.DirectionalLight(0xffe2bd,3.0);this.overlayKey.position.set(2.4,2.8,4.2);
+  this.overlayRim=new THREE.DirectionalLight(0x9fd4ff,1.6);this.overlayRim.position.set(-2.8,1.4,2.4);
   this.overlay.add(this.overlayFill,this.overlayKey,this.overlayRim);
-  this.gunRoot=new THREE.Group();this.gunRoot.position.set(.2,-.22,-.5);this.gunRoot.scale.setScalar(.65);this.overlay.add(this.gunRoot);
+  this.gunRoot=new THREE.Group();this.gunHip={x:VIEW_HIP.x,y:VIEW_HIP.y,z:VIEW_HIP.z};this.gunRoot.position.set(VIEW_HIP.x,VIEW_HIP.y,VIEW_HIP.z);this.gunRoot.scale.setScalar(VIEW_SCALE);this.overlay.add(this.gunRoot);
   this.buildCombatEffects();
   this.buildComposite();
   this.visualSelf=new THREE.Vector3(snapshot.self.x,(snapshot.self.y||0),snapshot.self.z);
@@ -335,7 +345,13 @@ export class RaidView {
   const item=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId);
   this.gunRoot.visible=!!item&&this.viewMode==='first';
   if(this.selfActor&&this.selfActor.userData.heldWeapon!==(item?.weapon??null))setHumanWeapon(this.selfActor,item?.weapon??null);
-  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now()}
+  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now();
+   // Rear furniture and forearms would otherwise jam into the sight picture:
+   // fade them out as the optic comes up, like a real shoulder-weld.
+   this.gunAimFade=[];
+   this.gun.traverse(node=>{const material=node.material;if(!node.isMesh||!material||!['stock','sleeve'].includes(material.name))return;
+    material.transparent=true;material.depthWrite=false;material.opacity=1;this.gunAimFade.push(material)});
+  }
  }
  // The muzzle glow is rebuilt with each held weapon and rides the recoiling
  // gunRoot. It is presentation-only and disposed with the overlay.
@@ -358,12 +374,16 @@ export class RaidView {
   // The additive sprite reads as a bloom, but a real pooled point light is what
   // warms the hands and receiver around the muzzle. It shares the flash window,
   // carries no geometry/texture, and is rebuilt only when the weapon changes.
-  const light=new THREE.PointLight(0xffd49a,0,3,2);light.position.copy(this.muzzleLocal);light.visible=false;light.castShadow=false;this.muzzleLight=light;this.gunRoot.add(light);
+  const light=new THREE.PointLight(0xffd49a,0,3.5,2);light.position.copy(this.muzzleLocal);light.visible=false;light.castShadow=false;this.muzzleLight=light;this.gunRoot.add(light);
   // Track the held weapon's PBR materials so barrel heat can tint them. This
   // does not allocate or clone anything; the materials are already owned by
   // the weapon and disposed with it.
   this.heat=0;this.heatPeak=0;this.gunHeatMaterials=[];
-  const seen=new Set();this.gun.traverse(node=>{const material=node.material;if(node.isMesh&&material?.isMeshStandardMaterial&&!seen.has(material)){seen.add(material);material.emissive.setRGB(0,0,0);this.gunHeatMaterials.push(material)}});
+  const seen=new Set();this.gun.traverse(node=>{const material=node.material;if(node.isMesh&&material?.isMeshStandardMaterial&&!seen.has(material)){seen.add(material);
+   // The optic reticle carries its own emissive glow; barrel heat must not
+   // extinguish it or tint the glass.
+   if(material.name==='ret'||material.name==='glass')return;
+   material.emissive.setRGB(0,0,0);this.gunHeatMaterials.push(material)}});
   // Muzzle smoke: a cool grey puff that trails the flash and dissipates.
   const smokeCanvas=document.createElement('canvas');smokeCanvas.width=smokeCanvas.height=64;
   const smokeContext=smokeCanvas.getContext('2d'),smokeGradient=smokeContext.createRadialGradient(32,32,0,32,32,32);
@@ -570,9 +590,14 @@ export class RaidView {
   // blend itself.
   this.sunBase=this.sunBase==null?target.light:this.sunBase+(target.light-this.sunBase)*blend;
   this.hemiBase=this.hemiBase==null?target.ambient:this.hemiBase+(target.ambient-this.hemiBase)*blend;
-  this.sun.intensity=this.sunBase;this.hemi.intensity=this.hemiBase;
+  // Sunlight carries the shapes and cast shadows; the cool sky fill keeps
+  // shadowed asphalt, gravel and building undersides readable instead of
+  // pitch black at midday. The fill tightens at night so practicals dominate.
+  const daylight=Math.max(0,Math.min(1,target.daylight||0));
+  this.sunGain=1.45+.55*daylight;this.hemiGain=1.25+.09*(1-daylight);
+  this.sun.intensity=this.sunBase*this.sunGain;this.hemi.intensity=this.hemiBase*this.hemiGain;
   const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
-  if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;u.top.value.lerp(target.sky,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
+  if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;SKY_TOP.copy(target.sky).offsetHSL(0,.08,-.17);u.top.value.lerp(SKY_TOP,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
    // Cloud deck follows the weather: thin haze by day, heavy low ceiling under
    // rain, dust-laden ash, and dark night cover whose tint comes from the same
    // authored fog/sky so every front stays cohesive with the horizon haze.
@@ -590,6 +615,14 @@ export class RaidView {
  // damped weather response as the sky scattering, so storms stay diffuse.
  if(this.glowPoints){const night=Math.pow(Math.max(0,Math.min(1,1-(target.daylight||0))),1.35),damp=weather==='rain'?.55:weather==='ash'?.7:1,targetOpacity=Math.min(.9,night*.85*damp);this.glowPoints.material.opacity+=(targetOpacity-this.glowPoints.material.opacity)*blend;this.glowPoints.visible=this.glowPoints.material.opacity>.008}
  if(this.glowPools){const night=Math.pow(Math.max(0,Math.min(1,1-(target.daylight||0))),1.2),damp=weather==='rain'?.55:weather==='ash'?.7:1,targetOpacity=Math.min(.6,night*.65*damp);this.glowPools.material.opacity+=(targetOpacity-this.glowPools.material.opacity)*blend;this.glowPools.visible=this.glowPools.material.opacity>.008}
+ // Daylight burns the lamplight out of every glazed pane, leaving dark glass and
+ // sky reflection; after sundown the authored warm colour returns. Both the pane
+ // material and its halo field use the same night curve, so windows and lamps reach
+ // full glow together instead of one popping on before the other.
+ if(this.windowMaterials?.length){
+  const windowNight=Math.pow(Math.max(0,Math.min(1,1-daylight)),1.15)*(weather==='rain'?.72:weather==='ash'?.82:1),targetIntensity=windowNight*1.55;
+  for(const material of this.windowMaterials)material.emissiveIntensity+=(targetIntensity-material.emissiveIntensity)*blend;
+ }
  this.updateWetReflections();
  }
  updateAtmosphere(seconds){
@@ -604,8 +637,8 @@ export class RaidView {
    // extra scene light is allocated and clear weather stays unchanged.
    const flash=reduced?0:lightningPulse(seconds,weather);
    uniforms.uFlash.value=flash;
-   if(this.sun)this.sun.intensity=(this.sunBase??this.environmentTarget?.light??0)+flash*2.6;
-   if(this.hemi)this.hemi.intensity=(this.hemiBase??this.environmentTarget?.ambient??0)+flash*1.4;
+   if(this.sun)this.sun.intensity=(this.sunBase??this.environmentTarget?.light??0)*(this.sunGain??1)+flash*2.6;
+   if(this.hemi)this.hemi.intensity=(this.hemiBase??this.environmentTarget?.ambient??0)*(this.hemiGain??1)+flash*1.4;
    if(this.hemi&&this.hemiNeutral&&this.flashColor)this.hemi.color.copy(this.hemiNeutral).lerp(this.flashColor,flash*.6);
    // A storm sheet also lifts the horizon haze, so distant silhouettes flash
    // with the sky instead of staying a flat fog band beneath it.
@@ -715,7 +748,7 @@ export class RaidView {
    muzzleMaterial.userData.raidOwned=true;
    const muzzle=new THREE.Sprite(muzzleMaterial);muzzle.visible=false;muzzle.renderOrder=4;this.scene.add(muzzle);
    const tracerGeometry=new THREE.BufferGeometry();tracerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(6),3));
-   const tracerMaterial=new THREE.LineBasicMaterial({color:0xffe3aa,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:true});
+   const tracerMaterial=new THREE.LineBasicMaterial({color:0xfff4d6,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:true});
    tracerGeometry.userData.raidOwned=tracerMaterial.userData.raidOwned=true;
    const tracer=new THREE.Line(tracerGeometry,tracerMaterial);tracer.visible=false;tracer.frustumCulled=false;tracer.renderOrder=3;this.scene.add(tracer);
    const sparkGeometry=new THREE.BufferGeometry();sparkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(sparkCount*3),3));
@@ -858,6 +891,28 @@ export class RaidView {
   return 'concrete';
  }
  impactStyle(surface){return IMPACT_PALETTE[surface]||IMPACT_PALETTE.concrete}
+ // Screen-space barrel start: the overlay muzzle is projected through the
+ // first-person camera, then rebuilt as a point on the held gun's aim axis.
+ // Because NDC is preserved, the tracer and flash begin exactly where the
+ // player sees the barrel (right and low of the crosshair) instead of at the
+ // screen's lower-left corner from a hand-authored eye offset.
+ shotMuzzleOrigin(depth=.55){
+  if(!this.muzzleLocal||!this.gunRoot||!this.weaponCamera||this.settings?.reduced||this.viewMode!=='first'||this.gunRoot.visible===false)return null;
+  this.weaponCamera.aspect=this.camera.aspect;
+  this.weaponCamera.updateProjectionMatrix();this.weaponCamera.updateMatrixWorld(true);
+  this.gunRoot.updateMatrixWorld(true);
+  const ndc=this.muzzleLocal.clone().applyMatrix4(this.gunRoot.matrixWorld).project(this.weaponCamera);
+  if(!Number.isFinite(ndc.x)||!Number.isFinite(ndc.y))return null;
+  const quat=new THREE.Quaternion().setFromEuler(new THREE.Euler(this.firePitch||0,(this.fireYaw||0)+Math.PI,0,'YXZ'));
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(quat),up=new THREE.Vector3(0,1,0).applyQuaternion(quat),forward=new THREE.Vector3(0,0,-1).applyQuaternion(quat);
+  const halfTan=Math.tan(this.camera.fov*Math.PI/360),origin=this.fireOrigin||this.visualSelf;
+  if(!origin)return null;
+  // Clamp the width so extreme recoil/sway cannot throw the origin outside the
+  // visible screen area; the projected barrel still owns the placement.
+  const dx=Math.max(-.45,Math.min(.45,ndc.x*halfTan*this.camera.aspect*depth));
+  const dy=Math.max(-.32,Math.min(.32,ndc.y*halfTan*depth));
+  return origin.clone().addScaledVector(forward,depth).addScaledVector(right,dx).addScaledVector(up,dy);
+ }
  spawnShot(now,weapon){
   if(!this.shotEffects.length)return;
   const effect=this.shotEffects[this.shotCursor++%this.shotEffects.length];
@@ -880,9 +935,12 @@ export class RaidView {
   effect.end.copy(origin).addScaledVector(effect.dir,distance);
   const impactSpatial=this.snapshot?spatialCue({x:this.snapshot.self.x,y:this.snapshot.self.y||0,z:this.snapshot.self.z,yaw:this.snapshot.self.yaw||0},{x:effect.end.x,y:effect.end.y,z:effect.end.z}):null;
   if(impactSpatial)this.audio?.play('impact:'+surface,impactSpatial);
-  // The flash and tracer start at the weapon muzzle rather than the eyes, with
-  // a small right/down offset that reads naturally in both camera modes.
-  effect.origin.set(origin.x+effect.dir.x*.55+Math.cos(yaw)*.16,
+  // The flash and tracer start at the weapon muzzle, at the screen point where
+  // the viewmodel barrel is actually painted; fall back to the previous eye
+  // offset when no first-person gun is presented (spectating, reduced motion).
+  const muzzleStart=this.shotMuzzleOrigin(.55);
+  if(muzzleStart)effect.origin.copy(muzzleStart);
+  else effect.origin.set(origin.x+effect.dir.x*.55+Math.cos(yaw)*.16,
    origin.y+effect.dir.y*.55-.12,
    origin.z+effect.dir.z*.55-Math.sin(yaw)*.16);
   effect.muzzle.position.copy(effect.origin);
@@ -892,7 +950,7 @@ export class RaidView {
   const scale=.055;
   effect.muzzle.scale.set(scale,scale,1);
   effect.muzzle.visible=!this.settings?.reduced;effect.muzzle.material.opacity=0;
-  if(this.shotMuzzleLight){const reduced=!!this.settings?.reduced;this.shotMuzzleLight.position.copy(effect.origin);this.shotMuzzleLight.visible=!reduced;this.shotMuzzleLight.intensity=reduced?0:3.2;this.shotMuzzleLightAt=now}
+  if(this.shotMuzzleLight){const reduced=!!this.settings?.reduced;this.shotMuzzleLight.position.copy(effect.origin);this.shotMuzzleLight.visible=!reduced;this.shotMuzzleLight.intensity=reduced?0:5.4;this.shotMuzzleLightAt=now}
   const position=effect.tracer.geometry.attributes.position;
   position.setXYZ(0,effect.origin.x,effect.origin.y,effect.origin.z);
   position.setXYZ(1,effect.end.x,effect.end.y,effect.end.z);position.needsUpdate=true;
@@ -981,12 +1039,12 @@ export class RaidView {
    if(age>=effect.shotDuration||reduced&&age>320){effect.started=null;effect.muzzle.visible=false;effect.tracer.visible=false;effect.sparks.visible=false;effect.trailRoot.visible=false;effect.dust.visible=false;effect.debris.visible=false;continue}
    const flash=Math.max(0,1-age/85);
    effect.muzzle.visible=!reduced&&flash>0;
-   effect.muzzle.material.opacity=reduced?0:flash*.65;
-   effect.muzzle.scale.setScalar(.045+.02*(1-flash));
-   effect.tracer.visible=!reduced&&age<170;
-   effect.tracer.material.opacity=reduced?.18:Math.min(1,fade*1.8)*.72;
-   effect.trailRoot.visible=!reduced&&age<190;
-   effect.trailMaterial.opacity=Math.min(1,fade*1.7)*.46;
+   effect.muzzle.material.opacity=reduced?0:flash*.9;
+   effect.muzzle.scale.setScalar(.07+.035*(1-flash));
+   effect.tracer.visible=!reduced&&age<190;
+   effect.tracer.material.opacity=reduced?.18:Math.min(1,fade*1.8)*1;
+   effect.trailRoot.visible=!reduced&&age<200;
+   effect.trailMaterial.opacity=Math.min(1,fade*1.7)*.62;
    effect.dust.visible=!reduced&&age<240;
    const dustAge=Math.min(1,age/240);effect.dust.material.opacity=reduced?0:.52*(1-dustAge);
    effect.dust.scale.setScalar((.22+.28*dustAge)*viewScale);
@@ -1018,7 +1076,7 @@ export class RaidView {
   if(this.shotMuzzleLight){
    const lightAge=now-this.shotMuzzleLightAt,lightActive=!reduced&&lightAge>=0&&lightAge<120;
    this.shotMuzzleLight.visible=lightActive;
-   this.shotMuzzleLight.intensity=lightActive?(1-lightAge/120)*3.2:0;
+   this.shotMuzzleLight.intensity=lightActive?(1-lightAge/120)*5.4:0;
   }
   // Weak-point bursts follow the authoritative core coordinate from the hit
   // token. Reduced motion keeps a readable static flash and ring while the
@@ -1263,15 +1321,46 @@ export class RaidView {
   for(const material of this.windMaterials||[]){const shader=material.userData.raidShader;if(shader)shader.uniforms.uWindTime.value=this.settings?.reduced?0:seconds}
   const pose=s.alive&&predicted?predicted:s,target=new THREE.Vector3(pose.x,(pose.y||0)+(s.downed?.65:s.ballisticsVersion===1?SHOT_EYE_HEIGHT:1.65),pose.z);
   if(!s.alive&&this.snapshot.camera)target.set(this.snapshot.camera.x,(this.snapshot.camera.y||0)+2,this.snapshot.camera.z);
+  // Grounded stride, sprint FOV, slide crouch and landing compression are
+  // presentation-only. The authoritative pose, fire origin and ballistics never
+  // read these offsets.
+  const reduced=!!this.settings?.reduced,moveSpeed=Math.min(1,Math.hypot(s.move?.x||0,s.move?.z||0));
+  const sliding=s.sliding===true||((predicted?.slideUntil||0)>seconds);
+  const grounded=s.alive&&!s.downed&&s.grounded!==false&&!s.vaulting;
+  const feel=this.feel||(this.feel=freshFeel());
+  if(!reduced&&grounded&&moveSpeed>.05&&!sliding){
+   const before=Math.floor(feel.step/Math.PI);
+   feel.step+=dt*((s.sprint?7.4:5.2)+moveSpeed*2.2);
+   // One footfall per stride, alternating the pan so a sustained run reads as
+   // left-right steps instead of a single centred metronome.
+   if(Math.floor(feel.step/Math.PI)!==before){feel.footSide=feel.footSide?0:1;this.audio.play('footstep',{gain:s.sprint?.95:.6,pan:feel.footSide?.16:-.16})}
+  }
+  const rush=!reduced&&s.alive&&!s.downed&&!aiming&&!s.vaulting&&grounded&&moveSpeed>.05?(sliding?4:s.sprint?6:0):0;
+  feel.sprintFov+=(rush-feel.sprintFov)*(reduced?1:1-Math.exp(-dt*(rush?5:9)));
+  if(feel.grounded===null)feel.grounded=grounded;
+  if(!reduced&&feel.grounded===false&&grounded){
+   // Height above the landing surface sets the impact, so a step off a kerb
+   // barely moves the camera while a rooftop fall compresses it fully.
+   const fall=Math.max(0,(s.fallPeak??(s.y||0))-(s.y||0));
+   feel.dipVel=Math.min(2.6,1.1+fall*.24);
+  }
+  feel.grounded=grounded;
+  if(!reduced&&(feel.dip!==0||feel.dipVel!==0)){feel.dipVel+=(-150*feel.dip-13*feel.dipVel)*dt;feel.dip+=feel.dipVel*dt;if(feel.dip>.26)feel.dip=.26;if(feel.dip<0){feel.dip=0;if(feel.dipVel<0)feel.dipVel=0}if(Math.abs(feel.dip)<.0006&&Math.abs(feel.dipVel)<.008)feel.dip=feel.dipVel=0}
+  const bobTarget=reduced||!grounded||aiming||sliding||moveSpeed<=.05?0:Math.abs(Math.sin(feel.step))*.032*moveSpeed*(s.sprint?1.35:1);
+  feel.bob+=(bobTarget-feel.bob)*(reduced?1:1-Math.exp(-dt*14));
+  const slideTarget=!reduced&&sliding?.18:0;feel.slide+=(slideTarget-feel.slide)*(reduced?1:1-Math.exp(-dt*(sliding?18:22)));
   if(this.visualSelf.distanceTo(target)>5)this.visualSelf.copy(target);else this.visualSelf.lerp(target,Math.min(1,dt*16));this.camera.position.copy(this.visualSelf);
+  if(!reduced)this.camera.position.y+=feel.bob-feel.dip-feel.slide;
   if(this.horizonDepth){this.horizonDepth.position.copy(this.camera.position);if(this.horizonDepth.userData.raidHorizonTick)this.horizonDepth.userData.raidHorizonTick(seconds,!!this.settings?.reduced)}
   // Keep the 2048 shadow frustum centred on the player instead of the fixed
   // map origin; without this, shadows disappear once the operator walks more
   // than 80 m from centre. The light direction itself is kept at 90 m.
   const anchor=s.alive?pose:this.snapshot.camera||pose;this.sunAnchor.set(anchor.x,(anchor.y||0),anchor.z);
-  this.sun.target.position.copy(this.sunAnchor);this.sun.position.copy(this.sunAnchor).addScaledVector(this.sunDirection,90);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),targetFov=aiming&&held?aimFieldOfView(this.settings?.fov||75,weaponStats(held)):this.settings?.fov||75;this.camera.fov+=(targetFov-this.camera.fov)*(this.settings?.reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
+  this.sun.target.position.copy(this.sunAnchor);this.sun.position.copy(this.sunAnchor).addScaledVector(this.sunDirection,90);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),baseFov=this.settings?.fov||75,targetFov=aiming&&held?aimFieldOfView(baseFov,weaponStats(held)):baseFov+(reduced?0:feel.sprintFov);this.camera.fov+=(targetFov-this.camera.fov)*(reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
   // Presentation-only muzzle rise; authoritative ballistics still use the snapshot pose.
-  if(!this.settings?.reduced){this.camera.rotation.x+=this.recoil*.32;this.camera.rotation.z+=this.recoil*this.recoilSide*.34}
+  // The stronger pitch/roll split makes each discharge visibly punch the camera
+  // before the impulse recovers, without touching the aim or the shot ray.
+  if(!reduced){this.camera.rotation.x+=this.recoil*.52;this.camera.rotation.z+=this.recoil*this.recoilSide*.46;this.camera.rotation.x-=feel.dip*.7}
   // The aim camera above stays at eye height for authoritative ballistics and
   // network graders; the chase camera is the presentational third-person view.
   const viewYaw=!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw,viewPitch=!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch;
@@ -1288,13 +1377,12 @@ export class RaidView {
   this.vmLastYaw=viewYaw;this.vmLastPitch=viewPitch;
   // Locomotion bob: a small two-beat rise/fall tied to the server-reported
   // movement vector. It is bounded and suspended while stopped, downed or aiming.
-  const moveSpeed=Math.min(1,Math.hypot(s.move?.x||0,s.move?.z||0));
   let bobX=0,bobY=0;
-  if(!this.settings?.reduced&&s.alive&&!s.downed&&!aiming&&moveSpeed>.05){
+  if(!reduced&&s.alive&&!s.downed&&!aiming&&moveSpeed>.05){
    this.vmStep+=dt*(5.4+moveSpeed*5);const reach=bobReach(moveSpeed);
    bobX=Math.cos(this.vmStep)*reach*.85;bobY=Math.abs(Math.sin(this.vmStep))*reach*1.1;
   }
-  const sliding=s.sliding===true||((predicted?.slideUntil||0)>seconds),eyeHeight=1.55+(s.downed?-.9:0);
+  const eyeHeight=1.55+(s.downed?-.9:0);
   this.fireOrigin.set(pose.x,(pose.y||0)+eyeHeight,pose.z);this.fireYaw=viewYaw;this.firePitch=viewPitch;
   if(this.selfActor&&this.selfActor.userData.actor==='human'){
    const show=this.viewMode!=='first'&&!!s.alive;
@@ -1317,7 +1405,7 @@ export class RaidView {
      this.chase.copy(clear?candidate:safe);
     }
     if(!this.settings?.reduced)this.chase.y+=Math.sin(seconds*6.4)*.015*Math.min(1,(this.selfActor?.userData.speed||0)/6);
-    this.renderCamera.position.copy(this.chase);this.renderCamera.lookAt(look);if(!this.settings?.reduced){this.renderCamera.rotation.x+=this.recoil*.24;this.renderCamera.rotation.z+=this.recoil*this.recoilSide*.26}this.renderCamera.fov=this.camera.fov;
+    this.renderCamera.position.copy(this.chase);this.renderCamera.lookAt(look);if(!this.settings?.reduced){this.renderCamera.rotation.x+=this.recoil*.34;this.renderCamera.rotation.z+=this.recoil*this.recoilSide*.38}this.renderCamera.fov=this.camera.fov;
    }else{this.renderCamera.position.copy(this.camera.position);this.renderCamera.rotation.copy(this.camera.rotation);this.renderCamera.fov=this.camera.fov}
   }
   for(const {model,data,type}of this.actors.values()){
@@ -1369,7 +1457,10 @@ export class RaidView {
   this.updateRainSplashes(seconds,pose);
   for(const ring of this.effects.values())ring.material.opacity=this.settings?.reduced?.85:.6+.2*Math.sin(seconds*8);
   this.updateCombatEffects(time);
-  this.recoil=Math.max(0,this.recoil-dt*.5);
+  // Fast exponential settle rather than a linear fade: the kick lands in one
+  // frame and is gone before the next aimed shot, while sustained fire sets a
+  // visible bounded climb instead of compounding forever.
+  this.recoil=Math.min(.2,this.recoil*Math.exp(-dt*13));
   const motionReduced=!!this.settings?.reduced,swayX=motionReduced?0:this.vmYaw+bobX,swayY=motionReduced?0:this.vmPitch-bobY;
   // Aim-down-sights presentation: ease toward a sight-aligned pose instead of
   // snapping. The rear optic's authored local position is projected through the
@@ -1381,9 +1472,14 @@ export class RaidView {
    this.vmAim+=(aimTarget-this.vmAim)*Math.min(1,dt*18);
    if(Math.abs(this.vmAim-aimTarget)<.001)this.vmAim=aimTarget;
   }
-  const sight=this.gun?.userData.info?.sight||[0,.06,.15],gunScale=this.gunRoot.scale.x||.65;
-  const hipX=.2,hipY=-.22,aimX=-(sight[0]||0)*gunScale,aimY=-(sight[1]||0)*gunScale;
+  const sight=this.gun?.userData.info?.sight||[0,.06,.15],gunScale=this.gunRoot.scale.x||VIEW_SCALE;
+  const hip=this.gunHip||VIEW_HIP,hipX=hip.x,hipY=hip.y,hipZ=hip.z,aimX=-(sight[0]||0)*gunScale,aimY=-(sight[1]||0)*gunScale;
   const aimBlend=this.vmAim;
+  if(this.gunAimFade)for(const material of this.gunAimFade){
+   // Arms clear early; the stock fades in the back half of the transition so the
+   // optic leads the eye up from the shoulder weld.
+   material.opacity=material.name==='sleeve'?Math.max(0,1-aimBlend*1.8):Math.max(0,1-Math.max(0,aimBlend-.3)*1.6);
+  }
   const equipAge=this.vmEquipAt?time-this.vmEquipAt:1e9,equipDrop=motionReduced||equipAge>=260?0:-.1*Math.pow(1-Math.max(0,equipAge)/260,2);
   const breathX=motionReduced||aiming?0:Math.sin(seconds*1.7)*.004,breathY=motionReduced||aiming?0:Math.sin(seconds*2.1)*.004;
   // Accepted reload handling: the weapon dips and leans while one magazine
@@ -1402,7 +1498,7 @@ export class RaidView {
    else if(p<.92){const u=(p-.52)/.40,k=u*u*(3-2*u);this.reloadMag.visible=true;this.reloadMag.position.set(this.reloadMagBase.x+.06*(1-k),this.reloadMagBase.y-.19*(1-k),this.reloadMagBase.z+.02*(1-k));this.reloadMag.rotation.z=-.7*(1-k)}
    else this.reloadMag.visible=false;
   }
-  this.gunRoot.position.set(hipX+(aimX-hipX)*aimBlend+swayX+breathX*(1-aimBlend)-.035*reloadHold,hipY+(aimY-hipY)*aimBlend+swayY+equipDrop+breathY*(1-aimBlend)-.105*reloadHold,-.5+this.recoil+.025*reloadHold+.065*aimBlend);
+  this.gunRoot.position.set(hipX+(aimX-hipX)*aimBlend+swayX+breathX*(1-aimBlend)-.035*reloadHold,hipY+(aimY-hipY)*aimBlend+swayY+equipDrop+breathY*(1-aimBlend)-.105*reloadHold,hipZ+this.recoil+.025*reloadHold+.065*aimBlend);
   this.gunRoot.rotation.set(-this.recoil+.14*reloadHold,swayX*.55,swayY*.4+.22*reloadHold);
   // Additive muzzle bloom that rides the recoil; short-lived, bounded, and
   // suppressed under reduced motion like the world muzzle effects. Barrel heat
@@ -1419,7 +1515,7 @@ export class RaidView {
    if(flashActive){const fade=1-flashAge/120;this.muzzleFlash.material.opacity=Math.min(1,fade*.95+heatGlow*.22);this.muzzleFlash.scale.setScalar(this.muzzleBaseScale*(.9+.35*(1-fade)))}
    else if(barrelGlow){this.muzzleFlash.material.opacity=heatGlow*.3;this.muzzleFlash.scale.setScalar(this.muzzleBaseScale*.72)}
    else this.muzzleFlash.material.opacity=0;
-   if(this.muzzleLight){this.muzzleLight.visible=flashActive||barrelGlow;this.muzzleLight.intensity=flashActive?(1-flashAge/120)*3.2:barrelGlow?heatGlow*1.3:0}
+   if(this.muzzleLight){this.muzzleLight.visible=flashActive||barrelGlow;this.muzzleLight.intensity=flashActive?(1-flashAge/120)*6:barrelGlow?heatGlow*1.3:0}
    for(const material of this.gunHeatMaterials||[]){if(material.emissive)material.emissive.setRGB(heatGlow*.26,heatGlow*.094,heatGlow*.023)}
   }
   // Recycled brass casings: brief ballistic arcs that leave from the ejection

@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (offline deploy plan iteration 58). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE.
+Last audited: 2026-11-11 (director P3 map note, iteration 72). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71) and map floating/duplicate-solid cleanup (iteration 72) complete → NEXT: older note 4 viewmodel → note 5 tracer.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -9,6 +9,66 @@ only when the authoritative service and the playable raid client both support th
 behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
+
+## Director P1 — controls must match the main HeadShotz game (iteration 70, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — the playable raid client now uses the main game's input and
+camera tuning instead of its separate scheme. `raid-online.mjs` matches: `game.js:1075`
+mouse look `.0021*S.sens*zoomSens()`; `game.js:1078-1079` FOV sensitivity ratio `pow(r,.85)`;
+`game.js:1094-1101` touch pad on the left 42%, floating base under the thumb, radius 52, .14
+dead zone, `pow((n-.14)/.86,1.15)` gain, rim sprint, raw look deltas; `game.js:1102-1105`
+`applyTouchLook` dt*38 smoothing, `.0052*S.sens*zoomSens()`, 0.6 near-reticle damping,
+`aimPull`, `1+min(.5,speed/4000)` acceleration, pitch *.9; `game.js:1153-1157`
+nearAim/aimPull 5° cone, 60 m cap and dt*3.2/*.6 blend; `game.js:1277-1279` crosshair-owned
+trigger with the reticle turning red. Raid keeps its server pitch clamp ±1.2 and adapts chest
+height to machine bodies; raid has no separate aim-assist toggle, so it uses the main game's
+default-on assist. Exercise evidence (temporary harness at /tmp/hsz-cap/verify-controls3.mjs):
+844 touch moved 3.6 m while tracking and auto-firing a scout 75->15 hp -> 27 ammo (TOUCH PASS);
+1024 keyboard S+ArrowLeft moved 12.0 m while auto-firing 75->15 hp -> 28 ammo (DESKTOP PASS).
+Screenshots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png`,
+after-844-hit.png, after-844-stick.png, after-1024-fire.png. Mobile HUD and static-offline green;
+Node 1247/1247. Known gap: physical iPad/phone latency/fatigue unverified, and the 1024
+red-reticle screenshot can race the target frame (cyan reticle while the target lapses).
+
+## Director P2 — enemy legs must move (iteration 71, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — hunter and Warden (overlord) legs are now articulated
+joints rather than single rigid pivots, and their gait is driven by the snapshot
+movement speed. `raid-models.mjs` builds each hunter leg as hip → knee → foot (four
+legs, diagonal phases) and each Warden leg as hip → knee (four). `updateActor` derives
+cadence `0.9 + speed*0.28` cycles/s (capped 2.3) and amplitude `0.1 + speed*0.09` rad
+(capped 0.46), flexes the knee on the swinging leg, counter-rotates the foot pad to stay
+flat, and eases a stopped machine back to a planted stance via `walkBlend`; gait phase is
+seeded from the machine's world position and `state.reduced` stops it. Exercise evidence:
+`/tmp/hsz_cap_legs/bench.mjs` (not committed) hunter frames at speed 4.2 differ by ~0.3 rad
+at hip/knee between frames 12 and 26, speed 1.1 gives a shorter stride, and 40 idle frames
+return every leg to rotation 0; gameplay capture at 1024x720 and 844x390 shows stiff legs
+before and knee flex/stride after. Screenshots: `~/headshotz-loop/shots/latest/`
+before/after 1024 and 844 plus after-1024-stride, after-844-stride and bench leg frames.
+Grader `raid-browser-machine-models` green (hunter detail 256 px changed), Mobile HUD and
+static-offline green, Node 1247/1247. Known gap: the cycle is time-driven, not foot-locked,
+so the stance foot can skate slightly; scout/flyer hover with no locomotion animation.
+Next: P3 fix the map.
+
+## Director P3 — fix the map (iteration 72, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — presentation defects found by the audit were fixed in
+`raid-environment.mjs` without touching frozen world data. Authored `sign` props no longer
+use floating `THREE.Sprite` billboards: façade signs gain wall-mounted jibs and a board
+clamped below the wall top; free-standing signs gain two terrain-sampled posts, hazard
+sleeves, concrete footings and tie bars, so the `QUARANTINE LINE` insertion sign is visibly
+anchored. Exact duplicate block volumes are drawn once via a per-signature set, removing 365
+coincident solids (relay 91, reservoir 179, switchyard 95) while leaving `world.blocks`,
+collision, spawn/exit coordinates, navigation, loot and frozen V8/V9/V10 assertions unchanged.
+Sector audit at `/tmp/hsz-mapfix/audit.mjs`: all three sectors report 0 blocked sites,
+0 unsupported sites, 0 buried blocks, and 0 route failures across 156 spawn↔exit pairs;
+no holes, invisible-wall collision or stuck spawn/extraction remain. Evidence: static
+offline, structures, scenery and mobile-HUD graders green; Node 1247/1247; screenshots
+`~/headshotz-loop/shots/latest/before-1024.png`, `after-1024.png`, `before-844.png`,
+`after-844.png`, `after-1024-anchor.png`, `after-1024-post.png`. Known gap: the duplicate
+fix is not frame-visible because the old copies were exactly coincident, and the sector
+audit used the existing 0.4 m test radius rather than a live walk of every route. Next:
+older note 4 viewmodel feel.
 
 ## P0 — Static Pages offline raid (CURRENT PROJECT — do this first)
 
@@ -29,7 +89,9 @@ client. Offline mode is an in-page copy of the same `RaidService` rules.
 
 ## Post-P0 priority — Mobile/touch HUD declutter (iteration 59, 2026-11-11)
 
-Status: COMPLETE in local/emulated-browser scope. The compact landscape touch HUD leaves
+Status: COMPLETE 2026-11-11 (tabbed base lobby shipped iteration 62) — raid-view HUD and
+between-raid base slices are complete; offline boot form, offline-only surface hiding and
+naming remain covered by the graders below. The compact landscape touch HUD leaves
 at least 75% of the 1024x720 and 844x390 raid view unobstructed (92.2% and 82.2% measured
 by union of visible HUD surfaces). A slim translucent top strip carries HP (bar plus
 number, with a damage flash and warn/critical/downed colours), ammunition/magazine,
@@ -53,6 +115,105 @@ collapse and overlap checks) plus
 full unit suite green. Honest gap: physical-device feel on Austin's iPad/phone and
 subjective combat readability remain UNVERIFIED (P7); browser touch emulation covers geometry,
 target size and authoritative input but not sensor/pointer latency or human fatigue.
+
+Base lobby shipped 2026-11-11 (iteration 62): the between-raid base is now one hero Deploy
+screen with credits/stash/loadout/sector at a glance, map/objective/recovery/primary
+controls, and one big DEPLOY action. A compact tab bar (Loadout, Traders, Workshop,
+Contracts, Records, Sector, online-only Squad) shows exactly one group of panels at a
+time, with the tab bar, the hero card and the operator row fixed while long panels scroll
+inside their own region. Offline hides the Account control and account dialog (no
+password/recovery/session surfaces can open), the Squad tab, connection/latency controls,
+squad communication and the network badge; local sign-out remains in the identity row.
+The first-raid guide is a one-line dismissible strip (and is hidden entirely in compact
+landscape). Player-facing naming stays THE SECTOR / CLASSIC EXTRACTION and forbidden jargon
+(protected overflow, appraisal, vitality, field-objective deploy plan, persistent
+extraction, server-owned, authoritative, reconciliation) is asserted absent. Evidence:
+`tests/raid-browser-base-lobby.mjs` — static server, zero `/api`, 1024x720 and 844x390
+touch layouts, page does not scroll, one panel group per tab, offline surfaces hidden,
+big DEPLOY target, one-line dismissible tip, banned phrases absent, screenshots
+`/tmp/hs-base-lobby-1024x720.png` and `/tmp/hs-base-lobby-844x390.png`. `tests/raid-browser-menu.mjs`
+was rewritten for lobby semantics (flex lobby, hero DEPLOY, tab switching, 44px targets,
+no page scroll desktop/mobile, `/tmp/hs-menu-desktop.png`, `/tmp/hs-menu-mobile.png`).
+`tests/raid-browser-static-account.mjs` now proves offline exposes no Account entry point.
+Honest gap: portrait 390x844 is usable but tabs scroll horizontally; 1024x720 base was
+not exercised on a physical iPad.
+
+First-person gun presentation shipped 2026-11-11 (iteration 63): offline raid now boots
+first-person instead of showing the operator's back, so the weapon — the thing the player
+actually controls — is visible within seconds of deploying. The viewmodel pose was raised
+and pulled closer/slightly larger (home x .2, y -.135, z -.46, scale .74) so both hands and
+the sight clear the bottom touch row at 1024x720 and 844x390. Recoil kick is stronger with
+a fast exponential settle and a bounded sustained climb; muzzle bloom, warm muzzle light
+and tracer are brighter and longer-lived, with a larger pooled world shot light, all still
+suppressed under reduced motion. Evidence: `tests/raid-browser-viewmodel.mjs` (pose/kick/
+flash/heat/casing/reload/visibility, screenshots `/tmp/hs-viewmodel*.png`), plus
+`tests/raid-browser-mobile-hud.mjs` and `tests/raid-browser-base-lobby.mjs` green on
+rerun and the full 1247-test unit suite. Gameplay screenshots
+`/tmp/hs-field-1024x720-after.png`, `/tmp/hs-field-844x390-after.png`,
+`/tmp/hs-combatfire-1024-0.png`, `/tmp/hs-combatfire-844-0.png` and
+`/tmp/hs-combat-aim-1024.png`, compared against
+`/tmp/hs-field-1024x720-baseline.png` and `/tmp/hs-field-844x390-baseline.png`. Honest gap:
+weapon/hand materials still read flat and plastic, the wood buildings remain boxy with soft
+lighting, and trigger-feel on a physical iPad is still unverified.
+
+Worn viewmodel finish shipped 2026-11-11 (iteration 64): the merged gun material groups now
+carry cached procedural sRGB canvas maps (brushed/worn steel, wood grain, pebbled leather
+with stitch seams, woven cloth) as Map/BumpMap, with hand tints changed from cyan/beige to
+olive sleeve + leather glove. The optic is a dark compact scope with its own warm emissive
+dot instead of a blown-white plane, and ADS fades the forearms early and the rear stock in
+the back half of the blend so the sight picture stays clear. Barrel heat skips the reticle
+and glass so the dot survives firing. Evidence: `node tests/raid-browser-viewmodel.mjs`
+PASS (PBR, lighting, reflections, aim/return, reload disposal, visibility; no browser
+errors), `tests/raid-browser-mobile-hud.mjs` PASS 92.1% / 82.2% unobstructed,
+`tests/raid-browser-static-offline.mjs` PASS (deploy/headshot/loot/extract, no API traffic),
+full suite 1247/1247. Screenshots: baseline `/tmp/hs-before-combat-aim-1024x720.png`; after
+`/tmp/hs-after6-combat-aim-{1024x720,844x390}.png`,
+`/tmp/hs-after6-combat-fire-{1024x720,844x390}-0.png`, overlay isolation
+`/tmp/hs-ov-aim-fade.png`, `/tmp/hs-ov-hip-fade.png`. Honest gap: hip hands still read as
+one soft dark mass without knuckle seams, stock top faces stay flat, world still washed-out
+and boxy (priority 5), and the actual trigger punch/physical-device feel remain UNVERIFIED
+(P7). Next feel priority: MOVEMENT FEEL (acceleration, bob, sprint FOV, landing dip,
+footsteps, touch dead zones).
+
+Movement feel shipped 2026-11-11 (iteration 65): a presentation-only camera feel layer now
+adds a grounded stride scaled by server movement and sprint, suspends it when aiming or
+airborne, widens the view by ~6 degrees while sprinting (+4 while sliding) with the optic
+FOV still winning, crouches and pitches the camera on slide, and drops/pitches it on landing
+with a spring recovery scaled by fall height. Footfalls alternate stereo pan through a new
+synthesized `footstep` cue. The touch thumbstick gained a 12% dead zone and rim curve for
+precision walking, and touch look now banks sub-pixel jitter so a resting finger no longer
+shivers the crosshair; authoritative pose, fire origin and ballistics are untouched, and
+reduced motion keeps every offset at zero. Evidence: runtime probe
+`/tmp/hs-move-check.mjs` (idle bob 0, walk .0077, sprint fov 80.83/bob .025, aim fov 61.11/
+bob 0, landing dip .0346 m/pitch −.0242 then recovered, 1 px look jitter 0 rad vs 40 px
+drag −.24 rad, phone sprint fov 80.86), `tests/raid-browser-viewmodel.mjs` PASS,
+`tests/raid-browser-mobile-hud.mjs` PASS 92.1%/82.2%, `tests/raid-browser-static-offline.mjs`
+PASS, `tests/raid-browser-audio.mjs` PASS 23 distinct action cues,
+`tests/raid-audio.test.mjs` 6/6, full suite 1246 pass + the known intermittent matchmaking
+ECONNRESET that passes 11/11 alone. Screenshots: `/tmp/hs-move-idle-1024x720.png`,
+`/tmp/hs-move-walk-1024x720.png`, `/tmp/hs-move-sprint-1024x720.png`,
+`/tmp/hs-move-sprint-aim-1024x720.png`, `/tmp/hs-move-stop-1024x720.png`,
+`/tmp/hs-move-landback-1024x720.png`, `/tmp/hs-move-sprint-844x390.png`. Honest gap: a still
+cannot show the stride/landing pulses, the world and gloved hands remain dark and flat
+(priority 5/4), and the synthesized footstep is unjudged on a physical phone. Next feel
+priority: ENEMIES (readable procedural machines and a scout telegraph/stagger loop).
+
+Naming shipped 2026-11-11 (iteration 60): the mode is "THE SECTOR" in the page title, base
+heading and main-menu raid banner, with the original co-op raid kept as CLASSIC EXTRACTION.
+Visible base copy no longer says Persistent Extraction, Server-owned, authoritative or
+reconciliation, and `tests/raid-browser-mobile-hud.mjs` asserts that.
+
+Fixed for the block 2026-11-11 (iteration 61): the offline boot path no longer paints the
+online account/password form at any point — `#auth` is hidden in the markup, `?offline=1`
+is honored synchronously, a "Preparing the sector…" notice covers store hydration, and
+`tests/raid-browser-mobile-hud.mjs` reloads under a document-start observer that proves the
+password field never becomes visible.
+
+Closed for the block 2026-11-11 (iteration 62): the between-raid base no longer stacks ~20
+panels in one scroll; it is a hero Deploy screen with one-panel-at-a-time tabs (Loadout,
+Traders, Workshop, Contracts, Records plus Sector and online-only Squad). Offline-only
+surfaces (account/password, recovery codes, sessions, squad, comms, latency) are hidden,
+and the first-raid guide is a one-line dismissible tip.
 
 Post-P0 UX resumed 2026-11-11 (iteration 58): the static offline Deploy card now previews
 an authored field objective from the shared catalogue and remembers the sector/objective
@@ -634,10 +795,13 @@ runtime check was rerun, the iteration entry in `RALPH_PROGRESS.md` records it.
 - **Weapon readiness / responsiveness** — COMPLETE. Reliable action queue, trigger
   gating, prediction and authoritative cooldowns; trigger and trigger-latency suites
   plus production browser grader.
-- **Recoil / viewmodel feedback** — COMPLETE (presentation). Bounded recoil impulse,
-  alternating side, reduced-motion suppression, viewmodel heat/muzzle/casing/reload
-  state; `raid-browser-viewmodel.mjs` and accessibility grader. This is not an aim
-  debuff on the server.
+- **Recoil / viewmodel feedback** — COMPLETE (presentation; iteration 63). Bounded recoil
+  impulse now snaps the camera and gun harder and settles exponentially faster, muzzle
+  bloom/light and tracer are brighter with a larger pooled world shot light, and the
+  first-person pose is raised so the weapon and hands clear the mobile touch row.
+  Alternating side, reduced-motion suppression, heat/muzzle/casing/reload state remain
+  graded by `raid-browser-viewmodel.mjs` and the accessibility grader. This is not an
+  aim debuff on the server.
 - **Reloads and weapon switching** — COMPLETE. Server reload consumes compatible ammo,
   magazine full/cooldown rejected; equip validates ownership and usability; browser
   ballistics and viewmodel graders.

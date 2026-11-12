@@ -36,6 +36,25 @@ try{
  await p.evaluate('window.scrollTo(0,0)');
  await p.evaluate("const m=document.getElementById('map');m.value='relay';m.dispatchEvent(new Event('change'));document.getElementById('recovery').checked=true;document.getElementById('deploy').click()");
  await p.wait("document.getElementById('play').style.display==='block' && document.body.getAttribute('aria-busy')==='false' && document.getElementById('hud').textContent.includes('HP')");
+ // Slim is the live-raid default on every pointer: the detailed telemetry stays
+ // mounted for accessibility but clips to an invisible 1px node, while the slim
+ // HP/ammo strip and the transient sector briefing carry the field state.
+ await p.wait("document.getElementById('hudSlim').getBoundingClientRect().height>0");
+ const slim=await p.evaluate(`(()=>{const tele=document.getElementById('telemetry'),strip=document.getElementById('hudSlim'),status=document.getElementById('hudStatus');return {compact:document.documentElement.dataset.compactHud,teleOpacity:getComputedStyle(tele).opacity,teleWidth:tele.getBoundingClientRect().width,stripDisplay:getComputedStyle(strip).display,statusText:status.textContent}})()`);
+ assert.equal(slim.compact,'true','a live raid defaults to the slim strip');
+ assert.equal(slim.teleOpacity,'0','the detailed telemetry is clipped, not merely faded');
+ assert.ok(slim.teleWidth<8,'the clipped telemetry no longer covers the field ('+slim.teleWidth+'px)');
+ assert.equal(slim.stripDisplay,'flex','the slim HP/ammo strip is rendered');
+ assert.match(slim.statusText,/Relay Graveyard/,'the deploy briefing names the sector');
+ await shot(p,'/tmp/hs-theme-raid-slim.png');
+ // Opt into the explicit full layout to keep exercising the readable glass panel
+ // where Settings still offers it; the slim default is asserted above.
+ await p.evaluate("const s=document.getElementById('hudLayout');s.value='full';s.dispatchEvent(new Event('change'))");
+ await p.wait("document.documentElement.dataset.compactHud==='false' && getComputedStyle(document.getElementById('telemetry')).opacity==='1'");
+ // The slim default closes the dock; the explicit full layout still ships it, so
+ // reopen it through the real toggle before measuring its row theming.
+ await p.evaluate("if(document.getElementById('pack').hidden)document.getElementById('packToggle').click()");
+ await p.wait("document.getElementById('pack').hidden===false");
  await new Promise(r=>setTimeout(r,1200));
  const raid=await p.evaluate(`(async()=>{const tele=getComputedStyle(document.getElementById('telemetry')),hud=getComputedStyle(document.getElementById('hud')),cond=getComputedStyle(document.getElementById('conditions')),fire=getComputedStyle(document.getElementById('fire')),map=getComputedStyle(document.getElementById('minimap')),pack=getComputedStyle(document.getElementById('pack')),header=getComputedStyle(document.getElementById('globalTools'));
    const targets=[...document.querySelectorAll('#touch button')].filter(b=>{const r=b.getBoundingClientRect();return r.width&&r.height});

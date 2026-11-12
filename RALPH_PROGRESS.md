@@ -6746,6 +6746,607 @@ Human feel on a physical phone remains UNVERIFIED (P7); P0 stays complete.
 and authoritative-input scope. Physical-device feel on Austin's iPad/phone and
 subjective combat readability remain UNVERIFIED (P7, blocked on hardware).
 
-Next action: iteration 60 returns to the alternating gameplay/persistence and
-visual-quality slices, keeping the mobile HUD, offline-plan, readiness, static P0,
-records and insurance-refresh graders green.
+## Iteration 60 — Naming: THE SECTOR + jargon cleanup (2026-11-11)
+
+### Acceptance criteria
+
+1. `raid-online.html` document title is "HeadShotz — The Sector" and the visible
+   page heading is "THE SECTOR".
+2. Main-menu raid banner reads "THE SECTOR" with DEPLOY; the secondary legacy
+   button remains "CLASSIC EXTRACTION".
+3. Visible text on the static base/raid page contains none of, case-insensitively:
+   "Persistent Extraction", "Server-owned", "authoritative", "reconciliation"; the
+   intro paragraph no longer says "Server-owned equipment".
+4. `tests/raid-browser-mobile-hud.mjs` asserts criteria 1 and 3 on the initial
+   offline base at both target sizes and stays green with screenshots and no
+   browser errors.
+5. Desktop and online boot paths remain functional; internal code/file names are
+   unchanged; behavior is unchanged.
+
+### Implementation — iteration 60 (completed)
+
+- `raid-online.html`: title `HeadShotz — The Sector`; heading `THE SECTOR`; intro
+  rewritten to "Deploy your gear, fight machines, and extract before the sector
+  timer closes. Equipment you bring can be lost; a free recovery kit is always
+  available." No "Server-owned" or "recurrence" language remains in visible copy.
+- `index.html`: raid banner is now `THE <em>SECTOR</em>` with "PvPvE raids ·
+  machine enemies · loot · extract under pressure" and DEPLOY. The secondary
+  `🧓 CLASSIC EXTRACTION · original co-op raid base` control is unchanged.
+- `tests/raid-browser-mobile-hud.mjs`: asserts the document title and base
+  heading, rejects visible "Persistent Extraction"/"Server-owned"/"authoritative"/
+  "reconciliation" text on the freshly deployed base, and checks the static main
+  menu markup names THE SECTOR while CLASSIC EXTRACTION stays reachable.
+
+### Commands/results (2026-11-11)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-mobile-hud.mjs` → PASS:
+  unobstructed 0.9207 / 0.8243; thumbstick, right-drag, contextual Interact,
+  role collapse, fire/reload/interact by touch; screenshots
+  `/tmp/hs-mobile-hud-1024x720.png`, `/tmp/hs-mobile-hud-844x390.png`,
+  `/tmp/hs-mobile-hud-briefing.png`; browserErrors `[]`.
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-entry.mjs` → PASS
+  (main menu is still "THE SECTOR" for the hosted deploy path, static fallback
+  boots offline mode, CLASSIC EXTRACTION preserved, zero browser errors).
+- Rendered menu probe at 1024x720: `🏴 | THE SECTOR | PvPvE raids · machine
+  enemies · loot · extract under pressure | DEPLOY ▶`; saved
+  `/tmp/hs-menu-sector.png`.
+- `node --test tests/*.test.mjs` → 1,247 pass / 0 fail.
+- Note: the Node dev server on :8021 serves `raid-online.html` with a route table
+  that omits `shared/raid-offline.mjs`, so `?offline=1` fails there with a module
+  404; this is dev routing, not the static Pages artifact. The static-server
+  grader above serves the real files from disk and passes.
+
+### Criteria status
+
+1. PASS — title and h1 verified in the browser and asserted in the grader.
+2. PASS — main-menu banner renders THE SECTOR with DEPLOY; CLASSIC EXTRACTION
+   remains the secondary control.
+3. PASS — no banned copy in rendered base text; intro paragraph rewritten.
+4. PASS — grader assertion added and green at both target sizes with screenshots.
+5. PASS — entry grader confirms the hosted/online and static boot paths still
+   route correctly; only player-facing strings and the grader changed.
+
+**Status:** Naming slice COMPLETE. The broader mobile/base block remains
+INCOMPLETE: the between-raid base still stacks ~20 panels and the offline boot
+can transiently show the password form before the guest profile resolves.
+
+Next action: iteration 61 — the between-raid base redesign. Start by removing the
+offline account form from the boot path (mark offline from `?offline=1` before the
+async profile load and never show the username/password form), then restructure
+the base into a hero deploy screen plus tabs (Loadout & Stash, Traders, Workshop,
+Contracts, Records) showing one panel at a time, collapse the first-raid guide to
+a one-line dismissible tip, and add a sibling grader at 1024x720 and 844x390 that
+also checks those four banned phrases.
+
+## Iteration 61 — Offline boot never paints the account/password form (2026-11-11)
+
+### Acceptance criteria
+
+1. A fresh `raid-online.html?offline=1` load at 1024x720 never shows the online
+   Account/Username/Password form (password input never visible) and boots the
+   guest base directly.
+2. Online-host boot/sign-out paths still show the account form when a profile is
+   missing (401) and keep the static offline sign-out screen passwordless.
+3. `tests/raid-browser-mobile-hud.mjs` asserts criterion 1 with an instrumented
+   document-start observer and saves base screenshots at 1024x720 and 844x390;
+   raid compact-HUD checks stay green.
+
+### Implementation — iteration 61 (completed)
+
+- `raid-online.html`: `#auth` now ships `hidden` so no username/password form is
+  painted before module scripts run; added a translucruded `#bootStatus` line.
+- `raid-online.mjs`: on `?offline=1`, synchronously sets `offlineMode` /
+  transport, hides `#auth` and shows "Preparing the sector…"; `refresh()` and the
+  boot catch hide the notice. The catch only re-shows `#auth` on online hosts
+  without a profile, preserving the hosted sign-in path.
+- `tests/raid-browser-mobile-hud.mjs`: reloads with a document-start observer
+  that flags a visible `#login [name=password]`, asserts it never fires, and
+  captures `/tmp/hs-offline-base-1024x720.png` and `-844x390.png`.
+
+### Commands/results (2026-11-11)
+
+- `CDP_URL=http://127.0.0.1:9336 node tests/raid-browser-mobile-hud.mjs` → PASS:
+  no auth/password paint, unobstructed 0.9215 / 0.8227, touch actions green,
+  5 screenshots, browserErrors `[]`.
+- `node tests/raid-browser-account.mjs` → PASS (online sign-in, password
+  rotation, recovery, remote sign-out).
+- `node tests/raid-browser-static-account.mjs` → PASS (offline sign-out shows the
+  passwordless local screen; password field hidden).
+- `node tests/raid-browser-static-offline.mjs` → PASS (deploy → move → machine
+  hit → loot → extract under static hosting).
+- `node --test tests/*.test.mjs` → 1,247 pass + one known intermittent
+  matchmaking ECONNRESET that passed on isolated rerun.
+
+### Criteria status
+
+1. PASS — base screenshot and observer show the account form never paints.
+2. PASS — account graders green for online and offline sign-out.
+3. PASS — assertions and screenshots added to the mobile HUD grader.
+
+**Status:** Boot-form slice COMPLETE. Block still open: the base stacks ~20
+panels in one scroll, needs a hero deploy screen plus tabs, and the first-raid
+guide is still a card rather than a one-line dismissible tip.
+
+Next action: iteration 62 — collapse the base into a one-panel-at-a-time tabbed
+lobby: hero DEPLOY + loadout/stash/credits summary, tabs for Loadout & Stash,
+Traders, Workshop, Contracts, Records; hide offline account/password, recovery,
+sessions, squad, comms and latency surfaces; reduce the first-raid guide to a
+one-line dismissible tip; assert fit/no-scroll at 1024x720 and usability at
+844x390 in a sibling grader.
+
+## Iteration 62 — Tabbed base lobby with hero DEPLOY (2026-11-11)
+
+### Acceptance criteria
+
+1. The between-raid base paints as one hero deploy screen: big DEPLOY, credits, stash,
+   loadout and sector at a glance, map/objective/recovery/primary controls, styled as a
+   lobby rather than a stack of ~20 visible cards.
+2. A compact tab bar shows exactly one group of panels at a time: Loadout, Traders,
+   Workshop, Contracts, Records, Sector and online-only Squad. Existing ids and event
+   wiring survive; keyboard tab navigation remains usable.
+3. Offline mode hides every account/password/recovery-code/signed-session surface, the
+   Squad tab and squad communication, connection/latency controls and the network badge;
+   local sign-out stays available and the offline base never paints a username/password
+   form.
+4. The first-raid guide collapses to a slim one-line dismissible tip (hidden entirely in
+   compact landscape).
+5. Fit/no page scroll at 1024x720; usable layout and 44px targets at 844x390 and portrait
+   mobile; rewarded navigation switches tabs before focusing hidden targets.
+6. New sibling grader with screenshots, plus updated menu/static-account graders, green;
+   raid mobile-HUD grader and unit suite still green.
+
+### Implementation — iteration 62 (completed)
+
+- `raid-online.html`: replaced the stacked-panel base with `#deployCard` hero
+  (`#heroStats`, DEPLOY `#deploy`, Map/Objective/Recovery/Primary, readiness/risk) and a
+  `#baseTabs` / `#basePanels` structure; existing cards carry `data-panel` and only the
+  active tab group paints. The Sector map/exit plan moved into its own tab. Added lobby
+  CSS: `body[data-base-lobby=true]` locks the page to 100dvh, keeps the hero, operator row
+  and tabs fixed, and scrolls long panel content internally. Compact landscape keeps
+  44px targets; portrait stacks the hero and deploy action. Offline account surfaces and
+  the guide tip are styled/hidden accordingly, and safe-area insets are preserved.
+- `raid-online.mjs`: added `setBaseLobby`, `updateHeroSummary`, `setBaseTab` and tab
+  selection (click + ArrowLeft/Right/Home/End). `refresh()` shows the lobby, hides the
+  offline Account control, populates hero stats and chooses the Records tab when a settled
+  raid exists. `applyOfflineMode()` hides the Squad tab, account dialog security and
+  connection/comms handles and switches away from Squad. Map/objective/selection changes
+  and loadout changes refresh the summary. `start()` clears lobby mode. Rewards actions
+  switch to their tab before focusing. `#logout` drives the offline account sign-out.
+- `raid-account-ui.mjs`: the account dialog cannot open in offline mode (no password,
+  recovery-code or session surface is reachable).
+- Tests: new `tests/raid-browser-base-lobby.mjs` (static offline, both touch sizes,
+  no page scroll, one panel group per tab, hidden offline surfaces, big DEPLOY,
+  one-line dismissible tip, banned phrases, screenshots). Rewrote `raid-browser-menu.mjs`
+  for lobby semantics and updated `raid-browser-static-account.mjs` for the hidden Account
+  entry point.
+
+### Commands/results (2026-11-11)
+
+- `node tests/raid-browser-base-lobby.mjs` → PASS; screenshots
+  `/tmp/hs-base-lobby-1024x720.png` and `/tmp/hs-base-lobby-844x390.png`.
+- `node tests/raid-browser-menu.mjs` → PASS (lobby flex, one tab group, 44px targets,
+  no page scroll at 1280x800 and 390x844; screenshots `/tmp/hs-menu-desktop.png`,
+  `/tmp/hs-menu-mobile.png`).
+- `node tests/raid-browser-mobile-hud.mjs` → PASS: 92.1% / 82.4% unobstructed raid view,
+  thumbstick/right-drag/Fire/Reload/Interact, menu collapse, screenshots.
+- `node tests/raid-browser-static-account.mjs` → PASS (Account control and dialog hidden
+  offline; passwordless sign-out/sign-in still works).
+- `node tests/raid-browser-rewards.mjs`, `raid-browser-static-records.mjs`,
+  `raid-browser-static-base-economy.mjs`, `raid-browser-static-plan.mjs`,
+  `raid-browser-static-readiness.mjs`, `raid-browser-offline-dispatch.mjs` → PASS.
+- Full unit suite (see commit run) → PASS.
+
+### Criteria status
+
+1. PASS — hero DEPLOY with credits/stash/loadout/sector summary and controls.
+2. PASS — tab bar shows one group at a time; all ids and keyboard tab navigation remain.
+3. PASS — offline account dialog cannot open; Squad/comms/latency controls hidden.
+4. PASS — guide is one dismissible line; hidden in compact landscape.
+5. PASS — no page scroll at 1024x720; usable 44px targets at 844x390.
+6. PASS — sibling/updated graders and screenshots green.
+
+**Status:** Mobile/touch HUD + base lobby block COMPLETE. Honest gap: physical iPad feel
+and subjective combat readability remain UNVERIFIED (P7). Next action: resume the normal
+post-P0 raid priorities from the backlog's top open mechanics item.
+
+## Iteration 63 — First-person default and readable, punchier gun (2026-11-11)
+
+### Acceptance criteria
+
+1. A fresh offline deploy boots into first-person so the weapon is on screen within the first
+   3 minutes; the raised pose clears the bottom touch row at 1024x720 and 844x390.
+2. The weapon fills the lower-right as a held firearm with sight and frame visible, not a
+   clipped sliver or a shot of the operator's back.
+3. Recoil visibly kicks the camera and weapon with a fast exponential settle; firing shows a
+   brighter muzzle bloom, warm muzzle light and brighter/wider tracer in actual gameplay.
+4. Added pose and recoil changes are graded from the runtime `gunHip` pose; the viewmodel
+   grader stays green along with the mobile HUD/base lobby graders and the unit suite.
+5. Before/after screenshots at 1024x720 and 844x390, plus firing/aim frames, are captured
+   and judged by eye.
+
+### Implementation — iteration 63 (completed)
+
+- `shared/raid-settings.mjs`: default and normalize fallback `viewMode` changed from `third`
+  to `first`, matching the presentation the rest of the work targets.
+- `raid-view.mjs`: added `VIEW_HIP` (`x .2`, `y -.135`, `z -.46`) and `VIEW_SCALE .74`, stored
+  as `this.gunHip`. Raised/closer/larger pose exposes both hands while clearing the bottom
+  touch row. Recoil amplitudes raised (rifle .095, shotgun .18, sniper .16) with exponential
+  settle capped at .2; camera pitch/roll splits raised to .52/.46 and chase camera to
+  .34/.38. Flash sprites enlarged per class, muzzle PointLight 3.2→6 and range 3→3.5,
+  world shot light 3.2→5.4, tracer tint 0xfff4d6 with longer life and full opacity.
+- `tests/raid-browser-viewmodel.mjs`: bob/aim/reload/home expectations derive from
+  `v.gunHip` instead of stale literals; live reload dip is asserted relative to hipY.
+
+### Commands/results (2026-11-11)
+
+- `node tests/raid-browser-viewmodel.mjs` → PASS (two clean runs; first run hit an accepted
+  reload-beat timing flake, not a pose failure).
+- `node tests/raid-browser-mobile-hud.mjs` → PASS: 92.1% / 82.3% unobstructed raid view,
+  thumbstick/right-drag/Fire/Reload/Interact, no browser errors.
+- `node tests/raid-browser-base-lobby.mjs` → PASS (first run hit a reload race, clean rerun).
+- `node --test tests/*.test.mjs` → PASS 1247/1247.
+- Screenshots before: `/tmp/hs-field-1024x720-baseline.png`,
+  `/tmp/hs-field-844x390-baseline.png`. After: `/tmp/hs-field-1024x720-after.png`,
+  `/tmp/hs-field-844x390-after.png`, `/tmp/hs-combatfire-1024-0.png`,
+  `/tmp/hs-combatfire-844-0.png`, `/tmp/hs-combat-aim-1024.png`.
+
+### Criteria status
+
+1. PASS — offline deploy boots first-person with the gun in frame at both targets.
+2. PASS — gun reads as a held weapon; sight, receiver, stock and hands are visible.
+3. PASS — firing frames show bloom, lit receiver and tracer; kick values and decay graded.
+4. PASS — viewmodel + mobile HUD + base lobby graders and 1247 unit tests green.
+5. PASS — before/after and firing frames captured and compared by eye. Honest gap: the
+   weapon/hand materials still read flat and plastic, the boxy wood buildings and soft
+   lighting keep the world dull, and the actual press-of-trigger punch cannot be judged
+   from stills or emulated touch on a physical iPad.
+
+**Status:** Gunfeel visibility slice COMPLETE.
+
+## Iteration 64 — Worn weapon finish and clean sight picture (2026-11-11)
+
+### Acceptance criteria
+
+1. The held rifle and gloved hands read as worn metal, wood, leather and cloth at hip on
+   1024x720 and 844x390 gameplay frames, not flat plastic.
+2. The optic reads as a compact dark scope with a warm centred reticle instead of a
+   blown-white blob.
+3. Aiming down sights clears the sight picture: rear stock and forearms fade out, no giant
+   dark slab or pale cyan tube obscures the reticle, and the optic stays on the crosshair.
+4. The viewmodel, mobile HUD and static-offline graders plus the full unit suite stay green.
+5. Before/after gameplay and overlay frames at both sizes are captured and judged by eye.
+
+### Implementation — iteration 64 (completed)
+
+- `raid-models.mjs`: cached procedural 256/192/64px sRGB canvas maps (brushed/machined
+  steel, wood grain and knots, pebbled leather with stitch seams, woven fabric stains) feed
+  shared Map/BumpMap PBR materials per gun material group; ret/glass now MeshStandardMaterial
+  with the reticle's own emissive dot texture, ret renderOrder 4; sleeve darkened to olive
+  0x2f342c and glove to leather 0x5a4634.
+- `weapons.js`: `mat('stock')` isolates buttstock/butt pad so the viewmodel can fade rear
+  furniture without hiding the receiver or magazine.
+- `raid-view.mjs`: overlay fill 1.05, key 3.0 warm, rim 1.6 cool; ADS fades the sleeve
+  early and the stock through the back half of the blend; barrel heat skips ret/glass so
+  the reticle glow survives every shot; removed the bore cant that misaligned the dot.
+
+### Commands/results (2026-11-11)
+
+- `node tests/raid-browser-viewmodel.mjs` → PASS: lighting/reflections/PBR/sway/bob/
+  reduced-motion/aimSight/reload/visibility true, `browserErrors` [].
+- `node tests/raid-browser-mobile-hud.mjs` → PASS: 92.1% / 82.2% unobstructed, touch input
+  and contextual interact verified, no browser errors.
+- `node tests/raid-browser-static-offline.mjs` → PASS: deploy/move/headshot/loot/extract,
+  settlement +20 credits/XP, no API traffic.
+- `node --test tests/*.test.mjs` → PASS 1247/1247.
+- Screenshots before: `/tmp/hs-before-combat-aim-1024x720.png` (white optic blob, dark slab,
+  pale cyan forearm). After: `/tmp/hs-after6-combat-aim-1024x720.png`,
+  `/tmp/hs-after6-combat-fire-1024x720-0.png`, `/tmp/hs-after6-combat-aim-844x390.png`,
+  `/tmp/hs-after6-combat-fire-844x390-0.png`; overlay isolation
+  `/tmp/hs-ov-aim-fade.png`, `/tmp/hs-ov-hip-fade.png`.
+
+### Criteria status
+
+1. PASS — metal, wood, leather and cloth tints replace the flat plastic read at both sizes.
+2. PASS — optic is dark and compact; reticle texture is warm and no longer blows out.
+3. PASS — stock and forearms fade in ADS and the optic sits on the HUD crosshair; exact
+   aim x/y/z and restore assertions still hold.
+4. PASS — viewmodel/mobile-HUD/static-offline graders and 1247 unit tests green.
+5. PASS — before/after and overlay frames captured and compared by eye. Honest gap: the hip
+   hand/forearm still reads as one soft dark mass without knuckle seams, the stock top
+   faces stay flat under the key light, and the world beyond the gun remains washed-out
+   and boxy (priority 5).
+
+**Status:** Viewmodel material/optic slice COMPLETE.
+
+## Iteration 65 — Movement feel: stride, sprint FOV, landing and touch (2026-11-11)
+
+### Acceptance criteria
+
+1. Walking produces a subtle grounded camera stride; sprinting raises its amplitude
+   and cadence; stopped, airborne and aiming suspend it smoothly instead of snapping.
+2. Sprinting smoothly widens the view by about 6 degrees and restores it on release,
+   with slide getting a smaller boost; aiming still wins over the sprint FOV.
+3. Landing after a fall or vault dips the camera and pitches it down with a damped
+   spring recovery; back-to-back landings restart the dip cleanly.
+4. The touch stick gains a dead zone and fine-control curve while still driving the
+   authoritative move; touch look banks sub-pixel jitter and keeps a deliberate nudge.
+5. Footsteps are audible at stride and cheaper while sprinting, without doubling into
+   the gunshot/reload cues; reduced motion does not add hidden camera motion.
+6. Existing viewmodel, mobile-HUD and static-offline graders and full suite stay green;
+   before/after moving and sprinting frames at 1024x720 and 844x390 are judged by eye.
+
+### Implementation — iteration 65 (completed)
+
+- `raid-view.mjs`: new `freshFeel()` presentation state (stride phase, bob, landing dip
+  spring, slide crouch, sprint FOV), reset in `clear()`/`start()`. The frame now adds a
+  grounded camera stride scaled by server movement and sprint, suspends it when stopped,
+  airborne, sliding or aiming, eases sprint FOV +6 and slide FOV +4 through the camera's
+  existing fov lerp (aim FOV still wins), drops the camera and pitches it down on landing
+  with a spring recovery keyed to fall height, and crouches `0.18 m` while sliding.
+  Footfalls alternate pan through a new one-shot cue. Authoritative pose, `fireOrigin`,
+  ballistics and snapshot state are untouched; reduced motion pins every offset off.
+- `raid-audio.mjs`: authored `footstep` action cue (triangle 110→46 Hz, 90 ms).
+- `raid-online.mjs`: stick gains a 12% dead zone plus a 1.25-power rim curve for precision
+  walking; touch look banks sub-pixel movement and only turns once the bank clears 1.2 px,
+  so a resting thumb no longer shivers the crosshair.
+
+### Commands/results (2026-11-11)
+
+- Runtime diagnostic `/tmp/hs-move-check.mjs` (offline touch gameplay, no browser errors):
+  idle fov 75 / bob 0; walk bob .0077; sprint fov 80.83 / bob .025; sprint+aim fov 61.11 /
+  bob 0; stop fov 75 / bob 0; airborne bob 0; landing peak dip .0346 m with pitch −.0242,
+  recovered to zero; touch 1 px jitter 0 rad, 40 px drag −.24 rad; 844x390 sprint fov 80.86.
+- `node tests/raid-browser-viewmodel.mjs` → PASS on rerun (first run hit the accepted
+  reload-beat timing flake); lighting/PBR/sway/bob/aim/reload/visibility all true.
+- `node tests/raid-browser-mobile-hud.mjs` → PASS 92.1% / 82.2% unobstructed; stick travel,
+  right-half yaw drag and touch actions all true.
+- `node tests/raid-browser-static-offline.mjs` → PASS deploy/move/headshot/loot/extract,
+  +20 credits/XP, no `/api` traffic.
+- `node tests/raid-browser-audio.mjs` → PASS; 23 distinct action cues, footstep included,
+  real Web Audio rendering and mute/nodes-released checks true.
+- `node --test tests/raid-audio.test.mjs` → PASS 6/6.
+- `node --test tests/*.test.mjs` → 1246 pass, 1 failure in the known intermittent
+  matchmaking latency wire test (`ECONNRESET`); `tests/matchmaking.test.mjs` alone → 11/11.
+- Screenshots: `/tmp/hs-move-idle-1024x720.png`, `/tmp/hs-move-walk-1024x720.png`,
+  `/tmp/hs-move-sprint-1024x720.png`, `/tmp/hs-move-sprint-aim-1024x720.png`,
+  `/tmp/hs-move-stop-1024x720.png`, `/tmp/hs-move-landback-1024x720.png`,
+  `/tmp/hs-move-sprint-844x390.png`.
+
+### Criteria status
+
+1. PASS — walk bob non-zero, sprint bob and cadence rise, and stop/aim/airborne settle to 0.
+2. PASS — sprint measures +5.8–5.9° fov and restores to 75; slide gets +4; aim's optic FOV
+   takes precedence.
+3. PASS — landing peak camera drop .0346 m with a −.0242 pitch dip, springing back to zero;
+   a second landing restarts cleanly.
+4. PASS — 12% stick dead zone with rim curve; authoritative stick travel still passes; touch
+   jitter under 1.2 px does not turn the view while a deliberate drag does.
+5. PASS — footstep cue renders and alternates pan; sprint cue gain is louder; the audio
+   grader's cue signatures and unit audio suite are green.
+6. PASS — viewmodel/mobile-HUD/static-offline graders green, full suite only the known
+   intermittent matchmaking reset; moving frames at both sizes captured. Honest gap: stills
+   can show the wider sprint view but not the stride/landing pulses, the dark boxy world
+   still dominates, the gloved hands still read flat, and the synthesized footstep has not
+   been heard on a physical phone.
+
+**Status:** Movement-feel slice COMPLETE. Next action: director note 1 — tracer/muzzle
+origin bug (addresses no priority above; GUNFEEL polish), then enemy presentation (priority 4).
+
+## Iteration 66 — Tracer leaves the barrel, not the screen corner (director note 1) (2026-11-11)
+
+### Acceptance criteria
+
+1. A fired tracer and the world muzzle bloom begin at the viewmodel's barrel tip, visibly
+   right and low of the crosshair, at 1024x720 and 844x390.
+2. Spectating / third-person / reduced motion keep the old fallback origin, and pooled
+   flash/light bounds stay green.
+3. The effects and hit-feedback browser graders and the full unit suite pass.
+
+### Implementation (completed)
+
+- `raid-view.mjs`: `shotMuzzleOrigin()` projects `muzzleLocal` through `gunRoot.matrixWorld`
+  and `weaponCamera` to NDC, then rebuilds a world-space origin along the shot axis at
+  0.55 m with a clamped lateral offset. `spawnShot()` copies that origin when present and
+  falls back to the previous eye-offset formula otherwise. The world muzzle bloom and the
+  pooled point light share the same origin as the tracer.
+- `tests/raid-browser-effects.mjs`: bounds updated for the current flash size/intensity.
+
+### Verification
+
+- `node --test tests/raid-browser-effects.mjs` → PASS.
+- `node --test tests/raid-browser-hit-feedback.mjs` → PASS.
+- `node --test tests/*.test.mjs` → 1247 pass, 0 fail.
+- Screenshots: `~/headshotz-loop/shots/latest/{before,after}-1024.png` and
+  `{before,after}-844.png` plus `action-fire-*.png`. Measured legacy origin is ~295 px
+  (1024) and ~161 px (844) left of the barrel; fixed origin is within 19 px / 10 px.
+  The residual is the gun kicking back with recoil after the shot, not the spawn point.
+
+### Honest critique
+
+The tracer now clearly leaves the barrel and the muzzle bloom sits on it, but the line is
+still a thin short-lived streak and the 844x390 frame remains crowded by the persistent
+top instruction strip; per-deployment weather (rain/dusk) also makes frames inconsistent.
+
+Next: director note 2 (flat washed lighting, near-black featureless ground) before
+priority 4 enemies.
+
+## Iteration 67 — Sunlit sky, readable asphalt and gravel ground (director note 1) (2026-11-11)
+
+### Acceptance criteria
+1. Clear-sky spawn frame gets a stronger directional sun, crisp lit facades and visible
+   self-shadowed masses, plus a clean blue sky gradient instead of beige haze.
+2. The ground shows gravel/asphalt texture and surface variation, not a near-black plane,
+   in world-only frames (no HUD ink) at 1024x720 and 844x390.
+3. Atmosphere/weather-surface/mobile-HUD/static-offline graders stay green and
+   `node --test tests/*.test.mjs` passes.
+
+### Implementation / verification
+- Cooled clear fronts (shared/raid-enemies.mjs) to blue `0x83b2d4`/`0x7fafd2`/`0x85b3d4` and
+  moved the sun (`raid-conditions.mjs`) to y=74, z=+46 so facades face the light.
+- `raid-view.mjs`: sun/hemi warm-cool split, sunGain 1.45+.55·daylight, hemiGain 1.25+.09,
+  saturated sky top, exposure 1.22.
+- `raid-environment.mjs`: brighter palette, matte asphalt (roughness .86/metalness .04),
+  roads 0x34393b→0x64675f, terrain maps repeat 200 + anisotropy 8 + stronger vertex variation.
+- Sky sample 1024: baseline (210,188,171) beige → (178,197,209) blue; ground now shows ridge
+  shadowing and gravel speckle instead of a flat dark slab.
+- Graders PASS: raid-browser-atmosphere, raid-browser-weather-surface, raid-browser-mobile-hud,
+  raid-browser-static-offline. Node suite 1247 pass / 0 fail.
+- Shots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png` plus
+  `{before,after}-world-{1024,844}.png` from the identical Relay Graveyard spawn.
+
+### Honest critique
+The blue sky gradient, sunlit wood facades and gravel relief clearly beat the beige haze
+baseline. Still bad: the near asphalt sits darker than true midday tarmac, and the 844
+backpack dock hides half the world; every building remains the same brown planks with white
+daylight window squares — that is director note 2, next.
+
+Next: director note 2 (building material variety, dark daytime glass, spawn props), then
+director note 3 (auto-fade HUD).
+
+## Iteration 68 — Material variety, daylight glass and spawn trim (director note 2) (2026-11-11)
+
+### Acceptance criteria
+1. In one spawn frame the facades visibly differ by material: at least three of concrete,
+   brick, galvanised metal siding and timber appear as distinct colors/surfaces instead of
+   one brown plank wall; metal walls read as panels, not planks.
+2. Daytime windows are dark glass with a subtle sky/reflection; no white/yellow blowout or
+   bloom halo at midday, while night windows still glow warm.
+3. Visible trim/props near the spawn view (pipes, wall cabinets/AC units, barrels or signs)
+   give the street scale and clutter without adding gameplay systems.
+4. Before/after world frames at 1024x720 and 844x390 offline from the identical pinned clear
+   spawn show the improvement; nothing regresses gunfeel, HUD or mobile layout.
+5. raid-browser-atmosphere, weather-surface, mobile-hud, static-offline stay green and
+   `node --test tests/*.test.mjs` passes; commit only on cypert/dev.
+
+### Implementation / verification
+- Director note 2 addressed. `shared/raid-worlds.mjs`: per-material WALL_TINTS (cool concrete,
+  muted brick, bright galvanised metal, weathered timber) plus kind-aware
+  `tintFor(theme,x,z,kind)`; settlement lots cycle wall materials while consuming the original
+  `R()` draw order, so footprints, heights, windows and routes stay byte-identical. Relay's
+  spawn frame now shows weathered timber left (k0), a sunlit galvanised metal shed right (k10)
+  and a pale concrete row behind, instead of three identical brown plank blocks.
+- `raid-environment.mjs`: window props are now dark glazed glass (metalness .88, roughness
+  .18, envMapIntensity 1.8, `window` texture) with the authored lamp colour carried in a
+  `windowLit:` group tag; the fixed 1.7-emissive pane is gone. Metal blocks gain instanced
+  vertical siding ribs and a belt band; metal facades also qualify for pipes/A/C cabinets and
+  rust-streaked weathering at their foundations. Presentation-only drums and a supply crate
+  dress each spawn (no blocks/collision).
+- `raid-view.mjs`: caches `raidWindowMaterials` and fades pane emissive with daylight (0 by
+  day, 1.55 at night on the same night curve as the halo field).
+- Criteria: 1 PASS (spawn frame shows timber, galvanised metal with ribs/belt and pale
+  concrete as distinct surfaces); 2 PASS (midday windows random dark blue-glass panes with
+  faint sky reflection, no bloom blowout; the night capture still has warm lit panes);
+  3 PASS (three drums, supply crate, lamp, pipes/cabinet around spawn); 4 PASS (before/after
+  from the identical pinned Relay spawn at 1024x720 and 844x390); 5 PASS. Graders green:
+  structures, atmosphere, weather-surface, mobile-hud, static-offline (vacuous greens:
+  atmosphere 41176 changed px, weather wetCount 143, mobile fraction .177 / unobstructed
+  .823); node suite 1247 pass / 0 fail.
+- Shots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png`,
+  `{before,after}-world-{1024,844}.png`, `after-look-metal-1024.png`,
+  `after-night-world-1024.png`.
+
+### Honest critique
+The facades now visibly differ (dark timber left, pale galvanised metal with rib panels and
+rust streaks right, pale concrete row behind) and the midday windows are finally dark glass,
+clearly beating the uniform brown plank/glowing-window rows; still weak: the metal shed reads a
+little pale and flat under full sun while the drums/crate are small against a wide empty
+asphalt foreground, and on desktop the backpack dock covers half the frame — director note 3.
+
+Next: director note 3 (auto-fade HUD / kill the quarter-frame box), then ENEMIES (priority 4).
+
+## Iteration 69 — Slim raid HUD + fading brief (director note 3, 2026-11-11)
+
+### Acceptance criteria (recorded before implementation)
+1. Live raids default (pointer-fine or touch landscape) to a slim HP/ammo/clock/pack strip; the quarter-frame telemetry panel never shows in normal play.
+2. Location/weather/clock/facing shows at deploy and fades within ~5s; the armory objective route rides in that fade and no objective strip persists.
+3. Desktop compact hides the touch deck and shows the hint only for nearest loot/door/body/cache/exit; touch keeps its deck and 44px targets.
+4. Before/after frames at 1024x720 and 844x390; hud-layout, hud-theme, mobile-hud and static-offline stay green; the Node suite passes.
+
+### Implementation / verification
+- `raid-settings-ui.mjs`: auto compact opens for raids on pointer-fine or coarse landscape; portrait touch stays full; `apply` exposed and called at raid entry/exit/sign-out.
+- `raid-online.mjs`: zone/weather/clock/facing + armory objective live in the 4.8s `#hudStatus` pill; compact suppresses the old objective/help hint while contextual prompts remain; pack dock closes on start.
+- `raid-online.html`: compact HUD is global; `@media(pointer:fine)` hides the touch deck, centers a contextual hint pill (`#hint:empty` hides), and the backpack toggle is 44px tall; hud-theme asserts slim first, then explicit full.
+- Criteria 1-4 PASS. 1024x720 compact frame shows a 480x36 strip with no telemetry/dock/deck; the brief fades to an empty field. Graders green: hud-layout, hud-theme, mobile-hud (.919 desktop / .819 mobile unobstructed), static-offline. Node suite 1247/1247. Shots in `~/headshotz-loop/shots/latest/`.
+
+### Honest critique
+The quarter-frame HUD, open dock and touch deck are gone and the deploy brief now dissolves into the sector; still weak: at 844 the briefing wraps to three lines and its 422px glass pill covers the upper sightline for ~5s, and the viewmodel still reads flat tan/grey with a stray line below the barrel (director note 4).
+Next: director note 4 (viewmodel), then note 5 (tracer), then ENEMIES (priority 4).
+
+## Iteration 70 — Controls match the main HeadShotz game (director note P1, 2026-11-11)
+
+### Acceptance criteria (director note P1, recorded this slice)
+1. Raid walking/look/fire use the main game's scheme and constants: mouse .0021 px/rad off FOV sensitivity, touch .0052, floating left-half stick (radius 52, .14 dead zone, ^1.15 gain, rim sprint), smoothed per-frame look, near-reticle damping, 60 m aim magnetism, and crosshair-owned fire.
+2. Phone: one thumb moves in the left 42% (pad appears under it) while the other aims and hits a moving machine; mouse/keyboard: W+turn and crosshair fire hit a moving machine.
+3. Before/after frames at 1024x720 and 844x390; mobile-hud and static-offline graders stay green; Node suite stays 1247.
+
+### Implementation
+- `raid-online.mjs` now mirrors these main-game functions/constants: `game.js:1075` mousemove look (`.0021*S.sens*zoomSens()`, clamp ±1.5 main; raid keeps server ±1.2); `game.js:1078-1079` `zoomSens()` FOV ratio `pow(r,.85)`; `game.js:1094-1101` touch pad (left 42%, floating base under the thumb, mx=52, dead zone .14, `pow((n-.14)/.86,1.15)`, sprint at `l>52*.88&&dy<-52*.5`, raw look deltas); `game.js:1102-1105` `applyTouchLook` (dt*38 smoothing, `.0052*S.sens*zoomSens()`, 0.6 damping at the reticle cone, `aimPull`, speed accel `1+min(.5,speed/4000)`, pitch *.9); `game.js:1153-1157` `nearAim/aimPull` (5° cone from crosshair, 60 m cap, chest target, dt*3.2 blend, pitch *.6 — chest height adapted to `MACHINES[kind].height*.55`). `game.js:1277-1279` crosshair-owned trigger: a machine under the reticle turns `#cross` red and `trigger.tap()` fires while it is owned.
+- `raid-online.html`: the pad is now a docked visual with `pointer-events:none`, jumps under the thumb and fades up while dragging; red target reticle.
+- Touch gestures are pointer-typed (touch only), two-thumb multitouch (either thumb can start first, matching game.js's left-42%/look gate), canceled by menus/map/communications, and `stopHeldInput` clears both axes.
+
+### Verification (scripted, /tmp/hsz-cap/verify-controls3.mjs, not committed)
+- 844 touch, look thumb then movement thumb: movement + tracking + auto-fire ran together; machine 75->15 hp at lock (ammo 30->29), final 30->27, player walked 2.81 m, scout killed -> "TOUCH PASS".
+- 1024 keyboard: S+ArrowLeft+auto-fire; machine 75->15 hp, ammo 30->28, player walked 12.76 m -> "DESKTOP PASS"; script exit 0.
+- `node --check raid-online.mjs`: SYNTAX_OK. `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- Mobile HUD green: unobstructed .9202 (1024) / .8213 (844); thumbstick moved, right drag turned, fire/reload/interact by touch, browserErrors []. If a second finger starts with look, the next left-half touch becomes movement, matching the main gate.
+- Static offline green: machine hit, deploy, moving, loot SMG, extract, credits +20, no API traffic, browserErrors [].
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png (night 04:30, red reticle + tracer), before-844.png / after-844.png (red target reticle on the scout), after-844-hit.png, after-844-stick.png (floating pad under the thumb), after-1024-fire.png.
+
+### Honest critique
+The two-thumb field test now turns the crosshair onto a moving scout and fires without releasing movement, and the pad follows the thumb; still uncertain: physical iPad/phone latency and thumb fatigue are unverified, the 1024 red-reticle still races a frame (cyan when the target lapses), and touch sprint at the rim is abrupt. Next: director P2, enemy leg walk cycles synced to speed.
+
+## Iteration 71 — Enemy legs walk (director note P2, 2026-11-11)
+
+### Acceptance criteria (director note P2, recorded this slice)
+1. Hunter and Warden machines animate a walk/run cycle whose stride cadence and swing amplitude derive from their snapshot movement speed; their legs are articulated (hip, knee, foot) rather than pivoting as one rigid piece.
+2. Machines at rest settle into a planted stance (no residual rotation); reduced-motion mode stops the gait.
+3. Two captured frames a few frames apart show materially different leg poses in the same machine.
+4. Before/after at 1024x720 and 844x390; machine-model, mobile-hud and static-offline graders stay green; Node suite passes.
+
+### Implementation
+- `raid-models.mjs`: hunter legs rebuilt as hip → knee → foot groups (twelve leg segments total), and Warden legs as hip → knee (four legs), each with diagonal trot phases so opposing pairs step together. `updateActor` drives them from the per-frame snapshot speed: cadence `0.9 + speed*0.28` cycles/s capped at 2.3, amplitude `0.1 + speed*0.09` rad capped at 0.46, knee flex on the swinging-forward leg, foot counter-rotation to keep pads flat, a slight hip lift on the planted leg, and a `walkBlend` ease so a stopped machine returns to a planted stance. Gait phase is seeded from the machine's world position so formations do not march in lockstep; `state.reduced` zeroes the gait.
+
+### Verification
+- Temporary bench at `/tmp/hsz_cap_legs/bench.mjs` (not committed) posed a hunter on a checkerboard at 1024x720: frame 12 and frame 26 at speed 4.2 produced different leg pose vectors, speed 1.1 gave a shorter stride, and 40 frames at speed 0 left all four legs at `rotation 0`.
+- Gameplay capture `game.mjs` placed a patrolling hunter across the spawn sightline under pinned 14:00 conditions; before (old single-pivot legs) and after (articulated) frames captured at 1024x720 and 844x390, 240 ms apart so the gait is at opposite phase.
+- `node --check raid-models.mjs`: SYNTAX_OK. `raid-browser-machine-models`: hunter detail changed 256 px, all classes pass, browserErrors []. Mobile HUD stayed green (.919 /.819 unobstructed). Static offline stayed green (hit, loot, extract, no API traffic). Boss grader all true. Node suite 1247/1247.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, after-1024-stride.png (bent knee, lifted foot), before-844.png / after-844.png, after-844-stride.png, bench-legs-a.png / bench-legs-b.png / bench-legs-idle.png.
+
+### Honest critique
+The hunter and Warden now read as stepping machines instead of sliding, but the gait is time-driven rather than foot-locked, so in stance the planted foot still skates slightly across the ground, and the scout/flyer still hover with no locomotion at all. The captured gameplay frames drift in lighting between runs (the offline raid reseeds its plan after capture), so pose — not brightness — is the comparison. Next: director P3, fix the map (holes, floating geometry, collision and spawn/extraction placement).
+
+## Iteration 72 — Map cleanup: grounded signs and duplicate solids (director note P3, 2026-11-11)
+
+### Acceptance criteria (director note P3, recorded this slice)
+1. No authored `sign` prop renders as an unsupported floating billboard: free-standing signs get real posts and footings anchored to sampled terrain, and façade signs are mounted flush to the adjacent building instead of hovering in front of it. The `QUARANTINE LINE` insertion sign is visibly anchored.
+2. Exact duplicate block volumes (same position, footprint, height, base, kind and tint) are drawn once, removing coincident z-fighting surfaces, without changing `world.blocks` data, collision, spawn/exit coordinates, routes, or the frozen V8/V9/V10 assertions.
+3. An audit of every sector confirms spawns/exits are unblocked, mutually reachable, supported by terrain, and free of buried or unsupported collision volumes; no hole or stuck spawn/exit remains to report.
+4. Before/after gameplay screenshots at 1024x720 and 844x390 from the insertion view; static-offline, mobile-HUD, scenery and structures graders stay green; Node suite passes.
+
+### Implementation
+- `raid-environment.mjs`: the base block renderer now keeps a per-signature `Set`; exact duplicate volumes (same x/z, footprint, height, base, kind and tint) are drawn once. This is presentation-only — `world.blocks`, collision, spawn/exit coordinates, navigation, loot and the frozen V8/V9/V10 data are untouched. It removes 365 redundant coincident volumes across the three sectors (relay 91, reservoir 179, switchyard 95).
+- Replaced the old `SpriteMaterial` sign billboards with a cached 512x128 canvas board, metal backing box, and real supports. Façade signs are detected through `facadeGrid`, tilted to the door face, tied back with two metal jibs just outside the board edge, and clamped below the wall top. Free-standing signs get two light-metal posts placed 0.58 m outside the board footprint, tall hazard sleeves, concrete footings and top/bottom tie bars; each post samples terrain at its own position, so signs on a grade stay planted.
+- Sign panels keep readable daylight contrast (dark slate gradient, cream lettering) and share one cached texture material per sign name. New support boxes use empty structure tags so the structures grader's authored-tag list is unchanged.
+- No spawn, cache, extraction, road or building coordinate was moved. The P3 source changes are limited to `raid-environment.mjs`; no floating sign, overlapping solid, invisible-wall collision or stuck spawn/extraction was found beyond the two fixed presentation defects.
+
+### Verification
+- `node --check raid-environment.mjs`: SYNTAX_OK.
+- Sector audit (temporary `/tmp/hsz-mapfix/audit.mjs`): relay, reservoir and switchyard each report 13 sites, 0 blocked sites, 0 unsupported sites, 0 buried blocks, 156 spawn↔exit route pairs and 0 failures. Every pair was walked in both directions and the final node landed within 1.2 m of the destination. No holes, invisible-wall collision or stuck spawn/extraction remain.
+- Collision-volume support audit (temporary `/tmp/hsz-mapfix/support3.mjs`), which also follows ramp edges: relay 3,988 / reservoir 3,720 / switchyard 4,679 elevated volumes, 0 unsupported by terrain, an overlapping lower volume or a ramp. The large elevated decks (reservoir 520x20 bridge at y1.6, relay central roof) are ramped or wall-braced spans, not floating solids.
+- Sign audit (`/tmp/hsz-mapfix/signhost.mjs`): all 194 authored sign props route through the new support renderer — 54 façade-mounted, 140 free-standing; none fall back to an unanchored sprite.
+- Duplicate audit (`/tmp/hsz-mapfix/dupes.mjs`): 365 exact duplicate collision volumes across the sectors, all drawn once; frozen world assertions remain byte-for-byte green.
+- Static offline green: `"staticDeployRouting":true,"offlineBoot":true,"deploy":true,"moving":true,"machineHit":"headshot","extracted":"extract","credits":270,"noApiTraffic":true,"browserErrors":[]`.
+- Structures green: `"pbr":true,"deterministic":true,"browserErrors":[]`, authored tag list unchanged.
+- Scenery green: relay 1,983 / reservoir 1,971 / switchyard 1,823 props, terrain true, browserErrors [].
+- Mobile HUD green: unobstructed 0.9194 (1024x720) / 0.8194 (844x390), touch fire/reload/interact, browserErrors [].
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail (65616 ms).
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png and before-844.png / after-844.png from the `QUARANTINE LINE` insertion view (before: opaque floating sprite; after: slanted board with a visible hazard-band post and footing); after-1024-anchor.png (closer frontal view of the right post, hazard band and foot), after-1024-post.png (a formerly duplicated 0.45 m-wide street pole now drawn once, with no shimmering coincident faces).
+
+### Honest critique
+The insertion sign now reads as a built street fixture and the duplicate solids no longer draw twice, but the sign post is still thin from 18 m (about 0.28 m), so at desktop spawn distance it reads as a dark support rather than a bold gate; the board silhouette, not the post, is what sells the anchor. The duplicate fix is structurally verified but mostly invisible in screenshots because the old copies were exactly coincident; the draw-call saving (365 volumes) is the user-visible performance benefit, not a frame difference. All spawn/exit/cache routes have a path, but the audit used the existing 0.4 m test radius rather than a live touch/desktop walk of every sector. Next: older director note 4, viewmodel feel, then note 5, tracer.
