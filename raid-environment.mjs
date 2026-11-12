@@ -89,6 +89,28 @@ const WIND_VERTEX=`
  transformed.x+=sin(uWindTime*1.5+windPhase)*.055*windHeight;
  transformed.z+=cos(uWindTime*1.15+windPhase*1.37)*.045*windHeight;
 #endif`;
+// The frozen relay data repeats many window props at the exact same footprint
+// (the same opening authored once for each nearby block face). Two identical
+// panes and trim overlap in depth and z-fight, so the presentation layer keeps
+// one window per footprint, preferring the warm/lit copy when the pair disagrees.
+// It never mutates world.props: the collision, navigation and loot data still
+// see every authored prop.
+const windowFootprint=prop=>[prop.x.toFixed(4),prop.z.toFixed(4),Number(prop.y||0).toFixed(4),prop.w??'',prop.d??'',prop.h??''].join('|');
+function uniqueWindowProps(props){
+ const keep=new Map();
+ for(const prop of props){
+  if(prop.kind!=='window')continue;
+  const key=windowFootprint(prop),prev=keep.get(key);
+  if(!prev||(!prev.lit&&prop.lit))keep.set(key,prop);
+ }
+ if(!keep.size)return props;
+ const out=[];
+ for(const prop of props){
+  if(prop.kind==='window'&&keep.get(windowFootprint(prop))!==prop)continue;
+  out.push(prop);
+ }
+ return out;
+}
 export function buildEnvironment(world){
  const root=new THREE.Group(),palette=palettes[world.theme]||palettes.industrial,groups=new Map(),materials=new Map(),windMaterials=[];
  // Authored practicals: lamp heads, floodlights and campfires each contribute a
@@ -352,7 +374,7 @@ export function buildEnvironment(world){
   return material;
  };
  const scenery=raidScenery(world);
- for(const prop of [...(world.props||[]),...scenery]){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
+ for(const prop of uniqueWindowProps([...(world.props||[]),...scenery])){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
   if(prop.kind==='floor')add('box',prop.color||palette.ground,x,y,z,prop.w,.03,prop.d,0,'tiles');
   // Trees use the swappable foliage texture plus three offset crown blobs; the
   // layered silhouette reads as an organic canopy instead of stacked cones.
@@ -387,7 +409,7 @@ export function buildEnvironment(world){
   else if(prop.kind==='antenna'){add('cylinder',0x5f7075,x,y+7,z,.2,14,.2,0,'metal');add('box',0x26363b,x,y+12,z,2.4,.24,.24,0,'metal');add('sphere',0xdf6b4e,x,y+13,z,.35,.35,.35,0,'glow')}
   else if(prop.kind==='wreck'){add('box',0x3d302c,x,y+.8,z,6,1.4,2.4,0,'metal');add('box',0x6e4c38,x+1.6,y+1.6,z-.4,2.6,.4,1.6,0,'metal');add('cylinder',0x24201f,x-1.8,y+.5,z+.9,.45,.6,.45,0,'metal');add('box',0x3f4446,x+2.4,y+1.1,z+.2,2.2,.5,2.2,0,'metal')}
   else if(prop.kind==='road'||prop.kind==='sidewalk'||prop.kind==='plaza'){
-   const color=prop.kind==='sidewalk'?0xb5afa2:prop.kind==='plaza'?0x9a9080:0x8d9189;
+   const color=prop.kind==='sidewalk'?0xb5afa2:prop.kind==='plaza'?0x9a9080:0x93978c;
    add('box',color,x,y,z,prop.w,.024,prop.d,prop.ry||0,prop.kind==='road'?'asphalt':prop.kind==='plaza'?'tiles':'concrete');
    if(prop.kind==='road'){
     // Deterministic street wear so the near asphalt holds readable detail even
@@ -395,12 +417,28 @@ export function buildEnvironment(world){
     // seams and pale gravel chips lying just above the road plane. Presentation
     // only — no collision, no authored prop or frozen data is touched.
     const seed=Math.abs(Math.round(Math.sin(x*12.9898+z*78.233)*43758.5453)),h=i=>hash01(seed*.013+i*5.37+.21),ry=prop.ry||0,cosR=Math.cos(ry),sinR=Math.sin(ry);
-    const spots=3+Math.floor(h(1)*3);
+    const place=(lx,lz)=>[x+lx*cosR+lz*sinR,y,z-lx*sinR+lz*cosR];
+    // Faded municipal paint: a dashed centre line and worn edge lines give the
+    // long diagonal approach a vanishing guide as readable as the buildings.
+    for(let lx=-prop.w/2+5;lx<prop.w/2-5;lx+=7.4){
+     const [px,py,pz]=place(lx,0);
+     add('box',0xbfb176,px,py+.038,pz,3.1,.012,.11,ry,'concrete',0,0,false,'');
+    }
+    for(const side of [-1,1]){const [px,py,pz]=place(0,side*(prop.d/2-.42));add('box',0xd5c7a2,px,py+.036,pz,Math.max(1,prop.w-7),.012,.10,ry,'concrete',0,0,false,'')}
+    // Broad shelled-out repairs and crossing cracks keep the surface from reading
+    // as a flat black slab at first-person range; chips catch the overhead sky.
+    const spots=6+Math.floor(h(2)*5);
     for(let i=0;i<spots;i++){
-     const lx=(h(i*2+3)-.5)*prop.w*.84,lz=(h(i*2+4)-.5)*prop.d*.6,px=x+lx*cosR+lz*sinR,pz=z-lx*sinR+lz*cosR,spin=h(i*3+9)*Math.PI;
+     const lx=(h(i*2+3)-.5)*prop.w*.86,lz=(h(i*2+4)-.5)*prop.d*.7,px=x+lx*cosR+lz*sinR,pz=z-lx*sinR+lz*cosR,spin=h(i*3+9)*Math.PI;
      if(i%3===0)add('sphere',0x72766a,px,y+.021,pz,.35+h(i+11)*.7,.012,.28+h(i+13)*.4,spin,'rock');
-     else if(i%3===1)add('box',0x55594f,px,y+.024,pz,.05+h(i+15)*.07,.014,.35+h(i+17)*.8,spin,'rock');
-     else add('box',0xb4b5a8,px,y+.023,pz,.16+h(i+19)*.26,.012,.11+h(i+21)*.17,spin,'gravel');
+     else if(i%3===1)add('box',0xb2b1a4,px,y+.024,pz,.42+h(i+15)*.55,.012,.18+h(i+17)*.3,spin,'gravel');
+     else add('box',0x55594f,px,y+.022,pz,.045,.012,.55+h(i+21)*1.7,spin,'rock');
+    }
+    // Weathered shoulder aggregate sits just outside the paint so the road edge
+    // separates from the sidewalk instead of ending in another dark band.
+    for(const side of [-1,1])for(let i=0;i<4;i++){
+     const [px,py,pz]=place((h(i+31)-.5)*prop.w*.82,side*(prop.d/2+.10));
+     add('box',0xb8b8aa,px,py+.024,pz,.24+h(i+33)*.34,.012,.18+h(i+35)*.22,h(i+37)*Math.PI,'gravel',0,0,false,'');
     }
    }
   }
@@ -618,7 +656,7 @@ export function buildEnvironment(world){
  // and a weathered plank door hung ajar. The façade is chosen deterministically
  // and the door is centred in a verified gap between authored window openings,
  // so trim never overlaps a window. No world/actor/collision data is touched.
- const doorwayWindows=(world.props||[]).filter(p=>p.kind==='window');
+ const doorwayWindows=uniqueWindowProps(world.props||[]).filter(p=>p.kind==='window');
  const doorwayList=[];let doorways=0;const doorwaySigns=[];
  for(const block of world.blocks){
   const [x,z,w,d,h,y=0,kind='concrete']=block;
