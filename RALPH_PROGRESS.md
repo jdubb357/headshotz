@@ -7527,3 +7527,36 @@ The black hole is gone and the front now reads as a lit visor, but the painted c
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR). Next director note is 3 (the two-line location condition strip overlapping the fight); after that note 4 (grass verge/near-road seam) — keep P1 controls frozen until Austin has played the current build.
+
+## Iteration 79 — Compact status briefing collapses to one short objective line (director note 3, 2026-11-12)
+
+### Acceptance criteria
+1. At raid spawn/first minutes on 1024x720 desktop and 844x390 touch landscape, the compact briefing under the HP strip renders as one line of short objective/route text, no zone/weather/clock/facing concatenation and no wrap.
+2. Measured `#hudStatus` height is at most one line at both viewports (no 49/66 px two-line box), and the transient fade timing is preserved (auto-hide after a few seconds, visible on spawn).
+3. Full desktop telemetry, mobile HUD hit targets, dialogue and controls are unchanged; the mobile HUD, HUD theme and static offline browser graders stay green, and the Node suite stays 1247/1247.
+4. Before/after screenshots of the same offline dusk deploy-and-first-fight moment exist in `~/headshotz-loop/shots/latest/` at 1024x720 and 844x390.
+
+### Implementation
+- `raid-online.mjs`: `compactStatusBrief` now returns only the objective route (or field-objective stage) instead of concatenating sector name, weather, clock, facing and objective; the armory fallback is compressed from `Armory objective · Relay signal armory · Assault pattern: 632 m north · bearing 018°` to `Objective · 632 m north · 018°`.
+- `raid-online.html`: `#hudStatus` gets `white-space:nowrap;overflow:hidden;text-overflow:ellipsis` so any longer localization still occupies exactly one line; transient show/fade timing (4.8 s then .52 s fade) is unchanged.
+- `tests/raid-browser-hud-theme.mjs`: the deploy-brief assertion now expects the one-line objective route and rejects a two-line box (`height<=32px`) instead of requiring the sector name.
+
+### Verification
+- `node --check raid-online.mjs tests/raid-browser-hud-theme.mjs`: OK.
+- Offline dusk fixtures at 1024x720 and 844x390, machine 6 m ahead, step captured ~2 s after deploy while the briefing is still visible:
+  - 1024 before: `#hudStatus` 560x49, text `Relay Graveyard · Dusk · Clear skies · 17:30 · Facing south 180° · Armory objective · Relay signal armory · Assault pattern: 632 m north · bearing 018°`.
+  - 1024 after: 213x31, text `Objective · 632 m north · 018°`.
+  - 844 before: 422x66 (two rendered lines); 844 after: 213x31 (one line).
+- `raid-browser-hud-theme.mjs`: green (base, raid, dialog, mobile themes; touch targets; control ids; browserErrors []), screenshot /tmp/hs-theme-raid-slim.png.
+- `raid-browser-mobile-hud.mjs`: green; covered fraction fell from .0806 to .0798 at 1024 and .1806 to .1787 at 844, unobstructed .9202/.8213; touch actions all pass.
+- `raid-browser-static-offline.mjs`: green (deploy/move, headshot, loot, extract; no API traffic).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-844.png / after-844.png — same offline dusk deploy fixture (1024x720 and 844x390), captured just after deployment with the briefing visible.
+
+### Honest critique
+The two-line banner is now a small one-line objective chip, so the machine's face and the road are no longer covered during the opening seconds; but the chip still sits directly under the HP strip in the middle of the view for up to five seconds, and the sector/weather identity that used to live in it is now only visible in the full telemetry card.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Next director note is 4 (grass verge / near-road seam and UVs); keep P1 controls frozen until Austin has played the current build.

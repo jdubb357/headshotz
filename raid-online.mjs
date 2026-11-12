@@ -597,16 +597,16 @@ function flashSlimHud(){
 // state changes, then fade instead of holding a permanent banner over the
 // world. Values are the same authoritative fields the full telemetry renders.
 let hudStatusKey='',hudStatusTimer=0;
+// One short line only. The old zone · weather · clock · facing banner wrapped
+// to two lines over live fire at 844, so drop the duplicate status and keep the
+// objective (or nearest armory heading) that a player actually steers by.
 function compactStatusBrief(s,snapshot){
- const world=RAID_WORLDS.find(w=>w.id===snapshot.map),heading=mapBearing(s.x,s.z,s.x+Math.sin(inRaid?yaw:Number(s.yaw)||0),s.z+Math.cos(inRaid?yaw:Number(s.yaw)||0));
- const parts=[world?.name||snapshot.map];
- const clock=snapshot.conditions?.clock,weather=snapshot.conditions?.name||snapshot.conditions?.weather||'clear';
- parts.push(weather+(clock?' · '+clock:''));
- parts.push('Facing '+mapCardinal(heading)+' '+mapDegree(heading));
  const o=snapshot.objective;
- if(o)parts.push(o.stage==='approach'?'Objective '+o.name+' · '+o.site:o.stage==='secure'?'Holding '+o.site:o.stage==='secured'?'Objective secured · extract':'Objective '+o.stage);
- else parts.push(armoryObjective(s,snapshot));
- return parts.filter(Boolean).join(' · ');
+ if(o)return o.stage==='approach'?'Objective '+o.name+' · '+o.site:o.stage==='secure'?'Securing '+o.site:o.stage==='secured'?'Objective secured · extract':'Objective '+o.stage;
+ const brief=armoryObjective(s,snapshot),match=brief&&/(\d+) m ([a-z]+) · bearing (\d+)°$/.exec(brief);
+ if(match)return 'Objective · '+match[1]+' m '+match[2]+' · '+match[3]+'°';
+ const heading=mapBearing(s.x,s.z,s.x+Math.sin(inRaid?yaw:Number(s.yaw)||0),s.z+Math.cos(inRaid?yaw:Number(s.yaw)||0));
+ return 'Facing '+mapCardinal(heading)+' · '+mapDegree(heading);
 }
 function showCompactStatus(text){
  const node=document.getElementById('hudStatus');if(!node||!text)return;
