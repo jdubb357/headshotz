@@ -7350,3 +7350,30 @@ The hunter and Warden now read as stepping machines instead of sliding, but the 
 
 ### Honest critique
 The insertion sign now reads as a built street fixture and the duplicate solids no longer draw twice, but the sign post is still thin from 18 m (about 0.28 m), so at desktop spawn distance it reads as a dark support rather than a bold gate; the board silhouette, not the post, is what sells the anchor. The duplicate fix is structurally verified but mostly invisible in screenshots because the old copies were exactly coincident; the draw-call saving (365 volumes) is the user-visible performance benefit, not a frame difference. All spawn/exit/cache routes have a path, but the audit used the existing 0.4 m test radius rather than a live touch/desktop walk of every sector. Next: older director note 4, viewmodel feel, then note 5, tracer.
+
+## Iteration 73 — Readable foreground ground at spawn (director note 3; note 4 confirmed, 2026-11-11)
+
+### Acceptance criteria (director notes 3 and 4, recorded before implementation)
+1. At the relay spawn under the same authored 14:00 clear conditions, the near road (bottom third of the 1024x720 frame) reads as lit, varied asphalt with visible wear instead of a near-black slab; measured mean luminance of the pure road region must rise substantially, and the frame must not look washed out or lose the gritty mood.
+2. The same before/after comparison holds at 844x390 touch layout.
+3. Director note 4: the location/weather/objective banner auto-fades within a few seconds of deploy, leaving only the slim HP/ammo bar.
+4. Presentation-only: no world data, collision, loot, spawn, extraction or server-authoritative rules change; static-offline and mobile-HUD graders stay green and the Node suite passes.
+
+### Implementation
+- `raid-view.mjs`: added a scene-wide `AmbientLight(0xc8d2c8,0)` whose intensity is scaled by the authoritative daylight (`0.85*daylight`, damped for rain/ash). It lifts shadowed ground at day without altering the lighting plan or night practicals.
+- `raid-environment.mjs`: raised the base road albedo from `0x64675f` to `0x8d9189` (base cross-roads and authored road props) and added deterministic, presentation-only street wear per road prop — squashed worn patches, cracked dark seams and pale gravel chips 9–12 mm above the road plane. Sidewalk/plaza tints unchanged.
+
+### Verification
+- `node --check raid-environment.mjs` and `node --check raid-view.mjs`: SYNTAX_OK.
+- Same-spawn, pinned 14:00 clear captures via `/tmp/hsz76/capture-day.mjs` at 1024x720 and 844x390, before (HEAD baseline) and after. Road region mean luminance measured from the PNGs: 1024 road mean 28.1 → 69.9 (max 37.6 → 88.5); 844 road mean 27.4 → 66.1. Agent `ERRORS []`.
+- Director note 4: the deploy banner is gone by the 5.2 s capture; only the slim HP/ammo bar remains at both sizes.
+- `raid-browser-mobile-hud`: green (unobstructed 0.9202 / 0.8213, touch fire/reload/interact, errors []).
+- `raid-browser-static-offline`: green (deploy, move, hit, loot, extract, no API traffic, errors []).
+- `raid-browser-scenery`, `raid-browser-structures`, `raid-browser-atmosphere`: green, browserErrors [].
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-844.png / after-844.png (same spawn, pinned daylight), plus before-1024-action.png / after-1024-action.png / after-844-action.png for the mid-distance walking approach.
+
+### Honest critique
+The near road now reads as cracked, worn asphalt instead of a void, and the spawn frame is no longer a dark bottom band, but the extra ambient fill slightly flattens façade shadows and the wear decals are still low-contrast fine flecks at phone distance — the bigger remaining deficits are director note 2 (the mid-distance walker still reads as detached grey slabs) and note 5 (viewmodel edge highlights and a thicker tracer). Next: director note 2, in-game enemy read, same pinned-daylight comparison.
