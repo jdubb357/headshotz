@@ -1,8 +1,10 @@
 // Mobile/touch HUD declutter grader. Serves the game as plain static files (no
 // Node /api), deploys an offline solo raid, and checks that the compact touch
 // layout leaves at least 75% of a 1024x720 and an 844x390 landscape viewport
-// unobstructed by HUD surfaces. Also exercises Fire, Reload and Interact by
-// touch and saves screenshots.
+// unobstructed by HUD surfaces. Also exercises the live touch controls:
+// crosshair auto-fire for every weapon class, automatic reload when the
+// magazine empties, hold-to-zoom Aim, Swap and contextual USE. Saves
+// screenshots and asserts the retired Fire/Sprint buttons stay gone.
 //
 // Run with CDP_URL pointing at an isolated Chrome (default 9336).
 import assert from 'node:assert/strict';
@@ -173,8 +175,12 @@ try {
     assert.equal(await page.evaluate("getComputedStyle(document.getElementById('stick')).display!=='none'"), true, label + ' shows the virtual thumbstick');
     assert.equal(await page.evaluate("getComputedStyle(document.getElementById('touchMove')).display"), 'none', label + ' replaces the arrow grid');
     assert.equal(await page.evaluate("[...document.querySelectorAll('#touch [data-look]')].every(b=>getComputedStyle(b).display==='none')"), true, label + ' hides discrete turn/aim buttons');
-    assert.equal(await page.evaluate("[...['fire','aim','reload','jump','sprint','slide']].every(id=>{const b=document.getElementById(id),s=getComputedStyle(b),r=b.getBoundingClientRect();return s.display!=='none'&&r.width>=44&&r.height>=44})"), true, label + ' keeps the core action cluster at least 44px');
-    assert.equal(await page.evaluate("[...['utility','vault','mapToggle']].every(id=>{const r=document.getElementById(id).getBoundingClientRect();return r.width>=44&&r.height>=44})"), true, label + ' shows a compact tool row for Utility/Map/Vault');
+    assert.equal(await page.evaluate("[...['fire','sprint']].every(id=>!document.getElementById(id))"), true, label + ' removes the Fire and Sprint deck buttons');
+    assert.equal(await page.evaluate("[...['aim','reload','jump','swap','slide']].every(id=>{const b=document.getElementById(id),s=getComputedStyle(b),r=b.getBoundingClientRect();return s.display!=='none'&&r.width>=44&&r.height>=44&&s.borderTopLeftRadius==='50%'})"), true, label + ' keeps the round action cluster at least 44px');
+    assert.equal(await page.evaluate("[...['utility','vault','mapToggle']].every(id=>{const b=document.getElementById(id),s=getComputedStyle(b),r=b.getBoundingClientRect();return s.display!=='none'&&r.width>=44&&r.height>=44&&s.borderTopLeftRadius==='50%'})"), true, label + ' shows round Utility/Map/Vault icons at least 44px');
+    assert.equal(await page.evaluate("[...['vault','mapToggle']].every(id=>!!document.getElementById(id).querySelector('svg'))"), true, label + ' keeps icon art on stateful deck controls');
+    assert.equal(await page.evaluate("[...document.querySelectorAll('#touchActions .tb')].filter(b=>getComputedStyle(b).display!=='none').every(b=>getComputedStyle(b).borderTopLeftRadius==='50%')"), true, label + ' every visible deck control is a round icon');
+    assert.equal(await page.evaluate("document.getElementById('interact').querySelector('span')?.textContent"), 'USE', label + ' labels the contextual interaction button USE');
     assert.equal(await page.evaluate("getComputedStyle(document.getElementById('leave')).display"), 'none', label + ' collapses Back to base into the raid menu');
     assert.equal(await page.evaluate("getComputedStyle(document.getElementById('globalTools')).display"), 'none', label + ' collapses Account/Guide/Settings into the raid menu');
     const menu = await page.evaluate("(()=>{const b=document.getElementById('raidMenu'),r=b.getBoundingClientRect();return {w:r.width,h:r.height,expanded:b.getAttribute('aria-expanded')}})()");
@@ -256,19 +262,99 @@ try {
   const yawEnd = await page.evaluate("window.__hszOfflineRaid.snapshot().self.yaw");
   assert.ok(Math.abs(yawEnd - yawStart) > 0.05, 'right-half drag turns the authoritative camera');
 
-  // Touch Fire: the deployed weapon is automatic/one-shot depending on the
-  // starter item; either way the authoritative ammo count must fall.
-  const beforeFire = await page.evaluate("window.__hszOfflineRaid.snapshot().self.ammo");
-  await tap(page, 'fire');
-  await page.wait(`(() => { const s = window.__hszOfflineRaid.snapshot()?.self; return !!s && (s.ammo < ${beforeFire} || s.nextFire > s.serverTime); })()`);
-  const reloaded = await page.evaluate("window.__hszOfflineRaid.snapshot().self.ammo");
-  assert.ok(reloaded <= beforeFire, 'touch Fire consumed ammunition');
+  // Touch aim and crosshair auto-fire: there is no Fire button. The main game
+  // contract is that the reticle itself fires while it covers a machine, for
+  // every weapon class, and an empty magazine reloads without a Reload tap.
+  await size(page, 1024, 720, true);
+  const staged = await page.evaluate(`(() => {
+    const rt = window.__hszOfflineRaid.runtime();
+    const operator = rt.raids.byAccount.get(rt.account);
+    const raid = rt.raids.raids.get(operator.raidId);
+    clearInterval(rt.tickTimer); rt.tickTimer = null;
+    const dist = 8, angle = operator.yaw || 0;
+    const mx = operator.x + Math.sin(angle) * dist, mz = operator.z + Math.cos(angle) * dist;
+    raid.machines = [{id: 'auto-scout', kind: 'scout', x: mx, y: operator.y || 0, z: mz, hp: 99999, maxHp: 75, state: 'guard', yaw: Math.atan2(operator.x - mx, operator.z - mz), nextAttack: 1e12, patrolRadius: 0, guard: true, home: {x: mx, y: operator.y || 0, z: mz}}];
+    raid.blocks = [];
+    const weapon = operator.equipment.find(item => item.kind === 'weapon');
+    weapon.loaded = 30; weapon.condition = 100; operator.ammo = 30;
+    rt.raids.tick(0);
+    return {x: mx, z: mz, yaw: operator.yaw, weaponId: weapon.id};
+  })()`);
+  await sleep(500);
+  const viewportNow = await page.evaluate("({w:innerWidth,h:innerHeight})");
+  const reticleX = Math.round(viewportNow.w * 0.72), reticleY = Math.round(viewportNow.h * 0.5);
+  await page.command('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: reticleX, y: reticleY, id: 9}]});
+  for (let i = 1; i <= 8; i++) await page.command('Input.dispatchTouchEvent', {type: 'touchMove', touchPoints: [{x: reticleX, y: reticleY + i * 5, id: 9}]});
+  await page.command('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+  await page.wait("document.getElementById('play').dataset.target==='true'", 10000);
 
-  // Touch Reload through the shipped control after the shot.
-  await tap(page, 'reload');
-  await page.wait("document.getElementById('play').dataset.aiming==='true' || document.getElementById('statusAnnouncement').textContent.includes('Reload') || !document.getElementById('reload').disabled");
-  const reloadStatus = await page.evaluate("({disabled:document.getElementById('reload').disabled,caption:document.getElementById('statusAnnouncement').textContent})");
-  assert.equal(reloadStatus.disabled, false, 'touch Reload is available and handled');
+  const fired = {};
+  for (const [cls, mag] of [['ar', 30], ['pistol', 12], ['shotgun', 6]]) {
+    if (cls !== 'ar') {
+      await page.evaluate(`(() => {
+        const rt = window.__hszOfflineRaid.runtime();
+        const operator = rt.raids.byAccount.get(rt.account);
+        const weapon = operator.equipment.find(item => item.kind === 'weapon');
+        weapon.weapon = ${JSON.stringify(cls)}; weapon.loaded = ${mag}; operator.ammo = ${mag};
+        rt.raids.tick(0); return 0;
+      })()`);
+    }
+    await page.wait(`(() => { const s = window.__hszOfflineRaid.snapshot(); const w = [...s.self.equipment, ...s.self.pack].find(item => item.id === s.self.weaponId); return !!w && w.weapon === ${JSON.stringify(cls)}; })()`, 5000);
+    await page.wait(`window.__hszOfflineRaid.snapshot().self.ammo < ${mag}`, 8000);
+    fired[cls] = await page.evaluate("window.__hszOfflineRaid.snapshot().self.ammo");
+    await sleep(250);
+    await shot(page, '/tmp/hs-mobile-hud-action-' + cls + '.png');
+  }
+  assert.ok(fired.ar < 30 && fired.pistol < 12 && fired.shotgun < 6, 'crosshair auto-fire consumes rounds for pistol, shotgun and AR without a Fire button');
+  const deck = await page.evaluate("({fire:!!document.getElementById('fire'),sprint:!!document.getElementById('sprint'),round:[...document.querySelectorAll('#touchActions .tb')].filter(b=>getComputedStyle(b).display!=='none').every(b=>getComputedStyle(b).borderTopLeftRadius==='50%'),swap:!document.getElementById('swap').disabled})");
+  assert.equal(deck.fire, false, 'the deck has no Fire button');
+  assert.equal(deck.sprint, false, 'the deck has no sticky Sprint button');
+
+  // Empty magazine with a compatible reserve: the reticle remains on the scout,
+  // so the client reloads on its own. Never taps the Reload control.
+  await page.evaluate(`(() => {
+    const rt = window.__hszOfflineRaid.runtime();
+    const operator = rt.raids.byAccount.get(rt.account);
+    const weapon = operator.equipment.find(item => item.kind === 'weapon');
+    if (!operator.pack.some(item => item.id === 'auto-reload-ammo')) operator.pack.push({id: 'auto-reload-ammo', kind: 'ammo', ammo: 'shell', quantity: 24, condition: 100});
+    weapon.loaded = 0; operator.ammo = 0;
+    rt.raids.tick(0); return 0;
+  })()`);
+  await page.wait("(() => { const s = window.__hszOfflineRaid.snapshot(); const w = [...s.self.equipment, ...s.self.pack].find(item => item.id === s.self.weaponId); return !!w && w.loaded === 0; })()", 5000);
+  await page.wait("(() => { const s = window.__hszOfflineRaid.snapshot(); const w = [...s.self.equipment, ...s.self.pack].find(item => item.id === s.self.weaponId); return !!w && w.loaded > 0; })()", 8000);
+  const autoReload = await page.evaluate("(() => { const rt = window.__hszOfflineRaid.runtime(); const o = rt.raids.byAccount.get(rt.account); const w = o.equipment.find(item => item.kind === 'weapon'); return {loaded: w.loaded, ammo: o.ammo, reserve: o.pack.filter(item => item.kind === 'ammo').reduce((n, item) => n + (item.quantity || 0), 0)}; })()");
+  assert.ok(autoReload.loaded > 0 && autoReload.reserve < 24, 'an empty magazine reloads automatically without tapping Reload');
+
+  // Aim is hold-to-zoom: pressing the round Aim icon lifts the optic until the
+  // thumb lifts, and releasing restores hip fire.
+  const aimPoint = await touchPoint(page, 'aim');
+  await page.command('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: aimPoint.x, y: aimPoint.y, id: 11}]});
+  await page.wait("document.getElementById('play').dataset.aiming==='true'", 3000);
+  assert.equal(await page.evaluate("document.getElementById('aim').getAttribute('aria-pressed')"), 'true', 'holding Aim zooms');
+  await page.command('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+  await page.wait("document.getElementById('play').dataset.aiming==='false'", 3000);
+  assert.equal(await page.evaluate("document.getElementById('aim').getAttribute('aria-pressed')"), 'false', 'releasing Aim returns to hip fire');
+
+  // Swap: with a second weapon carried, the round Swap icon equips it.
+  await page.command('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x: reticleX, y: reticleY, id: 12}]});
+  await page.command('Input.dispatchTouchEvent', {type: 'touchMove', touchPoints: [{x: reticleX, y: reticleY - 140, id: 12}]});
+  await page.command('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+  await page.wait("document.getElementById('play').dataset.target==='false'", 5000);
+  await page.evaluate(`(() => {
+    const rt = window.__hszOfflineRaid.runtime();
+    const operator = rt.raids.byAccount.get(rt.account);
+    operator.pack = operator.pack.filter(item => item.id !== 'swap-pistol');
+    operator.pack.push({id: 'swap-pistol', kind: 'weapon', weapon: 'pistol', condition: 100, loaded: 12, quantity: 1, attachments: []});
+    rt.raids.tick(0); return 0;
+  })()`);
+  await page.wait("!document.getElementById('swap').disabled", 5000);
+  await page.wait("(() => { const rt = window.__hszOfflineRaid.runtime(); const o = rt.raids.byAccount.get(rt.account); return (o.nextFire || 0) <= Date.now() / 1000; })()", 7000);
+  await tap(page, 'swap');
+  await page.wait("window.__hszOfflineRaid.snapshot().self.weaponId==='swap-pistol'", 8000);
+
+  // Resume the 50 ms authority loop so the exit test observes boarding and
+  // extraction exactly as the live page does.
+  await page.evaluate("(() => { const rt = window.__hszOfflineRaid.runtime(); if (rt.tickTimer === null) rt.tickTimer = setInterval(() => { try { rt.raids.tick(0.05); } catch {} }, 50); return rt.tickTimer !== null; })()");
 
   // Touch Interact through an authoritative open exit. The fixture only
   // repositions the operator to an already-authored exit; boarding, the
@@ -303,10 +389,12 @@ try {
     rightDragTurned: true,
     interactContextual: true,
     raidMenuCollapsed: true,
-    fireByTouch: true,
-    reloadByTouch: true,
+    autoFireAllClasses: true,
+    autoReloadEmptyMagazine: true,
+    aimHoldToZoom: true,
+    swapEquipsSecondWeapon: true,
     interactByTouch: true,
-    screenshots: ['/tmp/hs-mobile-hud-1024x720.png', '/tmp/hs-mobile-hud-844x390.png'],
+    screenshots: ['/tmp/hs-mobile-hud-1024x720.png', '/tmp/hs-mobile-hud-844x390.png', '/tmp/hs-mobile-hud-action-ar.png', '/tmp/hs-mobile-hud-action-pistol.png', '/tmp/hs-mobile-hud-action-shotgun.png'],
     browserErrors: [],
   }));
 } finally {

@@ -7711,3 +7711,30 @@ The cool edge rim makes the machine's shoulders, knees and pads pop sharply agai
 
 ### Next action
 Committed iteration 84 as `8b656b2` on `cypert/dev` (no push, no PR, no `main`). No new director note; P1 controls remain frozen. Next iteration re-inspects the live deploy→move→fight→loot→extract loop and picks the next presentation-only improvement — likely a world/atmosphere or loot-readability pass — without adding panels, currencies, controls or server/game.js changes.
+
+## Iteration 85 — Match main-game touch controls (CONTROLS, 2026-11-12)
+
+### Acceptance criteria
+1. Offline raid at 1024×720 and 844×390 with touch emulation: no Fire button; the reticle auto-fires for every weapon class (AR, pistol, shotgun); an empty magazine reloads without tapping Reload; Aim is hold-to-zoom; no sticky Sprint; Swap is present; Interact is hidden until something is in range and labelled USE; the deck is a 3×3 round-icon cluster matching `index.html #touch .tb`.
+2. `tests/raid-browser-mobile-hud.mjs` and the full Node suite stay green; only `raid-online.mjs`, `raid-online.html` and `raid-trigger.mjs` change.
+
+### Implementation
+- `raid-trigger.mjs`: the crosshair trigger source owns an `auto` flag, so AR, pistol and shotgun all keep firing while the reticle covers a machine; keyboard and pointer sources keep their semi-automatic one-shot edge.
+- `raid-online.mjs`: crosshair calls `trigger.hold('crosshair',!!sighted,true)`; `autoReloadIfNeeded` reloads an empty magazine while sighted or firing using a compatible reserve; `swapWeapon` equips the other carried weapon; Aim pointerdown/up holds the optic; `touchSprint` removed; contextual USE replaces Interact hints; vault and map icon SVG is preserved under the new accessible labels.
+- `raid-online.html`: text deck replaced by a 3×3 round icon grid (`map, utility, interact, slide, vault, swap, aim, reload, jump`) with MAP/USE labels; Fire and Sprint markup/CSS removed.
+
+### Verification
+- `node tests/raid-trigger.test.mjs`: 29/29.
+- `node tests/raid-browser-mobile-hud.mjs`: pass both sizes; no Fire/Sprint; all visible deck icons round and ≥44px; AR/pistol/shotgun ammo falls from the reticle; empty magazine 0→6 shells with a reserve and no Reload tap; Aim hold true→false; Swap equips the second pistol; contextual USE; unobstructed 91.1% at 1024 and 80.1% at 844; `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs`: pass (`machineHit: headshot`, loot, extract, settlement, no API traffic).
+- `node tests/raid-browser-base-lobby.mjs`: pass on rerun (first run hit the known post-reload execution-context race).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail on rerun; the first parallel run hit the known intermittent local-matchmaking `ECONNRESET` flake.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: `before-1024.png`, `after-1024.png`, `before-844.png`, `after-844.png` from the same frozen 14 m daylight scout fixture (HEAD vs worktree), plus `after-1024-action.png`, `after-844-action.png`, and contextual `after-1024-use.png` / `after-844-use.png`. Source frames live in `/tmp/hsz-touch/shots/`.
+
+### Honest critique
+The deck now reads as a clean, deliberate 3×3 round icon cluster that matches the main-menu touch controls and the contextual USE button exposes itself naturally, but at 1024×720 the cluster still covers part of the weapon silhouette and the 8px MAP/USE labels are too small to read comfortably, so it looks competent rather than premium.
+
+### Next action
+Commit iteration 85 on `cypert/dev` (no push, no PR, no main). Next iteration re-inspects the live deploy→move→fight→loot→extract loop and picks one presentation-only improvement without touching server, world data, `raid-models.mjs`, lobby, or shadows.
