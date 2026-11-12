@@ -7708,3 +7708,6 @@ Commit this slice on `cypert/dev` (no push, no PR). No new director note; P1 con
 
 ### Honest critique
 The cool edge rim makes the machine's shoulders, knees and pads pop sharply against the dusk and suppresses the pale foot-dust wash, and the soft dark blob finally reads as a contact shadow at the near-horizontal camera — but at grazing angles the grounded-bed plane itself is almost edge-on and contributes little, so the grounding is still mostly a camera-facing cheat rather than a true cast shadow.
+
+### Next action
+Committed iteration 84 as `8b656b2` on `cypert/dev` (no push, no PR, no `main`). No new director note; P1 controls remain frozen. Next iteration re-inspects the live deploy→move→fight→loot→extract loop and picks the next presentation-only improvement — likely a world/atmosphere or loot-readability pass — without adding panels, currencies, controls or server/game.js changes.
