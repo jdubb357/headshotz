@@ -22,16 +22,24 @@ export function createSectorGroundLoot(world,seed){
  };
  world.spawns.forEach(([sx,sz],index)=>{
   const dx=-sx,dz=-sz,len=Math.hypot(dx,dz)||1,ux=dx/len,uz=dz/len,sideX=-uz,sideZ=ux;
+  // Slot 0 faces the deployment direction rather than the map centre: the
+  // server inserts every operator at yaw 0 (world +z), so an opening drop on
+  // that line is on screen at spawn and passes through the 3 m pickup radius
+  // as the player walks forward. Keep it just off the walking line so the
+  // operator model never hides the object itself.
   const slots=[
-   {distance:5,side:0,label:'Dropped weapon',weapons:1,supplies:['ammo']},
+   {distance:5,side:-1.8,label:'Dropped weapon',weapons:1,supplies:['ammo'],forward:true},
    {distance:17,side:2.5,label:'Field supply',weapons:0,supplies:['ammo','med','material']},
    {distance:32,side:-4,label:"Fallen operator's kit",weapons:1,supplies:['ammo','mod']},
    {distance:38,side:7,label:'Overrun outpost',weapons:0,supplies:['mod','armor','valuable']}
   ];
   for(const [slot,spec]of slots.entries()){
-   const candidates=[[spec.distance,spec.side],[spec.distance,spec.side+5],[spec.distance,spec.side-5],[Math.max(4,spec.distance-5),spec.side],[Math.min(42,spec.distance+5),spec.side]];
+   const baseX=spec.forward?0:ux,baseZ=spec.forward?1:uz,latX=spec.forward?-1:sideX,latZ=spec.forward?0:sideZ;
+   const candidates=spec.forward
+    ?[[spec.distance,spec.side],[6,spec.side-0.4],[4,spec.side-0.4],[5,spec.side-.8],[7,spec.side]]
+    :[[spec.distance,spec.side],[spec.distance,spec.side+5],[spec.distance,spec.side-5],[Math.max(4,spec.distance-5),spec.side],[Math.min(42,spec.distance+5),spec.side]];
    for(const [distance,side]of candidates){
-    const desiredX=sx+ux*distance+sideX*side,desiredZ=sz+uz*distance+sideZ*side;
+    const desiredX=sx+baseX*distance+latX*side,desiredZ=sz+baseZ*distance+latZ*side;
     const p=safePoint(world,desiredX,desiredZ,{radius:.5,y:0,height:1.2});
     if(!clear(sx,sz,p))continue;
     seen.add(p.x.toFixed(2)+':'+p.z.toFixed(2));

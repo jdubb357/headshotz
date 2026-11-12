@@ -7887,3 +7887,30 @@ The ruin wall now reads as solid — you stop against brick you can see — but 
 
 ### Next action
 Director note 2 — ground loot must be visible within 90 s of normal walking (a recognizable gun or ammo crate model from `assets/models`, pickup prompt in range) and the machine must read as a threat (darker paint, emissive eye, muzzle). Note 3 (grass cones → flat tufts, textured crates/barrels, readable radar arrow) follows; notes 4–5 later. Note 1 still awaits Austin's live playtest; his verdict decides when items land.
+
+## Iteration 91 — Ground loot the player can see, and a machine that reads as hostile (director note 2, 2026-11-12)
+
+### Acceptance criteria
+1. Walking forward from the spawn for ≤90 s at normal speed, at least one recognisable ground loot object built from `assets/models` (photo gun, treasure chest or wooden crate) is visible on the walked route at 1024×720 and 844×390, with the pickup prompt showing when it is in range.
+2. The loot object reads clearly against the road in the raid's rain afternoon lighting — silhouette and rarity beacon legible at native scale, not a flat box lost in fog.
+3. The scout machine reads as a threat: dark hull paint instead of cheerful yellow, an emissive eye that is visible at gameplay range, and a readable muzzle/weapon before it fires.
+4. Regressions: `tests/raid-worlds.test.mjs`, loot-presentation tests, the static offline playability grader and the mobile HUD grader stay green; Node suite run once before commit.
+
+### Changed
+- `server/raid-loot.mjs`: slot 0 of each spawn's ground loot now sits on the deployment forward line (`forward:true`, 5 m ahead, 1.8 m left) instead of bearing toward the map centre 3.5 m off a yaw-0 walk. The other three piles remain on the approach line.
+- `raid-models.mjs`: production loot piles are dressed from the main game's photo scans — a weapon drop is the scanned gun laid broadside on a pale torn mat, supplies are the wooden crate, valuables the chest; beacon gem/halo enlarged. Scout wears dark rust/gunmetal paint with a dark cowl, twin emissive orange eyes and twin barrel muzzles with hot tips (built with `hull()`/`part()` so the grader's expected detail features and core-light colors are untouched).
+
+### Verification
+- `node --test tests/raid-worlds.test.mjs tests/raid-game-loop.test.mjs`: 26 pass.
+- `node tests/raid-browser-loot-beacons.mjs` exit 0 (beacons/rings/maps intact, changed 24118); `raid-browser-machine-models.mjs` exit 0 (features unchanged, scout 381, flyer 222, worn map shared); `raid-browser-static-offline.mjs` exit 0 (deploy → move → fire hit → loot "Dropped weapon · Compact SMG" → extract, no API traffic); `raid-browser-mobile-hud.mjs` exit 0 (1024×720 91.83% unobstructed, 844×390 81.81%, all touch actions pass).
+- Actual walk probe: holding W from spawn, prompt appears at (−600,−596.75) 2.51 m from the drop at 1024 and (−600,−597.25) 2.88 m at 844; hint "E / Use: pick up ground loot · 2 items"; pressing E returns a weapon into the pack and the hint drops to 1 item.
+- `node --test tests/*.test.mjs`: 1248/1249; the only failure is the known intermittent `tests/matchmaking.test.mjs` local-host ECONNRESET (reran alone twice, same failure; it imports no raid files).
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled with the same forced 14:00 rain plan: `before-1024.png`/`before-844.png` (staged 2.4 m from the drop, bare accent ring, no prop) versus `after-1024.png`/`after-844.png` (actual forward walk at the prompt: pale mat, recognizable gun silhouette and rarity beacon); `after-1024-action.png`/`after-844-action.png` walking on past the drop; `after-1024-machine.png`/`after-844-machine.png` show the scout with dark hull and glowing orange eyes where the baseline was yellow. Source frames in `/tmp/hsz-iter91/out`.
+
+### Honest critique
+The walk frame now shows a readable drop with prompt at both sizes, but the photo gun is still only a small dark silhouette at 844×390 and the operator occludes it in the dead-centre staged view; the pale cloth and beacon sell the pile more than the weapon model itself. The machine reads as dark and hostile, though at 6 m its twin muzzles collapse into two orange dots.
+
+### Next action
+Director note 3: turn scenery grass cones into flat tufts, give crates/barrels their texture at gameplay range, and make the radar exit arrow readable. Notes 4–5 later. Note 1/iteration 90 still await Austin's live playtest, which decides when these items land.

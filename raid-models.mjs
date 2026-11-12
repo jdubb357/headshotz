@@ -27,6 +27,9 @@ function releaseCharacterGeometry(root){
  pruneCharacterGeometry();
 }
 function mat(color,glow=false){const key=color+'|'+glow;if(!materials.has(key))materials.set(key,glow?new THREE.MeshBasicMaterial({color}):new THREE.MeshStandardMaterial({color,roughness:.65,metalness:.35}));return materials.get(key)}
+// Matte drop cloth for ground piles. Shared by colour so a pile of fifty drops
+// still allocates one material; not charged to per-actor disposal.
+function fabricMat(color){const key='fabric|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,roughness:1,metalness:0,envMapIntensity:.35});materials.set(key,material)}return materials.get(key)}
 // Presentation-only worn plating for machines. A seeded procedural canvas paints
 // panel seams, rivets, rust blooms, scratches and grime; the same neutral texture
 // is tinted by each machine's existing hull colour. The texture is shared and not
@@ -346,18 +349,19 @@ export function machineModel(kind,options={}){
  let silhouette=[];
  if(kind==='scout'){
   // Needle Scout: a squat armored sensor pod carried on three articulated legs.
-  // The pod is graphite with amber armour shards so the silhouette reads as a
-  // machine rather than a coloured canister, and the leg sockets sit inside the
-  // belly yoke so the thighs grow out of the body instead of floating beside it.
-  hull('sphere',color,0,1.05,0,.58,.44,.66);               // amber carapace
-  hull('sphere',0x242c31,0,.74,0,.56,.26,.62);             // belly leg yoke
-  hull('box',0x242c31,0,1.43,-.06,.5,.14,.38,[0,0,.12]);  // dark dorsal spine plate
-  hull('box',metal,-.42,1.05,-.22,.18,.36,.58,[0,0,-.18]); // steel side plates
-  hull('box',metal,.42,1.05,-.22,.18,.36,.58,[0,0,.18]);
-  hull('cone',0x39434a,0,1.0,.5,.32,.4,.3,[Math.PI/2,0,0]); // sensor beak
-  hull('box',dark,0,1.22,.56,.4,.24,.2);                   // eye cowl
-  hull('box',dark,-.33,1.3,.46,.22,.12,.3,[0,0,-.24]);     // brow plates flanking the sensor
-  hull('box',dark,.33,1.3,.46,.22,.12,.3,[0,0,.24]);
+  // Production paint is dark rusted gunmetal with a small amber trim, so the
+  // silhouette reads as a hunter rather than a cheerful yellow toy. `plain`
+  // keeps the original generic palette for the evidence bench.
+  const paint=plain?color:0x5a4630,plate=plain?metal:0x536267,cowl=plain?dark:0x11171a,rust=plain?color:0x98491f,belly=plain?0x242c31:0x191f23;
+  hull('sphere',paint,0,1.05,0,.58,.44,.66);                // dark armoured carapace
+  hull('sphere',belly,0,.74,0,.56,.26,.62);                // belly leg yoke
+  hull('box',plain?0x242c31:0x34291d,0,1.43,-.06,.5,.14,.38,[0,0,.12]); // dorsal spine plate
+  hull('box',plate,-.42,1.05,-.22,.18,.36,.58,[0,0,-.18]); // steel side plates
+  hull('box',plate,.42,1.05,-.22,.18,.36,.58,[0,0,.18]);
+  hull('cone',plain?0x39434a:0x232a30,0,1.0,.5,.32,.4,.3,[Math.PI/2,0,0]); // sensor beak
+  hull('box',cowl,0,1.22,.56,.4,.24,.2);                   // eye cowl
+  hull('box',plain?dark:0x402d1d,-.33,1.3,.46,.22,.12,.3,[0,0,-.24]);     // brow plates flanking the sensor
+  hull('box',plain?dark:0x402d1d,.33,1.3,.46,.22,.12,.3,[0,0,.24]);
   // The hips sit inside the belly yoke; only the thick armoured thighs emerge,
   // so there is no socket ball floating beside the silhouette. Bright steel
   // struts and a box pad carry the eye down to the ground in one connected line.
@@ -369,7 +373,7 @@ export function machineModel(kind,options={}){
    const knee=new THREE.Group();knee.position.set(0,-.38,.32);hip.add(knee);
    part(knee,'sphere',0x3e484e,0,0,0,.16,.14,.16);
    limb(knee,'cylinder',0x8e9a9f,0,-.165,.1,.085,.39,.09,[-.545,0,0]);
-   part(knee,'box',color,0,-.04,.04,.18,.1,.1,[-.545,0,0]); // amber knee guard
+   part(knee,'box',rust,0,-.04,.04,.18,.1,.1,[-.545,0,0]); // rust knee guard
    const foot=new THREE.Group();foot.position.set(0,-.33,.19);knee.add(foot);
    part(foot,'cylinder',0x4d585d,0,-.005,0,.24,.055,.3);    // planted pad
    part(foot,'cylinder',0x353e43,0,-.035,0,.14,.035,.18);
@@ -383,6 +387,25 @@ export function machineModel(kind,options={}){
    detail('box',dark,0,1.19,.62,.38,.2,.14);               // lens housing
    detail('box',dark,0,1.25,-.58,.34,.1,.12);              // rear vent
    silhouette=['antenna','side-fins','lens-housing'];
+  }
+  if(!plain){
+   // Hostile sensor face: two recessed sockets with hot lenses flank the
+   // authoritative weak-point core. The sockets are baked hull parts, not
+   // `detail` features, so the silhouette contract stays untouched.
+   hull('box',0x0b1012,0,1.22,.615,.46,.16,.03);
+   for(const x of [-.17,.17]){
+    hull('sphere',0x0b1012,x,1.22,.64,.11,.08,.07);
+    const eye=part(root,'sphere',0xffa563,x,1.22,.685,.066,.043,.028);eye.material=mat(0xffa563,true);
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:coreGlowTexture(),color:0xff9a4d,transparent:true,opacity:.6,depthWrite:false,blending:THREE.AdditiveBlending}));
+    glow.material.userData.raidOwned=true;glow.position.set(x,1.22,.69);glow.scale.setScalar(.52);root.add(glow);
+   }
+   // Under-slung twin pulse barrels: the muzzle rings are hot before the windup
+   // finishes, so the player sees a weapon pointed at them instead of a lamp.
+   for(const x of [-.12,.12]){
+    const barrel=part(root,'cylinder',0x1d2529,x,1.02,.78,.041,.46,.041,[Math.PI/2,0,0]);
+    barrel.material=wornMat(0x1d2529);
+    part(root,'cylinder',0xb14a24,x,1.02,1.015,.068,.055,.068,[Math.PI/2,0,0]).material=mat(0xb14a24,true);
+   }
   }
   lightPart(root,0,1.18,.74,.12,!plain);
  }else if(kind==='hunter'){
@@ -544,28 +567,37 @@ export function propModel(kind,color=0xe0aa4d,options={}){
   const place=mesh=>{root.add(mesh);return mesh};
   let dressed=false;
   if(!plain&&HQP.models.crate){
-   // Every dressed pile gets a dark landing mat so it does not appear to float
-   // on the photo asphalt.
-   part(root,'box',0x1f2622,0,.018,0,1.02,.035,.74);
+   // A pale torn drop cloth gives the dark scanned prop a readable silhouette
+   // on wet asphalt from gameplay range. It is deliberately matte so the rarity
+   // beacon and ring remain the only highlights in the pile.
+   const matMesh=part(root,'box',0xa89d83,0,.018,0,1.5,.035,.98,[0,.16,0]);
+   matMesh.material=fabricMat(0xa89d83);
+   matMesh.receiveShadow=true;
    if(visual==='gun'&&HQP.guns){
     const slots=options.weapon?photoItems({ar:'ar',smg:'smg',shotgun:'shotgun',sniper:'sniper',pistol:'handgun',lmg:'ar'}[options.weapon]||'ar',false,HQP):null;
     if(slots&&slots.length){
+     // Normalise each scan to a readable length and show its broad profile to
+     // the approaching player instead of the thin end-on silhouette.
      const bounds=new THREE.Box3();
-     for(const slot of slots){slot.geo.computeBoundingBox();bounds.union(slot.geo.boundingBox)}
-     const gun=new THREE.Group(),scale=.72;
+     let longest=0;
+     for(const slot of slots){slot.geo.computeBoundingBox();bounds.union(slot.geo.boundingBox);const size=slot.geo.boundingBox.getSize(new THREE.Vector3());longest=Math.max(longest,size.x,size.z)}
+     const target={pistol:.42,smg:.76,shotgun:1.05,sniper:1.2,ar:1.05,lmg:1.05}[options.weapon]||.95;
+     const scale=Math.max(.55,Math.min(1.6,target/Math.max(longest,1)));
+     const gun=new THREE.Group();
      for(const slot of slots){const mesh=new THREE.Mesh(slot.geo,slot.mat);mesh.castShadow=false;gun.add(mesh)}
-     gun.scale.setScalar(scale);gun.rotation.y=.42;
-     gun.position.set(-.06,.1-bounds.min.y*scale,.04);
+     gun.scale.setScalar(scale);gun.rotation.y=Math.PI/2.24;
+     const box=new THREE.Box3().setFromObject(gun);
+     gun.position.set(-(box.min.x+box.max.x)/2,.03-box.min.y,-(box.min.z+box.max.z)/2);
      place(gun);dressed=true;
     }
    }
    if(!dressed&&HQP.models.chest&&visual==='chest'){
     const chest=new THREE.Mesh(HQP.models.chest.geo,HQP.models.chest.mat);
-    chest.scale.setScalar(.55);chest.rotation.y=.38;place(chest);dressed=true;
+    chest.scale.setScalar(.64);chest.rotation.y=.38;place(chest);dressed=true;
    }
    if(!dressed){
     const crate=new THREE.Mesh(HQP.models.crate.geo,HQP.models.crate.mat);
-    crate.scale.setScalar(.58);crate.rotation.y=.34;place(crate);dressed=true;
+    crate.scale.setScalar(.66);crate.rotation.y=.34;place(crate);dressed=true;
    }
   }
   if(!dressed)part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]),part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]),part(root,'box',0x343933,.05,.22,0,.2,.2,.16),part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
@@ -581,10 +613,10 @@ export function propModel(kind,color=0xe0aa4d,options={}){
    ring.material.userData.raidOwned=true;
    const gemMaterial=new THREE.MeshBasicMaterial({color});
    gemMaterial.userData.raidOwned=true;
-   const gem=new THREE.Mesh(geometries.gem,gemMaterial);gem.position.set(0,.95,0);gem.scale.setScalar(.13);gem.rotation.y=.4;root.add(gem);
-   const haloMaterial=new THREE.SpriteMaterial({map:coreGlowTexture(),color,transparent:true,opacity:.4,depthWrite:false,blending:THREE.AdditiveBlending});
+   const gem=new THREE.Mesh(geometries.gem,gemMaterial);gem.position.set(0,.95,0);gem.scale.setScalar(.18);gem.rotation.y=.4;root.add(gem);
+   const haloMaterial=new THREE.SpriteMaterial({map:coreGlowTexture(),color,transparent:true,opacity:.5,depthWrite:false,blending:THREE.AdditiveBlending});
    haloMaterial.userData.raidOwned=true;
-   const halo=new THREE.Sprite(haloMaterial);halo.position.set(0,.95,0);halo.scale.setScalar(1.1);root.add(halo);gem.userData.halo=halo;
+   const halo=new THREE.Sprite(haloMaterial);halo.position.set(0,.95,0);halo.scale.setScalar(1.5);root.add(halo);gem.userData.halo=halo;
    const wispMaterial=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.16,depthWrite:false,blending:THREE.AdditiveBlending});
    wispMaterial.userData.raidOwned=true;
    const wisp=new THREE.Mesh(geometries.cylinder,wispMaterial);wisp.position.set(0,.86,0);wisp.scale.set(.035,1.2,.035);wisp.renderOrder=-1;root.add(wisp);
