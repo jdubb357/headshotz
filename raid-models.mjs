@@ -306,36 +306,67 @@ export function machineModel(kind,options={}){
  // grader to reconstruct the former generic model for before/after measurement;
  // production sync never passes it.
  const hull=(type,c,x,y,z,sx,sy,sz,rotation)=>plain?part(root,type,c,x,y,z,sx,sy,sz,rotation):wornPart(root,type,c,x,y,z,sx,sy,sz,rotation);
+ const limb=(parent,type,c,x,y,z,sx,sy,sz,rotation)=>plain?part(parent,type,c,x,y,z,sx,sy,sz,rotation):wornPart(parent,type,c,x,y,z,sx,sy,sz,rotation);
  const detail=(type,c,x,y,z,sx,sy,sz,rotation)=>{if(plain)return null;const mesh=part(root,type,c,x,y,z,sx,sy,sz,rotation);mesh.userData.raidDetail=true;features.push(mesh);return mesh};
  let silhouette=[];
  if(kind==='scout'){
-  hull('cylinder',color,0,.65,0,.5,.45,.5);hull('sphere',dark,0,1,0,.35,.25,.35);
-  for(let i=0;i<3;i++){const angle=i*Math.PI*2/3;part(root,'box',metal,Math.sin(angle)*.5,.3,Math.cos(angle)*.5,.12,.65,.12,[Math.cos(angle)*.4,0,Math.sin(angle)*.4]);part(root,'cylinder',dark,Math.sin(angle)*.65,.12,Math.cos(angle)*.65,.18,.15,.18,[0,0,Math.PI/2])}
+  // Needle Scout: a squat armored sensor pod carried on three articulated legs.
+  // The pod is graphite with amber armour shards so the silhouette reads as a
+  // machine rather than a coloured canister, and the leg sockets sit inside the
+  // belly yoke so the thighs grow out of the body instead of floating beside it.
+  hull('sphere',color,0,1.05,0,.58,.44,.66);               // amber carapace
+  hull('sphere',0x242c31,0,.74,0,.56,.26,.62);             // belly leg yoke
+  hull('box',0x242c31,0,1.43,-.06,.5,.14,.38,[0,0,.12]);  // dark dorsal spine plate
+  hull('box',metal,-.42,1.05,-.22,.18,.36,.58,[0,0,-.18]); // steel side plates
+  hull('box',metal,.42,1.05,-.22,.18,.36,.58,[0,0,.18]);
+  hull('cone',0x39434a,0,1.0,.5,.32,.4,.3,[Math.PI/2,0,0]); // sensor beak
+  hull('box',dark,0,1.22,.56,.4,.24,.2);                   // eye cowl
+  hull('box',dark,-.33,1.3,.46,.22,.12,.3,[0,0,-.24]);     // brow plates flanking the sensor
+  hull('box',dark,.33,1.3,.46,.22,.12,.3,[0,0,.24]);
+  // The hips sit inside the belly yoke; only the thick armoured thighs emerge,
+  // so there is no socket ball floating beside the silhouette. Bright steel
+  // struts and a box pad carry the eye down to the ground in one connected line.
+  for(let i=0;i<3;i++){
+   const a=i*Math.PI*2/3;
+   const hip=new THREE.Group();hip.position.set(Math.sin(a)*.3,.78,Math.cos(a)*.3);hip.rotation.y=a;root.add(hip);
+   part(hip,'sphere',dark,0,0,0,.2,.16,.2);                 // buried hip joint
+   limb(hip,'cylinder',0x505c62,0,-.19,.16,.11,.5,.12,[-.7,0,0]); // armoured thigh
+   const knee=new THREE.Group();knee.position.set(0,-.38,.32);hip.add(knee);
+   part(knee,'sphere',0x3e484e,0,0,0,.16,.14,.16);
+   limb(knee,'cylinder',0x8e9a9f,0,-.165,.1,.085,.39,.09,[-.545,0,0]);
+   part(knee,'box',color,0,-.04,.04,.18,.1,.1,[-.545,0,0]); // amber knee guard
+   const foot=new THREE.Group();foot.position.set(0,-.33,.19);knee.add(foot);
+   part(foot,'cylinder',0x4d585d,0,-.005,0,.24,.055,.3);    // planted pad
+   part(foot,'cylinder',0x353e43,0,-.035,0,.14,.035,.18);
+   root.userData.legs.push({hip,knee,foot,baseY:.78,phase:i===1?Math.PI:0});
+  }
   if(!plain){
-   detail('cylinder',metal,0,1.5,.02,.026,.6,.026);
-   detail('cone',0xff8a5e,0,1.92,.02,.1,.22,.1);
-   detail('box',metal,-.46,.8,0,.22,.08,.52,[0,0,-.24]);
-   detail('box',metal,.46,.8,0,.22,.08,.52,[0,0,.24]);
-   detail('box',metal,0,1.18,.33,.26,.09,.09);
+   detail('cylinder',metal,0,1.56,0,.026,.36,.026);
+   detail('cone',0xff8a5e,0,1.79,0,.09,.17,.09);
+   detail('box',metal,-.7,1.03,-.1,.3,.08,.5,[0,0,-.28]);
+   detail('box',metal,.7,1.03,-.1,.3,.08,.5,[0,0,.28]);
+   detail('box',dark,0,1.19,.62,.38,.2,.14);               // lens housing
+   detail('box',dark,0,1.25,-.58,.34,.1,.12);              // rear vent
    silhouette=['antenna','side-fins','lens-housing'];
   }
-  lightPart(root,0,def.core,.33,.12,!plain);
+  lightPart(root,0,1.18,.74,.12,!plain);
  }else if(kind==='hunter'){
-  hull('box',color,0,1.2,0,.9,.55,1.25);hull('box',dark,0,1.45,.6,.65,.4,.6);
-  // Articulated legs: hip → knee → foot. The gait cycle rotates the hip and
-  // flexes the knee so the feet step and clear the ground instead of paddling
-  // as a single rigid pendulum.
+  hull('box',color,0,1.2,0,1.28,.58,1.28);hull('box',0x39434a,0,1.02,0,1.36,.32,1.12);
+  hull('box',dark,0,1.45,.6,.65,.4,.6);
+  // Articulated legs: hip → knee → foot. The girdle reaches past the hips and
+  // a socket ball seals each joint so the thighs remain visibly attached.
   for(const x of [-.58,.58])for(const z of [-.45,.45]){
    const hip=new THREE.Group();hip.position.set(x,1,z);root.add(hip);
-   part(hip,'box',metal,0,-.2,0,.18,.5,.2,[.18,0,x>0?-.28:.28]);
-   part(hip,'cylinder',dark,0,-.45,0,.11,.16,.11,[0,0,Math.PI/2]);
+   part(hip,'sphere',metal,0,0,0,.2,.16,.2);
+   limb(hip,'cylinder',0x4b565c,0,-.2,0,.11,.5,.12,[.18,0,x>0?-.28:.28]);
    const knee=new THREE.Group();knee.position.set(0,-.46,.08);hip.add(knee);
-   part(knee,'box',metal,0,-.22,0,.16,.48,.18,[-.28,0,0]);
+   part(knee,'sphere',dark,0,0,0,.14,.12,.14);
+   limb(knee,'cylinder',0x5d686d,0,-.2,0,.1,.44,.11,[-.2,0,0]);
    // The pad pivots independently so a lifting leg keeps its foot flat instead
    // of dangling with a tilted ankle.
-   const foot=new THREE.Group();foot.position.set(0,-.46,.02);knee.add(foot);
-   part(foot,'box',dark,0,-.015,0,.32,.1,.46);
-   part(foot,'box',metal,0,-.02,.2,.34,.04,.12);
+   const foot=new THREE.Group();foot.position.set(0,-.44,.02);knee.add(foot);
+   part(foot,'cylinder',dark,0,-.01,0,.23,.09,.32);
+   part(foot,'cylinder',metal,0,-.03,.09,.18,.05,.3);
    root.userData.legs.push({hip,knee,foot,baseY:1,phase:(x*z)>0?0:Math.PI});
   }
   if(!plain){
@@ -592,7 +623,9 @@ export function updateActor(root,state,dt,time){
     leg.hip.rotation.x=swing*amp;
     leg.hip.position.y=leg.baseY+lift*.035*blend;
     leg.knee.rotation.x=-lift*amp*1.5;
-    if(leg.foot)leg.foot.rotation.x=-leg.knee.rotation.x*.8;
+    // Cancel the whole hip+knee pitch so the pads stay level with the ground
+    // while the leg steps; a tilted pad was what made the feet read detached.
+    if(leg.foot)leg.foot.rotation.x=-(leg.hip.rotation.x+leg.knee.rotation.x);
    }
   }
   const phase=root.userData.kind==='overlord'&&state.bossPhase?state.bossPhase:null;
