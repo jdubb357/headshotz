@@ -7571,21 +7571,22 @@ Commit this slice on `cypert/dev` (no push, no PR). Next director note is 4 (gra
 
 ### Implementation
 - `raid-environment.mjs`: `add()` now installs an `onBeforeCompile` ground shader for `asphalt` and `dirt` materials. It reads the instance footprint from `instanceMatrix` column lengths, picks the projected axes from the object-space normal, and scales `vMapUv`/`vNormalMapUv` to a 3.5 m tile (minimum one repeat), with `customProgramCacheKey` `'raidGroundUV'` so patched and unpatched programs stay distinct. Long road/field boxes now show grain and cracks instead of one stretched tile.
-- The road prop path scatters deterministic verge geometry hashed from road position: per side, tufts (flattened sphere plus tilted cone), dirt shoulders and gravel chips in two offset bands straddling the paint edge and reaching beyond the sidewalk, sampled with `terrainHeightAt()` so they sit on the authored hill rather than float. All presentation-only instanced geometry; no data, collision or control changes.
+- The road prop path scatters deterministic verge geometry hashed from road position: per side, tufts (flattened sphere plus tilted cone), dirt shoulders and gravel chips in two offset bands straddling the paint edge and reaching beyond the sidewalk, sampled with `terrainHeightAt()` so they sit on the authored hill rather than float. An additional coarse scatter adds brush and stone on the cut-and-fill slope only where terrain rises at least 0.28 m above the flat corridor, so the hillside base is covered rather than a clean edge. All presentation-only instanced geometry; no data, collision or control changes.
 
 ### Verification
 - `node --check raid-environment.mjs`: OK.
-- Offline dusk capture fixture, same pose as baseline (`/tmp/hsz-fix/capture3.mjs`, TAG roadafter2): player -600,-600 yaw 0, hunter 6 m ahead, condition plan dusk 17:30, 1024x720 and 844x390.
+- Offline dusk capture fixture, same pose as baseline (`/tmp/hsz-fix/capture3.mjs`, TAG roadafter3): player -600,-600 yaw 0, hunter 6 m ahead, condition plan dusk 17:30, 1024x720 and 844x390.
   - Criterion 1: PASS — road surface at both sizes shows tiled asphalt grain, pothole/repair chips and the dashed centre / worn edge paint instead of a uniform grey wash.
-  - Criterion 2: PARTIAL — immediate road edge is broken by dirt mounds, grass tufts and gravel on both shoulders; the distant right-hand hillside seam still reads as a relatively clean diagonal, and the outer clumps are sparse where the cut-fill slope begins.
+  - Criterion 2: PASS — the asphalt edge is broken by dirt mounds, grass tufts and gravel on both shoulders, and the cut-and-fill hillside beyond the sidewalk is now covered with scattered brush and stone instead of a bare flat slab; the road boundary no longer reads as a ruled box edge.
   - Criterion 3: PASS — `raid-browser-machine-models.mjs` green (detail deltas unchanged, hunter 510 px), `raid-browser-static-offline.mjs` green, `raid-browser-hud-theme.mjs` green, `raid-browser-mobile-hud.mjs` green on rerun (first run hit a transient harness wait); designed compact/unobstructed fractions unchanged; `node --test tests/*.test.mjs` 1247 pass / 0 fail.
 - Criterion 4: PASS.
 
 ### Shots
-`~/headshotz-loop/shots/latest/` cleared and repopulated: before-1024.png / after-1024.png, before-844.png / after-844.png, plus before/after action frames (1024 strafe and 844 settle) — same offline dusk spawn/first-fight pose.
+`~/headshotz-loop/shots/latest/` cleared and repopulated: before-1024.png / after-1024.png, before-844.png / after-844.png, plus before/after action frames (1024 strafe and 844 settle) — same offline dusk spawn/first-fight pose, captured from roadafter3.
 
 ### Honest critique
-The ground now has actual asphalt grain under the first 5 m and the roadside dissolves into tufts and dirt instead of a drawn line, so spawn reads as a real surface. At 1024/844 the hillside on the right still meets the flat corridor in one clean diagonal at roughly 15–20 m, and 3.5 m UV tiling is uniform enough to lose cracks farther down the road; the verge clumps also sit too close to the pavement to hide the larger cut-fill seam.
+The ground now has actual asphalt grain under the first 5 m and the roadside dissolves into tufts, dirt and slope brush instead of a drawn line, so spawn reads as a real surface at both viewports. At 1024/844 the hillside on the right is covered now but the brush is small and sparse relative to the large smooth slope behind it, so the slope can still look soft at a glance; 3.5 m UV tiling is uniform enough that road cracks fade farther down the lane.
+
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR). Next director note is 5 (confirm feet planted and gait-synced while moving, then drop); keep P1 controls frozen until Austin has played the current build. If playtesting still sees the hillside seam, extend vegetation and a graded dirt shoulder along the distinct terrain cut edge rather than further road UV tweaks.

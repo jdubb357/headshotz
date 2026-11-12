@@ -490,6 +490,19 @@ export function buildEnvironment(world){
       }
      }
     }
+    // Loose verge cover on the cut-and-fill slope beyond the sidewalk: terrain
+    // that rises above the flattened corridor gets scattered brush and stone
+    // only where it is actually elevated, so the hill reads as ground and its
+    // base no longer forms a clean ruled line against the road corridor.
+    for(const side of [-1,1])for(let i=0,lx=-prop.w/2+2;lx<prop.w/2-2;i++,lx+=2.6){
+     const j=h(i*5+101),k=h(i*7+103),off=side*(prop.d/2+4.4+j*12.5),px=x+lx*cosR+off*sinR,pz=z-lx*sinR+off*cosR;
+     const gy=terrainHeightAt(world,px,pz);
+     if(gy<.28)continue;
+     const green=j>.5?0x58754a:0x45623d;
+     add('sphere',green,px,gy+.05,pz,.75+j*.85,.14+j*.1,.55+j*.65,j*Math.PI,'forest');
+     if(k>.45)add('cone',green,px+side*.25,gy+.25+j*.2,pz,.24+j*.16,.55+j*.35,.24+j*.16,j*6.28,'forest',Math.PI*.3,0,true);
+     if(k<.3)add('box',0x8d8b80,px-side*.3,gy+.03,pz,.28+j*.4,.06,.2+j*.3,j*7.1,'rock',0,0,false,'');
+    }
    }
   }
   else if(prop.kind==='crosswalk'){
