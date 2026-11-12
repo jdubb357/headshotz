@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-12 (iteration 84: machine worn plating gains a cool grazing-angle rim and every grounded class — scout, hunter, heavy and overlord — receives a soft dark contact bed plus a camera-facing contact haze so hulls sit on the pavement at dusk; the flyer keeps its airborne silhouette with no ground patch). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72), readable foreground road at spawn (iteration 73), cohesive articulated machines with planted feet (iteration 74), viewmodel edge highlights / sleeve cuff / thick tapered tracer (iteration 75), culling of 449 coincident window openings plus worn asphalt (iteration 76) and held-fire + server-matching reticle/LOS controls (iteration 77) done → NEXT: no specific director note remains (notes 2–5 closed; note 1, P1 controls, is frozen until Austin's own playtest) — re-review the live deploy→move→fight→loot→extract loop against the feel priorities and pick one presentation-only improvement per iteration; if playtesting still sees a soft hillside, enlarge the slope brush rather than revisiting road UVs; keep P1 controls frozen and do not start a new map polish pass while P1 skepticism stands.
+Last audited: 2026-11-12 (iteration 85: the raid touch deck now matches the main game — Fire and Sprint are gone, the round-icon deck fires from the reticle for AR, pistol and shotgun, an empty magazine auto-reloads, Aim is hold-to-zoom, Swap equips the second carried weapon, and Interact stays hidden until something is in reach and reads USE). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72), readable foreground road at spawn (iteration 73), cohesive articulated machines with planted feet (iteration 74), viewmodel edge highlights / sleeve cuff / thick tapered tracer (iteration 75), culling of 449 coincident window openings plus worn asphalt (iteration 76), held-fire + server-matching reticle/LOS controls (iteration 77) and the main-game touch deck (iteration 85) done → NEXT: no specific director note remains (notes 2–5 closed; note 1, P1 controls, matches the main game and still needs Austin's live iPad/phone playtest) — re-review the live deploy→move→fight→loot→extract loop against the feel priorities and pick one presentation-only improvement per iteration; if playtesting still sees a soft hillside, enlarge the slope brush rather than revisiting road UVs; do not turn the raid into a different game or require raid setup to play other modes.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -26,6 +26,18 @@ height to machine bodies; raid has no separate aim-assist toggle, so it uses the
 default-on assist. Exercise evidence (temporary harness at /tmp/hsz-cap/verify-controls3.mjs):
 844 touch moved 3.6 m while tracking and auto-firing a scout 75->15 hp -> 27 ammo (TOUCH PASS);
 1024 keyboard S+ArrowLeft moved 12.0 m while auto-firing 75->15 hp -> 28 ammo (DESKTOP PASS).
+
+Iteration 85, 2026-11-12: the deck now matches the main game's round-icon shape. The
+crosshair source is marked `auto` in `raid-trigger.mjs`, so the reticle fires every
+weapon class (AR, pistol, shotgun) while it covers a machine; keyboard/pointer presses
+keep their semi-automatic edge. An empty magazine reloads automatically while sighted
+when a compatible reserve exists, Aim is hold-to-zoom, Swap equips the other carried
+weapon, Fire and Sprint are removed, and Interact is contextual and labelled USE.
+Exercised offline: AR 30→29, pistol 12→11, shotgun 6→5 while the reticle stayed on a
+staged scout; empty shotgun magazine 0→6 with a shell reserve, no Reload tap; Aim
+`aria-pressed`/`dataset.aiming` true→false; Swap sets weaponId to the second pistol.
+`raid-browser-mobile-hud.mjs` (91% unobstructed at 1024, 80% at 844) and Node 1247/1247 green.
+Still needs Austin's live two-thumb playtest; screenshots in `~/headshotz-loop/shots/latest/`.
 Screenshots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png`,
 after-844-hit.png, after-844-stick.png, after-1024-fire.png. Mobile HUD and static-offline green;
 Node 1247/1247. Known gap: physical iPad/phone latency/fatigue unverified, and the 1024
@@ -42,6 +54,8 @@ thumbs (left move, right look) also killed one; in the cover fixture HEAD fired 
 head-visible/chest-blocked wall and at 72 m while the current reticle stayed false and fired
 nothing. Node 1247/1247, trigger/static-offline/mobile-HUD green. Still needs Austin's live
 two-thumb playtest over real WAN cadence; screenshots are in `~/headshotz-loop/shots/latest/`.
+Iteration 85 extended the crosshair auto flag to pistol and shotgun as well, added automatic
+empty-magazine reload, hold-to-zoom Aim, Swap and contextual USE, and removed Fire and Sprint.
 
 ## Director P2 — enemy legs must move (iteration 71, 2026-11-11)
 
@@ -173,17 +187,19 @@ raid time and backpack slots. Zone/weather/compass/field-objective copy appears 
 on spawn and zone/objective change, then fades; the offline connection/RTT readout stays
 hidden. A bottom-left virtual thumbstick replaces the arrow grid and drives the same
 authoritative move action; a drag on the right half turns the camera through the existing
-touch view handler. The bottom-right action cluster keeps Fire/Aim/Reload/Jump/Sprint/Slide
-at 44px+ with Interact revealed only when the authoritative snapshot has something in
-reach; Utility/Vault/Map live in a compact icon row above it and Backpack stays in its
-top-right context slot. Back to base, Account, Guide and Settings collapse behind one 44px
+touch view handler. The bottom-right deck is a 3×3 cluster of round 44px+ icons
+(Map, Utility, Interact, Slide, Vault, Swap, Aim, Reload, Jump) that matches the main
+game's `#touch .tb` shape: there is no Fire button, the reticle auto-fires the equipped
+class, an empty magazine auto-reloads, Aim is hold-to-zoom, Swap equips the other weapon,
+and Interact appears only when the authoritative snapshot has something in reach and is
+labelled USE. Backpack stays in its top-right context slot. Back to base, Account, Guide and Settings collapse behind one 44px
 raid-menu icon. Safe-area insets are applied throughout, compact surfaces do not overlap,
 and the crosshair centre remains clear. Settings offers Auto/On/Off "Compact HUD"; Auto
 enables on coarse-pointer landscape only, so desktop keyboard/mouse and portrait layouts
 keep their existing readable HUD. Evidence: `tests/raid-browser-mobile-hud.mjs` (static
 server, zero `/api`, touch emulation, compact/briefing screenshots, thumbstick authoritative
-travel, right-half yaw drag, Fire/Reload/Interact by touch, contextual Interact, menu
-collapse and overlap checks) plus
+travel, right-half yaw drag, all-class crosshair auto-fire, automatic empty-magazine
+reload, hold-to-zoom Aim, Swap, contextual USE, menu collapse and overlap checks) plus
 `tests/raid-browser-hud-layout.mjs`, `tests/raid-browser-hud-theme.mjs`,
 `tests/raid-browser-accessibility.mjs`, `tests/raid-browser-static-offline.mjs` and the
 full unit suite green. Honest gap: physical-device feel on Austin's iPad/phone and
