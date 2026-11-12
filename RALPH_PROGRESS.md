@@ -7560,3 +7560,32 @@ The two-line banner is now a small one-line objective chip, so the machine's fac
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR). Next director note is 4 (grass verge / near-road seam and UVs); keep P1 controls frozen until Austin has played the current build.
+
+## Iteration 80 — Tile the near road and blend the verge seam (director note 4, 2026-11-12)
+
+### Acceptance criteria
+1. The first-person first 5 m of the spawn road shows a tiled asphalt texture (grain, cracks and repairs) instead of one stretched/uniform tile, at both 1024x720 and 844x390 offline dusk.
+2. The grass/dirt verge next to the road has a ragged, textured transition (no clean straight box edge) and reads as ground, not a flat-shaded slab.
+3. Presentation-only: no collision, world data, AI, controls or `game.js` changes; deterministic geometry; static offline and mobile HUD graders stay green; Node 1247/1247.
+4. Before/after screenshots of the same offline dusk spawn/first-fight pose exist in `~/headshotz-loop/shots/latest/` at both viewports.
+
+### Implementation
+- `raid-environment.mjs`: `add()` now installs an `onBeforeCompile` ground shader for `asphalt` and `dirt` materials. It reads the instance footprint from `instanceMatrix` column lengths, picks the projected axes from the object-space normal, and scales `vMapUv`/`vNormalMapUv` to a 3.5 m tile (minimum one repeat), with `customProgramCacheKey` `'raidGroundUV'` so patched and unpatched programs stay distinct. Long road/field boxes now show grain and cracks instead of one stretched tile.
+- The road prop path scatters deterministic verge geometry hashed from road position: per side, tufts (flattened sphere plus tilted cone), dirt shoulders and gravel chips in two offset bands straddling the paint edge and reaching beyond the sidewalk, sampled with `terrainHeightAt()` so they sit on the authored hill rather than float. All presentation-only instanced geometry; no data, collision or control changes.
+
+### Verification
+- `node --check raid-environment.mjs`: OK.
+- Offline dusk capture fixture, same pose as baseline (`/tmp/hsz-fix/capture3.mjs`, TAG roadafter2): player -600,-600 yaw 0, hunter 6 m ahead, condition plan dusk 17:30, 1024x720 and 844x390.
+  - Criterion 1: PASS — road surface at both sizes shows tiled asphalt grain, pothole/repair chips and the dashed centre / worn edge paint instead of a uniform grey wash.
+  - Criterion 2: PARTIAL — immediate road edge is broken by dirt mounds, grass tufts and gravel on both shoulders; the distant right-hand hillside seam still reads as a relatively clean diagonal, and the outer clumps are sparse where the cut-fill slope begins.
+  - Criterion 3: PASS — `raid-browser-machine-models.mjs` green (detail deltas unchanged, hunter 510 px), `raid-browser-static-offline.mjs` green, `raid-browser-hud-theme.mjs` green, `raid-browser-mobile-hud.mjs` green on rerun (first run hit a transient harness wait); designed compact/unobstructed fractions unchanged; `node --test tests/*.test.mjs` 1247 pass / 0 fail.
+- Criterion 4: PASS.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and repopulated: before-1024.png / after-1024.png, before-844.png / after-844.png, plus before/after action frames (1024 strafe and 844 settle) — same offline dusk spawn/first-fight pose.
+
+### Honest critique
+The ground now has actual asphalt grain under the first 5 m and the roadside dissolves into tufts and dirt instead of a drawn line, so spawn reads as a real surface. At 1024/844 the hillside on the right still meets the flat corridor in one clean diagonal at roughly 15–20 m, and 3.5 m UV tiling is uniform enough to lose cracks farther down the road; the verge clumps also sit too close to the pavement to hide the larger cut-fill seam.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Next director note is 5 (confirm feet planted and gait-synced while moving, then drop); keep P1 controls frozen until Austin has played the current build. If playtesting still sees the hillside seam, extend vegetation and a graded dirt shoulder along the distinct terrain cut edge rather than further road UV tweaks.

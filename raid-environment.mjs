@@ -151,6 +151,31 @@ export function buildEnvironment(world){
     ?{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:1.8,emissive:windowLit??0x000000,emissiveIntensity:0}
     :{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:spec[1]>.1?1.3:.55,...(spec[2]>0?{normalMap:normalTex(texture),normalScale:new THREE.Vector2(spec[2],spec[2])}:{})});
   if(windowLit!==null){mat.userData.raidWindowGlass=true;mat.userData.raidWindowGlowColor=windowLit;windowMaterials.push(mat)}
+  // Roads and fields are unit cubes stretched to tens or hundreds of metres, so
+  // one authored texture tile would smear across the entire lane. Scale the map
+  // UVs by the instance footprint (about a 3.5 m tile) so the first 5 m keeps
+  // readable asphalt grain, cracks and field dirt instead of a flat wash.
+  if(texture==='asphalt'||texture==='dirt'){
+   mat.onBeforeCompile=shader=>{
+    shader.uniforms.uGroundTile={value:3.5};
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uGroundTile;').replace('#include <uv_vertex>',`#include <uv_vertex>
+#ifdef USE_INSTANCING
+ vec3 groundScale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
+ vec2 groundRep=vec2(1.0);
+ if(abs(normal.x)>.5)groundRep=vec2(groundScale.z,groundScale.y);
+ else if(abs(normal.y)>.5)groundRep=vec2(groundScale.x,groundScale.z);
+ else groundRep=vec2(groundScale.x,groundScale.y);
+ groundRep=max(vec2(1.0),groundRep/uGroundTile);
+ #ifdef USE_MAP
+  vMapUv*=groundRep;
+ #endif
+ #ifdef USE_NORMALMAP
+  vNormalMapUv*=groundRep;
+ #endif
+#endif`);
+   };
+   mat.customProgramCacheKey=()=>'raidGroundUV';
+  }
   mat.userData.raidOwned=true;mat.userData.raidDry={roughness:mat.roughness,metalness:mat.metalness,envMapIntensity:mat.envMapIntensity??1,normalScale:mat.normalScale?mat.normalScale.x:null};mat.userData.raidWet=glow?0:(WET_RESPONSE[texture]||0);
   if(tag)mat.userData.raidStructure=tag;
   // Only the foliage groups sway; the uniform is exposed through the root so
@@ -439,6 +464,31 @@ export function buildEnvironment(world){
     for(const side of [-1,1])for(let i=0;i<4;i++){
      const [px,py,pz]=place((h(i+31)-.5)*prop.w*.82,side*(prop.d/2+.10));
      add('box',0xb8b8aa,px,py+.024,pz,.24+h(i+33)*.34,.012,.18+h(i+35)*.22,h(i+37)*Math.PI,'gravel',0,0,false,'');
+    }
+    // Ragged verge: the grass or dirt beyond the asphalt used to meet it in one
+    // clean box edge. Scatter low tufts, dirt shoulders and gravel chips along
+    // both shoulders, sampled from the authored terrain so they sit on the hill
+    // instead of floating, and let some cross onto the paint. Hashed from the
+    // road position, so every deploy sees the same broken, organic edge.
+    for(const side of [-1,1])for(let i=0,lx=-prop.w/2+1.2;lx<prop.w/2-1.2;i++,lx+=1.75){
+     const j=h(i*2+57),k=h(i*3+61);
+     // Immediate border: grass and dirt straddle the paint so the asphalt line,
+     // and the pavement beyond it, dissolves into tufts and aggregate instead of
+     // a ruled box edge. The farther clump reaches the verge past any sidewalk.
+     for(const off of [prop.d/2+j*.9-.3,prop.d/2+2.6+j*2.4]){
+      const px=x+lx*cosR+side*off*sinR,pz=z-lx*sinR+side*off*cosR;
+      const top=Math.max(y,terrainHeightAt(world,px,pz));
+      if(k<.5){
+       const green=j>.55?0x5f7a4c:0x4b6540;
+       add('sphere',green,px,top+.035,pz,.55+j*.6,.075+j*.045,.4+j*.3,j*Math.PI,'forest');
+       if(j>.55)add('cone',green,px+side*.18,top+.22+j*.14,pz,.17+j*.13,.38+j*.24,.17+j*.13,j*6.28,'forest',Math.PI*.28,0,true);
+      }else if(k<.82){
+       add('sphere',0x655c4b,px,top+.013,pz,.95+j*.75,.045,.7+j*.6,j*Math.PI,'dirt');
+      }else{
+       add('box',0x9a9a8d,px,top+.03,pz,.2+j*.4,.012,.15+j*.25,j*Math.PI,'gravel',0,0,false,'');
+       if(j>.6)add('box',0x6c6f60,px+side*.25,top+.027,pz,.5+j*.5,.01,.2+j*.3,j*8.4,'rock',0,0,false,'');
+      }
+     }
     }
    }
   }
