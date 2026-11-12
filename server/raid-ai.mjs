@@ -100,7 +100,9 @@ export function populateMachines(raid,now){
   ? V5_MACHINE_POSITIONS[raid.world.id].map(([x,z])=>[x*(version>=6?2:1),z*(version>=6?2:1)])
   : (raid.world.id==='relay'?[[-36,-28],[35,30],[36,-20],[-24,28],[-6,36],[18,-26],[-28,22]]:raid.world.id==='reservoir'?[[-30,-20],[34,30],[30,-38],[-32,28],[8,18],[34,-20],[-28,26]]:[[-34,-28],[32,30],[38,-28],[-24,30],[-6,30],[18,-26],[-28,22]]).map(([x,z])=>[x*(raid.world.size/160),z*(raid.world.size/160)]);
  ['scout','hunter','heavy','flyer','overlord'].forEach((kind,i)=>spawnMachine(raid,kind,...positions[i],now));
- spawnMachine(raid,'scout',...positions[5],now);spawnMachine(raid,'hunter',...positions[6],now);
+ // Keep one of the two trailing contacts: the insertion route authors its own
+ // scout/hunter pair, so one far base patrol slot stays free for them.
+ spawnMachine(raid,'hunter',...positions[6],now);
  raid.conditions=raid.conditionPlan?conditionsAt(raid.world,raid.conditionPlan,0):mapConditions(raid.world,raid.id.charCodeAt(0));raid.lastLightPhase=raid.conditions.period;raid.telegraphs=[];raid.noises=[];raid.nextSupply=now+180;raid.nextPatrol=now+150;raid.weatherAt=now+300;raid.hazardTicks={};
  raid.alarms=0;raid.alarmLevel=0;raid.dynamicHazards=[];raid.nextElite=now+ESCALATION.eliteInterval;raid.nextHazardWindow=now+ESCALATION.hazardWindowInterval;raid.nextSqueeze=0;raid.squeezeAt=0;raid.eliteSpawns=0;raid.hazardWindows=0;
 }

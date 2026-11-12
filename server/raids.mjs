@@ -181,10 +181,10 @@ export class RaidService {
   // and the first follow-up arrive; the far contact queues only when room
   // remains.
   const room=()=>raid.machines.filter(m=>m.hp>0).length<MACHINE_CAP;
-  // 42 m ahead is close enough to show an approaching patrol before the first
-  // building corner hides it, and far enough that the operator can read the
-  // street and pick a direction. The later stops belong to the walk itself.
-  const first=routeStop(trail,42);
+  // 27 m ahead is close enough to clear the weather-visibility floor and show
+  // the approaching scout in front of the camera, while the two later stops
+  // sit inside the requested 60–200 m contact band along the walk.
+  const first=routeStop(trail,27);
   if(room()){
    const machine=spawnMachine(raid,'scout',first.x,first.z,now);
    if(machine){

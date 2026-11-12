@@ -7809,7 +7809,8 @@ Commit this slice on `cypert/dev` (no push, no PR, no `main`). Then advance to d
 3. Offline raids still mirror the authoritative `RaidService`; existing modes, main menu, mobile HUD and raid progression are unchanged; Node and relevant browser graders are green.
 
 ### Changed
-- `server/raids.mjs`: `findPath` insertion route; contacts at 42 m (front scout), 110 m (hunter) and 175 m (scout), all authored inside `MACHINE_CAP` with a `room()` check so reinforcement respawn still works; route machines carry `approach`, `routeGuard`, `home` and `patrolRadius`; route loot seeded at 55/95/140/185 m via `createRouteLoot`.
+- `server/raid-ai.mjs`: one duplicate far base patrol is left unspawned so the 12-machine sector cap has room for three path contacts without raising `MACHINE_CAP`.
+- `server/raids.mjs`: `findPath` insertion route; contacts at 27 m (front scout), 110 m (hunter → ~93 m) and 175 m (scout → ~142 m), all authored inside `MACHINE_CAP` with a `room()` check so reinforcement respawn still works; route machines carry `approach`, `routeGuard`, `home` and `patrolRadius`; route loot seeded at 55/95/140/185 m via `createRouteLoot`.
 - `server/raid-loot.mjs`: `ROUTE_LOOT_MARKS` and deterministic `createRouteLoot` piles along the walk (weapon+ammo, field supply, route salvage).
 - `raid-models.mjs` / `raid-view.mjs`: ground loot chooses a recognizable gun/chest/crate asset from the main game's loaded models by contents, keeps the rarity beacon and ring, and refreshes swapped props.
 - `raid-online.mjs`: `armoryObjective` now uses `mapBearing` with cardinal south/east so the tour objective agrees with the chip; rim exit marker enlarged and tinted exit-colour.
@@ -7817,18 +7818,19 @@ Commit this slice on `cypert/dev` (no push, no PR, no `main`). Then advance to d
 - `raid-environment.mjs`: flat moss spheres/discs replaced with upright cone tufts and small dirt debris along road borders, verges and grit clusters.
 
 ### Verification
-- `node --test tests/*.test.mjs`: 1247 pass, 0 fail (87.6 s).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail (100.9 s).
+- `node --test tests/raid-offline.test.mjs` three consecutive runs: 16/16 pass each time.
 - `node tests/raid-browser-loot-beacons.mjs` pass: 3 piles, beacons/gem/halo/wisp/ring, shared glow/gem resources, animation and static pose, changed 14287, `browserErrors:[]`.
 - `node tests/raid-browser-structures.mjs` pass: tag counts unchanged (no moss/misc tag), `browserErrors:[]`.
-- `node tests/raid-browser-static-offline.mjs` pass: deploy → move → fire (headshot) → loot → extract, 2 items returned, 0 lost, credits +20, no API traffic, `browserErrors:[]`.
-- `node tests/raid-browser-mobile-hud.mjs` pass (rerun): 1024×720 91.9% unobstructed, 844×390 81.8%, contextual USE, `browserErrors:[]`. `raid-browser-scenery.mjs` pass.
+- `node tests/raid-browser-static-offline.mjs` pass: deploy → move → fire (hit) → loot → extract, 2 items returned, 0 lost, credits +20, no API traffic, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` pass: 1024×720 91.9% unobstructed, 844×390 81.8%, contextual USE, `browserErrors:[]`. `raid-browser-scenery.mjs` pass.
 - Known pre-existing, unrelated: `raid-browser-hud-theme.mjs` queries the removed `#fire` button; `raid-browser-viewmodel.mjs` pack-open timeout; `raid-browser-escalation.mjs` hazard paint.
 
 ### Shots
-`~/headshotz-loop/shots/latest/` cleared first; `before-1024.png`/`before-844.png` show the old empty street, mirrored objective and flat discs; `after-1024.png`/`after-844.png` show the spawn loot beacon, tufts and `EXIT 603 m ▲ south`; `after-1024-action.png`/`after-844-action.png` show a scout machine at ~12–20 m plus a loot beacon and the exit chip. Source frames in `/tmp/hsz-iter88/`.
+`~/headshotz-loop/shots/latest/` cleared first; `before-1024.png`/`before-844.png` show the old empty street, mirrored objective and flat discs; `after-1024.png` is the first deployed frame with a scout at ~21 m, a loot beacon, grass tufts, the faint corrected `Objective · 632 m south · 162°`, and `EXIT 603 m ▲ south`; `after-844.png` shows the compact spawn with loot beacon and exit chip; `after-1024-action.png`/`after-844-action.png` show the scout at ~13 m mid-windup with HP 93, a loot beacon, and the exit chip. Source frames in `/tmp/hsz-iter88/`.
 
 ### Honest critique
-The bearing and flat stickers are fixed and the first 90 seconds now contain a machine and a loot pile on the road, but the scout still closes in from the side and reads as a yellow dot at distance, while the loot is mostly a cyan beacon rather than a readable gun or crate silhouette, so the walk is clearer rather than dramatic.
+The bearings and flat stickers are fixed and the first road now contains a scout, a loot beacon and a clear exit chip, but the scout is an orange silhouette with no readable weapon and the loot still reads mostly as a cyan beacon rather than a gun or crate, so the walk is clearer rather than dramatic.
 
 ### Next action
 Commit on `cypert/dev` (no push, no PR, no `main`). Next slice: director note 3 — prop colliders kind by kind in `blocked()`/nav (`shared/raid-worlds.mjs`): cars, trucks, tanks, dumpsters, crates, barrels, sandbags, then raidScenery and raid-environment decorative walls/crates/stoops; re-walk spawn-to-exit after each kind. Notes 4–5 follow; notes 1–2 still await Austin's live playtest.
