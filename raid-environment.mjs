@@ -330,11 +330,10 @@ export function buildEnvironment(world){
     add('box',i===2?0x7c6a4f:0x837f74,gx+Math.cos(a)*r,gy+ch/2,gz+Math.sin(a)*r,cw,ch,cd,hash01(gritHash*8.3+i)*1.4,'rock',.12,.05,false,'groundGrit');
    }
    add('box',0x6f5a3f,gx+.55,gy+.14,gz+.17,.72,.06,.14,gritHash*1.9,'planks',.1,0,false,'groundGrit');
-   for(let i=0;i<2;i++){
-    const a=hash01(gritHash*31.3+i*5.1)*Math.PI*2,r=.18+hash01(gritHash*6.7+i)*.34;
-    add('cone',0x4e6b46,gx+Math.cos(a)*r,gy+.30,gz+Math.sin(a)*r,.30+hash01(gritHash*8.9+i)*.14,.52,.30,0,'forest',.18,0,true,'groundGrit');
+   for(let i=0;i<4;i++){
+    const a=hash01(gritHash*31.3+i*5.1)*Math.PI*2,r=.16+hash01(gritHash*6.7+i)*.4;
+    add('cone',i%2?0x4e6b46:0x45633f,gx+Math.cos(a)*r,gy+.26+hash01(gritHash*2.9+i)*.10,gz+Math.sin(a)*r,.26+hash01(gritHash*8.9+i)*.16,.48+hash01(gritHash*4.4+i)*.18,.26,a*1.7,'forest',.18,0,true,'groundGrit');
    }
-   add('sphere',0x3d5834,gx,gy+.045,gz,1.15,.05,.95,0,'forest',0,0,true,'groundGrit');
    groundGritList.push({x:gx,y:gy,z:gz,ox:gc1,oz:gc2,h});
    structureDetail.streetGritClusters=(structureDetail.streetGritClusters||0)+1;
   }
@@ -411,7 +410,10 @@ export function buildEnvironment(world){
   else if(prop.kind==='fern'){const c=prop.color||0x587446,n=5;for(let i=0;i<n;i++){const a=(prop.ry||0)+i*Math.PI*2/n;add('cone',c,x+Math.sin(a)*.32*s,y+.32*s,z+Math.cos(a)*.32*s,.24*s,1.15*s,.24*s,a,'forest',Math.PI*.3,0,true)}}
   else if(prop.kind==='shrub'){const c=prop.color||0x45673d;for(let i=0;i<4;i++){const a=(prop.ry||0)+i*1.65;add('sphere',c,x+Math.sin(a)*.42*s,y+(.5+i*.1)*s,z+Math.cos(a)*.38*s,(1.15-i*.08)*s,(.85-i*.05)*s,(1.05-i*.06)*s,0,'forest',0,0,true)}}
   else if(prop.kind==='stump'){const s2=prop.scale||1;add('cylinder',0x5b4936,x,y+.62*s2,z,.28*s2,1.24*s2,.28*s2,0,'planks');add('cylinder',0x7c6a4f,x,y+1.24*s2,z,.31*s2,.08*s2,.31*s2,0,'planks');add('box',0x6b5842,x+(prop.ry?Math.sin(prop.ry)*.55*s2:.55*s2),y+.28*s2,z+(prop.ry?Math.cos(prop.ry)*.55*s2:0),1.1*s2,.16*s2,.18*s2,prop.ry||0,'planks',0,Math.PI*.12)}
-  else if(prop.kind==='moss'){const c=prop.color||0x5d7248;add('sphere',c,x,y+.025,z,1.55*s,.055*s,1.25*s,prop.ry||0,'forest');if(s>.9)add('sphere',c,x+.55*s,y+.022,z-.35*s,.9*s,.04*s,.8*s,prop.ry||0,'forest')}
+  // Moss used to be a flat sphere (a 3 m-wide pancake at street scale) that
+  // read as a printed sticker on the photo asphalt. Five upright blades keep
+  // the colour and the wind sway while giving the growth real silhouette.
+  else if(prop.kind==='moss'){const c=prop.color||0x5d7248;for(let i=0;i<5;i++){const a=(prop.ry||0)+i*Math.PI*2/5,r=(i%2?.34:.16)*s;add('cone',c,x+Math.sin(a)*r,y+.2*s,z+Math.cos(a)*r,.15*s,.42*s,.15*s,a,'forest',0,0,true)}}
   else if(prop.kind==='ruin'){const c=prop.color||0x8b8c84,ry=prop.ry||0,off=1.25*s,px=x+Math.sin(ry)*off,pz=z+Math.cos(ry)*off;add('box',c,x,y+.85*s,z,.55*s,1.7*s,2.4*s,ry,'brick',0,0);add('box',c,px,y+.58*s,pz,.5*s,1.16*s,1.5*s,ry,'brick',0,0);add('box',0x74736c,x-Math.cos(ry)*.95*s,y+.12*s,z+Math.sin(ry)*.95*s,1.9*s,.2*s,.62*s,ry+.35,'rock',0,Math.PI*.06)}
   else if(prop.kind==='rubble'){const c=prop.color||0x8a8777,ry=prop.ry||0;for(let i=0;i<3;i++){const a=ry+i*2.1;add('box',c,x+Math.cos(a)*.38*s,y+(.18+i*.11)*s,z+Math.sin(a)*.44*s,.55*s*(1-i*.12),.22*s*(1+i*.35),.68*s*(1-i*.18),a,'rock',0,Math.PI*.08)}add('sphere',0x777268,x-.3*s,y+.12*s,z+.25*s,.34*s,.18*s,.28*s,0,'rock')}
   else if(prop.kind==='rock'){add('sphere',prop.color||0x8a8777,x,y+.55*s,z,1.5*s,.85*s,1.2*s,0,'rock',0)}
@@ -480,10 +482,16 @@ export function buildEnvironment(world){
       const top=Math.max(y,terrainHeightAt(world,px,pz));
       if(k<.5){
        const green=j>.55?0x5f7a4c:0x4b6540;
-       add('sphere',green,px,top+.035,pz,.55+j*.6,.075+j*.045,.4+j*.3,j*Math.PI,'forest');
-       if(j>.55)add('cone',green,px+side*.18,top+.22+j*.14,pz,.17+j*.13,.38+j*.24,.17+j*.13,j*6.28,'forest',Math.PI*.28,0,true);
+       for(const ti of [0,1,2]){
+        const ox=side*(ti-1)*.16+j*.08,oz=(ti-1)*.30;
+        add('cone',ti===1?green:0x54703f,px+ox,top+.14+j*.08,pz+oz,.10+j*.09,.30+j*.22,.10+j*.09,ti*2.1,'forest',0,0,true);
+       }
+       if(j>.55)add('cone',green,px-side*.18,top+.20+j*.14,pz,.15+j*.11,.40+j*.22,.15+j*.11,j*6.28,'forest',Math.PI*.28,0,true);
       }else if(k<.82){
-       add('sphere',0x655c4b,px,top+.013,pz,.95+j*.75,.045,.7+j*.6,j*Math.PI,'dirt');
+       for(let di=0;di<3;di++){
+        const [dx,dz]=[Math.cos(j*6.28+di*2.1)*.3,Math.sin(j*6.28+di*2.1)*.24];
+        add('box',di?0x5b5345:0x6b5f4d,px+dx,top+.045,pz+dz,.22+j*.2,.055+di*.012,.16+j*.16,j*Math.PI,'dirt',0,0,false,'');
+       }
       }else{
        add('box',0x9a9a8d,px,top+.03,pz,.2+j*.4,.012,.15+j*.25,j*Math.PI,'gravel',0,0,false,'');
        if(j>.6)add('box',0x6c6f60,px+side*.25,top+.027,pz,.5+j*.5,.01,.2+j*.3,j*8.4,'rock',0,0,false,'');
@@ -499,7 +507,10 @@ export function buildEnvironment(world){
      const gy=terrainHeightAt(world,px,pz);
      if(gy<.28)continue;
      const green=j>.5?0x58754a:0x45623d;
-     add('sphere',green,px,gy+.05,pz,.75+j*.85,.14+j*.1,.55+j*.65,j*Math.PI,'forest');
+     for(let ti=0;ti<3;ti++){
+      const a=j*5.1+ti*2.09,r=.18+j*.58;
+      add('cone',ti===1?green:0x4a673e,px+Math.cos(a)*r,gy+.24+j*.16,pz+Math.sin(a)*r,.16+j*.11,.42+j*.3,.16+j*.11,a,'forest',Math.PI*.3,0,true);
+     }
      if(k>.45)add('cone',green,px+side*.25,gy+.25+j*.2,pz,.24+j*.16,.55+j*.35,.24+j*.16,j*6.28,'forest',Math.PI*.3,0,true);
      if(k<.3)add('box',0x8d8b80,px-side*.3,gy+.03,pz,.28+j*.4,.06,.2+j*.3,j*7.1,'rock',0,0,false,'');
     }

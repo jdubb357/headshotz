@@ -214,6 +214,15 @@ function lootAccent(data){
  for(const item of data.items||[])rarity=Math.max(rarity,Math.max(0,Math.min(5,Math.trunc(Number(item.rarity)||0))));
  return lootTierColor(rarity);
 }
+// Pure presentation: pick the readable asset for a pile from its authoritative
+// contents. Nothing is added to or removed from the loot item list.
+const lootWeapon=data=>(data.items||[]).find(item=>item.kind==='weapon')?.weapon||null;
+function lootVisual(data){
+ if(lootWeapon(data))return 'gun';
+ if((data.items||[]).some(item=>['armor','valuable','mod','contract'].includes(item.kind)))return 'chest';
+ return 'crate';
+}
+const lootOptions=data=>({visual:lootVisual(data),weapon:lootWeapon(data)});
 export class RaidView {
  constructor(canvas){
   this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.22;
@@ -260,6 +269,15 @@ export class RaidView {
    if(live?.image&&mat.map)mat.map.needsUpdate=true;
    if(liveNormal?.image&&mat.normalMap)mat.normalMap.needsUpdate=true;
    mat.needsUpdate=true;
+  }
+  // Loot actors are created during the deploy snapshot, before the shipped
+  // props arrive. Rebuild them once the photo crate and scanned guns exist, so
+  // the first piles a player kneels beside read as objects, not geometry blanks.
+  for(const entry of this.actors.values()){
+   if(entry.type!=='loot')continue;
+   const next=propModel('loot',lootAccent(entry.data||{}),lootOptions(entry.data||{}));
+   next.position.copy(entry.model.position);next.rotation.copy(entry.model.rotation);
+   this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
   }
   if(!HUM.ready)return;
   const self=this.snapshot?.self;
@@ -344,7 +362,7 @@ export class RaidView {
   const put=(key,type,data)=>{
    live.add(key);let entry=this.actors.get(key);
    if(!entry){
-    const props=type==='cache'?propModel('cache',0xd8b062,{tier:(Number(data.tier)||0)+(data.vault?1:0)}):type==='loot'?propModel('loot',lootAccent(data)):propModel(type,type==='door'?(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b):data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
+    const props=type==='cache'?propModel('cache',0xd8b062,{tier:(Number(data.tier)||0)+(data.vault?1:0)}):type==='loot'?propModel('loot',lootAccent(data),lootOptions(data)):propModel(type,type==='door'?(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b):data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
     const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):props;
     // Armories carry purple beams; extraction beacons stay cyan/green. This
     // gives both objectives a silhouette above the dense district roofs.
