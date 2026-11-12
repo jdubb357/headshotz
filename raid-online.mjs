@@ -647,7 +647,9 @@ function showCompactStatus(text){
  clearTimeout(hudStatusTimer);
  node.textContent=text;node.hidden=false;
  void node.offsetWidth;node.classList.add('show');
- hudStatusTimer=setTimeout(()=>{node.classList.remove('show');hudStatusTimer=setTimeout(()=>{node.hidden=true},520)},4800);
+ // Keep the one-line objective readable through the first deploy and its
+ // initial interactions; it still fades to the slim HUD within 12 s.
+ hudStatusTimer=setTimeout(()=>{node.classList.remove('show');hudStatusTimer=setTimeout(()=>{node.hidden=true},520)},12000);
 }
 function syncCompactStatus(s,snapshot){
  if(document.documentElement.dataset.compactHud!=='true'||!s)return;

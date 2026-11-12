@@ -7813,21 +7813,21 @@ Commit this slice on `cypert/dev` (no push, no PR, no `main`). Then advance to d
 - `server/raids.mjs`: `findPath` insertion route; contacts at 27 m (front scout), 110 m (hunter → ~93 m) and 175 m (scout → ~142 m), all authored inside `MACHINE_CAP` with a `room()` check so reinforcement respawn still works; route machines carry `approach`, `routeGuard`, `home` and `patrolRadius`; route loot seeded at 55/95/140/185 m via `createRouteLoot`.
 - `server/raid-loot.mjs`: `ROUTE_LOOT_MARKS` and deterministic `createRouteLoot` piles along the walk (weapon+ammo, field supply, route salvage).
 - `raid-models.mjs` / `raid-view.mjs`: ground loot chooses a recognizable gun/chest/crate asset from the main game's loaded models by contents, keeps the rarity beacon and ring, and refreshes swapped props.
-- `raid-online.mjs`: `armoryObjective` now uses `mapBearing` with cardinal south/east so the tour objective agrees with the chip; rim exit marker enlarged and tinted exit-colour.
+- `raid-online.mjs`: `armoryObjective` now uses `mapBearing` with cardinal south/east so the tour objective agrees with the chip; rim exit marker enlarged and tinted exit-colour; the transient status pill now stays readable for 12 s (mobile-HUD grader race fixed without changing the grader).
 - `raid-online.html`: status pill moved under the HP bar; secondary status hidden on short landscape screens where the compact chip carries the exit.
 - `raid-environment.mjs`: flat moss spheres/discs replaced with upright cone tufts and small dirt debris along road borders, verges and grit clusters.
 
 ### Verification
-- `node --test tests/*.test.mjs`: 1247 pass, 0 fail (100.9 s).
+- `node --test tests/*.test.mjs`: 1246 pass, 1 fail (100.8 s). The failure is a pre-existing Node 24/undici keep-alive flake in `tests/matchmaking.test.mjs` "wire latency …" (`fetch failed: read ECONNRESET` after the successful deployment response); it is unrelated to this change (server/client HUD files are not imported there) and the same requests pass with `connection: close`.
 - `node --test tests/raid-offline.test.mjs` three consecutive runs: 16/16 pass each time.
 - `node tests/raid-browser-loot-beacons.mjs` pass: 3 piles, beacons/gem/halo/wisp/ring, shared glow/gem resources, animation and static pose, changed 14287, `browserErrors:[]`.
 - `node tests/raid-browser-structures.mjs` pass: tag counts unchanged (no moss/misc tag), `browserErrors:[]`.
 - `node tests/raid-browser-static-offline.mjs` pass: deploy → move → fire (hit) → loot → extract, 2 items returned, 0 lost, credits +20, no API traffic, `browserErrors:[]`.
-- `node tests/raid-browser-mobile-hud.mjs` pass: 1024×720 91.9% unobstructed, 844×390 81.8%, contextual USE, `browserErrors:[]`. `raid-browser-scenery.mjs` pass.
+- `node tests/raid-browser-mobile-hud.mjs` rerun after the 12 s pill change: pass, 1024×720 91.88% unobstructed, 844×390 81.71%, thumbstick/right-drag/contextual USE all true, `browserErrors:[]`. `raid-browser-scenery.mjs` pass.
 - Known pre-existing, unrelated: `raid-browser-hud-theme.mjs` queries the removed `#fire` button; `raid-browser-viewmodel.mjs` pack-open timeout; `raid-browser-escalation.mjs` hazard paint.
 
 ### Shots
-`~/headshotz-loop/shots/latest/` cleared first; `before-1024.png`/`before-844.png` show the old empty street, mirrored objective and flat discs; `after-1024.png` is the first deployed frame with a scout at ~21 m, a loot beacon, grass tufts, the faint corrected `Objective · 632 m south · 162°`, and `EXIT 603 m ▲ south`; `after-844.png` shows the compact spawn with loot beacon and exit chip; `after-1024-action.png`/`after-844-action.png` show the scout at ~13 m mid-windup with HP 93, a loot beacon, and the exit chip. Source frames in `/tmp/hsz-iter88/`.
+`~/headshotz-loop/shots/latest/` cleared first; `before-1024.png`/`before-844.png` show the old empty street, mirrored objective and flat discs; `after-1024.png` is the first deployed frame with a scout at ~21 m, a loot beacon, grass tufts, the now-solid corrected `Objective · 632 m south · 162°` pill, and `EXIT 603 m ▲ south`; `after-844.png` shows the compact spawn with loot beacon and exit chip; `after-1024-action.png` (HP 86) and `after-844-action.png` (HP 93) show the scout at ~13 m mid-windup with a loot beacon and the exit chip. Source frames in `/tmp/hsz-iter88/`.
 
 ### Honest critique
 The bearings and flat stickers are fixed and the first road now contains a scout, a loot beacon and a clear exit chip, but the scout is an orange silhouette with no readable weapon and the loot still reads mostly as a cyan beacon rather than a gun or crate, so the walk is clearer rather than dramatic.
