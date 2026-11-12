@@ -7497,3 +7497,33 @@ The controls now hold fire and refuse cover/range targets, but the action screen
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR). Then P1 needs Austin's live two-thumb playtest: hold movement, look and fire at once, and confirm the burst doesn't stutter while a shot is in flight over real RTT. If it still feels unlike the main game, instrument the pending-shot path with live latency rather than an offline harness. No new visual-polish pass until P1 settles.
+
+## Iteration 78 — Painted-metal sensor cowl replaces the black front plate (director note 2, 2026-11-12)
+
+### Acceptance criteria
+1. The hunter's front-mounted sensor cowl (the plate above the orange core) renders as painted metal with a visible lit sensor slit at raid dusk, at both 1024x720 desktop and 844x390 phone landscape, from the player's eye line while the machine faces the camera.
+2. No near-black flat square remains on the machine front in the same pose; the slit reads at the same screen position as the old void and does not z-fight with the cowl face.
+3. The change is cosmetic only: no raid rules, AI, controls or `game.js` changes; the machine-model silhouette assertions, static offline grader and mobile HUD grader stay green, and the Node suite must remain 1247/1247.
+4. Before/after screenshots of the same offline dusk fixture and pose exist in `~/headshotz-loop/shots/latest/` at both viewports, plus action frames.
+
+### Implementation (director note 2 — machine face bug)
+- `raid-models.mjs`: the hunter cowl hull changed from the graphite slab `hull('box',dark,0,1.45,.6,.65,.4,.6)` (dark tint × worn map with metalness .53 → near-zero albedo at dusk) to painted steel `hull('box',0xa2a8ac,0,1.45,.6,.68,.44,.58)`.
+- Added a small dark bezel `detail('box',0x2b3438,0,1.44,.925,.44,.13,.03)` and a warm unlit sensor slit (`0xffc46b`, `0.38×0.06×0.02`) at `(0,1.44,.955)`. The first pass sat the bezel's front plane exactly on the cowl's front plane and produced new z-fighting black; the final pass pushes both parts proud of the face (cowl front .89, bezel front .94, slit front .965) so the face reads as painted metal with a lit visor.
+- Only `raid-models.mjs` is committed; the temporary `window.__hszDebugView` capture hook in `raid-online.mjs` was reverted from the saved backup before checks.
+
+### Verification
+- `node --check raid-models.mjs raid-online.mjs`: OK.
+- `raid-browser-machine-models.mjs`: green; hunter wornMeshes 11, features intact, hunter detail pixel delta 510; browserErrors [].
+- `raid-browser-static-offline.mjs`: green (deploy/move, machineHit, loot, extract; no API traffic; screenshot /tmp/raid-static-offline.png).
+- `raid-browser-mobile-hud.mjs`: green at 1024x720 and 844x390 (unobstructed .9194/.8194, compact .0806/.1806; touch actions pass).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- Offline live raid captures at the same dusk fixture (startHour 17.5, weatherSeed 0, blocks/hazards cleared, hunter 6 m ahead, pistol fixture to avoid tracer covering the face), 1024x720 and 844x390; machine settles dead/off-centre with `target` resolving on the slit and core.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-1024-action.png / after-1024-action.png, before-844.png / after-844.png. Before frames show the pure-black square above the orange core; after frames show the grey painted plate with the warm slit.
+
+### Honest critique
+The black hole is gone and the front now reads as a lit visor, but the painted cowl is still a flat grey rectangle with a plain cream bar instead of a shaped sensor housing, so the machine's face remains the least detailed part of the model and can look pasted-on at 844; the change has only been seen offline at dusk, not in daylight or while the machine is moving on the player's own device.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Next director note is 3 (the two-line location condition strip overlapping the fight); after that note 4 (grass verge/near-road seam) — keep P1 controls frozen until Austin has played the current build.

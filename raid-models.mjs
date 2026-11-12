@@ -377,7 +377,9 @@ export function machineModel(kind,options={}){
   lightPart(root,0,1.18,.74,.12,!plain);
  }else if(kind==='hunter'){
   hull('box',color,0,1.2,0,1.28,.58,1.28);hull('box',0x39434a,0,1.02,0,1.36,.32,1.12);
-  hull('box',dark,0,1.45,.6,.65,.4,.6);
+  // Painted steel sensor cowl: the old graphite slab read as a black hole at
+  // dusk because its tint multiplied the worn map down to near-zero albedo.
+  hull('box',0xa2a8ac,0,1.45,.6,.68,.44,.58);
   // Articulated legs: hip → knee → foot. The girdle reaches past the hips and
   // a socket ball seals each joint so the thighs remain visibly attached.
   for(const x of [-.58,.58])for(const z of [-.45,.45]){
@@ -402,6 +404,12 @@ export function machineModel(kind,options={}){
    detail('box',metal,-.64,1.34,.02,.36,.16,.72,[0,0,.16]);
    detail('box',metal,.64,1.34,.02,.36,.16,.72,[0,0,-.16]);
    detail('sphere',0xff8a5e,0,1.3,.94,.12,.07,.06);
+   // Small recessed bezel and warm sensor slit, deliberately proud of the
+   // painted cowl face: sitting the bezel on the same plane as the hull made
+   // the two surfaces z-fight into a flat black square at dusk.
+   detail('box',0x2b3438,0,1.44,.925,.44,.13,.03);
+   const sensorSlit=new THREE.Mesh(geometries.box,mat(0xffc46b,true));
+   sensorSlit.position.set(0,1.44,.955);sensorSlit.scale.set(.38,.06,.02);root.add(sensorSlit);
    for(const x of [-.58,.58])detail('box',metal,x,1.05,-.72,.2,.42,.16,[0,0,x*.4]);
    silhouette=['dorsal-ridge','sensor-mast','shoulder-cowls','hip-fins','head-lens'];
   }
