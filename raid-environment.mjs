@@ -1,6 +1,6 @@
 import * as THREE from './lib/three.module.min.js';
 import {getTex,normalTex,TX} from './gfx.js';
-import {terrainHeightAt,raidScenery} from './shared/raid-worlds.mjs';
+import {terrainHeightAt,raidScenery,raidDoorwaySites,raidSpawnDressing,uniqueWindowProps} from './shared/raid-worlds.mjs';
 const palettes={industrial:{ground:0x969684,concrete:0xadb0a8,brick:0x9b8272,planks:0x8a7c68,roof:0x44565f,metal:0x8ea0a1,container:0x4e7b81,rock:0x7f7c72,crate:0xac8755,barrier:0xccb173},wilderness:{ground:0x8a9375,concrete:0xb0b0a4,brick:0xa88977,planks:0x8a7357,roof:0x4c6662,metal:0x8fa2a2,container:0x7c7050,rock:0x99958a,crate:0x9c8559,barrier:0xa8a176},settlement:{ground:0x9c8d78,concrete:0xb3ada3,brick:0xb0836a,planks:0x94785c,roof:0x5c5f6a,metal:0x8d989d,container:0x7a625a,rock:0x857d70,crate:0xac8252,barrier:0xceb379}};
 const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':kind==='crate'?'crate':kind==='rock'?'rock':kind==='barrier'?'hazard':kind==='planks'?'planks':kind==='brick'?'brick':'concrete';
 // Per-surface physical response: [roughness, metalness, normalScale]. Asphalt and
@@ -95,22 +95,6 @@ const WIND_VERTEX=`
 // one window per footprint, preferring the warm/lit copy when the pair disagrees.
 // It never mutates world.props: the collision, navigation and loot data still
 // see every authored prop.
-const windowFootprint=prop=>[prop.x.toFixed(4),prop.z.toFixed(4),Number(prop.y||0).toFixed(4),prop.w??'',prop.d??'',prop.h??''].join('|');
-function uniqueWindowProps(props){
- const keep=new Map();
- for(const prop of props){
-  if(prop.kind!=='window')continue;
-  const key=windowFootprint(prop),prev=keep.get(key);
-  if(!prev||(!prev.lit&&prop.lit))keep.set(key,prop);
- }
- if(!keep.size)return props;
- const out=[];
- for(const prop of props){
-  if(prop.kind==='window'&&keep.get(windowFootprint(prop))!==prop)continue;
-  out.push(prop);
- }
- return out;
-}
 export function buildEnvironment(world){
  const root=new THREE.Group(),palette=palettes[world.theme]||palettes.industrial,groups=new Map(),materials=new Map(),windMaterials=[];
  // Authored practicals: lamp heads, floodlights and campfires each contribute a
@@ -725,37 +709,16 @@ export function buildEnvironment(world){
    panel.castShadow=true;panel.receiveShadow=true;panel.userData.raidOwned=true;root.add(panel);
   }
  }
- // Presentation-only street-level doorways derived from the frozen block and
- // window layers: a recessed dark opening framed by masonry, an entry stoop,
- // and a weathered plank door hung ajar. The façade is chosen deterministically
- // and the door is centred in a verified gap between authored window openings,
- // so trim never overlaps a window. No world/actor/collision data is touched.
+ // Street-level doorways derived from the frozen block and window layers: a
+ // recessed dark opening framed by masonry, an entry stoop, and a weathered
+ // plank door hung ajar. The façade is chosen deterministically and the door
+ // is centred in a verified gap between authored window openings, so trim never
+ // overlaps a window. The shared doorway data also carries the stoop colliders.
  const doorwayWindows=uniqueWindowProps(world.props||[]).filter(p=>p.kind==='window');
  const doorwayList=[];let doorways=0;const doorwaySigns=[];
- for(const block of world.blocks){
-  const [x,z,w,d,h,y=0,kind='concrete']=block;
-  if(y>.4||h<2.8||w<6||d<6)continue;
-  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
-  const doorHash=hash01(x*57.1+z*37.7+world.id.length*3.3+h*1.9);
-  if(doorHash>=.45)continue;
-  const primary=Math.floor(hash01(doorHash*7.31)*4)%4;
-  for(let attempt=0;attempt<4;attempt++){
-   const face=(primary+attempt)%4,onZ=face<2,nx=face===2?-1:face===3?1:0,nz=face===0?1:face===1?-1:0;
-   const minA=(onZ?x:z)-(onZ?w:d)/2+1.5,maxA=(onZ?x:z)+(onZ?w:d)/2-1.5;
-   const faceWins=[];
-   for(const p of doorwayWindows){
-    if(onZ){if(Math.abs(p.z-(z+nz*(d/2+.27)))<.8&&p.x>=x-w/2-.1&&p.x<=x+w/2+.1)faceWins.push({a:p.x,width:p.w||1.2})}
-    else if(Math.abs(p.x-(x+nx*(w/2+.27)))<.8&&p.z>=z-d/2-.1&&p.z<=z+d/2+.1)faceWins.push({a:p.z,width:p.d||1.2});
-   }
-   faceWins.sort((a,b)=>a.a-b.a);
-   const gaps=[];let cursor=minA;
-   for(const win of faceWins){const s=win.a-win.width/2-.18,e=win.a+win.width/2+.18;if(s-cursor>=1.8)gaps.push([cursor,s]);cursor=Math.max(cursor,e)}
-   if(maxA-cursor>=1.8)gaps.push([cursor,maxA]);
-   if(!gaps.length)continue;
-   gaps.sort((a,b)=>(b[1]-b[0])-(a[1]-a[0]));
-   const a=(gaps[0][0]+gaps[0][1])/2,wallX=x+nx*w/2,wallZ=z+nz*d/2,ddx=onZ?a:wallX,ddz=onZ?wallZ:a;
-   const doorBase=y+.38,doorW=1.12,doorH=Math.min(2.15,h-.5);
-   const since=(sx,sy,sz)=>onZ?[sx,sy,sz]:[sz,sy,sx];
+ for(const site of raidDoorwaySites(world)){
+  const {face,onZ,x:ddx,z:ddz,y:doorBase,w:doorW,h:doorH,outX,outZ,awning:awn,doorHash,windows:doorWindows,top:blockTop}=site;
+  const since=(sx,sy,sz)=>onZ?[sx,sy,sz]:[sz,sy,sx];
    // Dark recess and masonry trim.
    add('box',0x12191a,ddx,doorBase+doorH/2,ddz,...since(doorW,doorH,.08),0,'metal',0,0,false,'doorway');
    add('box',0x6c6a64,ddx,doorBase+doorH+.06,ddz,...since(doorW+.38,.12,.30),0,'concrete',0,0,false,'doorway');
@@ -765,15 +728,14 @@ export function buildEnvironment(world){
    }
    // A weathered plank door hangs slightly ajar on one jamb; a dull metal
    // handle catches the light and makes the entry legible at night.
-   const outX=onZ?0:nx,outZ=onZ?nz:0,swing=(outZ||outX)*.24;
+   const swing=(outZ||outX)*.24;
    add('box',0x4a3824,ddx+outX*.12,doorBase+doorH/2-.06,ddz+outZ*.12,...since(doorW-.14,doorH-.24,.08),swing,'planks',0,0,false,'doorway');
    add('sphere',0xa9aca9,ddx+(onZ?doorW/2-.2:0)+outX*.18,doorBase+doorH*.46,ddz+(onZ?0:doorW/2-.2)+outZ*.18,.055,.055,.055,0,'metal',0,0,false,'doorway');
    // Two descending steps make the threshold read as a lived-in stoop.
    add('box',0x777368,ddx+outX*.34,doorBase-.26,ddz+outZ*.34,...since(doorW+.7,.18,.68),0,'concrete',0,0,false,'doorway');
    add('box',0x6c6a64,ddx+outX*.22,doorBase-.14,ddz+outZ*.22,...since(doorW+.5,.18,.46),0,'concrete',0,0,false,'doorway');
-   const awningSeed=hash01(doorHash*29.3+face*4.2),awn=awningSeed<.55;
    if(awn){
-    const depth=.92,awW=doorW+1.1,awY=Math.min(doorBase+doorH+.38,y+h-.22),awOut=.05+depth/2;
+    const depth=.92,awW=doorW+1.1,awY=Math.min(doorBase+doorH+.38,blockTop-.22),awOut=.05+depth/2;
     add('box',0x7d5f42,ddx+outX*awOut,awY,ddz+outZ*awOut,...since(awW,.14,depth),0,'planks',onZ?outZ*.19:0,onZ?0:-outX*.19,false,'doorAwning');
     // A lighter outer fascia lip catches the key light, so the canopy reads as
     // a distinct silhouette instead of a shadow band above the doorway.
@@ -789,9 +751,9 @@ export function buildEnvironment(world){
    // The board is centred on the door and edge-on to the wall, so it never
    // covers an authored window; a deterministic share of doors qualifies only
    // where the lintel/canopy leave at least 0.93 m of headroom below the roof.
-   const awningTop=awn?Math.min(doorBase+doorH+.38,y+h-.22)+.07:doorBase+doorH+.06;
+   const awningTop=awn?Math.min(doorBase+doorH+.38,blockTop-.22)+.07:doorBase+doorH+.06;
    const signHash=hash01(doorHash*43.7+face*11.3);
-   if(signHash<.44&&y+h-awningTop>=.93){
+   if(signHash<.44&&blockTop-awningTop>=.93){
     const teal=signHash<.22,panel=teal?0x4d6159:0x6b5238,band=teal?0xb9a878:0xc8a87b,frame=teal?0x6f7e7c:0x7b8580;
     const sy=awningTop+.50,sD=.84,sT=.07,sH=.60,sX=ddx+outX*.52,sZ=ddz+outZ*.52;
     add('box',panel,sX,sy,sZ,...since(sT,sH,sD),0,'planks',0,0,false,'facadeSign');
@@ -809,10 +771,8 @@ export function buildEnvironment(world){
     add('box',0x4b5657,ddx+outX*.05,sy-.02,ddz+outZ*.05,...since(.10,.34,.10),0,'metal',0,0,false,'facadeSign');
     doorwaySigns.push({x:sX,y:sy,z:sZ,face,onZ,outX,outZ,panel});
    }
-   doorwayList.push({x:ddx,y:doorBase,z:ddz,face,onZ,outX,outZ,w:doorW,h:doorH,windows:faceWins.length,awning:awn});
+   doorwayList.push({x:ddx,y:doorBase,z:ddz,face,onZ,outX,outZ,w:doorW,h:doorH,windows:doorWindows,awning:awn});
    doorways++;
-   break;
-  }
  }
  structureDetail.doorways=doorways;root.userData.raidDoorways=doorwayList;
  structureDetail.facadeSigns=doorwaySigns.length;root.userData.raidFacadeSigns=doorwaySigns;
@@ -966,22 +926,16 @@ export function buildEnvironment(world){
  }
  structureDetail.sidingRibs=sidingRibs.length;
  // Spawn dressing: a knot of drums and a supply crate on the apron beside each
- // insertion point. These are presentation-only street clutter, never blocks, so
- // authoritative collision and offline/server agreement are untouched.
- const spawnProps=[[-3.2,11.4,0x4b5344],[-1.4,12.8,0x8a5a3e],[1.8,13.8,0x4b5344]];
- const atSpawn=(sx,sz)=>{
-  const hit=(x,z)=>world.blocks.some(b=>Math.abs(x-b[0])<b[2]/2+.7&&Math.abs(z-b[1])<b[3]/2+.7);
-  for(const [dx,dz,color] of spawnProps){
-   const x=sx+dx,z=sz+dz;if(hit(x,z))continue;
-   const y=terrainHeightAt(world,x,z);
-   add('cylinder',color,x,y+.65,z,.52,1.3,.52,0,'metal');
-   add('cylinder',0x2a2f2c,x,y+1.25,z,.54,.09,.54,0,'metal');
-   add('cylinder',0x232824,x,y+.07,z,.54,.10,.54,0,'metal');
+ // insertion point. The shared list also lowers these into decor colliders, so
+ // what the player sees matches what stops a body, bullet or machine leg.
+ for(const item of raidSpawnDressing(world)){
+  if(item.kind==='drum'){
+   add('cylinder',item.color,item.x,item.y+.65,item.z,.52,1.3,.52,0,'metal');
+   add('cylinder',0x2a2f2c,item.x,item.y+1.25,item.z,.54,.09,.54,0,'metal');
+   add('cylinder',0x232824,item.x,item.y+.07,item.z,.54,.10,.54,0,'metal');
   }
-  const x=sx-4.4,z=sz+9.7;
-  if(!hit(x,z))add('box',0x8a6a45,x,terrainHeightAt(world,x,z)+.55,z,1.05,1.1,1.05,0,'crate');
- };
- for(const [sx,sz] of world.spawns||[])atSpawn(sx,sz);
+  else add('box',item.color,item.x,item.y+.55,item.z,item.w,item.h,item.d,0,'crate');
+ }
  // Perimeter hills and warning posts frame the playable region without blocking routes.
  for(let i=0;i<24;i++){const angle=i*Math.PI/12,x=Math.sin(angle)*(world.size/2+15),z=Math.cos(angle)*(world.size/2+15);add('cone',palette.rock,x,7,z,15,18,15,angle,'rock')}
  const sceneryCounts={};for(const item of scenery)sceneryCounts[item.kind]=(sceneryCounts[item.kind]||0)+1;

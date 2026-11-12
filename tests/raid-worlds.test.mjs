@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {RAID_WORLDS,ARCHIVED_RAID_WORLDS,LEGACY_RAID_WORLDS,blocked,floorAt,getWorld,terrainHeightAt,raidScenery} from '../shared/raid-worlds.mjs';
+import {RAID_WORLDS,ARCHIVED_RAID_WORLDS,LEGACY_RAID_WORLDS,blocked,floorAt,getWorld,terrainHeightAt,raidScenery,raidDoorwaySites,raidSpawnDressing} from '../shared/raid-worlds.mjs';
 import {findPath} from '../shared/raid-navigation.mjs';
 for(const world of RAID_WORLDS){
  test(`${world.name}: all spawns, caches and exits have walkable support`,()=>{
@@ -14,7 +14,7 @@ for(const world of RAID_WORLDS){
   for(const [x,z,y=0]of [...world.caches,...world.exits.map(e=>[e.x,e.z,e.y])])assert.ok(findPath(world,from,{x,y,z}).length,`No route to ${x},${y},${z}`);
  });
 }
-test('procedural scenery is deterministic, dense, non-colliding and evenly spread',()=>{
+test('procedural scenery is deterministic, dense, clear of authored solids and evenly spread',()=>{
  const foliage=new Set(['fern','shrub','moss','stump']),kinds=new Set(['fern','shrub','stump','moss','ruin','rubble']);
  const roads=world=>world.props.filter(p=>['road','sidewalk','crosswalk','plaza'].includes(p.kind)&&p.w&&p.d);
  for(const world of RAID_WORLDS){
@@ -28,7 +28,7 @@ test('procedural scenery is deterministic, dense, non-colliding and evenly sprea
   const quadrants=[0,0,0,0];const roadProps=roads(world);
   for(const p of scenery){
    assert.ok(Math.abs(p.x)<world.size/2-17&&Math.abs(p.z)<world.size/2-17,`${world.id} scenery stays inside the sector edge`);
-   assert.equal(blocked(world,p.x,p.z,.1,0,.2),false,`${world.id} scenery never overlaps collision solids (${p.kind} at ${p.x},${p.z})`);
+   assert.equal(blocked(world,p.x,p.z,.1,0,.2,false,true),false,`${world.id} scenery never overlaps authored solids (${p.kind} at ${p.x},${p.z})`);
    for(const road of roadProps)assert.ok(!(Math.abs(p.x-road.x)<road.w/2+2&&Math.abs(p.z-road.z)<road.d/2+2),`${world.id} scenery stays off roads and sidewalks`);
    quadrants[(p.x>=0?1:0)+(p.z>=0?2:0)]++;
   }
@@ -36,6 +36,33 @@ test('procedural scenery is deterministic, dense, non-colliding and evenly sprea
   for(const [x,z]of world.spawns)assert.ok(scenery.every(p=>Math.hypot(p.x-x,p.z-z)>=15),`${world.id} spawn pad stays clear`);
   for(const [x,z]of world.caches)assert.ok(scenery.every(p=>Math.hypot(p.x-x,p.z-z)>=11),`${world.id} cache pad stays clear`);
   for(const exit of world.exits)assert.ok(scenery.every(p=>Math.hypot(p.x-exit.x,p.z-exit.z)>=13),`${world.id} exit pad stays clear`);
+ }
+});
+test('ruin walls, stumps, doorway stoops and spawn dressing stop bodies where they read solid',()=>{
+ for(const world of RAID_WORLDS){
+  let ruins=0,stumps=0,soft=0,softInDecor=0;
+  for(const p of raidScenery(world)){
+   const base=terrainHeightAt(world,p.x,p.z);
+   if(p.kind==='ruin'){ruins++;assert.equal(blocked(world,p.x,p.z,.1,base+.1,1.7),true,`${world.id} ruin wall blocks (${p.x},${p.z})`)}
+   else if(p.kind==='stump'){stumps++;assert.equal(blocked(world,p.x,p.z,.1,base+.1,1.7),true,`${world.id} stump blocks (${p.x},${p.z})`)}
+   else if(p.kind==='fern'||p.kind==='shrub'||p.kind==='moss'){
+    soft++;
+    // A fern that spawned under a ruin wall is hidden by that wall, not
+    // blocked by the fern itself; only a handful ever land there.
+    if(blocked(world,p.x,p.z,.1,base+.1,1.7))softInDecor++;
+   }
+  }
+  assert.ok(ruins>0&&stumps>0&&soft>0,`${world.id} has ruin walls, stumps and passable undergrowth`);
+  assert.ok(softInDecor/soft<=.01,`${world.id} undergrowth collision is limited to plants covered by ruins (${softInDecor}/${soft})`);
+  const door=raidDoorwaySites(world).find(d=>d.top>=2.8);
+  assert.ok(door,`${world.id} builds doorways`);
+  const stoopX=door.x+(door.onZ?0:door.outX*.34),stoopZ=door.z+(door.onZ?door.outZ*.34:0);
+  assert.equal(blocked(world,stoopX,stoopZ,.1,door.base-.05,1.7),true,`${world.id} doorway stoop blocks (${stoopX},${stoopZ})`);
+  const dressing=raidSpawnDressing(world);
+  assert.ok(dressing.some(item=>item.kind==='crate'),`${world.id} keeps its supply crate on the apron`);
+  for(const item of dressing){
+   assert.equal(blocked(world,item.x,item.z,.1,item.y+.1,1.7),true,`${world.id} ${item.kind} dressing blocks (${item.x},${item.z})`);
+  }
  }
 });
 test('old checkpoints retain their original world layout version',()=>{
