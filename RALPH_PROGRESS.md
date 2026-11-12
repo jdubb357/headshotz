@@ -7860,3 +7860,30 @@ Props now truly stop you and stops read as cover rather than a walk-through, but
 
 ### Next action
 Commit on `cypert/dev` (no push, no PR, no `main`). Finish director note 3's second half next: give `raidScenery` ruin walls and `raid-environment` decorative stoops/crates real colliders (they are still presentation-only), re-walk spawn-to-exit, then move to note 4 (window/door coherence).
+
+## Iteration 90 — Decor colliders: ruin walls, doorway stoops and spawn dressing (director note 1, 2026-11-12)
+
+### Acceptance criteria
+1. `raidScenery` ruin walls and stumps, spawned doorway stoops and spawn-apron drums/crate block operator movement, bullets and AI through the shared `blocked()`; ferns/shrubs/moss/rubble and road/sidewalk dressing stay passable; every spawn, cache and exit keeps walkable support and a route.
+2. The colliders derive from the same deterministic data the offline builder draws (shared doorway-site and spawn-dressing helpers), so online/server authority and in-page offline rules agree; scenery and doorway counts/tags are unchanged.
+3. Re-walk spawn-to-exit for the affected worlds and stage a walk into a relay ruin wall: at 1024×720 and 844×390 HEAD passes through the ruin wall while the current build stops against it; the iteration-89 spawn-crate stop is unchanged.
+
+### Changed
+- `shared/raid-worlds.mjs`: new shared `raidDoorwaySites` (doorway placement, gap scan and awning pick) and `raidSpawnDressing` (three drums plus a crate per spawn) helpers; `decorGrid`/`decorBlocked` lower ruin walls, stumps, doorway stoops and spawn dressing into a cell-24 hash with oriented-box and vertical-band tests; `blocked()` gained a defaulted `ignoreDecor` argument (8th). Scenery's `usable()` now skips its own decor (`ignoreDecor=true`) and its spawn/cache/exit data is defensive. Only v10 worlds get decor grids, so v7–v9 layout construction and synthetic collision worlds stay untouched.
+- `raid-environment.mjs`: doorway and spawn-dressing drawing now consumes the same helpers (stoops collide, visuals byte-identical; `doorwayWindows` retained for the weather pass).
+- `tests/raid-worlds.test.mjs`: added a regression test — ruin walls, stumps, doorway stoops and spawn dressing block at their drawn height; ferns/shrubs/moss stay passable apart from plants hidden under ruins (≤1%); scenery's authored-solid check ignores decor.
+
+### Verification
+- `node --test tests/raid-worlds.test.mjs`: 13/13; `raid-network.test.mjs` 14/14 after guarding decor on synthetic worlds (`world.version>=10`) and defaulting scenery spawn/cache/exit lists.
+- `node --test tests/*.test.mjs` rerun once after the fix: 1248 pass, 1 fail — the known intermittent `tests/matchmaking.test.mjs` local-host `ECONNRESET` (unchanged on solo reruns, does not import raid files).
+- `node tests/raid-browser-static-offline.mjs` pass (deploy → move → fire hit → loot → extract, 2 items, `browserErrors:[]`); `raid-browser-mobile-hud.mjs` pass (1024×720 91.83%, 844×390 81.81%); `raid-browser-scenery.mjs` pass (relay 1926 / reservoir 1991 / switchyard 1880 props, tags unchanged); doorway assertions in `raid-browser-structures.mjs` (counts >80, awning >50, doorway instances >800, façade pixels) pass; that grader's final `reduced.changed` check fails identically on HEAD, a pre-existing weather-animation flake outside this slice.
+- Node walk probe (spawn-to-exit on relay, forced 14:00 rain): HEAD walks through the ruin wall to z≈-313; current build stops at z≈-322 and stays stopped when held for another 1.2 s.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared, same forced rain plan at the same staged walk: `before-1024.png`/`before-844.png` show HEAD inside the ruin wall (brick fills the camera, operator hidden); `after-1024.png`/`after-844.png` show the operator stopped on the plank in front of the brick wall; `after-1024-action.png`/`after-844-action.png` are the same pinned pose after 1.2 s more forward hold. Iteration-89 spawn-crate stop re-checked in `/tmp/hsz-iter90/out-after90/after-contact-*.png` and unchanged. Source frames in `/tmp/hsz-iter90`.
+
+### Honest critique
+The ruin wall now reads as solid — you stop against brick you can see — but the doorway stoops and spawn drums are still low, featureless boxes, and the collider adds no feedback (no bump/hit sound or lean), so the walls are believable while the stops feel like an invisible fence.
+
+### Next action
+Director note 2 — ground loot must be visible within 90 s of normal walking (a recognizable gun or ammo crate model from `assets/models`, pickup prompt in range) and the machine must read as a threat (darker paint, emissive eye, muzzle). Note 3 (grass cones → flat tufts, textured crates/barrels, readable radar arrow) follows; notes 4–5 later. Note 1 still awaits Austin's live playtest; his verdict decides when items land.

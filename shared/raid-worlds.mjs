@@ -3,6 +3,11 @@ const blockGrids=new WeakMap();
 // Declared up front because the frozen sector builders call blocked() during
 // module initialisation, before the prop APIs at the bottom of this file.
 const propGrids=new WeakMap();
+// Decor collision grids derive from deterministic scenery/doorway/spawn data,
+// so online authority, offline in-page rules and both builders agree. Scenery
+// is memoized per sector; it must not see decor collision while selecting
+// plant/ruin sites (see the ignoreDecor control flow in blocked()).
+const decorGrids=new WeakMap(),sceneryCache=new WeakMap(),doorwayCache=new WeakMap();
 const FOOTPRINT={
  car:p=>{const s=p.scale||1;return {hw:1.15*s+.12,hd:.62*s+.12,h:1.75*s}},
  truck:p=>{const s=p.scale||1;return {hw:3.05*s+.2,hd:1.25*s+.1,h:2.1*s}},
@@ -1109,11 +1114,148 @@ function propBlocked(world,x,z,r,y,height){
  }
  return false;
 }
-export function blocked(world,x,z,r=.5,y=0,height=1.7,ignoreProps=false){
+// ===================== Decor collision =====================
+// The neutral builder draws undergrowth, ruin walls, doorway stoops and spawn
+// clutter from deterministic data that used to be presentation-only. The same
+// data is lowered into a second spatial hash so the operator, bullets and AI
+// stop on what the player sees. Nothing here mutates the frozen layout.
+function decorHash(n){const v=Math.sin(n)*43758.5453123;return v-Math.floor(v)}
+const windowFootprint=prop=>[prop.x.toFixed(4),prop.z.toFixed(4),Number(prop.y||0).toFixed(4),prop.w??'',prop.d??'',prop.h??''].join('|');
+export function uniqueWindowProps(props){
+ const keep=new Map();
+ for(const prop of props){
+  if(prop.kind!=='window')continue;
+  const key=windowFootprint(prop),prev=keep.get(key);
+  if(!prev||(!prev.lit&&prop.lit))keep.set(key,prop);
+ }
+ if(!keep.size)return props;
+ const out=[];
+ for(const prop of props){
+  if(prop.kind==='window'&&keep.get(windowFootprint(prop))!==prop)continue;
+  out.push(prop);
+ }
+ return out;
+}
+// Spawn apron drums and the wooden supply crate. Rendered and collided from one
+// list so the offline builder and authority can never drift apart.
+const SPAWN_DRUMS=[[-3.2,11.4,0x4b5344],[-1.4,12.8,0x8a5a3e],[1.8,13.8,0x4b5344]];
+export function raidSpawnDressing(world){
+ const blocks=world.blocks||[],out=[];
+ const hit=(x,z)=>blocks.some(([bx,bz,w,d])=>Math.abs(x-bx)<w/2+.7&&Math.abs(z-bz)<d/2+.7);
+ for(const [sx,sz] of world.spawns||[]){
+  for(const [dx,dz,color] of SPAWN_DRUMS){
+   const x=sx+dx,z=sz+dz;if(hit(x,z))continue;
+   out.push({kind:'drum',x,z,y:terrainHeightAt(world,x,z),color,radius:.52,height:1.3});
+  }
+  const x=sx-4.4,z=sz+9.7;
+  if(!hit(x,z))out.push({kind:'crate',x,z,y:terrainHeightAt(world,x,z),color:0x8a6a45,w:1.05,h:1.1,d:1.05});
+ }
+ return out;
+}
+// Street-level doorway sites, derived from frozen blocks and the authored window
+// layer. This picker is the single source of truth for both the façade dress
+// (raid-environment.mjs) and the doorway stoop colliders.
+export function raidDoorwaySites(world){
+ let sites=doorwayCache.get(world);if(sites)return sites;
+ const windows=uniqueWindowProps(world.props||[]).filter(p=>p.kind==='window');
+ sites=[];
+ for(const block of world.blocks||[]){
+  const [x,z,w,d,h,y=0,kind='concrete']=block;
+  if(y>.4||h<2.8||w<6||d<6)continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  const doorHash=decorHash(x*57.1+z*37.7+world.id.length*3.3+h*1.9);
+  if(doorHash>=.45)continue;
+  const primary=Math.floor(decorHash(doorHash*7.31)*4)%4;
+  for(let attempt=0;attempt<4;attempt++){
+   const face=(primary+attempt)%4,onZ=face<2,nx=face===2?-1:face===3?1:0,nz=face===0?1:face===1?-1:0;
+   const minA=(onZ?x:z)-(onZ?w:d)/2+1.5,maxA=(onZ?x:z)+(onZ?w:d)/2-1.5;
+   const faceWins=[];
+   for(const p of windows){
+    if(onZ){if(Math.abs(p.z-(z+nz*(d/2+.27)))<.8&&p.x>=x-w/2-.1&&p.x<=x+w/2+.1)faceWins.push({a:p.x,width:p.w||1.2})}
+    else if(Math.abs(p.x-(x+nx*(w/2+.27)))<.8&&p.z>=z-d/2-.1&&p.z<=z+d/2+.1)faceWins.push({a:p.z,width:p.d||1.2});
+   }
+   faceWins.sort((a,b)=>a.a-b.a);
+   const gaps=[];let cursor=minA;
+   for(const win of faceWins){const s=win.a-win.width/2-.18,e=win.a+win.width/2+.18;if(s-cursor>=1.8)gaps.push([cursor,s]);cursor=Math.max(cursor,e)}
+   if(maxA-cursor>=1.8)gaps.push([cursor,maxA]);
+   if(!gaps.length)continue;
+   gaps.sort((a,b)=>(b[1]-b[0])-(a[1]-a[0]));
+   const a=(gaps[0][0]+gaps[0][1])/2,wallX=x+nx*w/2,wallZ=z+nz*d/2,ddx=onZ?a:wallX,ddz=onZ?wallZ:a;
+   const doorBase=y+.38,doorW=1.12,doorH=Math.min(2.15,h-.5);
+   const outX=onZ?0:nx,outZ=onZ?nz:0;
+   const awning=decorHash(doorHash*29.3+face*4.2)<.55;
+   sites.push({x:ddx,y:doorBase,z:ddz,base:y,top:y+h,face,onZ,outX,outZ,w:doorW,h:doorH,windows:faceWins.length,awning,doorHash});
+   break;
+  }
+ }
+ doorwayCache.set(world,sites);return sites;
+}
+// A rotated box footprint is tested against the same surface height rule as
+// authored blocks, so low rubble stays passable while standing walls stop a
+// body, a bullet or a machine. Only live (v10) deployments carry decor solids:
+// the v7-v9 construction worlds consult blocked() while their frozen prop
+// scatter is still being assembled.
+function decorGrid(world){
+ const cached=decorGrids.get(world);if(cached)return cached;
+ const cell=24,cells=new Map();
+ if(!world||!(world.version>=10)){const empty={cells,cell,count:0};decorGrids.set(world,empty);return empty}
+ const keepClear=[];for(const [px,pz]of world.spawns||[])keepClear.push([px,pz,2.6]);
+ for(const [px,pz]of world.caches||[])keepClear.push([px,pz,2.2]);
+ for(const exit of world.exits||[])keepClear.push([exit.x,exit.z,2.4]);
+ const entries=[];
+ const push=(x,z,hw,hd,base,h,ry=0)=>entries.push([x,z,hw,hd,base,h,ry]);
+ const pushDoor=(x,z,hw,hd,base,h)=>{
+  // Leave the immediate approach to a deployment point open: a decorative
+  // stoop beside a cache must never be the only thing sealing it.
+  if(keepClear.some(([qx,qz,pad])=>Math.abs(x-qx)<hw+pad&&Math.abs(z-qz)<hd+pad))return;
+  entries.push([x,z,hw,hd,base,h,0]);
+ };
+ for(const item of raidScenery(world)){
+  if(item.kind==='ruin'){
+   const s=item.scale||1,base=terrainHeightAt(world,item.x,item.z),ry=item.ry||0;
+   push(item.x,item.z,.275*s,1.2*s,base,1.7*s,ry);
+   push(item.x+Math.sin(ry)*1.25*s,item.z+Math.cos(ry)*1.25*s,.25*s,.75*s,base,1.16*s,ry);
+  } else if(item.kind==='stump'){
+   const s=item.scale||1;
+   push(item.x,item.z,.3*s,.3*s,terrainHeightAt(world,item.x,item.z),1.3*s);
+  }
+ }
+ for(const door of raidDoorwaySites(world)){
+  const hw=door.onZ?(door.w+.7)/2:.34,hd=door.onZ?.34:(door.w+.7)/2;
+  pushDoor(door.x+(door.onZ?0:door.outX*.34),door.z+(door.onZ?door.outZ*.34:0),hw,hd,door.y-.35,.30);
+ }
+ for(const item of raidSpawnDressing(world)){
+  if(item.kind==='drum')push(item.x,item.z,item.radius,item.radius,item.y,item.height);
+  else push(item.x,item.z,item.w/2,item.d/2,item.y,item.h);
+ }
+ for(const entry of entries){const [x,z,hw,hd]=entry,ry=entry[6]||0,cos=Math.abs(Math.cos(ry)),sin=Math.abs(Math.sin(ry));
+  const ex=cos*hw+sin*hd,ez=sin*hw+cos*hd;
+  const x0=Math.floor((x-ex)/cell),x1=Math.floor((x+ex)/cell);
+  const z0=Math.floor((z-ez)/cell),z1=Math.floor((z+ez)/cell);
+  for(let i=x0;i<=x1;i++)for(let j=z0;j<=z1;j++){const key=i*65536+j;let list=cells.get(key);if(!list)cells.set(key,list=[]);list.push(entry)}
+ }
+ const grid={cells,cell,count:entries.length};decorGrids.set(world,grid);return grid;
+}
+function decorBlocked(world,x,z,r,y,height){
+ const grid=decorGrid(world);if(!grid.count)return false;
+ const cell=grid.cell,minX=Math.floor((x-r)/cell),maxX=Math.floor((x+r)/cell),minZ=Math.floor((z-r)/cell),maxZ=Math.floor((z+r)/cell);
+ for(let i=minX;i<=maxX;i++)for(let j=minZ;j<=maxZ;j++){
+  const list=grid.cells.get(i*65536+j);if(!list)continue;
+  for(const [px,pz,hw,hd,base,h,ry]of list){
+   if(y+height<=base+.04||y>=base+h-.04)continue;
+   if(!ry){if(Math.abs(x-px)<hw+r&&Math.abs(z-pz)<hd+r)return true;continue}
+   const dx=x-px,dz=z-pz,cos=Math.cos(ry),sin=Math.sin(ry);
+   if(Math.abs(dx*cos-dz*sin)<hw+r&&Math.abs(dx*sin+dz*cos)<hd+r)return true;
+  }
+ }
+ return false;
+}
+export function blocked(world,x,z,r=.5,y=0,height=1.7,ignoreProps=false,ignoreDecor=false){
  if(Math.abs(x)>world.size/2-r||Math.abs(z)>world.size/2-r)return true;
  if(nearbyBlocks(world,x,z,r).some(([bx,bz,w,d,h,base=0])=>Math.abs(x-bx)<w/2+r&&Math.abs(z-bz)<d/2+r&&y+height>base+.04&&y<base+h-.04))return true;
  if((world.doors||[]).some(door=>door.closed&&Math.abs(x-door.x)<door.w/2+r&&Math.abs(z-door.z)<door.d/2+r&&y+height>(door.y||0)+.04&&y<(door.y||0)+door.h-.04))return true;
  if(!ignoreProps&&propBlocked(world,x,z,r,y,height))return true;
+ if(!ignoreDecor&&decorBlocked(world,x,z,r,y,height))return true;
  return (world.ramps||[]).some(ramp=>{const level=rampLevel(ramp,x,z);return level!=null&&y<level-.04&&y+height>level-.12});
 }
 export function rampLevel(r,x,z){if(Math.abs(x-r.x)>r.w/2||Math.abs(z-r.z)>r.d/2)return null;const t=r.axis==='x'?(x-r.x)/r.w+.5:(z-r.z)/r.d+.5;return r.from+(r.to-r.from)*t}
@@ -1130,17 +1272,18 @@ export function terrainHeightAt(world,x,z){
 // data instead of being stored in the versioned layout, so checkpoints, block
 // collision and spawn/cache/exit routes remain byte-for-byte unchanged.
 export function raidScenery(world){
+ const cached=sceneryCache.get(world);if(cached)return cached;
  const seedText=world.id+'|'+world.size+'|'+world.theme;
  let seed=2166136261;for(let i=0;i<seedText.length;i++)seed=Math.imul(seed^seedText.charCodeAt(i),16777619)>>>0;
  const R=prng(seed),half=world.size/2,props=world.props||[],out=[];
  const roads=props.filter(p=>(p.kind==='road'||p.kind==='sidewalk'||p.kind==='crosswalk'||p.kind==='plaza')&&p.w&&p.d);
  const clearRoad=(x,z,pad=2.4)=>{for(const p of roads){if(Math.abs(x-p.x)<(p.w||0)/2+pad&&Math.abs(z-p.z)<(p.d||0)/2+pad)return false}return true};
- const points=[];for(const [x,z]of world.spawns)points.push([x,z,15]);
- for(const [x,z]of world.caches)points.push([x,z,11]);
- for(const exit of world.exits)points.push([exit.x,exit.z,13]);
+ const points=[];for(const [x,z] of world.spawns||[])points.push([x,z,15]);
+ for(const [x,z] of world.caches||[])points.push([x,z,11]);
+ for(const exit of world.exits||[])points.push([exit.x,exit.z,13]);
  if(world.supply)points.push([world.supply.x,world.supply.z,10]);
  const nearPoint=(x,z)=>points.some(([px,pz,r])=>Math.hypot(x-px,z-pz)<r);
- const usable=(x,z)=>Math.abs(x)<half-18&&Math.abs(z)<half-18&&!nearPoint(x,z)&&!blocked(world,x,z,1.2)&&clearRoad(x,z);
+ const usable=(x,z)=>Math.abs(x)<half-18&&Math.abs(z)<half-18&&!nearPoint(x,z)&&!blocked(world,x,z,1.2,0,1.7,false,true)&&clearRoad(x,z);
  const foliage=world.theme==='wilderness'?[[0x3f6238,0x587446,0x688b52],[0x45673d,0x5e8248,0x36533a],[0x577a4a,0x6f8d54]]:
    world.theme==='settlement'?[[0x4c7042,0x668550,0x3f5e39],[0x567748,0x6a8b58,0x45653f],[0x6f8753,0x5f7d49]]:
    [[0x4f7048,0x64854d,0x38553a],[0x52744a,0x5d7f4f,0x3c5a40],[0x6a844f,0x5f7b47]];
@@ -1178,6 +1321,7 @@ export function raidScenery(world){
   const x=Math.round(bx+Math.cos(angle)*offset),z=Math.round(bz+Math.sin(angle)*offset);
   if(usable(x,z))out.push({kind:'rubble',x,z,y:0,scale:.5+R()*.7,color:rubbleColors[Math.floor(R()*3)],ry:R()*Math.PI*2});
  }
+ sceneryCache.set(world,out);
  return out;
 }
 export function floorAt(world,x,z,ceiling=Infinity){
