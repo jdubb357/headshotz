@@ -65,7 +65,15 @@ function coreGlowTexture(){
  g.fillStyle=grd;g.fillRect(0,0,size,size);
  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;coreGlowTex=texture;return texture;
 }
-function wornMat(color){const key='worn|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,map:wornPlatingTexture(),roughness:.74,metalness:.53,envMapIntensity:.95});material.userData.raidWorn=true;materials.set(key,material)}return materials.get(key)}
+function wornMat(color){const key='worn|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,map:wornPlatingTexture(),roughness:.74,metalness:.53,envMapIntensity:.95});material.userData.raidWorn=true;
+ // Cool grazing-angle rim on the repaired plating. Large flat hull faces keep
+ // their authored rust tint, while shoulders, seams and limbs catch a steel
+ // edge that separates the silhouette from dusk haze and grey pavement.
+ material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
+  'float raidEdge=pow(1.0-abs(dot(normalize(normal),normalize(vViewPosition))),4.0);\n'+
+  'outgoingLight+=vec3(.34,.46,.55)*.19*raidEdge;\n'+
+  '#include <opaque_fragment>')};
+ materials.set(key,material)}return materials.get(key)}
 // Salvaged stamped-metal crate shell. Caches are the objects players search at
 // range, so a shared procedural map (rolled seams, rivet border, diagonal
 // braces, rust blooms and scuffs) makes them read as weathered municipal
@@ -377,7 +385,9 @@ export function machineModel(kind,options={}){
   lightPart(root,0,1.18,.74,.12,!plain);
  }else if(kind==='hunter'){
   hull('box',color,0,1.2,0,1.28,.58,1.28);hull('box',0x39434a,0,1.02,0,1.36,.32,1.12);
-  hull('box',dark,0,1.45,.6,.65,.4,.6);
+  // Painted steel sensor cowl: the old graphite slab read as a black hole at
+  // dusk because its tint multiplied the worn map down to near-zero albedo.
+  hull('box',0xa2a8ac,0,1.45,.6,.68,.44,.58);
   // Articulated legs: hip → knee → foot. The girdle reaches past the hips and
   // a socket ball seals each joint so the thighs remain visibly attached.
   for(const x of [-.58,.58])for(const z of [-.45,.45]){
@@ -402,6 +412,12 @@ export function machineModel(kind,options={}){
    detail('box',metal,-.64,1.34,.02,.36,.16,.72,[0,0,.16]);
    detail('box',metal,.64,1.34,.02,.36,.16,.72,[0,0,-.16]);
    detail('sphere',0xff8a5e,0,1.3,.94,.12,.07,.06);
+   // Small recessed bezel and warm sensor slit, deliberately proud of the
+   // painted cowl face: sitting the bezel on the same plane as the hull made
+   // the two surfaces z-fight into a flat black square at dusk.
+   detail('box',0x2b3438,0,1.44,.925,.44,.13,.03);
+   const sensorSlit=new THREE.Mesh(geometries.box,mat(0xffc46b,true));
+   sensorSlit.position.set(0,1.44,.955);sensorSlit.scale.set(.38,.06,.02);root.add(sensorSlit);
    for(const x of [-.58,.58])detail('box',metal,x,1.05,-.72,.2,.42,.16,[0,0,x*.4]);
    silhouette=['dorsal-ridge','sensor-mast','shoulder-cowls','hip-fins','head-lens'];
   }
@@ -456,6 +472,21 @@ export function machineModel(kind,options={}){
    silhouette=['crown-spikes','chest-vents','shoulder-pylons'];
   }
   lightPart(root,0,def.core,1.05,.42,!plain);
+ }
+ if(!plain&&kind!=='flyer'){
+  // A soft dark bed and a camera-facing contact haze under the hull stop a
+  // machine reading as a floating sprite on the road. Both are presentation-only
+  // (the flyer deliberately has none), are disposed with their actor, and never
+  // touch the shared worn map or the authoritative footprint.
+  const bed=({scout:[1.55,1.05],hunter:[2.1,1.3],heavy:[2.9,1.75],overlord:[4.2,2.6]}[kind]||[1.8,1.2]);
+  const geometry=new THREE.PlaneGeometry(bed[0],bed[1]);geometry.userData.raidOwned=true;
+  const material=new THREE.MeshBasicMaterial({map:TX.soft,color:0x050b0a,transparent:true,opacity:.72,depthWrite:false});
+  material.userData.raidOwned=true;
+  const shadow=new THREE.Mesh(geometry,material);
+  shadow.rotation.x=-Math.PI/2;shadow.position.y=.055;shadow.renderOrder=3;root.add(shadow);root.userData.groundShadow=shadow;
+  const hazeMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0x080f0c,transparent:true,opacity:.55,depthWrite:false,blending:THREE.NormalBlending,fog:true,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-8});
+  hazeMaterial.userData.raidOwned=true;
+  const haze=new THREE.Sprite(hazeMaterial);haze.position.y=.30;haze.scale.set(bed[0]*1.35,.95,1);haze.renderOrder=4;root.add(haze);root.userData.groundHaze=haze;
  }
  root.userData.machineDetail={worn:!plain,halo:!plain,features:silhouette,detailCount:features.length};
  root.userData.actor='machine';return root;
@@ -612,7 +643,11 @@ export function beaconModel(color=0x83efc2,height=16){
  root.userData.beacon=true;root.userData.beaconShaft=shaft;root.userData.beaconRing=ring;return root;
 }
 export function updateActor(root,state,dt,time){
- const previous=root.userData.last||{x:state.x,z:state.z,at:time-.15};
+ // Seed the tracker on the actor's first frame. Falling back to the *current*
+ // state on every frame made the first snapshot look unmoved forever: the last
+ // position was never written, so speed stayed 0 and legs never gait.
+ if(!root.userData.last)root.userData.last={x:state.x,z:state.z,at:time};
+ const previous=root.userData.last;
  if(previous.x!==state.x||previous.z!==state.z){root.userData.speed=Math.min(8,Math.hypot(state.x-previous.x,state.z-previous.z)/Math.max(.1,time-previous.at));root.userData.last={x:state.x,z:state.z,at:time}}else if(time-previous.at>.4)root.userData.speed=(root.userData.speed||0)*.9;
  const speed=root.userData.speed||0;
  // A visible HP drop is the only evidence of incoming damage, so unchanged

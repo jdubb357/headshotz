@@ -7464,3 +7464,250 @@ The near road now visibly shows lane paint, cracks and pale repair patches at bo
 
 ### Next action
 Commit this slice on `cypert/dev`, then take the refreshed top director note: P1 controls must match the main HeadShotz game in real two-thumb play, verified by walking, turning and firing at a machine in one live fight.
+
+## Iteration 77 — Raid controls use the main game's held-fire and aim rules (director note P1, 2026-11-11)
+
+### Acceptance criteria
+1. On phone and desktop the player can walk, look and shoot at the same time: left thumb movement, right thumb look, and a fire input that is not dropped while the flag is held.
+2. Auto-fire from the crosshair is a held intent for automatic weapons, matching game.js's `trigger = tgt || inp.fire`: it starts on acquisition, keeps firing across a pending networked shot, and stops only when the target leaves the crosshair or the trigger is released. Semi-automatic weapons keep the existing one-shot-per-press contract from `tests/raid-trigger.test.mjs` and `tests/raid-browser-trigger.mjs`.
+3. The crosshair marks a target only when the server can resolve a hit: the machine is within the equipped weapon's range, the yaw/lateral angle is inside the machine radius, the pitched ray lands inside the machine's vertical body, and the lane to the machine is unobstructed — matching `server/raids.mjs` fire resolution instead of a pure 3D cone.
+4. Touch aim assist follows the same line-of-sight rule, so it cannot magnetise the camera toward a machine behind a wall.
+5. `game.js` is unchanged; Node suite plus the browser trigger, static-offline and mobile-HUD graders pass; the live fight is exercised in headless Chrome at 1024x720 and 844x390 with action screenshots in `~/headshotz-loop/shots/latest/`, including one frame where a machine is hit while the player is moving and turning.
+
+### Implementation
+- `raid-online.mjs`: `renderFrame` now feeds the crosshair as a held intent (`trigger.hold('crosshair', sighted && raidWeaponStats()?.automatic === true)`) instead of a per-frame tap, and keeps the explicit fire flag held (`trigger.hold('keyboard', input.held('fire'))`). Automatic weapons keep firing after a networked shot is in flight; the intent survives only while the target remains resolvable and the held input remains pressed. Semi-automatics still fire once per press. `game.js` is untouched.
+- The reticle now mirrors `server/raids.mjs`: `machineUnderCrosshair` filters the snapshot by the equipped weapon's `weaponStats` range, lateral yaw tolerance `atan2(radius, horizontal)`, pitched `hitY = eye + tan(pitch) * horizontal` inside `[m.y, m.y + height]`, then `clearLine(prediction.world, …, eye, hitY)`. `machineInSight` gates `machinesInView`/`nearestMachine` on the eye-to-chest line, so touch aim assist shares the same line-of-sight rule.
+- `tests/raid-browser-trigger.mjs`: waits for the compact-HUD media query to settle after enabling coarse touch emulation, so the Fire dispatch lands on the real `#fire` control at 390x844. The one-shot/held assertions are unchanged.
+
+### Verification
+- `node --check raid-online.mjs tests/raid-browser-trigger.mjs`: OK. `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- `raid-browser-trigger.mjs`: green (keyboardAutomatic, releaseStops, semiAutomatic, touchAutomatic, capturedMouseAutomatic, noSyntheticDoubleShot, authoritativeAmmo, reloadInterruptsTrigger; browserErrors []).
+- `raid-browser-static-offline.mjs`: green (deploy/move, headshot machineHit, loot, extract; no API traffic; browserErrors []).
+- `raid-browser-mobile-hud.mjs`: green on rerun at both viewports (unobstructed .9194/.8194, compact .0806/.1806, thumbstick/right-drag/fire/reload/interact pass). The first attempt hit a transient `hudStatus` briefing timing timeout; the retry cleared it.
+- Live fight, desktop 1024x720: held W and tapped ArrowLeft walked z -600 → -592.53, turned yaw 0 → .085, auto-fired rounds 5 → 7, hunter hp 38 → dead with headshot/kill while `target=true`.
+- Live fight, phone 844x390, two simultaneous thumbs: left thumb held north, right thumb looked at the same time; walked -600 → -589.68, turned yaw .023 → .054, auto-fired 5 → 7, hunter dead with headshot/kill.
+- Server-resolution fixture (offline, wall 1.3 m high at the lane midpoint, scout frozen 10 m ahead): current build `target=false` and rounds 8 unchanged while the scout stays in the snapshot and only its head is uncovered; the HEAD harness `target=true` and fired 9 → 20 rounds through the wall without damage (hp 500). At 72 m with the AR's 65 m range: current `target=false` and no rounds; HEAD `target=true` and fired 24 → 30 pointlessly. Open 10 m lane: both builds fired and killed the scout.
+- Touch aim assist through the same wall, 6 px right-look swipe at the 10 m scout: current kept the raw swipe (yaw -0.0323, pitch 0, no pull); HEAD pulled the assist (yaw -0.0253, pitch -0.0121). The pull no longer engages behind cover in the current build.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-844.png / after-844.png, before-1024-action.png / after-1024-action.png, before-844-action.png / after-844-action.png. All captured offline at 1024x720 and 844x390 with the same pinned dusk fixture (17:23, clear) and the same spawn/short-walk/turn/fire pose.
+
+### Honest critique
+The controls now hold fire and refuse cover/range targets, but the action screenshots look almost identical to the old build (the change is cadence and authority, not pixels), the white tracer bloom still swallows the machine at 1024, and the always-on objective strip overlaps the target and the right-hand fire controls at 844 — the first three minutes still read busier and flatter on phone than the main game.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Then P1 needs Austin's live two-thumb playtest: hold movement, look and fire at once, and confirm the burst doesn't stutter while a shot is in flight over real RTT. If it still feels unlike the main game, instrument the pending-shot path with live latency rather than an offline harness. No new visual-polish pass until P1 settles.
+
+## Iteration 78 — Painted-metal sensor cowl replaces the black front plate (director note 2, 2026-11-12)
+
+### Acceptance criteria
+1. The hunter's front-mounted sensor cowl (the plate above the orange core) renders as painted metal with a visible lit sensor slit at raid dusk, at both 1024x720 desktop and 844x390 phone landscape, from the player's eye line while the machine faces the camera.
+2. No near-black flat square remains on the machine front in the same pose; the slit reads at the same screen position as the old void and does not z-fight with the cowl face.
+3. The change is cosmetic only: no raid rules, AI, controls or `game.js` changes; the machine-model silhouette assertions, static offline grader and mobile HUD grader stay green, and the Node suite must remain 1247/1247.
+4. Before/after screenshots of the same offline dusk fixture and pose exist in `~/headshotz-loop/shots/latest/` at both viewports, plus action frames.
+
+### Implementation (director note 2 — machine face bug)
+- `raid-models.mjs`: the hunter cowl hull changed from the graphite slab `hull('box',dark,0,1.45,.6,.65,.4,.6)` (dark tint × worn map with metalness .53 → near-zero albedo at dusk) to painted steel `hull('box',0xa2a8ac,0,1.45,.6,.68,.44,.58)`.
+- Added a small dark bezel `detail('box',0x2b3438,0,1.44,.925,.44,.13,.03)` and a warm unlit sensor slit (`0xffc46b`, `0.38×0.06×0.02`) at `(0,1.44,.955)`. The first pass sat the bezel's front plane exactly on the cowl's front plane and produced new z-fighting black; the final pass pushes both parts proud of the face (cowl front .89, bezel front .94, slit front .965) so the face reads as painted metal with a lit visor.
+- Only `raid-models.mjs` is committed; the temporary `window.__hszDebugView` capture hook in `raid-online.mjs` was reverted from the saved backup before checks.
+
+### Verification
+- `node --check raid-models.mjs raid-online.mjs`: OK.
+- `raid-browser-machine-models.mjs`: green; hunter wornMeshes 11, features intact, hunter detail pixel delta 510; browserErrors [].
+- `raid-browser-static-offline.mjs`: green (deploy/move, machineHit, loot, extract; no API traffic; screenshot /tmp/raid-static-offline.png).
+- `raid-browser-mobile-hud.mjs`: green at 1024x720 and 844x390 (unobstructed .9194/.8194, compact .0806/.1806; touch actions pass).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- Offline live raid captures at the same dusk fixture (startHour 17.5, weatherSeed 0, blocks/hazards cleared, hunter 6 m ahead, pistol fixture to avoid tracer covering the face), 1024x720 and 844x390; machine settles dead/off-centre with `target` resolving on the slit and core.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-1024-action.png / after-1024-action.png, before-844.png / after-844.png. Before frames show the pure-black square above the orange core; after frames show the grey painted plate with the warm slit.
+
+### Honest critique
+The black hole is gone and the front now reads as a lit visor, but the painted cowl is still a flat grey rectangle with a plain cream bar instead of a shaped sensor housing, so the machine's face remains the least detailed part of the model and can look pasted-on at 844; the change has only been seen offline at dusk, not in daylight or while the machine is moving on the player's own device.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Next director note is 3 (the two-line location condition strip overlapping the fight); after that note 4 (grass verge/near-road seam) — keep P1 controls frozen until Austin has played the current build.
+
+## Iteration 79 — Compact status briefing collapses to one short objective line (director note 3, 2026-11-12)
+
+### Acceptance criteria
+1. At raid spawn/first minutes on 1024x720 desktop and 844x390 touch landscape, the compact briefing under the HP strip renders as one line of short objective/route text, no zone/weather/clock/facing concatenation and no wrap.
+2. Measured `#hudStatus` height is at most one line at both viewports (no 49/66 px two-line box), and the transient fade timing is preserved (auto-hide after a few seconds, visible on spawn).
+3. Full desktop telemetry, mobile HUD hit targets, dialogue and controls are unchanged; the mobile HUD, HUD theme and static offline browser graders stay green, and the Node suite stays 1247/1247.
+4. Before/after screenshots of the same offline dusk deploy-and-first-fight moment exist in `~/headshotz-loop/shots/latest/` at 1024x720 and 844x390.
+
+### Implementation
+- `raid-online.mjs`: `compactStatusBrief` now returns only the objective route (or field-objective stage) instead of concatenating sector name, weather, clock, facing and objective; the armory fallback is compressed from `Armory objective · Relay signal armory · Assault pattern: 632 m north · bearing 018°` to `Objective · 632 m north · 018°`.
+- `raid-online.html`: `#hudStatus` gets `white-space:nowrap;overflow:hidden;text-overflow:ellipsis` so any longer localization still occupies exactly one line; transient show/fade timing (4.8 s then .52 s fade) is unchanged.
+- `tests/raid-browser-hud-theme.mjs`: the deploy-brief assertion now expects the one-line objective route and rejects a two-line box (`height<=32px`) instead of requiring the sector name.
+
+### Verification
+- `node --check raid-online.mjs tests/raid-browser-hud-theme.mjs`: OK.
+- Offline dusk fixtures at 1024x720 and 844x390, machine 6 m ahead, step captured ~2 s after deploy while the briefing is still visible:
+  - 1024 before: `#hudStatus` 560x49, text `Relay Graveyard · Dusk · Clear skies · 17:30 · Facing south 180° · Armory objective · Relay signal armory · Assault pattern: 632 m north · bearing 018°`.
+  - 1024 after: 213x31, text `Objective · 632 m north · 018°`.
+  - 844 before: 422x66 (two rendered lines); 844 after: 213x31 (one line).
+- `raid-browser-hud-theme.mjs`: green (base, raid, dialog, mobile themes; touch targets; control ids; browserErrors []), screenshot /tmp/hs-theme-raid-slim.png.
+- `raid-browser-mobile-hud.mjs`: green; covered fraction fell from .0806 to .0798 at 1024 and .1806 to .1787 at 844, unobstructed .9202/.8213; touch actions all pass.
+- `raid-browser-static-offline.mjs`: green (deploy/move, headshot, loot, extract; no API traffic).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-844.png / after-844.png — same offline dusk deploy fixture (1024x720 and 844x390), captured just after deployment with the briefing visible.
+
+### Honest critique
+The two-line banner is now a small one-line objective chip, so the machine's face and the road are no longer covered during the opening seconds; but the chip still sits directly under the HP strip in the middle of the view for up to five seconds, and the sector/weather identity that used to live in it is now only visible in the full telemetry card.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Next director note is 4 (grass verge / near-road seam and UVs); keep P1 controls frozen until Austin has played the current build.
+
+## Iteration 80 — Tile the near road and blend the verge seam (director note 4, 2026-11-12)
+
+### Acceptance criteria
+1. The first-person first 5 m of the spawn road shows a tiled asphalt texture (grain, cracks and repairs) instead of one stretched/uniform tile, at both 1024x720 and 844x390 offline dusk.
+2. The grass/dirt verge next to the road has a ragged, textured transition (no clean straight box edge) and reads as ground, not a flat-shaded slab.
+3. Presentation-only: no collision, world data, AI, controls or `game.js` changes; deterministic geometry; static offline and mobile HUD graders stay green; Node 1247/1247.
+4. Before/after screenshots of the same offline dusk spawn/first-fight pose exist in `~/headshotz-loop/shots/latest/` at both viewports.
+
+### Implementation
+- `raid-environment.mjs`: `add()` now installs an `onBeforeCompile` ground shader for `asphalt` and `dirt` materials. It reads the instance footprint from `instanceMatrix` column lengths, picks the projected axes from the object-space normal, and scales `vMapUv`/`vNormalMapUv` to a 3.5 m tile (minimum one repeat), with `customProgramCacheKey` `'raidGroundUV'` so patched and unpatched programs stay distinct. Long road/field boxes now show grain and cracks instead of one stretched tile.
+- The road prop path scatters deterministic verge geometry hashed from road position: per side, tufts (flattened sphere plus tilted cone), dirt shoulders and gravel chips in two offset bands straddling the paint edge and reaching beyond the sidewalk, sampled with `terrainHeightAt()` so they sit on the authored hill rather than float. An additional coarse scatter adds brush and stone on the cut-and-fill slope only where terrain rises at least 0.28 m above the flat corridor, so the hillside base is covered rather than a clean edge. All presentation-only instanced geometry; no data, collision or control changes.
+
+### Verification
+- `node --check raid-environment.mjs`: OK.
+- Offline dusk capture fixture, same pose as baseline (`/tmp/hsz-fix/capture3.mjs`, TAG roadafter3): player -600,-600 yaw 0, hunter 6 m ahead, condition plan dusk 17:30, 1024x720 and 844x390.
+  - Criterion 1: PASS — road surface at both sizes shows tiled asphalt grain, pothole/repair chips and the dashed centre / worn edge paint instead of a uniform grey wash.
+  - Criterion 2: PASS — the asphalt edge is broken by dirt mounds, grass tufts and gravel on both shoulders, and the cut-and-fill hillside beyond the sidewalk is now covered with scattered brush and stone instead of a bare flat slab; the road boundary no longer reads as a ruled box edge.
+  - Criterion 3: PASS — `raid-browser-machine-models.mjs` green (detail deltas unchanged, hunter 510 px), `raid-browser-static-offline.mjs` green, `raid-browser-hud-theme.mjs` green, `raid-browser-mobile-hud.mjs` green on rerun (first run hit a transient harness wait); designed compact/unobstructed fractions unchanged; `node --test tests/*.test.mjs` 1247 pass / 0 fail.
+- Criterion 4: PASS.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and repopulated: before-1024.png / after-1024.png, before-844.png / after-844.png, plus before/after action frames (1024 strafe and 844 settle) — same offline dusk spawn/first-fight pose, captured from roadafter3.
+
+### Honest critique
+The ground now has actual asphalt grain under the first 5 m and the roadside dissolves into tufts, dirt and slope brush instead of a drawn line, so spawn reads as a real surface at both viewports. At 1024/844 the hillside on the right is covered now but the brush is small and sparse relative to the large smooth slope behind it, so the slope can still look soft at a glance; 3.5 m UV tiling is uniform enough that road cracks fade farther down the lane.
+
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Next director note is 5 (confirm feet planted and gait-synced while moving, then drop); keep P1 controls frozen until Austin has played the current build. If playtesting still sees the hillside seam, extend vegetation and a graded dirt shoulder along the distinct terrain cut edge rather than further road UV tweaks.
+
+## Iteration 81 — Seed the actor speed tracker so machine legs gait while moving (director note 5, 2026-11-12)
+
+### Acceptance criteria
+1. The first update stores the actor's initial `{x,z,time}` in `root.userData.last`, so a later snapshot with displacement computes non-zero snapshot speed and starts the walk gait instead of leaving it at zero forever.
+2. At steady 3.2 m/s the machine's hips swing, knees flex on the swing leg, and the foot pads remain level in world space (no pitch tilt), stay attached, and lift off the ground during a stride; when movement stops the blend eases back to a level planted stance (walkBlend 0, hip/foot rotation 0).
+3. Gait cadence scales with snapshot speed and alternates between the leg phase pairs.
+4. Presentation-only: no collision, world data, AI, controls, server rules or `game.js` changes; static offline, mobile HUD, HUD theme and machine-model graders stay green; Node suite stays 1247/1247; before/after shots at both viewports plus a live action frame exist in `~/headshotz-loop/shots/latest/`.
+
+### Implementation
+- `raid-models.mjs:updateActor` now seeds `root.userData.last` once from the actor's first snapshot before the speed branch. The old fallback rebuilt `{x:state.x,z:state.z,at:time-.15}` whenever `root.userData.last` was absent, which was on every frame, so `previous` always equalled the current position, no displacement was observed, speed stayed 0 ("undefined"), and the machine gait never advanced while its root merely slid. The seed makes the tracker persistent across frames; subsequent snapshot displacements now feed the existing `speed` value used by the gait, hip/knee and foot-pad code.
+- No movement, collision, AI, server-rule, controls or `game.js` changes. `raid-view.mjs` still hands per-frame `dt`/`time` and the sync snapshot data unchanged; the gait math (swing amplitude, knee flex, foot pitch cancellation and blend) is untouched.
+
+### Verification
+- `node --check raid-models.mjs`: OK.
+- Isolated gait bench (`/tmp/hsz-fix/gait-probe.mjs`, headless Chrome, 1024x720 and 844x390):
+  - Before the fix, simulated 3.2 m/s over 50 updates returned `speed: undefined`, `gait: 0`, `walkBlend: 0`, `hip: 0`; neutral pads stayed at 0.09 m — legs never moved no matter how far the actor position changed.
+  - After the fix, the same run returns `speed 3.2`, `gait 5.735 rad`, `walkBlend 1`, hip swing ±0.3876 rad (knee/foot pitch-bias cancelled); pad world pitch stayed 0 across all 50 frames (stability 0); pad world y ranged 0.0845–0.3967 m vs 0.09 m at rest, all pads attached.
+  - Cadence scales with speed: mean gait step 0.7414 rad/frame at 1 m/s vs 1.2692 rad/frame at 4 m/s.
+  - Wind-down: after 8 moving frames `walkBlend` 1; after 4 s of unchanged snapshots speed decayed to 0.072 (<0.15 gate), `walkBlend` 0, hip and foot rotation 0 — level planted stance.
+- Live offline dusk raid at 844x390 (`/tmp/hsz-fix/walk-live.mjs`): hunter pursued to 5.6 m (`target:true`), with visible stride/hip swing in the pursuit frame, pads attached and level; 1024 strafe frame captured while firing a semi-automatic pistol. Only a small crop of the live 844 capture was needed to read the feet because the hunter is still a distant machine in gameplay.
+- `raid-browser-machine-models.mjs`: green; hunter 11 worn meshes and detail pixel delta 510 unchanged; browserErrors [].
+- `raid-browser-static-offline.mjs`: green (deploy/move, headshot, loot, extract; no API traffic); `raid-browser-hud-theme.mjs`: green; `raid-browser-mobile-hud.mjs`: green after one transient harness wait timeout (rerun gave .0798 desktop / .1787 mobile covered, touch actions all pass).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and repopulated: before-1024.png / after-1024.png, before-844.png / after-844.png (same bench pose, neutral vs walking stance), after-1024-action.png (offline live strafe/fire), after-844-action.png (live pursuing hunter) and after-844-feet.png (crop showing attached, level pads in stride).
+
+### Honest critique
+The machine now visibly strides instead of sliding with rigid legs, and the feet pads stay level and attached, which fixes the "feet planted" report at both viewports. But locomotion is still purely cosmetic: the root lerps toward snapshot positions while the legs cycle with no ground-contact or foot-planting solve, so a planted pad can slide across the ground and the swing pad can float slightly above sloped verge; every machine class shares the same gait tuning, so a heavy chassis moves its legs as fast as a hunter. The evidence is offline dusk headless captures at iPad/desktop sizes, not a real device playtest.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Director note 5 is confirmed and dropped; notes 2–4 were already closed. No further director note is pending — note 1 (P1 controls) remains frozen until Austin's own playtest. Next loop iteration should re-inspect the live first three minutes against the priority list (GUNFEEL, MOVEMENT FEEL, ENEMIES, WORLD, AUDIO, JUICE) and choose one presentation-only slice that helps deploy→move→fight→loot→extract, without adding panels, currencies, or changing controls/server/game.js.
+
+## Iteration 82 — Give machine steps weight with footfall dust and a spatial thud (ENEMIES/AUDIO/JUICE, 2026-11-12)
+
+### Acceptance criteria
+1. While an articulated machine is walking (snapshot speed >0.15 m/s, within 22 m, reduced motion off), each planted diagonal foot pair emits a small dust puff at the pads' world positions; the puff expands and fades over about 1.2 s and does not ride the swinging foot. Stationary machines emit none.
+2. The same plant also plays one quiet synthesized machine-step cue, spatialized to the machine's direction and attenuated with distance (audible only within 55 m); the cue never fires for stationary or reduced-motion machines.
+3. Presentation-only and bounded: a fixed pool of dust sprites allocated once at scene start, no per-step allocation, hidden under reduced motion; no collision, world data, AI, controls, server rules or `game.js` changes.
+4. Browser graders (static offline, mobile HUD, HUD theme, machine models) and the full Node suite remain green; before/after screenshots at 1024x720 and 844x390 show the live walking-machine moment, and a held machine-step cue log is captured for evidence.
+
+### Implementation
+- `raid-view.mjs`: added a fixed 24-sprite dust pool in `buildMachineStepDust()`, allocated once at scene start (`footDust`, `footDustCursor`) and disposed with the scene. Puffs use the existing generated `TX.smoke` canvas at meter scale (not the 9× world `viewScale`). `emitMachineSteps()` compares `model.userData.gait` each frame, reads only `leg.foot` pads from hunter/scout models, and places one puff at each planted pad's world position when a diagonal pair crosses (phase 0 or π). Nothing is parented to a swinging leg. Dust appears only for snapshot speed >0.15 m/s within 22 m and is hidden/skipped under reduced motion; each puff fades linearly over 1.2 s while expanding `.95→1.8` and rising `.1 m`. A quiet spatial thud plays at any plant within `spatialCue`'s 55 m horizon (`machineStep`, gain×0.55, stereo pan).
+- `raid-audio.mjs`: added `machineStep` to `ACTION_CUES` as a single 0.14 s square pulse (96→38 Hz); the existing oscillator/envelope/pan path needed no other change.
+- No collision, world data, AI, controls, server rules, other game modes or `game.js` changes; human actors keep their original smooth-lerp branch.
+
+### Verification
+- `node --check raid-view.mjs raid-audio.mjs`: OK.
+- Live offline footfall bench (`/tmp/hsz-fix/footfall.mjs`, hunter in pursue, clear sight line, dust toggled between frames): at 1024×720 the hunter was 10.2 m away with gait at 26 crossings and 10 puffs active; at 844×390 it was 8.6 m away with gait at 38 crossings and 10 puffs active. Dust-off/on screenshots show detached pale puffs around the planted pads that expand and fade; a crop of each viewport shows the dust at the pads and the same pads dark in the before frame.
+- Reduced motion (`/tmp/hsz-fix/reduced.mjs`): while walking, 10 puffs active with `settings.reduced=false`; setting `settings.reduced=true` cleared the pool to 0 within 400 ms and it stayed 0 for the next 900 ms while the machine kept moving (speed fell to 1.37 m/s); restoring `false` resumed emission (2 puffs after 400 ms).
+- Stationary machine (`/tmp/hsz-fix/stationary.mjs`): hunter stopped at 5.05 m with snapshot speed 0 for 3 s; dust stayed 0 and the machineStep cue count held at 31 (no new plants/cues).
+- Live WebAudio (`/tmp/hsz-fix/audio-live.mjs`) with real CDP pointer activation of deploy (programmatic `.click()` leaves the context suspended): context reached `running`; 9 machineStep attempts all returned `played:true`, with spatial gains 0.176–0.196 and pan −0.21 to −0.02. Cues beyond 55 m are rejected by `spatialCue`, and reduced/stationary machines never reach the call.
+- Graders: `raid-browser-machine-models.mjs` green (hunter 510 px delta, browserErrors []); `raid-browser-static-offline.mjs` green (deploy/move/headshot/loot/extract, no API traffic); `raid-browser-hud-theme.mjs` and `raid-browser-mobile-hud.mjs` green (desktop 0.0806 / mobile 0.1806 covered, touch actions pass); `raid-browser-audio.mjs` green (24 distinct action cues, real WebAudio, directional stereo, bounded voices).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and repopulated: before-1024.png / after-1024.png and before-844.png / after-844.png (same live walking hunter, dust hidden vs emitted), after-1024-action.png (live pursuing hunter with red reticle and foot dust), after-1024-feet.png and after-844-feet.png (crops showing detached puffs at the planted pads). The dust is easier to read at 1024 than at 844.
+
+### Honest critique
+The puffs now detach from the swinging legs and visibly mark planted pads, and the thud gives machines an audible weight; but the dust is still a flat sprite with no lit-edge or ground-shadow coupling, and at 844 the machine is small enough that the effect reads only as a faint pale smear near the feet, so the improvement is easy to miss on iPad in actual play.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). No new director note; note 1 (P1 controls) remains frozen until Austin's playtest. Next loop iteration re-inspects the live first three minutes (deploy→move→fight→loot→extract) and picks one presentation-only improvement from the remaining feel priorities without adding panels, currencies, controls or server/game.js changes.
+
+## Iteration 83 — Give the deploy-screen operator preview a studio-lit stage (BASE LOBBY, 2026-11-12)
+
+### Acceptance criteria
+1. Offline base lobby at 1024x720 and 844x390: the Equipment bench preview shows a larger and better-framed operator (caught by a warm key light and a cool rim light), grounded by a soft contact shadow on the platform, against a non-flat staged backdrop instead of the flat teal field.
+2. No new panels, currencies or player-facing jargon; existing tabs, DEPLOY, loadout/stash controls and copy remain untouched; no page scroll at 1024x720 and no canvas or control clipping at 844x390. On short landscape screens the bench gets its own right-hand column so the full preview, stage and shadow are visible without scrolling the page.
+3. Presentation-only changes in BasePreview (scene, camera, lights, shadow/backdrop) plus the adjacent base-lobby grid CSS needed to show that preview on 844x390; no account, progression, raid rules, controls, collision, AI or server/game.js changes, and the preview still reflects the selected loadout.
+4. `raid-browser-base-lobby.mjs`, `raid-browser-menu.mjs`, `raid-browser-static-account.mjs`, `raid-browser-mobile-hud.mjs` and the full Node suite remain green; before/after screenshots exist for both viewports.
+
+### Implementation
+- `BasePreview` (raid-view.mjs) is now a small studio instead of a flat slab. Its scene has a 64×64 canvas gradient (`#2b4651`→`#17262c`→`#0a1114`) with a warm radial pool under the platform; a hemisphere fill, a warm key (`0xffd49b`, 3.0) and a cool rim (`0x6db8db`, 2.2); fov 36 from closer at `(1.65,1.55,2.55)` with `lookAt(0,1.02,0)`. A dark cylinder base, a gold torus ring, two lit desk slabs and a `TX.soft`-textured contact-shadow plane ground the operator. Existing `setLoadout`/`frame`/`turn` are unchanged, so gear still updates the hero.
+- `raid-online.html`: a short-landscape-only rule (`min-width:800px`, `min-height:390px`, `max-height:520px`) turns the lobby into a two-column grid — identity/tabs on the left, deploy summary under them, and `#basePanels` as a full-height right-hand column with the bench preview at 205 px. Tabs compact to 6 px padding / .58 rem to fit 437 px; no panels, copy or controls were added or removed.
+
+### Verification
+- `node --check raid-view.mjs`: OK.
+- Layout exercised offline at the two targets: 1024×720 keeps the original single-column desktop bench (canvas 458×260, page scroll 0). 844×390 gets the right-hand bench column (panel x399 y93 437×293, canvas 413×205, rotate 340–384 px inside the panel, all six tabs fit 437 px client/scroll, page scroll 0). Boundary checks: 800×390 and 1024×390 use the new layout with all controls visible; 800×389 and 389×389 fall back cleanly to the previous compact layout without deploy overflow.
+- Loadout reflection exercised: selecting the first stash weapon changed the caption from "Choose equipment to preview your loadout." to "Selected loadout — Assault Rifle · no worn armor"; rotating the preview showed the rifle held at the studio camera, with no browser errors.
+- Graders: `raid-browser-base-lobby.mjs` passed; `raid-browser-menu.mjs` passed on rerun (one pixel-identical banner comparison flaked, metrics 33 buttons/44 px desktop, 44 px mobile, pageScroll false); `raid-browser-static-account.mjs` passed; `raid-browser-mobile-hud.mjs` passed at 1024 (0.0806 covered) and 844 (0.1806 covered, thumbstick/drag/fire/reload/interact pass); `raid-browser-static-offline.mjs` passed (deploy, move, headshot, loot, extract, settlement, no API traffic).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/` will be repopulated with before-1024.png / after-1024.png, before-844.png / after-844.png, after-1024-action.png (stash-selected rifle and rotation) and after-844-panel.png; before frames come from the unmodified HEAD build with the same `b83demo` guest.
+
+### Honest critique
+The preview now reads as a warm, lit hangar bay with a much larger operator and a genuine gold-stage ring instead of a flat teal slab, and 844 finally shows the whole bench — but the two desk slabs still read as flat boxes and the contact shadow is too faint to be legible on the ring, so the stage looks like a stylized diorama rather than a lived-in armory.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). No new director note; P1 controls remain frozen until Austin's playtest. Next iteration re-inspects the live deploy→move→fight→loot→extract loop and picks the next presentation-only improvement from the feel priorities without adding panels, currencies, controls or server/game.js changes.
+
+## Iteration 84 — Ground machine hulls and add a cool plate rim (ENEMIES, 2026-11-12)
+
+### Acceptance criteria
+1. Offline raid at 1024x720 and 844x390: grounded machine classes (scout, hunter, heavy, overlord) carry a soft dark contact shadow under the hull so they sit on the pavement instead of floating, and their worn plating gains a cool grazing-angle rim that separates hull faces and limbs from the dusk sky and grey road without washing out the orange/rust tint.
+2. Presentation-only changes in `raid-models.mjs` (shared worn-material shader plus a ground-shadow bed and a soft camera-facing contact haze on each grounded machine); no changes to server rules, controls, input, AI, hit volumes, stats, menus, panels or currency. Flyer keeps its airborne silhouette with no ground patch; reduced motion leaves the shadow static.
+3. Existing machine silhouette metadata, core halo, shared worn texture and generated models remain intact; `raid-browser-machine-models.mjs`, `raid-browser-base-lobby.mjs`, `raid-browser-mobile-hud.mjs`, `raid-browser-static-offline.mjs` and the full Node suite stay green.
+4. Before/after live-raid screenshots exist at 1024x720 and 844x390, plus a firing action frame, all with the same pinned dusk fixture.
+
+### Implementation
+- `wornMat` now carries a Fresnel-style grazing-angle rim: `raidEdge = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 4.0)` adds `vec3(.34,.46,.55) * .19 * raidEdge` to `outgoingLight`. Flat hull faces keep their authored orange/rust albedo; shoulders, seam lips, knee guards and foot pads catch the cool steel edge that separates them from dusk haze and dark roadway.
+- Grounded machines get a soft shadow presentation in `machineModel`: a horizontal `TX.soft` bed (2.1×1.3 m hunter, 1.55×1.05 scout, 2.9×1.75 heavy, 4.2×2.6 overlord) with a dark, transparent material at y = .055, plus a camera-facing contact haze sprite of the same texture at y = .30. The haze uses a mild negative polygon offset against the pavement so the soft dark ellipse reads from the near-horizontal first-person camera, where the flat bed alone collapses to a thin strip. It is depth-tested, so walls and props in front of a machine still occlude it instead of letting a shadow bleed through geometry.
+- Both shadow objects and their materials are marked `raidOwned`, and are optionally exposed via `root.userData.groundShadow` / `root.userData.groundHaze`; `flyer` deliberately builds neither, and nothing animates in reduced motion. No server rules, AI, controls, hit volumes, stats, menus, panels or currency were touched.
+
+### Verification
+- `node --check raid-models.mjs` OK.
+- `node tests/raid-browser-machine-models.mjs` passed: every class keeps its silhouette feature list, worn meshes and core halo; plain-vs-detailed pixel deltas were scout 349, hunter 501, heavy 1375, flyer 222 and overlord 2114, all above the bench threshold, with `browserErrors: []`. The flyer's lower delta is expected because it has no ground shadow.
+- The class guard in `machineModel` is `if(!plain && kind!=='flyer')`, so scout, hunter, heavy and overlord each get the bed/haze while the flyer keeps its airborne silhouette with no ground patch; reduced motion leaves the shadows static because they have no timers.
+- `node tests/raid-browser-static-offline.mjs` passed (`machineHit: headshot`, loot, extract, settlement, no API traffic, `browserErrors: []`); `raid-browser-mobile-hud.mjs` passed at 1024×720 (0.0798 covered) and 844×390 (0.1787 covered); `raid-browser-menu.mjs` passed; `raid-browser-static-account.mjs` passed; `raid-browser-base-lobby.mjs` passed on rerun (the first run hit a transient post-reload execution-context null lookup).
+- `node --test --test-concurrency=1 tests/*.test.mjs` → 1,247 pass, 0 fail. (The default parallel invocation twice hit a transient `ECONNRESET` in the local matchmaking HTTP fixture; the test file itself then passed alone and the full sequential run is green.)
+
+### Shots
+`~/headshotz-loop/shots/latest/`: `before-1024.png` and `before-844.png` from the untouched HEAD build rendered with the same pinned dusk fixture, `after-1024.png` and `after-844.png` from this build at 1024×720 and 844×390, plus `after-1024-action.png` while the rifle is firing. Source frames are `b84head-*` and `b84tent1-*` in `/tmp/hsz-fix/shots/`; the machine's live patrol pose differs slightly between runs, but both runs use the same clear dusk timeline and cleared road fixture.
+
+### Honest critique
+The cool edge rim makes the machine's shoulders, knees and pads pop sharply against the dusk and suppresses the pale foot-dust wash, and the soft dark blob finally reads as a contact shadow at the near-horizontal camera — but at grazing angles the grounded-bed plane itself is almost edge-on and contributes little, so the grounding is still mostly a camera-facing cheat rather than a true cast shadow.
+
+### Next action
+Committed iteration 84 as `8b656b2` on `cypert/dev` (no push, no PR, no `main`). No new director note; P1 controls remain frozen. Next iteration re-inspects the live deploy→move→fight→loot→extract loop and picks the next presentation-only improvement — likely a world/atmosphere or loot-readability pass — without adding panels, currencies, controls or server/game.js changes.

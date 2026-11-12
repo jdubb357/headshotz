@@ -59,7 +59,8 @@ export const ACTION_CUES={
  interrupted:{wave:'square',start:360,end:150,duration:.24,pulses:2},
  extracted:{wave:'triangle',start:440,end:1320,duration:.75,pulses:3},
  eliminated:{wave:'sine',start:240,end:40,duration:.7,pulses:2},
- footstep:{wave:'triangle',start:110,end:46,duration:.09,pulses:1}
+ footstep:{wave:'triangle',start:110,end:46,duration:.09,pulses:1},
+ machineStep:{wave:'square',start:96,end:38,duration:.14,pulses:1}
 };
 export function spatialCue(listener,source){
  const dx=source.x-listener.x,dz=source.z-listener.z,distance=Math.hypot(dx,dz,(source.y||0)-(listener.y||0));

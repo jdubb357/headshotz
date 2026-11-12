@@ -205,6 +205,7 @@ function rainRippleTexture(){
 }
 const SPLASH_FLAT_QUAT=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
 const SPLASH_MATRIX=new THREE.Matrix4(),SPLASH_POSITION=new THREE.Vector3(),SPLASH_SCALE=new THREE.Vector3(),SPLASH_TINT=new THREE.Color();
+const STEP_POSITION=new THREE.Vector3();
 function lootAccent(data){
  // The brightest authoritative item rarity in the pile picks the pickup accent.
  // Presentation only: items, ownership and values are untouched.
@@ -218,6 +219,10 @@ export class RaidView {
   this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;this.splashes=this.splashesState=this.splashesAnchor=null;
 
   this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
+ // Fixed pool of landings dust for articulated machines. Each puff is placed
+ // in world space when a diagonal foot pair plants, so it settles where the
+ // pad hit the ground instead of travelling with the swinging leg.
+ this.footDust=[];this.footDustCursor=0;
  // Presentation-only view-model feel: damped look sway, locomotion bob and a
  // transient additive muzzle glow. None of these feed snapshot, ballistics or
  // prediction.
@@ -245,7 +250,7 @@ export class RaidView {
   // Directional shadow targets are not reachable from scene disposal, so release
   // the sun's map explicitly or each restart leaves one texture on the GPU.
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.lastTime=0;
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.lastTime=0;this.footDust=[];this.footDustCursor=0;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
   for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
@@ -261,13 +266,13 @@ export class RaidView {
   for(const target of this.bloomTargets||[])target.dispose();
   this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.footDust=[];this.footDustCursor=0;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
  this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
   this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
   this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
-  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.environmentRoot=buildEnvironment(this.world);this.scene.add(this.environmentRoot);this.glowPoints=this.environmentRoot.userData.raidGlowPoints||null;this.glowPools=this.environmentRoot.userData.raidGlowPools||null;this.wetReflections=this.environmentRoot.userData.raidWetReflections||null;this.terrainMaterial=this.environmentRoot.userData.raidTerrainMaterial||null;this.wetMaterials=[];this.windMaterials=this.environmentRoot.userData.raidWindMaterials||[];this.windowMaterials=this.environmentRoot.userData.raidWindowMaterials||[];if(this.terrainMaterial)this.wetMaterials.push(this.terrainMaterial);for(const material of this.environmentRoot.userData.materials?.values()||[])if(material.userData.raidDry&&material.userData.raidWet>0)this.wetMaterials.push(material);const initialWeather=snapshot.conditions?.weather||'clear';this.wetness=initialWeather==='rain'?1:initialWeather==='mist'?.35:0;this.applyWetness();this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
+  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.environmentRoot=buildEnvironment(this.world);this.scene.add(this.environmentRoot);this.buildMachineStepDust();this.glowPoints=this.environmentRoot.userData.raidGlowPoints||null;this.glowPools=this.environmentRoot.userData.raidGlowPools||null;this.wetReflections=this.environmentRoot.userData.raidWetReflections||null;this.terrainMaterial=this.environmentRoot.userData.raidTerrainMaterial||null;this.wetMaterials=[];this.windMaterials=this.environmentRoot.userData.raidWindMaterials||[];this.windowMaterials=this.environmentRoot.userData.raidWindowMaterials||[];if(this.terrainMaterial)this.wetMaterials.push(this.terrainMaterial);for(const material of this.environmentRoot.userData.materials?.values()||[])if(material.userData.raidDry&&material.userData.raidWet>0)this.wetMaterials.push(material);const initialWeather=snapshot.conditions?.weather||'clear';this.wetness=initialWeather==='rain'?1:initialWeather==='mist'?.35:0;this.applyWetness();this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
   const selfWeapon=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId&&it.kind==='weapon')?.weapon??null;
   this.selfActor=humanModel(snapshot.self.name||'Operator','raid_local_operator',true,selfWeapon);if(this.selfActor.userData.tag)this.selfActor.userData.tag.visible=false;this.selfActor.visible=this.viewMode!=='first';this.scene.add(this.selfActor);
   this.hemi=new THREE.HemisphereLight(0xbfd6ee,0x4a4234,1.8);this.ambientFill=new THREE.AmbientLight(0xc8d2c8,0);this.sun=new THREE.DirectionalLight(0xffe9c6,2);
@@ -936,6 +941,64 @@ export class RaidView {
   const dy=Math.max(-.32,Math.min(.32,ndc.y*halfTan*depth));
   return origin.clone().addScaledVector(forward,depth).addScaledVector(right,dx).addScaledVector(up,dy);
  }
+ // Machine footfall is presentation-only. A fixed dust pool is placed at the
+ // ground contact of each planted diagonal pair (never parented to the swinging
+ // foot) and each plant plays one quiet spatial thud. Snapshot speed and gait
+ // drive it; nothing authoritative is read or written.
+ buildMachineStepDust(){
+  this.footDust=[];this.footDustCursor=0;
+  for(let i=0;i<24;i++){
+   const material=new THREE.SpriteMaterial({map:TX.smoke,color:0xcabaa2,transparent:true,opacity:0,depthWrite:false,blending:THREE.NormalBlending,fog:true});
+   material.userData.raidOwned=true;
+   const puff=new THREE.Sprite(material);
+   puff.visible=false;puff.renderOrder=2;puff.userData.started=-1e9;puff.userData.baseY=0;
+   this.scene.add(puff);this.footDust.push(puff);
+  }
+ }
+ emitMachineSteps(model,data,listener,reduced,time){
+  const previous=model.userData.stepGait,gait=model.userData.gait||0;
+  model.userData.stepGait=gait;
+  if(previous===undefined||reduced||!((model.userData.speed||0)>.15))return;
+  const dx=(data.x||0)-listener.x,dz=(data.z||0)-listener.z,distance=Math.hypot(dx,dz);
+  if(!Number.isFinite(distance))return;
+  let start=Math.floor(previous/Math.PI),end=Math.floor(gait/Math.PI);
+  if(gait<previous)end+=2;
+  const steps=Math.min(2,Math.max(0,end-start));
+  if(!steps)return;
+  // Dust is a near-field read (feet are only legible inside 22 m); the thud still
+  // carries to the shared 55 m spatial-audio horizon so machine movement is
+  // audible before the dust is visible.
+  if(distance<=22){
+   const legs=model.userData.legs||[];
+   for(let i=1;i<=steps;i++){
+    const phase=(start+i)%2===0?0:Math.PI;
+    for(const leg of legs){
+     if(Math.abs(leg.phase-phase)>0.01)continue;
+     const pad=leg.foot;if(!pad)continue;
+     pad.getWorldPosition(STEP_POSITION);
+     const puff=this.footDust[this.footDustCursor++%this.footDust.length];
+     const baseY=(data.y||0)+.035;
+     puff.visible=true;puff.userData.started=time;puff.userData.baseY=baseY;
+     puff.position.set(STEP_POSITION.x,baseY+.03,STEP_POSITION.z);
+     puff.material.opacity=.6;puff.scale.setScalar(.95);
+    }
+   }
+  }
+  const spatial=spatialCue(listener,data);
+  if(spatial)this.audio.play('machineStep',{gain:spatial.gain*.55,pan:spatial.pan});
+ }
+ updateMachineStepDust(time,reduced){
+  for(const puff of this.footDust||[]){
+   if(!puff.visible)continue;
+   if(reduced){puff.visible=false;continue}
+   const age=time-puff.userData.started;
+   if(age>=1200||age<0){puff.visible=false;continue}
+   const k=age/1200;
+   puff.material.opacity=.6*(1-k);
+   puff.scale.setScalar(.95+.85*k);
+   puff.position.y=puff.userData.baseY+.03+.1*k;
+  }
+ }
  spawnShot(now,weapon){
   if(!this.shotEffects.length)return;
   const effect=this.shotEffects[this.shotCursor++%this.shotEffects.length];
@@ -1448,9 +1511,13 @@ export class RaidView {
     this.renderCamera.position.copy(this.chase);this.renderCamera.lookAt(look);if(!this.settings?.reduced){this.renderCamera.rotation.x+=this.recoil*.34;this.renderCamera.rotation.z+=this.recoil*this.recoilSide*.38}this.renderCamera.fov=this.camera.fov;
    }else{this.renderCamera.position.copy(this.camera.position);this.renderCamera.rotation.copy(this.camera.rotation);this.renderCamera.fov=this.camera.fov}
   }
+  const stepListener={x:pose.x,y:pose.y||0,z:pose.z,yaw:viewYaw};
   for(const {model,data,type}of this.actors.values()){
    if(type==='machine')model.userData.motionReduced=!!this.settings?.reduced;
-   if(type==='human'||type==='machine')updateActor(model,{...data,reduced:!!this.settings?.reduced},dt,seconds);
+   if(type==='human'||type==='machine'){
+    updateActor(model,{...data,reduced:!!this.settings?.reduced},dt,seconds);
+    if(type==='machine')this.emitMachineSteps(model,data,stepListener,reduced,time);
+   }
    else{model.position.set(data.x,data.y||0,data.z);
     if(type==='door'){
      const w=data.w||3.4,h=Math.min(data.h||2.8,2.8),d=data.d||.32,leaf=model.userData.doorLeaf,sill=model.userData.doorSill;
@@ -1494,7 +1561,7 @@ export class RaidView {
    }
    attr.needsUpdate=true;
   }
-  this.updateRainSplashes(seconds,pose);
+  this.updateRainSplashes(seconds,pose);this.updateMachineStepDust(time,reduced);
   for(const ring of this.effects.values())ring.material.opacity=this.settings?.reduced?.85:.6+.2*Math.sin(seconds*8);
   this.updateCombatEffects(time);
   // Fast exponential settle rather than a linear fade: the kick lands in one
@@ -1605,9 +1672,22 @@ export class RaidView {
 }
 export class BasePreview {
  constructor(canvas){
-  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.scene=new THREE.Scene();this.scene.background=new THREE.Color(0x1b303b);
-  this.scene.add(new THREE.HemisphereLight(0xe8e9d7,0x344651,2.5));const light=new THREE.DirectionalLight(0xffcf93,3);light.position.set(3,5,4);this.scene.add(light);this.camera=new THREE.PerspectiveCamera(38,2,.1,40);this.camera.position.set(2,1.8,3);this.camera.lookAt(0,1,0);
-  this.hero=humanModel('','base_operator',true,null);this.hero.rotation.y=.5;this.scene.add(this.hero);const stage=new THREE.Group();part(stage,'cylinder',0x435963,0,-.12,0,1.3,.2,1.3);for(const x of [-2.2,2.2]){part(stage,'box',0x485c61,x,.5,-1.1,1.4,1,1);part(stage,'box',0xbea572,x,1.05,-1.1,1.55,.12,1.1)}this.scene.add(stage);this.last=0;
+  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.scene=new THREE.Scene();
+  // Deploy-screen studio rather than a flat teal slab: a cool overhead gradient
+  // falls to a warm pool at the platform, so the operator and gear sit inside a
+  // dim hangar volume instead of floating on a blank field.
+  const bg=document.createElement('canvas');bg.width=64;bg.height=64;const bgc=bg.getContext('2d');
+  const grad=bgc.createLinearGradient(0,0,0,64);grad.addColorStop(0,'#2b4651');grad.addColorStop(.55,'#17262c');grad.addColorStop(1,'#0a1114');bgc.fillStyle=grad;bgc.fillRect(0,0,64,64);
+  const halo=bgc.createRadialGradient(32,52,0,32,52,38);halo.addColorStop(0,'rgba(208,166,101,.38)');halo.addColorStop(.55,'rgba(92,103,94,.12)');halo.addColorStop(1,'rgba(0,0,0,0)');bgc.fillStyle=halo;bgc.fillRect(0,0,64,64);
+  this.backgroundTexture=new THREE.CanvasTexture(bg);this.backgroundTexture.colorSpace=THREE.SRGBColorSpace;this.scene.background=this.backgroundTexture;
+  this.scene.add(new THREE.HemisphereLight(0xb9cfd8,0x24302c,1.5));
+  const key=new THREE.DirectionalLight(0xffd49b,3.0);key.position.set(3,4.2,3.4);this.scene.add(key);
+  const rim=new THREE.DirectionalLight(0x6db8db,2.2);rim.position.set(-3.2,2.8,-2.4);this.scene.add(rim);
+  this.camera=new THREE.PerspectiveCamera(36,1.6,.1,40);this.camera.position.set(1.65,1.55,2.55);this.camera.lookAt(0,1.02,0);
+  this.hero=humanModel('','base_operator',true,null);this.hero.rotation.y=.5;this.scene.add(this.hero);
+  const stage=new THREE.Group();part(stage,'cylinder',0x3d5158,0,-.12,0,1.3,.2,1.3);part(stage,'ring',0x9c7b4a,0,.002,0,.74,.74,.74,[Math.PI/2,0,0]);for(const x of [-2.2,2.2]){part(stage,'box',0x45585e,x,.5,-1.1,1.4,1,1);part(stage,'box',0xb69b68,x,1.05,-1.1,1.55,.12,1.1)}this.scene.add(stage);
+  const shadow=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.8),new THREE.MeshBasicMaterial({map:TX.soft,color:0x05090c,transparent:true,opacity:.68,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.016;shadow.renderOrder=1;this.scene.add(shadow);
+  this.last=0;
  }
  setLoadout(loadout){
   const key=JSON.stringify([loadout.primary,loadout.secondary,loadout.armor,loadout.recovery]);this.loadout=loadout;if(key===this.loadoutKey)return;this.loadoutKey=key;
