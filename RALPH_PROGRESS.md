@@ -7738,3 +7738,34 @@ The deck now reads as a clean, deliberate 3×3 round icon cluster that matches t
 
 ### Next action
 Commit iteration 85 on `cypert/dev` (no push, no PR, no main). Next iteration re-inspects the live deploy→move→fight→loot→extract loop and picks one presentation-only improvement without touching server, world data, `raid-models.mjs`, lobby, or shadows.
+
+## Iteration 86 — The exit is finally on the HUD (NAV, 2026-11-12)
+
+### Acceptance criteria
+1. Compact HUD at 1024×720 and 844×390 shows an always-readable exit chip with bearing arrow, absolute cardinal and range; its arrow follows operator yaw.
+2. A 150 m, 120 px, player-centred, heading-up approach map shows nearby streets/buildings, rotates under the camera, and pins exits to the rim as arrows; it visibly shifts while the operator walks.
+3. Exit beacon glow ignores fog; the tactical map opens full-screen, centred and zoomed on the player, with the legend collapsed and click-to-set/clear waypoints intact.
+4. All modes remain intact; mobile HUD, static offline, minimap, doors and tactical-map graders stay green; the Node suite is run.
+
+### Implementation
+- `raid-online.html`: compact-only `#navmap` 120×120 circle over a still-hidden legacy `#minimap`; `#navChip` with state colours; tactical map is now a fixed full-viewport canvas with a slim header/readout/button overlay and no legend block.
+- `raid-online.mjs`: `drawNavMap` paints a local 150 m radar (roads, blocks, cover, hazards, exits, machines, squad, loot) rotated to heading-up under a fixed amber operator chevron and rotating north tag; `renderNavHud` throttles it at ~85 ms, picks the nearest non-spent exit for the chip, and the full map shares the min-dimension scale and axis mids so click-to-waypoint math works on wide screens.
+- `raid-models.mjs`: beacon shaft and ring materials are `fog:false` so the extraction light stays visible through weather.
+- `tests/raid-browser-doors.mjs`: updated the stale assertion from the retired `E / Interact` copy to the current `E / Use: close Freight hall door` hint (HEAD already emitted the new copy; the app itself did not change).
+
+### Verification
+- `node --check raid-online.mjs` OK.
+- `node tests/raid-browser-tactical-map.mjs` pass: opens with M, pans, zooms, recentres, sets/clears a waypoint, cyan minimap marker intact, independent contexts, `browserErrors: []`.
+- `node tests/raid-browser-doors.mjs` pass: door cues/toggles intact, tactical door markers present, no browser errors.
+- `node tests/raid-browser-minimap.mjs` and `raid-browser-minimap-detail.mjs` pass; `raid-browser-static-offline.mjs` pass (full offline loop, `browserErrors: []`); `raid-browser-mobile-hud.mjs` pass at 1024×720 (91.9% unobstructed) and 844×390 (81.8% unobstructed), `browserErrors: []`.
+- `node --test tests/*.test.mjs`: 1246 pass, 1 fail — the known local matchmaking `ECONNRESET` flake; `node --test tests/matchmaking.test.mjs` passes 11/11 when run alone.
+- Known pre-existing blocker: `node tests/raid-browser-escalation.mjs` fails `active hazard paint (32 → 32)`; the same test fails on clean `HEAD`, so it is not caused by this slice.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: `before-1024.png` vs `after-1024.png`, `before-844.png` vs `after-844.png`, plus `after-1024-action.png`/`after-844-action.png` while walking, and `after-1024-tactical.png`/`after-844-tactical.png`. Source frames in `/tmp/hsz-nav/shots/`. The map shifted 2,394 pixels between still and walking 1024 frames, confirming live player-centred updates.
+
+### Honest critique
+The chip finally answers "where do I go" at a glance and the 120 px heading-up card shows real streets, the operator and rim exit arrows instead of an unreadable whole-map square, but at native scale the rim arrows are still tiny ornament and the corner spawn leaves roughly a third of the tactical screen as empty survey space, so it reads as a clearer route display rather than a polished map room.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR, no `main`). Director note 1 is landed but awaits Austin's live playtest; advance to director note 2 (load the main game's shipped art and human bodies into raids) only when taking the next slice, keeping raid progression and other modes untouched.

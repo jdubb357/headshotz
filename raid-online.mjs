@@ -532,6 +532,7 @@ function renderFrame(time){
  frame=requestAnimationFrame(renderFrame);
  if(inRaid)view?.frame(time,yaw,pitch,prediction?.frame(movementInput(),time),aiming);
  else if(profile&&!$('base').hidden){preview||=new BasePreview($('basePreview'));preview.setLoadout(previewLoadout);preview.applySettings(preferences.get());preview.frame(time,true)}
+ renderNavHud();
 }
 requestAnimationFrame(renderFrame);
 const distance=(a,b)=>Math.hypot(a.x-b.x,(a.y||0)-(b.y||0),a.z-b.z);
@@ -818,7 +819,7 @@ function updateUI(){
  if(seenEvents.size>200){const recent=[...seenEvents].slice(-100);seenEvents.clear();for(const id of recent)seenEvents.add(id)}
  updateBossUI(snapshot);
  $('conditions').textContent=`${RAID_WORLDS.find(w=>w.id===snapshot.map)?.name||snapshot.map} · ${snapshot.conditions?.clock? snapshot.conditions.clock+' · ':''}${snapshot.conditions?.name||snapshot.conditions?.weather||'clear'}`;
- renderEscalation(snapshot);renderObjectivePanel({self:s,objective:snapshot.objective});renderMinimap(snapshot);updateCompass(s);if(mapOpen)drawTactical();
+ renderEscalation(snapshot);renderObjectivePanel({self:s,objective:snapshot.objective});renderMinimap(snapshot);renderNavHud(true);updateCompass(s);if(mapOpen)drawTactical();
  const sources=[...snapshot.caches.map(c=>({...c,source:'cache'})),...(snapshot.loot||[]).map(l=>({...l,source:'loot'})),...snapshot.bags.map(b=>({...b,source:'bag'})),...(snapshot.bodies||[]).filter(b=>b.team!==s.team).map(b=>({...b,source:'body'})),...(snapshot.doors||[]).map(door=>({...door,source:'door'}))].filter(c=>distance(c,s)<3);
  const downed=snapshot.players.filter(p=>p.team===s.team&&p.downed&&(distance(p,s)<=2||p.rescue?.carriedByYou));
  nearest=extractionInteractionTarget(snapshot.exits,s,snapshot.serverTime,4)||[...sources,...snapshot.exits.filter(e=>distance(e,s)<4)].sort((a,b)=>distance(a,s)-distance(b,s))[0];
@@ -1516,10 +1517,146 @@ export function drawMap(canvas,id,state,opts={}){
   ring(state.self.x,state.self.z,'rgba(255,207,97,.42)',5+pulse,1.2);point(state.self.x,state.self.z,'#ffcf61',2.2);
  }
 }
+// The compact HUD's always-visible approach map: a 150 m, player-centred,
+// heading-up radar of the local streets, buildings, exits and pickups. Draw
+// order is ground, buildings, cover; markers sit above in screen space. Nothing
+// here is simulated or sent, and the legacy #minimap keeps its whole-map
+// projection for the graders and the surviving tactical-map contract.
+const NAV_RADIUS=150,NAV_ARROWS=['▲','↗','▶','↘','▼','↙','◀','↖'];
+const NAV_BUILDINGS={concrete:'#1b3542',plaster:'#243642',planks:'#382d23',brick:'#3a282b',metal:'#1d333c',container:'#342e22',rock:'#29302d',crate:'#34291f',barrier:'#352f25',roof:'#182a31'};
+function drawNavMap(canvas,state){
+ const s=state?.self,world=state?getWorld(state.map,state.mapVersion===undefined?1:state.mapVersion):null;
+ if(!canvas||!s||!world||document.documentElement.dataset.compactHud!=='true')return;
+ const ctx=canvas.getContext('2d'),n=canvas.width,cx=n/2,cy=n/2,R=cx-3,k=R/NAV_RADIUS,TAU=Math.PI*2;
+ const heading=inRaid?yaw:Number(s.yaw)||0,theta=heading-Math.PI,cos=Math.cos(theta),sin=Math.sin(theta);
+ ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,n,n);ctx.save();
+ ctx.beginPath();ctx.arc(cx,cy,R,0,TAU);ctx.clip();
+ const bg=ctx.createRadialGradient(cx,cy,0,cx,cy,R);
+ bg.addColorStop(0,'#0c2029');bg.addColorStop(.7,'#08161d');bg.addColorStop(1,'#050d12');
+ ctx.fillStyle=bg;ctx.fillRect(0,0,n,n);
+ // Local fabric rotates under a fixed operator heading, so forward is always up.
+ ctx.save();ctx.translate(cx,cy);ctx.rotate(theta);ctx.scale(k,k);ctx.translate(-s.x,-s.z);
+ const reach=NAV_RADIUS+90,reach2=reach*reach;
+ const paint=(p,fill)=>{const x=p.x||0,z=p.z||0,w=p.w||20,d=p.d||10,ry=p.ry||0;ctx.save();ctx.translate(x,z);if(ry)ctx.rotate(ry);ctx.fillStyle=fill;ctx.fillRect(-w/2,-d/2,w,d);ctx.restore()};
+ for(const p of world.props){
+  const x=p.x||0,z=p.z||0,dx=x-s.x,dz=z-s.z;if(dx*dx+dz*dz>reach2)continue;
+  if(p.kind==='field'){paint(p,'#172f1f');const w=p.w||20,d=p.d||10,ry=p.ry||0;ctx.save();ctx.translate(x,z);if(ry)ctx.rotate(ry);ctx.strokeStyle='rgba(116,186,128,.16)';ctx.lineWidth=.8;ctx.strokeRect(-w/2+.5,-d/2+.5,w-1,d-1);ctx.restore()}
+  else if(p.kind==='basin')paint(p,'#1c4652');
+  else if(p.kind==='plaza'||p.kind==='floor'||p.kind==='crosswalk')paint(p,'#27404a');
+  else if(p.kind==='road'){
+   paint(p,'#29444e');
+   const w=p.w||20,d=p.d||10;if(Math.max(w,d)>=16){ctx.save();ctx.translate(x,z);if(p.ry)ctx.rotate(p.ry);ctx.strokeStyle='rgba(231,243,237,.15)';ctx.lineWidth=.9;ctx.setLineDash([5,6]);ctx.beginPath();if(w>=d){ctx.moveTo(-w/2+3,0);ctx.lineTo(w/2-3,0)}else{ctx.moveTo(0,-d/2+3);ctx.lineTo(0,d/2-3)};ctx.stroke();ctx.restore()}
+  }
+  else if(p.kind==='sidewalk')paint(p,'#3a565e');
+  else if(p.kind==='rail'){paint(p,'#3c4245');const w=p.w||20,d=p.d||10,ry=p.ry||0;ctx.save();ctx.translate(x,z);if(ry)ctx.rotate(ry);ctx.fillStyle='rgba(206,206,196,.34)';if(w>=d)ctx.fillRect(-w/2,-1.1,w,2.2);else ctx.fillRect(-1.1,-d/2,2.2,d);ctx.restore()}
+ }
+ // Buildings and stacked roofs sit above the street surface.
+ for(const [x,z,w,d,,base=0,kind='concrete',tint]of world.blocks){
+  if(base>3)continue;
+  const dx=x-s.x,dz=z-s.z,slant=Math.max(w,d);if(dx*dx+dz*dz>(NAV_RADIUS+slant)*(NAV_RADIUS+slant))continue;
+  const color=NAV_BUILDINGS[kind]||NAV_BUILDINGS.concrete;
+  ctx.fillStyle=color;ctx.fillRect(x-w/2,z-d/2,w,d);
+  // A lit north rim and a cool edge give each footprint a readable hull.
+  ctx.fillStyle='rgba(176,224,236,.16)';ctx.fillRect(x-w/2,z-d/2,w,Math.max(.45,Math.min(1.8,w*.1)));
+  ctx.strokeStyle='rgba(112,180,202,.26)';ctx.lineWidth=.6;ctx.strokeRect(x-w/2,z-d/2,w,d);
+ }
+ // Canopies and yard clutter come last so they never vanish into the asphalt.
+ for(const p of world.props){
+  const x=p.x||0,z=p.z||0,dx=x-s.x,dz=z-s.z;if(dx*dx+dz*dz>reach2)continue;
+  if(p.kind==='tree'){ctx.fillStyle='#24492c';ctx.beginPath();ctx.arc(x,z,Math.max(2.6,(p.scale||1)*3.4),0,TAU);ctx.fill()}
+  else if(p.kind==='bush'||p.kind==='hedge'){const w=p.kind==='hedge'?p.w||2:Math.max(2,(p.scale||1)*2.4),d=p.kind==='hedge'?p.d||2:0;if(d){ctx.fillStyle='#22432a';ctx.save();ctx.translate(x,z);if(p.ry)ctx.rotate(p.ry);ctx.fillRect(-w/2,-d/2,w,d);ctx.restore()}else{ctx.fillStyle='#22432a';ctx.beginPath();ctx.arc(x,z,w,0,TAU);ctx.fill()}}
+  else if(p.kind==='billboard'){ctx.fillStyle='#4a3c24';ctx.fillRect(x-2.6,z-1.4,5.2,2.8)}
+ }
+ ctx.restore();
+ // Distance rings and a cool rim fold the streets into the HUD glass.
+ ctx.strokeStyle='rgba(152,202,220,.16)';ctx.lineWidth=1;
+ for(const r of [NAV_RADIUS*.5,NAV_RADIUS]){ctx.beginPath();ctx.arc(cx,cy,r*k,0,TAU);ctx.stroke()}
+ const rim=ctx.createRadialGradient(cx,cy,R*.56,cx,cy,R);
+ rim.addColorStop(0,'rgba(5,13,18,0)');rim.addColorStop(.84,'rgba(5,13,18,.22)');rim.addColorStop(1,'rgba(5,13,18,.86)');
+ ctx.fillStyle=rim;ctx.fillRect(0,0,n,n);
+ const project=(x,z)=>{const dx=x-s.x,dz=z-s.z;return {x:cx+(dx*cos-dz*sin)*k,y:cy+(dx*sin+dz*cos)*k,d:Math.hypot(dx,dz)}};
+ const serverTime=state.serverTime||0;
+ // Their rings used to be painted only on the hidden whole-map minimap; keep
+ // the local hazard window readable on the small heading-up card instead.
+ for(const h of state.hazards||[])if((h.active||h.warning)&&Number.isFinite(h.x)&&Number.isFinite(h.z)){
+  const q=project(h.x,h.z),rad=Math.max(9,Math.min(R-3,(h.radius||6)*k));
+  if(q.d>NAV_RADIUS+rad)continue;
+  ctx.save();ctx.beginPath();ctx.arc(q.x,q.y,rad,0,TAU);
+  ctx.globalAlpha=h.warning?.13:.2;ctx.fillStyle=h.warning?'#ffb76d':'#ff3d32';ctx.fill();ctx.globalAlpha=1;
+  ctx.setLineDash(h.warning?[5,5]:[]);ctx.lineWidth=h.warning?1.6:2.2;
+  ctx.strokeStyle=h.warning?'rgba(255,183,109,.85)':'rgba(255,61,50,.92)';ctx.stroke();ctx.restore();
+ }
+ // Exits stay visible at any range: diamonds nearby, chevrons pinned to the rim.
+ for(const exit of state.exits||[]){
+  const p=project(exit.x,exit.z),color='#'+exitColor(exit,serverTime).toString(16).padStart(6,'0');
+  if(p.d<=NAV_RADIUS*.9){
+   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.PI/4);
+   ctx.fillStyle='rgba(4,10,14,.55)';ctx.fillRect(-11,-11,22,22);
+   ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.94)';ctx.lineWidth=2.4;
+   ctx.fillRect(-7.2,-7.2,14.4,14.4);ctx.strokeRect(-7.2,-7.2,14.4,14.4);ctx.restore();
+  }else{
+   const angle=Math.atan2(p.y-cy,p.x-cx),ax=cx+Math.cos(angle)*(R-12),ay=cy+Math.sin(angle)*(R-12);
+   ctx.save();ctx.translate(ax,ay);ctx.rotate(angle+Math.PI/2);
+   ctx.beginPath();ctx.arc(0,0,13,0,TAU);ctx.fillStyle='rgba(4,10,14,.68)';ctx.fill();
+   ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(8,5.8);ctx.lineTo(0,1.8);ctx.lineTo(-8,5.8);ctx.closePath();
+   ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.94)';ctx.lineWidth=2.6;ctx.fill();ctx.stroke();ctx.restore();
+  }
+ }
+ for(const m of state.machines||[])if(m.hp>0){const p=project(m.x,m.z);if(p.d>NAV_RADIUS)continue;ctx.beginPath();ctx.arc(p.x,p.y,8.8,0,TAU);ctx.fillStyle='rgba(255,102,91,.2)';ctx.fill();ctx.beginPath();ctx.arc(p.x,p.y,5.4,0,TAU);ctx.fillStyle='#ff665b';ctx.fill();ctx.lineWidth=1.6;ctx.strokeStyle='rgba(6,12,16,.9)';ctx.stroke()}
+ for(const p of state.players||[])if(p.team===s.team&&p.id!==s.id){const q=project(p.x,p.z);if(q.d>NAV_RADIUS)continue;ctx.beginPath();ctx.arc(q.x,q.y,4.6,0,TAU);ctx.fillStyle='#77c5ff';ctx.fill();ctx.lineWidth=1.4;ctx.strokeStyle='rgba(6,12,16,.8)';ctx.stroke()}
+ for(const l of state.loot||[]){const q=project(l.x,l.z);if(q.d>80)continue;ctx.beginPath();ctx.arc(q.x,q.y,3.1,0,TAU);ctx.fillStyle='#b6ee9b';ctx.fill()}
+ if(waypoint){const q=project(waypoint.x,waypoint.z);
+  if(q.d<=NAV_RADIUS*.94){ctx.save();ctx.setLineDash([4,5]);ctx.strokeStyle='rgba(120,230,255,.55)';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(q.x,q.y);ctx.stroke();ctx.restore();ctx.save();ctx.translate(q.x,q.y);ctx.rotate(Math.PI/4);ctx.fillStyle='#78e6ff';ctx.fillRect(-4.8,-4.8,9.6,9.6);ctx.restore()}
+  else{const angle=Math.atan2(q.y-cy,q.x-cx);ctx.save();ctx.translate(cx+Math.cos(angle)*(R-20),cy+Math.sin(angle)*(R-20));ctx.rotate(angle+Math.PI/2);ctx.beginPath();ctx.moveTo(0,-6);ctx.lineTo(3.6,2.6);ctx.lineTo(0,.4);ctx.lineTo(-3.6,2.6);ctx.closePath();ctx.fillStyle='#78e6ff';ctx.fill();ctx.restore()}
+ }
+ // Operator chevron always points up; the world turns beneath it.
+ ctx.beginPath();ctx.arc(cx,cy,22,0,TAU);ctx.fillStyle='rgba(255,207,97,.12)';ctx.fill();
+ ctx.save();ctx.translate(cx,cy);ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(10.6,10.4);ctx.lineTo(0,4.8);ctx.lineTo(-10.6,10.4);ctx.closePath();
+ ctx.fillStyle='#ffcf61';ctx.strokeStyle='rgba(6,12,16,.95)';ctx.lineWidth=2.6;ctx.fill();ctx.stroke();ctx.restore();
+ // North tag rotates with the world.
+ const northAngle=heading-Math.PI,na=Math.atan2(-Math.cos(northAngle),Math.sin(northAngle)),nx=cx+Math.cos(na)*(R-17),ny=cy+Math.sin(na)*(R-17);
+ ctx.beginPath();ctx.arc(nx,ny,13,0,TAU);ctx.fillStyle='rgba(8,18,24,.92)';ctx.fill();ctx.strokeStyle='rgba(224,244,236,.62)';ctx.lineWidth=1.6;ctx.stroke();
+ ctx.font='700 17px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffe29a';ctx.fillText('N',nx,ny);
+ ctx.beginPath();ctx.arc(cx,cy,R-.7,0,TAU);ctx.strokeStyle='rgba(202,238,231,.34)';ctx.lineWidth=1.6;ctx.stroke();
+ ctx.restore();
+}
+let navHudAt=0,navHudKey='';
+function renderNavHud(force=false){
+ const chip=$('navChip');
+ if(!chip)return;
+ if(!inRaid||!snapshot||document.documentElement.dataset.compactHud!=='true'||!snapshot.self){if(!chip.hidden)chip.hidden=true;return}
+ const now=performance.now();
+ if(!force&&now-navHudAt<85)return;
+ navHudAt=now;
+ drawNavMap($('navmap'),snapshot);
+ const s=snapshot.self,serverTime=snapshot.serverTime||0,exits=snapshot.exits||[];
+ let best=null;
+ for(const exit of exits){
+  const state=exitState(exit,serverTime),spent=state.phase==='departed'||state.phase==='exhausted'?1:0,d=Math.hypot(exit.x-s.x,exit.z-s.z);
+  if(!best||spent<best.spent||(spent===best.spent&&d<best.d))best={exit,state,spent,d};
+ }
+ if(!best){chip.hidden=true;return}
+ const heading=mapBearing(s.x,s.z,s.x+Math.sin(inRaid?yaw:Number(s.yaw)||0),s.z+Math.cos(inRaid?yaw:Number(s.yaw)||0));
+ const bearing=mapBearing(s.x,s.z,best.exit.x,best.exit.z);
+ const rel=((bearing-heading)%360+540)%360-180,arrow=NAV_ARROWS[Math.round(rel/45+8)%8];
+ const summary=[best.exit.id,Math.round(best.d),arrow,mapCardinal(bearing),best.state.phase].join('|');
+ if(summary!==navHudKey){
+  navHudKey=summary;
+  $('navChipRange').textContent=mapRange(best.d);
+  $('navChipBearing').textContent=arrow+' '+mapCardinal(bearing);
+  chip.dataset.state=best.spent?'spent':best.state.phase==='open'?'open':'closed';
+  chip.title=(best.exit.name||'Extraction exit')+' · '+exitDescription(best.exit,serverTime);
+  chip.setAttribute('aria-label','Nearest exit '+(best.exit.name||'')+': '+mapRange(best.d)+' '+mapCardinal(bearing));
+ }
+ chip.hidden=false;
+}
 // Tactical map state is purely client-side presentation: every rendered position
 // comes from the authoritative snapshot and a waypoint is never transmitted.
 const MAP_CARDINALS=['north','northeast','east','southeast','south','southwest','west','northwest'];
 let waypoint=null,mapOpen=false,mapCamera={x:0,z:0,zoom:1,raidId:null},mapDrag=null;
+// The full map opens already centred on the operator, so a landing has an
+// immediate read of nearby streets instead of the whole 1.4 km sector.
+const TACTICAL_ZOOM=1.7;
 const tacticalWorld=()=>snapshot?getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion):null;
 function mapBearing(fx,fz,tx,tz){return ((Math.atan2(tx-fx,-(tz-fz))*180/Math.PI)+360)%360}
 const mapCardinal=deg=>MAP_CARDINALS[Math.round(deg/45)%8];
@@ -1534,10 +1671,9 @@ function updateCompass(s){
 }
 function mapReadoutText(){
  const s=snapshot?.self;if(!s)return '';
- const legend='Amber is you, blue is squad, green diamonds are exits, pink marks caches, red marks threats, red rings are hazard windows, a dashed white ring is an elite patrol, door dots are red when locked, amber when closed and green when open, a cyan ring marked O is your field objective (green once secured), pink B is a downed operator body (amber L once searched), pink C is operator salvage, amber M is machine salvage, orange R is rival salvage, lavender G is dropped gear, and cyan is your waypoint.';
- if(!waypoint)return 'Click or tap the map to set a waypoint. Drag to pan; use the wheel or buttons to zoom. '+legend;
+ if(!waypoint)return 'Drag to pan · tap to set a waypoint · pinch or use the buttons to zoom.';
  const range=Math.hypot(waypoint.x-s.x,waypoint.z-s.z),bearing=mapBearing(s.x,s.z,waypoint.x,waypoint.z);
- return `Waypoint ${mapRange(range)} ${mapCardinal(bearing)} ${mapDegree(bearing)}. Click the cyan marker again to clear it. ${legend}`;
+ return `Waypoint ${mapRange(range)} ${mapCardinal(bearing)} ${mapDegree(bearing)} · tap it again to clear.`;
 }
 function updateMapReadout(){if(mapOpen&&snapshot)$('mapReadout').textContent=mapReadoutText()}
 function drawMinimapWaypoint(canvas,state){
@@ -1561,10 +1697,17 @@ export function drawTacticalMap(canvas,id,state,{camera=null,waypoint:goal=null,
  const world=state?getWorld(id,state.mapVersion===undefined?1:state.mapVersion):RAID_WORLDS.find(w=>w.id===id);
  const self=state?.self;if(!world||!self)return;
  const cam=camera&&[camera.x,camera.z,camera.zoom].every(Number.isFinite)?{x:camera.x,z:camera.z,zoom:camera.zoom}:{x:self.x,z:self.z,zoom:1};
- const n=canvas.width,ctx=canvas.getContext('2d'),zoom=Math.max(.6,Math.min(4,cam.zoom)),k=n/world.size*zoom,mid=n/2;
- const sx=x=>mid+(x-cam.x)*k,sy=z=>mid+(z-cam.z)*k;
- ctx.clearRect(0,0,n,n);ctx.fillStyle='#08121a';ctx.fillRect(0,0,n,n);
- ctx.drawImage(mapBackground(world,n,false),mid-cam.x*k-mid*zoom,mid-cam.z*k-mid*zoom,n*zoom,n*zoom);
+ const nW=canvas.width,nH=canvas.height,ctx=canvas.getContext('2d'),zoom=Math.max(.6,Math.min(4,cam.zoom)),k=Math.min(nW,nH)/world.size*zoom,midW=nW/2,midH=nH/2;
+ const sx=x=>midW+(x-cam.x)*k,sy=z=>midH+(z-cam.z)*k;
+ ctx.clearRect(0,0,nW,nH);ctx.fillStyle='#111814';ctx.fillRect(0,0,nW,nH);
+ // An off-sector survey graticule makes the world boundary read as an edge of
+ // coverage rather than an empty black band on wide screens.
+ ctx.save();ctx.strokeStyle='rgba(126,166,138,.13)';ctx.lineWidth=1;
+ for(let g=48;g<Math.max(nW,nH);g+=48){ctx.beginPath();ctx.moveTo(g,0);ctx.lineTo(g,nH);ctx.stroke();ctx.beginPath();ctx.moveTo(0,g);ctx.lineTo(nW,g);ctx.stroke()}
+ ctx.restore();
+ const atlas=mapBackground(world,720,false),span=world.size*k;
+ ctx.drawImage(atlas,midW-cam.x*k-span/2,midH-cam.z*k-span/2,span,span);
+ ctx.save();ctx.setLineDash([9,7]);ctx.strokeStyle='rgba(123,214,242,.34)';ctx.lineWidth=2;ctx.strokeRect(sx(-world.size/2),sy(-world.size/2),span,span);ctx.restore();
  const dot=(x,z,color,r=3.4)=>{ctx.beginPath();ctx.arc(sx(x),sy(z),Math.max(2.2,r*Math.min(1.7,zoom)),0,Math.PI*2);ctx.fillStyle=color;ctx.fill();ctx.lineWidth=1.4;ctx.strokeStyle='rgba(7,13,16,.88)';ctx.stroke()};
  const glyph=(txt,x,z,dy=0,fill='#f4fff9',size=9)=>{const scale=Math.min(1.9,Math.max(.9,zoom));ctx.font='700 '+Math.round(size*scale)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3*scale;ctx.strokeStyle='rgba(7,13,16,.9)';ctx.strokeText(txt,sx(x),sy(z)+dy*scale);ctx.fillStyle=fill;ctx.fillText(txt,sx(x),sy(z)+dy*scale)};
  // Dashed bearing line makes the waypoint's direction legible at a glance.
@@ -1598,17 +1741,24 @@ export function drawTacticalMap(canvas,id,state,{camera=null,waypoint:goal=null,
  const angle=Math.atan2(Math.sin(headingYaw??self.yaw??0),-Math.cos(headingYaw??self.yaw??0)),a=Math.max(7,9*Math.min(1.6,zoom));
  ctx.save();ctx.translate(sx(self.x),sy(self.z));ctx.rotate(angle);ctx.beginPath();ctx.moveTo(0,-a*1.45);ctx.lineTo(a*.82,a*.7);ctx.lineTo(0,a*.28);ctx.lineTo(-a*.82,a*.7);ctx.closePath();ctx.fillStyle='#ffcf61';ctx.fill();ctx.lineWidth=2.4;ctx.strokeStyle='rgba(7,13,16,.95)';ctx.stroke();ctx.restore();
 }
+function syncTacticalCanvas(){
+ const canvas=$('tacticalCanvas');if(!canvas||!mapOpen)return;
+ const rect=canvas.getBoundingClientRect();if(!rect.width||!rect.height)return;
+ const dpr=Math.min(2,window.devicePixelRatio||1),w=Math.round(rect.width*dpr),h=Math.round(rect.height*dpr);
+ if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
+}
 function drawTactical(){
  if(!mapOpen||!snapshot)return;
+ syncTacticalCanvas();
  drawTacticalMap($('tacticalCanvas'),snapshot.map,snapshot,{camera:mapCamera,waypoint,headingYaw:yaw});
 }
 function mapPointerPosition(event){
  const canvas=$('tacticalCanvas'),rect=canvas.getBoundingClientRect(),n=canvas.width;
- const px=(event.clientX-rect.left)*(rect.width?n/rect.width:1),py=(event.clientY-rect.top)*(rect.height?n/rect.height:1);
+ const px=(event.clientX-rect.left)*(rect.width?n/rect.width:1),py=(event.clientY-rect.top)*(rect.height?canvas.height/rect.height:1);
  return {px,py,cssX:event.clientX-rect.left,cssY:event.clientY-rect.top,rect};
 }
-function tacticalScale(){const world=tacticalWorld();return world&&mapCamera.zoom?$('tacticalCanvas').width/world.size*mapCamera.zoom:0}
-function mapWaypointScreen(){const canvas=$('tacticalCanvas'),world=tacticalWorld();if(!world||!waypoint)return null;const k=canvas.width/world.size*mapCamera.zoom;return {x:canvas.width/2+(waypoint.x-mapCamera.x)*k,y:canvas.height/2+(waypoint.z-mapCamera.z)*k}}
+function tacticalScale(){const world=tacticalWorld(),canvas=$('tacticalCanvas');return world&&mapCamera.zoom?Math.min(canvas.width,canvas.height)/world.size*mapCamera.zoom:0}
+function mapWaypointScreen(){const canvas=$('tacticalCanvas'),world=tacticalWorld();if(!world||!waypoint)return null;const k=Math.min(canvas.width,canvas.height)/world.size*mapCamera.zoom;return {x:canvas.width/2+(waypoint.x-mapCamera.x)*k,y:canvas.height/2+(waypoint.z-mapCamera.z)*k}}
 function setWaypoint(point){
  if(!point){waypoint=null}
  else{
@@ -1621,17 +1771,17 @@ function setWaypoint(point){
 }
 function zoomTactical(factor,center){
  const canvas=$('tacticalCanvas'),world=tacticalWorld();if(!world)return;
- const n=canvas.width,k=n/world.size,px=center?.px??n/2,py=center?.py??n/2,old=mapCamera.zoom;
- const anchorX=mapCamera.x+(px-n/2)/(k*old),anchorZ=mapCamera.z+(py-n/2)/(k*old);
+ const nW=canvas.width,nH=canvas.height,k=Math.min(nW,nH)/world.size,px=center?.px??nW/2,py=center?.py??nH/2,old=mapCamera.zoom;
+ const anchorX=mapCamera.x+(px-nW/2)/(k*old),anchorZ=mapCamera.z+(py-nH/2)/(k*old);
  mapCamera.zoom=Math.max(.6,Math.min(4,old*factor));
- mapCamera.x=anchorX-(px-n/2)/(k*mapCamera.zoom);mapCamera.z=anchorZ-(py-n/2)/(k*mapCamera.zoom);
+ mapCamera.x=anchorX-(px-nW/2)/(k*mapCamera.zoom);mapCamera.z=anchorZ-(py-nH/2)/(k*mapCamera.zoom);
  drawTactical();
 }
-function recentreTactical(){if(!snapshot)return;mapCamera={x:snapshot.self.x,z:snapshot.self.z,zoom:1,raidId:snapshot.raidId};drawTactical()}
+function recentreTactical(){if(!snapshot)return;mapCamera={x:snapshot.self.x,z:snapshot.self.z,zoom:TACTICAL_ZOOM,raidId:snapshot.raidId};drawTactical()}
 function resetTacticalMap(){
  mapOpen=false;waypoint=null;mapCamera={x:0,z:0,zoom:1,raidId:null};mapDrag=null;
  $('tacticalMap').hidden=true;$('mapToggle').setAttribute('aria-expanded','false');$('compass').textContent='';
- $('mapReadout').textContent='Drag to pan, click to set a waypoint, click the waypoint again to clear it.';
+ $('mapReadout').textContent='Drag to pan · tap to set a waypoint · tap it again to clear.';
  $('mapToggle').setAttribute('aria-label','Tactical map / '+keyName(preferences.get().bindings.map));
 }
 function setMapOpen(open){
@@ -1641,9 +1791,9 @@ function setMapOpen(open){
  if(mapOpen){
   // Re-centre only when the camera still belongs to an earlier raid; panning
   // around the same raid keeps the operator's chosen view.
-  if(mapCamera.raidId!==snapshot.raidId)mapCamera={x:snapshot.self.x,z:snapshot.self.z,zoom:1,raidId:snapshot.raidId};
+  if(mapCamera.raidId!==snapshot.raidId)mapCamera={x:snapshot.self.x,z:snapshot.self.z,zoom:TACTICAL_ZOOM,raidId:snapshot.raidId};
   drawTactical();updateMapReadout();$('tacticalCanvas').focus();
- }else{$('mapReadout').textContent='Drag to pan, click to set a waypoint, click the waypoint again to clear it.';document.exitPointerLock?.();$('view').focus()}
+ }else{$('mapReadout').textContent='Drag to pan · tap to set a waypoint · tap it again to clear.';document.exitPointerLock?.();$('view').focus()}
 }
 function toggleTacticalMap(){setMapOpen(!mapOpen)}
 function bindTacticalMap(){
@@ -1665,13 +1815,10 @@ function bindTacticalMap(){
   if(!mapDrag||mapDrag.id!==event.pointerId)return;
   const wasClick=!mapDrag.moved&&event.type==='pointerup';mapDrag=null;canvas.classList.remove('dragging');
   if(wasClick&&mapOpen){
-   const pos=mapPointerPosition(event),w=mapWaypointScreen();
+   const pos=mapPointerPosition(event),w=mapWaypointScreen(),k=tacticalScale();
+   if(!k)return;
    if(w&&Math.hypot(pos.px-w.x,pos.py-w.y)<18)setWaypoint(null);
-   else{
-    const world=tacticalWorld();if(!world)return;
-    const k=n=>$('tacticalCanvas').width/world.size*mapCamera.zoom;
-    setWaypoint({x:mapCamera.x+(pos.px-$('tacticalCanvas').width/2)/k(),z:mapCamera.z+(pos.py-$('tacticalCanvas').height/2)/k()});
-   }
+   else setWaypoint({x:mapCamera.x+((pos.px-canvas.width/2)/k),z:mapCamera.z+((pos.py-canvas.height/2)/k)});
   }
  };
  canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointercancel',finish);
