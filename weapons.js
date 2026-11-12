@@ -830,8 +830,23 @@ function orBox(w,h,d,c,dirY,col,r=.006){// box whose local +y points along dirY 
  _Q.setFromUnitVectors(V3(0,1,0),dirY.clone().normalize());_E.setFromQuaternion(_Q);return rbox(w,h,d,c.x,c.y,c.z,col,r,_E.x,_E.y,_E.z)}
 let NOFA=false,WSIDE=null;export const wristOut={};
 function forearm(w,e,sleeve,glove){const m0=MAT;const dir=e.clone().sub(w).normalize();wristOut[WSIDE||(GRP==='lh'?'L':'R')]={w:[w.x,w.y,w.z],e:[e.x,e.y,e.z]};
- if(!NOFA){MAT='sleeve';seg(w,e,.03,.044,sleeve,10);
- const cf=w.clone().addScaledVector(dir,.05);seg(cf,cf.clone().addScaledVector(dir,.018),.0405,.041,new THREE.Color(sleeve).multiplyScalar(.7).getHex(),10)}MAT='glove';seg(w.clone().addScaledVector(dir,-.012),w.clone().addScaledVector(dir,.022),.031,.032,glove,10);MAT=m0}
+ if(!NOFA){
+  MAT='sleeve';
+  // Narrower than the old cone so the forearm reads as cloth over an arm.
+  seg(w,e,.033,.043,sleeve,12);
+  // Folded cuff hem at the wrist: a brighter band of the same cloth, slightly
+  // proud of the sleeve, closed by a darker stitch seam. This gives the arm a
+  // manufactured edge instead of fading into the glove as a bare tube.
+  const cuff=w.clone().addScaledVector(dir,.002);
+  seg(cuff,cuff.clone().addScaledVector(dir,.068),.0420,.0432,new THREE.Color(sleeve).multiplyScalar(2.15).getHex(),12);
+  // A narrow fold of shadow hides the raw cylinder edge where the cuff meets
+  // the glove; the larger band below reads as the rolled sleeve hem.
+  seg(cuff,cuff.clone().addScaledVector(dir,.015),.0428,.0430,new THREE.Color(sleeve).multiplyScalar(.5).getHex(),12);
+  seg(cuff.clone().addScaledVector(dir,.058),cuff.clone().addScaledVector(dir,.070),.0438,.0432,new THREE.Color(sleeve).multiplyScalar(.68).getHex(),12);
+  // Rolled hem closes the sleeve's elbow opening so it ends flush.
+  seg(e.clone().addScaledVector(dir,-.052),e.clone().addScaledVector(dir,.004),.045,.0465,new THREE.Color(sleeve).multiplyScalar(.82).getHex(),12);
+ }
+ MAT='glove';seg(w.clone().addScaledVector(dir,-.012),w.clone().addScaledVector(dir,.022),.031,.032,glove,10);MAT=m0}
 // right hand on a pistol grip (rake a), index finger on the trigger
 function rightGrip(g,trg,sleeve,glove,pad,two){const a=g.a,d=V3(0,-Math.cos(a),Math.sin(a)),e1=V3(1,0,0),e2=V3().crossVectors(d,e1);const c=V3(...g.c);const R=.026,ell=[.72,1];
  const D=Math.PI/180;

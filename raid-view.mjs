@@ -751,6 +751,23 @@ export class RaidView {
    const tracerMaterial=new THREE.LineBasicMaterial({color:0xfff4d6,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:true});
    tracerGeometry.userData.raidOwned=tracerMaterial.userData.raidOwned=true;
    const tracer=new THREE.Line(tracerGeometry,tracerMaterial);tracer.visible=false;tracer.frustumCulled=false;tracer.renderOrder=3;this.scene.add(tracer);
+   // A one-pixel GL line is invisible on a phone at 844x390, so each shot also
+   // carries a real 3D beam: a thin cylinder that tapers from a hot, wide
+   // muzzle end to a faint point at the impact. Vertex colours fade it along
+   // the length, so the far segment sinks into the world instead of drawing a
+   // flat white pipe to the horizon. Fixed pool, no per-shot allocation.
+   const beamGeometry=new THREE.CylinderGeometry(.011,.0022,1,10,1,true);
+   beamGeometry.translate(0,-.5,0);
+   const beamPosition=beamGeometry.attributes.position,beamColours=new Float32Array(beamPosition.count*3);
+   for(let i=0;i<beamPosition.count;i++){
+    const t=Math.min(1,Math.max(0,-beamPosition.getY(i))),k=i*3;
+    beamColours[k]=1-.05*t;beamColours[k+1]=.95-.30*t;beamColours[k+2]=.82-.50*t;
+   }
+   beamGeometry.setAttribute('color',new THREE.Float32BufferAttribute(beamColours,3));
+   beamGeometry.userData.raidOwned=true;
+   const beamMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false});
+   beamMaterial.userData.raidOwned=true;
+   const beam=new THREE.Mesh(beamGeometry,beamMaterial);beam.visible=false;beam.frustumCulled=false;beam.renderOrder=3;this.scene.add(beam);
    const sparkGeometry=new THREE.BufferGeometry();sparkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(sparkCount*3),3));
    const sparkMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xffc978,size:.12,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
    sparkGeometry.userData.raidOwned=sparkMaterial.userData.raidOwned=true;
@@ -768,7 +785,7 @@ export class RaidView {
    trailMaterial.userData.raidOwned=true;
    const trailRoot=new THREE.Group();trailRoot.visible=false;this.scene.add(trailRoot);
    const trailSprites=[];for(let j=0;j<8;j++){const sprite=new THREE.Sprite(trailMaterial);trailRoot.add(sprite);trailSprites.push(sprite)}
-   this.shotEffects.push({muzzle,tracer,sparks,dust,debris,trailRoot,trailSprites,trailMaterial,dustMaterial,debrisMaterial,started:null,origin:new THREE.Vector3(),dir:new THREE.Vector3(),end:new THREE.Vector3(),velocities:new Float32Array(sparkCount*3),debrisVelocities:new Float32Array(chipCount*3),sparkCount,chipCount,shotDuration,surface:'concrete'});
+   this.shotEffects.push({muzzle,tracer,beam,sparks,dust,debris,trailRoot,trailSprites,trailMaterial,dustMaterial,debrisMaterial,started:null,origin:new THREE.Vector3(),dir:new THREE.Vector3(),end:new THREE.Vector3(),velocities:new Float32Array(sparkCount*3),debrisVelocities:new Float32Array(chipCount*3),sparkCount,chipCount,shotDuration,surface:'concrete',beamDistance:1});
   }
   // One pooled warm light travels with the most recent accepted shot. The
   // additive muzzle billboard is deliberately tiny; this light is what lets
@@ -951,10 +968,22 @@ export class RaidView {
   effect.muzzle.scale.set(scale,scale,1);
   effect.muzzle.visible=!this.settings?.reduced;effect.muzzle.material.opacity=0;
   if(this.shotMuzzleLight){const reduced=!!this.settings?.reduced;this.shotMuzzleLight.position.copy(effect.origin);this.shotMuzzleLight.visible=!reduced;this.shotMuzzleLight.intensity=reduced?0:5.4;this.shotMuzzleLightAt=now}
+  // Place the tapered beam on the same muzzle-to-impact axis as the line. The
+  // cylinder's near ring (radius .011) sits at the muzzle and the far ring
+  // (radius .0022) at the impact; local -Y is mapped onto the shot direction.
+  const beamLength=effect.origin.distanceTo(effect.end);
+  effect.beamDistance=beamLength;
+  effect.beam.position.copy(effect.origin);
+  // Width is authored in metres at the muzzle distance; scaling it by the
+  // sector viewScale (4.5 on a 720 m world) would turn the near ring into a
+  // screen-filling wedge. Length alone follows the trace.
+  effect.beam.scale.set(1,beamLength,1);
+  effect.beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),effect.dir);
+  effect.beam.visible=!this.settings?.reduced;effect.beam.material.opacity=0;
+  effect.tracer.visible=!this.settings?.reduced;effect.tracer.material.opacity=0;
   const position=effect.tracer.geometry.attributes.position;
   position.setXYZ(0,effect.origin.x,effect.origin.y,effect.origin.z);
-  position.setXYZ(1,effect.end.x,effect.end.y,effect.end.z);position.needsUpdate=true;
-  effect.tracer.visible=!this.settings?.reduced;effect.tracer.material.opacity=0;
+  position.setXYZ(1,effect.end.x,effect.end.y,effect.end.z);effect.tracer.geometry.attributes.position.needsUpdate=true;
   effect.sparks.position.copy(effect.end);effect.sparks.visible=true;effect.sparks.material.opacity=0;
   const positions=effect.sparks.geometry.attributes.position.array;
   for(let i=0;i<effect.sparkCount;i++){positions[i*3]=0;positions[i*3+1]=.06;positions[i*3+2]=0}
@@ -1036,15 +1065,20 @@ export class RaidView {
   for(const effect of this.shotEffects){
    if(effect.started===null)continue;
    const age=now-effect.started,fade=Math.max(0,1-age/effect.shotDuration);
-   if(age>=effect.shotDuration||reduced&&age>320){effect.started=null;effect.muzzle.visible=false;effect.tracer.visible=false;effect.sparks.visible=false;effect.trailRoot.visible=false;effect.dust.visible=false;effect.debris.visible=false;continue}
+   if(age>=effect.shotDuration||reduced&&age>320){effect.started=null;effect.muzzle.visible=false;effect.tracer.visible=false;effect.beam.visible=false;effect.sparks.visible=false;effect.trailRoot.visible=false;effect.dust.visible=false;effect.debris.visible=false;continue}
    const flash=Math.max(0,1-age/85);
    effect.muzzle.visible=!reduced&&flash>0;
    effect.muzzle.material.opacity=reduced?0:flash*.9;
    effect.muzzle.scale.setScalar(.07+.035*(1-flash));
    effect.tracer.visible=!reduced&&age<190;
    effect.tracer.material.opacity=reduced?.18:Math.min(1,fade*1.8)*1;
+   // Tapered beam: full width for the first ~80 ms (the frame the eye registers)
+   // then thins and dims so it never sticks to the world like a laser sight.
+   const beamFade=Math.max(0,1-age/185);
+   effect.beam.visible=!reduced&&beamFade>0;
+   effect.beam.material.opacity=reduced?0:Math.min(1,beamFade*2.4)*.72;
    effect.trailRoot.visible=!reduced&&age<200;
-   effect.trailMaterial.opacity=Math.min(1,fade*1.7)*.62;
+   effect.trailMaterial.opacity=Math.min(1,fade*1.7)*.34;
    effect.dust.visible=!reduced&&age<240;
    const dustAge=Math.min(1,age/240);effect.dust.material.opacity=reduced?0:.52*(1-dustAge);
    effect.dust.scale.setScalar((.22+.28*dustAge)*viewScale);

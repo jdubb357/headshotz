@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (director note 2 in-game enemy read, iteration 74). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72) and readable foreground road at spawn (iteration 73), and cohesive articulated machines with planted feet (iteration 74) complete → NEXT: director note 5 viewmodel edge highlights and thicker tracer.
+Last audited: 2026-11-11 (director note 5 viewmodel edge highlights, cuff and tapered tracer, iteration 75). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72), readable foreground road at spawn (iteration 73), cohesive articulated machines with planted feet (iteration 74) and viewmodel edge highlights / sleeve cuff / thick tapered tracer (iteration 75) complete → NEXT: re-verify note 1's sign anchor and duplicate-solid cleanup in this build, then take the next refreshed director note.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -65,8 +65,30 @@ Evidence: `raid-browser-machine-models` green (scout detail 311 px, hunter 416; 
 green, Node 1247/1247. Screenshots `~/headshotz-loop/shots/latest/` before/after 1024 and
 844, action frames at both sizes, close attachment frame and a 3x crop. Known gap: at
 844x390 and 10 m the leg articulation collapses to a few pixels, and the hunter attachment
-was verified on the isolated bench rather than a live wandering frame. Next: director note 5
-viewmodel edge highlights, sleeve cuff and thicker brighter tracer.
+was verified on the isolated bench rather than a live wandering frame. Followed by director note 5
+viewmodel edge highlights, sleeve cuff and thicker brighter tracer (iteration 75).
+
+## Director note 5 — viewmodel edge highlights, sleeve cuff, tapered tracer (iteration 75, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — the gun keeps its dark gunmetal PBR body while a Fresnel rim on
+the metal/poly/rubber groups catches cool highlights at the silhouette, and warm additive
+`EdgesGeometry` glints (30° threshold, .20 opacity) draw only at hard panel seams on the
+metal/alu/chrome groups. The sleeve forearm is narrower than the old cone and now ends in a
+brighter rolled cuff band with a dark seam fold and a closing elbow hem. Each shot carries a
+pooled tapered additive cylinder beam (near radius .011 m, far .0022 m) with a vertex-colour
+fade and a 185 ms bleed, width authored in metres (not `viewScale`) so the 720 m sector world
+does not blow the near ring into a screen wedge; the original 2-point tracer Line is retained,
+and the pooled effect trail was dimmed .62→.34 so one streak reads. Presentation only; the
+mesh material stays `MeshStandardMaterial` and reduced motion suppresses the beam.
+Evidence: Node 1247/1247, static-offline green (deployment, move, hit, loot, extraction, no API
+traffic, errors []), mobile-hud green (1024 compact .0806, 844 .1806, unobstructed .9194/.8194),
+machine-models and effects green (tracerCollision true, 2 tracer points, pool 16, tagged 244 /
+untagged 0, errors []), same-spawn and fire frames captured at 1024x720 and 844x390. Known gap:
+`raid-browser-viewmodel.mjs` still times out at `play.dataset.packOpen==='false'` (test line
+441), reproduced identically at HEAD with these three files stashed — pre-existing headless
+environment flake, assertions before that point pass. Visual gap: the beam has no smoke or heat
+texture and its white core nearly vanishes on the white plaster façade, fabric cuff reads as a
+band more than a tailored hem, and enemy-gun glint/beam draw cost is unmeasured on a physical iPad.
 
 ## Director P3 — fix the map (iteration 72, 2026-11-11)
 
