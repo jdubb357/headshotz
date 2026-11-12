@@ -67,7 +67,7 @@ try{
  // close it, then inspect authoritative state, pack, maps and announcement.
  await approachDoor(door());
  await p.wait("document.getElementById('hint').textContent.includes('close Freight hall door')");
- assert.ok(await p.evaluate("document.getElementById('hint').textContent.startsWith('E / Interact')"),'the interaction affordance names the ordinary door');
+ assert.ok(await p.evaluate("document.getElementById('hint').textContent.startsWith('E / Use: close Freight hall door')"),'the interaction affordance names the ordinary door');
  await tapKey(p,'KeyE');
  await p.wait("fetch('/api/raid').then(r=>r.json()).then(r=>r.doors.find(d=>d.id==='relay-door-03').closed===true)",'keyboard closes the door');
  await p.wait("document.getElementById('statusAnnouncement').textContent.includes('Freight hall door closed.')");
