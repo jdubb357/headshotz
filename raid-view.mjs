@@ -7,7 +7,8 @@ import {mapConditions} from './shared/raid-enemies.mjs';
 import {exitColor} from './shared/raid-exits.mjs';
 import {buildEnvironment} from './raid-environment.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
-import {TX,makeRaidHorizon} from './gfx.js';
+import {TX,getTex,normalTex,makeRaidHorizon} from './gfx.js';
+import {HUM} from './humans.js';
 import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,updateExitSignal,disposeOwned,part,beaconModel} from './raid-models.mjs';
 
 import {RaidAudio,spatialCue} from './raid-audio.mjs';
@@ -241,6 +242,46 @@ export class RaidView {
  this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
  }
  applySettings(settings){this.settings=settings;this.audio.volume=settings.sfxVolume;if(settings.viewMode)this.viewMode=settings.viewMode;if(this.selfActor)this.selfActor.visible=this.viewMode!=='first';if(this.camera){this.camera.fov=settings.fov;this.camera.updateProjectionMatrix()}if(this.renderCamera)this.renderCamera.fov=settings.fov;if(this.weather)this.weather.visible=this.snapshot?.conditions?.weather!=='clear'&&!settings.reduced}
+ // The main game ships photographed surfaces and MakeHuman bodies (assets.js /
+ // humans.js). A raid boots before they arrive, so the environment is built from
+ // the procedural 128 px textures and boxy operators. Once the shipped art has
+ // loaded, this re-points the terrain's private texture clones and swaps every
+ // operator for a real MakeHuman body without touching gameplay or the server
+ // footprint.
+ refreshArt(){
+  if(!this.scene)return;
+  if(this.terrainMaterial){
+   const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
+   const live=getTex(key),liveNormal=normalTex(key,1.6);
+   const mat=this.terrainMaterial;
+   // Texture.clone() shares its source, so the photo swap lands here too; the
+   // clones just need an upload flag of their own. (The live texture only marks
+   // the materials that reference it directly.)
+   if(live?.image&&mat.map)mat.map.needsUpdate=true;
+   if(liveNormal?.image&&mat.normalMap)mat.normalMap.needsUpdate=true;
+   mat.needsUpdate=true;
+  }
+  if(!HUM.ready)return;
+  const self=this.snapshot?.self;
+  if(this.selfActor&&self){
+   const item=[...self.equipment,...self.pack].find(it=>it.id===self.weaponId&&it.kind==='weapon');
+   const next=humanModel(self.name||'Operator','raid_local_operator',true,item?.weapon??null);
+   if(next.userData.tag)next.userData.tag.visible=false;
+   next.position.copy(this.selfActor.position);next.rotation.copy(this.selfActor.rotation);
+   next.visible=this.selfActor.visible;
+   this.scene.add(next);this.scene.remove(this.selfActor);disposeOwned(this.selfActor);this.selfActor=next;
+  }
+  const friendlyTeam=self?.team;
+  for(const entry of this.actors.values()){
+   if(entry.type!=='human')continue;
+   const data=entry.data||{};
+   const next=humanModel(data.name||'Operator',data.id||'raid_human',data.rival?false:data.team===friendlyTeam,data.weapon??null);
+   if(next.userData.tag&&!(data.rival?false:data.team===friendlyTeam))next.userData.tag.visible=false;
+   next.position.copy(entry.model.position);next.rotation.copy(entry.model.rotation);
+   next.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
+   this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
+  }
+ }
  clear(){
   if(this.envMapRT)this.envMapRT.dispose();
   if(this.postTarget)this.postTarget.dispose();
@@ -1705,5 +1746,16 @@ export class BasePreview {
  clear(){this.setLoadout({primary:null,secondary:null,armor:null,recovery:false});this.renderer.clear()}
  turn(){this.angle=(this.angle??.5)+Math.PI/2}
  applySettings(settings){this.settings=settings}
+ // Rebuild the deploy-screen operator with the shipped MakeHuman body once
+ // humans.js has loaded, keeping the current stance and loadout attachments.
+ refreshArt(){
+  if(!HUM.ready||!this.hero||!this.scene)return;
+  const old=this.hero;
+  this.hero=humanModel('','base_operator',true,null);
+  this.hero.rotation.y=old.rotation.y;
+  this.scene.add(this.hero);this.scene.remove(old);disposeOwned(old);
+  this.secondaryRoot=null;this.armorRoot=null;this.loadoutKey=null;
+  if(this.loadout)this.setLoadout(this.loadout);
+ }
  frame(time,visible){if(!visible)return;const dt=Math.min(.05,(time-this.last)/1000||.016);this.last=time;updateActor(this.hero,{x:0,y:0,z:0,yaw:(this.angle??.5)+(this.settings?.reduced?0:Math.sin(time*.0003)*.12)},this.settings?.reduced?0:dt,this.settings?.reduced?0:time/1000);const w=this.canvas.clientWidth,h=this.canvas.clientHeight;if(w&&h){this.renderer.setSize(w,h,false);this.camera.aspect=w/h;this.camera.updateProjectionMatrix();this.renderer.render(this.scene,this.camera)}}
 }

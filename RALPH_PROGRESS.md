@@ -7769,3 +7769,34 @@ The chip finally answers "where do I go" at a glance and the 120 px heading-up c
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR, no `main`). Director note 1 is landed but awaits Austin's live playtest; advance to director note 2 (load the main game's shipped art and human bodies into raids) only when taking the next slice, keeping raid progression and other modes untouched.
+
+## Iteration 87 — Raids carry the main game's art (director note 2, 2026-11-12)
+
+### Acceptance criteria
+1. A raid boot uses the shipped main-game art: real photo textures on terrain/walls and real MakeHuman bodies instead of procedural fallbacks, with no new downloads.
+2. The first deploy stays instant: assets load in the background and re-point the live terrain texture clones and rebuild the deploy operator plus actors when they arrive.
+3. A screenshot of a deployed raid shows photo surfaces and a human body; offline, mobile HUD, base lobby, view-sync, performance and the Node suite stay green.
+
+### Changed
+- `raid-online.mjs`: boot calls `loadAssets()` + `loadHumans()` 200 ms after the first paint (never blocking the deploy screen), records `window.__raidArt`, then calls `RaidView.refreshArt()` / `BasePreview.refreshArt()`.
+- `raid-view.mjs`: `refreshArt()` re-points the terrain material's cloned photo maps (shared source needs its own `needsUpdate`), rebuilds self and every human actor with `humanModel()`, hides local tags, and swaps the deploy hero with a MakeHuman body.
+- `raid-models.mjs`: photo-scan viewmodel integration was tried and reverted — the cropped photo gun read as an oversized, bluish blob beside the crisp procedural rifle, so the held weapon stays procedural for this slice.
+- `ASSETS.md`: no new files; documents the reuse of the main game's CC0 Poly Haven textures, MakeHuman bodies and scanned guns.
+- `EXTRACTION_BACKLOG.md`: priority moved to director note 3.
+
+### Verification
+- `node --check raid-online.mjs`, `raid-view.mjs`, `raid-models.mjs` OK.
+- `node tests/raid-browser-static-offline.mjs`: full offline deploy/move/fight/loot/extract loop, `browserErrors: []`.
+- `node tests/raid-browser-mobile-hud.mjs`: 1024×720 91.9% unobstructed, 844×390 81.8%, `browserErrors: []`.
+- `node tests/raid-browser-base-lobby.mjs` pass; `raid-browser-view-sync.mjs` pass; `raid-browser-performance.mjs` all six desktop/mobile targets within frame and CPU budget, `noBrowserErrors:true`.
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- Known pre-existing blocker: `node tests/raid-browser-viewmodel.mjs` times out on `play.dataset.packOpen==='false'`; it fails identically on clean `HEAD` because the compact HUD now defaults the pack closed during raids (the grader clicks an already-closed pack open).
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png vs after-1024.png, before-844.png vs after-844.png, before-1024-base.png vs after-1024-base.png (deploy operator), plus after-1024-action.png and after-844-action.png showing the human body in third person. Photo textures load in ~200 ms locally. Weather/layout is seeded per raid id, so before/after runs differ in rain and time of day; the surface upgrade is judged on the visible asphalt/brick/panel detail, not on lighting-matched frames. Source frames in `/tmp/hsz-art/`.
+
+### Honest critique
+The ground and walls now read as photographed asphalt, brick and metal instead of flat colour, and the deployed operator is a real skinned human body, but the flat directional lighting and lifeless box silhouettes still make the scene look like toy buildings with a photo wallpaper, and the switchover can briefly pop while you are mid-deploy.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR, no `main`). Then advance to director note 3 (route encounters/loot along the spawn road); notes 4–5 follow, and note 1 still awaits Austin's live playtest.
