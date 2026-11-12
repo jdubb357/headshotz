@@ -7834,3 +7834,29 @@ The bearings and flat stickers are fixed and the first road now contains a scout
 
 ### Next action
 Commit on `cypert/dev` (no push, no PR, no `main`). Next slice: director note 3 — prop colliders kind by kind in `blocked()`/nav (`shared/raid-worlds.mjs`): cars, trucks, tanks, dumpsters, crates, barrels, sandbags, then raidScenery and raid-environment decorative walls/crates/stoops; re-walk spawn-to-exit after each kind. Notes 4–5 follow; notes 1–2 still await Austin's live playtest.
+
+## Iteration 89 — Prop colliders in the shared world (director note 3, 2026-11-12)
+
+### Acceptance criteria
+1. Solid world props (cars, trucks, tanks, dumpsters, crates, barrels, sandbags; also pallets, hay, wrecks, scrap, rocks, trees, stumps) block operator movement, bullets and AI navigation through `blocked()`, while road/sidewalk/field/window dressing stays passable; spawns, caches and exits remain walkable and reachable.
+2. Collision is shared client/server through the existing `blocked()` signature (one extra defaulted `ignoreProps` argument); online/server authority and offline in-page rules stay identical.
+3. Same-fixture screenshots at 1024×720 and 844×390 show the operator stopped by a crate where the HEAD build walks through it; static-offline, mobile-HUD and scenery graders stay green.
+
+### Changed
+- `shared/raid-worlds.mjs`: authored prop footprints per kind (from the builder's drawn dimensions, scaled the same way drawing is), a cell-24 spatial hash keyed on `world.props`, terrain base lift, and clear pads around spawns/caches/exits so interchange points are never sealed. `wreck`/`scrap` keep fixed footprints because their builders ignore `prop.scale`.
+- `tests/raid-worlds.test.mjs`: added a regression test — ≥40 colliding solid props per sector, cars and sandbags block, and road/windows/fields still pass, with tank/barrel/dumpster coverage across the set.
+
+### Verification
+- `node --test tests/raid-worlds.test.mjs tests/raid-stall-replay.test.mjs`: 17/17 (the replay's 80 recorded routes stay reachable after the first scrap footprint was corrected to its drawn size).
+- `node --test tests/*.test.mjs`: 1247 pass, 1 fail — the known intermittent `tests/matchmaking.test.mjs` local-host `ECONNRESET`; it failed identically on a solo rerun and does not import raid files.
+- `node tests/raid-browser-static-offline.mjs` pass (deploy → move → fire hit → loot → extract, 2 items, no API traffic, `browserErrors:[]`); `raid-browser-mobile-hud.mjs` pass (1024×720 91.83%, 844×390 81.81%, `browserErrors:[]`); `raid-browser-scenery.mjs` pass (2,000+ scenery props per sector, `browserErrors:[]`).
+- Node walk probe: an operator crossing a sandbag path 18.9 m from relay spawn stops 1.86 m short versus the props-empty clone; `findPath` and the pilot routes remain intact.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared; both builds captured under the same forced `14:00 · Rain front` plan at the same staged walk. `before-1024.png`/`before-844.png`: HEAD walks past the crate (crate under/behind the operator); `after-1024.png`/`after-844.png`: current build stops against the crate; `after-1024-action.png`/`after-844-action.png`: approach frame with a machine, barrels and the crate ahead. Source frames in `/tmp/hsz-pc/out5` and `/tmp/hsz-pc/out6`.
+
+### Honest critique
+Props now truly stop you and stops read as cover rather than a walk-through, but the change is invisible until you press against one: the contact frame is a plain dark-green crate with no readable surface detail, the street around it is still bare, and the operator silhouette stays blocky, so the feel is fixed before the look is.
+
+### Next action
+Commit on `cypert/dev` (no push, no PR, no `main`). Finish director note 3's second half next: give `raidScenery` ruin walls and `raid-environment` decorative stoops/crates real colliders (they are still presentation-only), re-walk spawn-to-exit, then move to note 4 (window/door coherence).

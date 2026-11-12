@@ -98,3 +98,16 @@ test('new deployments use full-sector v10 terrain districts while archived check
 test('navigation cache invalidates when geometry changes',()=>{
  const world={version:3,size:20,blocks:[],ramps:[]},from={x:-5,y:0,z:0},to={x:5,y:0,z:0};assert.ok(findPath(world,from,to).length);world.blocks.push([0,0,2,20,4]);assert.equal(findPath(world,from,to).length,0);world.blocks.pop();assert.ok(findPath(world,from,to).length);
 });
+test('solid props block operators and bullets while road/flora dressing stays passable',()=>{
+ const solid=new Set(['car','truck','tank','dumpster','crate','barrel','sandbag','pallet','hay','wreck','rock','scrap']);
+ const totals={};
+ for(const world of RAID_WORLDS){
+  const counts={};let blocking=0;
+  for(const prop of world.props)if(solid.has(prop.kind)&&blocked(world,prop.x,prop.z,.1,prop.y||0,1.7)){blocking++;counts[prop.kind]=(counts[prop.kind]||0)+1;totals[prop.kind]=(totals[prop.kind]||0)+1}
+  assert.ok(blocking>=40,`${world.id} turns solid props into cover (${blocking} colliding props)`);
+  for(const kind of ['car','sandbag'])assert.ok(counts[kind]>0,`${world.id} blocks ${kind} props`);
+  // Flat ground dressing must stay passable even when it shares a prop row.
+  for(const prop of world.props.filter(p=>['road','sidewalk','field','window','floor'].includes(p.kind)).slice(0,30))assert.equal(blocked(world,prop.x,prop.z,.1,0,1.7),false,`${world.id} ${prop.kind} stays walkable`);
+ }
+ assert.ok(totals.tank>0&&totals.barrel>0&&totals.dumpster>0,'tanks, barrels and dumpsters collide across the sector set');
+});
