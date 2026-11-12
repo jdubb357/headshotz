@@ -141,7 +141,17 @@ export function buildEnvironment(world){
  add('box',palette.ground,0,-.12,0,world.size,.2,world.size,0,world.theme==='wilderness'?'forest':'gravel');
  const terrain=world.terrain?terrainMesh(world,palette):null;if(terrain)root.add(terrain);
  root.userData.raidTerrainMaterial=terrain?terrain.material:null;
- for(const [x,z,w,d,h,y=0,kind='concrete',tint]of world.blocks)add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
+  // A handful of generated street props (0.45 m posts) are authored twice at the
+ // exact same footprints. Both copies are identical collision volumes, so the
+ // authoritative world data stays frozen; drawing one avoids two coincident
+ // meshes fighting for the same depth plane.
+ const renderedBlocks=new Set();
+ for(const [x,z,w,d,h,y=0,kind='concrete',tint]of world.blocks){
+  const signature=x+','+z+','+w+','+d+','+h+','+y+','+kind+','+tint;
+  if(renderedBlocks.has(signature))continue;
+  renderedBlocks.add(signature);
+  add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
+ }
  // Presentation-only structure weathering derived from the frozen block layer:
  // solid street-level buildings gain a dark foundation plinth and an overhanging
  // roof cornice, then a deterministic share of roof vents, antenna masts and
@@ -321,6 +331,25 @@ export function buildEnvironment(world){
    }
   }
   return 0;
+ };
+ // Sign faces are painted into one cached, readable texture per name. The
+ // lettering sits on a value-contrast panel (dark slate against cream) so the
+ // notices read under daylight, dusk and emergency lighting without bloom.
+ const signPlaneGeometry=new THREE.PlaneGeometry(1,1),signMaterials=new Map();
+ const signMaterial=name=>{
+  let material=signMaterials.get(name);if(material)return material;
+  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
+  const ctx=canvas.getContext('2d'),bg=ctx.createLinearGradient(0,0,0,128);
+  bg.addColorStop(0,'#2a4146');bg.addColorStop(1,'#17282c');ctx.fillStyle=bg;ctx.fillRect(0,0,512,128);
+  ctx.fillStyle='#d8b867';ctx.fillRect(0,0,512,7);ctx.fillRect(0,121,512,7);
+  ctx.strokeStyle='#cdb378';ctx.lineWidth=4;ctx.strokeRect(10,10,492,108);
+  ctx.fillStyle='#f2e3bc';ctx.font='bold 42px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(name,256,68,462);
+  ctx.fillStyle='#c9c0a1';for(const [rx,rz] of [[20,20],[492,20],[20,108],[492,108]]){ctx.beginPath();ctx.arc(rx,rz,4,0,Math.PI*2);ctx.fill()}
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;
+  material=new THREE.MeshStandardMaterial({map:texture,roughness:.72,metalness:.08,side:THREE.DoubleSide,emissive:0xffffff,emissiveMap:texture,emissiveIntensity:.17});
+  material.userData.raidOwned=true;material.userData.raidOwnTexture=true;signMaterials.set(name,material);
+  return material;
  };
  const scenery=raidScenery(world);
  for(const prop of [...(world.props||[]),...scenery]){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
@@ -512,8 +541,62 @@ export function buildEnvironment(world){
   else if(prop.kind==='bench'){add('box',0xb07a45,x,y+.45,z,2.1,.12,.45,0,'planks');add('box',0xb07a45,x,y+.66,z-.18,2.1,.32,.08,0,'planks');for(const s of [-.8,.8])add('box',0x31383c,x+s,y+.2,z,.08,.4,.4,0,'metal')}
   else if(prop.kind==='dumpster'){const s=prop.scale||1,c=prop.color||0x4e6550;add('box',c,x,y+.7*s,z,2.1*s,1.4*s,1.25*s,0,'metal');add('box',0x333d3f,x,y+1.42*s,z,2.15*s,.1*s,1.3*s,0,'metal');for(const s2 of [-.7,.7])add('cylinder',0x1f2420,x+s2*s,y+.22*s,z+.52*s,.2*s,.2*s,.2*s,0,'metal')}
   else if(prop.kind==='sign'){
-   const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const ctx=canvas.getContext('2d');ctx.fillStyle='#25373c';ctx.fillRect(0,0,512,96);ctx.strokeStyle='#ddbe7e';ctx.lineWidth=8;ctx.strokeRect(4,4,504,88);ctx.fillStyle='#f2e3bc';ctx.font='bold 38px system-ui';ctx.textAlign='center';ctx.fillText(prop.name.toUpperCase(),256,62,480);
-   const texture=new THREE.CanvasTexture(canvas),material=new THREE.SpriteMaterial({map:texture});material.userData.raidOwned=true;material.userData.raidOwnTexture=true;const sprite=new THREE.Sprite(material);sprite.position.set(x,y,z);sprite.scale.set(7,1.32,1);root.add(sprite);
+   const name=String(prop.name||'SECTOR').toUpperCase();
+   let boardY=Number.isFinite(prop.y)?prop.y:2.8;
+   let host=null;
+   // Street signs are authored a short distance outside a building face. Find
+   // that façade from the same coarse block index used for window trim; the sign
+   // then keeps its readable offset but gains two metal jibs tying it back to the
+   // wall. Free-standing notices get real posts and footings below.
+   for(let ix=Math.floor(prop.x/FACADE_CELL)-1;ix<=Math.floor(prop.x/FACADE_CELL)+1&&!host;ix++){
+    for(let iz=Math.floor(prop.z/FACADE_CELL)-1;iz<=Math.floor(prop.z/FACADE_CELL)+1&&!host;iz++){
+     const list=facadeGrid.get(ix+','+iz);if(!list)continue;
+     for(const [bx,bz,bw,bd,bh,base=0] of list){
+      if((base||0)>.3||bh<Math.max(2.6,boardY-1.2)||bw<5||bd<5)continue;
+      const xInside=Math.abs(prop.x-bx)<=bw/2+.15,zInside=Math.abs(prop.z-bz)<=bd/2+.15;
+      if(xInside&&Math.abs(prop.z-bz)>=bd/2-.1&&Math.abs(prop.z-bz)<bd/2+1.05){
+       const nz=prop.z>bz?1:-1;host={nx:0,nz,onZ:true,wallX:bx,wallZ:bz+nz*bd/2,top:base+bh};break;
+      }
+      if(zInside&&Math.abs(prop.x-bx)>=bw/2-.1&&Math.abs(prop.x-bx)<bw/2+1.75){
+       const nx=prop.x>bx?1:-1;host={nx,nz:0,onZ:false,wallX:bx+nx*bw/2,wallZ:bz,top:base+bh};break;
+      }
+     }
+    }
+   }
+   let toX=prop.x,toZ=prop.z-1,best=Infinity;
+   if(!host)for(const [px2,pz2] of world.spawns||[]){const dist=Math.hypot(px2-prop.x,pz2-prop.z);if(dist<best){best=dist;toX=px2;toZ=pz2}}
+   const ry=host?Math.atan2(host.nx,host.nz):Math.atan2(toX-prop.x,toZ-prop.z);
+   const nx=Math.sin(ry),nz=Math.cos(ry),panelW=host?3.6:5.2,panelH=host?.86:1.24;
+   if(host)boardY=Math.max(1.4,Math.min(boardY,host.top-.35));
+   else boardY=Math.max(terrainHeightAt(world,prop.x,prop.z)+2.15,boardY);
+   if(host){
+    const off=Math.max(.22,host.nx?Math.abs(prop.x-host.wallX):Math.abs(prop.z-host.wallZ));
+    // The two mounting jibs sit just outside the board edge so they stay visible
+    // from the street instead of disappearing behind the panel.
+    for(const side of [-1,1]){
+     const lateral=side*(panelW/2+.12);
+     if(host.onZ)add('box',0x46565b,prop.x+lateral,boardY,prop.z-host.nz*off/2,off+.10,.08,.08,0,'metal',0,0,false,'');
+     else add('box',0x46565b,prop.x-host.nx*off/2,boardY,prop.z+lateral,.08,.08,off+.10,0,'metal',0,0,false,'');
+    }
+   }else{
+    // The posts sit well outside the board footprint with a tall hazard band so
+    // the sign reads as a built street fixture from the insertion distance, not
+    // a flat panel hovering above the road. Each post samples its own terrain
+    // height, so a sign on a grade stays planted at both feet.
+    for(const side of [-1,1]){
+     const lateral=side*(panelW/2+.58),px2=prop.x+Math.cos(ry)*lateral,pz2=prop.z-Math.sin(ry)*lateral;
+     const ground=terrainHeightAt(world,px2,pz2),postH=boardY+panelH/2+.05-ground;
+     add('box',0x7d8883,px2,ground+postH/2,pz2,.28,postH,.28,0,'metal',0,0,false,'');
+     add('box',palette.barrier,px2,ground+.95,pz2,.31,1.86,.31,0,'hazard',0,0,false,'');
+     add('box',0x8d8b80,px2,ground+.10,pz2,.72,.20,.72,0,'concrete',0,0,false,'');
+    }
+    add('box',0x384b52,prop.x,boardY+panelH/2+.10,prop.z,panelW+1.4,.12,.14,ry,'metal',0,0,false,'');
+    add('box',0x384b52,prop.x,boardY-panelH/2-.12,prop.z,panelW+.9,.09,.11,ry,'metal',0,0,false,'');
+   }
+   add('box',0x26363b,prop.x,boardY,prop.z,panelW+.14,panelH+.14,.08,ry,'metal',0,0,false,'');
+   const panel=new THREE.Mesh(signPlaneGeometry,signMaterial(name));
+   panel.position.set(prop.x+nx*.052,boardY,prop.z+nz*.052);panel.rotation.y=ry;panel.scale.set(panelW,panelH,1);
+   panel.castShadow=true;panel.receiveShadow=true;panel.userData.raidOwned=true;root.add(panel);
   }
  }
  // Presentation-only street-level doorways derived from the frozen block and

@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (director controls note, iteration 71). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70) and enemy leg walk cycles (iteration 71) complete → NEXT: director P3 map holes/overlap/collision → older note 4 viewmodel → note 5 tracer.
+Last audited: 2026-11-11 (director P3 map note, iteration 72). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71) and map floating/duplicate-solid cleanup (iteration 72) complete → NEXT: older note 4 viewmodel → note 5 tracer.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -49,6 +49,26 @@ Grader `raid-browser-machine-models` green (hunter detail 256 px changed), Mobil
 static-offline green, Node 1247/1247. Known gap: the cycle is time-driven, not foot-locked,
 so the stance foot can skate slightly; scout/flyer hover with no locomotion animation.
 Next: P3 fix the map.
+
+## Director P3 — fix the map (iteration 72, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — presentation defects found by the audit were fixed in
+`raid-environment.mjs` without touching frozen world data. Authored `sign` props no longer
+use floating `THREE.Sprite` billboards: façade signs gain wall-mounted jibs and a board
+clamped below the wall top; free-standing signs gain two terrain-sampled posts, hazard
+sleeves, concrete footings and tie bars, so the `QUARANTINE LINE` insertion sign is visibly
+anchored. Exact duplicate block volumes are drawn once via a per-signature set, removing 365
+coincident solids (relay 91, reservoir 179, switchyard 95) while leaving `world.blocks`,
+collision, spawn/exit coordinates, navigation, loot and frozen V8/V9/V10 assertions unchanged.
+Sector audit at `/tmp/hsz-mapfix/audit.mjs`: all three sectors report 0 blocked sites,
+0 unsupported sites, 0 buried blocks, and 0 route failures across 156 spawn↔exit pairs;
+no holes, invisible-wall collision or stuck spawn/extraction remain. Evidence: static
+offline, structures, scenery and mobile-HUD graders green; Node 1247/1247; screenshots
+`~/headshotz-loop/shots/latest/before-1024.png`, `after-1024.png`, `before-844.png`,
+`after-844.png`, `after-1024-anchor.png`, `after-1024-post.png`. Known gap: the duplicate
+fix is not frame-visible because the old copies were exactly coincident, and the sector
+audit used the existing 0.4 m test radius rather than a live walk of every route. Next:
+older note 4 viewmodel feel.
 
 ## P0 — Static Pages offline raid (CURRENT PROJECT — do this first)
 

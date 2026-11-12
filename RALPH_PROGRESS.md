@@ -7318,3 +7318,35 @@ The two-thumb field test now turns the crosshair onto a moving scout and fires w
 
 ### Honest critique
 The hunter and Warden now read as stepping machines instead of sliding, but the gait is time-driven rather than foot-locked, so in stance the planted foot still skates slightly across the ground, and the scout/flyer still hover with no locomotion at all. The captured gameplay frames drift in lighting between runs (the offline raid reseeds its plan after capture), so pose — not brightness — is the comparison. Next: director P3, fix the map (holes, floating geometry, collision and spawn/extraction placement).
+
+## Iteration 72 — Map cleanup: grounded signs and duplicate solids (director note P3, 2026-11-11)
+
+### Acceptance criteria (director note P3, recorded this slice)
+1. No authored `sign` prop renders as an unsupported floating billboard: free-standing signs get real posts and footings anchored to sampled terrain, and façade signs are mounted flush to the adjacent building instead of hovering in front of it. The `QUARANTINE LINE` insertion sign is visibly anchored.
+2. Exact duplicate block volumes (same position, footprint, height, base, kind and tint) are drawn once, removing coincident z-fighting surfaces, without changing `world.blocks` data, collision, spawn/exit coordinates, routes, or the frozen V8/V9/V10 assertions.
+3. An audit of every sector confirms spawns/exits are unblocked, mutually reachable, supported by terrain, and free of buried or unsupported collision volumes; no hole or stuck spawn/exit remains to report.
+4. Before/after gameplay screenshots at 1024x720 and 844x390 from the insertion view; static-offline, mobile-HUD, scenery and structures graders stay green; Node suite passes.
+
+### Implementation
+- `raid-environment.mjs`: the base block renderer now keeps a per-signature `Set`; exact duplicate volumes (same x/z, footprint, height, base, kind and tint) are drawn once. This is presentation-only — `world.blocks`, collision, spawn/exit coordinates, navigation, loot and the frozen V8/V9/V10 data are untouched. It removes 365 redundant coincident volumes across the three sectors (relay 91, reservoir 179, switchyard 95).
+- Replaced the old `SpriteMaterial` sign billboards with a cached 512x128 canvas board, metal backing box, and real supports. Façade signs are detected through `facadeGrid`, tilted to the door face, tied back with two metal jibs just outside the board edge, and clamped below the wall top. Free-standing signs get two light-metal posts placed 0.58 m outside the board footprint, tall hazard sleeves, concrete footings and top/bottom tie bars; each post samples terrain at its own position, so signs on a grade stay planted.
+- Sign panels keep readable daylight contrast (dark slate gradient, cream lettering) and share one cached texture material per sign name. New support boxes use empty structure tags so the structures grader's authored-tag list is unchanged.
+- No spawn, cache, extraction, road or building coordinate was moved. The P3 source changes are limited to `raid-environment.mjs`; no floating sign, overlapping solid, invisible-wall collision or stuck spawn/extraction was found beyond the two fixed presentation defects.
+
+### Verification
+- `node --check raid-environment.mjs`: SYNTAX_OK.
+- Sector audit (temporary `/tmp/hsz-mapfix/audit.mjs`): relay, reservoir and switchyard each report 13 sites, 0 blocked sites, 0 unsupported sites, 0 buried blocks, 156 spawn↔exit route pairs and 0 failures. Every pair was walked in both directions and the final node landed within 1.2 m of the destination. No holes, invisible-wall collision or stuck spawn/extraction remain.
+- Collision-volume support audit (temporary `/tmp/hsz-mapfix/support3.mjs`), which also follows ramp edges: relay 3,988 / reservoir 3,720 / switchyard 4,679 elevated volumes, 0 unsupported by terrain, an overlapping lower volume or a ramp. The large elevated decks (reservoir 520x20 bridge at y1.6, relay central roof) are ramped or wall-braced spans, not floating solids.
+- Sign audit (`/tmp/hsz-mapfix/signhost.mjs`): all 194 authored sign props route through the new support renderer — 54 façade-mounted, 140 free-standing; none fall back to an unanchored sprite.
+- Duplicate audit (`/tmp/hsz-mapfix/dupes.mjs`): 365 exact duplicate collision volumes across the sectors, all drawn once; frozen world assertions remain byte-for-byte green.
+- Static offline green: `"staticDeployRouting":true,"offlineBoot":true,"deploy":true,"moving":true,"machineHit":"headshot","extracted":"extract","credits":270,"noApiTraffic":true,"browserErrors":[]`.
+- Structures green: `"pbr":true,"deterministic":true,"browserErrors":[]`, authored tag list unchanged.
+- Scenery green: relay 1,983 / reservoir 1,971 / switchyard 1,823 props, terrain true, browserErrors [].
+- Mobile HUD green: unobstructed 0.9194 (1024x720) / 0.8194 (844x390), touch fire/reload/interact, browserErrors [].
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail (65616 ms).
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png and before-844.png / after-844.png from the `QUARANTINE LINE` insertion view (before: opaque floating sprite; after: slanted board with a visible hazard-band post and footing); after-1024-anchor.png (closer frontal view of the right post, hazard band and foot), after-1024-post.png (a formerly duplicated 0.45 m-wide street pole now drawn once, with no shimmering coincident faces).
+
+### Honest critique
+The insertion sign now reads as a built street fixture and the duplicate solids no longer draw twice, but the sign post is still thin from 18 m (about 0.28 m), so at desktop spawn distance it reads as a dark support rather than a bold gate; the board silhouette, not the post, is what sells the anchor. The duplicate fix is structurally verified but mostly invisible in screenshots because the old copies were exactly coincident; the draw-call saving (365 volumes) is the user-visible performance benefit, not a frame difference. All spawn/exit/cache routes have a path, but the audit used the existing 0.4 m test radius rather than a live touch/desktop walk of every sector. Next: older director note 4, viewmodel feel, then note 5, tracer.
