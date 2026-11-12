@@ -7464,3 +7464,36 @@ The near road now visibly shows lane paint, cracks and pale repair patches at bo
 
 ### Next action
 Commit this slice on `cypert/dev`, then take the refreshed top director note: P1 controls must match the main HeadShotz game in real two-thumb play, verified by walking, turning and firing at a machine in one live fight.
+
+## Iteration 77 — Raid controls use the main game's held-fire and aim rules (director note P1, 2026-11-11)
+
+### Acceptance criteria
+1. On phone and desktop the player can walk, look and shoot at the same time: left thumb movement, right thumb look, and a fire input that is not dropped while the flag is held.
+2. Auto-fire from the crosshair is a held intent for automatic weapons, matching game.js's `trigger = tgt || inp.fire`: it starts on acquisition, keeps firing across a pending networked shot, and stops only when the target leaves the crosshair or the trigger is released. Semi-automatic weapons keep the existing one-shot-per-press contract from `tests/raid-trigger.test.mjs` and `tests/raid-browser-trigger.mjs`.
+3. The crosshair marks a target only when the server can resolve a hit: the machine is within the equipped weapon's range, the yaw/lateral angle is inside the machine radius, the pitched ray lands inside the machine's vertical body, and the lane to the machine is unobstructed — matching `server/raids.mjs` fire resolution instead of a pure 3D cone.
+4. Touch aim assist follows the same line-of-sight rule, so it cannot magnetise the camera toward a machine behind a wall.
+5. `game.js` is unchanged; Node suite plus the browser trigger, static-offline and mobile-HUD graders pass; the live fight is exercised in headless Chrome at 1024x720 and 844x390 with action screenshots in `~/headshotz-loop/shots/latest/`, including one frame where a machine is hit while the player is moving and turning.
+
+### Implementation
+- `raid-online.mjs`: `renderFrame` now feeds the crosshair as a held intent (`trigger.hold('crosshair', sighted && raidWeaponStats()?.automatic === true)`) instead of a per-frame tap, and keeps the explicit fire flag held (`trigger.hold('keyboard', input.held('fire'))`). Automatic weapons keep firing after a networked shot is in flight; the intent survives only while the target remains resolvable and the held input remains pressed. Semi-automatics still fire once per press. `game.js` is untouched.
+- The reticle now mirrors `server/raids.mjs`: `machineUnderCrosshair` filters the snapshot by the equipped weapon's `weaponStats` range, lateral yaw tolerance `atan2(radius, horizontal)`, pitched `hitY = eye + tan(pitch) * horizontal` inside `[m.y, m.y + height]`, then `clearLine(prediction.world, …, eye, hitY)`. `machineInSight` gates `machinesInView`/`nearestMachine` on the eye-to-chest line, so touch aim assist shares the same line-of-sight rule.
+- `tests/raid-browser-trigger.mjs`: waits for the compact-HUD media query to settle after enabling coarse touch emulation, so the Fire dispatch lands on the real `#fire` control at 390x844. The one-shot/held assertions are unchanged.
+
+### Verification
+- `node --check raid-online.mjs tests/raid-browser-trigger.mjs`: OK. `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- `raid-browser-trigger.mjs`: green (keyboardAutomatic, releaseStops, semiAutomatic, touchAutomatic, capturedMouseAutomatic, noSyntheticDoubleShot, authoritativeAmmo, reloadInterruptsTrigger; browserErrors []).
+- `raid-browser-static-offline.mjs`: green (deploy/move, headshot machineHit, loot, extract; no API traffic; browserErrors []).
+- `raid-browser-mobile-hud.mjs`: green on rerun at both viewports (unobstructed .9194/.8194, compact .0806/.1806, thumbstick/right-drag/fire/reload/interact pass). The first attempt hit a transient `hudStatus` briefing timing timeout; the retry cleared it.
+- Live fight, desktop 1024x720: held W and tapped ArrowLeft walked z -600 → -592.53, turned yaw 0 → .085, auto-fired rounds 5 → 7, hunter hp 38 → dead with headshot/kill while `target=true`.
+- Live fight, phone 844x390, two simultaneous thumbs: left thumb held north, right thumb looked at the same time; walked -600 → -589.68, turned yaw .023 → .054, auto-fired 5 → 7, hunter dead with headshot/kill.
+- Server-resolution fixture (offline, wall 1.3 m high at the lane midpoint, scout frozen 10 m ahead): current build `target=false` and rounds 8 unchanged while the scout stays in the snapshot and only its head is uncovered; the HEAD harness `target=true` and fired 9 → 20 rounds through the wall without damage (hp 500). At 72 m with the AR's 65 m range: current `target=false` and no rounds; HEAD `target=true` and fired 24 → 30 pointlessly. Open 10 m lane: both builds fired and killed the scout.
+- Touch aim assist through the same wall, 6 px right-look swipe at the 10 m scout: current kept the raw swipe (yaw -0.0323, pitch 0, no pull); HEAD pulled the assist (yaw -0.0253, pitch -0.0121). The pull no longer engages behind cover in the current build.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-844.png / after-844.png, before-1024-action.png / after-1024-action.png, before-844-action.png / after-844-action.png. All captured offline at 1024x720 and 844x390 with the same pinned dusk fixture (17:23, clear) and the same spawn/short-walk/turn/fire pose.
+
+### Honest critique
+The controls now hold fire and refuse cover/range targets, but the action screenshots look almost identical to the old build (the change is cadence and authority, not pixels), the white tracer bloom still swallows the machine at 1024, and the always-on objective strip overlaps the target and the right-hand fire controls at 844 — the first three minutes still read busier and flatter on phone than the main game.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). Then P1 needs Austin's live two-thumb playtest: hold movement, look and fire at once, and confirm the burst doesn't stutter while a shot is in flight over real RTT. If it still feels unlike the main game, instrument the pending-shot path with live latency rather than an offline harness. No new visual-polish pass until P1 settles.

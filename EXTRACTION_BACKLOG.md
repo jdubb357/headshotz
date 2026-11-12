@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (iteration 76: duplicate-window cull and worn near-road at spawn). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72), readable foreground road at spawn (iteration 73), cohesive articulated machines with planted feet (iteration 74), viewmodel edge highlights / sleeve cuff / thick tapered tracer (iteration 75) and culling of 449 coincident window openings plus worn asphalt/lane worn features (iteration 76) complete → NEXT: refreshed director note 1 — extraction walking, aiming and firing must match the main HeadShotz game in live two-thumb play; verify with a real walk+turn+shoot fight, leave game.js unchanged, and do not start new map polish.
+Last audited: 2026-11-11 (iteration 77: held automatic crosshair fire and server-resolvable reticle/aim LOS). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72), readable foreground road at spawn (iteration 73), cohesive articulated machines with planted feet (iteration 74), viewmodel edge highlights / sleeve cuff / thick tapered tracer (iteration 75), culling of 449 coincident window openings plus worn asphalt (iteration 76) and held-fire + server-matching reticle/LOS controls (iteration 77) done → NEXT: live two-thumb validation of P1 in the current build (watch a burst survive a pending networked shot and stop when the reticle loses the lane); only then take director note 2 ground/road and note 3 forearm, and do not start a new map polish pass while P1 skepticism stands.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -12,7 +12,8 @@ and raid progression.
 
 ## Director P1 — controls must match the main HeadShotz game (iteration 70, 2026-11-11)
 
-Status: COMPLETE 2026-11-11 — the playable raid client now uses the main game's input and
+Status: IMPLEMENTED 2026-11-11 (iteration 70 tuning + iteration 77 held-fire/LOS follow-up); live
+two-thumb playtest pending. The playable raid client now uses the main game's input and
 camera tuning instead of its separate scheme. `raid-online.mjs` matches: `game.js:1075`
 mouse look `.0021*S.sens*zoomSens()`; `game.js:1078-1079` FOV sensitivity ratio `pow(r,.85)`;
 `game.js:1094-1101` touch pad on the left 42%, floating base under the thumb, radius 52, .14
@@ -29,6 +30,18 @@ Screenshots: `~/headshotz-loop/shots/latest/{before,after}-{1024,844}.png`,
 after-844-hit.png, after-844-stick.png, after-1024-fire.png. Mobile HUD and static-offline green;
 Node 1247/1247. Known gap: physical iPad/phone latency/fatigue unverified, and the 1024
 red-reticle screenshot can race the target frame (cyan reticle while the target lapses).
+
+Follow-up (iteration 77, 2026-11-11): per-frame `trigger.tap()` was replaced by
+`trigger.hold('crosshair', sighted && automatic)`, so automatic weapons keep firing until the
+reticle loses the lane and semi-automatics keep the one-shot-per-press contract. The reticle
+and touch aim assist now use the server's shape — weapon range, lateral `atan2(radius,
+horizontal)`, pitched hitY inside the machine body, and `clearLine` to the hit point — and
+`machinesInView` is gated by `machineInSight`, so the assist cannot pull through cover.
+Exercised offline: 1024 keyboard walk+turn auto-fired and killed a hunter; 844 two simultaneous
+thumbs (left move, right look) also killed one; in the cover fixture HEAD fired through a
+head-visible/chest-blocked wall and at 72 m while the current reticle stayed false and fired
+nothing. Node 1247/1247, trigger/static-offline/mobile-HUD green. Still needs Austin's live
+two-thumb playtest over real WAN cadence; screenshots are in `~/headshotz-loop/shots/latest/`.
 
 ## Director P2 — enemy legs must move (iteration 71, 2026-11-11)
 

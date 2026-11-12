@@ -25,7 +25,7 @@ import {rankProgress} from './shared/raid-progression.mjs';
 import {communicationUI} from './raid-comms-ui.mjs';
 import {BOSS_PHASES,MACHINES} from './shared/raid-enemies.mjs';
 import {RaidView,BasePreview} from './raid-view.mjs';
-import {RAID_WORLDS,getWorld,terrainHeightAt} from './shared/raid-worlds.mjs';
+import {RAID_WORLDS,getWorld,terrainHeightAt,clearLine} from './shared/raid-worlds.mjs';
 import {objectivesFor} from './shared/raid-objectives.mjs';
 import {vaultTarget,vaultDirection} from './shared/raid-motion.mjs';
 import {baseController} from './raid-base.mjs';
@@ -501,12 +501,18 @@ function renderFrame(time){
  const dt=Math.min(.2,(time-lastFrame)/1000||.016);lastFrame=time;aiming=!!(inRaid&&snapshot?.self.alive&&!snapshot.self.downed&&snapshot.self.weaponId&&!weaponWork&&!preferences.isModal()&&$('communications').hidden&&!mapOpen&&(aimMouse||aimTouch||input.held('aim')));$('aim').setAttribute('aria-pressed',String(aiming));$('play').dataset.aiming=String(aiming);
  applyTouchLook(dt);
  if(inRaid&&!preferences.isModal()&&$('communications').hidden&&!mapOpen){yaw-=(Number(input.held('lookRight'))-Number(input.held('lookLeft')))*dt*1.7*(aiming?.45:1);pitch=Math.max(-1.2,Math.min(1.2,pitch+(Number(input.held('lookUp'))-Number(input.held('lookDown')))*dt*1.4*(aiming?.45:1)))}
- // The reticle turns red over a visible machine, and the weapon fires itself
- // while it is there — the main game's crosshair-owned trigger (primary phone
- // control, and the same convenience on desktop).
+ // The reticle turns red over a machine the shot resolver can actually hit,
+ // and an automatic weapon keeps firing itself while that intent holds — the
+ // main game's crosshair-owned trigger (primary phone control, same on desktop).
  const sighted=inRaid&&snapshot?.self.alive&&!preferences.isModal()&&$('communications').hidden&&!mapOpen?machineUnderCrosshair():null;
  $('play').dataset.target=String(!!sighted);
- if(sighted&&!input.held('fire'))trigger.tap();
+ const automatic=sighted&&raidWeaponStats()?.automatic===true;
+ // A held crosshair source survives the in-flight shot: unlike a per-frame tap
+ // it remains eligible after the authoritative delay, so a burst does not stall
+ // while the previous request is still on the wire. Semi-automatics are not
+ // auto-held; they fire once on the explicit fire intent and stay consumed
+ // until that intent is released.
+ trigger.hold('crosshair',automatic);
  trigger.hold('keyboard',input.held('fire'));trigger.tick();
  frame=requestAnimationFrame(renderFrame);
  if(inRaid)view?.frame(time,yaw,pitch,prediction?.frame(movementInput(),time),aiming);
@@ -1055,31 +1061,60 @@ function aim(dx,dy,base,vscale=1){
 addEventListener('mousemove',e=>{if(document.pointerLockElement===$('view')&&!preferences.isModal()&&$('communications').hidden&&!mapOpen)aim(e.movementX,e.movementY,MOUSE_LOOK)});
 const machineBody=m=>MACHINES[m.kind]||{height:1.3,radius:.55};
 const machineChest=m=>{const body=MACHINES[m.kind]||{height:1.3,radius:.55};return {x:m.x,y:(m.y||0)+body.height*.55,z:m.z}};
+function raidWeaponStats(){
+ const s=snapshot?.self;if(!s)return null;
+ const weapon=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);
+ return weapon?weaponStats(weapon):null;
+}
+function machineInSight(m){
+ const world=prediction?.world;if(!world)return false;
+ const chest=machineChest(m);
+ // game.js aimPull/nearAim reject a machine behind cover; the repair and loot
+ // paths behind a façade must not tug the camera or the reticle either.
+ return clearLine(world,snapshot.self.x,snapshot.self.z,m.x,m.z,(snapshot.self.y||0)+1.55,chest.y);
+}
 function machinesInView(){
- const s=snapshot?.self;if(!s?.alive||!snapshot.machines?.length)return [];
+ const s=snapshot?.self;if(!s?.alive||!snapshot.machines?.length||!prediction?.world)return [];
  const eye=(s.y||0)+1.55,cp=Math.cos(pitch),fx=Math.sin(yaw)*cp,fy=Math.sin(pitch),fz=Math.cos(yaw)*cp,out=[];
  for(const m of snapshot.machines){
   if(!(m.hp>0))continue;
   const c=machineChest(m),dx=c.x-s.x,dy=c.y-eye,dz=c.z-s.z,dist=Math.hypot(dx,dy,dz);
-  if(dist<.4||dist>90)continue;
+  if(dist<.4||dist>140)continue;
+  if(!machineInSight(m))continue;
   const angle=Math.acos(Math.max(-1,Math.min(1,(dx*fx+dy*fy+dz*fz)/dist)));
   out.push({m,dist,angle,chest:c});
  }
  return out;
 }
 // Aim assist mirrors game.js aimPull/nearAim on touch: within ~5° the camera is
-// gently drawn to the nearest visible machine and fine-look sensitivity eases
-// to 60% so the crosshair settles instead of shivering.
+// gently drawn to the nearest machine in line of sight, and fine-look sensitivity
+// eases to 60% so the crosshair settles instead of shivering.
 function nearestMachine(cone){
  let best=null;
  for(const target of machinesInView())if(target.angle<=cone&&(!best||target.angle<best.angle))best=target;
  return best;
 }
+// The server owns the shot: it accepts when the machine is inside the equipped
+// weapon's range, the lateral yaw ray passes within the body radius, the pitched
+// ray lands between the machine's feet and its height, and no cover interrupts
+// the lane (server/raids.mjs). The red reticle uses the same test, so it only
+// promises shots the authority can resolve — not a generous 3D cone.
 function machineUnderCrosshair(){
- let best=null;
- for(const target of machinesInView()){
-  const tolerance=Math.atan(((machineBody(target.m).radius||.55)*1.05)/Math.max(1.4,target.dist));
-  if(target.angle<=tolerance&&(!best||target.angle<best.angle))best=target;
+ const s=snapshot?.self;if(!s?.alive||!snapshot.machines?.length||!prediction?.world)return null;
+ const stats=raidWeaponStats();if(!stats||!(stats.range>0))return null;
+ const world=prediction.world,eye=(s.y||0)+1.55,range=stats.range;
+ let best=null,closest=Infinity;
+ for(const m of snapshot.machines){
+  if(!(m.hp>0))continue;
+  const dx=m.x-s.x,dz=m.z-s.z,horizontal=Math.hypot(dx,dz);
+  if(horizontal<.15||horizontal>range)continue;
+  const body=machineBody(m),ground=m.y||0,hitY=eye+Math.tan(pitch)*horizontal;
+  if(hitY<ground||hitY>ground+body.height)continue;
+  const bearing=Math.atan2(dx,dz),angle=Math.abs(Math.atan2(Math.sin(bearing-yaw),Math.cos(bearing-yaw)));
+  if(angle>=Math.atan2(body.radius||.55,Math.max(.1,horizontal)))continue;
+  if(!clearLine(world,s.x,s.z,m.x,m.z,eye,hitY))continue;
+  const dist=Math.hypot(dx,hitY-eye,dz);
+  if(dist<closest){closest=dist;best={m,dist:horizontal,angle,chest:{x:m.x,y:ground+body.height*.55,z:m.z}}}
  }
  return best;
 }
