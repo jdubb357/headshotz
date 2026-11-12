@@ -7404,3 +7404,31 @@ The near road now reads as cracked, worn asphalt instead of a void, and the spaw
 
 ### Honest critique
 The scout now reads as one connected amber machine with a glowing sensor eye and three jointed planted legs instead of a barrel with floating sticks, and the hunter's thighs grow out of the girdle; but at 844x390 and 10 m the leg articulation collapses into a few bright pixels, and the hunter attachment was verified only on the isolated bench, not in a live wandering frame. Next: director note 5 viewmodel edge highlights and cuff, then the thicker/brighter tracer.
+
+## Iteration 75 — Viewmodel edge highlights, sleeve cuff, tapered tracer (director note 5, 2026-11-11)
+
+### Acceptance criteria (director note 5)
+1. The gun keeps its dark gunmetal PBR body at rest while hard sub-frame edges catch pale highlights visible at 1024x720 and 844x390.
+2. The sleeve forearm reads a cuff/hem at the wrist instead of a bare tube fading into the glove.
+3. The tracer is visibly thick, bright and tapered from the muzzle to impact at 844x390, and fades quickly instead of persisting like a laser.
+4. Presentation only: no rules/account/world changes, the retained 2-point tracer Line and `MeshStandardMaterial` assertions still hold, and reduced motion suppresses the new effects.
+
+### Implementation
+- `raid-models.mjs`: Fresnel rim injected into `gunGroupMaterial` for metal/poly/rubber (exponent 4.2; neutral cool tint; strength .22 metal/.12 poly/.07 rubber); warm additive `EdgesGeometry` glints (30° threshold, .20 opacity) on metal/alu/chrome groups, owned for disposal.
+- `raid-view.mjs`: pooled tapered cylinder beam per shot (radii .011 m near / .0022 m far, vertex-colour length fade), muzzle-positioned by direction quaternion, scale is length-only (the old `viewScale` width blew the near ring into a wedge), 185 ms fade, suppressed under reduced motion; original tracer Line kept (test contract), trail opacity .62→.34.
+- `weapons.js`: narrowed sleeve forearm; brighter rolled cuff band, darker fold seam and a closing elbow hem.
+
+### Verification
+- `node --check` raid-models.mjs / raid-view.mjs / weapons.js: OK.
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+- `raid-browser-static-offline`: green (deploy/move/hit/loot/extract, 0 lost, no API traffic, errors []).
+- `raid-browser-mobile-hud`: green (compact .0806 desktop / .1806 mobile, unobstructed .9194/.8194, all touch actions pass).
+- `raid-browser-machine-models`: green (detail deltas unchanged, all 5 machine kinds, errors []).
+- `raid-browser-effects`: green (EXIT 0; tracerCollision true; tracerPoints 2; pool 16; tagged 244 / untagged 0; errors []).
+- `raid-browser-viewmodel`: still times out at `play.dataset.packOpen==='false'` (line 441); reproduced identically at HEAD with the three files stashed, so this is a pre-existing headless environment flake, not a regression — the assertions before that point pass.
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png, before-844.png / after-844.png, before-1024-action.png / after-1024-action.png, before-844-action.png / after-844-action.png, after-1024-fire-fade.png, after-1024-reload.png.
+
+### Honest critique
+The cuff and edge glints are now readable at both sizes and the phone tracer is unmistakable, but the beam is a clean additive cone whose white core nearly vanishes over the white plaster façade (no smoke or heat falloff), the glints outline the entire receiver silhouette so the optic and magazine can still look thinly wireframed, and enemy-gun beam/glint cost is unmeasured on a physical iPad. Next: re-verify note 1's QUARANTINE LINE anchor and duplicate-solid cleanup in this build, then take the next refreshed director note.

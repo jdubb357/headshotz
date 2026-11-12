@@ -277,6 +277,19 @@ function gunGroupMaterial(key){
   metalness:key==='brass'?.72:metal?.66:.1,
   envMapIntensity:metal?(polished?1.55:1.35):key==='glove'||key==='sleeve'?.55:.85
  });
+ // Sub-frame hard edges catch a cool rim so the silhouette of receiver,
+ // handguard and optic separates from the background instead of reading as
+ // one flat dark slab. Metal gets the strongest rim; polymer/rubber a faint
+ // one. Cloth and gloves are deliberately excluded (organic, no hard edges).
+ if(metal||key==='poly'||key==='rubber'){
+  const rim=metal?.22:key==='poly'?.12:.07;
+  material.onBeforeCompile=shader=>{
+   shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
+    'float raidEdge=pow(1.0-abs(dot(normalize(normal),normalize(vViewPosition))),4.2);\n'+
+    'outgoingLight+=vec3(.48,.54,.62)*'+rim.toFixed(3)+'*raidEdge;\n'+
+    '#include <opaque_fragment>');
+  };
+ }
  material.name=key;material.userData.raidOwned=true;return material;
 }
 export function weaponModel(id,hands=false){
@@ -288,6 +301,18 @@ export function weaponModel(id,hands=false){
   // glass no matter how the transparent groups sort.
   if(key==='ret')mesh.renderOrder=4;
   root.add(mesh);
+  // Crisp bevel glints along authored hard edges. The merged group already
+  // carries the silhouette, so a threshold of 25 degrees draws only at panel
+  // breaks and seams rather than every triangle. One extra thin additive line
+  // set per supported group; no new textures or per-shot work.
+  if(key==='metal'||key==='alu'||key==='chrome'){
+   const edges=new THREE.EdgesGeometry(geometry,30);
+   const edgeMaterial=new THREE.LineBasicMaterial({color:0xe9dcc0,transparent:true,opacity:.20,blending:THREE.AdditiveBlending,depthWrite:false});
+   edges.userData.raidOwned=true;edgeMaterial.userData.raidOwned=true;
+   const glints=new THREE.LineSegments(edges,edgeMaterial);
+   glints.renderOrder=1;glints.frustumCulled=false;
+   root.add(glints);
+  }
  }
  root.userData.info=info;return root;
 }
