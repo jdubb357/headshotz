@@ -1,5 +1,24 @@
 // Original raid layouts shared by rendering and authoritative collision checks.
 const blockGrids=new WeakMap();
+// Declared up front because the frozen sector builders call blocked() during
+// module initialisation, before the prop APIs at the bottom of this file.
+const propGrids=new WeakMap();
+const FOOTPRINT={
+ car:p=>{const s=p.scale||1;return {hw:1.15*s+.12,hd:.62*s+.12,h:1.75*s}},
+ truck:p=>{const s=p.scale||1;return {hw:3.05*s+.2,hd:1.25*s+.1,h:2.1*s}},
+ tank:p=>{const s=p.scale||1;return {hw:1.3*s,hd:1.3*s,h:3.25*s}},
+ dumpster:p=>{const s=p.scale||1;return {hw:1.1*s,hd:.68*s,h:1.5*s}},
+ crate:p=>{const s=p.scale||1;return {hw:.62*s,hd:.62*s,h:1.15*s}},
+ barrel:p=>{const s=p.scale||1;return {hw:.55*s,hd:.55*s,h:1.35*s}},
+ sandbag:p=>{const s=p.scale||1;return {hw:.8*s,hd:.5*s,h:.7*s}},
+ pallet:p=>{const s=p.scale||1;return {hw:.72*s,hd:.55*s,h:.8*s}},
+ hay:p=>{const s=p.scale||1;return {hw:1*s,hd:.64*s,h:1.35*s}},
+ wreck:()=>({hw:3.0,hd:1.25,h:2.0}),
+ scrap:()=>({hw:.95,hd:.66,h:.95}),
+ rock:p=>{const s=p.scale||1;return {hw:1.35*s,hd:1.15*s,h:.9*s}},
+ tree:p=>{const s=p.scale||1;return {hw:.3*s,hd:.3*s,h:1.2*s}},
+ stump:p=>{const s=p.scale||1;return {hw:.34*s,hd:.34*s,h:1.3*s}}
+};
 const world=(id,name,theme,blocks)=>({id,name,theme,version:1,size:120,blocks,
  spawns:[[-48,-48],[48,-48],[0,48]],
  caches:[[-35,-30],[-20,15],[20,-20],[34,20],[0,0],[-40,35],[40,-38],[10,36]],
@@ -1052,10 +1071,49 @@ function nearbyBlocks(world,x,z,r=0){
  for(let i=minX;i<=maxX;i++)for(let j=minZ;j<=maxZ;j++){const list=grid.cells.get(i*65536+j);if(list)for(const block of list)out.push(block)}
  return out;
 }
-export function blocked(world,x,z,r=.5,y=0,height=1.7){
+// ===================== Prop collision =====================
+// World props (cars, trucks, crates, barrels, ...) used to be presentation-only:
+// the operator could walk through a parked car and bullets passed through it.
+// Anything that reads as solid cover gets a real footprint here, derived from
+// the same dimensions the offline builder draws. A spatial hash (mirroring the
+// block grid) keeps the extra test proportional to nearby props.
+function propGrid(world){
+ const props=world.props||[];
+ let grid=propGrids.get(props);
+ if(!props.length){if(!grid){grid={count:0,cells:new Map(),cell:24};propGrids.set(props,grid)}return grid}
+ if(grid&&grid.count===props.length)return grid;
+ // Deployment spawns, caches and exits must stay reachable. A prop authored on
+ // top of one of those interchange points stays visual-only rather than sealing
+ // the only approach (an authored wreck currently sits on the switchyard cache).
+ const keepClear=[];for(const [px,pz]of world.spawns||[])keepClear.push([px,pz,2.6]);
+ for(const [px,pz]of world.caches||[])keepClear.push([px,pz,2.2]);
+ for(const exit of world.exits||[])keepClear.push([exit.x,exit.z,2.4]);
+ const cell=24,cells=new Map();
+ for(const prop of props){
+  const footprint=FOOTPRINT[prop.kind]?FOOTPRINT[prop.kind](prop):null;if(!footprint)continue;
+  if(keepClear.some(([qx,qz,pad])=>Math.abs(prop.x-qx)<footprint.hw+pad&&Math.abs(prop.z-qz)<footprint.hd+pad))continue;
+  const y=Number.isFinite(prop.y)&&Math.abs(prop.y)>.01?prop.y:terrainHeightAt(world,prop.x,prop.z);
+  const entry=[prop.x,prop.z,footprint.hw,footprint.hd,y,footprint.h];
+  const x0=Math.floor((prop.x-footprint.hw)/cell),x1=Math.floor((prop.x+footprint.hw)/cell);
+  const z0=Math.floor((prop.z-footprint.hd)/cell),z1=Math.floor((prop.z+footprint.hd)/cell);
+  for(let i=x0;i<=x1;i++)for(let j=z0;j<=z1;j++){const key=i*65536+j;let list=cells.get(key);if(!list)cells.set(key,list=[]);list.push(entry)}
+ }
+ grid={count:props.length,cells,cell};propGrids.set(props,grid);return grid;
+}
+function propBlocked(world,x,z,r,y,height){
+ const grid=propGrid(world),cell=grid.cell,minX=Math.floor((x-r)/cell),maxX=Math.floor((x+r)/cell),minZ=Math.floor((z-r)/cell),maxZ=Math.floor((z+r)/cell);
+ const test=([px,pz,hw,hd,base,h])=>Math.abs(x-px)<hw+r&&Math.abs(z-pz)<hd+r&&y+height>base+.04&&y<base+h-.04;
+ for(let i=minX;i<=maxX;i++)for(let j=minZ;j<=maxZ;j++){
+  const list=grid.cells.get(i*65536+j);
+  if(list&&list.some(test))return true;
+ }
+ return false;
+}
+export function blocked(world,x,z,r=.5,y=0,height=1.7,ignoreProps=false){
  if(Math.abs(x)>world.size/2-r||Math.abs(z)>world.size/2-r)return true;
  if(nearbyBlocks(world,x,z,r).some(([bx,bz,w,d,h,base=0])=>Math.abs(x-bx)<w/2+r&&Math.abs(z-bz)<d/2+r&&y+height>base+.04&&y<base+h-.04))return true;
  if((world.doors||[]).some(door=>door.closed&&Math.abs(x-door.x)<door.w/2+r&&Math.abs(z-door.z)<door.d/2+r&&y+height>(door.y||0)+.04&&y<(door.y||0)+door.h-.04))return true;
+ if(!ignoreProps&&propBlocked(world,x,z,r,y,height))return true;
  return (world.ramps||[]).some(ramp=>{const level=rampLevel(ramp,x,z);return level!=null&&y<level-.04&&y+height>level-.12});
 }
 export function rampLevel(r,x,z){if(Math.abs(x-r.x)>r.w/2||Math.abs(z-r.z)>r.d/2)return null;const t=r.axis==='x'?(x-r.x)/r.w+.5:(z-r.z)/r.d+.5;return r.from+(r.to-r.from)*t}
