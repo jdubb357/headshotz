@@ -65,7 +65,15 @@ function coreGlowTexture(){
  g.fillStyle=grd;g.fillRect(0,0,size,size);
  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;coreGlowTex=texture;return texture;
 }
-function wornMat(color){const key='worn|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,map:wornPlatingTexture(),roughness:.74,metalness:.53,envMapIntensity:.95});material.userData.raidWorn=true;materials.set(key,material)}return materials.get(key)}
+function wornMat(color){const key='worn|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,map:wornPlatingTexture(),roughness:.74,metalness:.53,envMapIntensity:.95});material.userData.raidWorn=true;
+ // Cool grazing-angle rim on the repaired plating. Large flat hull faces keep
+ // their authored rust tint, while shoulders, seams and limbs catch a steel
+ // edge that separates the silhouette from dusk haze and grey pavement.
+ material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
+  'float raidEdge=pow(1.0-abs(dot(normalize(normal),normalize(vViewPosition))),4.0);\n'+
+  'outgoingLight+=vec3(.34,.46,.55)*.19*raidEdge;\n'+
+  '#include <opaque_fragment>')};
+ materials.set(key,material)}return materials.get(key)}
 // Salvaged stamped-metal crate shell. Caches are the objects players search at
 // range, so a shared procedural map (rolled seams, rivet border, diagonal
 // braces, rust blooms and scuffs) makes them read as weathered municipal
@@ -464,6 +472,21 @@ export function machineModel(kind,options={}){
    silhouette=['crown-spikes','chest-vents','shoulder-pylons'];
   }
   lightPart(root,0,def.core,1.05,.42,!plain);
+ }
+ if(!plain&&kind!=='flyer'){
+  // A soft dark bed and a camera-facing contact haze under the hull stop a
+  // machine reading as a floating sprite on the road. Both are presentation-only
+  // (the flyer deliberately has none), are disposed with their actor, and never
+  // touch the shared worn map or the authoritative footprint.
+  const bed=({scout:[1.55,1.05],hunter:[2.1,1.3],heavy:[2.9,1.75],overlord:[4.2,2.6]}[kind]||[1.8,1.2]);
+  const geometry=new THREE.PlaneGeometry(bed[0],bed[1]);geometry.userData.raidOwned=true;
+  const material=new THREE.MeshBasicMaterial({map:TX.soft,color:0x050b0a,transparent:true,opacity:.72,depthWrite:false});
+  material.userData.raidOwned=true;
+  const shadow=new THREE.Mesh(geometry,material);
+  shadow.rotation.x=-Math.PI/2;shadow.position.y=.055;shadow.renderOrder=3;root.add(shadow);root.userData.groundShadow=shadow;
+  const hazeMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0x080f0c,transparent:true,opacity:.55,depthWrite:false,blending:THREE.NormalBlending,fog:true,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-8});
+  hazeMaterial.userData.raidOwned=true;
+  const haze=new THREE.Sprite(hazeMaterial);haze.position.y=.30;haze.scale.set(bed[0]*1.35,.95,1);haze.renderOrder=4;root.add(haze);root.userData.groundHaze=haze;
  }
  root.userData.machineDetail={worn:!plain,halo:!plain,features:silhouette,detailCount:features.length};
  root.userData.actor='machine';return root;

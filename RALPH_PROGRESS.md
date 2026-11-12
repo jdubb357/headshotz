@@ -7682,3 +7682,29 @@ The preview now reads as a warm, lit hangar bay with a much larger operator and 
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR). No new director note; P1 controls remain frozen until Austin's playtest. Next iteration re-inspects the live deploy→move→fight→loot→extract loop and picks the next presentation-only improvement from the feel priorities without adding panels, currencies, controls or server/game.js changes.
+
+## Iteration 84 — Ground machine hulls and add a cool plate rim (ENEMIES, 2026-11-12)
+
+### Acceptance criteria
+1. Offline raid at 1024x720 and 844x390: grounded machine classes (scout, hunter, heavy, overlord) carry a soft dark contact shadow under the hull so they sit on the pavement instead of floating, and their worn plating gains a cool grazing-angle rim that separates hull faces and limbs from the dusk sky and grey road without washing out the orange/rust tint.
+2. Presentation-only changes in `raid-models.mjs` (shared worn-material shader plus a ground-shadow bed and a soft camera-facing contact haze on each grounded machine); no changes to server rules, controls, input, AI, hit volumes, stats, menus, panels or currency. Flyer keeps its airborne silhouette with no ground patch; reduced motion leaves the shadow static.
+3. Existing machine silhouette metadata, core halo, shared worn texture and generated models remain intact; `raid-browser-machine-models.mjs`, `raid-browser-base-lobby.mjs`, `raid-browser-mobile-hud.mjs`, `raid-browser-static-offline.mjs` and the full Node suite stay green.
+4. Before/after live-raid screenshots exist at 1024x720 and 844x390, plus a firing action frame, all with the same pinned dusk fixture.
+
+### Implementation
+- `wornMat` now carries a Fresnel-style grazing-angle rim: `raidEdge = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 4.0)` adds `vec3(.34,.46,.55) * .19 * raidEdge` to `outgoingLight`. Flat hull faces keep their authored orange/rust albedo; shoulders, seam lips, knee guards and foot pads catch the cool steel edge that separates them from dusk haze and dark roadway.
+- Grounded machines get a soft shadow presentation in `machineModel`: a horizontal `TX.soft` bed (2.1×1.3 m hunter, 1.55×1.05 scout, 2.9×1.75 heavy, 4.2×2.6 overlord) with a dark, transparent material at y = .055, plus a camera-facing contact haze sprite of the same texture at y = .30. The haze uses a mild negative polygon offset against the pavement so the soft dark ellipse reads from the near-horizontal first-person camera, where the flat bed alone collapses to a thin strip. It is depth-tested, so walls and props in front of a machine still occlude it instead of letting a shadow bleed through geometry.
+- Both shadow objects and their materials are marked `raidOwned`, and are optionally exposed via `root.userData.groundShadow` / `root.userData.groundHaze`; `flyer` deliberately builds neither, and nothing animates in reduced motion. No server rules, AI, controls, hit volumes, stats, menus, panels or currency were touched.
+
+### Verification
+- `node --check raid-models.mjs` OK.
+- `node tests/raid-browser-machine-models.mjs` passed: every class keeps its silhouette feature list, worn meshes and core halo; plain-vs-detailed pixel deltas were scout 349, hunter 501, heavy 1375, flyer 222 and overlord 2114, all above the bench threshold, with `browserErrors: []`. The flyer's lower delta is expected because it has no ground shadow.
+- The class guard in `machineModel` is `if(!plain && kind!=='flyer')`, so scout, hunter, heavy and overlord each get the bed/haze while the flyer keeps its airborne silhouette with no ground patch; reduced motion leaves the shadows static because they have no timers.
+- `node tests/raid-browser-static-offline.mjs` passed (`machineHit: headshot`, loot, extract, settlement, no API traffic, `browserErrors: []`); `raid-browser-mobile-hud.mjs` passed at 1024×720 (0.0798 covered) and 844×390 (0.1787 covered); `raid-browser-menu.mjs` passed; `raid-browser-static-account.mjs` passed; `raid-browser-base-lobby.mjs` passed on rerun (the first run hit a transient post-reload execution-context null lookup).
+- `node --test --test-concurrency=1 tests/*.test.mjs` → 1,247 pass, 0 fail. (The default parallel invocation twice hit a transient `ECONNRESET` in the local matchmaking HTTP fixture; the test file itself then passed alone and the full sequential run is green.)
+
+### Shots
+`~/headshotz-loop/shots/latest/`: `before-1024.png` and `before-844.png` from the untouched HEAD build rendered with the same pinned dusk fixture, `after-1024.png` and `after-844.png` from this build at 1024×720 and 844×390, plus `after-1024-action.png` while the rifle is firing. Source frames are `b84head-*` and `b84tent1-*` in `/tmp/hsz-fix/shots/`; the machine's live patrol pose differs slightly between runs, but both runs use the same clear dusk timeline and cleared road fixture.
+
+### Honest critique
+The cool edge rim makes the machine's shoulders, knees and pads pop sharply against the dusk and suppresses the pale foot-dust wash, and the soft dark blob finally reads as a contact shadow at the near-horizontal camera — but at grazing angles the grounded-bed plane itself is almost edge-on and contributes little, so the grounding is still mostly a camera-facing cheat rather than a true cast shadow.
