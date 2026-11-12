@@ -1,6 +1,6 @@
 # Extraction Raid gameplay backlog — full-mechanics audit
 
-Last audited: 2026-11-11 (director note 5 viewmodel edge highlights, cuff and tapered tracer, iteration 75). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72), readable foreground road at spawn (iteration 73), cohesive articulated machines with planted feet (iteration 74) and viewmodel edge highlights / sleeve cuff / thick tapered tracer (iteration 75) complete → NEXT: re-verify note 1's sign anchor and duplicate-solid cleanup in this build, then take the next refreshed director note.
+Last audited: 2026-11-11 (iteration 76: duplicate-window cull and worn near-road at spawn). Current project: P0 Static Pages offline raid (added 2026-11-10) — COMPLETE. Feel priority: GUNFEEL (iteration 64) complete, tracer origin fixed (iteration 66), lighting/ground pass landed (iteration 67), building material variety and daylight glass (iteration 68), slim auto-fading raid HUD (iteration 69), main-game-matched controls (iteration 70), enemy leg walk cycles (iteration 71), map floating/duplicate-solid cleanup (iteration 72), readable foreground road at spawn (iteration 73), cohesive articulated machines with planted feet (iteration 74), viewmodel edge highlights / sleeve cuff / thick tapered tracer (iteration 75) and culling of 449 coincident window openings plus worn asphalt/lane worn features (iteration 76) complete → NEXT: refreshed director note 1 — extraction walking, aiming and firing must match the main HeadShotz game in live two-thumb play; verify with a real walk+turn+shoot fight, leave game.js unchanged, and do not start new map polish.
 
 This backlog is scoped only to the opt-in Extraction Raid mode. It does not change,
 and must not require changes to, Battle Royale, Squad Royale, arena/team modes, the
@@ -109,6 +109,27 @@ offline, structures, scenery and mobile-HUD graders green; Node 1247/1247; scree
 fix is not frame-visible because the old copies were exactly coincident, and the sector
 audit used the existing 0.4 m test radius rather than a live walk of every route. Next:
 older note 4 viewmodel feel.
+
+## Director P3 follow-up — duplicate window openings and worn near road (iteration 76, 2026-11-11)
+
+Status: COMPLETE 2026-11-11 — presentation-only repairs in `raid-environment.mjs` and
+`raid-view.mjs`; world/collision/loot/authored data unchanged. `uniqueWindowProps` collapses
+window props with an exact shared footprint, keeping the lit copy when a pair disagrees, for
+the world+scenery draw list and the doorway-window gap test: relay 8,823 -> 8,374 unique
+openings (449 duplicate groups / 449 copies culled; 364 had a lit pane kept), reservoir 432,
+switchyard 599. Free-standing signs keep two terrain-sampled posts, hazard sleeves, concrete
+footings and tie bars, so the QUARANTINE LINE insertion sign stays visibly planted. The near
+asphalt gained a lifted base value plus faded centre dashes, pale edge lines, crack seams,
+aggregate repair patches and shoulder chips; a shadow-free overhead warm `skyBounce`
+directional (.62 × daylight, damped for rain/ash, off at night) lifts roads/pavement/rooflines
+without flattening face sun direction. Evidence: Node 1247/1247, structures green (frames
+33,496, windowSills 7,967, deterministic, errors []), static-offline green (loot/extract, no
+API traffic), mobile-hud green (compact .0806/.1806, unobstructed .9194/.8194, all touch
+actions). Screenshots in `~/headshotz-loop/shots/latest/` before/after 1024 and 844, sign
+frames and action frame, same pinned dusk condition. Known gap: headless Chrome cannot verify
+"perceived frame rate"; the overhead fill is one non-shadow directional and dedupe removes
+~449 window instance groups, so expected cost is neutral-to-lower but a physical iPad run is
+unverified. Next: director note 1 controls.
 
 ## P0 — Static Pages offline raid (CURRENT PROJECT — do this first)
 

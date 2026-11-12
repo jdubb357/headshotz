@@ -7432,3 +7432,35 @@ The scout now reads as one connected amber machine with a glowing sensor eye and
 
 ### Honest critique
 The cuff and edge glints are now readable at both sizes and the phone tracer is unmistakable, but the beam is a clean additive cone whose white core nearly vanishes over the white plaster façade (no smoke or heat falloff), the glints outline the entire receiver silhouette so the optic and magazine can still look thinly wireframed, and enemy-gun beam/glint cost is unmeasured on a physical iPad. Next: re-verify note 1's QUARANTINE LINE anchor and duplicate-solid cleanup in this build, then take the next refreshed director note.
+
+## Iteration 76 — Insertion view ground detail and duplicate-window cleanup (director notes 1 + 3, 2026-11-11)
+
+### Acceptance criteria
+1. Director note 1 is verified in this build: the insertion-view QUARANTINE LINE panel is supported by planted hazard-band posts (or a façade with jibs), the 449 exact coincident window props drawn in the relay world are culled to one readable opening each, and no duplicate solid is rendered at spawn or any exit.
+2. Director note 3 is visibly addressed: the near-road foreground reads as worn asphalt — faded lane paint, cracked seams, pale aggregate patches and a lifted surface value — instead of a near-black empty wedge at both 1024x720 and 844x390.
+3. Shadows and small props on that road remain readable: no flat black-on-black detail and no blown-out lane paint; the change is presentation-only with no prop/collision/rule/account data mutations.
+4. Same-spawn before/after screenshots at 1024x720 and 844x390, including the insertion-sign frame and an action frame, are copied to `~/headshotz-loop/shots/latest/`.
+5. Node suite and affected browser graders pass (static offline, mobile HUD, structures), and perceived frame rate is not worse.
+
+### Implementation
+- `raid-environment.mjs`: a new `uniqueWindowProps` pass collapses window props that share an exact footprint (x/z/y/w/d/h), keeping the lit copy when a pair disagrees. It is applied to the world+scenery draw list and to the doorway-window gap test, so one pane and its trim render per opening; `world.props` is never mutated (collision/loot/authored data unchanged). Road surfaces were lifted from a near-black asphalt wedge: base color 0x93978c, faded yellow dashed centre paint, pale edge lines, cracked seams, pale aggregate repair patches and shoulder chips. Presentation-only.
+- `raid-view.mjs`: a shadow-free overhead warm directional `skyBounce` light (12, 72, 18) at `.62 × daylight`, damped for rain/ash and off at night, lifts near-horizontal surfaces (roads, pavement rubble, roofs) without flattening façade sun direction.
+- `tests/raid-browser-structures.mjs`: sill threshold widened from >8000 to >7800 because the dedupe now draws 7,967 sill ledges instead of 8,009; no other assertions changed.
+
+### Verification
+- `node --check raid-view.mjs raid-environment.mjs tests/raid-browser-structures.mjs` — OK.
+- Window-footprint audit on the frozen world data: relay 8,823 window props → 8,374 unique openings, 449 duplicate groups / 449 copies culled (364 groups had a lit copy kept); reservoir 432; switchyard 599. Authored props arrays still contain every original prop.
+- Free-standing signs (QUARANTINE LINE) are anchored by two terrain-sampled metal posts with hazard sleeves, concrete footings and metal tie bars; no floating sprite remains.
+- `node --test tests/*.test.mjs` — 1247 pass, 0 fail (67 s).
+- `node tests/raid-browser-structures.mjs` — green: frames 33,496, windowSills 7,967, flowerBoxes 1,669, deterministic true, browserErrors [].
+- `node tests/raid-browser-static-offline.mjs` — green: deploy/move/machine hit/loot/extract, itemsReturned 2, lostItems 0, no API traffic, browserErrors [].
+- `node tests/raid-browser-mobile-hud.mjs` — green: compactHud .0806 desktop / .1806 mobile, unobstructed .9194/.8194, all touch actions pass, browserErrors [].
+
+### Shots
+`~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png (same-spawn), before-844.png / after-844.png, before-1024-action.png / after-1024-action.png, before/after 1024 and 844 signing frames (`before-1024-sign.png`, `after-1024-sign.png`, `before-844-sign.png`, `after-844-sign.png`). Captured offline in headless Chrome with the same pinned dusk condition (startHour 17.4, weatherSeed 0) and same spawn/turn/fire poses.
+
+### Honest critique
+The near road now visibly shows lane paint, cracks and pale repair patches at both sizes instead of a black wedge, and the duplicate window trim no longer fights itself; but the foreground still reads flat and blocky at ground level, façades remain single-colour slabs at mid-distance, and "perceived frame rate" is not measurable in headless Chrome — the overhead fill adds one non-shadow directional light while dedupe removes ~449 window instance groups, so the expected cost is neutral-to-lower but a physical iPad run is still unverified.
+
+### Next action
+Commit this slice on `cypert/dev`, then take the refreshed top director note: P1 controls must match the main HeadShotz game in real two-thumb play, verified by walking, turning and firing at a machine in one live fight.

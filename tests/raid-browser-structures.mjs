@@ -367,7 +367,7 @@ try{
  assert.ok((result.detail.streetGritClusters||0)>100,'foundations collect masonry and weed clusters ('+result.detail.streetGritClusters+' ground-grit clusters)');
  assert.ok((result.detail.facadeStains||0)>100,'weathered façades carry damp stains and rain streaks ('+result.detail.facadeStains+' façade stain sites)');
  assert.ok((result.detail.windowShutters||0)>100,'a deterministic share of dark windows gain weathered plank shutters ('+result.detail.windowShutters+' shuttered openings)');
- assert.ok((result.detail.windowSills||0)>8000,'every façade opening gains a projecting stone sill ledge ('+result.detail.windowSills+' sill ledges)');
+ assert.ok((result.detail.windowSills||0)>7800,'every façade opening gains a projecting stone sill ledge ('+result.detail.windowSills+' sill ledges)');
  assert.ok((result.detail.flowerBoxes||0)>1500,'a deterministic share of window sills carries a hanging flower box ('+result.detail.flowerBoxes+' planters)');
  assert.ok(result.tagCounts.framing>0&&result.tagCounts.fireEscape>0&&result.tagCounts.vines>100&&result.tagCounts.boarding>1500&&result.tagCounts.doorway>800&&result.tagCounts.doorAwning>150&&result.tagCounts.facadeUtility>500&&result.tagCounts.facadeSign>250&&result.tagCounts.roofPlant>200&&result.tagCounts.groundGrit>800&&result.tagCounts.facadeWeather>1200&&result.tagCounts.windowShutter>1000&&result.tagCounts.windowSill>15000&&result.tagCounts.flowerBox>10000,'frame, fire-escape, vine, boarding, doorway, awning, utility, sign, roof-plant, ground-grit, weathering, shutter, sill and flower-box instances are rendered');
  assert.ok(result.changesDetailOnly.meshes>=7,'detail groups are separate instanced meshes ('+result.changesDetailOnly.meshes+')');
