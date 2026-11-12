@@ -7654,3 +7654,31 @@ The puffs now detach from the swinging legs and visibly mark planted pads, and t
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR). No new director note; note 1 (P1 controls) remains frozen until Austin's playtest. Next loop iteration re-inspects the live first three minutes (deploy→move→fight→loot→extract) and picks one presentation-only improvement from the remaining feel priorities without adding panels, currencies, controls or server/game.js changes.
+
+## Iteration 83 — Give the deploy-screen operator preview a studio-lit stage (BASE LOBBY, 2026-11-12)
+
+### Acceptance criteria
+1. Offline base lobby at 1024x720 and 844x390: the Equipment bench preview shows a larger and better-framed operator (caught by a warm key light and a cool rim light), grounded by a soft contact shadow on the platform, against a non-flat staged backdrop instead of the flat teal field.
+2. No new panels, currencies or player-facing jargon; existing tabs, DEPLOY, loadout/stash controls and copy remain untouched; no page scroll at 1024x720 and no canvas or control clipping at 844x390. On short landscape screens the bench gets its own right-hand column so the full preview, stage and shadow are visible without scrolling the page.
+3. Presentation-only changes in BasePreview (scene, camera, lights, shadow/backdrop) plus the adjacent base-lobby grid CSS needed to show that preview on 844x390; no account, progression, raid rules, controls, collision, AI or server/game.js changes, and the preview still reflects the selected loadout.
+4. `raid-browser-base-lobby.mjs`, `raid-browser-menu.mjs`, `raid-browser-static-account.mjs`, `raid-browser-mobile-hud.mjs` and the full Node suite remain green; before/after screenshots exist for both viewports.
+
+### Implementation
+- `BasePreview` (raid-view.mjs) is now a small studio instead of a flat slab. Its scene has a 64×64 canvas gradient (`#2b4651`→`#17262c`→`#0a1114`) with a warm radial pool under the platform; a hemisphere fill, a warm key (`0xffd49b`, 3.0) and a cool rim (`0x6db8db`, 2.2); fov 36 from closer at `(1.65,1.55,2.55)` with `lookAt(0,1.02,0)`. A dark cylinder base, a gold torus ring, two lit desk slabs and a `TX.soft`-textured contact-shadow plane ground the operator. Existing `setLoadout`/`frame`/`turn` are unchanged, so gear still updates the hero.
+- `raid-online.html`: a short-landscape-only rule (`min-width:800px`, `min-height:390px`, `max-height:520px`) turns the lobby into a two-column grid — identity/tabs on the left, deploy summary under them, and `#basePanels` as a full-height right-hand column with the bench preview at 205 px. Tabs compact to 6 px padding / .58 rem to fit 437 px; no panels, copy or controls were added or removed.
+
+### Verification
+- `node --check raid-view.mjs`: OK.
+- Layout exercised offline at the two targets: 1024×720 keeps the original single-column desktop bench (canvas 458×260, page scroll 0). 844×390 gets the right-hand bench column (panel x399 y93 437×293, canvas 413×205, rotate 340–384 px inside the panel, all six tabs fit 437 px client/scroll, page scroll 0). Boundary checks: 800×390 and 1024×390 use the new layout with all controls visible; 800×389 and 389×389 fall back cleanly to the previous compact layout without deploy overflow.
+- Loadout reflection exercised: selecting the first stash weapon changed the caption from "Choose equipment to preview your loadout." to "Selected loadout — Assault Rifle · no worn armor"; rotating the preview showed the rifle held at the studio camera, with no browser errors.
+- Graders: `raid-browser-base-lobby.mjs` passed; `raid-browser-menu.mjs` passed on rerun (one pixel-identical banner comparison flaked, metrics 33 buttons/44 px desktop, 44 px mobile, pageScroll false); `raid-browser-static-account.mjs` passed; `raid-browser-mobile-hud.mjs` passed at 1024 (0.0806 covered) and 844 (0.1806 covered, thumbstick/drag/fire/reload/interact pass); `raid-browser-static-offline.mjs` passed (deploy, move, headshot, loot, extract, settlement, no API traffic).
+- `node --test tests/*.test.mjs`: 1247 pass, 0 fail.
+
+### Shots
+`~/headshotz-loop/shots/latest/` will be repopulated with before-1024.png / after-1024.png, before-844.png / after-844.png, after-1024-action.png (stash-selected rifle and rotation) and after-844-panel.png; before frames come from the unmodified HEAD build with the same `b83demo` guest.
+
+### Honest critique
+The preview now reads as a warm, lit hangar bay with a much larger operator and a genuine gold-stage ring instead of a flat teal slab, and 844 finally shows the whole bench — but the two desk slabs still read as flat boxes and the contact shadow is too faint to be legible on the ring, so the stage looks like a stylized diorama rather than a lived-in armory.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR). No new director note; P1 controls remain frozen until Austin's playtest. Next iteration re-inspects the live deploy→move→fight→loot→extract loop and picks the next presentation-only improvement from the feel priorities without adding panels, currencies, controls or server/game.js changes.

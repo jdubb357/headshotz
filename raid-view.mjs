@@ -1672,9 +1672,22 @@ export class RaidView {
 }
 export class BasePreview {
  constructor(canvas){
-  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.scene=new THREE.Scene();this.scene.background=new THREE.Color(0x1b303b);
-  this.scene.add(new THREE.HemisphereLight(0xe8e9d7,0x344651,2.5));const light=new THREE.DirectionalLight(0xffcf93,3);light.position.set(3,5,4);this.scene.add(light);this.camera=new THREE.PerspectiveCamera(38,2,.1,40);this.camera.position.set(2,1.8,3);this.camera.lookAt(0,1,0);
-  this.hero=humanModel('','base_operator',true,null);this.hero.rotation.y=.5;this.scene.add(this.hero);const stage=new THREE.Group();part(stage,'cylinder',0x435963,0,-.12,0,1.3,.2,1.3);for(const x of [-2.2,2.2]){part(stage,'box',0x485c61,x,.5,-1.1,1.4,1,1);part(stage,'box',0xbea572,x,1.05,-1.1,1.55,.12,1.1)}this.scene.add(stage);this.last=0;
+  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.scene=new THREE.Scene();
+  // Deploy-screen studio rather than a flat teal slab: a cool overhead gradient
+  // falls to a warm pool at the platform, so the operator and gear sit inside a
+  // dim hangar volume instead of floating on a blank field.
+  const bg=document.createElement('canvas');bg.width=64;bg.height=64;const bgc=bg.getContext('2d');
+  const grad=bgc.createLinearGradient(0,0,0,64);grad.addColorStop(0,'#2b4651');grad.addColorStop(.55,'#17262c');grad.addColorStop(1,'#0a1114');bgc.fillStyle=grad;bgc.fillRect(0,0,64,64);
+  const halo=bgc.createRadialGradient(32,52,0,32,52,38);halo.addColorStop(0,'rgba(208,166,101,.38)');halo.addColorStop(.55,'rgba(92,103,94,.12)');halo.addColorStop(1,'rgba(0,0,0,0)');bgc.fillStyle=halo;bgc.fillRect(0,0,64,64);
+  this.backgroundTexture=new THREE.CanvasTexture(bg);this.backgroundTexture.colorSpace=THREE.SRGBColorSpace;this.scene.background=this.backgroundTexture;
+  this.scene.add(new THREE.HemisphereLight(0xb9cfd8,0x24302c,1.5));
+  const key=new THREE.DirectionalLight(0xffd49b,3.0);key.position.set(3,4.2,3.4);this.scene.add(key);
+  const rim=new THREE.DirectionalLight(0x6db8db,2.2);rim.position.set(-3.2,2.8,-2.4);this.scene.add(rim);
+  this.camera=new THREE.PerspectiveCamera(36,1.6,.1,40);this.camera.position.set(1.65,1.55,2.55);this.camera.lookAt(0,1.02,0);
+  this.hero=humanModel('','base_operator',true,null);this.hero.rotation.y=.5;this.scene.add(this.hero);
+  const stage=new THREE.Group();part(stage,'cylinder',0x3d5158,0,-.12,0,1.3,.2,1.3);part(stage,'ring',0x9c7b4a,0,.002,0,.74,.74,.74,[Math.PI/2,0,0]);for(const x of [-2.2,2.2]){part(stage,'box',0x45585e,x,.5,-1.1,1.4,1,1);part(stage,'box',0xb69b68,x,1.05,-1.1,1.55,.12,1.1)}this.scene.add(stage);
+  const shadow=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.8),new THREE.MeshBasicMaterial({map:TX.soft,color:0x05090c,transparent:true,opacity:.68,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.016;shadow.renderOrder=1;this.scene.add(shadow);
+  this.last=0;
  }
  setLoadout(loadout){
   const key=JSON.stringify([loadout.primary,loadout.secondary,loadout.armor,loadout.recovery]);this.loadout=loadout;if(key===this.loadoutKey)return;this.loadoutKey=key;

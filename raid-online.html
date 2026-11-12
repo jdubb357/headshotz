@@ -514,6 +514,22 @@ body[data-base-lobby=true] #base>.row>#logout{min-height:44px;padding:4px 10px;f
  .heroActions{justify-content:flex-start}
  .heroActions #deploy{flex:1 1 auto;width:100%}
 }
+/* Short landscape (phones on their side): the deploy summary and tabs stay in
+   the left column while the bench gets a full-height column of its own, so the
+   operator preview is never buried under a scrolling panel. */
+@media(min-width:800px) and (min-height:390px) and (max-height:520px){
+ body[data-base-lobby=true] #base{display:grid;grid-template-columns:minmax(0,46%) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"identity tabs" "deploy panels";gap:4px 10px}
+ body[data-base-lobby=true] #base>.row{grid-area:identity;align-self:start;flex-wrap:nowrap}
+ body[data-base-lobby=true] #base>.row>#identity{overflow:hidden;text-overflow:ellipsis}
+ #baseTabs{grid-area:tabs;align-self:start;padding-right:0;margin-top:20px;gap:2px}
+ #baseTabs button{padding:6px 6px;font-size:.58rem}
+ #deployCard{grid-area:deploy;align-self:start;grid-template-columns:minmax(0,1fr);grid-template-areas:"main" "actions" "controls" "slots" "readiness" "risk" "save";padding:6px 10px}
+ .heroMain{flex-direction:column;align-items:flex-start;gap:1px}
+ .heroActions{justify-content:flex-start}
+ .heroActions #deploy{flex:1 1 auto;width:100%}
+ #basePanels{grid-area:panels;grid-template-columns:minmax(0,1fr);padding:0 2px 0 0}
+ #basePreview{height:205px}
+}
 
 </style></head><body aria-busy="false"><main>
 <a href="/">← HeadShotz home</a><h1>THE SECTOR</h1>
