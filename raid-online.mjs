@@ -713,16 +713,23 @@ export function hurtIndicator(snapshot){
  const right=-dx*cos+dz*sin,forward=dx*sin+dz*cos;
  const angle=Math.atan2(right,forward),deg=angle*180/Math.PI;
  const source=String(h.source||'combat');
- return {angle,deg,source,side:Math.abs(deg)>128?'behind':deg>0?'right':'left',
+ return {angle,deg,source,side:Math.abs(deg)>128?'behind':Math.abs(deg)<=28?'ahead':deg>0?'right':'left',
   label:{machine:'machine fire',rival:'rival fire',hazard:'hazard',blast:'explosion',operator:'operator fire'}[source]||'damage'};
 }
+// The arrow is rebuilt only when the authoritative hit changes (or the ring
+// size moves). Replacing it every frame restarted its flash animation from zero
+// on each render, so an incoming hit was effectively invisible.
+let hurtMarkerKey='';
 function renderHurtDirection(snapshot){
  const layer=$('hurt'),dir=hurtIndicator(snapshot);
- if(!dir){layer.hidden=true;layer.replaceChildren();return}
- layer.hidden=false;layer.replaceChildren();
+ if(!dir){if(hurtMarkerKey||layer.childElementCount){layer.hidden=true;layer.replaceChildren();hurtMarkerKey=''}return}
  // The damage arrow sits inside the threat ring so a machine warning and a hit
  // source at the same bearing stay visually distinct.
  const ring=Math.round(Math.max(56,Math.min(92,Math.min(innerWidth,innerHeight)*.075)));
+ const key=[dir.source,dir.side,Math.round(dir.deg),ring,snapshot.self.hurt?.at||0].join('|');
+ if(key===hurtMarkerKey)return;
+ hurtMarkerKey=key;
+ layer.hidden=false;layer.replaceChildren();
  const marker=document.createElement('span');
  marker.className='hurtMarker';marker.dataset.source=dir.source;marker.dataset.side=dir.side;
  marker.style.setProperty('--tx',Math.round(Math.sin(dir.angle)*ring)+'px');

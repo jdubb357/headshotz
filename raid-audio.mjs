@@ -61,6 +61,7 @@ export const ACTION_CUES={
  eliminated:{wave:'sine',start:240,end:40,duration:.7,pulses:2},
  footstep:{wave:'triangle',start:110,end:46,duration:.09,pulses:1},
  machineStep:{wave:'square',start:96,end:38,duration:.14,pulses:1},
+ machineShot:{wave:'square',start:760,end:110,duration:.13,pulses:2},
  bump:{wave:'sine',start:88,end:34,duration:.14,pulses:1}
 };
 export function spatialCue(listener,source){
@@ -70,7 +71,7 @@ export function spatialCue(listener,source){
  return {gain:1/(1+(distance/12)**2),pan:distance?Math.max(-1,Math.min(1,(-dx*Math.cos(listener.yaw||0)+dz*Math.sin(listener.yaw||0))/distance)):0};
 }
 export class RaidAudio {
- constructor(){this.enabled=true;this.volume=.7;this.context=null;this.active=0;this.seen=new Map();this.fieldCues=new Map();this.bossPhases=new Map();this.previousSelf=null}
+ constructor(){this.enabled=true;this.volume=.7;this.context=null;this.active=0;this.seen=new Map();this.fieldCues=new Map();this.bossPhases=new Map();this.machineFireSeen=new Map();this.previousSelf=null}
  resume(){if(!this.context)try{this.context=new (window.AudioContext||window.webkitAudioContext)()}catch{}this.context?.resume().catch(()=>{})}
  play(kind='warning',spatial=null){
   const ctx=this.context;if(!this.enabled||this.volume<=0||!ctx||ctx.state!=='running'||this.active>=12)return false;
@@ -135,6 +136,16 @@ export class RaidAudio {
   for(const id of this.fieldCues.keys())if(!fields.has(id))this.fieldCues.delete(id);
   const charging=new Set((snapshot.machines||[]).filter(m=>m.state==='windup').map(m=>m.id));
   for(const id of this.seen.keys())if(!charging.has(id))this.seen.delete(id);
+  // One report per authoritative shot token; the charge cue above owns the
+  // warning beat, while this crack follows the moment the attack actually lands.
+  const liveMachines=new Set((snapshot.machines||[]).map(m=>m.id));
+  for(const machine of snapshot.machines||[]){
+   const token=machine.shot?.at;
+   if(token==null||this.machineFireSeen.get(machine.id)===token)continue;
+   this.machineFireSeen.set(machine.id,token);
+   const spatial=spatialCue(listener,machine);if(spatial)this.play('machineShot',spatial);
+  }
+  for(const id of this.machineFireSeen.keys())if(!liveMachines.has(id))this.machineFireSeen.delete(id);
  }
- reset(){this.seen.clear();this.fieldCues.clear();this.bossPhases.clear();this.previousSelf=null}
+ reset(){this.seen.clear();this.fieldCues.clear();this.bossPhases.clear();this.machineFireSeen.clear();this.previousSelf=null}
 }
