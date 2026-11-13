@@ -8126,3 +8126,37 @@ The pale fog-blended rectangle is gone and the enemy is finally real animated ge
 The spawn view is cleaner and the barrels now sit on a plain road instead of paper triangles, but the world directly in front of the insertion is still very bare: the pavement is a flat grey sheet with no curb, debris, or ground cover, and the buildings on both sides are plain dark boxes with flat window squares — the fix removes fake detail rather than replacing it with real detail. The far-right gravel bank also still ends in a smooth pale sheet, and the distant cream tufts on the slope lip are only partly out of frame.
 
 **Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — make the machine tracer a thin short fading streak with no white bloom blob over the objective marker; then item 3 (scout scale/grounding/contrast), item 4 (EXIT/Objective agreement), item 5 (windows/doors, pale post, loot scale/label), item 6 (desktop keymap).
+
+## Iteration 101 — Hostile tracer reduced to a short thin fading streak (director note 1; 2026-11-13)
+
+**Task:** DIRECTOR_NOTES item 1 — the enemy shot rendered as a fat cream bar from the scout across a third of the screen, ending in a huge white bloom blob that washed over the objective marker and the left building. Replace it with a thin, short, fast streak (2–4 px at 1024×720, fading along its length, visible ~100 ms), with no bloom blob at either end, nothing washing over the marker or HUD, and the streak still originating from the scout barrel.
+
+### Acceptance criteria
+1. The enemy shot is a uniform thin ribbon 2–4 px wide at 1024×720, independent of camera distance (no tapered cylinder, no near-camera width blow-up).
+2. The visible stroke is short: a fixed ~34% trailing segment behind a head that slides along the effect at speed, not a bar spanning a third of the screen.
+3. The stroke fades along its length, from a dim amber tail at the scout barrel to a warm amber head.
+4. The head colour's linear luma stays below the bloom pass threshold (0.58), so no bloom halo/blob appears at either end and nothing washes over the objective marker or the HUD.
+5. The shot still originates at the authoritative barrel `from` coordinate and ends at the authoritative strike `to`; lifetime ≤110 ms (visible ~100 ms).
+6. No billboard bolts, trail sprites, landing sparks or extra landing glow are drawn for the hostile shot; the damage vignette remains the hit report.
+7. Before/after frames are captured offline under equal clear-daylight and HUD conditions at 1024×720 and 844×390; the after frame clearly shows the thin short streak and no blob.
+8. Static-offline, mobile-HUD and effects graders stay green; Node suite unchanged (1248/1249, only the known matchmaking ECONNRESET); `node --check raid-view.mjs` passes.
+9. No new assets, so ASSETS.md is unchanged.
+
+### Changed
+`raid-view.mjs` only. The hostile shot pool no longer builds a tapered `CylinderGeometry` beam, a moving bolt sprite, a 5-sprite trail or a landing spark field. Each pooled shot now uses one shared, vertex-coloured `MeshBasicMaterial` and a 4-vertex indexed ribbon; `drawEnemyRibbon` recomputes the quad each frame from the camera's world position, the midpoint of the trailing segment and the vertical FOV, so projected width stays ~3.2 px at 1024×720 regardless of depth. `spawnEnemyShot` hides the old sprites, sets the tail dim (×0.14) and the head saturated amber (×0.62, not whitened), and starts a 110 ms effect on a 90 ms travel window. The update loop ramps alpha over 20 ms, holds through ~85 ms, fades to zero by 110 ms, and shows a static 34% beat in reduced motion. The muzzle point light was shortened to 110 ms and lowered to 3.6 intensity so it no longer lifts nearby surfaces into a bloom.
+
+### Verification
+- `node --check raid-view.mjs` → OK.
+- `node tests/raid-browser-static-offline.mjs` → deploy → move → hit → loot → extract, 2 items returned, 270 credits, `noApiTraffic:true`, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024×720 unobstructed 0.918, 844×390 0.816; thumbstick/right-drag/interact/auto-fire/auto-reload/aim-hold/swap/touch-interact all true; `browserErrors:[]`.
+- `node tests/raid-browser-effects.mjs` → 16-shot pool, bounded/expiring muzzle light, `tracerCollision:true`, `clearsWithin350ms:true`, 0 accumulated geometries, `browserErrors:[]`.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 fail (known intermittent `matchmaking.test.mjs` ECONNRESET).
+- `node tests/raid-browser-render-resources.mjs` fails at `buffersAfterClear` (`[485,953,1421,1889]`); reproduced identically on pristine `HEAD` `fcad4c4`, so it is pre-existing and unrelated to this change.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled from equal-condition offline deployments: `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-1024-action.png`/`after-1024-action.png`, `before-844-action.png`/`after-844-action.png`, plus 2× zoom crops `after-1024-action-zoom.png` and `after-844-action-zoom.png`. The before action frames show the fat cream bar ending in the white bloom blob; the after frames show a ~3 px amber segment fading at its tail with no bloom halo at either end.
+
+### Honest critique
+The blob is gone and the shot now reads as a fast amber flicker rather than a wall of light, but in daylight over the pale pavement it is still faint and 3 px thin, so a casual player may miss the incoming shot entirely; the scout's own amber core remains brighter than the tracer, and barrels can occlude the segment, making the fire feel intermittent rather than readable. A thin high-contrast core or a brief dark edge on the ribbon would help, but that risks blooming over bright facades and should be prototyped.
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — scale the scout ~1.5x, ground it on the bank surface, and add rim/edge light or worn-metal contrast so it reads at spawn distance (prefer a high-quality CC0/CC-BY armed humanoid/soldier robot GLB if one exists); then item 3 (stray pale props and sun smudge), item 4 (EXIT/Objective agreement), and item 5 (windows/doors, arms, loot scale/label, keymap).
