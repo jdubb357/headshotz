@@ -6,11 +6,11 @@ const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':k
 // Per-surface physical response: [roughness, metalness, normalScale]. Asphalt and
 // barriers keep a wet sheen so the sky environment map reads as surface reflection,
 // while concrete/rock stay diffuse. The table also feeds terrain shading.
-const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.86,.04,.45],crate:[.8,.02,.55],window:[.18,.88,0],plain:[.86,0,0],glow:[.35,.1,0]};
+const SURFACE_PBR={concrete:[.93,0,.45],tiles:[.55,.02,.4],planks:[.82,.02,.55],metal:[.38,.62,.35],steel:[.46,.55,.25],drum:[.62,.55,.35],brick:[.9,0,.6],rock:[.9,0,.7],hazard:[.62,.25,.3],forest:[.97,0,.5],dirt:[.97,0,.45],gravel:[.96,0,.55],asphalt:[.86,.04,.45],crate:[.8,.02,.55],window:[.18,.88,0],plain:[.86,0,0],glow:[.35,.1,0]};
 // How strongly each surface responds to rain: roofs/asphalt/stone wet hardest,
 // vegetation and timber only dampen. The value scales the shared wetness state
 // against a material's authored dry baseline.
-const WET_RESPONSE={asphalt:1,gravel:.92,tiles:.88,window:.85,concrete:.78,rock:.7,brick:.62,dirt:.5,forest:.38,planks:.55,crate:.42};
+const WET_RESPONSE={asphalt:1,gravel:.92,tiles:.88,window:.85,concrete:.78,rock:.7,brick:.62,dirt:.5,forest:.38,planks:.55,crate:.42,steel:.34,drum:.32};
 // The sector terrain is one vertex-shaded heightfield rather than a flat slab.
 // Heights are sampled from shared world data, so hills match authoritative
 // collision and offline/raid-minimap previews. Line tint keeps ridges readable
@@ -150,7 +150,7 @@ export function buildEnvironment(world){
   poolColors.push(...new THREE.Color(color).toArray());poolRadii.push(radius);
   wetReflect(prop.x,prop.z,color,Math.max(1.4,radius*.65),Math.min(10,Math.max(4.4,radius*2.8)));
  };
- const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),tuft:tuftGeometry(),ring:new THREE.TorusGeometry(1,.08,4,20)};
+ const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,16),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),tuft:tuftGeometry(),ring:new THREE.TorusGeometry(1,.08,4,20)};
  const matrix=new THREE.Matrix4(),position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3(),euler=new THREE.Euler();
  // Daytime windows are dark glass that mirrors the sky; a lit window carries its
  // authored lamp colour in the group tag so RaidView can restore its warm emissive
@@ -200,6 +200,31 @@ export function buildEnvironment(world){
   }
   position.set(x,y,z);scale.set(sx,sy,sz);euler.set(rx,ry,rz);quaternion.setFromEuler(euler);matrix.compose(position,quaternion,scale);group.transforms.push(matrix.clone());
  }
+ // Cheap additive tint for timber detail (lid, battens, bracing). Keyed through
+ // the same add() instancing path so one colour is one draw group.
+ const shade=(color,k)=>{const r=Math.min(255,Math.round(((color>>16)&255)*k)),g=Math.min(255,Math.round(((color>>8)&255)*k)),b=Math.min(255,Math.round((color&255)*k));return (r<<16)|(g<<8)|b};
+ // Painted-steel drum: pressed rib bands, welded seam, lid rim and a ground
+ // flange. The flange and lid pitch give the barrel an unmissable top/bottom
+ // rather than letting the raw cylinder fade into the pavement.
+ const drumProp=(x,y,z,r,h,color)=>{
+  add('cylinder',color,x,y+h*.5,z,r,h,r,0,'drum');
+  add('cylinder',0x2c322c,x,y+h*.08,z,r*1.03,.11,r*1.03,0,'steel');
+  add('cylinder',0x353d35,x,y+h*.35,z,r*1.025,.055,r*1.025,0,'steel');
+  add('cylinder',0x353d35,x,y+h*.68,z,r*1.025,.055,r*1.025,0,'steel');
+  add('cylinder',0x2a302b,x,y+h-.05,z,r*1.02,.10,r*1.02,0,'steel');
+  add('cylinder',0x202621,x,y+h+.02,z,r*1.035,.035,r*1.035,0,'steel');
+ };
+ // Wooden supply crate: board body, overhanging lid, four corner battens and
+ // crossed bracing on the two broad faces. Detail is real geometry so the crate
+ // keeps its silhouette and reads as timber under the flat overcast light.
+ const crateProp=(x,y,z,w,h,d,color)=>{
+  const lid=shade(color,1.34),batten=shade(color,.65),brace=shade(color,.9);
+  add('box',color,x,y+h*.5,z,w,h,d,0,'crate');
+  add('box',lid,x,y+h+.015,z,w+.045,.075,d+.045,0,'planks');
+  for(const sx of [-1,1])for(const sz of [-1,1])add('box',batten,x+sx*(w*.5-.008),y+h*.5,z+sz*(d*.5-.008),.115,h*.99,.115,0,'planks');
+  add('box',brace,x,y+h*.5,z+d*.5+.016,Math.hypot(w,h)*.93,.115,.04,0,'planks',0,Math.PI/4);
+  add('box',brace,x,y+h*.5,z-d*.5-.016,Math.hypot(w,h)*.93,.115,.04,0,'planks',0,-Math.PI/4);
+ };
  add('box',palette.ground,0,-.12,0,world.size,.2,world.size,0,world.theme==='wilderness'?'forest':'gravel');
  const terrain=world.terrain?terrainMesh(world,palette):null;if(terrain)root.add(terrain);
  root.userData.raidTerrainMaterial=terrain?terrain.material:null;
@@ -212,7 +237,28 @@ export function buildEnvironment(world){
   const signature=x+','+z+','+w+','+d+','+h+','+y+','+kind+','+tint;
   if(renderedBlocks.has(signature))continue;
   renderedBlocks.add(signature);
-  add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
+  if(kind==='barrier'&&h>=2.4){
+   // Tall hazard slabs used to be raw yellow/black tiled boxes: a full-height
+   // chevron wash that read as a broken billboard. Render them as weathered
+   // concrete boundary walls instead, with panel seams, a steel cap and small
+   // hazard placards at eye level so the quarantine still reads deliberately.
+   const base=tint??0x969a8e,courseH=3.6,courses=Math.max(1,Math.round(h/courseH)),hh=h/courses;
+   // Lay the wall in alternating pours. Each course re-tiles the concrete map
+   // instead of stretching one sheet over 27 m, and the recess line between
+   // pours gives the slab readable construction joints at distance.
+   for(let i=0;i<courses;i++){
+    add('box',i%2?shade(base,.85):base,x,y+hh*(i+.5),z,w,hh-.045,d,0,'concrete');
+    add('box',0x4f554c,x,y+hh*(i+1)-.025,z,w+.018,.05,d+.018,0,'plain');
+   }
+   add('box',0x565b53,x,y+.2,z,w+.10,.4,d+.10,0,'concrete');
+   add('box',0x596262,x,y+h-.07,z,w+.06,.14,d+.06,0,'steel');
+   const wide=w>=d,plate=Math.min(1,Math.max(.6,Math.min(2.4,(wide?w:d)*.22)));
+   // A continuous painted ochre line replaces the old billboard-wide chevrons:
+   // it marks the boundary at eye level without shouting.
+   if(wide)for(const sz of [-1,1]){add('box',0xb7a25f,x,y+1.12,z+sz*(d*.5+.02),w,.11,.04,0,'plain');add('box',0xd4bd77,x,y+.55,z+sz*(d*.5+.035),plate,.52,.035,0,'hazard')}
+   else for(const sx of [-1,1]){add('box',0xb7a25f,x+sx*(w*.5+.02),y+1.12,z,.04,.11,d,0,'plain');add('box',0xd4bd77,x+sx*(w*.5+.035),y+.55,z,.035,.52,plate,0,'hazard')}
+  }
+  else add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
  }
  // Presentation-only structure weathering derived from the frozen block layer:
  // solid street-level buildings gain a dark foundation plinth and an overhanging
@@ -432,8 +478,8 @@ export function buildEnvironment(world){
   else if(prop.kind==='ruin'){const c=prop.color||0x8b8c84,ry=prop.ry||0,off=1.25*s,px=x+Math.sin(ry)*off,pz=z+Math.cos(ry)*off;add('box',c,x,y+.85*s,z,.55*s,1.7*s,2.4*s,ry,'brick',0,0);add('box',c,px,y+.58*s,pz,.5*s,1.16*s,1.5*s,ry,'brick',0,0);add('box',0x74736c,x-Math.cos(ry)*.95*s,y+.12*s,z+Math.sin(ry)*.95*s,1.9*s,.2*s,.62*s,ry+.35,'rock',0,Math.PI*.06)}
   else if(prop.kind==='rubble'){const c=prop.color||0x8a8777,ry=prop.ry||0;for(let i=0;i<3;i++){const a=ry+i*2.1;add('box',c,x+Math.cos(a)*.38*s,y+(.18+i*.11)*s,z+Math.sin(a)*.44*s,.55*s*(1-i*.12),.22*s*(1+i*.35),.68*s*(1-i*.18),a,'rock',0,Math.PI*.08)}add('sphere',0x777268,x-.3*s,y+.12*s,z+.25*s,.34*s,.18*s,.28*s,0,'rock')}
   else if(prop.kind==='rock'){add('sphere',prop.color||0x8a8777,x,y+.55*s,z,1.5*s,.85*s,1.2*s,0,'rock',0)}
-  else if(prop.kind==='barrel'){add('cylinder',prop.color||0x4b5344,x,y+.6*s,z,.5*s,1.3*s,.5*s,0,'metal');add('cylinder',0x1f2420,x,y+1.24*s,z,.52*s,.08*s,.52*s,0,'metal')}
-  else if(prop.kind==='crate'){add('box',prop.color||0x9c7b4d,x,y+.55*s,z,1.15*s,1.1*s,1.15*s,0,'crate')}
+  else if(prop.kind==='barrel')drumProp(x,y,z,.5*s,1.3*s,prop.color||0x4b5344)
+  else if(prop.kind==='crate')crateProp(x,y,z,prop.w||1.15*s,prop.h||1.1*s,prop.d||1.15*s,prop.color||0x9c7b4d)
   else if(prop.kind==='tank'){const c=prop.color||0x748889;add('cylinder',c,x,y+1.5*s,z,1.1*s,3*s,1.1*s,0,'metal');add('sphere',c,x,y+3*s,z,1.1*s,.55*s,1.1*s,0,'metal');add('box',0x4d5f63,x,y+.25,z,2.5*s,.3*s,2.5*s,0,'metal')}
   else if(prop.kind==='tent'){add('cone',prop.color||0x8a9b7a,x,y+1.25*s,z,1.7*s,2.5*s,1.7*s)}
   else if(prop.kind==='campfire'){add('cylinder',0x5a4632,x,y+.12,z,.75*s,.18*s,.75*s,0,'rock');add('sphere',prop.color||0xffb64d,x,y+.42*s,z,.42*s,.55*s,.42*s,0,'glow');add('box',0x3e342c,x,y+.1,z,1.1*s,.12*s,.16*s,0,'planks',0,Math.PI/5);glow(x,y+.42*s,z,prop.color||0xff9b52);lightPool(prop,0xff9444,2.2*s)}
@@ -960,12 +1006,8 @@ export function buildEnvironment(world){
  // insertion point. The shared list also lowers these into decor colliders, so
  // what the player sees matches what stops a body, bullet or machine leg.
  for(const item of raidSpawnDressing(world)){
-  if(item.kind==='drum'){
-   add('cylinder',item.color,item.x,item.y+.65,item.z,.52,1.3,.52,0,'metal');
-   add('cylinder',0x2a2f2c,item.x,item.y+1.25,item.z,.54,.09,.54,0,'metal');
-   add('cylinder',0x232824,item.x,item.y+.07,item.z,.54,.10,.54,0,'metal');
-  }
-  else add('box',item.color,item.x,item.y+.55,item.z,item.w,item.h,item.d,0,'crate');
+  if(item.kind==='drum')drumProp(item.x,item.y,item.z,item.radius,item.height,item.color);
+  else crateProp(item.x,item.y,item.z,item.w,item.h,item.d,item.color);
  }
  // Perimeter hills and warning posts frame the playable region without blocking routes.
  for(let i=0;i<24;i++){const angle=i*Math.PI/12,x=Math.sin(angle)*(world.size/2+15),z=Math.cos(angle)*(world.size/2+15);add('cone',palette.rock,x,7,z,15,18,15,angle,'rock')}

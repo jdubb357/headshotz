@@ -33,6 +33,22 @@ const TEXGEN={
  crate(x,n,r){TEXGEN.planks(x,n,r);x.strokeStyle='rgba(70,40,15,.85)';x.lineWidth=n*.09;x.strokeRect(n*.045,n*.045,n*.91,n*.91);x.beginPath();x.moveTo(n*.08,n*.08);x.lineTo(n*.92,n*.92);x.stroke();
   x.fillStyle='rgba(30,20,10,.6)';for(const[a,b]of[[.05,.05],[.95,.05],[.05,.95],[.95,.95]]){x.beginPath();x.arc(a*n,b*n,2.5,0,7);x.fill()}},
  hazard(x,n){x.fillStyle='#fff';x.fillRect(0,0,n,n);x.fillStyle='#333';for(let i=-n;i<n*2;i+=n/4){x.beginPath();x.moveTo(i,0);x.lineTo(i+n/8,0);x.lineTo(i+n/8-n,n);x.lineTo(i-n,n);x.fill()}},
+ // Painted-steel drum: soft vertical falloff, two pressed rib bands, a welded
+ // seam with rivets and a little rust bloom. White-ish so the prop tint carries
+ // the drum's paint colour; the rib shadows survive at gameplay distance.
+ drum(x,n,r){const g=x.createLinearGradient(0,0,n,0);g.addColorStop(0,'#9ea09a');g.addColorStop(.45,'#cfd2c9');g.addColorStop(1,'#969990');x.fillStyle=g;x.fillRect(0,0,n,n);
+  noise(x,n,r,150,235,900,1.4);
+  for(const t of [.30,.64]){const y=t*n;x.fillStyle='rgba(24,26,24,.34)';x.fillRect(0,y-2,n,3);x.fillStyle='rgba(96,98,92,.22)';x.fillRect(0,y+1,n,2);x.fillStyle='rgba(255,255,255,.34)';x.fillRect(0,y+3,n,1)}
+  x.fillStyle='rgba(74,76,70,.35)';x.fillRect(n*.83,0,2,n);
+  for(let y=7;y<n;y+=12){x.fillStyle='rgba(52,54,50,.55)';x.beginPath();x.arc(n*.84,y,1.4,0,7);x.fill()}
+  for(let i=0;i<20;i++){x.fillStyle=`rgba(${115+(r()*35|0)},${58+(r()*24|0)},${26+(r()*18|0)},${.16+r()*.26})`;x.beginPath();x.ellipse(r()*n,r()*n,1.4+r()*3.4,1+r()*6,r()*3,0,7);x.fill()}
+  for(let i=0;i<9;i++){x.fillStyle='rgba(238,238,232,.22)';x.beginPath();x.ellipse(r()*n,r()*n,2+r()*5,1+r()*2,r()*3,0,7);x.fill()}},
+ // Smooth, brushed cold steel for drum rims, lids and wall caps. No weave: the
+ // old metal tiles read as basketwork when they were stretched over drums.
+ steel(x,n,r){const g=x.createLinearGradient(0,0,0,n);g.addColorStop(0,'#d5d8d1');g.addColorStop(1,'#aeb2ab');x.fillStyle=g;x.fillRect(0,0,n,n);
+  noise(x,n,r,160,235,700,1);
+  x.strokeStyle='rgba(255,255,255,.22)';x.lineWidth=.5;for(let i=0;i<n;i+=3){x.beginPath();x.moveTo(0,i+r()*.8);x.lineTo(n,i+r()*1.4);x.stroke()}
+  x.fillStyle='rgba(70,74,70,.16)';for(let i=0;i<6;i++){x.beginPath();x.ellipse(r()*n,r()*n,2+r()*4,1+r()*2,r()*3,0,7);x.fill()}},
  leaves(x,n,r){x.fillStyle='#ccc';x.fillRect(0,0,n,n);for(let i=0;i<500;i++){const v=170+r()*85|0;x.fillStyle=`rgb(${v},${v},${v})`;x.beginPath();x.ellipse(r()*n,r()*n,3+r()*4,1.5+r()*2,r()*3,0,7);x.fill()}},
  gunMetal(x,n,r){x.fillStyle='#d8d8d8';x.fillRect(0,0,n,n);noise(x,n,r,160,255,9500,.8);x.strokeStyle='rgba(255,255,255,.18)';x.lineWidth=.5;for(let i=0;i<n;i+=2){x.beginPath();x.moveTo(0,i+r());x.lineTo(n,i+r()*1.5);x.stroke()}x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=.6;for(let i=0;i<18;i++){x.beginPath();const px=r()*n,py=r()*n,a=r()*6.28,l=3+r()*14;x.moveTo(px,py);x.lineTo(px+Math.cos(a)*l,py+Math.sin(a)*l);x.stroke()}},
  gunAlu(x,n,r){x.fillStyle='#d6d6d6';x.fillRect(0,0,n,n);noise(x,n,r,185,255,5200,.8);x.strokeStyle='rgba(255,255,255,.22)';x.lineWidth=.5;for(let i=0;i<n;i+=3){x.beginPath();x.moveTo(0,i);x.lineTo(n,i+r()*.8);x.stroke()}},

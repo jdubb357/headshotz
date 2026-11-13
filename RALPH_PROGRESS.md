@@ -7944,3 +7944,17 @@ The pyramid-artifact read is gone and the road crop now looks like windblown wet
 ### Next action
 Finish director note 1 (rest): give the spawn/review-crate a readable wood-slat material, the near barrel ribbed steel that sits on the ground, and the doorway stoops/planks real wood texture; then the tall striped tower façade, readable radar exit arrow and collider stop thump.
 
+## Iteration 93 — Crates, barrels and the striped barrier wall read as objects (director note 1 rest, part 1; 2026-11-12)
+
+**Task:** director note 1 remaining items touching spawn props: wooden crate, ribbed steel drums, tall hazard-stripe slab.
+
+**Changed:** `gfx.js` adds a painted-steel `drum` map (rib shadows, weld seam rivets, rust bloom) and a brushed `steel` map; the old `metal` sine weave is no longer used for drums. `raid-environment.mjs` adds shared `drumProp`/`crateProp`: drums get pressed rib bands, weld rim, lid cap and ground flange, flush to terrain; crates get an overhanging plank lid, four corner battens and crossed braces on both broad faces. Barrier blocks ≥2.4 m become stacked concrete courses (texture re-tiled per 3.6 m pour) with recess joints, steel cap, ground plinth, ochre boundary line and small base hazard placards instead of a full-height chevron wash. Cylinder radial segments 10→16 smooths barrel silhouettes.
+
+**Verified:** `raid-browser-scenery` exit 0 (1926/1991/1880 scenery, kinds unchanged, browserErrors []); `raid-browser-static-offline` exit 0 (deploy→move→hit→loot→extract, 2 items, 270 credits); `raid-browser-mobile-hud` exit 0 (1024×720 91.8%, 844×390 81.8%); `raid-browser-performance` exit 0 (2.1k/2.1k/2.2k draw calls desktop, ≈9.4-11.9M triangles, all budgets green). Node suite 1248 pass, 1 known intermittent matchmaking ECONNRESET (rerun alone, same failure).
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared and refilled at forced 14:00 rain: `before-1024`/`after-1024` and `before-844`/`after-844` are the spawn eye-level frame; `before/after-1024-crate` and `before/after-1024-drum` are 2 m closeups; `before/after-844-crate` are the same props at phone size. Raw frames: `/tmp/hsz-iter93/out`.
+
+**Honest critique:** The drums finally read as ribbed painted steel and the crate shows timber framing, but under the flat overcast the rust drums drift toward dusty plastic, and the tall wall's stripes are gone only to become a quiet dark slab whose course seams and ochre line are lost in fog at spawn distance — quieter, not yet crafted.
+
+**Next action:** Director note 1 rest, part 2: real wood on doorway stoops/planks, then the readable radar exit arrow and the collider-stop thump. Note 2 (scout chassis silhouette and actual engagement) stays next.
+
