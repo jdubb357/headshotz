@@ -45,7 +45,7 @@ try{
  assert.equal(slim.teleOpacity,'0','the detailed telemetry is clipped, not merely faded');
  assert.ok(slim.teleWidth<8,'the clipped telemetry no longer covers the field ('+slim.teleWidth+'px)');
  assert.equal(slim.stripDisplay,'flex','the slim HP/ammo strip is rendered');
- assert.match(slim.statusText,/^Objective · \d+ m (north|northeast|east|southeast|south|southwest|west|northwest) · \d{3}°$/,'the deploy briefing is one short objective route line');
+ assert.match(slim.statusText,/^[A-Za-z][\w ]+ · \d+ m (north|northeast|east|southeast|south|southwest|west|northwest) · \d{3}°$/,'the deploy briefing names the nearest armory and its route');
  assert.ok(slim.statusHeight<=32,'the briefing collapses to one line ('+slim.statusHeight+'px)');
  await shot(p,'/tmp/hs-theme-raid-slim.png');
  // Opt into the explicit full layout to keep exercising the readable glass panel
