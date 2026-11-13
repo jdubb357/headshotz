@@ -3,6 +3,14 @@ import {getTex,normalTex,TX} from './gfx.js';
 import {terrainHeightAt,raidScenery,raidDoorwaySites,raidSpawnDressing,uniqueWindowProps} from './shared/raid-worlds.mjs';
 const palettes={industrial:{ground:0x969684,concrete:0xadb0a8,brick:0x9b8272,planks:0x8a7c68,roof:0x44565f,metal:0x8ea0a1,container:0x4e7b81,rock:0x7f7c72,crate:0xac8755,barrier:0xccb173},wilderness:{ground:0x8a9375,concrete:0xb0b0a4,brick:0xa88977,planks:0x8a7357,roof:0x4c6662,metal:0x8fa2a2,container:0x7c7050,rock:0x99958a,crate:0x9c8559,barrier:0xa8a176},settlement:{ground:0x9c8d78,concrete:0xb3ada3,brick:0xb0836a,planks:0x94785c,roof:0x5c5f6a,metal:0x8d989d,container:0x7a625a,rock:0x857d70,crate:0xac8252,barrier:0xceb379}};
 const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':kind==='crate'?'crate':kind==='rock'?'rock':kind==='barrier'?'hazard':kind==='planks'?'planks':kind==='brick'?'brick':'concrete';
+// Photographed surfaces store their real colour in assets/tex/*_d.jpg. Their
+// materials carry only an exposure tint, not a pale palette dye, so brick stays
+// brick red and planks stay timber brown instead of greyscale x tint.
+const PHOTO_SURFACES=new Set(['concrete','brick','planks','asphalt','rock','tiles','metal','sand','plaster','crate','forest','dirt','gravel','cobble']);
+// One texture tile in metres. Block faces are stretched by their instance size,
+// so the shader below repeats the photographed map at real brick/board scale
+// rather than smearing one 12 m sheet across a whole façade.
+const PHOTO_TILE={concrete:2.8,brick:1.9,planks:1.8,asphalt:3.5,dirt:3.5,gravel:3.0,forest:3.2,cobble:1.8,tiles:2.4,metal:2.0,rock:2.8,plaster:2.2,sand:2.4,crate:1.0};
 // Per-surface physical response: [roughness, metalness, normalScale]. Asphalt and
 // barriers keep a wet sheen so the sky environment map reads as surface reflection,
 // while concrete/rock stay diffuse. The table also feeds terrain shading.
@@ -166,36 +174,42 @@ export function buildEnvironment(world){
     ?{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:1.8,emissive:windowLit??0x000000,emissiveIntensity:0}
     :{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:spec[1]>.1?1.3:.55,side:type==='tuft'?THREE.DoubleSide:THREE.FrontSide,...(spec[2]>0?{normalMap:normalTex(texture),normalScale:new THREE.Vector2(spec[2],spec[2])}:{})});
   if(windowLit!==null){mat.userData.raidWindowGlass=true;mat.userData.raidWindowGlowColor=windowLit;windowMaterials.push(mat)}
-  // Roads and fields are unit cubes stretched to tens or hundreds of metres, so
-  // one authored texture tile would smear across the entire lane. Scale the map
-  // UVs by the instance footprint (about a 3.5 m tile) so the first 5 m keeps
-  // readable asphalt grain, cracks and field dirt instead of a flat wash.
-  if(texture==='asphalt'||texture==='dirt'){
+  mat.userData.raidSurface=texture;mat.userData.raidAuthoredColor=color;
+  // Unit-cube instances are stretched to tens of metres, so the photographed
+  // map is repeated per instance footprint at the authored tile size. This one
+  // hook also chains the foliage wind shader, keeping both edits alive.
+  const tile=PHOTO_TILE[texture];
+  if(tile||wind){
    mat.onBeforeCompile=shader=>{
-    shader.uniforms.uGroundTile={value:3.5};
-    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uGroundTile;').replace('#include <uv_vertex>',`#include <uv_vertex>
+    if(tile){
+     shader.uniforms.uTile={value:tile};
+     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uTile;').replace('#include <uv_vertex>',`#include <uv_vertex>
 #ifdef USE_INSTANCING
- vec3 groundScale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
- vec2 groundRep=vec2(1.0);
- if(abs(normal.x)>.5)groundRep=vec2(groundScale.z,groundScale.y);
- else if(abs(normal.y)>.5)groundRep=vec2(groundScale.x,groundScale.z);
- else groundRep=vec2(groundScale.x,groundScale.y);
- groundRep=max(vec2(1.0),groundRep/uGroundTile);
+ vec3 surfaceScale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
+ vec2 surfaceRep=vec2(1.0);
+ if(abs(normal.x)>.5)surfaceRep=vec2(surfaceScale.z,surfaceScale.y);
+ else if(abs(normal.y)>.5)surfaceRep=vec2(surfaceScale.x,surfaceScale.z);
+ else surfaceRep=vec2(surfaceScale.x,surfaceScale.y);
+ surfaceRep=max(vec2(1.0),surfaceRep/uTile);
  #ifdef USE_MAP
-  vMapUv*=groundRep;
+  vMapUv*=surfaceRep;
  #endif
  #ifdef USE_NORMALMAP
-  vNormalMapUv*=groundRep;
+  vNormalMapUv*=surfaceRep;
  #endif
 #endif`);
+    }
+    if(wind){
+     shader.uniforms.uWindTime={value:0};
+     shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uWindTime;').replace('#include <begin_vertex>','#include <begin_vertex>'+WIND_VERTEX);
+     mat.userData.raidShader=shader;
+    }
    };
-   mat.customProgramCacheKey=()=>'raidGroundUV';
+   mat.customProgramCacheKey=()=>'raid'+(tile?'T'+tile:'')+(wind?'W':'');
   }
   mat.userData.raidOwned=true;mat.userData.raidDry={roughness:mat.roughness,metalness:mat.metalness,envMapIntensity:mat.envMapIntensity??1,normalScale:mat.normalScale?mat.normalScale.x:null};mat.userData.raidWet=glow?0:(WET_RESPONSE[texture]||0);
   if(tag)mat.userData.raidStructure=tag;
-  // Only the foliage groups sway; the uniform is exposed through the root so
-  // RaidView can advance it without touching foliage/world transform data.
-  if(wind){mat.userData.raidWind=true;mat.onBeforeCompile=shader=>{shader.uniforms.uWindTime={value:0};shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uWindTime;').replace('#include <begin_vertex>','#include <begin_vertex>'+WIND_VERTEX);mat.userData.raidShader=shader};windMaterials.push(mat)}
+  if(wind){mat.userData.raidWind=true;windMaterials.push(mat)}
   materials.set(key,mat);group={type,transforms:[],material:mat,tag};groups.set(key,group);
   }
   position.set(x,y,z);scale.set(sx,sy,sz);euler.set(rx,ry,rz);quaternion.setFromEuler(euler);matrix.compose(position,quaternion,scale);group.transforms.push(matrix.clone());
@@ -1153,4 +1167,28 @@ export function buildEnvironment(world){
   const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;if(tag&&tag!=='windowDark'&&!tag.startsWith(WLIT))mesh.userData.raidStructure=tag;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
  }
  root.userData.materials=materials;return root;
+}
+// Once the CC0 photographs are decoded, strip the old pale palette dye from the
+// photographed surfaces. The map supplies the colour; the tint keeps only a
+// small authored exposure difference so buildings do not all read identical.
+const LUM=.2126;
+export function applyPhotoLook(root){
+ if(!root||root.userData.raidPhotoLook)return;
+ root.userData.raidPhotoLook=true;
+ for(const mat of root.userData.materials?.values()||[]){
+  const surface=mat.userData.raidSurface;
+  if(!PHOTO_SURFACES.has(surface)||mat.userData.raidStructure||mat.userData.raidAuthoredColor==null)continue;
+  // Neutral exposure = the old tint's luminance. The legacy greyscale map was
+  // effectively the photograph's luminance, so this keeps the scene's authored
+  // brightness while the photograph now supplies hue (red brick, brown timber).
+  const hex=mat.userData.raidAuthoredColor,r=(hex>>16&255)/255,g=(hex>>8&255)/255,b=(hex&255)/255;
+  const lum=LUM*r+.7152*g+.0722*b,v=Math.max(70,Math.min(232,Math.round((lum*.94+.05)*255)));
+  mat.color.setHex((v<<16)|(v<<8)|v);mat.needsUpdate=true;
+ }
+ const terrain=root.userData.raidTerrainMaterial,mesh=terrain&&root.children.find(m=>m.isMesh&&m.material===terrain);
+ const colors=mesh?.geometry?.attributes?.color;
+ // Terrain vertex colour is linear working space; use its luminance as a neutral
+ // exposure so hills and verges keep their original shade and gain photo tint.
+ if(colors)for(let i=0;i<colors.count;i++){const r=colors.getX(i),g=colors.getY(i),b=colors.getZ(i),v=Math.max(.18,Math.min(.5,LUM*r+.7152*g+.0722*b));colors.setXYZ(i,v,v,v);colors.needsUpdate=true}
+ return root;
 }

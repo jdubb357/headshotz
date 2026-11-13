@@ -6,7 +6,7 @@ import {WEAPONS} from './shared/raid-catalog.mjs';
 import {MACHINES} from './shared/raid-enemies.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 import {HQP} from './assets.js';
-import {photoItems} from './photoguns.js';
+import {PHOTO,photoItems} from './photoguns.js';
 const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,12,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,5,24),gem:new THREE.OctahedronGeometry(1,0)};
 const HIT_FLASH_COLOR=new THREE.Color(0xffffff);
 const materials=new Map();
@@ -305,8 +305,26 @@ function gunGroupMaterial(key){
  }
  material.name=key;material.userData.raidOwned=true;return material;
 }
+const PHOTO_ALIAS={pistol:'handgun'};
 export function weaponModel(id,hands=false){
- const {parts,info}=gunParts(id==='pistol'?'handgun':id,1),all=hands?parts.concat(handParts(info,0x2f342c,0x5a4634)):parts,groups=new Map(),root=new THREE.Group();
+ const scanId=PHOTO_ALIAS[id]||id,scan=PHOTO[scanId]?photoItems(scanId,false,HQP):null;
+ const {parts,info}=gunParts(scanId,1);
+ if(scan&&scan.length){
+  // The shipped CC0 photogrammetry scan replaces the hand-built box body: the
+  // first frame now shows a real rifle with its own rivets, welds and wear.
+  // Arms/hands stay procedural so the reload, bob and ADS poses still animate.
+  const root=new THREE.Group();
+  for(const slot of scan){const mesh=new THREE.Mesh(slot.geo,slot.mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
+  const all=hands?handParts(info,0x2f342c,0x5a4634):[];
+  const groups=new Map();
+  for(const p of all){const key=p.mat||'metal';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p)}
+  for(const [key,parts]of groups){const geometry=mergeParts(parts,{uv:true});geometry.userData.raidOwned=true;const mesh=new THREE.Mesh(geometry,gunGroupMaterial(key));mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
+  // Scan-space muzzle/sight overrides (authoring offsets differ from the boxes)
+  // merge over the procedural rig so flash, ADS centring and ejection still land.
+  root.userData.info={...info,...(PHOTO[scanId]?.info||{})};
+  return root;
+ }
+ const all=hands?parts.concat(handParts(info,0x2f342c,0x5a4634)):parts,groups=new Map(),root=new THREE.Group();
  for(const p of all){const key=p.mat||'metal';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p)}
  for(const [key,parts]of groups){const geometry=mergeParts(parts,{uv:true});geometry.userData.raidOwned=true;
   const mesh=new THREE.Mesh(geometry,gunGroupMaterial(key));

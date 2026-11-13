@@ -5,10 +5,11 @@ import * as THREE from './lib/three.module.min.js';
 import {getWorld,terrainHeightAt,blocked} from './shared/raid-worlds.mjs';
 import {mapConditions} from './shared/raid-enemies.mjs';
 import {exitColor} from './shared/raid-exits.mjs';
-import {buildEnvironment} from './raid-environment.mjs';
+import {buildEnvironment,applyPhotoLook} from './raid-environment.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 import {TX,getTex,normalTex,makeRaidHorizon} from './gfx.js';
 import {HUM} from './humans.js';
+import {HQP} from './assets.js';
 import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,updateExitSignal,disposeOwned,part,beaconModel} from './raid-models.mjs';
 
 import {RaidAudio,spatialCue} from './raid-audio.mjs';
@@ -264,6 +265,19 @@ export class RaidView {
  // footprint.
  refreshArt(){
   if(!this.scene)return;
+  // The held gun is built during the first sync, before the scanned GLBs land.
+  // Rebuild it here so the first frame shows a real weapon, not box geometry.
+  if(HQP.guns&&this.gunRoot&&this.snapshot?.self){
+   const self=this.snapshot.self;
+   const item=[...self.equipment,...self.pack].find(it=>it.id===self.weaponId&&it.kind==='weapon');
+   if(item){
+    for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}
+    this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.gunAimFade=[];
+    this.gun.traverse(node=>{const material=node.material;if(!node.isMesh||!material||!['stock','sleeve'].includes(material.name))return;
+     material.transparent=true;material.depthWrite=false;material.opacity=1;this.gunAimFade.push(material)});
+   }
+  }
+  applyPhotoLook(this.environmentRoot);
   if(this.terrainMaterial){
    const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
    const live=getTex(key),liveNormal=normalTex(key,1.6);
