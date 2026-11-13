@@ -555,7 +555,44 @@ export function machineModel(kind,options={}){
 // geometry and rig into a rusted gun-metal sentinel without repainting its
 // silhouette. Materials stay shared with the worn-plating cache so a dozen
 // scouts do not allocate a texture each.
-const SCOUT_ASSET_TINT={Main2:0x5b6469,Main:0x464f53,Edge:0xb8c2c6,Dark:0x0c1012,Grey:0x2c3539,LightGrey:0x7b868b};
+const SCOUT_ASSET_TINT={Main2:0x93a0a5,Main:0x748186,Edge:0xdfe7e8,Dark:0x141b1e,Grey:0x637277,LightGrey:0xc2cccf};
+// A scout is the first machine a player meets and often the only silhouette at
+// spawn distance, so its plating carries its own finish: brighter worn metal
+// than the other classes plus a wider, warmer grazing-angle rim. The shared
+// wornMat rim is deliberately subtle; this variant lifts the hull off dark brick
+// façades without adding a per-actor light (and the shader program is shared by
+// material instances).
+const scoutPlatingMats=new Map();
+function scoutPlatingMat(color){
+ const key='scout|'+color;if(scoutPlatingMats.has(key))return scoutPlatingMats.get(key);
+ const material=new THREE.MeshStandardMaterial({color,map:wornPlatingTexture(),roughness:.58,metalness:.56,envMapIntensity:1.25});
+ material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
+  'float raidEdge=pow(1.0-abs(dot(normalize(normal),normalize(vViewPosition))),2.4);\n'+
+  'outgoingLight+=vec3(.60,.71,.78)*.30*raidEdge;\n'+
+  '#include <opaque_fragment>')};
+ scoutPlatingMats.set(key,material);return material;
+}
+// A dedicated footprint map gives the scout a solid dark core under the stance
+// that fades out over the outer third; the shared TX.soft radial is tuned for
+// smoke (alpha .6 at 40% radius) and reads as haze rather than contact when it
+// is only a few centimetres above the ground.
+let scoutShadowTex=null;
+function scoutShadowTexture(){
+ if(scoutShadowTex)return scoutShadowTex;
+ const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');
+ const g=x.createRadialGradient(32,32,0,32,32,32);
+ g.addColorStop(0,'rgba(3,6,7,1)');
+ g.addColorStop(.55,'rgba(3,6,7,.82)');
+ g.addColorStop(.86,'rgba(3,6,7,.24)');
+ g.addColorStop(1,'rgba(3,6,7,0)');
+ x.fillStyle=g;x.fillRect(0,0,64,64);
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return scoutShadowTex=t;
+}
+let scoutPadGeo=null;
+function scoutPadGeometry(){
+ if(scoutPadGeo)return scoutPadGeo;
+ scoutPadGeo=new THREE.PlaneGeometry(1,1);scoutPadGeo.userData.raidOwned=true;return scoutPadGeo;
+}
 let scoutEyeMat=null;
 function scoutEyeMaterial(){
  if(scoutEyeMat)return scoutEyeMat;
@@ -567,26 +604,58 @@ function scoutEyeMaterial(){
 // snapshot still owns its health, yaw, attack windup and shot tokens.
 function assetScout(root,def){
  const asset=HQP.machines.scout,model=cloneSkinned(asset.scene);
+ // At its normalised 1.45 m the scout's disc body reads as a kneeling prop next
+ // to street crates. Scaling the rig 1.5x brings it to ~2.18 m, so its
+ // silhouette matches the hunter's sensor cowl at spawn distance.
+ const SCOUT_VISUAL_SCALE=1.5;
+ // Multiply the loader's height-normalisation instead of overwriting it: the
+ // scene arrives scaled to the 1.45 m HQP height, and setScalar(1.5) would
+ // silently shrink it to 1.36 m. This keeps the asset's authored rig untouched.
+ model.scale.multiplyScalar(SCOUT_VISUAL_SCALE);
  model.traverse(node=>{
   if(!node.isMesh||!node.material||Array.isArray(node.material))return;
   const name=node.material.name||'';
-  node.material=name==='Eye'?scoutEyeMaterial():wornMat(SCOUT_ASSET_TINT[name]??0x3b454b);
+  node.material=name==='Eye'?scoutEyeMaterial():scoutPlatingMat(SCOUT_ASSET_TINT[name]??0x4a555a);
  });
  root.add(model);
  model.updateWorldMatrix(true,false);
  const eyeNode=model.getObjectByName('Eye');
  const eyePos=eyeNode?eyeNode.getWorldPosition(new THREE.Vector3()):new THREE.Vector3(0,def.height*.78,.32);
- eyePos.y=Math.max(.32,eyePos.y);eyePos.z+=.055;
+ eyePos.y=Math.max(.48,eyePos.y);eyePos.z+=.055*SCOUT_VISUAL_SCALE;
  // The incandescent lens doubles as the authoritative weak point, so hits keep
  // strobing the same marker the server scores against.
- lightPart(root,eyePos.x,eyePos.y,eyePos.z,.09,true);
- root.userData.coreRadius=.09;
- // Contact bed only: the earlier camera-facing "haze" sprite fog-blended into a
- // pale grey rectangle around distant machines, so the real model now stands on
- // a soft dark footprint instead.
- const bedGeometry=new THREE.PlaneGeometry(1.35,.95);bedGeometry.userData.raidOwned=true;
- const bedMaterial=new THREE.MeshBasicMaterial({map:TX.soft,color:0x050b0a,transparent:true,opacity:.62,depthWrite:false,fog:false});bedMaterial.userData.raidOwned=true;
- const bed=new THREE.Mesh(bedGeometry,bedMaterial);bed.rotation.x=-Math.PI/2;bed.position.y=.055;bed.renderOrder=3;root.add(bed);root.userData.groundShadow=bed;
+ lightPart(root,eyePos.x,eyePos.y,eyePos.z,.135,true);
+ root.userData.coreRadius=.135;
+ // Contact bed: a soft near-black footprint grounds the hull on asphalt and
+ // gravel instead of letting the legs dangle above the deck. The footprint is
+ // measured from the rig's own foot bones so the upscaled scout still puts the
+ // shadow under its stance, and the radial map fades it into the surface rather
+ // than ending in a visible rectangle. The separate camera-facing haze sits just
+ // above the shins: at the low grazing angle a live raid frames machines from,
+ // the ground decal alone is only a few pixels tall.
+ const feet=[];
+ for(const boneName of ['FootL','FootR']){
+  const bone=model.getObjectByName(boneName);
+  if(bone)feet.push(bone.getWorldPosition(new THREE.Vector3()));
+ }
+ let bedZ=-.49,bedW=3.2;
+ if(feet.length){
+  bedZ=feet.reduce((sum,v)=>sum+v.z,0)/feet.length;
+  const xs=feet.map(v=>v.x);
+  bedW=Math.max(2.2,Math.max(...xs)-Math.min(...xs)+.8);
+ }
+ const bedGeometry=new THREE.PlaneGeometry(bedW,2.2);bedGeometry.userData.raidOwned=true;
+ const bedMaterial=new THREE.MeshBasicMaterial({map:scoutShadowTexture(),color:0xffffff,transparent:true,opacity:.94,depthWrite:false,fog:false});bedMaterial.userData.raidOwned=true;
+ const bed=new THREE.Mesh(bedGeometry,bedMaterial);bed.rotation.x=-Math.PI/2;bed.position.set(0,.06,bedZ);bed.renderOrder=3;root.add(bed);root.userData.groundShadow=bed;
+ // The foot span is wider than the footprint's dark core, so two pads put a
+ // darker pinch directly under each foot tip where contact actually reads.
+ for(const foot of feet){
+  const pad=new THREE.Mesh(scoutPadGeometry(),bedMaterial);
+  pad.rotation.x=-Math.PI/2;pad.scale.set(1.3,1.1,1);
+  pad.position.set(foot.x,.055,foot.z);pad.renderOrder=3;root.add(pad);
+ }
+ const hazeMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0x0a1210,transparent:true,opacity:.34,depthWrite:false,blending:THREE.NormalBlending,fog:false});hazeMaterial.userData.raidOwned=true;
+ const haze=new THREE.Sprite(hazeMaterial);haze.position.set(0,.26,bedZ);haze.scale.set(2.5,.9,1);haze.renderOrder=4;root.add(haze);root.userData.groundHaze=haze;
  const rig={mixer:new THREE.AnimationMixer(model),actions:{},current:'Idle',lastShot:null,force:null,forceUntil:0};
  for(const clip of asset.animations){
   const name=String(clip.name||'').split('|').pop();
