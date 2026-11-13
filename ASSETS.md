@@ -32,7 +32,7 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 
 Processing (v60 weapons): scanned meshes simplified with meshoptimizer to a ~8k-triangle first-person version and a ~3-4k-triangle third-person version, textures resized to 1024/256px WebP, original node names kept so slides, bolts and magazines still animate.
 
-Processing: textures downscaled to 512px (colour maps converted to greyscale detail so map tints still apply); models optimised with gltf-transform (meshopt geometry, 512px WebP textures, simplified). Libraries: three.js r160 GLTFLoader + meshopt decoder (MIT).
+Processing: surface textures downscaled to 512px and kept in full colour (the raid scene repeats them at real brick/board scale and keeps the photographed hue; building tints now set exposure only, with the pre-photo greyscale tint retired); gun wood grain likewise keeps the black-walnut colour. Models optimised with gltf-transform (meshopt geometry, 512px WebP textures, simplified). Libraries: three.js r160 GLTFLoader + meshopt decoder (MIT).
 
 ## Characters (v39)
 

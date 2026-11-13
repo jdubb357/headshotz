@@ -7987,3 +7987,30 @@ Finish director note 1 (rest): give the spawn/review-crate a readable wood-slat 
 **Honest critique:** The exchange finally reads — HP falls, the bar flashes red, the arrow points at the threat and the scout emits a warm burst — but because the shot comes straight into the camera the tracer mostly collapses to a bloom and a single dot, and the commander's hit arrow is a flat UI triangle rather than something the world sells; the scout still has no visible barrel or aiming motion, so it reads as "flashing" more than "firing."
 
 **Next action:** Director note 3 — the EXIT chip (603 m south) and Objective pill (632 m south · 162°) name different distances for the same direction; make them agree or clearly distinguish two places, then note 4 loot model scale and note 5 window/door coherence + keymap.
+
+## Iteration 96 — Scanned first-person rifle and photographed world surfaces (GUNFEEL + WORLD, 2026-11-12)
+
+**Task:** priority 2 GUNFEEL and priority 5 WORLD: the first frame showed a hand-built box rifle, photo textures were stretched as one sheet across every wall/road and dyed pale grey.
+
+### Acceptance criteria (recorded this slice)
+1. At 1024×720 and 844×390 offline raid spawn, the held first-person weapon is a real CC0 scanned GLB with receiver/rivets/wear, not the box body, while hands, muzzle flash, bob/ADS and reload still animate and no runtime error occurs.
+2. Photographed surfaces keep their true colour and grain (asphalt seams and cracks, brick courses, timber boards) and block faces repeat the map at real brick/board scale instead of smearing one sheet across a façade; terrain and walls are not washed out.
+3. No new panels, currencies, controls, jargon or account features; server rules, AI, progression, hit volumes and non-raid modes untouched; raid-only visual files plus texture swaps and ASSETS.md only.
+4. Same seed and forced clear daylight before/after frames at both sizes plus a walking action frame; static-offline, mobile-HUD and scenery graders green, Node suite unchanged.
+
+### Changed
+`raid-models.mjs` prefers the shipped `photoItems` CC0 scan for the weapon body and keeps procedural hands/arms, merged scan-space muzzle/sight offsets via `root.userData.info`. `raid-view.mjs` rebuilds the held gun inside `refreshArt()` once the scanned GLBs land (keeping the fade list and muzzle flash attached) and calls `applyPhotoLook`. `raid-environment.mjs` adds per-instance UV tiling (`PHOTO_TILE`, met-oscale) for all photographed surfaces plus the existing wind shader in one hook, and `applyPhotoLook` replaces the pale palette dye with a luminance-preserving neutral exposure and neutral terrain vertex tint so the photograph supplies hue. All 16 `assets/tex/*_d.jpg` diffuse maps were replaced with true-colour 512px Poly Haven CC0 downloads (same sources); ASSETS.md processing note updated.
+
+### Verification
+- `node tests/raid-browser-static-offline.mjs` → offline deploy→move→hit→loot→extract, 2 items, 270 credits, browserErrors []. `node tests/raid-browser-mobile-hud.mjs` → 1024×720 91.80% unobstructed / 844×390 81.81%, all touch actions pass. `node tests/raid-browser-scenery.mjs` → 1926/1991/1880 scenery, same kinds, browserErrors []. `node --check raid-models.mjs raid-view.mjs raid-environment.mjs` OK.
+- `node tests/raid-browser-viewmodel.mjs` still times out on `packOpen` and fails identically in the clean HEAD worktree (pre-existing, untouched). `node --test tests/*.test.mjs` → 1248 pass, 1 fail (known intermittent `matchmaking.test.mjs` ECONNRESET at wire-latency; same single failure as iteration 95).
+- Before/after captured from freshly deployed offline raids at the same seed and forced clear daylight (`node /tmp/hsz-iter96/scripts/capture2.mjs before /tmp/hsz-baseline` vs `after`): spot-checked that HP/ammo/clock/objective matched across pairs; browserErrors [].
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled: `before-1024.png`/`after-1024.png` and `before-844.png`/`after-844.png` at spawn; `before-1024-action.png`/`after-1024-action.png` after a 1.2 s walk; `before-1024-gun.png`/`after-1024-gun.png`, `before-1024-wall.png`/`after-1024-wall.png`, `before-1024-machine.png`/`after-1024-machine.png` crops. Baseline from a pristine `HEAD` git worktree at `/tmp/hsz-baseline`; raw frames in `/tmp/hsz-iter96/shots`.
+
+### Honest critique
+The rifle finally reads as a scanned Thompson with rivets and a rear sight, and brick/timber/asphalt carry real photo grain, but the after palette is brighter and warmer than the old dark overcast look (less ARC-gritty), the huge low-poly forearm cylinder still intrudes from screen left, the street barrels remain procedural lathe props, and at 844 the extra detail mostly reads as mottle rather than texture.
+
+### Next action
+Commit this slice on `cypert/dev` (no push, no PR, never `main`). Next iteration: director note 3 — make the EXIT chip (603 m south) and Objective pill (632 m south · 162°) agree or clearly name different places; then note 4 loot-scale/in-range label and note 5 keymap.
