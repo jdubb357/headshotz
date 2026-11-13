@@ -8189,3 +8189,43 @@ The blob is gone and the shot now reads as a fast amber flicker rather than a wa
 At 8 m and at phone width the scout now reads instantly — the hull is roughly half again as tall, pale worn metal lifts it off the brick, and the eye anchors it — but the contact shadow is still only a faint smudge on the dark gravel bank in the full frame (clear only on the pale curb and in the foot crop), and the 2.18 × 3.08 m body looks oversized beside the one-metre crate, so appearance still awaits Austin's real iPad/phone playtest.
 
 **Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — remove/realise the stray pale cream and tan props, the floating plank, gravel-bank stick/bird debris, and the sun disc blob; then item 3 (EXIT/Objective agreement), item 4 (windows/doors and arms), item 5 (loot scale/label and desktop keymap). DIRECTOR_NOTES item 1 is implemented but awaits Austin's live playtest.
+
+## Iteration 103 — Clear the stray pale bits and soften the sun (director note 1; 2026-11-13)
+
+**Task:** DIRECTOR_NOTES.md item 1 — after-1024.png stray pale/dark bits: the cream/tan post under the minimap, the tan post under the QUARANTINE LINE sign, the glowing grey ghost pylon by the left doorway, the dark bird/stick on the far gravel bank, the dark dashes left of the objective ring; also check the sky for a sun smudge and make it soft or hidden.
+
+### Acceptance criteria
+1. The pale stripe under the minimap is gone from the spawn frame at 1024×720 and 844×390; road wear and aggregate chips still give the near asphalt readable surface detail.
+2. The cream hazard sleeve on the QUARANTINE LINE sign posts is gone; the posts read as plain metal with concrete feet.
+3. The loot beacon at the left doorway no longer projects a grey/cyan ground-anchored pylon; it reads as a warm floating pickup glint with no stem touching the pavement.
+4. The dark crossed tuft/bird on the right gravel bank and the dark hairline dashes around the insertion are gone; no new pale or dark decor appears in the other four regions.
+5. The sun/moon are soft camera-relative glow sprites rather than a fixed opaque world disc; no sun smudge is visible in the spawn frame under the pinned daylight conditions, and the sun/moon remain off the visible sky unless legitimately in view.
+6. Loot-beacon presentation and rarity palette remain readable; the authoritative rarity accent on the ring is unchanged and all loot piles keep gem/halo/wisp/ring beacons.
+7. No new player-facing systems, panels, menus, currencies, jargon or account features; existing game modes untouched.
+8. Before/after frames captured offline under equal pinned conditions at 1024×720 and 844×390 plus action frames; the after frame is clearly cleaner in the named regions.
+9. Static-offline, mobile-HUD, loot-beacon and atmosphere browser graders pass; the Node suite stays at 1248/1249 with only the known intermittent `matchmaking.test.mjs` ECONNRESET (rerun alone: identical ECONNRESET); the known structures reduced-weather and foliage reduced-motion flakes remain pre-existing.
+10. No new third-party assets were added, so ASSETS.md is unchanged.
+
+### Changed
+- `raid-environment.mjs`: center-line paint dashes are now skipped within 26 m of an insertion point (`nearInsertion(px,pz,26)`), so no paint plank sits on the camera apron; remaining dashes are flush (y+.015), thinner (2.9×.006×.11) and use the scanned concrete surface rather than flat colour. The sign posts lose the `palette.barrier` + `hazard` sleeve; the concrete foot remains. Road wear no longer draws the third dark hairline crack strip. Grass scrub now skips the near 9–16 m band more aggressively ([9,16,20,26,32]) so the crossed cardboard blade that read as a bird on the gravel bank is gone.
+- `raid-models.mjs`: removed the ground-anchored rarity-coloured `cylinder` stem. Common grey loot gets a warm pickup glint; halo shrinks from 1.5 to 1.1 world units; the wisp is a thin warm 2 cm × .44 cylinder from .50 to .94 m, so it no longer touches ground. The ring still uses the authoritative rarity `color` (grader accent 7529136 / 9741998 unchanged).
+- `raid-view.mjs`: the fixed-position sun/moon spheres are replaced by camera-relative additive `TX.soft` sprites (sun 1.74× diameter, .85 opacity; moon .72), positioned along the conditions sun direction at 150×viewScale from the eye; sun/moon visibility follows the sign of sun.y.
+
+### Verification
+- `node --check` on all three changed files → OK.
+- `node tests/raid-browser-loot-beacons.mjs` → 2 piles, all gem/halo/wisp/ring present, ring accents match source (7529136, 9741998), glow/gem shared, staticPose true, changed 14621, `browserErrors:[]`.
+- `node tests/raid-browser-static-offline.mjs` → deploy true, moving true, `machineHit:"hit"`, looted, extracted, 2 items returned, 270 credits, `noApiTraffic:true`, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024×720 unobstructed .918, 844×390 .818; thumbstick, right-drag, interact, auto-fire/reload/aim/swap and touch behaviours all true; `browserErrors:[]`.
+- `node tests/raid-browser-atmosphere.mjs` → day/rain/night cloud passes, dust 240, diff 4244 at stable scene, reduced motion frozen, `browserErrors:[]`.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 fail (known intermittent matchmaking ECONNRESET); rerun alone reproduced the same ECONNRESET.
+- `node tests/raid-browser-foliage.mjs` → known pre-existing reduced-motion static check fails (153 changed pixels; previously 188); unrelated to this change.
+- `node tests/raid-browser-structures.mjs` → known pre-existing reduced-motion `result.reduced.changed` flake; unrelated to this change.
+- Sun projection diagnostic at 14:00: sun sprite at px x 2, y −294 (off-screen above), moon hidden; at 17.4: sun at x −495 (off-screen west), no disc in frame.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled from equal-condition offline deployments (pinned clear 14:00 daylight, same HUD): `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-1024-action.png`/`before-844-action.png` (baseline action), `after-1024-action.png`/`after-844-action.png`, and `after-1024-strays-zoom.png` (four cleaned regions at 3×). Before stills show the pale centre-line plank, the cream sign sleeve, the cyan loot stem, the crossed bird tuft and the dotted black cracks; after stills show clean pavement, plain sign posts, a warm floating pickup glint, and no bird/dashes.
+
+### Honest critique
+The five stray bits are gone and the left doorway now reads as a warm pickup instead of a grey pylon, but the road immediately ahead of the spawn is now unpainted for the first ~26 m and reads as a bare asphalt apron rather than a marked street, and the common loot still hangs with a thin warm wisp stem under its gem rather than the real scanned model the director asked for.
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — make the EXIT chip and Objective pill agree (or clearly name different places); then item 3 windows/doors and arms, item 4 gravel-bank seam, and item 5 loot scale and desktop keymap. DIRECTOR_NOTES item 1 is implemented but awaits Austin's live iPad/phone playtest.
