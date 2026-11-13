@@ -112,3 +112,5 @@ No third-party assets: ears, horns, tails, wings, crowns, halos and the Galaxy h
 
 ## Raid mode (iteration 87) — ships the main game's art
 No new downloads or third-party files. Raids opt in to the art the main game already ships and reuse the existing registry above: the CC0 Poly Haven surface textures (`assets/tex/*.jpg`) through `assets.js`/`loadAssets()`, the CC0 MakeHuman bodies and skins through `humans.js`/`loadHumans()`, and the CC0 scanned guns already registered for v60. Everything is the same origin-relative static payload; raid-specific procedural fallbacks remain in place until the load resolves.
+
+Iteration 93: the painted-steel `drum` map, brushed-steel rim/lid map and the crate battens/lid/bracing added to `gfx.js`/`raid-environment.mjs` are **original procedural code and geometry**, no third-party files; all other raid surfaces continue to use the CC0 Poly Haven texture pipeline above.
