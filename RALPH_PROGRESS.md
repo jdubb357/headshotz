@@ -8160,3 +8160,32 @@ The spawn view is cleaner and the barrels now sit on a plain road instead of pap
 The blob is gone and the shot now reads as a fast amber flicker rather than a wall of light, but in daylight over the pale pavement it is still faint and 3 px thin, so a casual player may miss the incoming shot entirely; the scout's own amber core remains brighter than the tracer, and barrels can occlude the segment, making the fire feel intermittent rather than readable. A thin high-contrast core or a brief dark edge on the ribbon would help, but that risks blooming over bright facades and should be prototyped.
 
 **Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — scale the scout ~1.5x, ground it on the bank surface, and add rim/edge light or worn-metal contrast so it reads at spawn distance (prefer a high-quality CC0/CC-BY armed humanoid/soldier robot GLB if one exists); then item 3 (stray pale props and sun smudge), item 4 (EXIT/Objective agreement), and item 5 (windows/doors, arms, loot scale/label, keymap).
+
+## Iteration 102 — Scout reads at spawn distance (director note 1; 2026-11-13)
+
+### Acceptance criteria
+1. The real CC0 scout GLB renders at ~1.5× its previous on-screen height (~1.45 m → ~2.18 m) by multiplying the loader-normalised scene scale, not replacing it; the actor root stays unscaled so the snapshot transform authority is unchanged.
+2. The scout stands on the bank surface with a readable contact shadow under the hull/feet (a dark soft footprint that follows the feet, not a floating rectangle), at 8 m in the first deploy frame at 1024×720 and 844×390.
+3. Brighter worn plating plus a subtle rim/edge light lifts the silhouette off dark brick façades without bloom or a washed-white hull; the emissive core stays on the eye/head marker with a matching hit radius.
+4. No higher-quality CC0/CC-BY armed humanoid/soldier robot GLB was found (SWAT is unarmed human, Character Soldier is human with a weapon pack); current CC0 robot asset is retained and ASSETS.md is unchanged.
+5. before/after frames are captured offline under equal pinned clear daylight/HUD at 1024×720 and 844×390 plus an action frame; the after frame is clearly better than the before.
+6. Static-offline, mobile-HUD and machine-model graders stay green; `node --check raid-models.mjs` passes; Node suite unchanged apart from the known matchmaking ECONNRESET; no new systems or player-facing jargon.
+
+### Changed
+`raid-models.mjs` only. `assetScout` now multiplies the loader's 1.45 m height normalisation by 1.5 instead of replacing it (`model.scale.multiplyScalar(1.5)`; the actor root stays unscaled, so the snapshot transform authority is untouched), giving a ~2.18 m hull. The dingy dark tint was replaced by brighter worn grey metal (`Main2 0x93a0a5`, `Main 0x748186`, `Edge 0xdfe7e8`) through a new shared `scoutPlatingMat` variant with a wider fresnel rim (no bloom, no per-actor light). The eye core stays on the lens housing at radius `.135`. Grounding uses a lazy 64 px radial shadow map and a footprint measured from the rig's own `FootL`/`FootR` bones (3.65 × 2.2 m bed at y .06) plus a darker pinch pad under each foot tip (shared 1×1 geometry, scaled 1.3 × 1.1, y .055) and a low camera-facing contact haze under the shins. Bed/pads use normal alpha blending with depth-write off so they darken the surface instead of floating as rectangles; the texture, pad geometry and bed material are each allocated once and shared by every scout.
+
+### Verification
+- `node --check raid-models.mjs` → OK.
+- `node tests/raid-browser-static-offline.mjs` → deploy true, moving true, machineHit `hit`, looted, extracted, 2 items returned, 270 credits, `noApiTraffic:true`, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024×720 unobstructed 0.918, 844×390 0.816; thumbstick/right-drag/interact/auto-fire/auto-reload/aim-hold/swap/touch-interact all true; `browserErrors:[]`.
+- `node tests/raid-browser-machine-models.mjs` → scout `wornMeshes:20`, features `antenna/side-fins/lens-housing`, `wornMapShared:true`, `browserErrors:[]`; every class still detail-change positive.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 fail (known intermittent `matchmaking.test.mjs` ECONNRESET; not related to this change).
+- Before/after crops: the old scout is a thin, dark, near-invisible star shape; the new one is a broad pale machine whose claw tip sits on the pale curb with a soft dark footprint. Sampling confirms the plating and core changed, but the bed itself is only a few screen pixels tall at this grazing angle (same row samples read within ~5 luma of HEAD), so the full-frame ground change is subtle.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled from equal-condition offline deployments (pinned clear 14:00 daylight, same HUD): `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-1024-action.png`/`after-1024-action.png`, `before-844-action.png`/`after-844-action.png`, plus `after-1024-contact-zoom.png` (foot contact crop). The before frames show a small dark scout vanishing against brick/crates; the after frames show the same real CC0 rig at 1.5× scale, pale worn metal catching the rim, orange lens eye, planted feet, and a contact footprint.
+
+### Honest critique
+At 8 m and at phone width the scout now reads instantly — the hull is roughly half again as tall, pale worn metal lifts it off the brick, and the eye anchors it — but the contact shadow is still only a faint smudge on the dark gravel bank in the full frame (clear only on the pale curb and in the foot crop), and the 2.18 × 3.08 m body looks oversized beside the one-metre crate, so appearance still awaits Austin's real iPad/phone playtest.
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — remove/realise the stray pale cream and tan props, the floating plank, gravel-bank stick/bird debris, and the sun disc blob; then item 3 (EXIT/Objective agreement), item 4 (windows/doors and arms), item 5 (loot scale/label and desktop keymap). DIRECTOR_NOTES item 1 is implemented but awaits Austin's live playtest.
