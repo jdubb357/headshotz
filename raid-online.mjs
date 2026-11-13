@@ -633,12 +633,14 @@ function flashSlimHud(){
 let hudStatusKey='',hudStatusTimer=0;
 // One short line only. The old zone · weather · clock · facing banner wrapped
 // to two lines over live fire at 844, so drop the duplicate status and keep the
-// objective (or nearest armory heading) that a player actually steers by.
+// nearest weapons cache (or real field objective) that a player actually steers
+// by. The cache is named as a cache so it can never be mistaken for the EXIT
+// chip's extraction exit.
 function compactStatusBrief(s,snapshot){
  const o=snapshot.objective;
  if(o)return o.stage==='approach'?'Objective '+o.name+' · '+o.site:o.stage==='secure'?'Securing '+o.site:o.stage==='secured'?'Objective secured · extract':'Objective '+o.stage;
- const brief=armoryObjective(s,snapshot),match=brief&&/(\d+) m ([a-z]+) · bearing (\d+)°$/.exec(brief);
- if(match)return 'Objective · '+match[1]+' m '+match[2]+' · '+match[3]+'°';
+ const armory=nearestArmory(s,snapshot);
+ if(armory)return `${armory.cache.label.split(' · ')[0]} · ${Math.round(armory.distance)} m ${armory.compass} · ${armory.degree}°`;
  const heading=mapBearing(s.x,s.z,s.x+Math.sin(inRaid?yaw:Number(s.yaw)||0),s.z+Math.cos(inRaid?yaw:Number(s.yaw)||0));
  return 'Facing '+mapCardinal(heading)+' · '+mapDegree(heading);
 }
@@ -1865,16 +1867,21 @@ function bindTacticalMap(){
  addEventListener('raidsettingschange',()=>{$('mapToggle').setAttribute('aria-label','Tactical map / '+keyName(preferences.get().bindings.map))});
 }
 bindTacticalMap();
-function armoryObjective(s,state){
- if(!s?.alive)return '';
+function nearestArmory(s,state){
+ if(!s?.alive)return null;
  const caches=(state?.caches||[]).filter(c=>c.weaponCache);
- if(!caches.length)return '';
+ if(!caches.length)return null;
  const target=caches.map(c=>({cache:c,d:distance(c,s)})).sort((a,b)=>a.d-b.d)[0];
  // Use the same north-is-minus-z bearing contract as the radar, compass and
  // tactical map. The old atan2(dx,dz) read every target as a mirror across the
  // east-west axis, so the briefing could point the reader away from the cache.
- const bearing=mapBearing(s.x,s.z,target.cache.x,target.cache.z),compass=['north','northeast','east','southeast','south','southwest','west','northwest'][Math.round(bearing/45)%8];
- return `Armory objective · ${target.cache.label}: ${Math.round(target.d)} m ${compass} · bearing ${String(Math.round(bearing)%360).padStart(3,'0')}°`;
+ const bearing=mapBearing(s.x,s.z,target.cache.x,target.cache.z);
+ return {cache:target.cache,distance:target.d,bearing,compass:MAP_CARDINALS[Math.round(bearing/45)%8],degree:String(Math.round(bearing)%360).padStart(3,'0')};
+}
+function armoryObjective(s,state){
+ const target=nearestArmory(s,state);
+ if(!target)return '';
+ return `Armory objective · ${target.cache.label}: ${Math.round(target.distance)} m ${target.compass} · bearing ${target.degree}°`;
 }
 function deploymentExitPlan(){const world=getWorld($('map').value),sector=SECTORS[world.id],artifact=ARTIFACTS[sector.artifact];$('sectorPlan').textContent=sector.summary+' Recovery objective: '+artifact.name+' at '+artifact.site+'. Light and weather change during the raid; check the sector clock after deployment.';$('exitPlan').replaceChildren();for(const exit of createRaidExits(world,0)){const line=document.createElement('p');line.textContent=exit.name+': '+exitDescription(exit,0);$('exitPlan').append(line)}}
 function deploymentObjectiveOptions(){

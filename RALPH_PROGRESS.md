@@ -8229,3 +8229,35 @@ At 8 m and at phone width the scout now reads instantly — the hull is roughly 
 The five stray bits are gone and the left doorway now reads as a warm pickup instead of a grey pylon, but the road immediately ahead of the spawn is now unpainted for the first ~26 m and reads as a bare asphalt apron rather than a marked street, and the common loot still hangs with a thin warm wisp stem under its gem rather than the real scanned model the director asked for.
 
 **Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — make the EXIT chip and Objective pill agree (or clearly name different places); then item 3 windows/doors and arms, item 4 gravel-bank seam, and item 5 loot scale and desktop keymap. DIRECTOR_NOTES item 1 is implemented but awaits Austin's live iPad/phone playtest.
+
+## Iteration 104 — Name the armory pill as its own place (director note 2; 2026-11-13)
+
+**Task:** DIRECTOR_NOTES.md item 2 — the EXIT chip reads "603 m south" while the compact Objective pill reads "632 m south · 162°"; the pill is actually the nearest weapons cache, so label it as that place instead of implying it is the exit.
+
+### Acceptance criteria
+1. At spawn the compact status pill names the nearest weapon cache ("Weapons cache · 632 m south · 162°" or the cache's own name) and is visibly a different place from the EXIT chip; the EXIT chip still points at the nearest extraction exit.
+2. Range, cardinal and degree shown in the pill match `armoryObjective`'s authoritative nearest-cache bearing and distance; no new destination or invented number.
+3. Both lines fit the 1024×720 and 844×390 compact HUD without clipping, ellipsis or overlap.
+4. Offline before/after screenshots at both sizes (equal pinned conditions) show the relabelled pill; the after frame is clearly less ambiguous.
+5. No new systems, panels, currencies, menus or jargon; other modes untouched; mobile-HUD and static-offline graders stay green.
+
+### Changed
+- `raid-online.mjs`: extracted `nearestArmory(s,state)` from `armoryObjective` so the compact pill and the full briefing share one authoritative nearest-`weaponCache` calculation; the spawn pill now renders the cache's own place name instead of `Objective`. Real field objectives still use `Objective <name> · <site>`; the EXIT chip is untouched and still points at the nearest extraction exit.
+- `tests/raid-browser-hud-theme.mjs`: updated the briefing assertion to accept the named-armory copy.
+
+### Verification
+- `node --check raid-online.mjs` → OK.
+- Offline deploys pinned to the same clear 14:00 daylight/weather via the offline RaidService conditionPlan, at 1024×720 and 844×390. Status text: before `Objective · 632 m south · 162°`, after `Relay signal armory · 632 m south · 162°`; EXIT chip unchanged (`EXIT 603 m ▲ south`).
+- The pill is one line inside the 560 px max width at 1024 (no ellipsis); at 844×390 the existing short-landscape rule hides the secondary pill, so no clipping/overlap.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024×720 unobstructed .918, 844×390 .818; thumbstick/right-drag/look, auto-fire, auto-reload, aim, swap and interact all true; `browserErrors:[]`.
+- `node tests/raid-browser-static-offline.mjs` → deploy, move, machine hit, loot, extract true; 270 credits; `noApiTraffic:true`; `browserErrors:[]`.
+- `node tests/raid-browser-hud-theme.mjs` → the updated briefing assertion passes; the test then hits its known pre-existing stale `#fire` element failure.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 known intermittent matchmaking ECONNRESET.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared then filled with equal-condition offline frames: `before-1024.png`, `after-1024.png`, `before-844.png`, `after-844.png`, plus `before-1024-hud-zoom.png` / `after-1024-hud-zoom.png` (the pill region at 2×).
+
+### Honest critique
+The pill now names the nearest armory instead of implying it is the extraction objective, but at 1024 it still sits directly under the HP strip while the EXIT chip sits in the opposite corner, so two similar south-facing directions remain on screen; at 844×390 the secondary pill is hidden entirely, so phone players still only get the exit distance.
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 3 — real window/opening frames or boarded meshes, and rifle arms (good CC0/CC-BY gloved-arms GLB if one exists) or hidden hands.
