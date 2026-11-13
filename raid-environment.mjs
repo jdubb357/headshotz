@@ -545,21 +545,27 @@ export function buildEnvironment(world){
     // only — no collision, no authored prop or frozen data is touched.
     const seed=Math.abs(Math.round(Math.sin(x*12.9898+z*78.233)*43758.5453)),h=i=>hash01(seed*.013+i*5.37+.21),ry=prop.ry||0,cosR=Math.cos(ry),sinR=Math.sin(ry);
     const place=(lx,lz)=>[x+lx*cosR+lz*sinR,y,z-lx*sinR+lz*cosR];
-    // Faded municipal paint: a dashed centre line and worn edge lines give the
-    // long diagonal approach a vanishing guide as readable as the buildings.
+    // Faded municipal paint on the long diagonal approach is a distant guide,
+    // not a decoration under the player's feet. The old concrete-photo boxes
+    // floated 2 cm above the asphalt and read as pale planks at first-person
+    // range, and even flush matte paint is only a stub within a few metres of
+    // the camera while it still points the way down the road. Skip the dashes
+    // inside the insertion apron; the remainder reads like worn street paint.
     for(let lx=-prop.w/2+5;lx<prop.w/2-5;lx+=7.4){
      const [px,py,pz]=place(lx,0);
-     add('box',0xbfb176,px,py+.038,pz,3.1,.012,.11,ry,'concrete',0,0,false,'');
+     if(nearInsertion(px,pz,26))continue;
+     add('box',0xbfb176,px,py+.015,pz,2.9,.006,.11,ry,'concrete',0,0,false,'');
     }
-    for(const side of [-1,1]){const [px,py,pz]=place(0,side*(prop.d/2-.42));add('box',0xd5c7a2,px,py+.036,pz,Math.max(1,prop.w-7),.012,.10,ry,'concrete',0,0,false,'')}
-    // Broad shelled-out repairs and crossing cracks keep the surface from reading
-    // as a flat black slab at first-person range; chips catch the overhead sky.
+    for(const side of [-1,1]){const [px,py,pz]=place(0,side*(prop.d/2-.42));add('box',0xc9c0ae,px,py+.015,pz,Math.max(1,prop.w-7),.006,.10,ry,'concrete',0,0,false,'')}
+    // Broad shelled-out repairs and aggregate chips keep the surface from
+    // reading as a flat black slab at first-person range. The old dark hairline
+    // crack strips are gone: laid flat over the photo asphalt they read as stray
+    // dark dashes around the insertion rather than road wear.
     const spots=6+Math.floor(h(2)*5);
     for(let i=0;i<spots;i++){
      const lx=(h(i*2+3)-.5)*prop.w*.86,lz=(h(i*2+4)-.5)*prop.d*.7,px=x+lx*cosR+lz*sinR,pz=z-lx*sinR+lz*cosR,spin=h(i*3+9)*Math.PI;
      if(i%3===0)add('sphere',0x72766a,px,y+.021,pz,.35+h(i+11)*.7,.012,.28+h(i+13)*.4,spin,'rock');
      else if(i%3===1)add('box',0xb2b1a4,px,y+.024,pz,.42+h(i+15)*.55,.012,.18+h(i+17)*.3,spin,'gravel');
-     else add('box',0x55594f,px,y+.022,pz,.045,.012,.55+h(i+21)*1.7,spin,'rock');
     }
     // Weathered shoulder aggregate sits just outside the paint so the road edge
     // separates from the sidewalk instead of ending in another dark band.
@@ -807,15 +813,15 @@ export function buildEnvironment(world){
      else add('box',0x46565b,prop.x-host.nx*off/2,boardY,prop.z+lateral,.08,.08,off+.10,0,'metal',0,0,false,'');
     }
    }else{
-    // The posts sit well outside the board footprint with a tall hazard band so
-    // the sign reads as a built street fixture from the insertion distance, not
-    // a flat panel hovering above the road. Each post samples its own terrain
-    // height, so a sign on a grade stays planted at both feet.
+    // The posts sit well outside the board footprint so the sign reads as a
+    // built street fixture from the insertion distance, not a flat panel
+    // hovering above the road. Each post samples its own terrain height, so a
+    // sign on a grade stays planted at both feet. The old cream hazard sleeve
+    // is gone: at first-person range it read as a pale tan post under the board.
     for(const side of [-1,1]){
      const lateral=side*(panelW/2+.58),px2=prop.x+Math.cos(ry)*lateral,pz2=prop.z-Math.sin(ry)*lateral;
      const ground=terrainHeightAt(world,px2,pz2),postH=boardY+panelH/2+.05-ground;
      add('box',0x7d8883,px2,ground+postH/2,pz2,.28,postH,.28,0,'metal',0,0,false,'');
-     add('box',palette.barrier,px2,ground+.95,pz2,.31,1.86,.31,0,'hazard',0,0,false,'');
      add('box',0x8d8b80,px2,ground+.10,pz2,.72,.20,.72,0,'concrete',0,0,false,'');
     }
     add('box',0x384b52,prop.x,boardY+panelH/2+.10,prop.z,panelW+1.4,.12,.14,ry,'metal',0,0,false,'');
@@ -1126,9 +1132,10 @@ export function buildEnvironment(world){
  for(const [sx,sz] of world.spawns||[]){
   // Short radii cover the cut bank immediately beside the insertion apron so the
   // foreground slope reads as eroded grass and stone instead of bare fill.
-  // Nothing inside ~9 m: the pale billboard blades there read as paper cards in
-  // the opening frame. Keep the eroded scrub to the middle distance.
-  for(const radius of [9,13,18,24,31])for(let i=0;i<18;i++){
+  // Billboard blades inside ~16 m still read as paper cards (a dark crossed
+  // tuft on the gravel bank looked like a bird from the spawn frame), so keep
+  // the grass dressing to the middle distance while stone chips stay close.
+  for(const radius of [9,16,20,26,32])for(let i=0;i<18;i++){
    const angle=i*(Math.PI*2/18)+radius*.61,x=sx+Math.sin(angle)*radius,z=sz+Math.cos(angle)*radius;
    const gy=terrainHeightAt(world,x,z);if(gy<.14)continue;
    const h=hash01(Math.sin(x*12.9898+z*78.233)*43758.5453+radius);
