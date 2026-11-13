@@ -39,22 +39,29 @@ function terrainMesh(world,palette){
   const height=position[i*3+1],slope=1-normals.array[i*3+1];
   tint.copy(low).lerp(high,Math.min(1,height/34));
   if(slope>0)tint.lerp(rock,Math.min(.55,slope*1.5));
-  const variation=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.13;
-  tint.multiplyScalar(1+variation);
+  // Two noise scales: fine grain breaks the photo tiling, while broad patches of
+  // damp earth and dry gravel keep the near embankment from reading as one flat
+  // slab under the midday sun.
+  const fine=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.13,
+   broad=(Math.sin(position[i*3]*.041+position[i*3+2]*.033)+Math.cos(position[i*3]*.019-position[i*3+2]*.047))*0.14;
+  tint.multiplyScalar(1+fine+broad);
   colors[i*3]=tint.r;colors[i*3+1]=tint.g;colors[i*3+2]=tint.b;
  }
  geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
  geometry.userData.raidOwned=true;
  const map=getTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel').clone();
- map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(200,200);map.anisotropy=8;map.needsUpdate=true;
+ // 16x anisotropic filtering keeps the gravel grain legible on the near
+ // embankment where the eye meets it at a grazing angle instead of smearing to
+ // a flat grey wedge.
+ map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(240,240);map.anisotropy=16;map.needsUpdate=true;
  // The terrain grid is large enough that a single normal tile would smear; tile
  // the relief texture at the same density as the albedo so sun-lit ridges and
  // gravel keep readable surface detail at first-person range.
  const normal=normalTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel',1.6).clone();
- normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.set(200,200);normal.anisotropy=8;normal.needsUpdate=true;
- const material=new THREE.MeshStandardMaterial({map,normalMap:normal,normalScale:new THREE.Vector2(.55,.55),vertexColors:true,roughness:.93,metalness:.04,envMapIntensity:.4,side:THREE.FrontSide});
+ normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.set(240,240);normal.anisotropy=16;normal.needsUpdate=true;
+ const material=new THREE.MeshStandardMaterial({map,normalMap:normal,normalScale:new THREE.Vector2(.9,.9),vertexColors:true,roughness:.93,metalness:.04,envMapIntensity:.4,side:THREE.FrontSide});
  material.userData.raidOwned=true;material.userData.raidOwnTexture=true;material.userData.raidOwnNormalTexture=true;
- material.userData.raidDry={roughness:.93,metalness:.04,envMapIntensity:.4,normalScale:.55};material.userData.raidWet=1;
+ material.userData.raidDry={roughness:.93,metalness:.04,envMapIntensity:.4,normalScale:.9};material.userData.raidWet=1;
  const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.castShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
  return mesh;
 }
@@ -221,23 +228,25 @@ export function buildEnvironment(world){
  // flange. The flange and lid pitch give the barrel an unmissable top/bottom
  // rather than letting the raw cylinder fade into the pavement.
  const drumProp=(x,y,z,r,h,color)=>{
-  add('cylinder',color,x,y+h*.5,z,r,h,r,0,'drum');
-  add('cylinder',0x2c322c,x,y+h*.08,z,r*1.03,.11,r*1.03,0,'steel');
-  add('cylinder',0x353d35,x,y+h*.35,z,r*1.025,.055,r*1.025,0,'steel');
-  add('cylinder',0x353d35,x,y+h*.68,z,r*1.025,.055,r*1.025,0,'steel');
-  add('cylinder',0x2a302b,x,y+h-.05,z,r*1.02,.10,r*1.02,0,'steel');
-  add('cylinder',0x202621,x,y+h+.02,z,r*1.035,.035,r*1.035,0,'steel');
+  // The tag lets RaidView strip the instanced lathe drum once the scanned CC0
+  // barrel arrives, without touching tank/pole groups that share steel materials.
+  add('cylinder',color,x,y+h*.5,z,r,h,r,0,'drum',0,0,false,'streetBarrel');
+  add('cylinder',0x2c322c,x,y+h*.08,z,r*1.03,.11,r*1.03,0,'steel',0,0,false,'streetBarrel');
+  add('cylinder',0x353d35,x,y+h*.35,z,r*1.025,.055,r*1.025,0,'steel',0,0,false,'streetBarrel');
+  add('cylinder',0x353d35,x,y+h*.68,z,r*1.025,.055,r*1.025,0,'steel',0,0,false,'streetBarrel');
+  add('cylinder',0x2a302b,x,y+h-.05,z,r*1.02,.10,r*1.02,0,'steel',0,0,false,'streetBarrel');
+  add('cylinder',0x202621,x,y+h+.02,z,r*1.035,.035,r*1.035,0,'steel',0,0,false,'streetBarrel');
  };
  // Wooden supply crate: board body, overhanging lid, four corner battens and
  // crossed bracing on the two broad faces. Detail is real geometry so the crate
  // keeps its silhouette and reads as timber under the flat overcast light.
  const crateProp=(x,y,z,w,h,d,color)=>{
   const lid=shade(color,1.34),batten=shade(color,.65),brace=shade(color,.9);
-  add('box',color,x,y+h*.5,z,w,h,d,0,'crate');
-  add('box',lid,x,y+h+.015,z,w+.045,.075,d+.045,0,'planks');
-  for(const sx of [-1,1])for(const sz of [-1,1])add('box',batten,x+sx*(w*.5-.008),y+h*.5,z+sz*(d*.5-.008),.115,h*.99,.115,0,'planks');
-  add('box',brace,x,y+h*.5,z+d*.5+.016,Math.hypot(w,h)*.93,.115,.04,0,'planks',0,Math.PI/4);
-  add('box',brace,x,y+h*.5,z-d*.5-.016,Math.hypot(w,h)*.93,.115,.04,0,'planks',0,-Math.PI/4);
+  add('box',color,x,y+h*.5,z,w,h,d,0,'crate',0,0,false,'streetCrate');
+  add('box',lid,x,y+h+.015,z,w+.045,.075,d+.045,0,'planks',0,0,false,'streetCrate');
+  for(const sx of [-1,1])for(const sz of [-1,1])add('box',batten,x+sx*(w*.5-.008),y+h*.5,z+sz*(d*.5-.008),.115,h*.99,.115,0,'planks',0,0,false,'streetCrate');
+  add('box',brace,x,y+h*.5,z+d*.5+.016,Math.hypot(w,h)*.93,.115,.04,0,'planks',0,Math.PI/4,false,'streetCrate');
+  add('box',brace,x,y+h*.5,z-d*.5-.016,Math.hypot(w,h)*.93,.115,.04,0,'planks',0,-Math.PI/4,false,'streetCrate');
  };
  add('box',palette.ground,0,-.12,0,world.size,.2,world.size,0,world.theme==='wilderness'?'forest':'gravel');
  const terrain=world.terrain?terrainMesh(world,palette):null;if(terrain)root.add(terrain);
@@ -473,6 +482,9 @@ export function buildEnvironment(world){
   return material;
  };
  const scenery=raidScenery(world);
+ // Every street barrel/crate is listed here so RaidView can silence the
+ // instanced lathe/box stand-ins and drop in the scanned CC0 props on refresh.
+ const streetPropSites=[];
  for(const prop of uniqueWindowProps([...(world.props||[]),...scenery])){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
   if(prop.kind==='floor')add('box',prop.color||palette.ground,x,y,z,prop.w,.03,prop.d,0,'tiles');
   // Trees use the swappable foliage texture plus three offset crown blobs; the
@@ -492,8 +504,8 @@ export function buildEnvironment(world){
   else if(prop.kind==='ruin'){const c=prop.color||0x8b8c84,ry=prop.ry||0,off=1.25*s,px=x+Math.sin(ry)*off,pz=z+Math.cos(ry)*off;add('box',c,x,y+.85*s,z,.55*s,1.7*s,2.4*s,ry,'brick',0,0);add('box',c,px,y+.58*s,pz,.5*s,1.16*s,1.5*s,ry,'brick',0,0);add('box',0x74736c,x-Math.cos(ry)*.95*s,y+.12*s,z+Math.sin(ry)*.95*s,1.9*s,.2*s,.62*s,ry+.35,'rock',0,Math.PI*.06)}
   else if(prop.kind==='rubble'){const c=prop.color||0x8a8777,ry=prop.ry||0;for(let i=0;i<3;i++){const a=ry+i*2.1;add('box',c,x+Math.cos(a)*.38*s,y+(.18+i*.11)*s,z+Math.sin(a)*.44*s,.55*s*(1-i*.12),.22*s*(1+i*.35),.68*s*(1-i*.18),a,'rock',0,Math.PI*.08)}add('sphere',0x777268,x-.3*s,y+.12*s,z+.25*s,.34*s,.18*s,.28*s,0,'rock')}
   else if(prop.kind==='rock'){add('sphere',prop.color||0x8a8777,x,y+.55*s,z,1.5*s,.85*s,1.2*s,0,'rock',0)}
-  else if(prop.kind==='barrel')drumProp(x,y,z,.5*s,1.3*s,prop.color||0x4b5344)
-  else if(prop.kind==='crate')crateProp(x,y,z,prop.w||1.15*s,prop.h||1.1*s,prop.d||1.15*s,prop.color||0x9c7b4d)
+  else if(prop.kind==='barrel'){drumProp(x,y,z,.5*s,1.3*s,prop.color||0x4b5344);streetPropSites.push({kind:'barrel',x,z,y,scale:s})}
+  else if(prop.kind==='crate'){const w=prop.w||1.15*s,h=prop.h||1.1*s,d=prop.d||1.15*s;crateProp(x,y,z,w,h,d,prop.color||0x9c7b4d);streetPropSites.push({kind:'crate',x,z,y,w,h,d})}
   else if(prop.kind==='tank'){const c=prop.color||0x748889;add('cylinder',c,x,y+1.5*s,z,1.1*s,3*s,1.1*s,0,'metal');add('sphere',c,x,y+3*s,z,1.1*s,.55*s,1.1*s,0,'metal');add('box',0x4d5f63,x,y+.25,z,2.5*s,.3*s,2.5*s,0,'metal')}
   else if(prop.kind==='tent'){add('cone',prop.color||0x8a9b7a,x,y+1.25*s,z,1.7*s,2.5*s,1.7*s)}
   else if(prop.kind==='campfire'){add('cylinder',0x5a4632,x,y+.12,z,.75*s,.18*s,.75*s,0,'rock');add('sphere',prop.color||0xffb64d,x,y+.42*s,z,.42*s,.55*s,.42*s,0,'glow');add('box',0x3e342c,x,y+.1,z,1.1*s,.12*s,.16*s,0,'planks',0,Math.PI/5);glow(x,y+.42*s,z,prop.color||0xff9b52);lightPool(prop,0xff9444,2.2*s)}
@@ -1050,13 +1062,74 @@ export function buildEnvironment(world){
   sidingRibs.push({x,z,w,d,h,y});
  }
  structureDetail.sidingRibs=sidingRibs.length;
+ // Booth fallback for the two spawn props: used while the scanned GLBs decode,
+ // replaced by the real photogrammetry meshes in RaidView.refreshArt.
+ const spawnDressingFallback=(item)=>{
+  const group=new THREE.Group();
+  const finish=(color,key,roughness,metalness)=>new THREE.MeshStandardMaterial({color,map:getTex(key),roughness,metalness});
+  if(item.kind==='drum'){
+   const r=item.radius||.5,h=item.height||1.3;
+   const body=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,16),finish(item.color||0x4b5344,'metal',.6,.42));
+   body.position.y=h*.5;body.castShadow=true;body.receiveShadow=true;group.add(body);
+   for(const [t,c] of [[.10,0x2c322c],[.44,0x353d35],[.76,0x353d35]]){
+    const band=new THREE.Mesh(new THREE.CylinderGeometry(r*1.035,r*1.035,.055,16),finish(c,'metal',.5,.5));
+    band.position.y=h*t;group.add(band);
+   }
+   const lip=new THREE.Mesh(new THREE.CylinderGeometry(r*1.05,r*1.05,.04,16),finish(0x202621,'metal',.5,.5));
+   lip.position.y=h-.03;group.add(lip);
+  }else{
+   const w=item.w||1,h=item.h||1.1,d=item.d||1,wood=item.color||0x8a6a45;
+   const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),finish(wood,'crate',.85,.02));
+   body.position.y=h*.5;body.castShadow=true;body.receiveShadow=true;group.add(body);
+   const lid=new THREE.Mesh(new THREE.BoxGeometry(w+.05,.075,d+.05),finish(0xb08a5c,'planks',.8,.02));
+   lid.position.y=h+.015;group.add(lid);
+   for(const sx of [-1,1])for(const sz of [-1,1]){
+    const batten=new THREE.Mesh(new THREE.BoxGeometry(.11,h*.98,.11),finish(0x6d5236,'planks',.85,.02));
+    batten.position.set(sx*(w*.5-.02),h*.5,sz*(d*.5-.02));group.add(batten);
+   }
+  }
+  group.position.set(item.x,item.y,item.z);
+  return group;
+ };
+ root.userData.raidStreetProps=streetPropSites;
  // Spawn dressing: a knot of drums and a supply crate on the apron beside each
- // insertion point. The shared list also lowers these into decor colliders, so
- // what the player sees matches what stops a body, bullet or machine leg.
- for(const item of raidSpawnDressing(world)){
-  if(item.kind==='drum')drumProp(item.x,item.y,item.z,item.radius,item.height,item.color);
-  else crateProp(item.x,item.y,item.z,item.w,item.h,item.d,item.color);
+ // insertion point. It is built into its own group because the real scanned
+ // barrel/crate GLBs only arrive after the first deploy; RaidView.refreshArt
+ // swaps these fallbacks for the photogrammetry props once they land. The shared
+ // list still lowers these into decor colliders, so what the player sees matches
+ // what stops a body, bullet or machine leg.
+ const spawnItems=raidSpawnDressing(world),spawnGroup=new THREE.Group();
+ spawnGroup.name='raidSpawnDressing';
+ for(const item of spawnItems){const node=spawnDressingFallback(item);node.userData.raidSpawnItem=item;spawnGroup.add(node)}
+ root.add(spawnGroup);root.userData.raidSpawnDressing={group:spawnGroup,items:spawnItems};
+ // Cut-and-fill banks around the insertion points used to read as smooth pale
+ // slabs at first-person range. Deterministic scrub covers the rising ground
+ // with tufts, gravel chips and stone so the near hillside is eroded terrain,
+ // not flat geometry. Presentation-only and rebuilt identically every deploy.
+ const blockHit=(x,z)=>(world.blocks||[]).some(([bx,bz,bw,bd])=>Math.abs(x-bx)<bw/2+.3&&Math.abs(z-bz)<bd/2+.3);
+ const scrubOut=[];
+ for(const [sx,sz] of world.spawns||[]){
+  // Short radii cover the cut bank immediately beside the insertion apron so the
+  // foreground slope reads as eroded grass and stone instead of bare fill.
+  for(const radius of [4,5.5,7,9,13,18,24,31])for(let i=0;i<18;i++){
+   const angle=i*(Math.PI*2/18)+radius*.61,x=sx+Math.sin(angle)*radius,z=sz+Math.cos(angle)*radius;
+   const gy=terrainHeightAt(world,x,z);if(gy<.14)continue;
+   const h=hash01(Math.sin(x*12.9898+z*78.233)*43758.5453+radius);
+   if(h>.62||blockHit(x,z))continue;
+   const green=h>.30?0x4f5b3a:0x414c32,lean=h*6.28;
+   for(let t=0;t<3;t++){
+    const a=lean+t*2.09,rr=.16+h*.42;
+    add('tuft',t===1?0x5b6745:green,x+Math.cos(a)*rr,gy+.20+h*.24,z+Math.sin(a)*rr,.18+h*.13,.40+h*.34,.18+h*.13,a,'forest',Math.PI*.13,0,true);
+   }
+   // Chipped stone and a dirt scar hold the clump down instead of letting the
+   // blades float on a clean plane.
+   add('sphere',0x7e7a6e,x-.28,gy+.24,z+.14,.34+h*.28,.22+h*.16,.30+h*.22,h*6.28,'rock',0,0,false,'');
+   add('box',0x8d8b80,x+.2,gy+.02,z-.3,.34+h*.3,.05,.26+h*.2,h*3.1,'gravel',0,0,false,'');
+   scrubOut.push({x,z,y:gy});
+  }
  }
+ root.userData.raidSlopeScrub=scrubOut;
+ structureDetail.slopeScrub=scrubOut.length;
  // Perimeter hills and warning posts frame the playable region without blocking routes.
  for(let i=0;i<24;i++){const angle=i*Math.PI/12,x=Math.sin(angle)*(world.size/2+15),z=Math.cos(angle)*(world.size/2+15);add('cone',palette.rock,x,7,z,15,18,15,angle,'rock')}
  const sceneryCounts={};for(const item of scenery)sceneryCounts[item.kind]=(sceneryCounts[item.kind]||0)+1;
@@ -1178,17 +1251,24 @@ export function applyPhotoLook(root){
  for(const mat of root.userData.materials?.values()||[]){
   const surface=mat.userData.raidSurface;
   if(!PHOTO_SURFACES.has(surface)||mat.userData.raidStructure||mat.userData.raidAuthoredColor==null)continue;
-  // Neutral exposure = the old tint's luminance. The legacy greyscale map was
-  // effectively the photograph's luminance, so this keeps the scene's authored
-  // brightness while the photograph now supplies hue (red brick, brown timber).
-  const hex=mat.userData.raidAuthoredColor,r=(hex>>16&255)/255,g=(hex>>8&255)/255,b=(hex&255)/255;
-  const lum=LUM*r+.7152*g+.0722*b,v=Math.max(70,Math.min(232,Math.round((lum*.94+.05)*255)));
-  mat.color.setHex((v<<16)|(v<<8)|v);mat.needsUpdate=true;
+  // The photograph supplies the albedo, not a greyscale stand-in. The old
+  // luminance-preserving tint multiplied the (already dark) photo by a dark
+  // factor, crushing brick and timber facades to black against the sky. Hand
+  // the hue and brightness to the scan, and keep only a faint neutral exposure
+  // so the surface is not bleached.
+  mat.color.setHex(0xffffff);mat.needsUpdate=true;
  }
  const terrain=root.userData.raidTerrainMaterial,mesh=terrain&&root.children.find(m=>m.isMesh&&m.material===terrain);
  const colors=mesh?.geometry?.attributes?.color;
- // Terrain vertex colour is linear working space; use its luminance as a neutral
- // exposure so hills and verges keep their original shade and gain photo tint.
- if(colors)for(let i=0;i<colors.count;i++){const r=colors.getX(i),g=colors.getY(i),b=colors.getZ(i),v=Math.max(.18,Math.min(.5,LUM*r+.7152*g+.0722*b));colors.setXYZ(i,v,v,v);colors.needsUpdate=true}
+ // Terrain vertex colour stays a shade key for the photo: lift the neutral
+ // exposure into mid-tones and add a subtle warm earth bias so the hillside
+ // reads as dirt and gravel instead of a flat pale slab beside the player.
+ if(colors)for(let i=0;i<colors.count;i++){
+  const r=colors.getX(i),g=colors.getY(i),b=colors.getZ(i),lum=LUM*r+.7152*g+.0722*b;
+  const v=Math.max(.36,Math.min(.72,lum*1.62)),
+    // Wetter, greener wilderness sits a touch cooler than the industrial dust.
+    warm=1.03,mid=1.0,cold=.88;
+  colors.setXYZ(i,v*warm,v*mid,v*cold);colors.needsUpdate=true;
+ }
  return root;
 }

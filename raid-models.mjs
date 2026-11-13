@@ -1,6 +1,6 @@
 import * as THREE from './lib/three.module.min.js';
 import {mergeParts,TX} from './gfx.js';
-import {gunParts,handParts} from './weapons.js';
+import {gunParts,handParts,setHandReach} from './weapons.js';
 import {makeCharacterWithCache,animate} from './chars.js';
 import {WEAPONS} from './shared/raid-catalog.mjs';
 import {MACHINES} from './shared/raid-enemies.mjs';
@@ -27,9 +27,6 @@ function releaseCharacterGeometry(root){
  pruneCharacterGeometry();
 }
 function mat(color,glow=false){const key=color+'|'+glow;if(!materials.has(key))materials.set(key,glow?new THREE.MeshBasicMaterial({color}):new THREE.MeshStandardMaterial({color,roughness:.65,metalness:.35}));return materials.get(key)}
-// Matte drop cloth for ground piles. Shared by colour so a pile of fifty drops
-// still allocates one material; not charged to per-actor disposal.
-function fabricMat(color){const key='fabric|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,roughness:1,metalness:0,envMapIntensity:.35});materials.set(key,material)}return materials.get(key)}
 // Presentation-only worn plating for machines. A seeded procedural canvas paints
 // panel seams, rivets, rust blooms, scratches and grime; the same neutral texture
 // is tinted by each machine's existing hull colour. The texture is shared and not
@@ -307,15 +304,20 @@ function gunGroupMaterial(key){
 }
 const PHOTO_ALIAS={pistol:'handgun'};
 export function weaponModel(id,hands=false){
+ // The raid sights the rifle close to the eye; trim the procedural forearm reach
+ // so only gloved hands on the grip and handguard occupy the lower frame.
+ setHandReach(.34);
  const scanId=PHOTO_ALIAS[id]||id,scan=PHOTO[scanId]?photoItems(scanId,false,HQP):null;
  const {parts,info}=gunParts(scanId,1);
  if(scan&&scan.length){
   // The shipped CC0 photogrammetry scan replaces the hand-built box body: the
   // first frame now shows a real rifle with its own rivets, welds and wear.
-  // Arms/hands stay procedural so the reload, bob and ADS poses still animate.
+  // Arms stay procedural so reload, bob and ADS poses animate. The raid has no
+  // first-person arms scan, so the forearm sleeve is skipped entirely: only the
+  // gloved hands on the grip and handguard enter the lower frame (no elbow tube).
   const root=new THREE.Group();
   for(const slot of scan){const mesh=new THREE.Mesh(slot.geo,slot.mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
-  const all=hands?handParts(info,0x2f342c,0x5a4634):[];
+  const all=hands?handParts(info,0x2f342c,0x5a4634,undefined,true):[];
   const groups=new Map();
   for(const p of all){const key=p.mat||'metal';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p)}
   for(const [key,parts]of groups){const geometry=mergeParts(parts,{uv:true});geometry.userData.raidOwned=true;const mesh=new THREE.Mesh(geometry,gunGroupMaterial(key));mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
@@ -324,7 +326,7 @@ export function weaponModel(id,hands=false){
   root.userData.info={...info,...(PHOTO[scanId]?.info||{})};
   return root;
  }
- const all=hands?parts.concat(handParts(info,0x2f342c,0x5a4634)):parts,groups=new Map(),root=new THREE.Group();
+ const all=hands?parts.concat(handParts(info,0x2f342c,0x5a4634,undefined,true)):parts,groups=new Map(),root=new THREE.Group();
  for(const p of all){const key=p.mat||'metal';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p)}
  for(const [key,parts]of groups){const geometry=mergeParts(parts,{uv:true});geometry.userData.raidOwned=true;
   const mesh=new THREE.Mesh(geometry,gunGroupMaterial(key));
@@ -585,12 +587,9 @@ export function propModel(kind,color=0xe0aa4d,options={}){
   const place=mesh=>{root.add(mesh);return mesh};
   let dressed=false;
   if(!plain&&HQP.models.crate){
-   // A pale torn drop cloth gives the dark scanned prop a readable silhouette
-   // on wet asphalt from gameplay range. It is deliberately matte so the rarity
-   // beacon and ring remain the only highlights in the pile.
-   const matMesh=part(root,'box',0xa89d83,0,.018,0,1.5,.035,.98,[0,.16,0]);
-   matMesh.material=fabricMat(0xa89d83);
-   matMesh.receiveShadow=true;
+   // The pile is dressed with real scanned props only; the old pale drop-cloth
+   // rectangle sat under the objective marker as a visible sticker. The scanned
+   // prop's own silhouette carries the drop at gameplay range.
    if(visual==='gun'&&HQP.guns){
     const slots=options.weapon?photoItems({ar:'ar',smg:'smg',shotgun:'shotgun',sniper:'sniper',pistol:'handgun',lmg:'ar'}[options.weapon]||'ar',false,HQP):null;
     if(slots&&slots.length){
