@@ -1,8 +1,12 @@
 // HeadShotz external assets (all CC0 from Poly Haven — see ASSETS.md). Loaded lazily after the menu appears; Low quality skips them and keeps the built-in procedural look.
 import {THREE,GQ,hqSwap} from './gfx.js';
-export const HQP={ready:false,models:{},guns:{}};
+export const HQP={ready:false,models:{},guns:{},machines:{}};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
 const MODELS={crate:'assets/models/wooden_crate_02.glb',barrel:'assets/models/barrel_03.glb',chest:'assets/models/treasure_chest.glb'};
+// Raid machine bodies are scanned/rigged GLBs, not box geometry. They are loaded
+// separately from the lobby props so the raid (the only mode that spawns these
+// actors) never pays for them in Battle Royale.
+const MACHINE_GLB={scout:{url:'assets/models/machines/scout.glb',height:1.45}};
 const TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 // phones: halve the gun textures (1024 -> 512) to save ~140 MB of GPU memory
 function shrinkTex(t,max){const im=t.image;if(!im||!im.width||im.width<=max)return;try{const c=document.createElement('canvas');c.width=c.height=max;c.getContext('2d').drawImage(im,0,0,max,max);if(im.close)im.close();t.image=c;t.needsUpdate=true}catch(e){}}
@@ -20,3 +24,29 @@ export async function loadAssets(onProg=()=>{}){if(GQ.level==='low'){onProg(1,'s
  for(const k of GUNS)jobs.push(async()=>{while(!L)await new Promise(r=>setTimeout(r,30));const g=await L.loadAsync(`assets/models/guns/${k}.glb`);const seen=new Set();g.scene.traverse(o=>{if(o.isMesh&&o.material){const m=o.material;m.envMapIntensity=1.1;if(m.map)m.map.anisotropy=4;if(TOUCH)for(const t of[m.map,m.normalMap,m.metalnessMap,m.roughnessMap,m.aoMap])if(t&&!seen.has(t)){seen.add(t);shrinkTex(t,512)}}});HQP.guns[k]=g.scene});
  const total=jobs.length;let ok=true;for(const j of jobs){try{await j()}catch(e){ok=false;console.warn('asset',e&&e.message)}tick()}
  HQP.ready=Object.keys(HQP.models).length>0;return ok}
+// Scanned, rigged raid machines. Loaded after the lobby props so the raid can
+// swap its procedural scout for the real animated GLB as soon as the browser
+// has it. Normalised to the authoritative machine height and centred on the
+// server footprint so hit flash, core and tracer origins stay aligned.
+export async function loadMachines(onProg=()=>{}){
+ if(GQ.level==='low'){onProg(1,'skipped');return false}
+ const keys=Object.keys(MACHINE_GLB);if(!keys.length)return true;
+ const [{GLTFLoader},{MeshoptDecoder}]=await Promise.all([import('./lib/jsm/GLTFLoader.js'),import('./lib/jsm/meshopt_decoder.module.js')]);
+ const L=new GLTFLoader();L.setMeshoptDecoder(MeshoptDecoder);
+ let ok=true,done=0;
+ for(const k of keys){
+  try{
+   const g=await L.loadAsync(MACHINE_GLB[k].url);
+   const lights=[];g.scene.traverse(o=>{if(o.isLight)lights.push(o)});for(const l of lights)l.parent?.remove(l);
+   g.scene.updateMatrixWorld(true);
+   const box=new THREE.Box3().setFromObject(g.scene),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
+   const scale=MACHINE_GLB[k].height/Math.max(.001,size.y);
+   g.scene.scale.setScalar(scale);
+   g.scene.position.set(-center.x*scale,-box.min.y*scale,-center.z*scale);
+   g.scene.updateMatrixWorld(true);
+   HQP.machines[k]={scene:g.scene,animations:g.animations||[],height:MACHINE_GLB[k].height,source:MACHINE_GLB[k].url};
+  }catch(e){ok=false;console.warn('machine asset',e&&e.message)}
+  onProg(++done/keys.length);
+ }
+ return ok
+}

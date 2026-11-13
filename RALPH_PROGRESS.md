@@ -8065,3 +8065,33 @@ The facades finally show brick and board texture, the giant elbow tube is gone, 
 The mittens are gone, the receiver is charcoal instead of steel-blue, the right bank is now readable pebbled gravel instead of a pale smeared wedge, and the cow-hide blotches are subtle — but with no arms scan the rifle reads as floating in frame, the far end of the bank is still a bare sheet beyond the near tiling, and a few pale blades around the distant barrels still read as paper cut-outs.
 
 **Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: director note 2 — swap the procedural scout for a real CC0/CC-BY robot/drone GLB with a visible muzzle, keep the hit/fire behaviour, and capture an angled tracer frame; only then note 3.
+
+## Iteration 99 — Real scout model + kill the pale overlay box (director note 1; 2026-11-13)
+
+**Task:** director note 1 — replace the procedural orange-faced bowl with a real CC0 animated robot GLB, remove the pale rectangle framing it, and capture an angled shot where its tracer reads as a line.
+
+### Acceptance criteria
+1. Scout visible by spawn/in the first fight is a real CC0 animated GLB (Quaternius "Robot Enemy Legs Gun", poly.pizza/m/lFZfDh2hzP, Public Domain) with a visible barrel/muzzle, not procedural geometry or the orange bowl.
+2. The light-grey translucent rectangle framing the scout in both 1024×720 frames is gone (verified only by inspecting the rendered frames, not from code).
+3. The GLB clone keeps the server's hit and fire behaviour: hits still flash its sensor/core, bullets still damage it, and the authoritative tracer still originates from the machine on a new shot token; an angled shot frame reads as a line.
+4. All other machine classes (hunter/heavy/flyer/overlord) and the evidence `plain` path stay untouched; `tests/raid-browser-machine-models.mjs` remains green via its procedural fallback.
+5. Asset source URL and licence line added to ASSETS.md; dsrobot comparison file removed.
+6. Static-offline / mobile-HUD / scenery graders green; Node suite unchanged except the known failure; before/after shots at 1024×720 and 844×390 plus an angled tracer action frame and a hit-flash frame in ~/headshotz-loop/shots/latest.
+
+### Changed
+`assets.js`: new `MACHINE_GLB` registry and separate `loadMachines()` GLTF/Meshopt decoder (lobby props and Battle Royale never pay for raid machine clips). `raid-online.mjs`: `loadRaidArt()` joins `loadMachines()` into the existing `Promise.allSettled`, and `window.__raidArt.machines` reports which bodies decoded. `raid-models.mjs`: added `SkeletonUtils.clone`, `assetScout()` production path (recolours the authored white/orange toy palette to worn gun-metal through the shared worn-plating materials, dark lens with a small orange weak-point core, contact bed with `fog:false`, idle/walk/run/attack/shoot clip mixer), while the `plain` evidence path and every other machine class are unchanged. `raid-view.mjs`: `refreshArt()` swaps a live procedural scout for the asset scout in place, preserving the server-owned actor identity and transform, so a raid already deployed before the GLB lands still upgrades. `ASSETS.md`: Quaternius CC0 source and licence line added; deleted the unused `dsrobot.glb` comparison download.
+
+### Verification
+- `node tests/raid-browser-machine-models.mjs` → deltas scout 381 / hunter 501 / heavy 1375 / flyer 222 / overlord 2114, `wornMapShared:true`, `browserErrors:[]`; procedural fallback still measured.
+- `node tests/raid-browser-static-offline.mjs` → deploy→move→hit→loot→extract, `machineHit:"hit"`, authoritative `machineHpAfter:100` (< fixture 120), loot `Dropped weapon · Compact SMG`, extract, 2 items, 270 credits, `noApiTraffic:true`, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024×720 unobstructed 0.917994, 844×390 0.818139, all touch actions true, `browserErrors:[]`. `node tests/raid-browser-scenery.mjs` → 1926/1991/1880 scenery, `browserErrors:[]`.
+- Targeted client probe (`/tmp/hsz-hitflash.mjs`): a scout fixture's HP dropped 75→35 and the rendered core flashed white (`after-1024-hitflash.png`); a second fixture with a new shot token rendered an angled amber tracer line from the machine (`after-1024-action.png`); `browserErrors:[]`.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 fail (known intermittent `matchmaking.test.mjs` ECONNRESET at wire latency; reproduced identically in a clean `HEAD` worktree). `node --check assets.js raid-online.mjs raid-models.mjs raid-view.mjs` OK.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled at forced clear daylight, same seeded offline deployment and HUD state: `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-1024-action.png`/`after-1024-action.png`, `after-844-action.png` (triangular tracer at 844), and `after-1024-hitflash.png` (white core flash from damage). Baseline is pristine `HEAD` `92770c8`; raw frames in `/tmp/hsz-capture/{before,after3}`.
+
+### Honest critique
+The pale fog-blended rectangle is gone and the enemy is finally real animated geometry with authored idling, running and firing clips; the angled tracer now reads as a line from the machine instead of a blob fired into the camera. But the Quaternius robot is a round-bodied hovering drone with thin limbs and a short forward barrel — at first contact it reads more like a floating sensor unit than an armed soldier, and its dark steel hull becomes hard to pick out against shadowed facades; the core is now small enough that it no longer reads as the old orange bowl. This is a functional asset upgrade, not the final AAA enemy silhouette, and per the director's rule it is not "art landed."
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: director note 2 — replace/remove the pale paper grass cards around barrels/road edge/lamp post and the flat tan plank debris on the dirt strip with real CC0 scans or removal from spawn view; then note 3 (EXIT/Objective agreement) and note 4 (windows/doors, posts, loot scale). Do not touch the main menu or non-raid modes.
