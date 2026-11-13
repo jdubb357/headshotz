@@ -7914,3 +7914,33 @@ The walk frame now shows a readable drop with prompt at both sizes, but the phot
 
 ### Next action
 Director note 3: turn scenery grass cones into flat tufts, give crates/barrels their texture at gameplay range, and make the radar exit arrow readable. Notes 4–5 later. Note 1/iteration 90 still await Austin's live playtest, which decides when these items land.
+
+## Iteration 92 — Roadside grass becomes flat blades instead of bright cones (director note 1, first item; 2026-11-12)
+
+### Acceptance criteria
+1. The bright green cones on the walkable road/sidewalk verge and at building foundations render as flat-blade tufts at 1024×720 and 844×390, with no pyramid silhouette from eye level.
+2. Tufts stay rooted on the terrain/road, sway with the existing wind clock, freeze under reduced motion, and keep `groundGrit` instance counts (>800) and scenery counts unchanged.
+3. Static offline playability and mobile HUD graders stay green; the Node suite runs once before commit.
+
+### Changed
+- `raid-environment.mjs`: new `tuftGeometry()` — four crossed, tapered, flat quads with uneven heights and lean, shared upward normals so blades read like a canopy under the rain sky. Added `tuft` to the instanced geometry set with `THREE.DoubleSide`.
+- Swapped the cone instances to tufts in ground grit, road-verge clumps, slope brush, `fern` and `moss` scenery; muted the grit/verge green palette to wet olive so nothing pops as a toy cone.
+
+### Verification
+- `node --test tests/raid-worlds.test.mjs`: 13/13; `raid-audio`+`raid-ballistics`: 23/23.
+- `node tests/raid-browser-scenery.mjs` exit 0 (1926/1991/1880 scenery, kinds unchanged, no API traffic, `browserErrors:[]`).
+- `node tests/raid-browser-static-offline.mjs` exit 0 (deploy → move → fire hit → loot → extract, 2 items).
+- `node tests/raid-browser-mobile-hud.mjs` exit 0 (1024×720 91.83% unobstructed, 844×390 81.71%, all touch actions pass).
+- `node tests/raid-browser-foliage.mjs` moving/clock checks pass; the final reduced-motion still check fails with 188 changed pixels and fails identically on pristine HEAD (pre-existing grader flake; not introduced by this slice).
+- `node --test tests/*.test.mjs`: 1248 pass, 1 fail — the known intermittent `matchmaking.test.mjs` ECONNRESET (reran alone, same failure; no raid imports).
+- Terrain contact probe: tuft tips light from the sky, bases sink into the pavement rather than floating; triangle budget per instance is unchanged (4 blades × 4 tris vs 16 for the old 8-sided cone).
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled at forced 14:00 rain: `before-1024.png`/`after-1024.png` and `before-844.png`/`after-844.png` are the spawn eye-level frame; `before-1024-action.png`/`after-1024-action.png` and the 844 action frames stand on the long road looking down the verge; `*-verge.png` frames the same road from the edge. `before3-`/`after3-` raw frames in `/tmp/hsz-iter92/out`, crops in `/tmp/hsz-iter92/*veg.png`.
+
+### Honest critique
+The pyramid-artifact read is gone and the road crop now looks like windblown wet verge grass, but at 844 the small pavement clumps collapse into thin dark strokes and the distant tree crowns still look like bright green blobs, so the first 3 minutes are cleaner rather than genuinely lush.
+
+### Next action
+Finish director note 1 (rest): give the spawn/review-crate a readable wood-slat material, the near barrel ribbed steel that sits on the ground, and the doorway stoops/planks real wood texture; then the tall striped tower façade, readable radar exit arrow and collider stop thump.
+

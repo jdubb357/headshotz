@@ -79,6 +79,37 @@ function wetGlintTexture(){
  texture.colorSpace=THREE.SRGBColorSpace;
  return texture;
 }
+// Trailside grass is a clump of flat tapered blades arranged in crossed planes,
+// not a cone. From eye level the blades catch the sky and shade like bent stems,
+// and the clump never presents the hard pyramid silhouette a cone does at close
+// range. The whole clump is one geometry, so vegetation stays a single instance
+// per clump and keeps the instanced draw budget unchanged.
+function tuftGeometry(){
+ // Four blades at different heights and lean directions: from eye level at
+ // least two planes always face the camera, and the uneven tips keep the clump
+ // from reading as a stamped cone or a lone spike.
+ const blades=[[0,.96,1.00,.20],[Math.PI*.25,.82,1.12,.30],[Math.PI*.5,1.02,.94,.18],[Math.PI*.75,.76,1.16,.34]],positions=[],uvs=[],indices=[];let base=0;
+ for(const [angle,height,width,lean] of blades){
+  const cos=Math.cos(angle),sin=Math.sin(angle);
+  // [height, width factor, sideways lean] from rooted base to tip.
+  const rows=[[-.5,width,0],[-.5+height*.55,width*.52,lean*.34],[-.5+height,width*.09,lean]];
+  for(const [y,w,l] of rows)for(let side=-1;side<=1;side+=2){
+   const lx=side*w*.5;
+   positions.push(lx*cos+l*sin,y,-lx*sin+l*cos);
+   uvs.push(side>0?1:0,(y+.5)/height);
+  }
+  indices.push(base,base+2,base+1,base+2,base+3,base+1,base+2,base+4,base+3,base+4,base+5,base+3);
+  base+=6;
+ }
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+ geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+ geometry.setIndex(indices);
+ // Blades are lit like a canopy rather than like their own vertical faces:
+ // an upward normal keeps every tuft readable under the flat rain-sky light.
+ geometry.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(base*3).fill(0).map((_,k)=>k%3===1?1:0),3));
+ return geometry;
+}
 // Wind response: foliage-only instanced groups get a small vertex-shader sway.
 // The phase comes from each instance's world position, so it is deterministic
 // and rebuilds identically; it never changes bases, routes or actor data.
@@ -119,7 +150,7 @@ export function buildEnvironment(world){
   poolColors.push(...new THREE.Color(color).toArray());poolRadii.push(radius);
   wetReflect(prop.x,prop.z,color,Math.max(1.4,radius*.65),Math.min(10,Math.max(4.4,radius*2.8)));
  };
- const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,4,20)};
+ const geometries={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),sphere:new THREE.IcosahedronGeometry(1,1),cone:new THREE.ConeGeometry(1,1,8),tuft:tuftGeometry(),ring:new THREE.TorusGeometry(1,.08,4,20)};
  const matrix=new THREE.Matrix4(),position=new THREE.Vector3(),quaternion=new THREE.Quaternion(),scale=new THREE.Vector3(),euler=new THREE.Euler();
  // Daytime windows are dark glass that mirrors the sky; a lit window carries its
  // authored lamp colour in the group tag so RaidView can restore its warm emissive
@@ -133,7 +164,7 @@ export function buildEnvironment(world){
     ?{color,emissive:color,emissiveIntensity:1.7,roughness:spec[0],metalness:spec[1]}
     :glass
     ?{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:1.8,emissive:windowLit??0x000000,emissiveIntensity:0}
-    :{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:spec[1]>.1?1.3:.55,...(spec[2]>0?{normalMap:normalTex(texture),normalScale:new THREE.Vector2(spec[2],spec[2])}:{})});
+    :{color,map:getTex(texture),roughness:spec[0],metalness:spec[1],envMapIntensity:spec[1]>.1?1.3:.55,side:type==='tuft'?THREE.DoubleSide:THREE.FrontSide,...(spec[2]>0?{normalMap:normalTex(texture),normalScale:new THREE.Vector2(spec[2],spec[2])}:{})});
   if(windowLit!==null){mat.userData.raidWindowGlass=true;mat.userData.raidWindowGlowColor=windowLit;windowMaterials.push(mat)}
   // Roads and fields are unit cubes stretched to tens or hundreds of metres, so
   // one authored texture tile would smear across the entire lane. Scale the map
@@ -316,7 +347,7 @@ export function buildEnvironment(world){
    add('box',0x6f5a3f,gx+.55,gy+.14,gz+.17,.72,.06,.14,gritHash*1.9,'planks',.1,0,false,'groundGrit');
    for(let i=0;i<4;i++){
     const a=hash01(gritHash*31.3+i*5.1)*Math.PI*2,r=.16+hash01(gritHash*6.7+i)*.4;
-    add('cone',i%2?0x4e6b46:0x45633f,gx+Math.cos(a)*r,gy+.26+hash01(gritHash*2.9+i)*.10,gz+Math.sin(a)*r,.26+hash01(gritHash*8.9+i)*.16,.48+hash01(gritHash*4.4+i)*.18,.26,a*1.7,'forest',.18,0,true,'groundGrit');
+    add('tuft',i%2?0x556046:0x455138,gx+Math.cos(a)*r,gy+.26+hash01(gritHash*2.9+i)*.10,gz+Math.sin(a)*r,.26+hash01(gritHash*8.9+i)*.16,.48+hash01(gritHash*4.4+i)*.18,.26,a*1.7,'forest',.10,0,true,'groundGrit');
    }
    groundGritList.push({x:gx,y:gy,z:gz,ox:gc1,oz:gc2,h});
    structureDetail.streetGritClusters=(structureDetail.streetGritClusters||0)+1;
@@ -391,13 +422,13 @@ export function buildEnvironment(world){
   // Presentation-only undergrowth and building ruins derived from
   // raidScenery(); they never add collision and use fixed offsets so the
   // online and offline builders agree.
-  else if(prop.kind==='fern'){const c=prop.color||0x587446,n=5;for(let i=0;i<n;i++){const a=(prop.ry||0)+i*Math.PI*2/n;add('cone',c,x+Math.sin(a)*.32*s,y+.32*s,z+Math.cos(a)*.32*s,.24*s,1.15*s,.24*s,a,'forest',Math.PI*.3,0,true)}}
+  else if(prop.kind==='fern'){const c=prop.color||0x587446,n=4;for(let i=0;i<n;i++){const a=(prop.ry||0)+i*Math.PI*2/n;add('tuft',c,x+Math.sin(a)*.32*s,y+.32*s,z+Math.cos(a)*.32*s,.30*s,1.05*s,.30*s,a,'forest',Math.PI*.10,0,true)}}
   else if(prop.kind==='shrub'){const c=prop.color||0x45673d;for(let i=0;i<4;i++){const a=(prop.ry||0)+i*1.65;add('sphere',c,x+Math.sin(a)*.42*s,y+(.5+i*.1)*s,z+Math.cos(a)*.38*s,(1.15-i*.08)*s,(.85-i*.05)*s,(1.05-i*.06)*s,0,'forest',0,0,true)}}
   else if(prop.kind==='stump'){const s2=prop.scale||1;add('cylinder',0x5b4936,x,y+.62*s2,z,.28*s2,1.24*s2,.28*s2,0,'planks');add('cylinder',0x7c6a4f,x,y+1.24*s2,z,.31*s2,.08*s2,.31*s2,0,'planks');add('box',0x6b5842,x+(prop.ry?Math.sin(prop.ry)*.55*s2:.55*s2),y+.28*s2,z+(prop.ry?Math.cos(prop.ry)*.55*s2:0),1.1*s2,.16*s2,.18*s2,prop.ry||0,'planks',0,Math.PI*.12)}
   // Moss used to be a flat sphere (a 3 m-wide pancake at street scale) that
   // read as a printed sticker on the photo asphalt. Five upright blades keep
   // the colour and the wind sway while giving the growth real silhouette.
-  else if(prop.kind==='moss'){const c=prop.color||0x5d7248;for(let i=0;i<5;i++){const a=(prop.ry||0)+i*Math.PI*2/5,r=(i%2?.34:.16)*s;add('cone',c,x+Math.sin(a)*r,y+.2*s,z+Math.cos(a)*r,.15*s,.42*s,.15*s,a,'forest',0,0,true)}}
+  else if(prop.kind==='moss'){const c=prop.color||0x5d7248;for(let i=0;i<5;i++){const a=(prop.ry||0)+i*Math.PI*2/5,r=(i%2?.34:.16)*s;add('tuft',c,x+Math.sin(a)*r,y+.2*s,z+Math.cos(a)*r,.22*s,.38*s,.22*s,a,'forest',0,0,true)}}
   else if(prop.kind==='ruin'){const c=prop.color||0x8b8c84,ry=prop.ry||0,off=1.25*s,px=x+Math.sin(ry)*off,pz=z+Math.cos(ry)*off;add('box',c,x,y+.85*s,z,.55*s,1.7*s,2.4*s,ry,'brick',0,0);add('box',c,px,y+.58*s,pz,.5*s,1.16*s,1.5*s,ry,'brick',0,0);add('box',0x74736c,x-Math.cos(ry)*.95*s,y+.12*s,z+Math.sin(ry)*.95*s,1.9*s,.2*s,.62*s,ry+.35,'rock',0,Math.PI*.06)}
   else if(prop.kind==='rubble'){const c=prop.color||0x8a8777,ry=prop.ry||0;for(let i=0;i<3;i++){const a=ry+i*2.1;add('box',c,x+Math.cos(a)*.38*s,y+(.18+i*.11)*s,z+Math.sin(a)*.44*s,.55*s*(1-i*.12),.22*s*(1+i*.35),.68*s*(1-i*.18),a,'rock',0,Math.PI*.08)}add('sphere',0x777268,x-.3*s,y+.12*s,z+.25*s,.34*s,.18*s,.28*s,0,'rock')}
   else if(prop.kind==='rock'){add('sphere',prop.color||0x8a8777,x,y+.55*s,z,1.5*s,.85*s,1.2*s,0,'rock',0)}
@@ -465,12 +496,12 @@ export function buildEnvironment(world){
       const px=x+lx*cosR+side*off*sinR,pz=z-lx*sinR+side*off*cosR;
       const top=Math.max(y,terrainHeightAt(world,px,pz));
       if(k<.5){
-       const green=j>.55?0x5f7a4c:0x4b6540;
+       const green=j>.55?0x6e7246:0x565d3a;
        for(const ti of [0,1,2]){
         const ox=side*(ti-1)*.16+j*.08,oz=(ti-1)*.30;
-        add('cone',ti===1?green:0x54703f,px+ox,top+.14+j*.08,pz+oz,.10+j*.09,.30+j*.22,.10+j*.09,ti*2.1,'forest',0,0,true);
+        add('tuft',ti===1?green:0x4d5936,px+ox,top+.14+j*.08,pz+oz,.10+j*.09,.30+j*.22,.10+j*.09,ti*2.1,'forest',0,0,true);
        }
-       if(j>.55)add('cone',green,px-side*.18,top+.20+j*.14,pz,.15+j*.11,.40+j*.22,.15+j*.11,j*6.28,'forest',Math.PI*.28,0,true);
+       if(j>.55)add('tuft',green,px-side*.18,top+.20+j*.14,pz,.15+j*.11,.40+j*.22,.15+j*.11,j*6.28,'forest',Math.PI*.16,0,true);
       }else if(k<.82){
        for(let di=0;di<3;di++){
         const [dx,dz]=[Math.cos(j*6.28+di*2.1)*.3,Math.sin(j*6.28+di*2.1)*.24];
@@ -490,12 +521,12 @@ export function buildEnvironment(world){
      const j=h(i*5+101),k=h(i*7+103),off=side*(prop.d/2+4.4+j*12.5),px=x+lx*cosR+off*sinR,pz=z-lx*sinR+off*cosR;
      const gy=terrainHeightAt(world,px,pz);
      if(gy<.28)continue;
-     const green=j>.5?0x58754a:0x45623d;
+     const green=j>.5?0x596442:0x475238;
      for(let ti=0;ti<3;ti++){
       const a=j*5.1+ti*2.09,r=.18+j*.58;
-      add('cone',ti===1?green:0x4a673e,px+Math.cos(a)*r,gy+.24+j*.16,pz+Math.sin(a)*r,.16+j*.11,.42+j*.3,.16+j*.11,a,'forest',Math.PI*.3,0,true);
+      add('tuft',ti===1?green:0x414c32,px+Math.cos(a)*r,gy+.24+j*.16,pz+Math.sin(a)*r,.16+j*.11,.42+j*.3,.16+j*.11,a,'forest',Math.PI*.14,0,true);
      }
-     if(k>.45)add('cone',green,px+side*.25,gy+.25+j*.2,pz,.24+j*.16,.55+j*.35,.24+j*.16,j*6.28,'forest',Math.PI*.3,0,true);
+     if(k>.45)add('tuft',green,px+side*.25,gy+.25+j*.2,pz,.24+j*.16,.55+j*.35,.24+j*.16,j*6.28,'forest',Math.PI*.18,0,true);
      if(k<.3)add('box',0x8d8b80,px-side*.3,gy+.03,pz,.28+j*.4,.06,.2+j*.3,j*7.1,'rock',0,0,false,'');
     }
    }
