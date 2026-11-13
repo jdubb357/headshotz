@@ -39,11 +39,10 @@ function terrainMesh(world,palette){
   const height=position[i*3+1],slope=1-normals.array[i*3+1];
   tint.copy(low).lerp(high,Math.min(1,height/34));
   if(slope>0)tint.lerp(rock,Math.min(.55,slope*1.5));
-  // Two noise scales: fine grain breaks the photo tiling, while broad patches of
-  // damp earth and dry gravel keep the near embankment from reading as one flat
-  // slab under the midday sun.
-  const fine=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.13,
-   broad=(Math.sin(position[i*3]*.041+position[i*3+2]*.033)+Math.cos(position[i*3]*.019-position[i*3+2]*.047))*0.14;
+  // Two low-amplitude noise scales break the photo tiling without painting a
+  // cow-hide pattern of dark patches across open ground at first-person range.
+  const fine=(Math.sin(position[i*3]*.23)+Math.cos(position[i*3+2]*.19))*0.045,
+   broad=(Math.sin(position[i*3]*.041+position[i*3+2]*.033)+Math.cos(position[i*3]*.019-position[i*3+2]*.047))*0.05;
   tint.multiplyScalar(1+fine+broad);
   colors[i*3]=tint.r;colors[i*3+1]=tint.g;colors[i*3+2]=tint.b;
  }
@@ -53,15 +52,19 @@ function terrainMesh(world,palette){
  // 16x anisotropic filtering keeps the gravel grain legible on the near
  // embankment where the eye meets it at a grazing angle instead of smearing to
  // a flat grey wedge.
- map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(240,240);map.anisotropy=16;map.needsUpdate=true;
+ // The sector is 1,440 m across; 240 repeats gave a 6 m tile that smeared into
+ // a pale grey wash on the rising bank. A fixed 1.8 m tile keeps the photographed
+ // gravel grain legible at first-person range on every world size.
+ const terrainReps=Math.max(120,Math.round(world.size/1.8));
+ map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(terrainReps,terrainReps);map.anisotropy=16;map.needsUpdate=true;
  // The terrain grid is large enough that a single normal tile would smear; tile
  // the relief texture at the same density as the albedo so sun-lit ridges and
  // gravel keep readable surface detail at first-person range.
  const normal=normalTex(world.theme==='wilderness'?'forest':world.theme==='settlement'?'dirt':'gravel',1.6).clone();
- normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.set(240,240);normal.anisotropy=16;normal.needsUpdate=true;
- const material=new THREE.MeshStandardMaterial({map,normalMap:normal,normalScale:new THREE.Vector2(.9,.9),vertexColors:true,roughness:.93,metalness:.04,envMapIntensity:.4,side:THREE.FrontSide});
+ normal.wrapS=normal.wrapT=THREE.RepeatWrapping;normal.repeat.copy(map.repeat);normal.anisotropy=16;normal.needsUpdate=true;
+ const material=new THREE.MeshStandardMaterial({map,normalMap:normal,normalScale:new THREE.Vector2(1.25,1.25),vertexColors:true,roughness:.93,metalness:.04,envMapIntensity:.4,side:THREE.FrontSide});
  material.userData.raidOwned=true;material.userData.raidOwnTexture=true;material.userData.raidOwnNormalTexture=true;
- material.userData.raidDry={roughness:.93,metalness:.04,envMapIntensity:.4,normalScale:.9};material.userData.raidWet=1;
+ material.userData.raidDry={roughness:.93,metalness:.04,envMapIntensity:.4,normalScale:1.25};material.userData.raidWet=1;
  const mesh=new THREE.Mesh(geometry,material);mesh.receiveShadow=true;mesh.castShadow=true;mesh.matrixAutoUpdate=false;mesh.updateMatrix();
  return mesh;
 }
@@ -172,7 +175,11 @@ export function buildEnvironment(world){
  // only after the sun goes down. One material per distinct glow colour, no per-frame
  // texture or matrix updates.
  const windowMaterials=[],WLIT='windowLit:';
- function add(type,color,x,y,z,sx,sy,sz,ry=0,texture='plain',rx=0,rz=0,wind=false,tag=''){const key=type+'|'+color+'|'+texture+(wind?'|wind':'')+(tag?'|'+tag:'');let group=groups.get(key);if(!group){
+ function add(type,color,x,y,z,sx,sy,sz,ry=0,texture='plain',rx=0,rz=0,wind=false,tag=''){
+  // Papery flat blades close to an insertion point read as fake foliage in the
+  // opening frame; keep the photographed grass only beyond the near apron.
+  if(type==='tuft'&&(world.spawns||[]).some(([spx,spz])=>Math.hypot(x-spx,z-spz)<10))return;
+  const key=type+'|'+color+'|'+texture+(wind?'|wind':'')+(tag?'|'+tag:'');let group=groups.get(key);if(!group){
    const glow=texture==='glow',glass=texture==='window',spec=SURFACE_PBR[texture]||SURFACE_PBR.plain;
   const windowLit=tag.startsWith(WLIT)?(Number(tag.slice(WLIT.length))||0xffd79a):null;
   const mat=new THREE.MeshStandardMaterial(glow
@@ -1111,7 +1118,9 @@ export function buildEnvironment(world){
  for(const [sx,sz] of world.spawns||[]){
   // Short radii cover the cut bank immediately beside the insertion apron so the
   // foreground slope reads as eroded grass and stone instead of bare fill.
-  for(const radius of [4,5.5,7,9,13,18,24,31])for(let i=0;i<18;i++){
+  // Nothing inside ~9 m: the pale billboard blades there read as paper cards in
+  // the opening frame. Keep the eroded scrub to the middle distance.
+  for(const radius of [9,13,18,24,31])for(let i=0;i<18;i++){
    const angle=i*(Math.PI*2/18)+radius*.61,x=sx+Math.sin(angle)*radius,z=sz+Math.cos(angle)*radius;
    const gy=terrainHeightAt(world,x,z);if(gy<.14)continue;
    const h=hash01(Math.sin(x*12.9898+z*78.233)*43758.5453+radius);
@@ -1265,9 +1274,9 @@ export function applyPhotoLook(root){
  // reads as dirt and gravel instead of a flat pale slab beside the player.
  if(colors)for(let i=0;i<colors.count;i++){
   const r=colors.getX(i),g=colors.getY(i),b=colors.getZ(i),lum=LUM*r+.7152*g+.0722*b;
-  const v=Math.max(.36,Math.min(.72,lum*1.62)),
+  const v=Math.max(.22,Math.min(.44,lum*1.18)),
     // Wetter, greener wilderness sits a touch cooler than the industrial dust.
-    warm=1.03,mid=1.0,cold=.88;
+    warm=1.05,mid=.99,cold=.92;
   colors.setXYZ(i,v*warm,v*mid,v*cold);colors.needsUpdate=true;
  }
  return root;
