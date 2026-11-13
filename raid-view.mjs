@@ -670,8 +670,12 @@ export class RaidView {
   skyMaterial.userData.raidOwned=true;
   const skyGeometry=new THREE.SphereGeometry(195*this.viewScale,32,16);skyGeometry.userData.raidOwned=true;
   this.skyDome=new THREE.Mesh(skyGeometry,skyMaterial);this.skyDome.renderOrder=-11;this.skyDome.frustumCulled=false;this.scene.add(this.skyDome);
-  const orb=(radius,color)=>{const geometry=new THREE.SphereGeometry(radius,12,8),material=new THREE.MeshBasicMaterial({color,fog:false,depthWrite:false});geometry.userData.raidOwned=material.userData.raidOwned=true;const mesh=new THREE.Mesh(geometry,material);this.scene.add(mesh);return mesh};
-  this.sunOrb=orb(3.4*this.viewScale,0xffd7a5);this.moonOrb=orb(2.2*this.viewScale,0xd6e6f6);
+  // Sun and moon are soft additive glows rather than hard opaque spheres: the
+  // old flat discs sat at fixed world coordinates and could drift into view as
+  // a pale smudge while the player moved. Each frame follows the camera along
+  // the conditions sun direction so it always reads as a distant glint.
+  const orb=(radius,color,opacity)=>{const material=new THREE.SpriteMaterial({map:TX.soft,color,transparent:true,opacity,depthWrite:false,blending:THREE.AdditiveBlending,fog:false});material.userData.raidOwned=true;const sprite=new THREE.Sprite(material);sprite.scale.setScalar(radius*2.6);this.scene.add(sprite);return sprite};
+  this.sunOrb=orb(3.4*this.viewScale,0xffe4b8,.85);this.moonOrb=orb(2.2*this.viewScale,0xd6e6f6,.72);
   const positions=[],radius=185*this.viewScale;for(let i=0;i<220;i++){const y=.08+.88*(i+.5)/220,angle=i*2.399963,ring=Math.sqrt(1-y*y);positions.push(Math.cos(angle)*ring*radius,y*radius,Math.sin(angle)*ring*radius)}
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.userData.raidOwned=true;const material=new THREE.PointsMaterial({color:0xdfebff,size:.4*this.viewScale,transparent:true,opacity:0,fog:false,depthWrite:false});material.userData.raidOwned=true;this.stars=new THREE.Points(geometry,material);this.scene.add(this.stars);
   // Behind the playable sector, two layered ruined-district silhouettes fade
@@ -787,7 +791,7 @@ export class RaidView {
   this.sunGain=1.45+.55*daylight;this.hemiGain=1.25+.09*(1-daylight);
   this.sun.intensity=this.sunBase*this.sunGain;this.hemi.intensity=this.hemiBase*this.hemiGain;this.ambientFill.intensity=.85*daylight*(weather==='rain'?.8:weather==='ash'?.85:1);
   this.skyBounce.intensity=.62*daylight*(weather==='rain'?.72:weather==='ash'?.8:1);
-  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
+  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun).normalize().multiplyScalar(150*this.viewScale).add(this.camera.position);this.moonOrb.position.copy(target.sun).normalize().multiplyScalar(-150*this.viewScale).add(this.camera.position);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
   if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;SKY_TOP.copy(target.sky).offsetHSL(0,.08,-.17);u.top.value.lerp(SKY_TOP,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
    // Cloud deck follows the weather: thin haze by day, heavy low ceiling under
    // rain, dust-laden ash, and dark night cover whose tint comes from the same
