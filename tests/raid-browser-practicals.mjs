@@ -22,14 +22,15 @@ try{
  const result=await p.evaluate(`(async()=>{
   const {RaidView}=await import('./raid-view.mjs');
   const {buildEnvironment,terrainNormalAt}=await import('./raid-environment.mjs');
-  const {RAID_WORLDS,terrainHeightAt}=await import('./shared/raid-worlds.mjs');
+  const {RAID_WORLDS,terrainHeightAt,uniqueWindowProps}=await import('./shared/raid-worlds.mjs');
   const THREE=await import('./lib/three.module.min.js');
   const practicalKinds=['lamp','floodlight','campfire'],poolKinds=['lamp','campfire'];
   // Authored population and one deterministic build per frozen sector.
   const worlds={};
   for(const world of RAID_WORLDS){
    const authored={};for(const prop of world.props||[])if(practicalKinds.includes(prop.kind))authored[prop.kind]=(authored[prop.kind]||0)+1;
-   const windows=(world.props||[]).filter(prop=>prop.kind==='window'&&prop.lit&&prop.color!=null).length;
+   const uniqueProps=uniqueWindowProps(world.props||[]);
+   const windows=uniqueProps.filter(prop=>prop.kind==='window'&&prop.lit&&prop.color!=null).length;
    authored.window=windows;
    const expected=Object.values(authored).reduce((a,b)=>a+b,0);
    const poolProps=(world.props||[]).filter(prop=>poolKinds.includes(prop.kind)&&(prop.y==null||prop.y===0));
@@ -37,7 +38,7 @@ try{
    const root=build(),glow=root.userData.raidGlowPoints,pools=root.userData.raidGlowPools,glints=root.userData.raidWetReflections;
    if(!glow||!pools||!glints)continue;
    const pos=glow.geometry.attributes.position,col=glow.geometry.attributes.color;
-   const glintExpected=poolProps.length+windows+(world.props||[]).filter(prop=>prop.kind==='floodlight'&&(prop.y==null||prop.y===0)).length;
+   const glintExpected=poolProps.length+windows+uniqueProps.filter(prop=>prop.kind==='floodlight'&&(prop.y==null||prop.y===0)).length;
    const signature=()=>{const r=build(),g=r.userData.raidGlowPoints,p=r.userData.raidGlowPools,w=r.userData.raidWetReflections;return {count:g.geometry.attributes.position.count,pos:Array.from(g.geometry.attributes.position.array),col:Array.from(g.geometry.attributes.color.array),poolCount:p.count,poolMat:Array.from(p.instanceMatrix.array),poolCol:Array.from(p.instanceColor.array),glintCount:w.count,glintMat:Array.from(w.instanceMatrix.array),glintCol:Array.from(w.instanceColor.array)}};
    const a=signature(),b=signature();
    const deterministic=a.count===b.count&&a.pos.every((v,i)=>v===b.pos[i])&&a.col.every((v,i)=>v===b.col[i]);

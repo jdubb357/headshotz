@@ -1,5 +1,5 @@
 import * as THREE from './lib/three.module.min.js';
-import {getTex,normalTex,TX} from './gfx.js';
+import {getTex,normalTex,TX,GQ} from './gfx.js';
 import {terrainHeightAt,raidScenery,raidDoorwaySites,raidSpawnDressing,uniqueWindowProps} from './shared/raid-worlds.mjs';
 const palettes={industrial:{ground:0x969684,concrete:0xadb0a8,brick:0x9b8272,planks:0x8a7c68,roof:0x44565f,metal:0x8ea0a1,container:0x4e7b81,rock:0x7f7c72,crate:0xac8755,barrier:0xccb173},wilderness:{ground:0x8a9375,concrete:0xb0b0a4,brick:0xa88977,planks:0x8a7357,roof:0x4c6662,metal:0x8fa2a2,container:0x7c7050,rock:0x99958a,crate:0x9c8559,barrier:0xa8a176},settlement:{ground:0x9c8d78,concrete:0xb3ada3,brick:0xb0836a,planks:0x94785c,roof:0x5c5f6a,metal:0x8d989d,container:0x7a625a,rock:0x857d70,crate:0xac8252,barrier:0xceb379}};
 const blockTex=kind=>kind==='metal'||kind==='roof'||kind==='container'?'metal':kind==='crate'?'crate':kind==='rock'?'rock':kind==='barrier'?'hazard':kind==='planks'?'planks':kind==='brick'?'brick':'concrete';
@@ -268,11 +268,27 @@ export function buildEnvironment(world){
  // exact same footprints. Both copies are identical collision volumes, so the
  // authoritative world data stays frozen; drawing one avoids two coincident
  // meshes fighting for the same depth plane.
- const renderedBlocks=new Set();
+ const renderedBlocks=new Set(),facadeBlocks=[];
+ // The scanned modular façade kit is the visual replacement for every extruded
+ // earth-material building solid. A wall face is a thin authored room wall
+ // (two broad faces) or a solid upper-floor volume (four faces); roofs, props and
+ // the barrier treatment keep their own pass. Presentation only: the frozen
+ // block tuples still back collision, doors and gameplay.
+ const facadeKinds=new Set(['brick','concrete','planks','metal']);
  for(const [x,z,w,d,h,y=0,kind='concrete',tint]of world.blocks){
   const signature=x+','+z+','+w+','+d+','+h+','+y+','+kind+','+tint;
   if(renderedBlocks.has(signature))continue;
   renderedBlocks.add(signature);
+  const thin=Math.min(w,d),broad=Math.max(w,d);
+  const skin=GQ.level!=='low'&&h>=1.1&&facadeKinds.has(kind)&&(thin<=.7&&broad>=2.6||w>=3&&d>=3);
+  if(skin){
+   facadeBlocks.push({x,z,w,d,h,y:y||0,roofY:(y||0)+h,kind,color:tint??(palette[kind]||palette.concrete),wall:thin<=.7&&broad>=2.6});
+   // Keep one textured box behind each skinned facade as an assetless/low-end
+   // fallback. The photo kit is the surface the player sees; this group is
+   // hidden the moment the kit is loaded.
+   add('box',tint??(palette[kind]||palette.concrete),x,y+h/2,z,w,h,d,0,blockTex(kind),0,0,false,'__facadeFallback');
+   continue;
+  }
   if(kind==='barrier'&&h>=2.4){
    // Tall hazard slabs used to be raw yellow/black tiled boxes: a full-height
    // chevron wash that read as a broken billboard. Render them as weathered
@@ -306,12 +322,13 @@ export function buildEnvironment(world){
  for(const block of world.blocks){
   const [x,z,w,d,h,y=0,kind='concrete']=block;
   if(y>0.4||h<2.6||w<5||d<5)continue;
-  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks'&&kind!=='metal')continue;
   const hash=hash01(x*12.9898+z*78.233+world.id.length*1.7+h*3.7),roofY=y+h;
   // Weather staining at the base reads as a damp foundation band; the cornice
   // overhangs slightly so rooflines cast a crisp shadow instead of a flat cap.
-  add('box',0x474b44,x,y+.18,z,w+.22,.36,d+.22,0,'concrete',0,0,false,'plinth');
-  add('box',0x303a3b,x,roofY+.10,z,w+.34,.22,d+.34,0,'metal',0,0,false,'cornice');
+  // The modular skin supplies the base band and roofline cornice, so the old
+  // flat procedural plinth/cornice boxes are deleted from this frame entirely.
+  // Roof vents, masts, plant and weather detail stay.
   structureDetail.structures++;structureDetail.plinths++;structureDetail.cornices++;
   if(hash>.3){
    const vx=x+(hash-.5)*w*.55,vz=z+((hash*11)%1-.5)*d*.55;
@@ -436,6 +453,7 @@ export function buildEnvironment(world){
   }
  }
  root.userData.raidStructureDetail=structureDetail;root.userData.raidRoofPlants=roofPlantList;root.userData.raidStreetGrit=groundGritList;root.userData.raidWindowShutters=shutterSites;root.userData.raidWindowSills=sillSites;root.userData.raidWindowOpenings=windowOpeningSites;
+ root.userData.raidFacadeBlocks=facadeBlocks;
  for(const ramp of world.ramps||[]){const count=20;for(let i=0;i<count;i++){const t=(i+.5)/count,x=ramp.x+(ramp.axis==='x'?(t-.5)*ramp.w:0),z=ramp.z+(ramp.axis==='z'?(t-.5)*ramp.d:0),y=ramp.from+(ramp.to-ramp.from)*t;
   add('box',palette.metal,x,y-.08,z,ramp.axis==='x'?ramp.w/count:ramp.w,.16,ramp.axis==='z'?ramp.d/count:ramp.d,0,'metal');
   if(i%4===0)for(const side of [-1,1])add('box',palette.metal,x+(ramp.axis==='z'?side*ramp.w/2:0),y+.55,z+(ramp.axis==='x'?side*ramp.d/2:0),.1,1.1,.1);
@@ -838,10 +856,10 @@ export function buildEnvironment(world){
   }
  }
  // Street-level doorways derived from the frozen block and window layers: a
- // recessed dark opening framed by masonry, an entry stoop, and a weathered
- // plank door hung ajar. The façade is chosen deterministically and the door
- // is centred in a verified gap between authored window openings, so trim never
- // overlaps a window. The shared doorway data also carries the stoop colliders.
+ // recessed dark opening framed by masonry, an entry stoop and the real scanned
+ // CC0 timber door module (applied by RaidView). The opening is chosen
+ // deterministically in a verified gap between authored window openings, so
+ // trim never overlaps a window. Shared doorways still carry their stoop colliders.
  const doorwayWindows=uniqueWindowProps(world.props||[]).filter(p=>p.kind==='window');
  const doorwayList=[];let doorways=0;const doorwaySigns=[];
  for(const site of raidDoorwaySites(world)){
@@ -854,30 +872,6 @@ export function buildEnvironment(world){
    for(const side of [-1,1]){
     add('box',0x6c6a64,ddx+(onZ?side*(doorW/2+.08):0),doorBase+doorH/2,ddz+(onZ?0:side*(doorW/2+.08)),...since(.16,doorH+.18,.30),0,'concrete',0,0,false,'doorway');
    }
-   // A weathered plank door hangs slightly ajar on one jamb. The slab carries
-   // five real board faces, iron hinge straps and a mounted handle so the timber
-   // silhouette survives rain and dim light instead of reading as a flat box.
-   const swing=(outZ||outX)*.24,cosSwing=Math.cos(swing),sinSwing=Math.sin(swing);
-   const doorCX=ddx+outX*.12,doorCZ=ddz+outZ*.12,doorCY=doorBase+doorH/2-.06;
-   // Wall-plane offset (along the door) to a point proud of the ajar face.
-   const faceAt=(along,out)=>onZ
-    ?[doorCX+along*cosSwing+outZ*out*sinSwing,doorCZ-along*sinSwing+outZ*out*cosSwing]
-    :[doorCX+outX*out*cosSwing+along*sinSwing,doorCZ-outX*out*sinSwing+along*cosSwing];
-   const doorH2=(doorH-.24)/2,doorW2=(doorW-.14)/2;
-   add('box',0x1c120a,doorCX,doorCY,doorCZ,...since(doorW-.14,doorH-.24,.08),swing,'planks',0,0,false,'doorway');
-   const bay=(doorW-.17)/5,boardTone=[0x5b4227,0x472f1c,0x664a2d];
-   for(let i=0;i<5;i++){
-    const along=-doorW2+bay*(.5+i),[bx,bz]=faceAt(along,.052);
-    add('box',boardTone[i%3],bx,doorCY,bz,...since(bay-.006,doorH-.38,.02),swing,'planks',0,0,false,'doorBoard');
-   }
-   // Top and bottom rails pin the boards; three hinge straps plate the jamb.
-   for(const dy of [-1,1]){const [bx,bz]=faceAt(0,.065);
-    add('box',0x2d2116,bx,doorCY+dy*(doorH2-.06),bz,...since(doorW-.20,.055,.024),swing,'planks',0,0,false,'doorRail')}
-   for(const dy of [-.32,0,.32]){const [bx,bz]=faceAt(-doorW2+.17,.072);
-    add('box',0x5c615c,bx,doorCY+dy*doorH*.48,bz,...since(.34,.055,.028),swing,'metal',0,0,false,'doorIron')}
-   const [hx,hz]=faceAt(doorW*.28,.10);
-   add('box',0x44483f,hx,doorCY,hz,...since(.11,.26,.026),swing,'metal',0,0,false,'doorway');
-   add('sphere',0xa9aca9,hx+(onZ?outZ*.018:outX*.018),doorCY,hz+(onZ?outZ*.018:outX*.018),.06,.06,.06,0,'metal',0,0,false,'doorway');
    // Timber-clad stoops: plank treads and riser faces over the masonry core. The
    // lived-in threshold now reads as timber boards rather than bare pale boxes.
    for(const [stepOut,stepY,stepW,stepD] of [[.34,doorBase-.26,doorW+.7,.68],[.22,doorBase-.14,doorW+.5,.46]]){
@@ -1265,7 +1259,7 @@ export function buildEnvironment(world){
  }
  root.userData.raidWindMaterials=windMaterials;root.userData.raidWindowMaterials=windowMaterials;
  for(const {type,transforms,material,tag}of groups.values()){
-  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;if(tag&&tag!=='windowDark'&&!tag.startsWith(WLIT))mesh.userData.raidStructure=tag;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
+  const geometry=geometries[type],mesh=new THREE.InstancedMesh(geometry,material,transforms.length);geometry.userData.raidOwned=true;mesh.castShadow=true;mesh.receiveShadow=true;if(tag==='__facadeFallback')mesh.userData.raidFacadeFallback=true;else if(tag&&tag!=='windowDark'&&!tag.startsWith(WLIT))mesh.userData.raidStructure=tag;for(let i=0;i<transforms.length;i++)mesh.setMatrixAt(i,transforms[i]);mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();root.add(mesh);
  }
  root.userData.materials=materials;return root;
 }

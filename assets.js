@@ -1,6 +1,6 @@
 // HeadShotz external assets (all CC0 from Poly Haven — see ASSETS.md). Loaded lazily after the menu appears; Low quality skips them and keeps the built-in procedural look.
 import {THREE,GQ,hqSwap} from './gfx.js';
-export const HQP={ready:false,models:{},guns:{},machines:{},windows:{}};
+export const HQP={ready:false,models:{},guns:{},machines:{},windows:{},buildings:{}};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
 const MODELS={crate:'assets/models/wooden_crate_02.glb',barrel:'assets/models/barrel_03.glb',chest:'assets/models/treasure_chest.glb'};
 // Raid machine bodies are scanned/rigged GLBs, not box geometry. They are loaded
@@ -11,6 +11,13 @@ const MACHINE_GLB={scout:{url:'assets/models/machines/scout.glb',height:1.45}};
 // "Modular Urban Apartments Facade" module, optimised to 186 KB, one timber frame
 // plus recessed glass. Loaded only by the raid, never by Battle Royale.
 const WINDOW_GLB={urban:'assets/models/windows/window_urban.glb'};
+// Real modular architecture kit for raid street buildings: a dressed plaster
+// wall panel, a timber door with recessed glass, a projecting base plinth, a
+// roofline cornice, a wall pier and window/door dressing trim, all extracted
+// from Poly Haven's CC0 "Modular Urban Apartments Facade" and simplified with
+// meshopt. Seven modules at 512 px maps keep the whole kit under 1 MB.
+const BUILDING_GLB={facade:{url:'assets/models/buildings/facade_kit.glb',
+ modules:['wall_standard_standard_01','door_centered_large_01','cornice_standard_standard_01','base_standard_01','wall_pier_standard_01','dado_standard_standard_01','crown_standard_standard_01']}};
 const TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 // phones: halve the gun textures (1024 -> 512) to save ~140 MB of GPU memory
 function shrinkTex(t,max){const im=t.image;if(!im||!im.width||im.width<=max)return;try{const c=document.createElement('canvas');c.width=c.height=max;c.getContext('2d').drawImage(im,0,0,max,max);if(im.close)im.close();t.image=c;t.needsUpdate=true}catch(e){}}
@@ -85,6 +92,46 @@ export async function loadWindows(onProg=()=>{}){
    HQP.windows[k]={parts,width:size.x,height:size.y,depth:size.z,source:WINDOW_GLB[k]};
   }catch(e){ok=false;console.warn('window asset',e&&e.message)}
   onProg(++done/keys.length);
+ }
+ return ok
+}
+// Real modular façade kit. Every module is baked into a self-contained geometry
+// anchored at x=0, bottom=0 with its front face looking +z, so the raid can
+// instance it on any façade normal. The plaster material has photographed
+// albedo, normal and roughness maps (CC0 Poly Haven), not a 128 px generated map.
+export async function loadBuildings(onProg=()=>{}){
+ if(GQ.level==='low'){onProg(1,'skipped');return false}
+ const [{GLTFLoader}]=await Promise.all([import('./lib/jsm/GLTFLoader.js')]);
+ const L=new GLTFLoader();let ok=true,done=0;
+ for(const k in BUILDING_GLB){
+  try{
+   const g=await L.loadAsync(BUILDING_GLB[k].url);
+   g.scene.updateMatrixWorld(true);
+   const mods={};
+   for(const name of BUILDING_GLB[k].modules){
+    const node=g.scene.getObjectByName(name);
+    if(!node)throw new Error('missing module '+name);
+    const parts=[];
+    node.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone();geo.applyMatrix4(o.matrixWorld);parts.push({geo,mat:o.material})});
+    if(!parts.length)throw new Error('no meshes in '+name);
+    const box=new THREE.Box3();
+    for(const p of parts){p.geo.computeBoundingBox();box.union(p.geo.boundingBox)}
+    if(box.isEmpty())throw new Error('empty bounds '+name);
+    const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),minY=box.min.y;
+    const seen=new Set();
+    for(const p of parts){
+     p.geo.translate(-center.x,-minY,-center.z);p.geo.computeBoundingBox();p.geo.computeBoundingSphere();
+     const mat=p.mat;if(!seen.has(mat)){
+      seen.add(mat);mat.envMapIntensity=1.0;
+      for(const t of [mat.map,mat.normalMap,mat.roughnessMap,mat.metalnessMap,mat.aoMap])if(t){t.colorSpace=t===mat.map?THREE.SRGBColorSpace:t.colorSpace;t.anisotropy=4}
+      if(mat.transparent)mat.depthWrite=false;
+     }
+    }
+    mods[name]={parts,width:size.x,height:size.y,depth:size.z,source:'Poly Haven modular_urban_apartments_facade/'+name};
+   }
+   HQP.buildings[k]={modules:mods,url:BUILDING_GLB[k].url};
+  }catch(e){ok=false;console.warn('building asset',e&&e.message)}
+  onProg(++done/Object.keys(BUILDING_GLB).length);
  }
  return ok
 }

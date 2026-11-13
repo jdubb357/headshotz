@@ -286,6 +286,7 @@ export class RaidView {
   this.refreshSpawnDressing();
   this.refreshStreetProps();
   this.refreshWindows();
+  this.refreshFacades();
   if(this.terrainMaterial){
    const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
    const live=getTex(key),liveNormal=normalTex(key,1.6);
@@ -449,6 +450,150 @@ export class RaidView {
   }
   root.userData.raidRealWindows=near.length;
  }
+ // Rebuilds every street façade from the scanned modular architecture kit. The
+ // old block faces stay as the solid visual core but the surfaces the player
+ // actually sees are dressed with a real plaster module wall, a projecting base
+ // plinth, a roofline cornice and, in every authored street doorway, a scanned
+ // timber door leaf. Freezing block tuples, collision, doors and loot records
+ // untouched; this method only writes presentation instances.
+ refreshFacades(){
+  const root=this.environmentRoot,blocks=root?.userData?.raidFacadeBlocks,kit=HQP.buildings?.facade?.modules;
+  if(!root||!blocks?.length||!kit||root.userData.raidFacadeSkin)return;
+  const wall=kit.wall_standard_standard_01,door=kit.door_centered_large_01,base=kit.base_standard_01,cornice=kit.cornice_standard_standard_01,pier=kit.wall_pier_standard_01,crown=kit.crown_standard_standard_01;
+  if(!wall?.parts?.length||!door?.parts?.length||!base?.parts?.length||!cornice?.parts?.length||!pier?.parts?.length)return;
+  const self=this.snapshot?.self;if(!self)return;
+  root.userData.raidFacadeSkin=true;
+  // Hide the textured fallback boxes once the photographed modular surface is
+  // authoritative. They remain in assetless/low-quality builds.
+  root.traverse(n=>{if(n.isInstancedMesh&&n.userData.raidFacadeFallback)n.visible=false});
+  // The legacy plank door leaf, its hardware and the flat extruded plinth and
+  // cornice are deleted in raid-environment; there is nothing left here to hide.
+  const dummy=new THREE.Object3D(),planeGeo=new THREE.PlaneGeometry(1,1),reach=90,reach2=reach*reach;
+  const wallMat=wall.parts[0].mat,baseMat=base.parts[0].mat,pierMat=pier.parts[0].mat;
+  const nearCells=[],planeCells=[],baseCells=[],corniceCells=[],crownCells=[],pierCells=[],sillCells=[],doorHoodCells=[];
+  const tintFor=b=>{
+   // The photographed plaster carries its own warm ochre colour. Mixing the
+   // block's palette tint toward white keeps buildings distinct without the
+   // over-bright normalisation that turned every façade neon orange.
+   const c=new THREE.Color(b.color);
+   c.lerp(new THREE.Color(0xffffff),.56);
+   return c;
+  };
+  const stoneFor=t=>t.clone().lerp(new THREE.Color(0x746b60),.42);
+  for(const b of blocks){
+   const dx=b.x-self.x,dz=b.z-self.z,near=dx*dx+dz*dz<reach2;
+   const tint=tintFor(b),stone=stoneFor(tint);
+   const faces=b.wall
+    ? (b.w>=b.d
+      ? [{len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
+         {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true}]
+      : [{len:b.d,cx:b.x+b.w/2,cz:b.z,nx:1,nz:0,ry:Math.PI/2,onZ:false},
+         {len:b.d,cx:b.x-b.w/2,cz:b.z,nx:-1,nz:0,ry:-Math.PI/2,onZ:false}])
+    : [{len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
+       {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true},
+       {len:b.d,cx:b.x+b.w/2,cz:b.z,nx:1,nz:0,ry:Math.PI/2,onZ:false},
+       {len:b.d,cx:b.x-b.w/2,cz:b.z,nx:-1,nz:0,ry:-Math.PI/2,onZ:false}];
+   const rows=Math.max(1,Math.round(b.h/3)),ch=b.h/rows;
+   for(const f of faces){
+    // Real 3 m bays, rounded to the face so the plaster never stretches between
+    // storeys. Near bays keep the sculpted kit panel; distant bays use an
+    // instanced plane carrying the same photographed plaster map and normal.
+    const cols=Math.max(1,Math.round(f.len/3)),cw=f.len/cols;
+    if(near){
+     // Real 3 m bays, rounded to the face so the plaster never stretches between
+     // storeys. Only this near ring pays for the sculpted panel; the rest of the
+     // map uses the same photographed plaster/normal on a single low-cost face.
+     for(let r=0;r<rows;r++)for(let col=0;col<cols;col++){
+      const px=(f.onZ?f.cx+(col+.5-cols/2)*cw:f.cx)+f.nx*.006;
+      const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
+      dummy.position.set(px,b.y+r*ch,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,ch/3,1);
+      dummy.updateMatrix();nearCells.push({matrix:dummy.matrix.clone(),color:tint});
+     }
+     // One continuous photographed-stone base for the whole face (not a dark atlas
+     // strip) and one projecting roofline cornice keep the scanned moulding
+     // profile while spanning the authored facade length.
+     dummy.position.set(f.cx+f.nx*.036,b.y,f.cz+f.nz*.036);dummy.rotation.set(0,f.ry,0);
+     dummy.scale.set(f.len/3,.86,1.5);dummy.updateMatrix();
+     baseCells.push({matrix:dummy.matrix.clone(),color:stone});
+     dummy.position.set(f.cx+f.nx*.04,b.y+b.h,f.cz+f.nz*.04);dummy.rotation.set(0,f.ry,0);
+     dummy.scale.set(f.len/3,.92,2.6);dummy.updateMatrix();
+     corniceCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(1.08)});
+     // Solid volumes also receive the kit's tile parapet, scaled low and warm so
+     // it caps the roofline without the heavy black edge of the old box.
+     if(!b.wall&&b.h>=3.4&&crown){
+      dummy.position.set(f.cx+f.nx*.05,b.y+b.h-.15,f.cz+f.nz*.05);dummy.rotation.set(0,f.ry,0);
+      dummy.scale.set(f.len/3,.74,1.15);dummy.updateMatrix();
+      crownCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.9)});
+     }
+     // Two sculpted plaster piers bracket the bay grid and catch a vertical
+     // highlight, giving the flat photograph a readable three-dimensional rhythm.
+     for(let col=0;col<=cols;col+=cols){
+      const a=col-cols/2;
+      const px=(f.onZ?f.cx+a*cw:f.cx)+f.nx*.055;
+      const pz=(f.onZ?f.cz:f.cz+a*cw)+f.nz*.055;
+      dummy.position.set(px,b.y,pz);dummy.rotation.set(0,f.ry,0);
+      dummy.scale.set(1.35,b.h/3,2.3);dummy.updateMatrix();
+      pierCells.push({matrix:dummy.matrix.clone(),color:tint.clone().multiplyScalar(.86)});
+     }
+    }else{
+     dummy.position.set(f.cx+f.nx*.006,b.y+b.h/2,f.cz+f.nz*.006);dummy.rotation.set(0,f.ry,0);
+     dummy.scale.set(f.len,b.h,1);dummy.updateMatrix();
+     planeCells.push({matrix:dummy.matrix.clone(),color:tint});
+    }
+   }
+  }
+  // A real stone sill under every nearby scanned window; hidden fallback trim
+  // is still suppressed by refreshWindows.
+  const windows=root.userData.raidWindowOpenings||[],sillReach2=100*100;
+  for(const s of windows){
+   const dx=s.x-self.x,dz=s.z-self.z;if(dx*dx+dz*dz>sillReach2)continue;
+   const outward=s.outward||(s.onZ?Math.sign(self.z-s.z):Math.sign(self.x-s.x));
+   if(!outward)continue;
+   const yaw=s.onZ?(outward>0?0:Math.PI):(outward>0?Math.PI/2:-Math.PI/2);
+   dummy.position.set(s.x+(s.onZ?0:outward*.10),s.y-.05,s.z+(s.onZ?outward*.10:0));
+   dummy.rotation.set(0,yaw,0);dummy.scale.set(s.wide*1.42/3,.16/.75,1.4);dummy.updateMatrix();
+   sillCells.push({matrix:dummy.matrix.clone(),color:stoneFor(new THREE.Color(0xefe4d4))});
+  }
+  const instanced=(geo,mat,entries,shadow=true,tag='',structTag='')=>{
+   if(!entries.length)return;
+   const mesh=new THREE.InstancedMesh(geo,mat,entries.length);
+   entries.forEach((e,i)=>{mesh.setMatrixAt(i,e.matrix);mesh.setColorAt(i,e.color)});
+   mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+   mesh.castShadow=shadow;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   if(tag)mesh.userData.raidFacadePart=tag;
+   if(structTag)mesh.userData.raidStructure=structTag;
+   root.add(mesh);
+  };
+  instanced(wall.parts[0].geo,wallMat,nearCells,true,'wallsNear');
+  instanced(planeGeo,wallMat,planeCells,false,'wallsFar');
+  instanced(base.parts[0].geo,wallMat,baseCells,true,'plinth','plinth');
+  instanced(cornice.parts[0].geo,wallMat,corniceCells,true,'cornice','cornice');
+  instanced(pier.parts[0].geo,pierMat,pierCells,true,'piers');
+  instanced(base.parts[0].geo,baseMat,sillCells,false,'sills');
+  if(crown)instanced(crown.parts[0].geo,crown.parts[0].mat,crownCells,true,'parapet');
+  const doorways=root.userData.raidDoorways||[],doorMats=[];
+  for(const d of doorways){
+   const yaw=Math.atan2(d.outX,d.outZ),sx=d.w/door.width,sy=d.h/door.height;
+   dummy.position.set(d.x+d.outX*.10,d.y,d.z+d.outZ*.10);
+   dummy.rotation.set(0,yaw,0);dummy.scale.set(sx,sy,sx);dummy.updateMatrix();
+   doorMats.push(dummy.matrix.clone());
+   dummy.position.set(d.x+d.outX*.20,d.y+d.h+.11,d.z+d.outZ*.20);
+   dummy.rotation.set(0,yaw,0);dummy.scale.set(d.w*1.9/3,.2/.2,3.2);dummy.updateMatrix();
+   doorHoodCells.push({matrix:dummy.matrix.clone(),color:stoneFor(new THREE.Color(0x8d8274))});
+  }
+  if(doorHoodCells.length)instanced(cornice.parts[0].geo,wallMat,doorHoodCells,true,'doorHoods','doorRail');
+  if(doorMats.length){
+   door.parts.forEach((p,pi)=>{
+    const mesh=new THREE.InstancedMesh(p.geo,p.mat,doorMats.length);
+    doorMats.forEach((m,i)=>mesh.setMatrixAt(i,m));
+    mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+    mesh.userData.raidFacadePart='doors';mesh.userData.raidStructure=pi?'doorIron':'doorBoard';root.add(mesh);
+   });
+  }
+  root.userData.raidFacadeModules=nearCells.length+planeCells.length+baseCells.length+corniceCells.length+crownCells.length+pierCells.length+sillCells.length+doorHoodCells.length+doorMats.length;
+  root.userData.raidRealDoors=doorMats.length;
+ }
+
  refreshSpawnDressing(){
   const dressing=this.environmentRoot?.userData?.raidSpawnDressing;
   if(!dressing||dressing.group.userData.raidScanned||!HQP.ready)return;
@@ -541,6 +686,9 @@ export class RaidView {
   this.visualSelf=new THREE.Vector3(snapshot.self.x,(snapshot.self.y||0),snapshot.self.z);
   this.fireOrigin=new THREE.Vector3(snapshot.self.x,(snapshot.self.y||0)+1.55,snapshot.self.z);this.fireYaw=snapshot.self.yaw||0;this.firePitch=snapshot.self.pitch||0;
   this.audio.resume();this.sync(snapshot);
+  // Assets may already be decoded on a resume/redeploy; apply the photo pass
+  // now so a rebuilt environment is never left with missing modular facades.
+  this.refreshArt();
  }
  sync(snapshot){
   this.snapshot=snapshot;this.audio.observe(snapshot);this.snapAt=performance.now();const live=new Set();
