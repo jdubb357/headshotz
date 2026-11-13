@@ -192,6 +192,7 @@ export function buildEnvironment(world){
   // Unit-cube instances are stretched to tens of metres, so the photographed
   // map is repeated per instance footprint at the authored tile size. This one
   // hook also chains the foliage wind shader, keeping both edits alive.
+  mat.userData.raidFoliage=texture==='forest'||texture==='grass'||wind||type==='tuft';
   const tile=PHOTO_TILE[texture];
   if(tile||wind){
    mat.onBeforeCompile=shader=>{
@@ -228,6 +229,11 @@ export function buildEnvironment(world){
   }
   position.set(x,y,z);scale.set(sx,sy,sz);euler.set(rx,ry,rz);quaternion.setFromEuler(euler);matrix.compose(position,quaternion,scale);group.transforms.push(matrix.clone());
  }
+ // Presentation-only guard: keep loose papery verge dressing off the insertion
+ // apron so the first frame is the real scanned street and barrels, not flat
+ // grass cards and tan plank splinters sitting on the pavement.
+ const insertionPoints=world.spawns||[];
+ const nearInsertion=(x,z,radius)=>insertionPoints.some(([sx,sz])=>Math.hypot(x-sx,z-sz)<radius);
  // Cheap additive tint for timber detail (lid, battens, bracing). Keyed through
  // the same add() instancing path so one colour is one draw group.
  const shade=(color,k)=>{const r=Math.min(255,Math.round(((color>>16)&255)*k)),g=Math.min(255,Math.round(((color>>8)&255)*k)),b=Math.min(255,Math.round((color&255)*k));return (r<<16)|(g<<8)|b};
@@ -573,6 +579,7 @@ export function buildEnvironment(world){
      // a ruled box edge. The farther clump reaches the verge past any sidewalk.
      for(const off of [prop.d/2+j*.9-.3,prop.d/2+2.6+j*2.4]){
       const px=x+lx*cosR+side*off*sinR,pz=z-lx*sinR+side*off*cosR;
+      if(nearInsertion(px,pz,20))continue;
       const top=Math.max(y,terrainHeightAt(world,px,pz));
       if(k<.5){
        const green=j>.55?0x6e7246:0x565d3a;
@@ -598,6 +605,7 @@ export function buildEnvironment(world){
     // base no longer forms a clean ruled line against the road corridor.
     for(const side of [-1,1])for(let i=0,lx=-prop.w/2+2;lx<prop.w/2-2;i++,lx+=2.6){
      const j=h(i*5+101),k=h(i*7+103),off=side*(prop.d/2+4.4+j*12.5),px=x+lx*cosR+off*sinR,pz=z-lx*sinR+off*cosR;
+     if(nearInsertion(px,pz,24))continue;
      const gy=terrainHeightAt(world,px,pz);
      if(gy<.28)continue;
      const green=j>.5?0x596442:0x475238;
@@ -1260,6 +1268,10 @@ export function applyPhotoLook(root){
  for(const mat of root.userData.materials?.values()||[]){
   const surface=mat.userData.raidSurface;
   if(!PHOTO_SURFACES.has(surface)||mat.userData.raidStructure||mat.userData.raidAuthoredColor==null)continue;
+  // Foliage is tinted geometry dressed with the photographed leaf litter, not a
+  // bare surface: handing it the photo albedo at full brightness turns every
+  // tuft and bush leaf into a pale paper card. Keep the authored green tint.
+  if(mat.userData.raidFoliage)continue;
   // The photograph supplies the albedo, not a greyscale stand-in. The old
   // luminance-preserving tint multiplied the (already dark) photo by a dark
   // factor, crushing brick and timber facades to black against the sky. Hand

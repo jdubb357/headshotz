@@ -8095,3 +8095,34 @@ The mittens are gone, the receiver is charcoal instead of steel-blue, the right 
 The pale fog-blended rectangle is gone and the enemy is finally real animated geometry with authored idling, running and firing clips; the angled tracer now reads as a line from the machine instead of a blob fired into the camera. But the Quaternius robot is a round-bodied hovering drone with thin limbs and a short forward barrel — at first contact it reads more like a floating sensor unit than an armed soldier, and its dark steel hull becomes hard to pick out against shadowed facades; the core is now small enough that it no longer reads as the old orange bowl. This is a functional asset upgrade, not the final AAA enemy silhouette, and per the director's rule it is not "art landed."
 
 **Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: director note 2 — replace/remove the pale paper grass cards around barrels/road edge/lamp post and the flat tan plank debris on the dirt strip with real CC0 scans or removal from spawn view; then note 3 (EXIT/Objective agreement) and note 4 (windows/doors, posts, loot scale). Do not touch the main menu or non-raid modes.
+
+## Iteration 100 — Paper grass cards and flat plank debris cleared from the spawn view (director note 1; 2026-11-13)
+
+**Task:** current DIRECTOR_NOTES item 1 — the cream flat blades around the barrels, road edge, lamp post and far right berm, plus the flat tan plank bits on the dirt strip below the barrels, read as paper/cardboard; swap for real scans or remove them from the spawn view.
+
+### Acceptance criteria
+1. The cream/paper grass blade cards around the barrel line, road edge, lamp post and far-right berm are not visible in the spawn frame at 1024×720 or 844×390.
+2. The flat tan plank pieces on the dirt strip below the barrels are not visible in the spawn frame (same two sizes).
+3. Foliage that remains in the world keeps its authored green tint instead of being whitened by the photographed-surface pass.
+4. Before/after frames captured offline under equal daylight/HUD conditions; the after frame is clearly cleaner.
+5. Static-offline and mobile-HUD graders green; scenery grader green; Node suite 1248 pass with only the known matchmaking ECONNRESET.
+6. No new asset added (removal + tint fix only), so ASSETS.md is unchanged.
+
+### Changed
+`raid-environment.mjs`: added a presentation-only spawn guard (`nearInsertion`, 20 m road-edge / 24 m slope verge) that skips loose road-verge dressing, including the tuft blade cards and tan plank boxes, around the deployment apron. Marked leaf/dirt/wind dressing materials with `raidFoliage` and made `applyPhotoLook()` keep their authored green tint instead of whitening them like bare photo surfaces. `tests/raid-browser-structures.mjs`: updated the stale instanced-tag expectation to include the door and street-barrel/crate tags already emitted by committed code (doorBoard, doorIron, doorRail, doorStoop, streetBarrel, streetCrate).
+
+### Verification
+- `node tests/raid-browser-static-offline.mjs` → deploy→move→hit→loot→extract, 2 items, 270 credits, `noApiTraffic:true`, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024×720 unobstructed 0.918, 844×390 0.818; touch actions all true; `browserErrors:[]`.
+- `node tests/raid-browser-scenery.mjs` → 1926/1991/1880 scenery, kinds unchanged, `browserErrors:[]`.
+- `node tests/raid-browser-structures.mjs` → tag grouping assertion now passes; reaches the known final `reduced.changed` static-view flake.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 fail (known intermittent `matchmaking.test.mjs` ECONNRESET).
+- `node --check raid-environment.mjs` OK.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled from equal-condition offline deployments: `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-1024-action.png`/`after-1024-action.png`, `before-844-action.png`/`after-844-action.png`. The before frame shows cream blade cards around the barrels and tan boards on the dirt strip; the after frame shows those gone.
+
+### Honest critique
+The spawn view is cleaner and the barrels now sit on a plain road instead of paper triangles, but the world directly in front of the insertion is still very bare: the pavement is a flat grey sheet with no curb, debris, or ground cover, and the buildings on both sides are plain dark boxes with flat window squares — the fix removes fake detail rather than replacing it with real detail. The far-right gravel bank also still ends in a smooth pale sheet, and the distant cream tufts on the slope lip are only partly out of frame.
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — make the machine tracer a thin short fading streak with no white bloom blob over the objective marker; then item 3 (scout scale/grounding/contrast), item 4 (EXIT/Objective agreement), item 5 (windows/doors, pale post, loot scale/label), item 6 (desktop keymap).
