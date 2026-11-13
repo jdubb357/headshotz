@@ -1,12 +1,16 @@
 // HeadShotz external assets (all CC0 from Poly Haven — see ASSETS.md). Loaded lazily after the menu appears; Low quality skips them and keeps the built-in procedural look.
 import {THREE,GQ,hqSwap} from './gfx.js';
-export const HQP={ready:false,models:{},guns:{},machines:{}};
+export const HQP={ready:false,models:{},guns:{},machines:{},windows:{}};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
 const MODELS={crate:'assets/models/wooden_crate_02.glb',barrel:'assets/models/barrel_03.glb',chest:'assets/models/treasure_chest.glb'};
 // Raid machine bodies are scanned/rigged GLBs, not box geometry. They are loaded
 // separately from the lobby props so the raid (the only mode that spawns these
 // actors) never pays for them in Battle Royale.
 const MACHINE_GLB={scout:{url:'assets/models/machines/scout.glb',height:1.45}};
+// Real scanned façade windows for raid facades. Extracted from Poly Haven's CC0
+// "Modular Urban Apartments Facade" module, optimised to 186 KB, one timber frame
+// plus recessed glass. Loaded only by the raid, never by Battle Royale.
+const WINDOW_GLB={urban:'assets/models/windows/window_urban.glb'};
 const TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 // phones: halve the gun textures (1024 -> 512) to save ~140 MB of GPU memory
 function shrinkTex(t,max){const im=t.image;if(!im||!im.width||im.width<=max)return;try{const c=document.createElement('canvas');c.width=c.height=max;c.getContext('2d').drawImage(im,0,0,max,max);if(im.close)im.close();t.image=c;t.needsUpdate=true}catch(e){}}
@@ -46,6 +50,40 @@ export async function loadMachines(onProg=()=>{}){
    g.scene.updateMatrixWorld(true);
    HQP.machines[k]={scene:g.scene,animations:g.animations||[],height:MACHINE_GLB[k].height,source:MACHINE_GLB[k].url};
   }catch(e){ok=false;console.warn('machine asset',e&&e.message)}
+  onProg(++done/keys.length);
+ }
+ return ok
+}
+// Scanned façade windows for raids. The GLB is a single object with two
+// primitives (timber frame and recessed glass); we normalise the combined
+// bounds so the raid builder can seat it in any existing window opening.
+export async function loadWindows(onProg=()=>{}){
+ if(GQ.level==='low'){onProg(1,'skipped');return false}
+ const keys=Object.keys(WINDOW_GLB);if(!keys.length)return true;
+ const [{GLTFLoader}]=await Promise.all([import('./lib/jsm/GLTFLoader.js')]);
+ const L=new GLTFLoader();
+ let ok=true,done=0;
+ for(const k of keys){
+  try{
+   const g=await L.loadAsync(WINDOW_GLB[k]);
+   g.scene.updateMatrixWorld(true);
+   const parts=[];
+   g.scene.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone();geo.applyMatrix4(o.matrixWorld);parts.push({geo,mat:o.material})});
+   if(!parts.length)throw new Error('no window meshes');
+   const box=new THREE.Box3();
+   for(const p of parts){p.geo.computeBoundingBox();box.union(p.geo.boundingBox)}
+   if(box.isEmpty())throw new Error('empty window bounds');
+   const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),minY=box.min.y;
+   for(const p of parts){
+    p.geo.translate(-center.x,-minY,-center.z);p.geo.computeBoundingBox();p.geo.computeBoundingSphere();
+    const mat=p.mat;mat.envMapIntensity=1.15;
+    if(mat.map){mat.map.colorSpace=THREE.SRGBColorSpace;mat.map.anisotropy=4}
+    // Glass is authored BLEND and recessed behind the timber frame. Keep it
+    // depth-write-free so the dark pane behind reads through it as an interior.
+    if(mat.transparent)mat.depthWrite=false;
+   }
+   HQP.windows[k]={parts,width:size.x,height:size.y,depth:size.z,source:WINDOW_GLB[k]};
+  }catch(e){ok=false;console.warn('window asset',e&&e.message)}
   onProg(++done/keys.length);
  }
  return ok

@@ -8260,4 +8260,40 @@ The five stray bits are gone and the left doorway now reads as a warm pickup ins
 ### Honest critique
 The pill now names the nearest armory instead of implying it is the extraction objective, but at 1024 it still sits directly under the HP strip while the EXIT chip sits in the opposite corner, so two similar south-facing directions remain on screen; at 844×390 the secondary pill is hidden entirely, so phone players still only get the exit distance.
 
-**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 3 — real window/opening frames or boarded meshes, and rifle arms (good CC0/CC-BY gloved-arms GLB if one exists) or hidden hands.
+## Iteration 105 — Real scanned facade windows (director note 1; 2026-11-13)
+
+**Task:** DIRECTOR_NOTES.md item 1 — the spawn-frame windows on both foreground buildings are flat dark-blue squares with black frames. Put real CC0 frame-and-glass meshes into those openings (Poly Haven first), with no new fake doors, and make it checkable in one spawn screenshot.
+
+### Acceptance criteria
+1. In the spawn frame at 1024×720 and 844×390, openings on both foreground facades display a real scanned timber sash frame with recessed glass instead of the flat navy pane; no black flat frame remains and no exposed cyan pane rim.
+2. At upgraded openings the procedural reveal/shutter/sill/flower-box boxes are suppressed so there is no double frame or overlapping trim; the old pane is retained only as a dark interior backing behind the glass.
+3. Asset is a real CC0 photogrammetry download, optimised for the web, placed under `assets/models/windows/` and recorded in ASSETS.md with exact source URL and licence; source module name and size are documented.
+4. Equal-condition offline before/after screenshots captured at 1024×720 and 844×390 under pinned clear daylight, plus close window crops and action frames; before is one controlled deployment with the scanned pass disabled, after is the shipped pass; no page errors.
+5. Presentation-only: frozen world, collision, servers, loot and all other modes unchanged; no new systems, panels, currencies, menus, jargon or account features; raid remains opt-in.
+6. Static-offline, mobile-HUD and interactive-door browser graders pass; structures grader shows only its known pre-existing reduced-motion flake; Node suite reports only the known intermittent matchmaking ECONNRESET.
+
+### Changed
+- `assets/models/windows/window_urban.glb` (186 KB, four 512 px WebP maps, ~1.4k tris) extracted from Poly Haven's CC0 "Modular Urban Apartments Facade" module `window_centered_large_01`; timbers and recessed glass normalised to a unit module (timber frame approx. 2.12×2.30×0.39 m before per-opening scale).
+- `assets.js`: new lazy `loadWindows` loader with its own `HQP.windows` registry; skipped on the Low graphics level; aligns the source maps and makes the glass depth-write-free.
+- `raid-environment.mjs`: records each authored window opening (terrain-seated centre, facade normal, width/height, lit/dark) in `root.userData.raidWindowOpenings`; presentation data only.
+- `raid-view.mjs`: new `refreshWindows()` called from `refreshArt()`. It upgrades the 80 openings within 90 m of spawn, hides the procedural framing/shutter/sill/flower-box instances at upgraded openings with zero matrices, and instances the scanned frame+glass into two InstancedMeshes seated 0.14 m proud of the old pane. Unknown/courtyard normals fall back to a spawn-facing seat. Near panes are dimmed to 0x4a555b via per-instance colours so the old blue rim/backing reads as an unlit interior rather than a painted halo.
+- `raid-online.mjs`: loads windows with the other raid art; state exposure extended with `windows:Object.keys(HQP.windows)`.
+- `ASSETS.md`: records the asset, licence, source module, optimisation and scope.
+
+### Verification
+- `node --check assets.js raid-environment.mjs raid-view.mjs raid-online.mjs` → exit 0.
+- `node tests/raid-browser-static-offline.mjs` → deploy true, moving true, machineHit `hit`, looted, extracted, 270 credits, `noApiTraffic:true`, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024 unobstructed .918, 844 unobstructed .818; touch movement, right-drag look, contextual USE and auto-fire/reload/aim/swap all true; `browserErrors:[]`.
+- `node tests/raid-browser-doors.mjs` → ordinary door open/close with E, key unlock consumes one key, minimap/tactical colours and reconnect all true; `browserErrorCount:0`.
+- `node tests/raid-browser-structures.mjs` → detail/shutter/sill channel screenshots re-generated; the known pre-existing reduced-motion static check failed at line 400 (`reduced.changed`), as before this change.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 fail (the known intermittent `matchmaking.test.mjs` ECONNRESET); the same test run alone reproduced the same ECONNRESET.
+- Runtime probe: `window.__raidArt.windows == ['urban']` after deploy, no browser errors; 8,876 authored opening records, 80 within the 90 m upgrade radius, 62 with a computed facade normal and 18 given the spawn-facing fallback (from the earlier projection probe).
+- Screenshot harness: matched offline deployments, pinned clear startHour 14 / weatherSeed 0; controlled before deployment overrode `RaidView.prototype.refreshWindows` so the unmodified procedural facade remained; action frames captured while the operator held W and moved ~6.5 m.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled from equal-condition offline deployments: `before-1024.png` / `after-1024.png`, `before-844.png` / `after-844.png`, `before-1024-action.png` / `after-1024-action.png`, `before-844-action.png` / `after-844-action.png`, and `before-1024-windows-left.png` / `after-1024-windows-left.png` plus `before-1024-windows-right.png` / `after-1024-windows-right.png` (both facades at 3×). Before frames show flat navy panes with black surrounds; after frames show timber sashes, crossed glazing bars, pale glass and no cyan rim.
+
+### Honest critique
+The scanned windows read clearly as real sashes in the close crops, but in the full spawn frame their glass still reads as flat pale grey rather than weathered glass, only the 80 openings within 90 m of spawn are upgraded so remote and rear facades keep flat procedural panes, and the ground-level doors painted by the doorway layer are still procedural planks (unchanged and awaiting the real-door asset pass).
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — the rifle still floats with no arms at bottom-right; find a good CC0/CC-BY gloved-arms GLB (otherwise keep hands hidden, never reintroduce the mittens), then item 3 gravel-bank seam and item 4 loot model/ring. DIRECTOR_NOTES item 1 is implemented but awaits Austin's live iPad/phone playtest.
