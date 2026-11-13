@@ -316,7 +316,14 @@ export function weaponModel(id,hands=false){
   // first-person arms scan, so the forearm sleeve is skipped entirely: only the
   // gloved hands on the grip and handguard enter the lower frame (no elbow tube).
   const root=new THREE.Group();
-  for(const slot of scan){const mesh=new THREE.Mesh(slot.geo,slot.mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
+  for(const slot of scan){
+   // The photogrammetry master material ships metalness 1 / env 1.1, so a pale
+   // blue deployment sky reflects off the receiver as steel-blue. Clone it for
+   // the first-person rig, pull the environment down, and darken the albedo to
+   // the black/dark-grey metal and polymer the rifle actually is. Cloning keeps
+   // the shared lobby asset unchanged.
+   const mat=slot.mat.clone();mat.color.setRGB(.60,.58,.55);mat.envMapIntensity=.32;
+   const mesh=new THREE.Mesh(slot.geo,mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
   const all=hands?handParts(info,0x2f342c,0x5a4634,undefined,true):[];
   const groups=new Map();
   for(const p of all){const key=p.mat||'metal';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p)}

@@ -8039,3 +8039,29 @@ Commit this slice on `cypert/dev` (no push, no PR, never `main`). Next iteration
 The facades finally show brick and board texture, the giant elbow tube is gone, and the street crate/barrels are now the real photographed scans — but the right foreground is still a broad bare hillside that anchors a third of the frame, the glove fingers still read as brown sausages at the grip, and the scanned crate near the machine is oversized enough to look placed rather than littered.
 
 **Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: break up that bare right bank with scanned ground cover / rock outcrops (or a spawn-eye composition change) before moving to director note 2.
+
+## Iteration 98 — Finish the first-person frame: retile the berm, hide toy hands, charcoal the scan (director note 1; 2026-11-12)
+
+**Task:** director note 1 — hands, right berm, rifle colour, ground blotches and near-spawn grass cards in `after-1024.png` / action frame.
+
+### Acceptance criteria
+1. No procedural mitten geometry is visible in the first-person frame (director's approved fallback: hide the hands entirely; the raid has no real arms scan).
+2. The scanned rifle reads black/dark-grey metal and polymer rather than steel-blue, without changing the shared Lobby asset.
+3. The right-side berm shows photographed gravel/earth at a readable world-scale tile (≥ current density) with darker value and no cow-hide patch pattern.
+4. Pale flat grass blades within ~10 m of every insertion point are gone; ground blotches are subtle.
+5. Static-offline, mobile-HUD and scenery graders green; Node suite unchanged; before/after 1024×720 and 844×390 plus action frames captured.
+
+### Changed
+`raid-view.mjs`: both raid weapon builds pass `hands=false` (mitten meshes omitted); overlay key/rim/fill neutralised and dimmed so scan highlights stay charcoal. `raid-models.mjs`: scanned GLB materials are cloned per first-person rig and darkened (`color .60/.58/.55`, `envMapIntensity .32`), so the receiver/polymer is black while the lobby cache stays untouched. `raid-environment.mjs`: terrain gravel tiles at a fixed 1.8 m (800 repeats at 1,440 m) for the albedo and normal, normal scale 1.25; terrain vertex-color exposure lowered to .22–.44 and two-octave blotches cut to ±.09; tuft instances within 10 m of a spawn are culled, and the slope-scrub rings start at 9 m.
+
+### Verification
+- `node tests/raid-browser-static-offline.mjs` → deploy→move→hit→loot→extract, 2 items, 270 credits, browserErrors []. `node tests/raid-browser-mobile-hud.mjs` → 1024×720 91.80% / 844×390 81.81% unobstructed, all touch actions pass. `node tests/raid-browser-scenery.mjs` → 1926/1991/1880 scenery, same kinds, browserErrors [].
+- `node --test tests/*.test.mjs` → 1248 pass, 1 fail (`matchmaking.test.mjs` ECONNRESET, known intermittent; failed identically alone). `node --check raid-view.mjs raid-environment.mjs raid-models.mjs` OK.
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled from the pristine `HEAD` baseline vs the working tree at forced clear daylight: `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-1024-action.png`/`after-1024-action.png`. The pairs match on exit chip distance (603 m at spawn) and HUD state.
+
+### Honest critique
+The mittens are gone, the receiver is charcoal instead of steel-blue, the right bank is now readable pebbled gravel instead of a pale smeared wedge, and the cow-hide blotches are subtle — but with no arms scan the rifle reads as floating in frame, the far end of the bank is still a bare sheet beyond the near tiling, and a few pale blades around the distant barrels still read as paper cut-outs.
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: director note 2 — swap the procedural scout for a real CC0/CC-BY robot/drone GLB with a visible muzzle, keep the hit/fire behaviour, and capture an angled tracer frame; only then note 3.

@@ -272,7 +272,9 @@ export class RaidView {
    const item=[...self.equipment,...self.pack].find(it=>it.id===self.weaponId&&it.kind==='weapon');
    if(item){
     for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}
-    this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.gunAimFade=[];
+    // Raid has no real first-person arms scan; the procedural mitten rig fails
+    // the real-asset bar, so the held rifle reads alone rather than with toy hands.
+    this.gun=weaponModel(item.weapon,false);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.gunAimFade=[];
     this.gun.traverse(node=>{const material=node.material;if(!node.isMesh||!material||!['stock','sleeve'].includes(material.name))return;
      material.transparent=true;material.depthWrite=false;material.opacity=1;this.gunAimFade.push(material)});
    }
@@ -438,9 +440,11 @@ export class RaidView {
   // cool rim from behind the shoulder, and a sky/ground hemisphere fill. The
   // weapon is near the camera and gets no shadow map; these lights read the
   // metal highlights without touching the world pass.
-  this.overlayFill=new THREE.HemisphereLight(0xdbe8ee,0x2c241d,1.05);
-  this.overlayKey=new THREE.DirectionalLight(0xffe2bd,3.0);this.overlayKey.position.set(2.4,2.8,4.2);
-  this.overlayRim=new THREE.DirectionalLight(0x9fd4ff,1.6);this.overlayRim.position.set(-2.8,1.4,2.4);
+  this.overlayFill=new THREE.HemisphereLight(0xe6e4dc,0x2c241d,.9);
+  this.overlayKey=new THREE.DirectionalLight(0xffe8cc,2.6);this.overlayKey.position.set(2.4,2.8,4.2);
+  // Neutral rim so the scanned rifle's dark metal highlights stay charcoal
+  // instead of picking up a steel-blue cast from a cool fill.
+  this.overlayRim=new THREE.DirectionalLight(0xd2c8b8,1.0);this.overlayRim.position.set(-2.8,1.4,2.4);
   this.overlay.add(this.overlayFill,this.overlayKey,this.overlayRim);
   this.gunRoot=new THREE.Group();this.gunHip={x:VIEW_HIP.x,y:VIEW_HIP.y,z:VIEW_HIP.z};this.gunRoot.position.set(VIEW_HIP.x,VIEW_HIP.y,VIEW_HIP.z);this.gunRoot.scale.setScalar(VIEW_SCALE);this.overlay.add(this.gunRoot);
   this.buildCombatEffects();
@@ -513,7 +517,7 @@ export class RaidView {
   const item=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId);
   this.gunRoot.visible=!!item&&this.viewMode==='first';
   if(this.selfActor&&this.selfActor.userData.heldWeapon!==(item?.weapon??null))setHumanWeapon(this.selfActor,item?.weapon??null);
-  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now();
+  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,false);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now();
    // Rear furniture and forearms would otherwise jam into the sight picture:
    // fade them out as the optic comes up, like a real shoulder-weld.
    this.gunAimFade=[];
