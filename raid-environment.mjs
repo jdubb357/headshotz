@@ -803,20 +803,54 @@ export function buildEnvironment(world){
    for(const side of [-1,1]){
     add('box',0x6c6a64,ddx+(onZ?side*(doorW/2+.08):0),doorBase+doorH/2,ddz+(onZ?0:side*(doorW/2+.08)),...since(.16,doorH+.18,.30),0,'concrete',0,0,false,'doorway');
    }
-   // A weathered plank door hangs slightly ajar on one jamb; a dull metal
-   // handle catches the light and makes the entry legible at night.
-   const swing=(outZ||outX)*.24;
-   add('box',0x4a3824,ddx+outX*.12,doorBase+doorH/2-.06,ddz+outZ*.12,...since(doorW-.14,doorH-.24,.08),swing,'planks',0,0,false,'doorway');
-   add('sphere',0xa9aca9,ddx+(onZ?doorW/2-.2:0)+outX*.18,doorBase+doorH*.46,ddz+(onZ?0:doorW/2-.2)+outZ*.18,.055,.055,.055,0,'metal',0,0,false,'doorway');
-   // Two descending steps make the threshold read as a lived-in stoop.
-   add('box',0x777368,ddx+outX*.34,doorBase-.26,ddz+outZ*.34,...since(doorW+.7,.18,.68),0,'concrete',0,0,false,'doorway');
-   add('box',0x6c6a64,ddx+outX*.22,doorBase-.14,ddz+outZ*.22,...since(doorW+.5,.18,.46),0,'concrete',0,0,false,'doorway');
+   // A weathered plank door hangs slightly ajar on one jamb. The slab carries
+   // five real board faces, iron hinge straps and a mounted handle so the timber
+   // silhouette survives rain and dim light instead of reading as a flat box.
+   const swing=(outZ||outX)*.24,cosSwing=Math.cos(swing),sinSwing=Math.sin(swing);
+   const doorCX=ddx+outX*.12,doorCZ=ddz+outZ*.12,doorCY=doorBase+doorH/2-.06;
+   // Wall-plane offset (along the door) to a point proud of the ajar face.
+   const faceAt=(along,out)=>onZ
+    ?[doorCX+along*cosSwing+outZ*out*sinSwing,doorCZ-along*sinSwing+outZ*out*cosSwing]
+    :[doorCX+outX*out*cosSwing+along*sinSwing,doorCZ-outX*out*sinSwing+along*cosSwing];
+   const doorH2=(doorH-.24)/2,doorW2=(doorW-.14)/2;
+   add('box',0x1c120a,doorCX,doorCY,doorCZ,...since(doorW-.14,doorH-.24,.08),swing,'planks',0,0,false,'doorway');
+   const bay=(doorW-.17)/5,boardTone=[0x5b4227,0x472f1c,0x664a2d];
+   for(let i=0;i<5;i++){
+    const along=-doorW2+bay*(.5+i),[bx,bz]=faceAt(along,.052);
+    add('box',boardTone[i%3],bx,doorCY,bz,...since(bay-.006,doorH-.38,.02),swing,'planks',0,0,false,'doorBoard');
+   }
+   // Top and bottom rails pin the boards; three hinge straps plate the jamb.
+   for(const dy of [-1,1]){const [bx,bz]=faceAt(0,.065);
+    add('box',0x2d2116,bx,doorCY+dy*(doorH2-.06),bz,...since(doorW-.20,.055,.024),swing,'planks',0,0,false,'doorRail')}
+   for(const dy of [-.32,0,.32]){const [bx,bz]=faceAt(-doorW2+.17,.072);
+    add('box',0x5c615c,bx,doorCY+dy*doorH*.48,bz,...since(.34,.055,.028),swing,'metal',0,0,false,'doorIron')}
+   const [hx,hz]=faceAt(doorW*.28,.10);
+   add('box',0x44483f,hx,doorCY,hz,...since(.11,.26,.026),swing,'metal',0,0,false,'doorway');
+   add('sphere',0xa9aca9,hx+(onZ?outZ*.018:outX*.018),doorCY,hz+(onZ?outZ*.018:outX*.018),.06,.06,.06,0,'metal',0,0,false,'doorway');
+   // Timber-clad stoops: plank treads and riser faces over the masonry core. The
+   // lived-in threshold now reads as timber boards rather than bare pale boxes.
+   for(const [stepOut,stepY,stepW,stepD] of [[.34,doorBase-.26,doorW+.7,.68],[.22,doorBase-.14,doorW+.5,.46]]){
+    const sx=ddx+outX*stepOut,sz=ddz+outZ*stepOut,top=stepY+.09;
+    const rise=stepD/3+.004;
+    for(let i=0;i<3;i++){const off=(i-1)*rise,px=sx+(onZ?0:off),pz=sz+(onZ?off:0);
+     add('box',i===1?0x6e5537:i?0x5d472d:0x674e31,px,top+.021,pz,...since(stepW-.03,.042,stepD/3-.009),0,'planks',0,0,false,'doorStoop')}
+    const riserX=sx+outX*(stepD/2+.012),riserZ=sz+outZ*(stepD/2+.012);
+    add('box',0x5e472e,riserX,stepY,riserZ,...since(stepW-.03,.16,.018),0,'planks',0,0,false,'doorStoop');
+    // A darker worn nose strip marks the front lip of the tread.
+    add('box',0x4b3926,sx+outX*(stepD/2-.02),top+.023,sz+outZ*(stepD/2-.02),...since(stepW-.05,.028,.055),0,'planks',0,0,false,'doorStoop');
+   }
    if(awn){
     const depth=.92,awW=doorW+1.1,awY=Math.min(doorBase+doorH+.38,blockTop-.22),awOut=.05+depth/2;
     add('box',0x7d5f42,ddx+outX*awOut,awY,ddz+outZ*awOut,...since(awW,.14,depth),0,'planks',onZ?outZ*.19:0,onZ?0:-outX*.19,false,'doorAwning');
     // A lighter outer fascia lip catches the key light, so the canopy reads as
     // a distinct silhouette instead of a shadow band above the doorway.
     add('box',0x9a7958,ddx+outX*(.05+depth-.02),awY-.07+outZ*.012,ddz+outZ*(.05+depth-.02)+outX*.012,...since(awW+.18,.16,.12),0,'planks',onZ?outZ*.19:0,onZ?0:-outX*.19,false,'doorAwning');
+    // Exposed cross-ties under the boards read as a framed timber canopy from
+    // beneath, where the player actually sees the awning at eye level.
+    for(const inward of [.18,.50,.82]){
+     const ax=ddx+outX*(.05+inward),az=ddz+outZ*(.05+inward);
+     add('box',0x5a4329,onZ?ddx:ax,awY-.10,onZ?az:ddz,...since(awW-.14,.05,.055),0,'planks',0,0,false,'doorAwning');
+    }
     for(const side of [-1,1]){
      add('box',0x6b5137,onZ?ddx+side*(awW/2-.3):ddx+outX*(.05+depth*.35),awY-.30,onZ?ddz+outZ*(.05+depth*.35):ddz+side*(awW/2-.3),...since(.12,.52,.12),0,'planks',0,0,false,'doorAwning');
      add('box',0x7b837d,onZ?ddx+side*(awW/2-.3):ddx+outX*.04,awY-.26,onZ?ddz+outZ*.04:ddz+side*(awW/2-.3),...since(.14,.40,.10),0,'metal',0,0,false,'doorAwning');

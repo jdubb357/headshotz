@@ -496,7 +496,7 @@ function start(){
  if(snapshot.protocol!==RAID_PROTOCOL)throw new Error('Client update required. Reload to reconnect safely.');
  if(!getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion))throw new Error('Map update required. Reload to reconnect safely.');
  wire?.close();stateAt=performance.now();controlsDisabled=false;resetTacticalMap();clearHitmarker();lastHitToken=hitToken(snapshot.self.hit);inRaid=true;raidGeneration++;setBaseLobby(false);document.body.dataset.inRaid='true';preferences.apply();lastHealth=snapshot.self.hp;lastOutcome='';lastBoard=false;hudStatusKey='';document.querySelector('main').inert=true;seq=snapshot.self.seq;yaw=snapshot.self.yaw;pitch=snapshot.self.pitch||0;input.clear();$('play').style.display='block';syncTouchHeight();syncRaidDock();
- view||=new RaidView($('view'));view.start(snapshot);view.applySettings(preferences.get());prediction=new LocalPrediction(snapshot);wire?.close();const generation=raidGeneration;wire=new ReliableActions({state:snapshot,request:packet=>api('action',packet,{timeoutMs:2500}),onState:(state,network)=>{if(!inRaid||generation!==raidGeneration)return;snapshot=state;stateAt=performance.now();seq=state.self.seq;prediction?.reconcile(state,network);updateUI()},onNetwork:network=>{if(inRaid&&generation===raidGeneration&&!offlineMode)$('networkStatus').textContent=network.status==='connected'?'Connected · '+Math.round(network.rttMs/10)*10+' ms RTT':network.status==='retrying'?'Connection interrupted · retrying safely':network.status==='update_required'?'Client update required · reload to reconnect safely':'Connection lost · movement prediction paused'}});setPack(!(matchMedia('(pointer:coarse)').matches||document.documentElement.dataset.compactHud==='true'));packKey='';seenEvents.clear();$('events').textContent='';$('view').focus();updateUI();
+ view||=new RaidView($('view'));view.start(snapshot);view.applySettings(preferences.get());prediction=new LocalPrediction(snapshot);prediction.onBlocked=()=>{view?.audio.play('bump');view?.bump()};wire?.close();const generation=raidGeneration;wire=new ReliableActions({state:snapshot,request:packet=>api('action',packet,{timeoutMs:2500}),onState:(state,network)=>{if(!inRaid||generation!==raidGeneration)return;snapshot=state;stateAt=performance.now();seq=state.self.seq;prediction?.reconcile(state,network);updateUI()},onNetwork:network=>{if(inRaid&&generation===raidGeneration&&!offlineMode)$('networkStatus').textContent=network.status==='connected'?'Connected · '+Math.round(network.rttMs/10)*10+' ms RTT':network.status==='retrying'?'Connection interrupted · retrying safely':network.status==='update_required'?'Client update required · reload to reconnect safely':'Connection lost · movement prediction paused'}});setPack(!(matchMedia('(pointer:coarse)').matches||document.documentElement.dataset.compactHud==='true'));packKey='';seenEvents.clear();$('events').textContent='';$('view').focus();updateUI();
 }
 // The raid boots instantly on procedural textures so the base and a deployment
 // are playable while the already-shipped photo surfaces and MakeHuman bodies
@@ -1612,19 +1612,22 @@ function drawNavMap(canvas,state){
   const p=project(exit.x,exit.z),color='#'+exitColor(exit,serverTime).toString(16).padStart(6,'0');
   if(p.d<=NAV_RADIUS*.9){
    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.PI/4);
-   ctx.fillStyle='rgba(4,10,14,.55)';ctx.fillRect(-11,-11,22,22);
-   ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.94)';ctx.lineWidth=2.4;
-   ctx.fillRect(-7.2,-7.2,14.4,14.4);ctx.strokeRect(-7.2,-7.2,14.4,14.4);ctx.restore();
+   ctx.fillStyle='rgba(4,10,14,.72)';ctx.fillRect(-16,-16,32,32);
+   ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.96)';ctx.lineWidth=3;
+   ctx.fillRect(-10.6,-10.6,21.2,21.2);ctx.strokeRect(-10.6,-10.6,21.2,21.2);ctx.restore();
   }else{
-   // The rim marker has to survive the 360→120 px downscale: a 13 px glyph
-   // shrinks to under 5 CSS pixels and disappears at arm's length. Keep the
-   // badge and chevron ~36 px tall here so it reads at ~12 px on the glass.
-   const angle=Math.atan2(p.y-cy,p.x-cx),ax=cx+Math.cos(angle)*(R-28),ay=cy+Math.sin(angle)*(R-28);
+   // The rim marker has to survive the 360→120 px downscale: small glyphs turn
+   // to dust on a phone. Keep a 20 CSS px badge and broad chevron so the exit
+   // bearing stays obvious at arm's length and never vanishes into the glass.
+   const angle=Math.atan2(p.y-cy,p.x-cx),ax=cx+Math.cos(angle)*(R-31),ay=cy+Math.sin(angle)*(R-31);
    ctx.save();ctx.translate(ax,ay);ctx.rotate(angle+Math.PI/2);
-   ctx.beginPath();ctx.arc(0,0,21,0,TAU);ctx.fillStyle='rgba(4,10,14,.82)';ctx.fill();
-   ctx.strokeStyle='rgba(4,10,14,.94)';ctx.lineWidth=3;ctx.stroke();
-   ctx.beginPath();ctx.moveTo(0,-26);ctx.lineTo(14,10);ctx.lineTo(0,4);ctx.lineTo(-14,10);ctx.closePath();
-   ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.96)';ctx.lineWidth=3.4;ctx.lineJoin='round';ctx.fill();ctx.stroke();ctx.restore();
+   ctx.beginPath();ctx.arc(0,0,30,0,TAU);ctx.fillStyle='rgba(4,10,14,.88)';ctx.fill();
+   ctx.strokeStyle='rgba(212,238,230,.28)';ctx.lineWidth=2;ctx.stroke();
+   ctx.beginPath();ctx.moveTo(0,-42);ctx.lineTo(20,14);ctx.lineTo(0,6);ctx.lineTo(-20,14);ctx.closePath();
+   ctx.fillStyle=color;ctx.strokeStyle='rgba(4,10,14,.96)';ctx.lineWidth=4.6;ctx.lineJoin='round';ctx.fill();ctx.stroke();
+   // A faint inner wash gives the marker a bevel without a second texture.
+   ctx.beginPath();ctx.moveTo(0,-32);ctx.lineTo(11,10);ctx.lineTo(0,4);ctx.lineTo(-11,10);ctx.closePath();
+   ctx.fillStyle='rgba(255,255,255,.10)';ctx.fill();ctx.restore();
   }
  }
  for(const m of state.machines||[])if(m.hp>0){const p=project(m.x,m.z);if(p.d>NAV_RADIUS)continue;ctx.beginPath();ctx.arc(p.x,p.y,8.8,0,TAU);ctx.fillStyle='rgba(255,102,91,.2)';ctx.fill();ctx.beginPath();ctx.arc(p.x,p.y,5.4,0,TAU);ctx.fillStyle='#ff665b';ctx.fill();ctx.lineWidth=1.6;ctx.strokeStyle='rgba(6,12,16,.9)';ctx.stroke()}

@@ -7958,3 +7958,18 @@ Finish director note 1 (rest): give the spawn/review-crate a readable wood-slat 
 
 **Next action:** Director note 1 rest, part 2: real wood on doorway stoops/planks, then the readable radar exit arrow and the collider-stop thump. Note 2 (scout chassis silhouette and actual engagement) stays next.
 
+
+
+## Iteration 94 — Door timbers, readable radar exit arrows, collider bump (director note 1 rest, part 2; 2026-11-12)
+
+**Task:** finish director note 1: doorway stoops/planks, radar exit arrow size, collider-stop bump.
+
+**Changed:** `raid-environment.mjs` now builds plank doors from five tone-varied board faces with top/bottom rails, three iron hinge straps and a mounted handle, all laid on a rotated wall-plane helper so the ajar door stays coherent; stoops are masonry cores dressed with three-plank timber treads, timber riser faces and worn nose strips; awning boards gained three exposed under-board cross-ties. `raid-online.mjs` roughly doubles the compact-radar rim badge/chevron and in-range exit diamond, and raises the EXIT-chip arrow. `raid-audio.mjs` adds a low `bump` cue; `raid-prediction.mjs` reports a sustained fully-blocked press once per contact (350 ms guard), wired in `raid-online.mjs` to a 3.5 cm camera dip and 2.8° pitch jolt in `raid-view.mjs`, disabled under reduced motion.
+
+**Verified:** raid-browser-doors, static-offline, mobile-HUD (91.8%/81.7%) and performance graders all exit 0; Node suite 1248 pass with only the known intermittent matchmaking ECONNRESET (rerun alone, same); `/tmp/hsz-iter94/bump.mjs` shows 0 bumps before pressing W and 1 bump when the doorway wall stopped the operator, browser errors none.
+
+**Shots:** latest cleared/refilled: `before-1024.png`/`after-1024.png` head-on doorway, `before-1024-detail.png`/`after-1024-detail.png` crops, `before-844.png`/`after-844.png` phone frame, plus `after-1024-side.png` and `after-1024-radar.png`. Raw frames in `/tmp/hsz-iter94/out`.
+
+**Honest critique:** The stoops read as true timber threshold steps and the plank door shows seams, straps and a handle, but the awning fascia remains a flat brown band and the fresher door wood is brighter than the wet, desaturated wall palette, so the entry reads crafted rather than lived-in.
+
+**Next action:** Director note 2 — scout standoff/engagement readability: make the scout visibly shoot (or damage the operator) within range; then note 4, note 3, note 5.
