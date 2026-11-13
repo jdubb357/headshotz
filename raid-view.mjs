@@ -18,7 +18,7 @@ export {RaidAudio} from './raid-audio.mjs';
 const bobReach=speed=>.016*Math.max(0,Math.min(1,speed));
 // Presentation-only camera feel state. The authoritative pose still comes from
 // the snapshot/prediction; these offsets only move the render camera.
-const freshFeel=()=>({bob:0,step:0,footSide:0,dip:0,dipVel:0,slide:0,sprintFov:0,grounded:null});
+const freshFeel=()=>({bob:0,step:0,footSide:0,dip:0,dipVel:0,slide:0,sprintFov:0,bump:0,grounded:null});
 // Gradient sky dome: cheap, no textures, follows the authoritative sky/sun so
 // dusk, night and storm fronts read as depth instead of a flat clear colour.
 const SKY_VERT=`varying vec3 vD;void main(){vD=position;vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}`;
@@ -1465,6 +1465,8 @@ export class RaidView {
   return effect;
  }
  fire(){const s=this.snapshot?.self,item=s&&[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);this.recoilSide=-this.recoilSide;this.recoil=this.settings?.reduced?0:RECOIL_KICK[item?.weapon]??.07;this.muzzleFlashAt=performance.now();this.audio.play(item?'shot:'+item.weapon:'shot');this.spawnShot(performance.now(),item?item.weapon:'shot');this.spawnViewModelEffects()}
+ // Presentation-only jolt when the predicted operator is stopped by cover.
+ bump(){if(this.settings?.reduced)return;const feel=this.feel||(this.feel=freshFeel());feel.bump=Math.max(feel.bump,.55)}
  clearChase(eye,desired){
   if(!this.world)return desired;
   const delta=desired.clone().sub(eye);let last=eye.clone();
@@ -1510,9 +1512,11 @@ export class RaidView {
   if(!reduced&&(feel.dip!==0||feel.dipVel!==0)){feel.dipVel+=(-150*feel.dip-13*feel.dipVel)*dt;feel.dip+=feel.dipVel*dt;if(feel.dip>.26)feel.dip=.26;if(feel.dip<0){feel.dip=0;if(feel.dipVel<0)feel.dipVel=0}if(Math.abs(feel.dip)<.0006&&Math.abs(feel.dipVel)<.008)feel.dip=feel.dipVel=0}
   const bobTarget=reduced||!grounded||aiming||sliding||moveSpeed<=.05?0:Math.abs(Math.sin(feel.step))*.032*moveSpeed*(s.sprint?1.35:1);
   feel.bob+=(bobTarget-feel.bob)*(reduced?1:1-Math.exp(-dt*14));
+  // A stopped-against-cover bump is a quick downward jolt, not a camera system.
+  if(!reduced&&feel.bump>0){feel.bump*=Math.exp(-dt*17);if(feel.bump<.01)feel.bump=0}
   const slideTarget=!reduced&&sliding?.18:0;feel.slide+=(slideTarget-feel.slide)*(reduced?1:1-Math.exp(-dt*(sliding?18:22)));
   if(this.visualSelf.distanceTo(target)>5)this.visualSelf.copy(target);else this.visualSelf.lerp(target,Math.min(1,dt*16));this.camera.position.copy(this.visualSelf);
-  if(!reduced)this.camera.position.y+=feel.bob-feel.dip-feel.slide;
+  if(!reduced)this.camera.position.y+=feel.bob-feel.dip-feel.slide-feel.bump*.035;
   if(this.horizonDepth){this.horizonDepth.position.copy(this.camera.position);if(this.horizonDepth.userData.raidHorizonTick)this.horizonDepth.userData.raidHorizonTick(seconds,!!this.settings?.reduced)}
   // Keep the 2048 shadow frustum centred on the player instead of the fixed
   // map origin; without this, shadows disappear once the operator walks more
@@ -1522,7 +1526,7 @@ export class RaidView {
   // Presentation-only muzzle rise; authoritative ballistics still use the snapshot pose.
   // The stronger pitch/roll split makes each discharge visibly punch the camera
   // before the impulse recovers, without touching the aim or the shot ray.
-  if(!reduced){this.camera.rotation.x+=this.recoil*.52;this.camera.rotation.z+=this.recoil*this.recoilSide*.46;this.camera.rotation.x-=feel.dip*.7}
+  if(!reduced){this.camera.rotation.x+=this.recoil*.52;this.camera.rotation.z+=this.recoil*this.recoilSide*.46;this.camera.rotation.x-=feel.dip*.7+feel.bump*.028}
   // The aim camera above stays at eye height for authoritative ballistics and
   // network graders; the chase camera is the presentational third-person view.
   const viewYaw=!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw,viewPitch=!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch;
