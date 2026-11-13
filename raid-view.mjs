@@ -144,6 +144,11 @@ void main(){
 // Impact palette: the first hex is the hot spark/light colour, the second is
 // the slow dust plume tint. Keys match world block materials and terrain themes.
 const IMPACT_PALETTE={concrete:[0xffcf82,0xb9b3a4],gravel:[0xffcf82,0xa8a394],dirt:[0xffc878,0xbfab7f],forest:[0x9ddf63,0x738b57],foliage:[0x9ddf63,0x738b57],brick:[0xe99b62,0xa57b64],planks:[0xffbf78,0x9b6b3f],metal:[0xfff1c6,0x8a8e93],rock:[0xffc890,0xa5a293],container:[0xa7d7df,0x778b8f],crate:[0xe4cf9b,0x9c8459],hazard:[0xffd75a,0xbfae7f],tiles:[0xcbd3d8,0x9a9d98],asphalt:[0xffc98d,0x8e8b8a]};
+// Hostile tracer tints per machine class. Scout bolts stay warm amber so the
+// eye reads gunfire on the road; heavier classes push toward red.
+const ENEMY_SHOT_COLORS={scout:0xffb24a,hunter:0xff6b3a,heavy:0xff5138,flyer:0x9ce8ff,overlord:0xff7a45};
+const HOT_TRACE=new THREE.Color(0xfff1cf);
+const BEAM_UP=new THREE.Vector3(0,1,0);
 // Authoritative recoil amplitude per weapon class; presenting the same kick to
 // the gun and camera keeps heavy weapons distinct without touching ballistics.
 const RECOIL_KICK={ar:.095,smg:.06,shotgun:.18,sniper:.16,pistol:.08,lmg:.13};
@@ -228,7 +233,7 @@ export class RaidView {
   this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.22;
   this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;this.splashes=this.splashesState=this.splashesAnchor=null;
 
-  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
+  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.enemyShotCursor=0;this.enemyShotSeen=new Map();this.enemyShotLight=null;this.enemyShotLightAt=-1e9;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
  // Fixed pool of landings dust for articulated machines. Each puff is placed
  // in world space when a diagonal foot pair plants, so it settles where the
  // pad hit the ground instead of travelling with the swinging leg.
@@ -309,7 +314,7 @@ export class RaidView {
   // Directional shadow targets are not reachable from scene disposal, so release
   // the sun's map explicitly or each restart leaves one texture on the GPU.
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.lastTime=0;this.footDust=[];this.footDustCursor=0;
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.lastTime=0;this.footDust=[];this.footDustCursor=0;if(this.enemyShotLight){this.enemyShotLight.visible=false;this.enemyShotLight.intensity=0}this.enemyShotLight=null;this.enemyShotLightAt=-1e9;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
   for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
@@ -325,7 +330,7 @@ export class RaidView {
   for(const target of this.bloomTargets||[])target.dispose();
   this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.lastWeapon=null;this.footDust=[];this.footDustCursor=0;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.footDust=[];this.footDustCursor=0;this.enemyShotLight=null;this.enemyShotLightAt=-1e9;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
  this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
@@ -377,7 +382,14 @@ export class RaidView {
    entry.data=data;if(type==='human'&&entry.model.userData.heldWeapon!==(data.weapon??null))setHumanWeapon(entry.model,data.weapon??null);if(type==='cache')entry.model.userData.lid?.material.color.setHex(data.open?0x87b89a:data.vault?0xc78bdb:0xd8b062);
   };
   for(const p of snapshot.players)if(p.id!==snapshot.camera?.follow)put(p.id,'human',p);
-  for(const m of snapshot.machines)put(m.id,'machine',m);
+  const machineIds=new Set();
+  for(const m of snapshot.machines){put(m.id,'machine',m);machineIds.add(m.id);
+   // Resolve hostile fire exactly once per authoritative shot token. The token
+   // persists for a short server window, so repeated polls of the same shot
+   // must remain a single visual event.
+   if(m.shot&&Number.isFinite(m.shot.at)&&this.enemyShotSeen.get(m.id)!==m.shot.at){this.enemyShotSeen.set(m.id,m.shot.at);this.spawnEnemyShot(m.shot,m.kind||'scout')}
+  }
+  for(const id of this.enemyShotSeen.keys())if(!machineIds.has(id))this.enemyShotSeen.delete(id);
   for(const r of snapshot.rivals||[])put(r.id,'human',r);
   for(const c of snapshot.caches)put(c.id,'cache',c);
   for(const l of snapshot.loot||[])put(l.id,'loot',l);
@@ -968,6 +980,36 @@ export class RaidView {
    const light=new THREE.PointLight(0xff9a3c,0,20,2);light.visible=false;light.castShadow=false;light.userData.raidOwned=true;light.userData.raidWreckLight=true;this.scene.add(light);
    this.machineWreckEffects.push({flash,ring,embers,smoke,chunks,light,started:null,kind:'scout',scale:1,origin:new THREE.Vector3(),emberVelocities:new Float32Array(wreckEmbers*3),chunkVelocities:new Float32Array(wreckChunks*3),emberCount:wreckEmbers,chunkCount:wreckChunks,smokeCount:wreckSmoke,duration:wreckDuration});
   }
+  // Hostile fire is its own fixed pool: an amber bolt travels from the
+  // authoritative shot origin toward the strike point, leaving a short trail
+  // and a muzzle bloom at the machine. The shot token rides the same server
+  // attack that damaged an operator, so a client can never invent incoming
+  // fire; it only presents a resolution the authority already committed.
+  const enemyShotCount=6,enemySparkCount=10;
+  for(let i=0;i<enemyShotCount;i++){
+   const flashMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xffb24a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   flashMaterial.userData.raidOwned=true;
+   const flash=new THREE.Sprite(flashMaterial);flash.visible=false;flash.frustumCulled=false;flash.renderOrder=5;this.scene.add(flash);
+   const boltMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xffb24a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   boltMaterial.userData.raidOwned=true;
+   const bolt=new THREE.Sprite(boltMaterial);bolt.visible=false;bolt.frustumCulled=false;bolt.renderOrder=5;this.scene.add(bolt);
+   // A tapered additive beam behind the bolt; unlike a GL line it survives at
+   // phone scale and gives the still frame a clear muzzle-to-operator streak.
+   const beamGeometry=new THREE.CylinderGeometry(.13,.032,1,8,1,true);
+   const beamMaterial=new THREE.MeshBasicMaterial({color:0xffb24a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false});
+   beamGeometry.userData.raidOwned=beamMaterial.userData.raidOwned=true;
+   const beam=new THREE.Mesh(beamGeometry,beamMaterial);beam.visible=false;beam.frustumCulled=false;beam.renderOrder=4;this.scene.add(beam);
+   const trailMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xff7a33,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   trailMaterial.userData.raidOwned=true;
+   const trailRoot=new THREE.Group();trailRoot.visible=false;this.scene.add(trailRoot);
+   const trailSprites=[];for(let j=0;j<5;j++){const sprite=new THREE.Sprite(trailMaterial);trailRoot.add(sprite);trailSprites.push(sprite)}
+   const sparkGeometry=new THREE.BufferGeometry();sparkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(enemySparkCount*3),3));
+   const sparkMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xffd37a,size:.14,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+   sparkGeometry.userData.raidOwned=sparkMaterial.userData.raidOwned=true;
+   const sparks=new THREE.Points(sparkGeometry,sparkMaterial);sparks.visible=false;sparks.frustumCulled=false;sparks.renderOrder=5;this.scene.add(sparks);
+   this.enemyShotEffects.push({flash,bolt,beam,trailRoot,trailSprites,trailMaterial,sparks,started:null,color:0xffb24a,from:new THREE.Vector3(),to:new THREE.Vector3(),dir:new THREE.Vector3(),end:new THREE.Vector3(),mid:new THREE.Vector3(),velocities:new Float32Array(enemySparkCount*3),sparkCount:enemySparkCount,duration:320});
+  }
+  const hostileLight=new THREE.PointLight(0xffa04a,0,12,2);hostileLight.visible=false;hostileLight.castShadow=false;hostileLight.userData.raidOwned=true;hostileLight.userData.raidEnemyShotLight=true;this.scene.add(hostileLight);this.enemyShotLight=hostileLight;
  }
  shotSurface(x,y,z,terrainHit){
   if(terrainHit)return this.world?.theme==='wilderness'?'forest':this.world?.theme==='settlement'?'dirt':'gravel';
@@ -1142,6 +1184,43 @@ export class RaidView {
   }
   effect.sparkTime=0;
  }
+ // Present one authoritative hostile shot. Bolts are additive sprites because a
+ // world-space tube seen almost end-on collapses to a dot on a phone; the glow
+ // moves along the muzzle-to-impact line and grows the bloom pass.
+ spawnEnemyShot(shot,kind='scout'){
+  if(!this.enemyShotEffects.length||!this.scene||!shot?.from||!shot?.to)return false;
+  const effect=this.enemyShotEffects[this.enemyShotCursor++%this.enemyShotEffects.length];
+  const color=ENEMY_SHOT_COLORS[kind]||ENEMY_SHOT_COLORS.scout;
+  effect.color=color;
+  effect.flash.material.color.setHex(color);
+  effect.bolt.material.color.setHex(color).lerp(HOT_TRACE,.42);
+  effect.beam.material.color.setHex(color).lerp(HOT_TRACE,.3);
+  effect.trailMaterial.color.setHex(color);
+  effect.sparks.material.color.setHex(color);
+  effect.from.set(Number(shot.from.x)||0,Number(shot.from.y)||0,Number(shot.from.z)||0);
+  effect.to.set(Number(shot.to.x)||0,Number(shot.to.y)||0,Number(shot.to.z)||0);
+  effect.dir.copy(effect.to).sub(effect.from);
+  const length=effect.dir.length();
+  if(!Number.isFinite(length)||length<.6||length>140)return false;
+  effect.dir.divideScalar(length);
+  effect.end.copy(effect.to);
+  effect.flash.position.copy(effect.from);effect.flash.scale.setScalar(1.25);
+  effect.bolt.position.copy(effect.from);effect.bolt.scale.setScalar(1.35);effect.bolt.visible=true;
+  effect.beam.visible=true;effect.beam.material.opacity=0;
+  effect.sparks.position.copy(effect.to);
+  const sparkPositions=effect.sparks.geometry.attributes.position.array;
+  for(let i=0;i<effect.sparkCount;i++){sparkPositions[i*3]=0;sparkPositions[i*3+1]=.05;sparkPositions[i*3+2]=0}
+  effect.sparks.geometry.attributes.position.needsUpdate=true;
+  for(let i=0;i<effect.sparkCount;i++){
+   const k=i*3,angle=Math.random()*Math.PI*2,spread=.9+Math.random()*1.7;
+   effect.velocities[k]=Math.cos(angle)*spread;
+   effect.velocities[k+1]=1.1+Math.random()*2.6;
+   effect.velocities[k+2]=Math.sin(angle)*spread;
+  }
+  effect.started=performance.now();
+  if(this.enemyShotLight){this.enemyShotLight.position.copy(effect.from);this.enemyShotLight.color.setHex(color);this.enemyShotLightAt=effect.started}
+  return true;
+ }
  buildComposite(){
   const material=new THREE.ShaderMaterial({vertexShader:POST_VERT,fragmentShader:POST_FRAG,transparent:false,depthTest:false,depthWrite:false,
    uniforms:{uScene:{value:null},uBloomTex:{value:null},uResolution:{value:new THREE.Vector2(1,1)},uTime:{value:0},uVignette:{value:.42},uGrain:{value:.034},uBloom:{value:.3}}});
@@ -1239,6 +1318,68 @@ export class RaidView {
    const lightAge=now-this.shotMuzzleLightAt,lightActive=!reduced&&lightAge>=0&&lightAge<120;
    this.shotMuzzleLight.visible=lightActive;
    this.shotMuzzleLight.intensity=lightActive?(1-lightAge/120)*5.4:0;
+  }
+  // Hostile bolts: a short muzzle bloom at the machine, a fast additive bolt
+  // that crosses the gap, a fading trail, then a spark landing at the strike
+  // point. Under reduced motion the motion is removed but the muzzle flash and
+  // landing burst remain as still beats so the exchange is not silent.
+  for(const effect of this.enemyShotEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started;
+   if(age>=effect.duration){effect.started=null;effect.flash.visible=false;effect.bolt.visible=false;effect.bolt.material.opacity=0;effect.beam.visible=false;effect.beam.material.opacity=0;effect.trailRoot.visible=false;effect.sparks.visible=false;continue}
+   const muzzleFade=Math.max(0,1-age/170);
+   effect.flash.visible=!reduced&&age<170;
+   effect.flash.material.opacity=reduced?0:Math.min(1,muzzleFade*1.1);
+   effect.flash.scale.setScalar(1.1+.78*(1-muzzleFade));
+   const impactStart=effect.duration*.7,impactAge=age-impactStart;
+   if(reduced){
+    effect.bolt.visible=false;effect.bolt.material.opacity=0;effect.beam.visible=false;effect.trailRoot.visible=false;
+    effect.sparks.visible=age>=impactStart;
+    effect.sparks.material.opacity=age>=impactStart?.4:0;
+    effect.sparks.material.size=.16;
+   }else{
+    const flight=Math.min(1,age/220);
+    effect.bolt.visible=age<270;
+    effect.bolt.position.lerpVectors(effect.from,effect.to,flight);
+    effect.bolt.scale.setScalar(1.55+.25*Math.sin(age*.05));
+    effect.bolt.material.opacity=age<270?Math.min(1,age/40)*(1-Math.max(0,(age-220)/50))*.98:0;
+    // The streak trails the bolt. It shrinks from muzzle to current bolt
+    // position, so a screenshot a few frames into the shot shows a clear
+    // amber line across the gap instead of a lone dot.
+    const beamFade=Math.max(0,1-age/270);
+    if(effect.beam&&flight>.03){
+     const beamLength=Math.max(.1,effect.from.distanceTo(effect.bolt.position));
+     effect.beam.visible=age<270;effect.beam.material.opacity=Math.min(1,age/30)*beamFade*.98;
+     effect.beam.position.lerpVectors(effect.from,effect.bolt.position,.5);
+     effect.beam.scale.set(1,beamLength,1);
+     effect.beam.quaternion.setFromUnitVectors(BEAM_UP,effect.dir);
+    }else if(effect.beam){effect.beam.visible=false;effect.beam.material.opacity=0}
+    effect.trailRoot.visible=age<270;
+    effect.trailMaterial.opacity=Math.max(0,1-age/270)*.58;
+    for(let i=0;i<effect.trailSprites.length;i++){
+     const f=Math.max(0,flight-(i+1)*.052),sprite=effect.trailSprites[i];
+     sprite.position.lerpVectors(effect.from,effect.to,f);
+     sprite.scale.setScalar((.46-.055*i)*(1.2-.45*f));
+    }
+    effect.sparks.visible=impactAge>=0;
+    effect.sparks.material.opacity=impactAge>=0?Math.min(1,impactAge/28)*Math.max(0,1-age/effect.duration)*.95:0;
+    effect.sparks.material.size=.14;
+    if(impactAge>=0){
+     const seconds=impactAge/1000,positions=effect.sparks.geometry.attributes.position.array;
+     for(let i=0;i<effect.sparkCount;i++){
+      const k=i*3;
+      positions[k]=effect.velocities[k]*seconds;
+      positions[k+1]=Math.max(.02,effect.velocities[k+1]*seconds-4.9*seconds*seconds);
+      positions[k+2]=effect.velocities[k+2]*seconds;
+     }
+     effect.sparks.geometry.attributes.position.needsUpdate=true;
+    }
+   }
+  }
+  if(this.enemyShotLight){
+   const hostileAge=now-this.enemyShotLightAt,hostileActive=!reduced&&hostileAge>=0&&hostileAge<170;
+   this.enemyShotLight.visible=hostileActive;
+   this.enemyShotLight.intensity=hostileActive?(1-hostileAge/170)*10:0;
   }
   // Weak-point bursts follow the authoritative core coordinate from the hit
   // token. Reduced motion keeps a readable static flash and ring while the

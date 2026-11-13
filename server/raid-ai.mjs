@@ -207,6 +207,10 @@ export function advanceMachines(service,raid,dt,now){
    if(def.attack==='pounce'&&raidLine(raid,m.x,m.z,shot.point.x,shot.point.z,(m.y||0)+1,(shot.point.y||0)+1)){
     const at=safePoint(raid.world,shot.point.x,shot.point.z,{radius:def.radius,height:def.height,y:shot.point.y||0});if(at){m.x=at.x;m.y=at.y;m.z=at.z}
    }
+   if(def.attack!=='pounce'){
+    const dx=shot.point.x-m.x,dz=shot.point.z-m.z,heading=Math.hypot(dx,dz)||1;
+    m.lastShot={at:now,kind:def.attack,from:{x:m.x+dx/heading*.55,y:(m.y||0)+def.height*.72,z:m.z+dz/heading*.55},to:{x:shot.point.x,y:(shot.point.y||0)+.75,z:shot.point.z}};
+   }
    for(const p of raid.players.values())if(p.alive&&distance(p,shot.point)<shot.radius&&raidLine(raid,shot.point.x,shot.point.z,p.x,p.z,(shot.point.y||0)+1,(p.y||0)+1))service.damage(raid,p,def.damage,{source:'machine',from});
    continue;
   }
