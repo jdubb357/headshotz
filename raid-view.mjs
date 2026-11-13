@@ -278,6 +278,8 @@ export class RaidView {
    }
   }
   applyPhotoLook(this.environmentRoot);
+  this.refreshSpawnDressing();
+  this.refreshStreetProps();
   if(this.terrainMaterial){
    const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
    const live=getTex(key),liveNormal=normalTex(key,1.6);
@@ -318,6 +320,77 @@ export class RaidView {
    next.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
    this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
   }
+ }
+ // The insertion apron's drums and crate are built with stack-only fallbacks
+ // before the scanned CC0 props decode. Replace them with instanced
+ // photogrammetry meshes once the assets land so the first frame's street props
+ // are real objects instead of lathe/box stand-ins. Presentation-only: decor
+ // colliders still come from the shared spawn dressing list.
+ // Street barrels and crates are built from instanced lathes and boxes before the
+ // CC0 photogrammetry decodes. Once it lands, hide those groups and drop in a
+ // single instanced scanned mesh per kind, preserving every authored placement.
+ // Collision stays with the shared world props, so visuals and blockage agree.
+ refreshStreetProps(){
+  const root=this.environmentRoot,sites=root?.userData?.raidStreetProps;
+  if(!sites?.length||!HQP.ready||root.userData.raidStreetPropsScanned)return;
+  const barrel=HQP.models.barrel,crate=HQP.models.crate;
+  if(!barrel||!crate)return;
+  root.traverse(node=>{if(node.isInstancedMesh&&(node.userData.raidStructure==='streetBarrel'||node.userData.raidStructure==='streetCrate'))node.visible=false});
+  const dummy=new THREE.Object3D(),spin=(x,z)=>((x*.37+z*1.13)%6.283+6.283)%6.283;
+  const barrels=sites.filter(item=>item.kind==='barrel'),crates=sites.filter(item=>item.kind==='crate');
+  if(barrels.length){
+   const mesh=new THREE.InstancedMesh(barrel.geo,barrel.mat,barrels.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   barrels.forEach((item,index)=>{
+    const scale=(item.scale||1)*1.3/Math.max(.001,barrel.size.y);
+    dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item.x,item.z),0);dummy.scale.setScalar(scale);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+  }
+  if(crates.length){
+   const mesh=new THREE.InstancedMesh(crate.geo,crate.mat,crates.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   crates.forEach((item,index)=>{
+    const s=item.h?item.h/Math.max(.001,crate.size.y):(item.w||1.1)/Math.max(.001,crate.size.y);
+    dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item.x,item.z)+.3,0);dummy.scale.setScalar(s);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+  }
+  root.userData.raidStreetPropsScanned=true;
+ }
+ refreshSpawnDressing(){
+  const dressing=this.environmentRoot?.userData?.raidSpawnDressing;
+  if(!dressing||dressing.group.userData.raidScanned||!HQP.ready)return;
+  const barrel=HQP.models.barrel,crate=HQP.models.crate;
+  // Only swap when both scans are available; removing the fallbacks while one
+  // model is missing would leave street props absent entirely.
+  if(!barrel||!crate)return;
+  const {group,items}=dressing;
+  for(const child of [...group.children]){group.remove(child);disposeOwned(child)}
+  const dummy=new THREE.Object3D(),spin=item=>((item.x*.37+item.z*1.13)%6.283+6.283)%6.283;
+  const drums=barrel?items.filter(item=>item.kind==='drum'):[];
+  const crates=crate?items.filter(item=>item.kind==='crate'):[];
+  if(barrel&&drums.length){
+   const mesh=new THREE.InstancedMesh(barrel.geo,barrel.mat,drums.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;
+   drums.forEach((item,index)=>{
+    const height=item.height||1.3,scale=height/Math.max(.001,barrel.size.y);
+    dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item),0);
+    dummy.scale.setScalar(scale);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
+  }
+  if(crate&&crates.length){
+   const mesh=new THREE.InstancedMesh(crate.geo,crate.mat,crates.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;
+   crates.forEach((item,index)=>{
+    dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item)+.3,0);
+    dummy.scale.set((item.w||1.05)/Math.max(.001,crate.size.x),(item.h||1.1)/Math.max(.001,crate.size.y),(item.d||1.05)/Math.max(.001,crate.size.z));
+    dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
+  }
+  group.userData.raidScanned=true;
  }
  clear(){
   if(this.envMapRT)this.envMapRT.dispose();

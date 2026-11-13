@@ -851,22 +851,30 @@ function seg(a,b,r1,r2,col,n=8){const d=b.clone().sub(a),L=d.length();_Q.setFrom
 function orBox(w,h,d,c,dirY,col,r=.006){// box whose local +y points along dirY (rotation from y axis)
  _Q.setFromUnitVectors(V3(0,1,0),dirY.clone().normalize());_E.setFromQuaternion(_Q);return rbox(w,h,d,c.x,c.y,c.z,col,r,_E.x,_E.y,_E.z)}
 let NOFA=false,WSIDE=null;export const wristOut={};
-function forearm(w,e,sleeve,glove){const m0=MAT;const dir=e.clone().sub(w).normalize();wristOut[WSIDE||(GRP==='lh'?'L':'R')]={w:[w.x,w.y,w.z],e:[e.x,e.y,e.z]};
+// First-person owners differ in how much forearm should swing into frame. The
+// raid holds the weapon closer to the eye than the main game, so the untouched
+// elbow point fills a third of the screen; raid-models trims the reach while
+// leaving the hand pose and wrist anchor identical. Default 1 = main game.
+let HAND_REACH=1;
+export function setHandReach(value){HAND_REACH=Math.max(.22,Math.min(1,Number(value)||1))}
+function forearm(w,e,sleeve,glove){const m0=MAT,full=e.clone().sub(w),len=full.length();
+ const dir=full.clone().normalize(),elbow=w.clone().addScaledVector(dir,len*HAND_REACH);
+ wristOut[WSIDE||(GRP==='lh'?'L':'R')]={w:[w.x,w.y,w.z],e:[elbow.x,elbow.y,elbow.z]};
  if(!NOFA){
   MAT='sleeve';
   // Narrower than the old cone so the forearm reads as cloth over an arm.
-  seg(w,e,.033,.043,sleeve,12);
+  seg(w,elbow,.033,.043,sleeve,12);
   // Folded cuff hem at the wrist: a brighter band of the same cloth, slightly
   // proud of the sleeve, closed by a darker stitch seam. This gives the arm a
   // manufactured edge instead of fading into the glove as a bare tube.
-  const cuff=w.clone().addScaledVector(dir,.002);
-  seg(cuff,cuff.clone().addScaledVector(dir,.068),.0420,.0432,new THREE.Color(sleeve).multiplyScalar(2.15).getHex(),12);
+  const cuff=w.clone().addScaledVector(dir,.002),reach=Math.min(1,Math.max(.35,HAND_REACH*.55));
+  seg(cuff,cuff.clone().addScaledVector(dir,.068*reach),.0420,.0432,new THREE.Color(sleeve).multiplyScalar(2.15).getHex(),12);
   // A narrow fold of shadow hides the raw cylinder edge where the cuff meets
   // the glove; the larger band below reads as the rolled sleeve hem.
-  seg(cuff,cuff.clone().addScaledVector(dir,.015),.0428,.0430,new THREE.Color(sleeve).multiplyScalar(.5).getHex(),12);
-  seg(cuff.clone().addScaledVector(dir,.058),cuff.clone().addScaledVector(dir,.070),.0438,.0432,new THREE.Color(sleeve).multiplyScalar(.68).getHex(),12);
+  seg(cuff,cuff.clone().addScaledVector(dir,.015*reach),.0428,.0430,new THREE.Color(sleeve).multiplyScalar(.5).getHex(),12);
+  seg(cuff.clone().addScaledVector(dir,.058*reach),cuff.clone().addScaledVector(dir,.070*reach),.0438,.0432,new THREE.Color(sleeve).multiplyScalar(.68).getHex(),12);
   // Rolled hem closes the sleeve's elbow opening so it ends flush.
-  seg(e.clone().addScaledVector(dir,-.052),e.clone().addScaledVector(dir,.004),.045,.0465,new THREE.Color(sleeve).multiplyScalar(.82).getHex(),12);
+  seg(elbow.clone().addScaledVector(dir,-.052*HAND_REACH),elbow.clone().addScaledVector(dir,.004),.045,.0465,new THREE.Color(sleeve).multiplyScalar(.82).getHex(),12);
  }
  MAT='glove';seg(w.clone().addScaledVector(dir,-.012),w.clone().addScaledVector(dir,.022),.031,.032,glove,10);MAT=m0}
 // right hand on a pistol grip (rake a), index finger on the trigger

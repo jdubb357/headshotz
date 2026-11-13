@@ -8014,3 +8014,28 @@ The rifle finally reads as a scanned Thompson with rivets and a rear sight, and 
 
 ### Next action
 Commit this slice on `cypert/dev` (no push, no PR, never `main`). Next iteration: director note 3 — make the EXIT chip (603 m south) and Objective pill (632 m south · 162°) agree or clearly name different places; then note 4 loot-scale/in-range label and note 5 keymap.
+
+## Iteration 97 — Scanner-quality street props, gloved hands, readable facades (director note 1; 2026-11-12)
+
+**Task:** director note 1 — make the first frame after `window.__raidArt.photos===true` fully real: readable brick/board facades, no grey slab, gloved hands only, scanned crate/barrels, no pale decal under the objective.
+
+### Acceptance criteria
+1. At 1024×720 and 844×390 offline spawn, facades show photo brick/board courses in mid-tones (windows still dark); right-side terrain reads as photographed gravel/earth with surface relief, not a flat pale slab.
+2. First-person frame shows only gloved hands on grip/handguard (no elbow/forearm tube); held rifle remains the scanned GLB.
+3. Every street barrel/crate in view is the CC0 scanned GLB (barrel_03 / wooden_crate_02), not the lathe/box stand-in; the pale rectangle decal under the objective beacon is gone.
+4. Static-offline, mobile-HUD and scenery graders green; Node suite unchanged; before/after frames at both sizes plus an action frame.
+
+### Changed
+`raid-environment.mjs`: tagged all procedural street drums/crates (`streetBarrel`/`streetCrate`) and recorded their placements; terrain albedo/normal now tile at 240 repeats with 16× anisotropy, 0.9 normal scale and two-octave vertex-colour patches; slope scrub extends to radii 4–31 with a 0.14 m height threshold. `raid-view.mjs`: `refreshArt` calls `refreshStreetProps`, which hides the tagged procedural groups and adds one instanced scanned barrel mesh and one instanced scanned crate mesh at the authored sites (442 props, 2 draw calls). `raid-models.mjs`/`weapons.js`: raid scan path passes `nofa=true` so only glove cuffs render; forearm reach trim retained.
+
+### Verification
+- `node tests/raid-browser-static-offline.mjs` → deploy→move→hit→loot→extract, 2 items, 270 credits, browserErrors []. Note: unscanned first run failed `start()` because the slope scrub used a non-existent `'rock'` geometry type; fixed to `'sphere'`.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024×720 91.80% / 844×390 81.81% unobstructed, all touch actions pass. `node tests/raid-browser-scenery.mjs` → same rigor, browserErrors []. `raid-browser-viewmodel.mjs` still times out on `packOpen` (pre-existing). `node --test tests/*.test.mjs` → 1248 pass, 1 fail (`matchmaking.test.mjs` ECONNRESET, known intermittent, failed identically alone).
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled from a pristine `254943a` worktree vs the working tree, same seeded offline deployment at forced clear daylight: `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-1024-action.png`/`after-1024-action.png` (walk), `before-1024-wall.png`/`after-1024-wall.png`.
+
+### Honest critique
+The facades finally show brick and board texture, the giant elbow tube is gone, and the street crate/barrels are now the real photographed scans — but the right foreground is still a broad bare hillside that anchors a third of the frame, the glove fingers still read as brown sausages at the grip, and the scanned crate near the machine is oversized enough to look placed rather than littered.
+
+**Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: break up that bare right bank with scanned ground cover / rock outcrops (or a spawn-eye composition change) before moving to director note 2.
