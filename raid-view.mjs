@@ -285,6 +285,7 @@ export class RaidView {
   applyPhotoLook(this.environmentRoot);
   this.refreshSpawnDressing();
   this.refreshStreetProps();
+  this.refreshWindows();
   if(this.terrainMaterial){
    const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
    const live=getTex(key),liveNormal=normalTex(key,1.6);
@@ -377,6 +378,76 @@ export class RaidView {
    mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
   }
   root.userData.raidStreetPropsScanned=true;
+ }
+ // Replaces the procedural dark-glazing panes on nearby facades with the scanned
+ // CC0 timber sash window once it decodes. The opening record carries only the
+ // frozen prop and façade normal, so placement never touches gameplay state.
+ refreshWindows(){
+  const root=this.environmentRoot,sites=root?.userData?.raidWindowOpenings,asset=HQP.windows?.urban;
+  if(!root||!sites?.length||!asset?.parts?.length||root.userData.raidWindowsScanned)return;
+  const self=this.snapshot?.self;if(!self)return;
+  const reach=90,reach2=reach*reach;
+  const near=sites.filter(s=>{const dx=s.x-self.x,dz=s.z-self.z;return dx*dx+dz*dz<reach2});
+  if(!near.length)return;
+  root.userData.raidWindowsScanned=true;
+  // Silence the procedural reveal/stall/plant boxes at upgraded openings. Zero
+  // matrices keep both draw buffers and neighbour placements untouched.
+  const hideTags=new Set(['framing','windowShutter','windowSill','flowerBox']);
+  root.traverse(node=>{
+   if(!node.isInstancedMesh||!node.userData.raidStructure||!hideTags.has(node.userData.raidStructure))return;
+   const arr=node.instanceMatrix.array;let changed=false;
+   for(let i=0;i<node.count;i++){
+    const x=arr[i*16+12],y=arr[i*16+13],z=arr[i*16+14];
+    for(const s of near){
+     const dx=x-s.x,dz=z-s.z;
+     if(dx*dx+dz*dz>1.8)continue;
+     if(Math.abs(y-(s.y+s.h/2))>s.h*.95+.35)continue;
+     arr.fill(0,i*16,i*16+16);changed=true;break;
+    }
+   }
+   if(changed)node.instanceMatrix.needsUpdate=true;
+  });
+  // The old pane is only an interior backing now. Dimming the pane instances at
+  // upgraded openings keeps its bright painted rim from peeking around the real
+  // frame and reads as unlit rooms behind the scanned glass.
+  const white=new THREE.Color(0xffffff),dim=new THREE.Color(0x4a555b),paneMeshes=[];
+  root.traverse(node=>{if(node.isInstancedMesh&&node.material?.userData?.raidSurface==='window')paneMeshes.push(node)});
+  for(const node of paneMeshes){
+   const arr=node.instanceMatrix.array;
+   for(let i=0;i<node.count;i++){
+    node.setColorAt(i,white);
+    const x=arr[i*16+12],z=arr[i*16+14];
+    for(const s of near){
+     if((x-s.x)*(x-s.x)+(z-s.z)*(z-s.z)>1.8)continue;
+     node.setColorAt(i,dim);break;
+    }
+   }
+   if(node.instanceColor)node.instanceColor.needsUpdate=true;
+  }
+  // The scanned module is deeper than the flat pane: a small outward seat puts
+  // its recessed glass just proud of the old pane so the dark interior still
+  // backs the glazing instead of the wall showing through.
+  const dummy=new THREE.Object3D(),seat=.14;
+  for(const part of asset.parts){
+   const mesh=new THREE.InstancedMesh(part.geo,part.mat,near.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   near.forEach((s,index)=>{
+    // A small overlap past the frozen opening hides the exposed edge of the old
+    // pane while still reading as a surface-mounted timber reveal.
+    const frameW=s.wide*1.12,frameH=s.h*1.03,sx=frameW/asset.width,sy=frameH/asset.height,sz=sx;
+    // Openings set back in a courtyard miss the block-edge test; their parent
+    // wall still faces the insertion side, so seat that front toward the player
+    // instead of leaving a flat pane square.
+    let outward=s.outward;
+    if(!outward)outward=((s.onZ?self.z-s.z:self.x-s.x)>=0?1:-1);
+    const yaw=s.onZ?(outward>0?0:Math.PI):(outward>0?Math.PI/2:-Math.PI/2);
+    dummy.position.set(s.x+(s.onZ?0:outward*seat),s.y,s.z+(s.onZ?outward*seat:0));
+    dummy.rotation.set(0,yaw,0);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();
+    mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+  }
+  root.userData.raidRealWindows=near.length;
  }
  refreshSpawnDressing(){
   const dressing=this.environmentRoot?.userData?.raidSpawnDressing;

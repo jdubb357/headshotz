@@ -301,7 +301,7 @@ export function buildEnvironment(world){
  // roof cornice, then a deterministic share of roof vents, antenna masts and
  // tilted debris. These groups add silhouette depth at first-person range and
  // never alter blocks, props, collision, navigation, routes or actor data.
- const structureDetail={structures:0,plinths:0,cornices:0,vents:0,antennas:0,debris:0,beacons:0};const roofPlantList=[],groundGritList=[],shutterSites=[],sillSites=[];let shutteredWindows=0;
+ const structureDetail={structures:0,plinths:0,cornices:0,vents:0,antennas:0,debris:0,beacons:0};const roofPlantList=[],groundGritList=[],shutterSites=[],sillSites=[],windowOpeningSites=[];let shutteredWindows=0;
  const hash01=n=>{const v=Math.sin(n)*43758.5453123;return v-Math.floor(v)};
  for(const block of world.blocks){
   const [x,z,w,d,h,y=0,kind='concrete']=block;
@@ -435,7 +435,7 @@ export function buildEnvironment(world){
    structureDetail.streetGritClusters=(structureDetail.streetGritClusters||0)+1;
   }
  }
- root.userData.raidStructureDetail=structureDetail;root.userData.raidRoofPlants=roofPlantList;root.userData.raidStreetGrit=groundGritList;root.userData.raidWindowShutters=shutterSites;root.userData.raidWindowSills=sillSites;
+ root.userData.raidStructureDetail=structureDetail;root.userData.raidRoofPlants=roofPlantList;root.userData.raidStreetGrit=groundGritList;root.userData.raidWindowShutters=shutterSites;root.userData.raidWindowSills=sillSites;root.userData.raidWindowOpenings=windowOpeningSites;
  for(const ramp of world.ramps||[]){const count=20;for(let i=0;i<count;i++){const t=(i+.5)/count,x=ramp.x+(ramp.axis==='x'?(t-.5)*ramp.w:0),z=ramp.z+(ramp.axis==='z'?(t-.5)*ramp.d:0),y=ramp.from+(ramp.to-ramp.from)*t;
   add('box',palette.metal,x,y-.08,z,ramp.axis==='x'?ramp.w/count:ramp.w,.16,ramp.axis==='z'?ramp.d/count:ramp.d,0,'metal');
   if(i%4===0)for(const side of [-1,1])add('box',palette.metal,x+(ramp.axis==='z'?side*ramp.w/2:0),y+.55,z+(ramp.axis==='x'?side*ramp.d/2:0),.1,1.1,.1);
@@ -749,6 +749,10 @@ export function buildEnvironment(world){
     }
     sillSites.push({x:prop.x,z:prop.z,y:prop.y-.105,onZ,outX,outZ,wide,h,planter:hasPlanter});
    }
+   // Every opening record feeds the raid's real scanned window pass; the
+   // procedural pane, trim, shutters and sills above remain the instant fallback
+   // until assets.js decodes the CC0 frame and glass.
+   windowOpeningSites.push({x:x,y:y,z:z,onZ,wide,h,outward:sillOutward,lit});
    // Lit windows join the shared practical halo budget so night facades bloom
    // cohesively. Halos are depth-tested (with a fixture bias) rather than depth-
    // independent, so a window behind a solid wall no longer ghosts through it.
