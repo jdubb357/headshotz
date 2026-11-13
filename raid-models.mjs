@@ -751,24 +751,27 @@ export function propModel(kind,color=0xe0aa4d,options={}){
   }
   if(!dressed)part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]),part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]),part(root,'box',0x343933,.05,.22,0,.2,.2,.16),part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
   const ring=part(root,'ring',color,0,.3,0,.58,.58,.58,[Math.PI/2,0,0]);
-  part(root,'cylinder',color,0,.48,0,.035,.55,.035);
   if(!plain){
    // Loose ground drops are easy to miss against debris, so production piles
    // carry presentation-only pickup beacons: an additive tinted gem, a soft
    // halo sprite, a short light wisp and a pulsing accent ring. `color` is the
    // authoritative rarity accent passed by the raid client; loot items, ids,
-   // ownership and settlement are untouched.
+   // ownership and settlement are untouched. The old ground-anchored stem is
+   // gone: it read as a grey ghost pylon standing at the left doorway. The ring
+   // keeps the rarity grey; only the floating pickup glint warms up for common
+   // drops so it stays readable on bright pavement without a spectral shaft.
    ring.material=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending});
    ring.material.userData.raidOwned=true;
-   const gemMaterial=new THREE.MeshBasicMaterial({color});
+   const glint=color===0x94a6ae?0xe2b56b:color;
+   const gemMaterial=new THREE.MeshBasicMaterial({color:glint});
    gemMaterial.userData.raidOwned=true;
    const gem=new THREE.Mesh(geometries.gem,gemMaterial);gem.position.set(0,.95,0);gem.scale.setScalar(.18);gem.rotation.y=.4;root.add(gem);
-   const haloMaterial=new THREE.SpriteMaterial({map:coreGlowTexture(),color,transparent:true,opacity:.5,depthWrite:false,blending:THREE.AdditiveBlending});
+   const haloMaterial=new THREE.SpriteMaterial({map:coreGlowTexture(),color:glint,transparent:true,opacity:.5,depthWrite:false,blending:THREE.AdditiveBlending});
    haloMaterial.userData.raidOwned=true;
-   const halo=new THREE.Sprite(haloMaterial);halo.position.set(0,.95,0);halo.scale.setScalar(1.5);root.add(halo);gem.userData.halo=halo;
-   const wispMaterial=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.16,depthWrite:false,blending:THREE.AdditiveBlending});
+   const halo=new THREE.Sprite(haloMaterial);halo.position.set(0,.95,0);halo.scale.setScalar(1.1);root.add(halo);gem.userData.halo=halo;
+   const wispMaterial=new THREE.MeshBasicMaterial({color:glint,transparent:true,opacity:.16,depthWrite:false,blending:THREE.AdditiveBlending});
    wispMaterial.userData.raidOwned=true;
-   const wisp=new THREE.Mesh(geometries.cylinder,wispMaterial);wisp.position.set(0,.86,0);wisp.scale.set(.035,1.2,.035);wisp.renderOrder=-1;root.add(wisp);
+   const wisp=new THREE.Mesh(geometries.cylinder,wispMaterial);wisp.position.set(0,.72,0);wisp.scale.set(.02,.44,.02);wisp.renderOrder=-1;root.add(wisp);
    root.userData.lootBeacon={gem,halo,wisp,ring};
   }
   root.userData.lootPile=!plain;
