@@ -302,6 +302,21 @@ export class RaidView {
    next.position.copy(entry.model.position);next.rotation.copy(entry.model.rotation);
    this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
   }
+  // The scout is procedural until the scanned Quaternius GLB decodes. Swap each
+  // live scout in place so an already-deployed raid sees the real rigged model
+  // without restarting the deployment. The authoritative actor identity and
+  // server-owned transform are kept; only the visual model changes.
+  if(HQP.machines?.scout&&!this.machineArtSwapped){
+   this.machineArtSwapped=true;
+   for(const entry of this.actors.values()){
+    if(entry.type!=='machine'||entry.data?.kind!=='scout')continue;
+    const next=machineModel('scout');
+    next.userData.motionReduced=entry.model.userData.motionReduced;
+    next.position.copy(entry.model.position);next.rotation.copy(entry.model.rotation);
+    next.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
+    this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
+   }
+  }
   if(!HUM.ready)return;
   const self=this.snapshot?.self;
   if(this.selfActor&&self){

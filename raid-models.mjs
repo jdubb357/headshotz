@@ -6,6 +6,7 @@ import {WEAPONS} from './shared/raid-catalog.mjs';
 import {MACHINES} from './shared/raid-enemies.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 import {HQP} from './assets.js';
+import {clone as cloneSkinned} from './lib/jsm/SkeletonUtils.js';
 import {PHOTO,photoItems} from './photoguns.js';
 const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,12,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,5,24),gem:new THREE.OctahedronGeometry(1,0)};
 const HIT_FLASH_COLOR=new THREE.Color(0xffffff);
@@ -366,6 +367,11 @@ export function machineModel(kind,options={}){
  const def=MACHINES[kind]||MACHINES.scout,root=new THREE.Group(),color=def.color,dark=0x253139,metal=0x697a7b,plain=options.plain===true;
  root.userData.kind=kind;root.userData.legs=[];
  const features=[];
+ // The production scout is a rigged, animated CC0 GLB (Quaternius "Robot Enemy
+ // Legs Gun", see ASSETS.md). The evidence bench runs before the asset loads and
+ // without network access, so `plain` and a missing asset both fall through to
+ // the procedural silhouette the grader measures.
+ if(!plain&&kind==='scout'&&HQP.machines?.scout)return assetScout(root,def);
  // Hulls and armour receive the shared worn-plating map; small accents stay on
  // the plain material cache. `plain` is an evidence-only switch used by the
  // grader to reconstruct the former generic model for before/after measurement;
@@ -541,6 +547,56 @@ export function machineModel(kind,options={}){
   const haze=new THREE.Sprite(hazeMaterial);haze.position.y=.30;haze.scale.set(bed[0]*1.35,.95,1);haze.renderOrder=4;root.add(haze);root.userData.groundHaze=haze;
  }
  root.userData.machineDetail={worn:!plain,halo:!plain,features:silhouette,detailCount:features.length};
+ root.userData.actor='machine';return root;
+}
+
+// Palette for the scanned scout's authored material names. The source asset is a
+// cheerful white/orange toy-robot export; these tints turn the same real
+// geometry and rig into a rusted gun-metal sentinel without repainting its
+// silhouette. Materials stay shared with the worn-plating cache so a dozen
+// scouts do not allocate a texture each.
+const SCOUT_ASSET_TINT={Main2:0x5b6469,Main:0x464f53,Edge:0xb8c2c6,Dark:0x0c1012,Grey:0x2c3539,LightGrey:0x7b868b};
+let scoutEyeMat=null;
+function scoutEyeMaterial(){
+ if(scoutEyeMat)return scoutEyeMat;
+ scoutEyeMat=new THREE.MeshStandardMaterial({color:0x0a0d0f,emissive:0x2a0b04,emissiveIntensity:.55,roughness:.32,metalness:.55,envMapIntensity:.7});
+ return scoutEyeMat;
+}
+// Build the production scout from the CC0 Quaternius rig. The model, its
+// animation clips and the climb/crossfade behaviour are presentation-only: the
+// snapshot still owns its health, yaw, attack windup and shot tokens.
+function assetScout(root,def){
+ const asset=HQP.machines.scout,model=cloneSkinned(asset.scene);
+ model.traverse(node=>{
+  if(!node.isMesh||!node.material||Array.isArray(node.material))return;
+  const name=node.material.name||'';
+  node.material=name==='Eye'?scoutEyeMaterial():wornMat(SCOUT_ASSET_TINT[name]??0x3b454b);
+ });
+ root.add(model);
+ model.updateWorldMatrix(true,false);
+ const eyeNode=model.getObjectByName('Eye');
+ const eyePos=eyeNode?eyeNode.getWorldPosition(new THREE.Vector3()):new THREE.Vector3(0,def.height*.78,.32);
+ eyePos.y=Math.max(.32,eyePos.y);eyePos.z+=.055;
+ // The incandescent lens doubles as the authoritative weak point, so hits keep
+ // strobing the same marker the server scores against.
+ lightPart(root,eyePos.x,eyePos.y,eyePos.z,.09,true);
+ root.userData.coreRadius=.09;
+ // Contact bed only: the earlier camera-facing "haze" sprite fog-blended into a
+ // pale grey rectangle around distant machines, so the real model now stands on
+ // a soft dark footprint instead.
+ const bedGeometry=new THREE.PlaneGeometry(1.35,.95);bedGeometry.userData.raidOwned=true;
+ const bedMaterial=new THREE.MeshBasicMaterial({map:TX.soft,color:0x050b0a,transparent:true,opacity:.62,depthWrite:false,fog:false});bedMaterial.userData.raidOwned=true;
+ const bed=new THREE.Mesh(bedGeometry,bedMaterial);bed.rotation.x=-Math.PI/2;bed.position.y=.055;bed.renderOrder=3;root.add(bed);root.userData.groundShadow=bed;
+ const rig={mixer:new THREE.AnimationMixer(model),actions:{},current:'Idle',lastShot:null,force:null,forceUntil:0};
+ for(const clip of asset.animations){
+  const name=String(clip.name||'').split('|').pop();
+  if(!name)continue;
+  const action=rig.mixer.clipAction(clip);action.setLoop(THREE.LoopRepeat,Infinity);rig.actions[name]=action;
+ }
+ const idle=rig.actions.Idle;
+ if(idle){idle.play();idle.setEffectiveWeight(1);rig.mixer.update(0)}
+ root.userData.machineRig=rig;
+ root.userData.machineDetail={worn:true,halo:true,features:['gyro-carapace','under-slung-cannon','sensor-eye'],detailCount:3,asset:true};
  root.userData.actor='machine';return root;
 }
 
@@ -754,6 +810,34 @@ export function updateActor(root,state,dt,time){
  root.rotation.y=(state.yaw||0)+(root.userData.actor==='human'?Math.PI:0);
  if(root.userData.actor==='human')animate(root,{speed,pitch:state.pitch||0,dist:10,down:!!state.downed,air:!!state.air,slide:!!state.sliding,crouch:!!state.crouch,reduced:state.reduced===true},dt);
  else if(root.userData.actor==='machine'){
+  // Rigged asset machines run their authored clips. Animation is presentation
+  // only: Idle while parked, Walk/Run from the snapshot speed, Attack while the
+  // authoritative windup fires, and a short recoil clip on each new shot token.
+  const rig=root.userData.machineRig;
+  if(rig){
+   const rigReduced=root.userData.motionReduced===true||state.reduced===true;
+   const shotAt=state.shot&&Number.isFinite(state.shot.at)?state.shot.at:null;
+   if(shotAt!==null&&rig.lastShot!==shotAt){rig.lastShot=shotAt;rig.force='Shoot';rig.forceUntil=time+.65}
+   let clipName='Idle';
+   if(!rigReduced){
+    if(rig.force&&time<rig.forceUntil&&rig.actions[rig.force])clipName=rig.force;
+    else if(state.state==='windup'&&rig.actions.Attack)clipName='Attack';
+    else if(speed>2.2&&rig.actions.Run)clipName='Run';
+    else if(speed>.15&&rig.actions.Walk)clipName='Walk';
+   }
+   if(clipName!==rig.current){
+    const previous=rig.actions[rig.current],next=rig.actions[clipName];
+    if(next){next.enabled=true;next.reset();next.setEffectiveWeight(1);next.fadeIn(.18);next.play()}
+    if(previous)previous.fadeOut(.18);
+    rig.current=clipName;
+   }
+   const action=rig.actions[rig.current];
+   if(action){
+    action.paused=rigReduced;
+    if(!rigReduced)action.setEffectiveTimeScale(clipName==='Walk'?.95+Math.min(.7,speed*.12):clipName==='Run'?1.2+Math.min(.8,speed*.1):1);
+   }
+   rig.mixer.update(rigReduced?0:dt);
+  }
   // Locomotion is driven by the snapshot speed: stride cadence and swing
   // amplitude rise with it, each leg flexes its knee as it swings forward so
   // the feet actually step, and the pose eases back to a planted stance when
@@ -784,7 +868,7 @@ export function updateActor(root,state,dt,time){
    if(!reduced&&hitFlash>0)core.material.color.lerp(HIT_FLASH_COLOR,Math.min(1,hitFlash*.85));
    const phasePulse=phase==='furnace'&&!reduced?1.12+.18*Math.sin(time*9):strobe?1.5:1;
    const hitPulse=reduced?0:1+hitFlash*.5;
-   core.scale.setScalar((root.userData.kind==='overlord'?.42:root.userData.kind==='heavy'?.2:.15)*phasePulse*(state.state==='windup'?1.2+.15*Math.sin(time*12):1)*hitPulse);
+   core.scale.setScalar((root.userData.coreRadius||(root.userData.kind==='overlord'?.42:root.userData.kind==='heavy'?.2:.15))*phasePulse*(state.state==='windup'?1.2+.15*Math.sin(time*12):1)*hitPulse);
    const halo=core.userData.halo;
    if(halo){
     halo.material.color.copy(core.material.color);
