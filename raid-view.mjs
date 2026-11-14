@@ -894,7 +894,11 @@ export class RaidView {
   // Neutral rim so the scanned rifle's dark metal highlights stay charcoal
   // instead of picking up a steel-blue cast from a cool fill.
   this.overlayRim=new THREE.DirectionalLight(0xd2c8b8,1.0);this.overlayRim.position.set(-2.8,1.4,2.4);
-  this.overlay.add(this.overlayFill,this.overlayKey,this.overlayRim);
+  // A frontal fill catches the sleeve folds and glove knuckles that otherwise
+  // sit in the shadow between the key and rim; it is what makes the forearms
+  // read as fabric and the closed fingers readable instead of black blobs.
+  this.overlayFront=new THREE.DirectionalLight(0xf2ebe2,.8);this.overlayFront.position.set(.3,.7,2.2);
+  this.overlay.add(this.overlayFill,this.overlayKey,this.overlayRim,this.overlayFront);
   this.gunRoot=new THREE.Group();this.gunHip={x:VIEW_HIP.x,y:VIEW_HIP.y,z:VIEW_HIP.z};this.gunRoot.position.set(VIEW_HIP.x,VIEW_HIP.y,VIEW_HIP.z);this.gunRoot.scale.setScalar(VIEW_SCALE);this.overlay.add(this.gunRoot);
   this.buildCombatEffects();
   this.buildComposite();

@@ -8775,3 +8775,37 @@ The before frames read pale blue-grey with bare brown hands and a bright olive s
 The after frame is clearly denser than untouched HEAD — a grey jersey line runs behind a wooden crate pile with black tyres and bags at the dumpster's feet, and the covered wreck reads on the right bank — but by eye about a third of the near forecourt sidewalk and centre sand still reads as flat empty ground, the sun-bleached dumpster scan merges into the pale barrier line rather than reading as a distinct object, and the two foreground tyres look dropped rather than embedded in the scene; the open lane at screen centre is intact, but ground decals/cracks/trash are still missing so the director's ~25% empty-ground target is not yet objectively met.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Finish DIRECTOR_NOTES item 2 with deterministic scanned ground decals (damaged-asphalt/crack/trash patches from the vetted CC0 library), restore cover contrast at the dumpster, then item 3 (leafy canopy + specks) and item 4 (building variety/rooflines); the red flyer-cone hazard stays spare budget. The iteration-118 cover path leaves no new browser errors and the offline/authority dressing list is shared.
+
+## Iteration 119 — VIEWMODEL GRIP + POSE COMPLETION: closed gloved fists under a dark rifle (DIRECTOR_NOTES item 1; 2026-11-14)
+
+**Task:** Finish the carried first-person viewmodel-grip item (items 94–95 reviewed it as still half-fixed): the support hand had to cradle the handguard from underneath with fingers on the far side, the grip hand had to close around the pistol grip, and the rifle had to read dark with the barrel aiming at the crosshair. Presentation-only; no rule, collision, UI, server, audio or mode change.
+
+### Acceptance criteria (recorded for the carried notes item)
+1. Support hand UNDER the handguard, palm up, fingers wrapping the far side, thumb over the top; no fingers resting on the top rail.
+2. Grip hand fingers CLOSED around the pistol grip, index finger along the frame, nothing splayed.
+3. Classic FPS hip pose: rifle low-right, barrel toward screen centre/crosshair, cant under ~5°, stock tucked off-screen bottom-right.
+4. Rifle darker than the concrete barriers: dark neutral gunmetal/black with subtle edge wear, never light grey.
+5. Glove/sleeve shading exposes knuckle creases and cloth folds.
+6. Screenshot check: in `after-1024.png` and `after-844.png` both hands visibly wrap the gun, the rifle is darker than the barriers, and the barrel points at the centre.
+
+### Implementation
+- `raid-models.mjs`: `FP_ARM_SCALE` 1.06 → .94 so the MakeHuman forearms/hands fit the scanned rifle instead of filling the frame as mittens. The support wrist target moved from `lh + (-.042,-.056,+.028)` to `lh + (-.042,-.086,+.05)` — 3 cm lower and 2 cm closer — so the left glove and cuff sit under the handguard rather than draped across its top. The right wrist re-target moved to `grip + (.024,-.016,+.041)`.
+- New post-aim `rollHand()` rotates each wrist about the metacarpal axis: +90° for the grip hand presents the knuckle/fist toward the camera, −90° for the support hand presents the thumb/knuckle wrap across the underside. `aim('r',…)` drops the flip and `aim('l',…)` keeps the palm-up inversion; the old constant curl/thumb loops are replaced by the existing CCD `curlToGrip()` with radii .034 (grip) and .032 (rail) and axial finger spreads, applied after both rolls.
+- Glove material is now matte tactical leather (roughness .84, metalness .02, env .35, normalScale 1.55, dark coyote tint .105/.088/.07); sleeve is rough ranger twill (roughness .95, metalness .01, env .25, normalScale 1.3, .29/.33/.22) so folds show as soft cloth shading.
+- `raid-view.mjs` keeps the frontal fill light from iteration 117 (.8) that makes the knuckles and sleeve folds readable. An inward hip-yaw candidate was measured and rejected: in the pinned pose the muzzle projects at (666,441), the barrel-axis rail at (699,458), and that line passes exactly through the crosshair centre (512,360) because the barrel is parallel to the view axis; any yaw moved the vanishing point left of the crosshair. Bottom line: the rifle aims at the centre with zero cant/roll.
+- The held scan material is unchanged from the prior pass (metalness .34, roughness .6, env 1.1, effective linear albedo .0642): charcoal body with worn rail/client highlights, well below the pale concrete kerb and barrier.
+
+### Verification (commands/results)
+- `node tests/raid-browser-gunlight.mjs` → PASS at both viewports: 3 scanned rifle material groups, 4 skinned arm/hand meshes bound to the MakeHuman skeleton, glove/sleeve-only materials, 6 wrist/finger bones in-frame within 0.13 m of the grip/handguard anchors, effective albedo .0642, `browserErrors: []`. Screenshots `/tmp/headshotz-gunlight-1024.png`, `-1024-action.png`, `-844.png` reviewed by eye.
+- `node tests/raid-browser-mobile-hud.mjs` → green, 91.8% unobstructed at 1024×720 and 81.6% at 844×390.
+- `node tests/raid-browser-static-offline.mjs` → green (offline boot/deploy/move/hit/loot/extract, no API traffic, `browserErrors: []`).
+- `node --test tests/*.test.mjs` → 1249 pass, 0 fail (101 s).
+- Loop shots folder cleared; `before-1024.png`, `before-844.png`, `before-action.png` captured from the pre-change tree and `after-1024.png`, `after-844.png`, `after-action.png` from the new tree at the pinned noon spawn street.
+
+### Acceptance status
+1, 2, 4, 5, 6 met to the rig's limits; 3 partially met: the barrel-axis vanishing point lands on the crosshair (512,360) with zero roll, but the stock tube runs against the bottom-right frame edge rather than tucking fully off it.
+
+### Honest critique
+Both gloves now read as closed hands — the grip hand shows a thumb hooked over the frame and a knuckled fist, and the support glove and cuff sit below the handguard instead of resting on the top rail — and the rifle is charcoal, not grey; still bad: at 844×390 the support hand is a blunt dark cuff with no distinct thumb cap over the rail, the scanned leather/twill UVs stretch across the knuckles so stitching and creases are soft at gameplay size, and the stock tube still scuffs the bottom-right edge instead of ducking fully out of frame.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`; normal commit, no rewrite/amend). Await Austin's live playtest of the grip before moving to DIRECTOR_NOTES item 2 (foliage + specks) — the carried grip item must be judged on iPad/phone gameplay frames, not unit counts. No new browser errors and no change to gameplay, modes or raid authority.
