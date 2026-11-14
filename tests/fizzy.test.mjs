@@ -37,6 +37,17 @@ test('Fizzy is the Godly Rainbow Chameleon at 50,000 and only in the Godly chest
   assert.match(models, /fizzy\(\)/);
   assert.match(models, /rig\.eyes/);
   assert.match(models, /rig\.tongue/);
+  const body = models.slice(models.indexOf('fizzy(){'), models.indexOf('function whSafe'));
+  assert.match(body, /casque/);
+  assert.match(body, /turret/);
+  assert.match(body, /zygodactyl/);
+  assert.match(body, /curl/);
+  assert.match(body, /scales/);
+  assert.match(body, /laterally compressed/);
+  assert.match(body, /GQ\.level==='low'/);
+  assert.match(body, /0x5a6b38/);
+  assert.doesNotMatch(body, /nBand|bands\[/);
+  assert.match(pets, /ph\*2\.1/);
   assert.match(game, /me\.ride\.veil/);
   assert.match(game, /q\.rideOn&&q\.ws&&SK_BY\[q\.ws\.pet\]&&SK_BY\[q\.ws\.pet\]\.veil/);
 });
