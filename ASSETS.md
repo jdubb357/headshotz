@@ -61,6 +61,8 @@ Generated headless with Blender 4.2 + MPFB 2.0.18 (the exporter output is CC0 pe
 
 Heroes (`toon.js`), battle bus, glider and gun grips are original, procedurally built in code. Gun hands are the existing procedural viewmodel hands (no third-party assets).
 
+Raid first-person hands are intentionally hidden (iteration 109): the vetted asset library's only first-person arms model is a J-Toastie stylized-fallback rig stored under `stylized-fallback/`, which CATALOG.md reserves for animation/rig reference and which the director's real-asset rule forbids as shipped final art. No gloved-arms asset is used, so the scanned M4 is presented alone rather than with flat-shaded toy sleeves. This is an open asset gap, not a completed hands replacement.
+
 ## Character skins (v56)
 
 The 40 shop skins are **original procedural geometry written in code** (`kits.js`): armour plates, helmets, capes, hats, packs, belts and props are lathed/extruded primitives attached to the MakeHuman skeleton bones, with per-skin cloth shader styles (mummy wraps, zombie rags, stripes), PBR-style gear materials (metal, leather, cloth, glass, scales, fur) and a built-in analytic sky/ground reflection. No third-party models or textures were added; the only external assets in the characters remain the CC0 MakeHuman body/skin/hair/eyes above. Skin tone, eyes and body proportions are recoloured/scaled per skin. The v55 galaxy skins' animated star/nebula shader is original code too. (Retargeting third-party rigged outfits was not possible without Blender in this environment.)

@@ -318,12 +318,13 @@ export function weaponModel(id,hands=false){
   // gloved hands on the grip and handguard enter the lower frame (no elbow tube).
   const root=new THREE.Group();
   for(const slot of scan){
-   // The photogrammetry master material ships metalness 1 / env 1.1, so a pale
-   // blue deployment sky reflects off the receiver as steel-blue. Clone it for
-   // the first-person rig, pull the environment down, and darken the albedo to
-   // the black/dark-grey metal and polymer the rifle actually is. Cloning keeps
-   // the shared lobby asset unchanged.
-   const mat=slot.mat.clone();mat.color.setRGB(.60,.58,.55);mat.envMapIntensity=.32;
+   // The photogrammetry master material ships metalness 1 / env 1.1. Keep the
+   // receiver's real base colour and most of that photo-IBL response: the old
+   // heavy albedo darkening plus low env map crushed the rail, ejection port and
+   // stock to a flat black silhouette. A modest warm tint still seats the scan
+   // in the daylight photograph instead of reflecting pure steel-blue. Cloning
+   // keeps the shared lobby asset unchanged.
+   const mat=slot.mat.clone();mat.color.setRGB(.78,.745,.70);mat.envMapIntensity=.8;mat.needsUpdate=true;
    const mesh=new THREE.Mesh(slot.geo,mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
   const all=hands?handParts(info,0x2f342c,0x5a4634,undefined,true):[];
   const groups=new Map();

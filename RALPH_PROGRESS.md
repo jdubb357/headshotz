@@ -8433,3 +8433,29 @@ The bank is the strongest improvement: the clean grey diagonal is gone and real 
 ### Honest critique
 The sky is now the largest single visual gain: real clouds, blue gradient and horizon haze replace the grey card and the scene finally has weather, while the long shadows and photo IBL give the barrels and telegraph pole contact. But the sunlit pavement still reads as a broad white sheet and the façade plaster stays uniformly salmon-brown rather than gritty; blue drums and the cyan loot ring remain the loudest prototype shapes, so the first three minutes are still fighting the props and ground finish, not just the light.
 **Next action:** committed on `cypert/dev` only (no push/PR/main). Continue DIRECTOR_NOTES item 2 — replace the floating rifle with real FPS arms or explicitly hide hands, then the toy scout.
+
+
+## Iteration 109 — Rifle PBR contrast under photographed daylight (DIRECTOR_NOTES item 1, weapon half; 2026-11-13)
+
+**Task:** Restore the scanned M4's material response to the new photographed daylight IBL so the receiver, rail and stock read with worn-metal highlights instead of a flat black silhouette. The arms half of item 1 was attempted, but the only first-person arm asset in the vetted library lives in `stylized-fallback/`, which CATALOG.md marks animation/rig reference only and the director forbids for final art; no realistic gloved-arms GLB exists in the library, so hands stay hidden rather than ship the flat-shaded toy sleeves.
+
+### Acceptance criteria
+1. Offline 1024×720 and 844×390 spawn frames show the M4 with visible photo-IBL highlights and material colour variation on receiver, rail and stock, not a black silhouette; muzzle/flash/ADS/reload behaviour and hit feedback unchanged.
+2. First-person hands remain honest: no stylized-fallback arm mesh is shipped or loaded; the gap is recorded instead of faking arms with toy geometry.
+3. No new UI, systems, currencies, menus or player-facing jargon; Node/online authority path untouched.
+4. `raid-browser-static-offline.mjs` and `raid-browser-mobile-hud.mjs` green, then `node --test tests/*.test.mjs`; TS/JS syntax checks on touched files.
+
+### Changed
+- `raid-models.mjs` — first-person weapon scan clone now keeps more of the photographed day IBL: warm tint `rgb(.78,.745,.70)` and `envMapIntensity .8` (was `.60,.58,.55` and `.32`) with `needsUpdate=true` forced. No geometry, topology, animation, HUD or gameplay change.
+
+### Verification
+- `node --check raid-models.mjs` → 0.
+- Equal-condition offline captures at 1024×720 and 844×390 plus W-held action frames: previously the receiver/rail/stock clipped to a flat black silhouette; the fresh pair shows worn grey metal, a readable Picatinny rail, ejection-port recess, magazine ribs and stock contour under the photographed daylight and rim light. No seam or colour band introduced; muzzle flash, ADS and reload keep their prior timing/state.
+- `tests/raid-browser-static-offline.mjs` → green; `raid-browser-mobile-hud.mjs` → green at both 1024×720 and 844×390 via keyboard, arrow keys, touch, auto-fire and swap.
+- `raid-browser-viewmodel.mjs` fails its pre-existing overlay-light assertion (`warm key light reads the metal`, intensity 2.6 < 3.0 at line 297); that is the same 2.6/1.0 overlay rig already present at HEAD and is unrelated to this material change.
+- `node --test tests/*.test.mjs` → 1248 pass, 1 fail = documented intermittent `matchmaking.test.mjs` ECONNRESET.
+
+### Honest critique
+The rifle now reads as a held object with texture rather than a black cut-out, and the receiver/rail/stock catch the warm sky. But the scene still has no first-person hands: the only library arms candidate is a low-poly stylized-fallback rig that the catalog restricts to animation reference, so it cannot be shipped without breaking the real-asset rule. Hands stay explicitly hidden rather than smuggling in toy sleeves; the fix is honestly half of director item 1. The likely next real win is item 2 (enemies), starting with the scout's toy-robot scale/material, or item 4's exposure so the bright pavement stops competing.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (ENEMIES); arms remain an open asset gap.
