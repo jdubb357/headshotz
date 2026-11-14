@@ -212,3 +212,19 @@ The two volumes flanking the spawn courtyard no longer repeat the same plaster b
 | `gutter_kit.glb` | `modular_metal_gutter_section`, `modular_metal_gutter_gutter_coupler` (plus bend/outlet retained) | Modular Metal Gutter | Maxim Domnin | https://polyhaven.com/a/modular_metal_gutter | 15,064 | 397,004 B |
 
 All four are **CC0 1.0** (public domain, credited anyway); total 1,174,180 bytes. The aircon units sit at different heights on each wall, the doors form a commercial-width loading bay on the metal wall, and the roller window panels close the factory openings; one graffiti variant per facade keeps the bay from reading as stamped clones. Presentation only — no collision, doorway, window, world or gameplay data changed. The in-game credits list all four sources.
+
+## Raid courtyard ground decals — six CC0 scans + two derived alpha mattes, iteration 123
+
+The spawn courtyard floor is painted with photographed pavement wear instead of blank slab colour. Six diffuse scans were downscaled to 512 × 512 JPEGs offline (`sips -Z 512`) and copied into `assets/tex/ground/`; two blurred organic alpha mattes were then composited from those same photographs offline to keep the plates from ending on a hard rectangular edge. `assets.js loadGroundDecals()` registers them in `HQP.decal` for the raid path only, and `raid-view.mjs refreshCourtyardGround()` instances them as flat plates tinted per instance; the photographs are never repainted, only toned down, so the cracks, mud and rubble remain real scanned surface detail. Presentation only — no collision, traversal, UI, server or other-mode change.
+
+| File | Asset | Author(s) | Source | License |
+|---|---|---|---|---|
+| `crack_d.jpg` | Asphalt 02 | Rob Tuytel | https://polyhaven.com/a/asphalt_02 | CC0 1.0 |
+| `pavement_d.jpg` | Concrete Pavement | Charlotte Baglioni | https://polyhaven.com/a/concrete_pavement | CC0 1.0 |
+| `damage_d.jpg` | Road Damaged | Dimitrios Savva | https://polyhaven.com/a/road_damaged | CC0 1.0 |
+| `tracks_d.jpg` | Muddy Tracks | Amal Kumar | https://polyhaven.com/a/muddy_tracks | CC0 1.0 |
+| `moss_d.jpg` | Brown Mud Leaves 01 | Rob Tuytel | https://polyhaven.com/a/brown_mud_leaves_01 | CC0 1.0 |
+| `rubble_d.jpg` | Ground108 | ambientCG (Lennart Demes) | https://ambientcg.com/view?id=Ground108 | CC0 1.0 |
+| `decal_mask.jpg`, `decal_mask_b.jpg` | derived alpha mattes | composed offline from the scanned patches above | versioned here | n/a |
+
+All six source scans are **CC0 1.0** (public domain, credited anyway); the two masks carry no art of their own, only alpha falloff. Total 660,978 bytes across the eight 512 × 512 files. The in-game credits list all six sources.

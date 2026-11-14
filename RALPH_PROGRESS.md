@@ -8888,3 +8888,22 @@ The upper windows now make the split obvious — pale corrugated roller panels w
 The gloves now read as dark olive leather with a clear cuff line, and the smaller rifle leaves the sidewalk far more readable, but the support hand is still a blunt low-contrast wedge at 844×390, the quilted stock rear is a big black slab against the right edge (clipped rather than gracefully cleared), and the brick/plaster split plus thin flue stacks are improvement without yet reading as a true parapet step. Base grime, a storefront sign and a fire escape remain open sub-notes.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Await Austin's live playtest of the gloves and rifle; if it still reads soft at phone-landscape scale, the next pass should re-pose the support wrist for a clearer thumb/knuckle silhouette and shorten the stock tube rather than adding UI or camera churn.
+
+## Iteration 123 — GROUND DETAIL + COVER POLISH: scanned cracks, mud wear and stacked tyres in the spawn court (DIRECTOR_NOTES item 1; 2026-11-14)
+
+**Acceptance criteria:** in after-1024.png the near-left pavement and centre sand path read as worn instead of a blank grey slab, the same holds at 844×390, the foreground tyres sit sunk/leaned with one ring stacked, the dumpster/bag pile separates tonally from the pale barriers, and static-offline, ground-finish, gunlight and mobile-HUD stay green with no browser errors or gameplay/UI/server change.
+
+### Implementation
+- `assets.js`: `loadGroundDecals()` loads six real CC0 scans (cracked asphalt, concrete pavement wear, damaged road, muddy tracks, moss, gravel rubble) into `HQP.decal` with two derived organic alpha mattes; raid-only, skipped at low quality.
+- `raid-view.mjs`: `refreshCourtyardGround()` builds 24 tinted, shadow-receiving instanced plates anchored to the spawn point across the apron, centre walk and left kerb, with explicit `renderOrder` so dark cracks/mud draw above pale wear; plates keep `raycast=()=>{}` so hits still resolve to the real slabs.
+- Foreground tyres sink `.026–.04 m`, lean a few degrees and the nearest ring gets a stacked duplicate; dumpster/bag tints lift to olive steel and warm rubbish grey so they stay distinct from the pale barrier line.
+
+### Verification
+- `node tests/raid-browser-ground-finish.mjs` → green (576 pavement samples, clip 0, seat floating 0, 2/2 trees, `browserErrors: []`).
+- `node tests/raid-browser-static-offline.mjs` → green (deploy/move/machine headshot/loot/extract, `noApiTraffic: true`, `browserErrors: []`).
+- `node --test tests/*.test.mjs` → 1,248/1,249; only the known `tests/matchmaking.test.mjs` ECONNRESET (rerun alone once, same known flake).
+- Shots refreshed in `~/headshotz-loop/shots/latest/`: before/after 1024×720 and 844×390 plus action frames and `after-pavement-crop.png`.
+
+**Honest critique:** the near pavement now carries clear cracks with an oil-dark stain and the lane shows mud tracks; the stacked tyre reads at spawn and the olive dumpster separates from the barriers. But the plates are tint-led and at 844×390 several still read as broad stained bands with some rectangular blend edges, so discrete potholes and ground litter are still needed. Art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 VIEWMODEL FINISH — shorten/hide the stock tube, re-pose the support wrist for a readable thumb/knuckle silhouette, and drop the receiver toward the bottom-right; do not re-grade gloves or rifle until Austin's playtest.

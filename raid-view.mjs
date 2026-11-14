@@ -318,6 +318,7 @@ export class RaidView {
    mat.needsUpdate=true;
   }
   this.refreshGround();
+  this.refreshCourtyardGround();
   this.refreshFoliage();
   // Loot actors are created during the deploy snapshot, before the shipped
   // props arrive. Rebuild them once the photo crate and scanned guns exist, so
@@ -415,6 +416,103 @@ export class RaidView {
    if(mat.userData.raidDry){mat.userData.raidDry.roughness=1;mat.userData.raidDry.normalScale=1.35}
    mat.needsUpdate=true;
   }
+ }
+ // Photographed pavement plates that break the blank apron in front of the
+ // spawn point. The plates are cut from real CC0 road, pavement, mud, moss and
+ // gravel scans, seated just above the drawn slabs, and anchored in metres from
+ // the first deployment point so the same worn courtyard follows every respawn.
+ // The near plates are deliberately large: the sun-bleached asphalt underfoot is
+ // the first thing the player sees, so it carries the cracks, oil-dark damage
+ // and tyre mud at full scale, while the plates up the lane dress the concrete
+ // walk toward the sector. Presentation only: no collision, traversal or rule
+ // data is touched.
+ refreshCourtyardGround(){
+  const root=this.environmentRoot,decal=HQP.decal,spawn=this.world?.spawns?.[0];
+  if(!root||!decal||!decal.damage||!decal.crack||!decal.tracks||!decal.moss||!decal.rubble||!decal.wear||!spawn||root.userData.raidCourtyardGround)return;
+  root.userData.raidCourtyardGround=true;
+  // [kind, dx, dz, w, d, spin, tint]; positive dx sits toward the pavement on
+  // the player's left, positive dz runs down the lane toward the sector.
+  const plates=[
+   // foreground asphalt apron (dz 6.4-7.7) the player stands on at spawn:
+   // greyscale cracks at full scale plus a dark oil-dark damaged patch and mud
+   ['crack',.35,6.7,3.8,1.7,.07,0xf4f1e9],
+   ['crack',1.3,7.35,2.0,1.2,-.62,0xe9e2d2],
+   ['crack',2.5,6.9,2.0,1.1,.55,0xd9d4c6],
+   ['crack',2.6,6.45,1.7,1.0,.3,0xdedad0],
+   ['damage',-1.15,6.6,1.6,1.0,-.2,0x50524d],
+   ['damage',2.75,6.95,1.3,.9,.4,0x3d3e39],
+   ['tracks',.6,6.45,2.4,.9,.1,0x8a7a64],
+   ['rubble',1.75,6.6,1.1,.8,.3,0xd8ccb8],
+   // concrete walk toward the sector: worn pale pitting, tyre mud and grime
+   ['wear',-.3,9.6,3.4,2.0,.25,0xd2c8b6],
+   ['wear',-2.2,8.4,2.2,1.3,-.4,0xe0d8c6],
+   ['wear',.7,11.6,2.0,1.2,.6,0xced4c0],
+   ['tracks',-2.0,10.3,3.0,1.2,.05,0xd6c39f],
+   ['tracks',-.9,9.3,3.2,1.0,.25,0xf7f1e8],
+   ['tracks',-2.3,9.2,2.0,.9,.9,0xfaf4e6],
+   ['tracks',.3,8.6,3.2,1.2,-.35,0xe8dfcd],
+   ['tracks',-1.0,12.0,2.6,1.0,.15,0xcbb894],
+   ['damage',-1.6,10.6,1.4,.9,.5,0x6d6a63],
+   ['damage',-2.4,11.4,1.6,1.0,1.2,0x9d968a],
+   ['moss',-2.6,8.9,1.3,.9,-.5,0x9aa87c],
+   ['rubble',-2.8,9.8,1.4,1.0,.8,0xcabda4],
+   // left road edge and barricade line
+   ['crack',3.4,10.2,2.4,1.5,-.7,0xece5d5],
+   ['crack',2.0,12.6,2.2,1.4,.4,0xddd5c2],
+   ['damage',1.9,9.2,1.5,1.0,-.4,0x7d786e],
+   ['moss',-4.6,14.4,1.5,1.0,.4,0x87956c],
+   ['rubble',3.9,13.4,1.5,1.0,-.6,0xc0b29b],
+   ['wear',-3.0,13.4,1.7,1.1,.3,0xd9d3c4]
+  ];
+  const puddles=[['puddle',2.4,8.2,1.1,.8,.1],['puddle',-2.9,11.2,1.2,.85,1.3]];
+  const base={
+   transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,
+   polygonOffsetUnits:-1,roughness:1,metalness:0,envMapIntensity:.35,color:0xffffff
+  };
+  const opacity={damage:.8,crack:.92,tracks:.62,moss:.8,rubble:.8,wear:.85};
+  const materials={};
+  for(const kind of ['crack','wear','damage','tracks','moss','rubble']){
+   materials[kind]=new THREE.MeshStandardMaterial(Object.assign({},base,{
+    map:decal[kind].map,alphaMap:decal[kind].mask,opacity:opacity[kind]
+   }));
+   materials[kind].userData.raidDecal=kind;
+  }
+  const puddle=new THREE.MeshStandardMaterial(Object.assign({},base,{
+   alphaMap:decal.damage.mask,opacity:.55,color:0x2f3537,roughness:.22,
+   metalness:.35,envMapIntensity:1.3
+  }));
+  puddle.userData.raidDecal='puddle';
+  // Explicit blending order keeps the pale worn slabs underneath the dark
+  // cracks, oil-dark damage, tyre mud and litter that must stay readable.
+  const order={wear:1,crack:2,damage:3,moss:4,tracks:5,rubble:6,puddle:7};
+  const geo=new THREE.PlaneGeometry(1,1),dummy=new THREE.Object3D();
+  const ground=(x,z)=>Math.max(.046,terrainHeightAt(this.world,x,z)+.04);
+  const [sx,sz]=spawn;
+  const build=(kind,list,mesh)=>{
+   list.forEach(([,dx,dz,w,d,ry,color],index)=>{
+    const x=sx+dx,z=sz+dz;
+    dummy.position.set(x,ground(x,z),z);
+    dummy.rotation.set(-Math.PI/2,0,ry||0);
+    dummy.scale.set(w,d,1);
+    dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+    mesh.setColorAt(index,new THREE.Color(color||0xffffff));
+   });
+   mesh.instanceMatrix.needsUpdate=true;
+   if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+   mesh.receiveShadow=true;mesh.frustumCulled=false;
+   // These plates are painted onto the slab, not furniture: keep them out of
+   // gameplay/ground-probe raycasts so hits still resolve to the real surface.
+   mesh.raycast=()=>{};
+   mesh.renderOrder=order[kind]||0;
+   mesh.userData.raidGroundDecal=kind;
+   root.add(mesh);
+  };
+  for(const kind of ['crack','wear','damage','tracks','moss','rubble']){
+   const list=plates.filter(p=>p[0]===kind);
+   if(!list.length)continue;
+   build(kind,list,new THREE.InstancedMesh(geo,materials[kind],list.length));
+  }
+  build('puddle',puddles,new THREE.InstancedMesh(geo,puddle,puddles.length));
  }
  // Replace the near-spawn procedural undergrowth (paper tufts, cone canopies,
  // spherical bushes) with real scanned Poly Haven instancing. The fallback
@@ -1001,19 +1099,53 @@ export class RaidView {
   // Scanned courtyard cover: one instanced draw per material/part shared by every
   // spawn, with each item's authored footprint seated on sampled terrain.
   const coverKinds={barrier:'barrier',cratepile:'crate',bin:'bin',wreck:'wreck',log:'log',tyre:'tyre',bag:'bag'};
+  const [worldSx,worldSz]=this.world?.spawns?.[0]||[0,0];
+  const tyreList=items.filter(item=>item.kind==='tyre');
+  let tyreStack=-1,tyreBest=Infinity;
+  tyreList.forEach((item,index)=>{
+   const dx=item.x-worldSx,dz=item.z-worldSz,d=dx*dx+dz*dz;
+   if(d<tyreBest){tyreBest=d;tyreStack=index}
+  });
   for(const kind of Object.keys(coverKinds)){
    const asset=HQP.cover?.[coverKinds[kind]];
    const list=items.filter(item=>item.kind===kind);
    if(!asset||!list.length)continue;
+   const count=kind==='tyre'&&tyreStack>=0?list.length+1:list.length;
    for(const part of asset.parts){
-    const mesh=new THREE.InstancedMesh(part.geo,part.mat,list.length);
+    const mesh=new THREE.InstancedMesh(part.geo,part.mat,count);
     mesh.castShadow=true;mesh.receiveShadow=true;
     list.forEach((item,index)=>{
-     dummy.position.set(item.x,item.y||0,item.z);
-     dummy.rotation.set(0,item.ry||0,0);
+     let y=(item.y||0),rx=0,ry=item.ry||0,rz=0;
+     if(kind==='tyre'){
+      // Forecourt tyres were left floating flat on tarmac. Sit them a little way
+      // into the slab and lean each one by a few degrees so the rubber reads as
+      // dropped debris rather than decals.
+      const k=index*7+3;
+      y-=.026+(k%3)*.007;
+      rx=((k%9)-4)*.016;
+      rz=(((k*5)|0)%9-4)*.016;
+     }
+     dummy.position.set(item.x,y,item.z);
+     dummy.rotation.set(rx,ry,rz);
      dummy.scale.setScalar(item.s||1);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
     });
+    if(kind==='tyre'&&tyreStack>=0){
+     // Stack one tyre on the nearest ring so the pile has height and a second
+     // silhouette for the camera to register at spawn.
+     const base=list[tyreStack];
+     dummy.position.set(base.x+.02,(base.y||0)+(base.h||.165)*.92-.024,base.z-.015);
+     dummy.rotation.set(.03,(base.ry||0)+.55,.02);
+     dummy.scale.setScalar(base.s||1);dummy.updateMatrix();mesh.setMatrixAt(list.length,dummy.matrix);
+    }
     mesh.instanceMatrix.needsUpdate=true;
+    // Dumpster and bag pile currently share the pale barrier's tonal band under
+    // noon sun; tint the scans into a muted olive steel and warm rubbish grey
+    // so the three cover kinds separate while the bin keeps its panel detail.
+    if(kind==='bin'||kind==='bag'){
+     const color=kind==='bin'?new THREE.Color(0xb5c2ab):new THREE.Color(0x777268);
+     list.forEach((_,index)=>mesh.setColorAt(index,color));
+     if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+    }
     mesh.userData.raidSpawnCover=kind;
     group.add(mesh);
    }

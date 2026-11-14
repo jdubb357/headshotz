@@ -1,6 +1,6 @@
 // HeadShotz external assets (all CC0 from Poly Haven — see ASSETS.md). Loaded lazily after the menu appears; Low quality skips them and keeps the built-in procedural look.
 import {THREE,GQ,hqSwap} from './gfx.js';
-export const HQP={ready:false,models:{},loot:{},guns:{},machines:{},windows:{},buildings:{},nature:{},ground:{},cover:{},sky:null};
+export const HQP={ready:false,models:{},loot:{},guns:{},machines:{},windows:{},buildings:{},nature:{},ground:{},cover:{},decal:{},sky:null};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
 const MODELS={crate:'assets/models/wooden_military_crate.glb',barrel:'assets/models/barrel_stove.glb',chest:'assets/models/treasure_chest.glb'};
 // Real CC0 loot props, loaded separately so the raid only pays for the small
@@ -66,6 +66,12 @@ const NATURE_GLB={
 // AO/roughness/metalness), not a canvas wash; the rough map lets sunlit gravel
 // keep its grain instead of flattening to a pale slab.
 const GROUND_PBR={asphalt:'assets/tex/ground/asphalt',concrete:'assets/tex/ground/concrete',gravel:'assets/tex/ground/gravel',dirt:'assets/tex/ground/dirt',gravelFloor:'assets/tex/ground/gravelfloor'};
+// Scanned ground-decal plates cut from real CC0 road/photograph scans: cracked
+// asphalt, worn and pitted concrete pavement, broken asphalt rubble, muddy tyre
+// tracks, mossy kerb dirt and gravel debris. Only a soft organic alpha matte
+// controls where a plate meets the pavement; the cracks and colour are the photo.
+const DECAL_PBR={crack:'assets/tex/ground/crack_d.jpg',wear:'assets/tex/ground/pavement_d.jpg',damage:'assets/tex/ground/damage_d.jpg',tracks:'assets/tex/ground/tracks_d.jpg',moss:'assets/tex/ground/moss_d.jpg',rubble:'assets/tex/ground/rubble_d.jpg'};
+const DECAL_MASKS=['assets/tex/ground/decal_mask.jpg','assets/tex/ground/decal_mask_b.jpg'];
 const TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 // phones: halve the gun textures (1024 -> 512) to save ~140 MB of GPU memory
 function shrinkTex(t,max){const im=t.image;if(!im||!im.width||im.width<=max)return;try{const c=document.createElement('canvas');c.width=c.height=max;c.getContext('2d').drawImage(im,0,0,max,max);if(im.close)im.close();t.image=c;t.needsUpdate=true}catch(e){}}
@@ -372,6 +378,26 @@ export async function loadGround(onProg=()=>{}){
    HQP.ground[k]={map:make(d,true),normalMap:make(n,false),roughnessMap:make(r,false),source:base};
   }catch(e){ok=false;console.warn('ground asset',k,e&&e.message)}
   onProg(++done/keys.length);
+ }
+ return ok
+}
+// Ground detail plates cut from the CC0 pavement scans. They are deliberately
+// small (512 px diff + one shared organic alpha matte) and only loaded by the
+// raid, so the courtyard break-up costs no download in the other modes and no
+// new draw budget beyond one instanced plate per scan.
+export async function loadGroundDecals(onProg=()=>{}){
+ if(GQ.level==='low'){onProg(1,'skipped');return false}
+ const clip=(image,linear)=>{const t=new THREE.Texture(image);t.colorSpace=linear?THREE.NoColorSpace:THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping;t.anisotropy=8;t.generateMipmaps=true;t.needsUpdate=true;return t};
+ let ok=true,done=0;
+ const masks=[];
+ try{for(const src of DECAL_MASKS)masks.push(clip(await img(src),true))}
+ catch(e){ok=false;console.warn('ground decal mask',e&&e.message)}
+ for(const k in DECAL_PBR){
+  try{
+   const image=await img(DECAL_PBR[k]);
+   HQP.decal[k]={map:clip(image,false),mask:masks[done%masks.length]||masks[0],source:DECAL_PBR[k]};
+  }catch(e){ok=false;console.warn('ground decal',k,e&&e.message)}
+  onProg(++done/Object.keys(DECAL_PBR).length);
  }
  return ok
 }
