@@ -348,6 +348,251 @@ function wornScanGain(mat){
  }catch{}
  scanGainCache.set(mat,gain);return gain;
 }
+// ---------------------------------------------------------------------------
+// First-person arms. The raid's only shipped human asset is the CC0 MakeHuman
+// body (assets/hum/*.glb) already used for every world operator. There is no
+// first-person glove scan in the asset library, so the held rifle cannot show a
+// separate "hands" model. Instead we borrow the real photographed skin and cloth
+// surfaces from that same MakeHuman rig: the arm/hand vertices are isolated by
+// dominant skin weight, rebound to a cloned MakeHuman skeleton, posed with
+// two-bone IK onto the rifle's authored grip and handguard points, and tinted
+// into leather gloves and an olive sleeve. No boxes, capsules or painted
+// procedural hands are used. Geometry is derived once per tier and cached; the
+// materials are per-weapon clones so reload/ADS fading and disposal never leak
+// into another model or the lobby template.
+const FP_ARM_SCALE=1.06;
+const FP_ARM_BODY=[.02,-1.6,.26];
+const FP_ARM_BONE=/^(lowerarm|hand|index|middle|ring|pinky|thumb)_/;
+const fpArmGeometryCache={tier:null,skin:null,cloth:null};
+const fpArmAxisCache={tier:null,axes:null};
+const _faA=new THREE.Vector3(),_faB=new THREE.Vector3(),_faC=new THREE.Vector3(),_faT=new THREE.Vector3(),_faP=new THREE.Vector3(),_faE=new THREE.Vector3(),_faD=new THREE.Vector3(),_faH=new THREE.Vector3(),_faV=new THREE.Vector3(),_faQ=new THREE.Quaternion(),_faQ2=new THREE.Quaternion(),_faQ3=new THREE.Quaternion();
+// Copy only the arm skin weights, keeping per-vertex skeletal binding intact.
+function fpArmGeometry(source,side){
+ const geometry=source.geometry;
+ if(!geometry?.attributes?.skinIndex||!geometry.attributes?.skinWeight)return null;
+ const flat=geometry.index?geometry.toNonIndexed():geometry.clone();
+ const position=flat.attributes.position,skinIndex=flat.attributes.skinIndex,skinWeight=flat.attributes.skinWeight;
+ const bones=source.skeleton?.bones||[];
+ const triCount=Math.floor(position.count/3),keep=[];
+ const at=(attr,i,j)=>j===0?attr.getX(i):j===1?attr.getY(i):j===2?attr.getZ(i):attr.getW(i);
+ for(let t=0;t<triCount;t++){
+  const base=t*3;
+  for(let k=0;k<3;k++){
+   const i=base+k,count=skinIndex.itemSize;
+   let best=0,weight=-1;
+   for(let j=0;j<count;j++){
+    const w=at(skinWeight,i,j);
+    if(w>weight){weight=w;best=at(skinIndex,i,j)}
+   }
+   const name=bones[best]?.name||'';
+   if(name.endsWith('_'+side)&&FP_ARM_BONE.test(name)){keep.push(base,base+1,base+2);break}
+  }
+ }
+ if(!keep.length)return null;
+ const out=new THREE.BufferGeometry(),names=['position','normal','uv','skinIndex','skinWeight'];
+ // Keep each attribute's original numeric type, raw quantised values and
+ // normalized flag so the MakeHuman meshopt-quantised geometry deforms exactly
+ // as it does on the world operators.
+ for(const name of names){
+  const attr=flat.attributes[name];if(!attr)continue;
+  const n=attr.itemSize,Ctor=attr.array?.constructor||Float32Array,array=new Ctor(keep.length*n);
+  const stride=attr.isInterleavedBufferAttribute?attr.data.stride:n,offset=attr.offset||0,data=attr.isInterleavedBufferAttribute?attr.data.array:attr.array;
+  for(let i=0;i<keep.length;i++)for(let j=0;j<n;j++)array[i*n+j]=data[keep[i]*stride+offset+j];
+  out.setAttribute(name,new THREE.BufferAttribute(array,n,attr.normalized));
+ }
+ out.name='fp-arm-'+side;
+ return out;
+}
+function fpArmGeometries(){
+ const tier=HUM.tier;
+ if(!tier||!HUM.tpl[tier]||!HUM.SU)return null;
+ if(fpArmGeometryCache.tier===tier)return fpArmGeometryCache;
+ let skin=null,cloth=null;
+ HUM.tpl[tier].traverse(o=>{
+  if(!o.isSkinnedMesh)return;
+  if(o.userData.part==='skin'&&!skin)skin=o;
+  else if(o.userData.part==='cloth'&&!cloth)cloth=o;
+ });
+ if(!skin||!cloth)return null;
+ fpArmGeometryCache.tier=tier;
+ fpArmGeometryCache.skin={r:fpArmGeometry(skin,'r'),l:fpArmGeometry(skin,'l')};
+ fpArmGeometryCache.cloth={r:fpArmGeometry(cloth,'r'),l:fpArmGeometry(cloth,'l')};
+ return fpArmGeometryCache;
+}
+// Anatomical hinge axes for the MakeHuman rig. The template's rest orientation
+// maps +X world onto each bone-local flex axis, so the finger joints and the
+// hand's knuckle line can be curled around the object they are gripping rather
+// than around an arbitrary local axis. Computed once; the axes are constant in
+// bone-local space no matter how the arm is posed.
+function fpArmAxes(tier){
+ if(!tier||!HUM.tpl[tier])return null;
+ if(fpArmAxisCache.tier===tier)return fpArmAxisCache.axes;
+ HUM.tpl[tier].updateMatrixWorld(true);
+ const axes={};
+ HUM.tpl[tier].traverse(o=>{
+  if(!o.isBone)return;
+  axes[o.name]=new THREE.Vector3(1,0,0).applyQuaternion(o.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
+ });
+ fpArmAxisCache.tier=tier;fpArmAxisCache.axes=axes;
+ return axes;
+}
+function fpArmMaterial(part){
+ if(part==='skin'){
+  // Real photographed MakeHuman skin tinted down to dark leather glove. The
+  // dark tint keeps the surface's pores and creases instead of flattening it
+  // into a brown plastic mitt.
+  const m=new THREE.MeshStandardMaterial({name:'glove',map:HUM.tex.skin0||null,roughness:.52,metalness:.06,envMapIntensity:.9,side:THREE.DoubleSide});
+  m.color.setRGB(.12,.14,.16);
+  m.userData.raidOwned=true;return m;
+ }
+ // Real casual-suit cloth for an olive-grey sleeve. The shipped cloth map is a
+ // dark blue-grey; a warm gain restores the olive drab and lifts it out of the
+ // near-black the raw map produces under the overlay key light.
+ const m=new THREE.MeshStandardMaterial({name:'sleeve',map:HUM.tex.cloth||null,normalMap:HUM.tex.clothn||null,roughness:.9,metalness:.02,envMapIntensity:.55,side:THREE.DoubleSide});
+ m.color.setRGB(2.4,2.05,.62);
+ m.userData.raidOwned=true;return m;
+}
+function fpArmPose(body,info){
+ const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o});
+ const upR=bones.upperarm_r,loR=bones.lowerarm_r,hR=bones.hand_r;
+ const upL=bones.upperarm_l,loL=bones.lowerarm_l,hL=bones.hand_l;
+ if(!upR||!loR||!hR||!upL||!loL||!hL)return false;
+ const axes=fpArmAxes(HUM.tier);
+ const grip=info.grip?.c||[0,-.025,.06],lh=info.lh||[0,.04,-.2];
+ // The right wrist joins the pistol grip just below and slightly nearer the
+ // rifle than the earlier pose, keeping the wrist and finger fronts on screen
+ // at phone-landscape height; the left wrist is offset to the outside of the
+ // handguard so the forearm wraps over the barrel from the side rather than
+ // resting on top of the rail.
+ const tR=new THREE.Vector3((grip[0]||0)+.035,grip[1]-.035,grip[2]+.02);
+ const tL=new THREE.Vector3((lh[0]||0)-.05,lh[1]-.015,lh[2]+.035);
+ body.updateMatrixWorld(true);
+ // Turn a bone in world space so the direction to `from` changes to `to`.
+ const turn=(bone,from,to)=>{
+  bone.getWorldPosition(_faV);
+  _faH.copy(from).sub(_faV);
+  _faA.copy(to).sub(_faV);
+  if(_faH.lengthSq()<1e-8||_faA.lengthSq()<1e-8)return;
+  _faH.normalize();_faA.normalize();
+  _faQ.setFromUnitVectors(_faH,_faA);
+  bone.getWorldQuaternion(_faQ2);
+  bone.parent.getWorldQuaternion(_faQ3).invert();
+  _faQ2.premultiply(_faQ).premultiply(_faQ3);
+  bone.quaternion.copy(_faQ2);bone.updateMatrixWorld(true);
+ };
+ const ik=(up,lo,hd,target,pole)=>{
+  up.getWorldPosition(_faA);lo.getWorldPosition(_faB);hd.getWorldPosition(_faC);
+  const l1=_faA.distanceTo(_faB),l2=_faB.distanceTo(_faC);
+  _faD.copy(target).sub(_faA);let d=_faD.length();const max=(l1+l2)*.999;
+  if(d>max){_faD.multiplyScalar(max/Math.max(d,1e-4));d=max;target=_faT.copy(_faA).add(_faD)}
+  _faD.normalize();
+  const ca=Math.max(-1,Math.min(1,(l1*l1+d*d-l2*l2)/(2*l1*Math.max(d,1e-4)))),sa=Math.sqrt(1-ca*ca);
+  _faP.copy(pole).sub(_faA);_faP.addScaledVector(_faD,-_faP.dot(_faD)).normalize();
+  _faE.copy(_faA).addScaledVector(_faD,l1*ca).addScaledVector(_faP,l1*sa);
+  turn(up,_faB,_faE);
+  lo.getWorldPosition(_faB);hd.getWorldPosition(_faC);turn(lo,_faC,target);
+ };
+ const shoulderR=upR.getWorldPosition(new THREE.Vector3());
+ const shoulderL=upL.getWorldPosition(new THREE.Vector3());
+ ik(upR,loR,hR,tR,shoulderR.clone().add(new THREE.Vector3(.55,-.8,.3)));
+ ik(upL,loL,hL,tL,shoulderL.clone().add(new THREE.Vector3(-.5,-.85,.1)));
+ body.updateMatrixWorld(true);
+ // Aim the hands so the first finger segment points at the object being held,
+ // then roll the knuckle line parallel to that object. Curling around the real
+ // hinge axis is what turns the flat MakeHuman hand into a fist that wraps a
+ // vertical grip and a horizontal handguard.
+ const aim=(side,dir,knuckle,flip)=>{
+  const hd=side==='r'?hR:hL,m=bones['middle_01_'+side];
+  if(!m||!axes)return;
+  const wrist=hd.getWorldPosition(new THREE.Vector3());
+  const middle=m.getWorldPosition(new THREE.Vector3());
+  _faH.copy(middle).sub(wrist);
+  _faA.copy(dir).normalize();
+  if(_faH.lengthSq()<1e-8)return;
+  _faH.normalize();_faQ.setFromUnitVectors(_faH,_faA);
+  hd.getWorldQuaternion(_faQ2);
+  hd.parent.getWorldQuaternion(_faQ3).invert();
+  hd.quaternion.copy(_faQ2.premultiply(_faQ).premultiply(_faQ3));
+  hd.updateMatrixWorld(true);
+  if(knuckle&&axes[hd.name]){
+   const W=hd.getWorldPosition(new THREE.Vector3());
+   const M=m.getWorldPosition(new THREE.Vector3());
+   _faH.copy(M).sub(W).normalize();
+   _faA.copy(axes[hd.name]).applyQuaternion(hd.getWorldQuaternion(_faQ)).normalize();
+   _faA.addScaledVector(_faH,-_faA.dot(_faH));
+   _faP.copy(knuckle).normalize();
+   _faP.addScaledVector(_faH,-_faP.dot(_faH));
+   if(_faA.lengthSq()>1e-6&&_faP.lengthSq()>1e-6){
+    _faA.normalize();_faP.normalize();
+    const angle=Math.atan2(_faA.clone().cross(_faP).dot(_faH),_faA.dot(_faP));
+    hd.getWorldQuaternion(_faQ2).premultiply(_faQ.setFromAxisAngle(_faH,angle));
+    hd.parent.getWorldQuaternion(_faQ3).invert();
+    hd.quaternion.copy(_faQ2.premultiply(_faQ3));
+    hd.updateMatrixWorld(true);
+   }
+  }
+  // A half-turn about the finger direction keeps the knuckle line on the grip
+  // but turns the palm away from the camera, so the visible back of the glove
+  // reads as a hand wrapping the object instead of an open palm cupping it.
+  if(flip){
+   const W=hd.getWorldPosition(new THREE.Vector3());
+   const M=m.getWorldPosition(new THREE.Vector3());
+   _faH.copy(M).sub(W);
+   if(_faH.lengthSq()>1e-8){
+    _faH.normalize();
+    hd.getWorldQuaternion(_faQ2).premultiply(_faQ.setFromAxisAngle(_faH,Math.PI));
+    hd.parent.getWorldQuaternion(_faQ3).invert();
+    hd.quaternion.copy(_faQ2.premultiply(_faQ3));
+    hd.updateMatrixWorld(true);
+   }
+  }
+  for(const finger of ['index','middle','ring','pinky']){
+   for(let i=1;i<=3;i++){
+    const b=bones[finger+'_0'+i+'_'+side],ax=axes[b?.name];
+    if(!b||!ax)continue;
+    b.quaternion.multiply(_faQ.setFromAxisAngle(ax,i===1?.55:.9));
+    b.updateMatrixWorld(true);
+   }
+  }
+ };
+ aim('r',new THREE.Vector3(-.30,.55,-.77),new THREE.Vector3(0,-.921,.389),true);
+ aim('l',new THREE.Vector3(.55,.35,-.18),new THREE.Vector3(0,0,-1));
+ return true;
+}
+function addFirstPersonArms(root,info){
+ if(!HUM.ready||!HUM.tpl[HUM.tier]||!HUM.SU)return false;
+ const geometries=fpArmGeometries();if(!geometries)return false;
+ let body;
+ try{body=HUM.SU.clone(HUM.tpl[HUM.tier])}catch(error){return false}
+ let skinSource=null,clothSource=null;
+ body.traverse(o=>{if(!o.isSkinnedMesh)return;if(o.userData.part==='skin'&&!skinSource)skinSource=o;else if(o.userData.part==='cloth'&&!clothSource)clothSource=o});
+ if(!skinSource||!clothSource)return false;
+ for(const [part,source,material] of [['skin',skinSource,fpArmMaterial('skin')],['cloth',clothSource,fpArmMaterial('cloth')]]){
+  for(const side of ['r','l']){
+   const geo=geometries[part]?.[side];if(!geo)continue;
+   const mesh=new THREE.SkinnedMesh(geo,material);
+   mesh.name='fp-arm-'+part+'-'+side;mesh.userData.fpArmPart=part;mesh.userData.fpArmSide=side;
+   mesh.castShadow=false;mesh.receiveShadow=false;mesh.frustumCulled=false;
+   mesh.matrixAutoUpdate=false;mesh.matrix.copy(source.matrix);
+   mesh.bindMode=source.bindMode;mesh.bindMatrix.copy(source.bindMatrix);mesh.bindMatrixInverse.copy(source.bindMatrixInverse);
+   source.parent.add(mesh);mesh.bind(source.skeleton,source.bindMatrix);
+   root.userData.firstPersonArms=true;
+  }
+ }
+ const hidden=[];body.traverse(o=>{if(o.isSkinnedMesh&&!o.userData.fpArmPart)hidden.push(o)});
+ for(const mesh of hidden)mesh.parent&&mesh.parent.remove(mesh);
+ // Position the cloned torso below and slightly behind the camera-facing gun
+ // so only forearms and hands rise into frame. This is gun-local: the raised
+ // shoulder roots stay off the bottom edge while wrists land on the rifle.
+ body.rotation.y=Math.PI;
+ body.scale.setScalar(FP_ARM_SCALE);
+ body.position.set(FP_ARM_BODY[0],FP_ARM_BODY[1],FP_ARM_BODY[2]);
+ body.updateMatrixWorld(true);
+ fpArmPose(body,info);
+ root.add(body);
+ root.userData.firstPersonArms=true;
+ return true;
+}
 export function weaponModel(id,hands=false){
  // The raid sights the rifle close to the eye; trim the procedural forearm reach
  // so only gloved hands on the grip and handguard occupy the lower frame.
@@ -371,13 +616,12 @@ export function weaponModel(id,hands=false){
    const mat=slot.mat.clone(),gain=wornScanGain(slot.mat);
    mat.color.setRGB(gain,gain*.98,gain*.95);mat.metalness=.3;mat.roughness=.55;mat.envMapIntensity=1.25;mat.needsUpdate=true;
    const mesh=new THREE.Mesh(slot.geo,mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
-  const all=hands?handParts(info,0x2f342c,0x5a4634,undefined,true):[];
-  const groups=new Map();
-  for(const p of all){const key=p.mat||'metal';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p)}
-  for(const [key,parts]of groups){const geometry=mergeParts(parts,{uv:true});geometry.userData.raidOwned=true;const mesh=new THREE.Mesh(geometry,gunGroupMaterial(key));mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
   // Scan-space muzzle/sight overrides (authoring offsets differ from the boxes)
   // merge over the procedural rig so flash, ADS centring and ejection still land.
   root.userData.info={...info,...(PHOTO[scanId]?.info||{})};
+  // Scans no longer fall back to the procedural mitten rig in the first person:
+  // real MakeHuman gloved arms are added below when the human assets are ready.
+  if(hands)addFirstPersonArms(root,root.userData.info);
   return root;
  }
  const all=hands?parts.concat(handParts(info,0x2f342c,0x5a4634,undefined,true)):parts,groups=new Map(),root=new THREE.Group();

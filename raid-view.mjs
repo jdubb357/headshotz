@@ -289,9 +289,9 @@ export class RaidView {
    const item=[...self.equipment,...self.pack].find(it=>it.id===self.weaponId&&it.kind==='weapon');
    if(item){
     for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}
-    // Raid has no real first-person arms scan; the procedural mitten rig fails
-    // the real-asset bar, so the held rifle reads alone rather than with toy hands.
-    this.gun=weaponModel(item.weapon,false);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.gunAimFade=[];
+    // Build the real MakeHuman gloved arms now that both the human tiers and the
+    // scanned rifle GLBs are decoded; the same rig supplies the world operators.
+    this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.gunAimFade=[];
     this.gun.traverse(node=>{const material=node.material;if(!node.isMesh||!material||!['stock','sleeve'].includes(material.name))return;
      material.transparent=true;material.depthWrite=false;material.opacity=1;this.gunAimFade.push(material)});
    }
@@ -949,7 +949,7 @@ export class RaidView {
   const item=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId);
   this.gunRoot.visible=!!item&&this.viewMode==='first';
   if(this.selfActor&&this.selfActor.userData.heldWeapon!==(item?.weapon??null))setHumanWeapon(this.selfActor,item?.weapon??null);
-  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,false);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now();
+  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now();
    // Rear furniture and forearms would otherwise jam into the sight picture:
    // fade them out as the optic comes up, like a real shoulder-weld.
    this.gunAimFade=[];

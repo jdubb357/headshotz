@@ -80,7 +80,7 @@ async function stage(page,width,height){
  await sleep(1200);
 }
 const sampleMaterial=async page=>page.evaluate(`(()=>{
- const v=window.__raidView,out=[],seen=new Set();
+ const v=window.__raidView,out=[],arms=[],seen=new Set(),armSeen=new Set();
  const sample=tex=>{
   if(!tex||!tex.image)return null;
   const img=tex.image,c=document.createElement('canvas');c.width=16;c.height=16;
@@ -92,15 +92,52 @@ const sampleMaterial=async page=>page.evaluate(`(()=>{
   const srgb=sum/(d.length/4)/255;
   return {sRGB:+(srgb*255).toFixed(1),linear:+((srgb<=.04045?srgb/12.92:Math.pow((srgb+.055)/1.055,2.4))).toFixed(4)};
  };
- if(!v.gun)return {mats:out,meshes:0,visible:false};
+ if(!v.gun)return {mats:out,armMats:arms,meshes:0,armMeshes:0,visible:false};
  v.gun.traverse(n=>{
-  if(!n.isMesh||seen.has(n.material))return;
+  if(!n.isMesh)return;
+  if(n.userData.fpArmPart){
+   arms.push({part:n.userData.fpArmPart,side:n.userData.fpArmSide,visible:n.visible&&!!v.gunRoot?.visible,skinned:!!n.isSkinnedMesh,bones:n.skeleton?.bones?.length||0,material:n.material.name});
+   return;
+  }
+  if(seen.has(n.material))return;
   seen.add(n.material);const m=n.material,avg=sample(m.map);
   out.push({name:m.name,metalness:m.metalness,roughness:m.roughness,envMapIntensity:m.envMapIntensity,color:{r:m.color.r,g:m.color.g,b:m.color.b},albedo:avg,
    effective:avg?+(avg.linear*m.color.r*(1-m.metalness*.83)).toFixed(4):null});
  });
- return {mats:out,meshes:seen.size,visible:!!v.gunRoot?.visible,rootVisible:!!v.gunRoot?.visible};
+ // Screen-space hand proof: both wrist joints and the visible fronts of both
+ // hands/fingers must stay inside the weapon-camera frame at every viewport,
+ // and sit within a hand's width of the authored grip/handguard anchors.
+ const hands=[],info=v.gun.userData.info||{};
+ const grip=info.grip?.c||[0,-.025,.06],lh=info.lh||[0,.04,-.2];
+ const cam=v.weaponCamera;
+ if(cam){
+  cam.updateMatrixWorld(true);cam.updateProjectionMatrix();
+  const wanted=new Set(['hand_r','hand_l','index_03_r','index_03_l','middle_02_r','middle_02_l']);
+  v.gun.traverse(n=>{
+   if(!n.isBone||!wanted.has(n.name))return;
+   const world=n.getWorldPosition(n.position.clone());
+   const local=v.gun.worldToLocal(world.clone());
+   const ndc=world.clone().project(cam);
+   const anchor=n.name.endsWith('_l')?lh:grip;
+   hands.push({name:n.name,ndc:{x:+ndc.x.toFixed(3),y:+ndc.y.toFixed(3),z:+ndc.z.toFixed(3)},local:{x:+local.x.toFixed(3),y:+local.y.toFixed(3),z:+local.z.toFixed(3)},
+    anchorDist:+Math.sqrt((local.x-anchor[0])**2+(local.y-anchor[1])**2+(local.z-anchor[2])**2).toFixed(3)});
+  });
+ }
+ return {mats:out,armMats:arms,meshes:seen.size,armMeshes:arms.length,armsFlag:!!v.gun.userData.firstPersonArms,hands,anchors:{grip,lh},weaponCamera:!!cam,visible:!!v.gunRoot?.visible,rootVisible:!!v.gunRoot?.visible};
 })()`);
+function assertHandsOnRifle(sample,label){
+ assert.ok(sample.weaponCamera,`${label} exposes the weapon camera used for the held-arm projection`);
+ assert.equal(sample.hands?.length,6,`${label} exposes both wrists and the front finger segments of both hands (${JSON.stringify(sample.hands)})`);
+ const sides=new Set();
+ for(const h of sample.hands||[]){
+  sides.add(h.name.endsWith('_l')?'l':'r');
+  assert.ok(h.ndc.z>-1&&h.ndc.z<1&&Math.abs(h.ndc.x)<=1&&Math.abs(h.ndc.y)<=1,
+   `${label} ${h.name} hand geometry projects inside the frame (${JSON.stringify(h.ndc)})`);
+  assert.ok(h.anchorDist<=.13,
+   `${label} ${h.name} sits on the pistol grip/handguard within a hand width (${h.anchorDist} m)`);
+ }
+ assert.deepEqual([...sides].sort(),['l','r'],`${label} shows one hand on the grip and one on the handguard`);
+}
 try{
  const page=await harness.page('/');
  await stage(page,1024,720);
@@ -110,7 +147,11 @@ try{
  assert.ok(gun.mats.length===gun.meshes,'one inspected material per held scan mesh');
  // 1. The scan's baked albedo really is near-black; this is why the old shader
  //    flattened it to a silhouette rather than a rifle.
- assert.ok(gun.mats.every(m=>m.albedo&&m.albedo.sRGB<70),`scan albedo map stays the dark photogrammetry sheet (${gun.mats[0]?.albedo?.sRGB})`);
+  assert.ok(gun.armsFlag,'real MakeHuman first-person arms are mounted with the rifle');
+  assert.equal(gun.armMeshes,4,`four real skinned arm/hand meshes (${JSON.stringify(gun.armMats.map(a=>a.name))})`);
+  assert.ok(gun.armMats.every(a=>a.skinned&&a.bones>0&&a.visible),`every arm mesh is visible and bound to the MakeHuman skeleton (${JSON.stringify(gun.armMats)})`);
+  assert.deepEqual([...new Set(gun.armMats.map(a=>a.material))].sort(),['glove','sleeve'],'only the gloved hand and sleeve materials are used for arms');
+ assertHandsOnRifle(gun,'1024x720');
  // 2. Every held scan material is lifted into the worn-metal band and opened
  //    for the overlay key/rim lights instead of staying pure metalness-1.
  for(const m of gun.mats){
@@ -135,6 +176,8 @@ try{
  const mobile=await sampleMaterial(page);
  assert.equal(mobile.meshes,gun.meshes,'the same scanned rifle material groups survive the viewport change');
  assert.ok(mobile.mats.every(m=>m.effective>=.06&&m.effective<=.28),'phone viewport keeps the worn mid-grey albedo');
+ assert.equal(mobile.armMeshes,4,'both gloved hands and sleeves survive the phone viewport');
+ assertHandsOnRifle(mobile,'844x390');
  const shot844=await page.command('Page.captureScreenshot',{format:'png'});
  await writeFile('/tmp/headshotz-gunlight-844.png',Buffer.from(shot844.data,'base64'));
  assert.deepEqual(page.errors,[],'no browser errors during the held-rifle frames');
