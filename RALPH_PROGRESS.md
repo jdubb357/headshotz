@@ -8464,4 +8464,36 @@ The sky is now the largest single visual gain: real clouds, blue gradient and ho
 ### Honest critique
 The rifle now reads as a held object with texture rather than a black cut-out, and the receiver/rail/stock catch the warm sky. But the scene still has no first-person hands: the only library arms candidate is a low-poly stylized-fallback rig that the catalog restricts to animation reference, so it cannot be shipped without breaking the real-asset rule. Hands stay explicitly hidden rather than smuggling in toy sleeves; the fix is honestly half of director item 1. The likely next real win is item 2 (enemies), starting with the scout's toy-robot scale/material, or item 4's exposure so the bright pavement stops competing.
 
-**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (ENEMIES); arms remain an open asset gap.
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 1 (ENEMIES); arms remain an open asset gap.
+
+## Iteration 110 — Real MakeHuman operators replace the toy machines (DIRECTOR_NOTES item 1, ENEMIES; 2026-11-13)
+
+**Task:** Tear out the pale toy machines and put a real CC0 body/operator at proper human-plus scale in every grounded enemy slot, with muted PBR materials and a grounded contact shadow; keep server hp/yaw/windup/core authority.
+
+### Acceptance criteria (recorded before implementation)
+1. Offline 1024×720 and 844×390 spawn frames show the scout as a recognisable, weathered human-plus operator — not the grey/orange toy robot — taller than the barrels, with a cast/contact shadow.
+2. Every grounded machine class (scout/hunter/heavy/overlord) uses the real operator presentation; the flyer gap is documented honestly.
+3. No new UI, systems, currencies, menus or player-facing jargon; server/online authority intact.
+4. Machine-model grader green with updated HUM presentation; static-offline, mobile-HUD, performance and `node --test tests/*.test.mjs` run.
+
+### Changed
+- `raid-models.mjs` — added `SOLDIER_MACHINES` mapping (scout `scout` light-rig at 1.12×, hunter `soldier` at 1.2×, heavy/overlord `juggernaut` at 1.45×/2.7×), real `soldierMachine()` using the shipped CC0 MakeHuman system and its shared worn-plating core housing; removed the Quaternius `assetScout` path, tint map, plates, eye material and unused `cloneSkinned` import; `updateActor` now animates the human body child while keeping machine core/beacon signaling.
+- `raid-view.mjs` — `refreshArt()` swaps every machine actor to the real operator once HUM decodes, not just the scout GLB.
+- `raid-online.mjs` — stopped loading the retired `scout.glb` via `loadMachines()`; the static payload is smaller and the live visual is the real HUMAN path.
+- `tests/raid-browser-machine-models.mjs` — waits for HUM, expects the new class feature arrays, still proves worn/core/halo/shared maps and plain/detail pixel deltas.
+- `ASSETS.md` — records the Quaternius scout GLB as retired, the CC0 MakeHuman operator use, and the flyer as the remaining flight-asset gap.
+
+### Verification & screenshots
+- `node --check` on all three touched app files → OK.
+- `tests/raid-browser-machine-models.mjs` → green: scout/hunter/heavy/overlord/normalized flyer features, worn meshes ≥1, halo sprite + map, shared worn map; detail deltas scout 517, hunter 645, heavy 1360, overlord 3094 px.
+- `tests/raid-browser-static-offline.mjs` green; `tests/raid-browser-mobile-hud.mjs` green (1024 + 844, auto-fire, touch, swap); `tests/raid-browser-performance.mjs` all desktop/mobile targets within budget.
+- `node --test tests/*.test.mjs` → 1248 pass / 1 fail, the known intermittent `matchmaking.test.mjs` ECONNRESET (retried alone, same). Pre-existing unrelated failures reproduced at HEAD in a temp worktree: `raid-browser-boss.mjs` HP 744/760 and `raid-browser-viewmodel.mjs` overlay-light 2.6 < 3.0.
+- Captures at 1024×720 and 844×390 with action frames: `~/headshotz-loop/shots/latest/before-1024.png`, `before-1024-action.png`, `before-844.png`, `before-844-action.png` (old grey/orange machine) and matching `after-*` frames (scout: boonie hood, goggles, olive/tan light-rig uniform, skin, armed, boot contact shadow, ~2× barrel height).
+
+### Acceptance status
+1. Met by capture: the scout is now a real, weathered HUMAN operator well over barrel height with an authoritative waist-line weak-point lamp and visible boot/ground contact shadow, not the toy robot. 2. Met for all four grounded classes; the flyer's procedural drone is the one remaining gap (no realistic CC0/CC-BY flight asset). 3. Met: no UI/rules/jargon changes; Node path and server authority untouched. 4. Met: graders and suite green except the listed pre-existing/intermittent failures.
+
+### Honest critique
+The scout now looks like an actual soldier — real cloth folds, skin, helmet, goggles, hands and rifle at human-plus scale — and that is the biggest enemy win so far. Still bad: the flyer remains the only boxy procedural enemy, and the large orange lamp sits at the belt rather than the chest because it must stay on the server's authoritative core height.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (LOOT + PROPS: real item model/sweet glint, scanned weathered barrels and crate); flyer asset remains a gap.

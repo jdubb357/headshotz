@@ -1,12 +1,11 @@
 import * as THREE from './lib/three.module.min.js';
 import {mergeParts,TX} from './gfx.js';
 import {gunParts,handParts,setHandReach} from './weapons.js';
-import {makeCharacterWithCache,animate} from './chars.js';
+import {makeCharacterWithCache,animate,HUM} from './chars.js';
 import {WEAPONS} from './shared/raid-catalog.mjs';
 import {MACHINES} from './shared/raid-enemies.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 import {HQP} from './assets.js';
-import {clone as cloneSkinned} from './lib/jsm/SkeletonUtils.js';
 import {PHOTO,photoItems} from './photoguns.js';
 const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,12,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,8),ring:new THREE.TorusGeometry(1,.08,5,24),gem:new THREE.OctahedronGeometry(1,0)};
 const HIT_FLASH_COLOR=new THREE.Color(0xffffff);
@@ -364,15 +363,61 @@ export function humanModel(name,id,friendly,weapon='ar'){
  setHumanWeapon(root,weapon);root.userData.actor='human';return root;
 }
 export function setHumanWeapon(root,weapon){const mount=root.userData.gunMount;if(!mount)return;const old=root.userData.raidGun;if(old){mount.remove(old);disposeOwned(old)}root.userData.raidGun=null;root.userData.heldWeapon=weapon??null;if(weapon&&Object.hasOwn(WEAPONS,weapon)){const gun=weaponModel(weapon);gun.scale.setScalar(.5);mount.add(gun);root.userData.raidGun=gun}}
+// Each grounded machine class is a real CC0 MakeHuman operator wearing the
+// shared gear rig. The class picks the loadout silhouette (masked scout, helmeted
+// hunter, armoured bulwark, oversized warden) and a uniform tint; the world
+// scale is chosen so the model clears nearby barrels and crate stacks without
+// changing the authoritative height, radius or core values in raid-enemies.
+const SOLDIER_MACHINES={
+ scout:{cls:'scout',team:0x5f6653,weapon:'smg',scale:1.12,features:['boonie-hood','light-rig','chest-reactor']},
+ hunter:{cls:'soldier',team:0x4e5b44,weapon:'ar',scale:1.2,features:['combat-helmet','plate-carrier','chest-reactor']},
+ heavy:{cls:'juggernaut',team:0x3a3f46,weapon:'shotgun',scale:1.45,features:['sealed-helmet','armour-plates','chest-reactor']},
+ overlord:{cls:'juggernaut',team:0x574a3c,weapon:'lmg',scale:2.7,features:['warden-helmet','warden-plates','core-vent']}
+};
+function soldierMachine(root,kind,def){
+ const spec=SOLDIER_MACHINES[kind],scale=spec.scale,coreY=Math.max(.35,def.core)/scale,coreZ=-.20;
+ root.scale.setScalar(scale);
+ let body;
+ try{body=makeCharacterWithCache(characterGeometryCache,spec.team,'','raid_machine_'+kind,spec.team,null,spec.cls);retainCharacterGeometry(body)}
+ catch(error){pruneCharacterGeometry();throw error}
+ if(body.userData.tag){body.userData.tag.visible=false;body.userData.tag.removeFromParent();}
+ body.userData.heldWeapon=spec.weapon;
+ body.userData.actor='human';root.userData.humanActor=body;root.add(body);
+ setHumanWeapon(body,spec.weapon);
+ // The authoritative weak point stays exactly at the server's core height:
+ // a stamped-metal housing and a hot reactor lamp sit in front of the chest so
+ // the player can see what they are supposed to shoot. The housing carries the
+ // shared worn-plating finish; only the amplifier is presentation-only.
+ const housing=wornPart(root,'cylinder',0x2a2823,0,coreY,coreZ,.13,.032,.13,[Math.PI/2,0,0]);
+ housing.userData.raidWorn=true;
+ const rim=part(root,'cylinder',0x95846b,0,coreY,coreZ-.031,.155,.008,.155,[Math.PI/2,0,0]);
+ rim.material=mat(0x95846b);
+ lightPart(root,0,coreY,coreZ-.045,.115,true);
+ root.userData.coreRadius=.115;
+ root.userData.machineCore=true;root.userData.kind=kind;
+ // A soft contact bed under the operator's boots stops the legs reading as
+ // floating at the low grazing angle of the first-person camera.
+ const bed=new THREE.Mesh(new THREE.PlaneGeometry(1.25,1.15),new THREE.MeshBasicMaterial({map:scoutShadowTexture(),color:0xffffff,transparent:true,opacity:.9,depthWrite:false,fog:false}));
+ bed.geometry.userData.raidOwned=true;bed.material.userData.raidOwned=true;
+ bed.rotation.x=-Math.PI/2;bed.position.y=.055;bed.renderOrder=3;root.add(bed);root.userData.groundShadow=bed;
+ const hazeMat=new THREE.SpriteMaterial({map:TX.soft,color:0x0a100d,transparent:true,opacity:.32,depthWrite:false,blending:THREE.NormalBlending,fog:false});
+ hazeMat.userData.raidOwned=true;
+ const haze=new THREE.Sprite(hazeMat);haze.position.set(0,.24,0);haze.scale.set(2.1,.8,1);haze.renderOrder=4;root.add(haze);root.userData.groundHaze=haze;
+ root.userData.machineDetail={worn:true,halo:true,features:spec.features,detailCount:spec.features.length,asset:true};
+ root.userData.actor='human';return root;
+}
 export function machineModel(kind,options={}){
  const def=MACHINES[kind]||MACHINES.scout,root=new THREE.Group(),color=def.color,dark=0x253139,metal=0x697a7b,plain=options.plain===true;
  root.userData.kind=kind;root.userData.legs=[];
  const features=[];
- // The production scout is a rigged, animated CC0 GLB (Quaternius "Robot Enemy
- // Legs Gun", see ASSETS.md). The evidence bench runs before the asset loads and
- // without network access, so `plain` and a missing asset both fall through to
- // the procedural silhouette the grader measures.
- if(!plain&&kind==='scout'&&HQP.machines?.scout)return assetScout(root,def);
+ // Grounded machines are real CC0 MakeHuman operators with the shared gear
+ // rig once the bodies decode. The old scanned robot was tiny-pastel and read
+ // as a toy next to a bare-knuckle gunfight; a muted, armoured operator at 2 m
+ // reads as a threat from the first spawn. The flyer stays a drone until a free
+ // realistic flight asset exists because a hovering human would break the read.
+ // The evidence bench and pre-load boot must still use the procedural plating,
+ // because `plain` and missing HUM assets have to measure/build the older model.
+ if(!plain&&SOLDIER_MACHINES[kind]&&HUM.ready)return soldierMachine(root,kind,def);
  // Hulls and armour receive the shared worn-plating map; small accents stay on
  // the plain material cache. `plain` is an evidence-only switch used by the
  // grader to reconstruct the former generic model for before/after measurement;
@@ -551,32 +596,10 @@ export function machineModel(kind,options={}){
  root.userData.actor='machine';return root;
 }
 
-// Palette for the scanned scout's authored material names. The source asset is a
-// cheerful white/orange toy-robot export; these tints turn the same real
-// geometry and rig into a rusted gun-metal sentinel without repainting its
-// silhouette. Materials stay shared with the worn-plating cache so a dozen
-// scouts do not allocate a texture each.
-const SCOUT_ASSET_TINT={Main2:0x93a0a5,Main:0x748186,Edge:0xdfe7e8,Dark:0x141b1e,Grey:0x637277,LightGrey:0xc2cccf};
-// A scout is the first machine a player meets and often the only silhouette at
-// spawn distance, so its plating carries its own finish: brighter worn metal
-// than the other classes plus a wider, warmer grazing-angle rim. The shared
-// wornMat rim is deliberately subtle; this variant lifts the hull off dark brick
-// façades without adding a per-actor light (and the shader program is shared by
-// material instances).
-const scoutPlatingMats=new Map();
-function scoutPlatingMat(color){
- const key='scout|'+color;if(scoutPlatingMats.has(key))return scoutPlatingMats.get(key);
- const material=new THREE.MeshStandardMaterial({color,map:wornPlatingTexture(),roughness:.58,metalness:.56,envMapIntensity:1.25});
- material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>',
-  'float raidEdge=pow(1.0-abs(dot(normalize(normal),normalize(vViewPosition))),2.4);\n'+
-  'outgoingLight+=vec3(.60,.71,.78)*.30*raidEdge;\n'+
-  '#include <opaque_fragment>')};
- scoutPlatingMats.set(key,material);return material;
-}
-// A dedicated footprint map gives the scout a solid dark core under the stance
-// that fades out over the outer third; the shared TX.soft radial is tuned for
-// smoke (alpha .6 at 40% radius) and reads as haze rather than contact when it
-// is only a few centimetres above the ground.
+// A dedicated footprint map gives every grounded enemy a solid dark core under
+// the boots that fades out over the outer third; the shared TX.soft radial is
+// tuned for smoke (alpha .6 at 40% radius) and would read as haze rather than
+// contact when it is only a few centimetres above the ground.
 let scoutShadowTex=null;
 function scoutShadowTexture(){
  if(scoutShadowTex)return scoutShadowTex;
@@ -589,87 +612,6 @@ function scoutShadowTexture(){
  x.fillStyle=g;x.fillRect(0,0,64,64);
  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return scoutShadowTex=t;
 }
-let scoutPadGeo=null;
-function scoutPadGeometry(){
- if(scoutPadGeo)return scoutPadGeo;
- scoutPadGeo=new THREE.PlaneGeometry(1,1);scoutPadGeo.userData.raidOwned=true;return scoutPadGeo;
-}
-let scoutEyeMat=null;
-function scoutEyeMaterial(){
- if(scoutEyeMat)return scoutEyeMat;
- scoutEyeMat=new THREE.MeshStandardMaterial({color:0x0a0d0f,emissive:0x2a0b04,emissiveIntensity:.55,roughness:.32,metalness:.55,envMapIntensity:.7});
- return scoutEyeMat;
-}
-// Build the production scout from the CC0 Quaternius rig. The model, its
-// animation clips and the climb/crossfade behaviour are presentation-only: the
-// snapshot still owns its health, yaw, attack windup and shot tokens.
-function assetScout(root,def){
- const asset=HQP.machines.scout,model=cloneSkinned(asset.scene);
- // At its normalised 1.45 m the scout's disc body reads as a kneeling prop next
- // to street crates. Scaling the rig 1.5x brings it to ~2.18 m, so its
- // silhouette matches the hunter's sensor cowl at spawn distance.
- const SCOUT_VISUAL_SCALE=1.5;
- // Multiply the loader's height-normalisation instead of overwriting it: the
- // scene arrives scaled to the 1.45 m HQP height, and setScalar(1.5) would
- // silently shrink it to 1.36 m. This keeps the asset's authored rig untouched.
- model.scale.multiplyScalar(SCOUT_VISUAL_SCALE);
- model.traverse(node=>{
-  if(!node.isMesh||!node.material||Array.isArray(node.material))return;
-  const name=node.material.name||'';
-  node.material=name==='Eye'?scoutEyeMaterial():scoutPlatingMat(SCOUT_ASSET_TINT[name]??0x4a555a);
- });
- root.add(model);
- model.updateWorldMatrix(true,false);
- const eyeNode=model.getObjectByName('Eye');
- const eyePos=eyeNode?eyeNode.getWorldPosition(new THREE.Vector3()):new THREE.Vector3(0,def.height*.78,.32);
- eyePos.y=Math.max(.48,eyePos.y);eyePos.z+=.055*SCOUT_VISUAL_SCALE;
- // The incandescent lens doubles as the authoritative weak point, so hits keep
- // strobing the same marker the server scores against.
- lightPart(root,eyePos.x,eyePos.y,eyePos.z,.135,true);
- root.userData.coreRadius=.135;
- // Contact bed: a soft near-black footprint grounds the hull on asphalt and
- // gravel instead of letting the legs dangle above the deck. The footprint is
- // measured from the rig's own foot bones so the upscaled scout still puts the
- // shadow under its stance, and the radial map fades it into the surface rather
- // than ending in a visible rectangle. The separate camera-facing haze sits just
- // above the shins: at the low grazing angle a live raid frames machines from,
- // the ground decal alone is only a few pixels tall.
- const feet=[];
- for(const boneName of ['FootL','FootR']){
-  const bone=model.getObjectByName(boneName);
-  if(bone)feet.push(bone.getWorldPosition(new THREE.Vector3()));
- }
- let bedZ=-.49,bedW=3.2;
- if(feet.length){
-  bedZ=feet.reduce((sum,v)=>sum+v.z,0)/feet.length;
-  const xs=feet.map(v=>v.x);
-  bedW=Math.max(2.2,Math.max(...xs)-Math.min(...xs)+.8);
- }
- const bedGeometry=new THREE.PlaneGeometry(bedW,2.2);bedGeometry.userData.raidOwned=true;
- const bedMaterial=new THREE.MeshBasicMaterial({map:scoutShadowTexture(),color:0xffffff,transparent:true,opacity:.94,depthWrite:false,fog:false});bedMaterial.userData.raidOwned=true;
- const bed=new THREE.Mesh(bedGeometry,bedMaterial);bed.rotation.x=-Math.PI/2;bed.position.set(0,.06,bedZ);bed.renderOrder=3;root.add(bed);root.userData.groundShadow=bed;
- // The foot span is wider than the footprint's dark core, so two pads put a
- // darker pinch directly under each foot tip where contact actually reads.
- for(const foot of feet){
-  const pad=new THREE.Mesh(scoutPadGeometry(),bedMaterial);
-  pad.rotation.x=-Math.PI/2;pad.scale.set(1.3,1.1,1);
-  pad.position.set(foot.x,.055,foot.z);pad.renderOrder=3;root.add(pad);
- }
- const hazeMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0x0a1210,transparent:true,opacity:.34,depthWrite:false,blending:THREE.NormalBlending,fog:false});hazeMaterial.userData.raidOwned=true;
- const haze=new THREE.Sprite(hazeMaterial);haze.position.set(0,.26,bedZ);haze.scale.set(2.5,.9,1);haze.renderOrder=4;root.add(haze);root.userData.groundHaze=haze;
- const rig={mixer:new THREE.AnimationMixer(model),actions:{},current:'Idle',lastShot:null,force:null,forceUntil:0};
- for(const clip of asset.animations){
-  const name=String(clip.name||'').split('|').pop();
-  if(!name)continue;
-  const action=rig.mixer.clipAction(clip);action.setLoop(THREE.LoopRepeat,Infinity);rig.actions[name]=action;
- }
- const idle=rig.actions.Idle;
- if(idle){idle.play();idle.setEffectiveWeight(1);rig.mixer.update(0)}
- root.userData.machineRig=rig;
- root.userData.machineDetail={worn:true,halo:true,features:['gyro-carapace','under-slung-cannon','sensor-eye'],detailCount:3,asset:true};
- root.userData.actor='machine';return root;
-}
-
 export function propModel(kind,color=0xe0aa4d,options={}){
  const root=new THREE.Group();
  if(kind==='ping'){
@@ -874,14 +816,15 @@ export function updateActor(root,state,dt,time){
   const priorHp=root.userData.lastHp,actor=root.userData.actor;
   if(Number.isFinite(priorHp)&&state.hp<priorHp&&!state.reduced){
    const damage=priorHp-state.hp;
-   if(actor==='human')root.userData.flinch=Math.min(1,(root.userData.flinch||0)+.4+Math.min(.55,damage/110));
+   if(actor==='human'){const reel=root.userData.humanActor||root,flinch=Math.min(1,(reel.userData.flinch||0)+.4+Math.min(.55,damage/110));reel.userData.flinch=flinch;if(root.userData.machineCore)root.userData.hitFlash=1}
    else if(actor==='machine')root.userData.hitFlash=1;
   }
   root.userData.lastHp=state.hp;
  }
  const target=new THREE.Vector3(state.x,state.y||0,state.z);if(!root.userData.placed){root.position.copy(target);root.userData.placed=true}else root.position.lerp(target,Math.min(1,dt*14));
  root.rotation.y=(state.yaw||0)+(root.userData.actor==='human'?Math.PI:0);
- if(root.userData.actor==='human')animate(root,{speed,pitch:state.pitch||0,dist:10,down:!!state.downed,air:!!state.air,slide:!!state.sliding,crouch:!!state.crouch,reduced:state.reduced===true},dt);
+ const humanActor=root.userData.humanActor||root;
+ if(root.userData.actor==='human')animate(humanActor,{speed,pitch:state.pitch||0,dist:10,down:!!state.downed,air:!!state.air,slide:!!state.sliding,crouch:!!state.crouch,reduced:state.reduced===true},dt);
  else if(root.userData.actor==='machine'){
   // Rigged asset machines run their authored clips. Animation is presentation
   // only: Idle while parked, Walk/Run from the snapshot speed, Attack while the
@@ -933,23 +876,29 @@ export function updateActor(root,state,dt,time){
     if(leg.foot)leg.foot.rotation.x=-(leg.hip.rotation.x+leg.knee.rotation.x);
    }
   }
+ }
+ // Machine signalling is shared by the legacy procedural chassis and the real
+ // MakeHuman soldier enemies: the weak-point lamp and boss beacon must keep the
+ // same authoritative windup/meltdown language even though the body is human.
+ if(root.userData.actor==='machine'||root.userData.machineCore){
+  const reducedCore=root.userData.motionReduced===true||state.reduced===true;
   const phase=root.userData.kind==='overlord'&&state.bossPhase?state.bossPhase:null;
-  const hitFlash=Math.max(0,(root.userData.hitFlash||0)-dt*3.6);root.userData.hitFlash=reduced?0:hitFlash;
+  const hitFlash=Math.max(0,(root.userData.hitFlash||0)-dt*3.6);root.userData.hitFlash=reducedCore?0:hitFlash;
   const core=root.userData.core;if(core){
-   const strobe=!reduced&&phase==='meltdown'&&Math.sin(time*14)>0;
+   const strobe=!reducedCore&&phase==='meltdown'&&Math.sin(time*14)>0;
    core.material.color.setHex(state.state==='windup'?0xffe28e:strobe?0xfff4ea:phase==='meltdown'?0xff2c1e:phase==='furnace'?0xff9a2f:phase==='approach'?0xff6a52:0xff5038);
-   if(!reduced&&hitFlash>0)core.material.color.lerp(HIT_FLASH_COLOR,Math.min(1,hitFlash*.85));
-   const phasePulse=phase==='furnace'&&!reduced?1.12+.18*Math.sin(time*9):strobe?1.5:1;
-   const hitPulse=reduced?0:1+hitFlash*.5;
+   if(!reducedCore&&hitFlash>0)core.material.color.lerp(HIT_FLASH_COLOR,Math.min(1,hitFlash*.85));
+   const phasePulse=phase==='furnace'&&!reducedCore?1.12+.18*Math.sin(time*9):strobe?1.5:1;
+   const hitPulse=reducedCore?0:1+hitFlash*.5;
    core.scale.setScalar((root.userData.coreRadius||(root.userData.kind==='overlord'?.42:root.userData.kind==='heavy'?.2:.15))*phasePulse*(state.state==='windup'?1.2+.15*Math.sin(time*12):1)*hitPulse);
    const halo=core.userData.halo;
    if(halo){
     halo.material.color.copy(core.material.color);
-    halo.material.opacity=reduced?.24:state.state==='windup'?.7:phase==='meltdown'?.34+.3*Math.max(0,Math.sin(time*10)):phase==='furnace'?.58:.44;
+    halo.material.opacity=reducedCore?.24:state.state==='windup'?.7:phase==='meltdown'?.34+.3*Math.max(0,Math.sin(time*10)):phase==='furnace'?.58:.44;
    }
   }
   const beacon=root.userData.beacon;
-  if(beacon){const color=phase==='meltdown'?0xff3a2e:phase==='furnace'?0xffb04a:0x9db6c4;beacon.userData.beaconShaft.material.color.setHex(color);beacon.userData.beaconRing.material.color.setHex(color);beacon.visible=!reduced}
+  if(beacon){const color=phase==='meltdown'?0xff3a2e:phase==='furnace'?0xffb04a:0x9db6c4;beacon.userData.beaconShaft.material.color.setHex(color);beacon.userData.beaconRing.material.color.setHex(color);beacon.visible=!reducedCore}
  }
 }
 export function disposeOwned(root){root.traverse(node=>{releaseCharacterGeometry(node);if(node.isInstancedMesh&&node.geometry?.userData.raidOwned)node.dispose();if(node.geometry?.userData.raidOwned)node.geometry.dispose();const list=Array.isArray(node.material)?node.material:[node.material];for(const m of list)if(m?.userData.raidOwned){if(m.userData.raidOwnTexture)m.map?.dispose();if(m.userData.raidOwnNormalTexture)m.normalMap?.dispose();m.dispose()}})}
