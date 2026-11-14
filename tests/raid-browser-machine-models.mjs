@@ -23,11 +23,11 @@ assert.ok(snapshot.machines.length >= 1, 'the relay deployment populates machine
 assert.ok(snapshot.machines.some(m => m.kind === 'scout'), 'the relay deployment includes the scout class');
 
 const EXPECTED = {
-  scout: ['antenna', 'side-fins', 'lens-housing'],
-  hunter: ['dorsal-ridge', 'sensor-mast', 'shoulder-cowls', 'hip-fins', 'head-lens'],
-  heavy: ['hazard-chevrons', 'rear-vents', 'shoulder-plates', 'piston-stacks'],
+  scout: ['boonie-hood', 'light-rig', 'chest-reactor'],
+  hunter: ['combat-helmet', 'plate-carrier', 'chest-reactor'],
+  heavy: ['sealed-helmet', 'armour-plates', 'chest-reactor'],
   flyer: ['rotor-blades', 'belly-sensor', 'rear-thruster', 'landing-struts'],
-  overlord: ['crown-spikes', 'chest-vents', 'shoulder-pylons']
+  overlord: ['warden-helmet', 'warden-plates', 'core-vent']
 };
 const KINDS = Object.keys(EXPECTED);
 
@@ -41,6 +41,10 @@ try {
   const page = await h.page();
   await page.command('Emulation.setDeviceMetricsOverride', {width: 1280, height: 720, deviceScaleFactor: 1, mobile: false});
   await page.wait(`document.readyState==='complete'`);
+  // Enemy machines are presented with the CC0 MakeHuman operators, so the
+  // grader must only inspect after those shared assets have decoded; otherwise
+  // machineModel falls back to the old procedural stand-in mid-run.
+  await page.wait(`(window.__raidArt && window.__raidArt.humans)===true`);
   const result = await page.evaluate(`(async () => {
     const {RaidView} = await import('./raid-view.mjs');
     const {machineModel, updateActor} = await import('./raid-models.mjs');
