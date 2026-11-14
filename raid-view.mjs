@@ -162,11 +162,12 @@ const ENEMY_RIB_TAIL=new THREE.Vector3(),ENEMY_RIB_HEAD=new THREE.Vector3(),ENEM
 // Authoritative recoil amplitude per weapon class; presenting the same kick to
 // the gun and camera keeps heavy weapons distinct without touching ballistics.
 const RECOIL_KICK={ar:.095,smg:.06,shotgun:.18,sniper:.16,pistol:.08,lmg:.13};
-// First-person view-model home pose. The rifle is deliberately small in frame:
-// scaled down and settled low enough that the buttstock drops off the bottom
-// edge and the optic sits around the lower third, leaving the street and the
-// machines readable at both 1024x720 and 844x390.
-const VIEW_HIP={x:.2,y:-.135,z:-.46},VIEW_SCALE=.65;
+// First-person view-model home pose. The held overlay omits the buttstock (it
+// would sit ~0.18 m from the eye and fill the lower-right edge as a flat slab),
+// so the scan stops at the receiver. The pose is settled low and slightly right
+// to keep the receiver in the bottom-right corner and the optic readable at both
+// 1024x720 and 844x390.
+const VIEW_HIP={x:.2,y:-.155,z:-.46},VIEW_SCALE=.65;
 // Authored first-person muzzle silhouettes per weapon family. Each profile is
 // painted once when the weapon is equipped; the draw path adds no objects.
 const FLASH_PROFILES={

@@ -10,15 +10,16 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 123, 2026-11-14)
+## Current art-directed priority (iteration 124, 2026-11-14)
 
 Director-notes order for the next passes, presentation-only:
 
-1. **VIEWMODEL FINISH** (item 2) — shorten or hide the stock tube crowding the right edge, re-pose the support wrist so its thumb/knuckle silhouette reads at 844×390, and lower the rifle toward the bottom-right (roughly 20% less receiver in frame). The charcoal-olive gloves, sleeve cuff and scanned rifle materials from iterations 119/122 stay; judge those live before re-posing.
-2. **GROUND DETAIL + COVER POLISH** (item 1) — implemented in iteration 123, awaits Austin's playtest: six CC0 scanned decal kinds (cracked asphalt, concrete pavement wear, damaged road, muddy tracks, moss, gravel rubble) are tint-instanced across the near-left apron, centre walk and left kerb; foreground tyres sit sunk/leaned with the nearest ring stacked; the dumpster and bag pile are tinted olive-steel/warm grey to separate them from the pale barriers. Still slightly band-like at 844×390; discrete pothole paint and litter are the next look.
-3. **BUILDING MATERIAL SPLIT + BASE GRIME** (item 3) — the brick/plaster wall split and rooftop scanned-gutter flues landed in iteration 122 (planks walls red brick, metal walls pale weathered plaster, silhouette stacks above both parapets); the dark base grime band, one storefront sign and a rebuilt fire escape remain open sub-notes.
-4. **FOLIAGE FOLLOW-UP** (item 4) — mix 2–3 scanned tree species/sizes so the skyline does not repeat one silhouette, fuller crowns, darker green grass tips (the right-side berm grass is still pale straw); the no-specks/darker-base half landed in iteration 120.
-5. **ENEMY PRESENCE + MARKER** (item 5, spare budget) — put the ~25 m spawn machine partly behind cover instead of fully in the open; shrink/tone down the red cone marker over the centre building.
+1. **BUILDING BASE GRIME + SIGNAGE + ROOFLINE** (item 3) — dark street-level stain band on both buildings, one storefront sign on the shop row, a rebuilt fire escape on the brick building, and a parapet height step so the two silhouettes differ. The brick/plaster split and rooftop flue stacks landed in iteration 122.
+2. **FOLIAGE FOLLOW-UP** (item 4) — mix 2–3 scanned tree species/sizes so the skyline does not repeat one silhouette, fuller crowns, darker green grass tips (the right-side berm grass is still pale straw); the no-specks/darker-base half landed in iteration 120.
+3. **GROUND DETAIL CONTINUATION** (item 1 follow-up) — iteration 123's scanned crack/mud decal plates still read as broad stained bands at 844×390; discrete potholes, litter and softer blend edges are the next look.
+4. **ENEMY PRESENCE + MARKER** (item 5, spare budget) — put the ~25 m spawn machine partly behind cover instead of fully in the open; shrink/tone down the red cone marker over the centre building.
+
+VIEWMODEL FINISH (item 2) landed in iteration 124 — the buttstock is omitted from the held overlay, the support wrist is re-posed with a visible knuckle/thumb silhouette, and the hip pose drops 2 cm so the scanned receiver sits in the bottom-right corner. Awaits Austin's live playtest.
 
 Scope unchanged: raid mode only; no gameplay, UI, server or other-mode change.
 

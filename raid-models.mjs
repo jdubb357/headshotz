@@ -512,7 +512,7 @@ function fpArmPose(body,info){
  // handguard so the forearm wraps over the barrel from the side rather than
  // resting on top of the rail.
  const tR=new THREE.Vector3((grip[0]||0)+.024,grip[1]-.016,grip[2]+.041);
- const tL=new THREE.Vector3((lh[0]||0)-.042,lh[1]-.086,lh[2]+.05);
+ const tL=new THREE.Vector3((lh[0]||0)-.052,lh[1]-.062,lh[2]+.072);
  body.updateMatrixWorld(true);
  // Turn a bone in world space so the direction to `from` changes to `to`.
  const turn=(bone,from,to)=>{
@@ -714,6 +714,11 @@ export function weaponModel(id,hands=false){
   // gloved hands on the grip and handguard enter the lower frame (no elbow tube).
   const root=new THREE.Group();
   for(const slot of scan){
+   // The buttstock sits only ~0.18 m from the eye in the hip pose and projects
+   // as a flat black slab along the lower-right edge. First-person viewmodels
+   // conventionally stop at the receiver; the third-person/lobby copies keep
+   // the full stock, so skip it only for the held overlay.
+   if(hands&&slot.grp==='stock')continue;
    // The scan ships metalness 1 / roughness 1 with a baked near-black albedo,
    // which on a bright street turns the whole rifle into a flat black cut-out.
    // Lift the sampled albedo to worn mid-grey, open metalness/roughness so the
@@ -728,7 +733,8 @@ export function weaponModel(id,hands=false){
    // receiver into a flat grey silhouette.
    mat.color.setRGB(gain*1.15,gain*1.12,gain*1.1);mat.metalness=.34;mat.roughness=.6;mat.envMapIntensity=1.1;mat.needsUpdate=true;
    mat.userData.raidOwned=true;
-   const mesh=new THREE.Mesh(slot.geo,mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
+   const mesh=new THREE.Mesh(slot.geo,mat);mesh.castShadow=false;mesh.frustumCulled=false;
+   mesh.userData.scanGrp=slot.grp||'body';root.add(mesh)}
   // Scan-space muzzle/sight overrides (authoring offsets differ from the boxes)
   // merge over the procedural rig so flash, ADS centring and ejection still land.
   root.userData.info={...info,...(PHOTO[scanId]?.info||{})};
