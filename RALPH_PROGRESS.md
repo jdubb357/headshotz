@@ -8907,3 +8907,24 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the near pavement now carries clear cracks with an oil-dark stain and the lane shows mud tracks; the stacked tyre reads at spawn and the olive dumpster separates from the barriers. But the plates are tint-led and at 844×390 several still read as broad stained bands with some rectangular blend edges, so discrete potholes and ground litter are still needed. Art acceptance waits on Austin's live playtest.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 VIEWMODEL FINISH — shorten/hide the stock tube, re-pose the support wrist for a readable thumb/knuckle silhouette, and drop the receiver toward the bottom-right; do not re-grade gloves or rifle until Austin's playtest.
+
+## Iteration 124 — VIEWMODEL FINISH: stock slab gone, support wrist readable, receiver in the bottom-right corner (DIRECTOR_NOTES item 2; 2026-11-14)
+
+**Acceptance criteria:** at 1024×720 and 844×390 no flat black buttstock slab runs along the lower-right edge; both gloved hands (including the support hand's thumb/knuckle silhouette) read; the receiver settles into the bottom-right ~20% of frame; gunlight, static-offline, machine-model and mobile-HUD graders stay green with no browser errors.
+
+### Implementation
+- `photoguns.mjs`: the M4-family scans (`ar`, `m4`, `m16`, `mk18`) expose the authored `Stock` node as its own `grp:'stock'` slot, so presentation address its separately from the merged body. World/enemy/lobby copies still render the full stock.
+- `raid-models.mjs`: the first-person overlay skips the stock slot — it sits ~0.18 m from the eye and projected as a flat black slab across the lower-right edge. The support wrist moves outboard/up (x −.052, y −.062, z +.072 gun-space) so its knuckles and thumb ride the visible side of the handguard instead of hiding behind the receiver.
+- `raid-view.mjs`: the hip pose drops 2 cm (`VIEW_HIP` y −.135 → −.155) so the receiver sits low in the right corner.
+
+### Verification
+- `node tests/raid-browser-gunlight.mjs` → green (3 held scan meshes, 4 skinned glove/sleeve meshes, both wrists and finger fronts in frame at both viewports, `browserErrors: []`).
+- `node tests/raid-browser-static-offline.mjs` → green (deploy/move/machine hit/loot/extract, `noApiTraffic: true`, no browser errors).
+- `node tests/raid-browser-machine-models.mjs` → green (all machine classes, shared worn maps).
+- `node tests/raid-browser-mobile-hud.mjs` → green (unobstructed 91.8% / 81.8%).
+- `node --test tests/*.test.mjs` → 1,248/1,249; only the known `matchmaking.test.mjs` ECONNRESET (rerun alone, same known flake). `raid-browser-viewmodel.mjs` still fails its pre-existing overlay key/rim count (3 !== 2, reproduced at HEAD, unrelated to this change).
+- Shots in `~/headshotz-loop/shots/latest/`: before-1024.png, before-1024-action.png, before-844.png, after-1024.png, after-1024-action.png, after-844.png.
+
+**Honest critique:** the buttstock slab is gone and the receiver/hands now sit in the bottom-right corner; the support glove's knuckles and thumb ride above the handguard instead of hiding behind the receiver. But at 1024 the rifle can read as a short floating silhouette with its rear receiver tube clipped near the right edge, and the bright berm grass crowds that corner and competes with the glove. Art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 3 BUILDING BASE GRIME — dark street-level stain band, one storefront sign, fire escape on the brick row, and a parapet step so the two rooflines differ.
