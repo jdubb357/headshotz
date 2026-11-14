@@ -20,6 +20,7 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Texture: gravel surface (v59) | Gravel Ground 01 | Rob Tuytel | https://polyhaven.com/a/gravel_ground_01 | CC0 |
 | Texture: cobble surface (v59) | Cobblestone Floor 04 | Rob Tuytel | https://polyhaven.com/a/cobblestone_floor_04 | CC0 |
 | HDRI sky (environment reflections) | Kloofendal 48d Partly Cloudy (Pure Sky) | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
+| Texture: raid photographed sky dome (iteration 108, derived) | Kloofendal 48d Partly Cloudy (Pure Sky), tone-mapped to 2048×1024 sRGB equirect | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
 | Model: barrels | Barrel 03 | Serhii Khromov | https://polyhaven.com/a/barrel_03 | CC0 |
 | Model: Royale loot chest (v46) | Treasure Chest | Rico Cilliers | https://polyhaven.com/a/treasure_chest | CC0 |
 | Model: crates | Wooden Crate 02 | James Ray Cock, Jurita Burger | https://polyhaven.com/a/wooden_crate_02 | CC0 |
@@ -141,3 +142,7 @@ Near-spawn vegetation is rebuilt from six optimized CC0 Poly Haven scans in `ass
 | `rock_07.glb` | Rock 07 | Jenelle van Heerden | https://polyhaven.com/a/rock_07 | 652 (from 5,936) | 225,224 B |
 
 All six are CC0 1.0, total 1,999,600 bytes (under the 3 MB cap). Leaves use the scanned diffuse + alpha packed as a WebP and an alpha-tested cutout (`alphaTest .42`) so instances stay opaque to the depth buffer; the remaining materials keep photographed albedo, normal and roughness maps. The shared deterministic wind shader and its reduced-motion zero-clock behavior are applied by `raid-view.mjs`.
+
+## Raid sky — photographed Poly Haven daylight dome (CC0), iteration 108
+
+`assets/tex/kloofendal_sky.jpg` (2048 × 1024, 190,480 B) is the photographed **Kloofendal 48d Partly Cloudy (Pure Sky)** HDRI by **Greg Zaal and Jarod Guest**, https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky, **CC0 1.0** (public domain, credited anyway). The static Pages build has no RGBE decoder, so the 48-d angular-resolution HDRI is decoded offline, exposure-normalised (EV 0.729, ACES Narkowicz tone curve) and written once as a sharp sRGB equirect JPEG at the same aspect; the embedded below-horizon haze is blurred into a neutral ground half so the dome has no mirrored buildings. `raid-view.mjs` renders it as an eye-centred back-side dome on clear/mist daylight and builds a PMREM environment from the same texture for scanned metal and glass; dusk, night, rain and ash restore the procedural sky sheet. Presentation only; conditions, light levels and server state are unchanged.
