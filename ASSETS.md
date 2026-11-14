@@ -121,3 +121,34 @@ Iteration 93: the painted-steel `drum` map, brushed-steel rim/lid map and the cr
 ## Raid facades — Poly Haven "Modular Urban Apartments Facade" window module (CC0), iteration 105
 
 `assets/models/windows/window_urban.glb` (186 KB, ~1.4k tris, two materials with 512 px WebP maps) is a single façade window extracted from **"Modular Urban Apartments Facade" by James Ray Cock**, published on Poly Haven at https://polyhaven.com/a/modular_urban_apartments_facade under **CC0 1.0** (public domain, no attribution required; credited anyway). The source GLB `window_centered_large_01` is a photogrammetry-scanned timber sash window with recessed glass; unrelated alley modules were removed, node transforms and bounds normalised, textures resized and converted to WebP with glTF-Transform. Raid mode instances the frame and glass into existing near-spawn window openings; the procedural dark pane remains behind the glass as the interior and the procedural trim/shutter/sill boxes are hidden at upgraded sites. Presentation only — the server's world, collision and window data are unchanged.
+
+## Raid building façades — Poly Haven "Modular Urban Apartments Facade" kit (CC0), iteration 106
+
+`assets/models/buildings/facade_kit.glb` (636 KB, seven instanced modules, 512 px WebP maps) is derived from **"Modular Urban Apartments Facade" by James Ray Cock**, published on Poly Haven at https://polyhaven.com/a/modular_urban_apartments_facade under **CC0 1.0** (public domain, no attribution required; credited anyway). Modules kept: `wall_standard_standard_01` (dressed plaster wall bay), `door_centered_large_01` (timber door with recessed glass), `base_standard_01` (projecting foundation plinth), `cornice_standard_standard_01` (roofline cornice), `wall_pier_standard_01` (sculpted façade pier), `dado_standard_standard_01` and `crown_standard_standard_01` (wall-band and roof-tile trim). Unrelated alley modules were removed, node transforms and bounds normalised so each module is centred on x/z with its base at y = 0 and front facing +z, textures resized to 512 px WebP/JPEG, and scanned geometry simplified with meshoptimizer (per-module triangle counts: wall 459, door 1,070, base 8, cornice 18, pier 375, crown 578, dado 8). Raid mode instances these modules map-wide as the visible street façade; the old flat extruded box skins and procedural plank doors are no longer drawn. Presentation only — the server's world, collision, door and prop data are unchanged.
+
+## Raid ground and nature — Poly Haven scans (CC0), iteration 107
+
+The pavement, sidewalk, gravel bank and terrain no longer rely on flat author-picked colours in the raid. Five photographed PBR sets live under `assets/tex/ground/` as 512 × 512 JPEGs: a diffuse albedo, a tangent-space normal map and a packed roughness map (`*_d.jpg`, `*_n.jpg`, `*_r.jpg`). The street slabs use asphalt/concrete; the raised bank uses the gravel set plus the dirt terrain tile; each map is exposed with `RepeatWrapping` and the terrain gets its own high-repeat clones so grains stay small at first-person range. All are CC0 1.0 (public domain, credited anyway):
+
+| Sets | Asset | Author(s) | Source | License |
+|---|---|---|---|---|
+| `asphalt_d/n/r.jpg` | Asphalt 02 | Rob Tuytel | https://polyhaven.com/a/asphalt_02 | CC0 1.0 |
+| `concrete_d/n/r.jpg` | Concrete Floor 02 | Rob Tuytel | https://polyhaven.com/a/concrete_floor_02 | CC0 1.0 |
+| `gravel_d/n/r.jpg` | Gravel Ground 01 | Rob Tuytel | https://polyhaven.com/a/gravel_ground_01 | CC0 1.0 |
+| `dirt_d/n/r.jpg` | Brown Mud Dry | Rob Tuytel | https://polyhaven.com/a/brown_mud_dry | CC0 1.0 |
+| `gravelfloor_d/n/r.jpg` | Gravel Floor | Jenelle van Heerden (processing), Matterfield (photography) | https://polyhaven.com/a/gravel_floor | CC0 1.0 |
+
+The 15 ground files total 1,533,679 bytes. Only the map channels change at load; surface instancing, slab footprints, terrain collision and all authored data are untouched.
+
+Near-spawn vegetation is rebuilt from six optimized CC0 Poly Haven scans in `assets/models/nature/`, one GLB per kind. Each was transformed to a metre-scale height, centred on x/z with its base at y = 0, simplified with meshoptimizer and glTF-Transform, and its textures resized to 512 × 512 (WebP where the scan has alpha; JPEG normal/roughness otherwise). Presentation only; placement is deterministic and seeded from frozen world props, and no collision is derived from it.
+
+| File | Asset | Author(s) | Source | Final triangles | Size |
+|---|---|---|---|---|---|
+| `tree_small_02.glb` | Tree Small 02 | Rico Cilliers | https://polyhaven.com/a/tree_small_02 | 1,681 (from 8,726) | 847,728 B |
+| `shrub_02.glb` | Shrub 02 | Rico Cilliers | https://polyhaven.com/a/shrub_02 | 1,059 (from 8,160) | 204,468 B |
+| `fern_02.glb` | Fern 02 | Rob Tuytel (scanning), Rico Cilliers (modelling) | https://polyhaven.com/a/fern_02 | 2,768 (from 2,801) | 221,368 B |
+| `grass_medium_02.glb` | Grass Medium 02 | Rico Cilliers | https://polyhaven.com/a/grass_medium_02 | 119 (from 397) | 102,856 B |
+| `tree_stump_01.glb` | Tree Stump 01 | Rob Tuytel | https://polyhaven.com/a/tree_stump_01 | 1,327 (from 7,381) | 397,956 B |
+| `rock_07.glb` | Rock 07 | Jenelle van Heerden | https://polyhaven.com/a/rock_07 | 652 (from 5,936) | 225,224 B |
+
+All six are CC0 1.0, total 1,999,600 bytes (under the 3 MB cap). Leaves use the scanned diffuse + alpha packed as a WebP and an alpha-tested cutout (`alphaTest .42`) so instances stay opaque to the depth buffer; the remaining materials keep photographed albedo, normal and roughness maps. The shared deterministic wind shader and its reduced-motion zero-clock behavior are applied by `raid-view.mjs`.

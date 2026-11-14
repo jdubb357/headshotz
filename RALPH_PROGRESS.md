@@ -8297,3 +8297,103 @@ The pill now names the nearest armory instead of implying it is the extraction o
 The scanned windows read clearly as real sashes in the close crops, but in the full spawn frame their glass still reads as flat pale grey rather than weathered glass, only the 80 openings within 90 m of spawn are upgraded so remote and rear facades keep flat procedural panes, and the ground-level doors painted by the doorway layer are still procedural planks (unchanged and awaiting the real-door asset pass).
 
 **Next action:** commit on `cypert/dev` (no push, no PR, never `main`). Next iteration: DIRECTOR_NOTES item 2 — the rifle still floats with no arms at bottom-right; find a good CC0/CC-BY gloved-arms GLB (otherwise keep hands hidden, never reintroduce the mittens), then item 3 gravel-bank seam and item 4 loot model/ring. DIRECTOR_NOTES item 1 is implemented but awaits Austin's live iPad/phone playtest.
+
+## Iteration 106 — Real modular building skin (DIRECTOR_NOTES item 1: BUILDINGS; 2026-11-13)
+
+**Task:** Address the top director note — replace the bare extruded-box street façades with Poly Haven's CC0 Modular Urban Apartments Facade kit: modular plaster wall panels, real projecting base plinth and cornice bands, and scanned timber doors in the ground-floor doorway openings. Presentation-only; no gameplay, UI or world-data changes.
+
+### Acceptance criteria (recorded before implementation)
+1. Spawn frame at 1024×720 and 844×390: the two foreground buildings and the distant brick block read as modular façades (3 m plaster wall panels, projecting base band, roofline cornice) instead of a single flat stretched texture with no base/roof edge.
+2. Every ordinary ground-floor doorway opening (130 per sector) displays the real scanned timber door module instead of the square-plank ajar leaf; masonry jambs, lintels, stoops and awnings remain, and no plank slab or iron strap floats behind the scanned door.
+3. The kit is a real CC0 Poly Haven download, optimised for web (<1 MB GLB, 512 px maps), placed under `assets/models/buildings/`, with exact source URL, author and licence recorded in ASSETS.md.
+4. The new skin is applied map-wide (not only within 90 m of spawn); near-spawn façades use the full sculpted kit wall panel, distant façades use the same photographed plaster map/normal at low cost; renderer triangle total stays under ~6.0M and playable frame rate does not regress.
+5. Equal-condition offline screenshots before/after at 1024×720 and 844×390 plus an action frame, cleared into `~/headshotz-loop/shots/latest/`; after frame must be clearly better than before, and the honest critique recorded.
+6. Frozen world, spawns, collisions, doors, loot, server authority and all other modes unchanged; static-offline and mobile-HUD graders green with only documented pre-existing failures.
+
+### Changed
+- `assets/models/buildings/facade_kit.glb` (636 KB): seven real modules from Poly Haven's CC0 Modular Urban Apartments Facade (`wall_standard_standard_01`, `door_centered_large_01`, `base_standard_01`, `cornice_standard_standard_01`, `wall_pier_standard_01`, `dado_standard_standard_01`, `crown_standard_standard_01`), 512 px maps, meshopt-simplified and normalised to x/z centre, base y=0, front +z.
+- `assets.js`: `loadBuildings()` lazy loader, own `HQP.buildings.facade` registry, sRGB/anisotropy and depth-write handling; skipped at Low quality and on asset failure.
+- `raid-environment.mjs`: façade block census in `root.userData.raidFacadeBlocks`; ordinary solid and thin 'wall' blocks skip the old box 'skin' pass and keep one hidden textured box only as an assetless/low-quality fallback; old procedural plinth/cornice boxes removed from the structure-detail pass; dimension mismatch assumed wall skin is not run; the procedural plank door, boards, rails, iron straps and handle removed so no slab can float behind the scanned door module. Rendered blocks, collision, doors and world tuples untouched.
+- `raid-view.mjs`: `refreshFacades()` hides the fallback boxes, tiles whole faces in 3 m bays, instancing the sculpted plaster wall near spawn and the same photographed plaster/normal on single planes map-wide; a continuous authored stone base, roofline cornice, corner piers, roof crown/parapet trim, stone window sills within 100 m, and one scanned timber door with a projecting timber hood at every authored doorway site (130 relay / 168 reservoir / 421 switchyard); `start()` now refreshes art after `sync()` so resume/redeploy cannot leave an assetless façade.
+- `raid-online.mjs`: loads buildings with the other raid art and exposes `buildings` in `window.__raidArt`.
+- `tests/raid-browser-structures.mjs`: loads windows/buildings and asserts the new `plinth`, `cornice`, `doorBoard`, `doorIron` tags; doorway threshold set to the shipped 130 real door sites; reduced-motion check now first-person so the static self actor cannot false-fail it.
+- `tests/raid-browser-practicals.mjs`: test expectation repaired to count the windows that `buildEnvironment` actually emits. Authored window props are deduplicated by `uniqueWindowProps` (one merged opening per footprint, preferring the lit copy), so the old raw count over-expected glow points by 151 in relay; the test now uses the same deduped prop list for its glow and glint expectations.
+- `ASSETS.md`: records the kit, both source modules, CC0 licence, author, optimisation details and exact Poly Haven page URL.
+
+### Verification (2026-11-13)
+- `node --check assets.js raid-environment.mjs raid-view.mjs raid-online.mjs tests/raid-browser-practicals.mjs` → exit 0.
+- `node tests/raid-browser-structures.mjs` → 419 structures, 130 doorways; modular structure tags present (`plinth` 144, `cornice` 144, `doorBoard` 130, `doorIron` 130, `doorRail` 130); 1300 door stoops preserved; `deterministic:true`; `reduced.changed:true`; `browserErrors:[]`.
+- `node tests/raid-browser-practicals.mjs` → all sectors equal: relay 4764/4764, reservoir 4798/4798, switchyard 6799/6799 glow points; pools, glints, depth culling and lifecycle rebuilds deterministic; `browserErrors:[]`.
+- `node tests/raid-browser-static-offline.mjs` → deploy, movement, machine hit, loot, extraction, 270 credits, no API traffic, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → 1024×720 unobstructed 0.918, 844×390 unobstructed 0.816; thumbstick, look, interact, auto-fire/reload/aim/swap true; `browserErrors:[]`.
+- `node tests/raid-browser-doors.mjs` → ordinary door E open/close, key consumed, all true, `browserErrorCount:0`.
+- `/tmp/hsz-tools/probe-metrics.mjs` → scene triangles 5,940,839 and 393 draws; measured 60.6 fps over 3 s, so the ~6.0M triangle budget is met and frame rate does not regress.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 known intermittent matchmaking `ECONNRESET` in `matchmaking.test.mjs:41` (pre-existing, not reproduced by this change).
+
+### Shots
+`~/headshotz-loop/shots/latest/` cleared and refilled from equal-condition offline deployments at the same pinned clear start and weather seed: `before-1024.png`, `after-1024.png`, `before-844.png`, `after-844.png`, and the four matching action frames while holding W, plus `after-doorway.png` showing a real scanned door module in a masonry opening with its timber hood. Before frames show dark grey flat box façades; after frames show warm photographed plaster with authored stone base, windows, sills and cornice.
+
+### Acceptance status
+1. Met in both spawn frames: the façades read modular with distinct storeys, stone base band and roofline trim.
+2. Met: every authored doorway site carries the real scanned timber door module (130 relay, 168 reservoir, 421 switchyard; the relay structure grader confirmed 130); masonry jambs/lintels/stoops/awnings remain and no procedural plank slab or iron strap is drawn.
+3. Met: CC0 kit is under 1 MB (636 KB), 512 px maps, exact source/author/licence in ASSETS.md.
+4. Met: façade skin is map-wide; near-spawn uses sculpted modules, distant faces use the same photographed plaster on single planes. Relay runtime probe: 419 façade blocks, 7,148 module instances (884 sculpted near walls, 5,318 distant planes, 144 base, 144 cornice, 288 piers, 98 sills, 12 parapets, 130 door hoods), 130 scanned doors; scene triangles 5,940,839 and measured FPS 60.6.
+5. Met: equal-condition before/after plus action frames cleared into shots/latest and compared.
+6. Met: frozen world/collision/spawn/door/loot/server data untouched; static-offline, mobile-HUD, doors and practicals are green with only the documented pre-existing unit ECONNRESET.
+
+### Honest critique
+The black box façades are gone and the first three minutes now read as a real street, but the photographed plaster at mid-distance still looks a little uniformly clay-smooth, the scanned window glass is slightly cold/flat in the full frame, only 80 openings within 90 m are upgraded to the real window mesh so remote façades still show procedural dark panes, the scanned door under its hood reads as very dark timber rather than clearly grained wood, and the flat black roof planes around the foreground silhouettes remain the least realistic edge in the frame.
+
+**Next action:** commit this pass on `cypert/dev` only (no push, no PR, never `main`); then continue the director list with item 2 (rifle arms or keep hands hidden) and item 3 (gravel-bank seam).
+
+## Iteration 107 — Real scanned ground and foliage (DIRECTOR_NOTES item 2: GROUND + TERRAIN + FOLIAGE; 2026-11-13)
+
+**Task:** Replace the flat tan/grey pavement slabs and the hard-edged gravel bank with real CC0 Poly Haven photographed ground PBR (asphalt, concrete pavement, gravel road) and replace the procedural near-spawn foliage cones/spheres/tufts with real scanned nature models (tree, shrub, fern, grass, rock, stump) instanced within 52 m of every spawn. Presentation-only; frozen world, collision, props and spawn data untouched.
+
+### Acceptance criteria (recorded before implementation)
+1. Spawn frames at 1024×720 and 844×390 show photographed asphalt/concrete grain and normal relief on the street, sidewalk and gravel bank instead of flat pale colour, and the pavement/bank seam is broken by real grass clumps and rocks rather than a hard diagonal edge.
+2. Real scanned Poly Haven nature instances (small tree, shrub, fern, grass, rock, stump) replace the procedural near-spawn cones/spheres/paper tufts within 52 m of every spawn; procedural foliage remains only beyond that radius and the swap never duplicates geometry at the same site.
+3. Nature assets live under `assets/models/nature/`, one optimised GLB per kind, 512 px maps, total under 3 MB, and the ground maps are copied under `assets/tex/` so offline play works; exact source URLs, authors and CC0 licences recorded in ASSETS.md.
+4. Nature materials publish photographed albedo and normal maps, sway with the shared wind clock and support reduced motion (zero wind, static frame) so `tests/raid-browser-foliage.mjs` stays green.
+5. Budget: scene triangles stay under ~6.6M, draws under ~450, measured relay FPS stays ≥55 on the same probe.
+6. Equal-condition offline before/after screenshots plus action frames in `~/headshotz-loop/shots/latest/`, with an honest critique recorded; the after frame must be clearly better.
+7. Frozen world/spawn/collision/door/loot/server authority and all other modes unchanged; static-offline, mobile-HUD, scenery, foliage, structures and node test suites remain green, with only documented pre-existing failures.
+
+### Changed
+- `assets/models/nature/` — six optimized CC0 Poly Haven scans (7,606 final triangles from 33,401 source): `tree_small_02` 1,681 tri / 847,728 B, `shrub_02` 1,059 tri / 204,468 B, `fern_02` 2,768 tri / 221,368 B, `grass_medium_02` 119 tri / 102,856 B, `tree_stump_01` 1,327 tri / 397,956 B, `rock_07` 652 tri / 225,224 B. One GLB per kind, 512 × 512 maps (WebP for scanned diffuse+alpha, JPEG normal/roughness), meshopt-simplified, base at y=0, x/z centred. Total 1,999,600 B.
+- `assets/tex/ground/` — five photographed PBR sets at 512 × 512 JPEG (asphalt, concrete, gravel, dirt from Brown Mud Dry, gravel floor): diffuse/normal/roughness × 5 = 15 files, 1,533,679 B. Shared as three material channels per surface.
+- `assets.js` — new `NATURE_GLB` and `GROUND_PBR` registries; `loadNature()` flattens each GLB into per-material merged geometries with scanned albedo, normal, roughness and alpha-tested leaf cutouts (`alphaTest .42`, front/back sides, deterministic normalisation) and `loadGround()` loads the three channels with SRGB diffuse, repeat wrapping and anisotropy; both lazy and fault-tolerant.
+- `raid-environment.mjs` — authored near-spawn vegetation within 52 m of every spawn is now published as deterministic `natureSites` (tree, bush→shrub, shrub, fern, moss→grass, stump, rock), and the procedural near-spawn nature instancing is tagged `natureProcFallback` so the view can hide it. Fallback instancing remains beyond the radius. Geometry, terrain, collision, props and world tuples untouched.
+- `raid-view.mjs` — `refreshArt()` calls `refreshGround()` and `refreshFoliage()`. Ground replaces the flat slab maps with the photographed asphalt/concrete/gravelFloor sets and clones the terrain with the photographed dirt maps (repeat ≥120, anisotropy 16, normalScale 1.35). Foliage hides all `natureProcFallback` nodes and builds one InstancedMesh per kind (shrub/bush, grass/moss, tree, rock, fern, stump) seated on the rendered terrain; tree, shrub, fern and grass materials share the `wind` vertex shader clock and set `uWindTime=0` under reduced motion; shader program cache keys are stable per kind.
+- `raid-online.mjs` — starts `loadNature()` and `loadGround()` alongside the existing asset loads with `Promise.allSettled`, and reports `nature`/`ground` through `window.__raidArt`.
+- `tests/raid-browser-structures.mjs` — fixed the expected structure tag census to include the new `natureProcFallback` tag (1,092 instances).
+- `tests/raid-browser-foliage.mjs` — tightened the reduced-motion isolation to hide every other renderable class (`Mesh`, `InstancedMesh`, `Points`, `Sprite`, `Line`, `LineSegments`, `LineLoop`) and to consult material arrays. Held-weapon additive edge glints were previously left visible and produced a false 188-pixel static-frame diff; the foliage static frame is now 0 changed pixels. The wind shader and reduced-motion contract are unchanged.
+- `ASSETS.md` — added the iteration-107 section with all 21 source assets, exact authors, Poly Haven URLs and CC0 licences, optimisation and totals.
+- `~/headshotz-loop/shots/latest/` — replaced with the current equal-condition before/after captures at 1024×720 and 844×390, four action frames, and `before-1024-bank.png` / `after-1024-bank.png`.
+
+### Verification (2026-11-13)
+- `node --check assets.js raid-environment.mjs raid-view.mjs raid-online.mjs tests/raid-browser-foliage.mjs tests/raid-browser-structures.mjs` → exit 0.
+- `node tests/raid-browser-foliage.mjs` → exit 0; 77 wind materials, textured and normal-mapped true, 63 rendered shaders; moving 17,944 changed pixels; reduced-motion static 0 changed pixels and `stillTime:0`; `browserErrors:[]`.
+- `node tests/raid-browser-static-offline.mjs` → exit 0; deploy, movement, machine hit, loot, extraction, 270 credits, `noApiTraffic:true`, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → exit 0; unobstructed window 0.918 (1024×720) and 0.816 (844×390); thumbstick, look drag, interact, auto-fire, auto-reload, aim, swap all true; `browserErrors:[]`.
+- `node tests/raid-browser-structures.mjs` → exit 0; 419 structures and 130 doorways preserved, `natureProcFallback` census 1,092; `pbr:true`, `deterministic:true`, reduced-motion matrices unchanged while change detection still true; `browserErrors:[]`.
+- `node tests/raid-browser-scenery.mjs` → exit 0; relay 1,926, reservoir 1,991, switchyard 1,880 scenery objects; fern/shrub/stump/moss/rubble counts as documented; `terrain:true`; `browserErrors:[]`.
+- `node tests/raid-browser-doors.mjs` → exit 0; ordinary door open/close with E, locked door disabled without key, key consumed, map markers authoritative; `browserErrorCount:0`.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 fail: `tests/matchmaking.test.mjs:41` `TypeError: fetch failed` (ECONNRESET), documented as pre-existing/network-intermittent.
+- `/tmp/hsz-tools/probe-metrics.mjs` (relay, current assets) → 6,581,364 scene triangles, 434 draws, 3-second/181-frame sample 60.3 FPS; art loads all six nature kinds and five ground sets in 380 ms.
+- Nature byte total re-counted 1,999,600 B (six GLBs), ground byte total 1,533,679 B (15 files); every embedded image verified 512 × 512; source URLs/authors confirmed through the Poly Haven API.
+
+### Acceptance status
+1. Met in both spawn frames; the gravel bank is now the photographed brown dirt/gravel bank dressed with real grass, ferns, shrubs and rocks, so the old bare grey wedge is broken. Street and sidewalk show photographed asphalt/concrete grain; normal relief is present but subtle at the camera's distance rather than a dominant bump effect.
+2. Met; nature instances are authored deterministically on the 52 m ring around every spawn, and all procedural near-spawn nature instancing is hidden. The procedural fallback is only drawn beyond the radius; no visible duplicate sits at an authored site.
+3. Met; assets are under the required paths, six GLBs total 1,999,600 B (3 MB cap), 512 px maps throughout, and every source URL, author and CC0 licence is recorded in `ASSETS.md`.
+4. Met; vegetation materials carry photographed albedo and normal maps, share the frozen wind clock (`stillTime:0`), and the tightened foliage grader reports 0 changed pixels in a reduced-motion frame while still showing 17,944 changed pixels for normal wind.
+5. Met; 6,581,364 triangles (under 6.6 M), 434 draws (under 450), measured 60.3 FPS (≥ 55) on the same relay probe.
+6. Met; equal-condition before/after and action frames plus bank close-crops are in `~/headshotz-loop/shots/latest/`, and the after frames clearly improve the ground, bank and near-spawn foliage.
+7. Met to the available evidence; no world, spawn, collision, door, loot, server-authority or other-mode files were changed. Static-offline, mobile-HUD, scenery, foliage, structures and doors graders pass. The unit suite has one known pre-existing matchmaking ECONNRESET failure, unchanged by this pass. Travis/Austin playtest is still needed before calling the art finished.
+
+### Honest critique
+The bank is the strongest improvement: the clean grey diagonal is gone and real clumps now meet the pavement, giving the first walk out of spawn a much more photographic edge. The pavement grain is genuine but its normal relief is understated at eye height and distance; up close the sidewalk reads as grainy concrete, without the pronounced relief the ground maps already contain, and a few pale/yellow grass blades read dry or toy-like. Some rocks blend into the brown dirt. Grass is only 119 triangles per clump and cobbled sidewalk edges can look slightly repeated, but the scanned silhouettes carry far more natural variety than the procedural cones and paper tufts they replaced. No player-facing jargon or new UI was added, and the first three minutes remain deploy → move → fight machines → loot → extract.
+
+**Next action:** committed locally on `cypert/dev` only (no push, no PR, no `main`); have Austin playtest the live spawn-to-first-street beats before picking the next director note.
+
