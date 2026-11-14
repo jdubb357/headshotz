@@ -940,9 +940,10 @@ export class RaidView {
    // same horizon and sun the camera sees, and the render target is released by
    // clear()/start() so repeated deployments do not accumulate GPU memory.
    if(!this.envMapRT){this.envMapRT=this.createEnvironmentMap(this.environmentTarget);this.scene.environment=this.envMapRT.texture}}
-  // The first-person pass shares the deployment reflection probe so metal
-  // surfaces pick up the same sky and sun as the world, instead of a flat fill.
-  if(this.envMapRT&&this.overlay&&this.overlay.environment!==this.envMapRT.texture)this.overlay.environment=this.envMapRT.texture;
+  // The held pass stays out of the sky reflection probe: at noon the full
+  // daylight PMREM washes the scanned receiver to light blue-grey plastic.
+  // The three-point overlay lights below carry the dark gunmetal wear instead.
+  if(this.overlay&&this.overlay.environment!==null)this.overlay.environment=null;
   const weather=conditions.weather||'clear';
   if(weather==='clear'){if(this.weather)this.weather.visible=false}
   else{if(!this.weather||this.weatherKind!==weather)this.buildWeather(weather);this.weather.visible=!this.settings?.reduced;this.weather.material.color.setHex(weather==='ash'?0xd6a17b:weather==='mist'?0xc3d0c8:0xaecade)}
@@ -1240,7 +1241,6 @@ export class RaidView {
   }
   const environment=photoActive&&this.photoEnvRT?this.photoEnvRT.texture:this.envMapRT?.texture||null;
   if(this.scene.environment!==environment)this.scene.environment=environment;
-  if(this.overlay&&this.overlay.environment!==environment)this.overlay.environment=environment;
   const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(photoActive?PHOTO_DIR:lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun).normalize().multiplyScalar(150*this.viewScale).add(this.camera.position);this.moonOrb.position.copy(target.sun).normalize().multiplyScalar(-150*this.viewScale).add(this.camera.position);this.sunOrb.visible=target.sun.y>0&&!photoActive;this.moonOrb.visible=target.sun.y<0&&!photoActive;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01&&!photoActive;
   if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;SKY_TOP.copy(target.sky).offsetHSL(0,.08,-.17);u.top.value.lerp(SKY_TOP,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
    // Cloud deck follows the weather: thin haze by day, heavy low ceiling under

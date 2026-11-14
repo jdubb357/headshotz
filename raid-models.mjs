@@ -436,20 +436,56 @@ function fpArmAxes(tier){
  fpArmAxisCache.tier=tier;fpArmAxisCache.axes=axes;
  return axes;
 }
+// Real Poly Haven CC0 scans replace the tinted MakeHuman skin/cloth surfaces:
+// fabric_leather_01 (stitched black leather) for the gloves and
+// denim_fabric_06 (worn twill, creased folds) for the sleeves. The 512 px maps
+// (downsampled offline from the CC0 1k originals) are decoded once and copied into every arm material clone; mats created before
+// decoding finish are refreshed in place, and texture ownership stays with the
+// module so weapon disposal never frees a shared scan.
+const FP_SCAN_TEX={glove:null,sleeve:null};
+const fpArmMaterialLive=new Set();
+let fpArmTexturesStarted=false;
+function fpArmScanTextures(){
+ if(fpArmTexturesStarted)return;
+ fpArmTexturesStarted=true;
+ const base=new URL('assets/tex/raiders/',import.meta.url).href;
+ const load=(file,color,repeat)=>new Promise(resolve=>new THREE.TextureLoader().load(base+file,texture=>{
+  texture.colorSpace=color?THREE.SRGBColorSpace:THREE.NoColorSpace;
+  texture.flipY=false;texture.anisotropy=4;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+  texture.repeat.set(repeat,repeat);
+  resolve(texture);
+ },undefined,()=>resolve(null)));
+ Promise.all([load('leather_diff_512.jpg',true,3),load('leather_nor_512.jpg',false,3),load('leather_arm_512.jpg',false,3),
+  load('cloth_diff_512.jpg',true,4),load('cloth_nor_512.jpg',false,4),load('cloth_arm_512.jpg',false,4)]).then(([ld,ln,la,cd,cn,ca])=>{
+  FP_SCAN_TEX.glove={map:ld,normalMap:ln,roughnessMap:la};
+  FP_SCAN_TEX.sleeve={map:cd,normalMap:cn,roughnessMap:ca};
+  for(const material of fpArmMaterialLive){
+   const scan=material.name==='glove'?FP_SCAN_TEX.glove:FP_SCAN_TEX.sleeve;
+   if(!scan)continue;
+   material.map=scan.map||material.map;material.normalMap=scan.normalMap||null;
+   material.roughnessMap=scan.roughnessMap||null;material.needsUpdate=true;
+  }
+ });
+}
+fpArmScanTextures();
 function fpArmMaterial(part){
  if(part==='skin'){
-  // Real photographed MakeHuman skin tinted down to dark leather glove. The
-  // dark tint keeps the surface's pores and creases instead of flattening it
-  // into a brown plastic mitt.
-  const m=new THREE.MeshStandardMaterial({name:'glove',map:HUM.tex.skin0||null,roughness:.52,metalness:.06,envMapIntensity:.9,side:THREE.DoubleSide});
-  m.color.setRGB(.12,.14,.16);
+  // Dark coyote-black glove leather: a real scanned leather with visible
+  // stitching, pores and creases. Tint only shifts the tan hide toward a
+  // tactical black-brown; the surface detail is photographic, not painted.
+  const m=new THREE.MeshStandardMaterial({name:'glove',roughness:.8,metalness:.06,envMapIntensity:.6,side:THREE.DoubleSide});
+  m.color.setRGB(.05,.05,.058);m.normalScale.setScalar(1.3);
+  const scan=FP_SCAN_TEX.glove;
+  if(scan){m.map=scan.map;m.normalMap=scan.normalMap;m.roughnessMap=scan.roughnessMap}
+  fpArmMaterialLive.add(m);
   m.userData.raidOwned=true;return m;
  }
- // Real casual-suit cloth for an olive-grey sleeve. The shipped cloth map is a
- // dark blue-grey; a warm gain restores the olive drab and lifts it out of the
- // near-black the raw map produces under the overlay key light.
- const m=new THREE.MeshStandardMaterial({name:'sleeve',map:HUM.tex.cloth||null,normalMap:HUM.tex.clothn||null,roughness:.9,metalness:.02,envMapIntensity:.55,side:THREE.DoubleSide});
- m.color.setRGB(2.4,2.05,.62);
+ // Worn olive-drab sleeve cloth: scanned twill with creases and fold shading.
+ const m=new THREE.MeshStandardMaterial({name:'sleeve',roughness:.95,metalness:.01,envMapIntensity:.42,side:THREE.DoubleSide});
+ m.color.setRGB(.23,.28,.17);m.normalScale.setScalar(1.05);
+ const scan=FP_SCAN_TEX.sleeve;
+ if(scan){m.map=scan.map;m.normalMap=scan.normalMap;m.roughnessMap=scan.roughnessMap}
+ fpArmMaterialLive.add(m);
  m.userData.raidOwned=true;return m;
 }
 function fpArmPose(body,info){
@@ -464,8 +500,8 @@ function fpArmPose(body,info){
  // at phone-landscape height; the left wrist is offset to the outside of the
  // handguard so the forearm wraps over the barrel from the side rather than
  // resting on top of the rail.
- const tR=new THREE.Vector3((grip[0]||0)+.035,grip[1]-.035,grip[2]+.02);
- const tL=new THREE.Vector3((lh[0]||0)-.05,lh[1]-.015,lh[2]+.035);
+ const tR=new THREE.Vector3((grip[0]||0)+.028,grip[1]-.028,grip[2]+.045);
+ const tL=new THREE.Vector3((lh[0]||0)-.055,lh[1]-.056,lh[2]+.028);
  body.updateMatrixWorld(true);
  // Turn a bone in world space so the direction to `from` changes to `to`.
  const turn=(bone,from,to)=>{
@@ -514,6 +550,22 @@ function fpArmPose(body,info){
   hd.parent.getWorldQuaternion(_faQ3).invert();
   hd.quaternion.copy(_faQ2.premultiply(_faQ).premultiply(_faQ3));
   hd.updateMatrixWorld(true);
+  // Flip the palm to face the object being gripped first, then align the
+  // knuckle line (the anatomical flex axis) along the grip's long axis. Doing
+  // the flip before the alignment keeps the target axis meaningful; the old
+  // order negated it and left the fingers splayed off the gun.
+  if(flip){
+   const W=hd.getWorldPosition(new THREE.Vector3());
+   const M=m.getWorldPosition(new THREE.Vector3());
+   _faH.copy(M).sub(W);
+   if(_faH.lengthSq()>1e-8){
+    _faH.normalize();
+    hd.getWorldQuaternion(_faQ2).premultiply(_faQ.setFromAxisAngle(_faH,Math.PI));
+    hd.parent.getWorldQuaternion(_faQ3).invert();
+    hd.quaternion.copy(_faQ2.premultiply(_faQ3));
+    hd.updateMatrixWorld(true);
+   }
+  }
   if(knuckle&&axes[hd.name]){
    const W=hd.getWorldPosition(new THREE.Vector3());
    const M=m.getWorldPosition(new THREE.Vector3());
@@ -531,28 +583,24 @@ function fpArmPose(body,info){
     hd.updateMatrixWorld(true);
    }
   }
-  // A half-turn about the finger direction keeps the knuckle line on the grip
-  // but turns the palm away from the camera, so the visible back of the glove
-  // reads as a hand wrapping the object instead of an open palm cupping it.
-  if(flip){
-   const W=hd.getWorldPosition(new THREE.Vector3());
-   const M=m.getWorldPosition(new THREE.Vector3());
-   _faH.copy(M).sub(W);
-   if(_faH.lengthSq()>1e-8){
-    _faH.normalize();
-    hd.getWorldQuaternion(_faQ2).premultiply(_faQ.setFromAxisAngle(_faH,Math.PI));
-    hd.parent.getWorldQuaternion(_faQ3).invert();
-    hd.quaternion.copy(_faQ2.premultiply(_faQ3));
-    hd.updateMatrixWorld(true);
-   }
-  }
+  // Close the hand around the grip: the proximal phalanges take most of the
+  // wrap, the middle joints complete it, and the tips settle on the object.
+  // The trigger finger stays a little straighter so it lies along the frame.
   for(const finger of ['index','middle','ring','pinky']){
+   const amount=finger==='index'?[.85,1.12,.95]:[1.08,1.3,1.12];
    for(let i=1;i<=3;i++){
     const b=bones[finger+'_0'+i+'_'+side],ax=axes[b?.name];
     if(!b||!ax)continue;
-    b.quaternion.multiply(_faQ.setFromAxisAngle(ax,i===1?.55:.9));
+    b.quaternion.multiply(_faQ.setFromAxisAngle(ax,side==='r'?-amount[i-1]:amount[i-1]));
     b.updateMatrixWorld(true);
    }
+  }
+  // Thumb folds over the near side of the grip/handguard to lock the wrap.
+  for(const part of ['thumb_01','thumb_02']){
+   const b=bones[part+'_'+side],ax=axes[b?.name];
+   if(!b||!ax)continue;
+   b.quaternion.multiply(_faQ.setFromAxisAngle(ax,side==='r'?.62:.7));
+   b.updateMatrixWorld(true);
   }
  };
  aim('r',new THREE.Vector3(-.30,.55,-.77),new THREE.Vector3(0,-.921,.389),true);
@@ -611,10 +659,16 @@ export function weaponModel(id,hands=false){
    // which on a bright street turns the whole rifle into a flat black cut-out.
    // Lift the sampled albedo to worn mid-grey, open metalness/roughness so the
    // overlay's real key and rim lights describe the receiver instead of leaving
-   // it spec-only, and keep the deployment photo-IBL for metal highlights.
-   // Cloning keeps the shared lobby asset unchanged.
-   const mat=slot.mat.clone(),gain=wornScanGain(slot.mat);
-   mat.color.setRGB(gain,gain*.98,gain*.95);mat.metalness=.3;mat.roughness=.55;mat.envMapIntensity=1.25;mat.needsUpdate=true;
+   // it spec-only. The first-person overlay deliberately screens the daylight
+   // probe so this dark tint is not washed back to grey plastic; the world
+   // pass keeps its photo-IBL. Cloning keeps the shared lobby asset unchanged.
+   const mat=slot.mat.clone(),gain=wornScanGain(slot.mat)*.74;
+   // Neutral gunmetal, not the scan's cool blue-grey plastic: a warm tint
+   // cancels the blue packing in the albedo, higher roughness kills the
+   // uniform toy sheen, and the lifted gain still leaves the worn detail
+   // readable against the bright street.
+   mat.color.setRGB(gain*1.03,gain*1.0,gain*.94);mat.metalness=.15;mat.roughness=.78;mat.envMapIntensity=1.1;mat.needsUpdate=true;
+   mat.userData.raidOwned=true;
    const mesh=new THREE.Mesh(slot.geo,mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
   // Scan-space muzzle/sight overrides (authoring offsets differ from the boxes)
   // merge over the procedural rig so flash, ADS centring and ejection still land.

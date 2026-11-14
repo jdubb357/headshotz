@@ -161,3 +161,14 @@ All six are CC0 1.0, total 1,999,600 bytes (under the 3 MB cap). Leaves use the 
 ## Raid sky — photographed Poly Haven daylight dome (CC0), iteration 108
 
 `assets/tex/kloofendal_sky.jpg` (2048 × 1024, 190,480 B) is the photographed **Kloofendal 48d Partly Cloudy (Pure Sky)** HDRI by **Greg Zaal and Jarod Guest**, https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky, **CC0 1.0** (public domain, credited anyway). The static Pages build has no RGBE decoder, so the 48-d angular-resolution HDRI is decoded offline, exposure-normalised (EV 0.729, ACES Narkowicz tone curve) and written once as a sharp sRGB equirect JPEG at the same aspect; the embedded below-horizon haze is blurred into a neutral ground half so the dome has no mirrored buildings. `raid-view.mjs` renders it as an eye-centred back-side dome on clear/mist daylight and builds a PMREM environment from the same texture for scanned metal and glass; dusk, night, rain and ash restore the procedural sky sheet. Presentation only; conditions, light levels and server state are unchanged.
+
+## Raid first-person gloves and sleeves — Poly Haven texture scans (CC0), iteration 117
+
+Two real photographed PBR surface sets now cover the first-person MakeHuman arms, replacing the tinted skin/cloth stand-ins. Files live in `assets/tex/raiders/` as 512 × 512 JPEGs (quality 80, resized offline from the Poly Haven 1k source): diffuse albedo, OpenGL tangent-space normal and a packed AO/roughness/metalness (ARM) sheet. Both are loaded once, tinted in-material (never painted) and mapped with `RepeatWrapping`; the gloves sample the scan's pored leather and stitching, the sleeves its worn twill creases.
+
+| Files | Asset | Author(s) | Source | License |
+|---|---|---|---|---|
+| `leather_diff_512.jpg`, `leather_nor_512.jpg`, `leather_arm_512.jpg` | Fabric Leather 01 | Rob Tuytel | https://polyhaven.com/a/fabric_leather_01 | CC0 1.0 |
+| `cloth_diff_512.jpg`, `cloth_nor_512.jpg`, `cloth_arm_512.jpg` | Denim Fabric 06 | Greg Zaal (photography), Rico Cilliers (processing) | https://polyhaven.com/a/denim_fabric_06 | CC0 1.0 |
+
+Total 516,966 bytes across the six 512 × 512 files; the `_512` suffix marks the shipped downscale of the 1k Poly Haven originals. Presentation only: the surfaces, pose and rifle tint live in `raid-models.mjs` and the first-person overlay lighting in `raid-view.mjs`; the scanned textures are module-owned so weapon disposal never frees a shared map.
