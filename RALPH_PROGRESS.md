@@ -8638,3 +8638,33 @@ The halo bug is gone: the same lit openings now read as rectangles contained by 
 The pavement now reads as photographed warm grey rather than a white blob, but the tone-down is a flat material tint: in direct noon light the sidewalk still loses its fine tile seams at mid-distance and the road's wet patches are calm rather than sun-glinted. The curbs are real raised boxes with concrete map and intersection gaps, yet at distance they merge into one dark line and their top strips use the same concrete map rather than a cut-stone edge; the curb run also stops 9.5 m short of each crossing, so some approaches show a curb ending in open pavement. Only two of the four authored spawn offsets cleared collision/paving, so the 2–4 requirement is met at its floor; the resulting saplings are small next to the two-storey facades and the bank growth, while denser, still reads as scattered clumps rather than a continuous embankment. Frames are presented as before/after evidence, not as accepted art; the visual judgment remains Austin's.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). If spare budget remains, continue DIRECTOR_NOTES item 5 (WEAPON + BUILDINGS); otherwise the loop stops here with item 4 awaiting Austin's live playtest.
+
+## Iteration 115 — WEAPON EXPOSURE: held rifle lifted from black cut-out to worn mid-grey metal (DIRECTOR_NOTES item 5, weapon half; 2026-11-14)
+
+**Task:** The photoscanned first-person rifle is the hero object in every frame, yet its master material (metalness 1, roughness 1, baked ~58/58/58 albedo) and the old `.78` tint rendered the receiver, handguard, grip and stock as a flat black silhouette at 844×390. Lift it to worn mid-grey metal. Presentation-only.
+
+### Acceptance criteria (recorded before verification)
+1. The scanned viewmodel's own albedo map remains the dark photogrammetry sheet, but every held material carries a sampled gain lifting its effective albedo into a `.06–.28` linear worn-grey band — never near-black (< .05) and never blown white.
+2. Metalness/roughness/envMapIntensity are opened (≈.3 / ≈.55 / 1.25) so the overlay key, rim and deployment photo-IBL produce readable receiver/rail/grip/stock tonal structure instead of a spec-only metal silhouette.
+3. The pass applies to all three scan slots of the AR, survives viewport change to 844×390, and matches other scanned weapons via their own map luma rather than a fixed tint.
+4. `tests/raid-browser-gunlight.mjs` green, required graders (static-offline, mobile-hud, performance) green with no browser errors, unit suite 1248/1249 with only the known matchmaking ECONNRESET, before/after frames at 1024×720 and 844×390 plus action frames in `~/headshotz-loop/shots/latest/`.
+5. No UI, systems, currencies, jargon, collision, route, server or mode change.
+
+### Implementation
+- `raid-models.mjs`: added `wornScanGain(mat)` (WeakMap-cached 16×16 canvas luma sample of each scan's albedo, targeting `.105` linear mean, clamped .55–6), then cloned scan materials get `color.setRGB(gain, gain*.98, gain*.95)`, `metalness=.3`, `roughness=.55`, `envMapIntensity=1.25`. Lobby photoscan asset untouched.
+- `tests/raid-browser-gunlight.mjs` (new): deploys offline, pins clear noon on the relay spawn street, samples each held material, asserts the dark source map + worn-grey effective albedo, re-checks at 844×390, captures 1024 base/action and 844 frames.
+
+### Verification (commands/results)
+- `node tests/raid-browser-gunlight.mjs` → green: 3 `M4A1_MasterMat` slots, albedo sRGB 56.6 (linear .0404), gain r 2.60, metalness .3, roughness .55, env 1.25, effective linear .0789, `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs`, `node tests/raid-browser-mobile-hud.mjs` (1024 91.8% unobstructed / 844 81.6%), `node tests/raid-browser-performance.mjs` → all green, no browser errors.
+- `node --test tests/*.test.mjs` → 1,248 pass / 1 fail, only the known `matchmaking.test.mjs` ECONNRESET.
+- `raid-browser-viewmodel.mjs` still fails its pre-existing "warm key light reads the metal" assertion (overlay key intensity 2.6 vs the test's stale ≥3) at baseline `af6a89c` too, so our material change did not regress it and it was left untouched.
+- Screenshots (`~/headshotz-loop/shots/latest/`, folder cleared first): `before-1024.png`/`before-844.png` (baseline build) vs `after-1024.png`/`after-844.png`; action frames `after-1024-action.png`, `after-844-action.png`. The before rifle is a black cut-out; the after shows a mid-grey receiver with rail, ejection-port, grip and stock detail.
+
+### Acceptance status
+1-3 met by the grader and visual frame; 4 met; 5 met. Art landing is not yet claimed: Austin's live playtest is still the final judge.
+
+### Honest critique
+The rifle now reads as worn grey metal rather than a black hole, but the scan's baked albedo still gives it a smooth, uniform finish, so close-up wear and grime are subtler than the real M4 photo; the weapon also floats without hands, and the bright red flying-machine cone in mid-frame remains the loudest ugly object on screen. The second half of DIRECTOR_NOTES item 5 (building grime variation + parapet depth) is untouched.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 5, buildings half: deterministic per-facade grime variation, deeper projecting parapet caps, and ensure scanned timber doors read in the dark ground-floor slots visible from spawn (doors already instanced since iteration 106). Then re-rank idle hazards (red flyer cone) by on-screen prominence.

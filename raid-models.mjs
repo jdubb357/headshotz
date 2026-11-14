@@ -324,6 +324,30 @@ function gunGroupMaterial(key){
  material.name=key;material.userData.raidOwned=true;return material;
 }
 const PHOTO_ALIAS={pistol:'handgun'};
+// Photogrammetry scans ship a baked, very dark albedo sheet (the M4 master map
+// averages ~58/58/58 sRGB) on a pure metalness-1 shader, so a held rifle reads
+// as a flat black cut-out against a bright street. Sample the scan's own map
+// once and pick the albedo gain that lands every weapon in the same worn
+// mid-grey metal band instead of a hard-coded tint that only suits the M4.
+const scanGainCache=new WeakMap();
+function wornScanGain(mat){
+ if(scanGainCache.has(mat))return scanGainCache.get(mat);
+ let gain=2.45;
+ try{
+  const image=mat?.map?.image;
+  if(image&&typeof document!=='undefined'){
+   const canvas=document.createElement('canvas');canvas.width=16;canvas.height=16;
+   const ctx=canvas.getContext('2d',{willReadFrequently:true});
+   ctx.drawImage(image,0,0,image.width||16,image.height||16,0,0,16,16);
+   const data=ctx.getImageData(0,0,16,16).data;
+   let sum=0;
+   for(let i=0;i<data.length;i+=4)sum+=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+   const srgb=sum/(data.length/4)/255,lin=srgb<=.04045?srgb/12.92:Math.pow((srgb+.055)/1.055,2.4);
+   gain=Math.max(.55,Math.min(6,.105/Math.max(.008,lin)));
+  }
+ }catch{}
+ scanGainCache.set(mat,gain);return gain;
+}
 export function weaponModel(id,hands=false){
  // The raid sights the rifle close to the eye; trim the procedural forearm reach
  // so only gloved hands on the grip and handguard occupy the lower frame.
@@ -338,13 +362,14 @@ export function weaponModel(id,hands=false){
   // gloved hands on the grip and handguard enter the lower frame (no elbow tube).
   const root=new THREE.Group();
   for(const slot of scan){
-   // The photogrammetry master material ships metalness 1 / env 1.1. Keep the
-   // receiver's real base colour and most of that photo-IBL response: the old
-   // heavy albedo darkening plus low env map crushed the rail, ejection port and
-   // stock to a flat black silhouette. A modest warm tint still seats the scan
-   // in the daylight photograph instead of reflecting pure steel-blue. Cloning
-   // keeps the shared lobby asset unchanged.
-   const mat=slot.mat.clone();mat.color.setRGB(.78,.745,.70);mat.envMapIntensity=.8;mat.needsUpdate=true;
+   // The scan ships metalness 1 / roughness 1 with a baked near-black albedo,
+   // which on a bright street turns the whole rifle into a flat black cut-out.
+   // Lift the sampled albedo to worn mid-grey, open metalness/roughness so the
+   // overlay's real key and rim lights describe the receiver instead of leaving
+   // it spec-only, and keep the deployment photo-IBL for metal highlights.
+   // Cloning keeps the shared lobby asset unchanged.
+   const mat=slot.mat.clone(),gain=wornScanGain(slot.mat);
+   mat.color.setRGB(gain,gain*.98,gain*.95);mat.metalness=.3;mat.roughness=.55;mat.envMapIntensity=1.25;mat.needsUpdate=true;
    const mesh=new THREE.Mesh(slot.geo,mat);mesh.castShadow=false;mesh.frustumCulled=false;root.add(mesh)}
   const all=hands?handParts(info,0x2f342c,0x5a4634,undefined,true):[];
   const groups=new Map();
