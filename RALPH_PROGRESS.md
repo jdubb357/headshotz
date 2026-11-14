@@ -8455,6 +8455,12 @@ The sky is now the largest single visual gain: real clouds, blue gradient and ho
 - `raid-browser-viewmodel.mjs` fails its pre-existing overlay-light assertion (`warm key light reads the metal`, intensity 2.6 < 3.0 at line 297); that is the same 2.6/1.0 overlay rig already present at HEAD and is unrelated to this material change.
 - `node --test tests/*.test.mjs` → 1248 pass, 1 fail = documented intermittent `matchmaking.test.mjs` ECONNRESET.
 
+### Acceptance status
+1. Met: the four offline frames show worn-metal highlights and texture on receiver, rail and stock instead of a flat black silhouette; no seams or colour bands.
+2. Met: no stylized-fallback arm mesh or procedural hands ship; the gap is recorded in ASSETS.md.
+3. Met: no new UI, systems, currencies, menus or player-facing jargon.
+4. Met for syntax, static-offline and mobile-HUD; unit suite is 1248/1249 and the unrelated pre-existing viewmodel light assertion still fails at HEAD.
+
 ### Honest critique
 The rifle now reads as a held object with texture rather than a black cut-out, and the receiver/rail/stock catch the warm sky. But the scene still has no first-person hands: the only library arms candidate is a low-poly stylized-fallback rig that the catalog restricts to animation reference, so it cannot be shipped without breaking the real-asset rule. Hands stay explicitly hidden rather than smuggling in toy sleeves; the fix is honestly half of director item 1. The likely next real win is item 2 (enemies), starting with the scout's toy-robot scale/material, or item 4's exposure so the bright pavement stops competing.
 
