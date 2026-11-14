@@ -62,6 +62,12 @@ void main(){vec3 d=normalize(vD);float y=d.y;
 #include <colorspace_fragment>
 }`;
 const SKY_MID=new THREE.Color(),SKY_TOP=new THREE.Color(),CLOUD_MIX=new THREE.Color(),CLOUD_WHITE=new THREE.Color(0xffffff);
+// Photographed Poly Haven Kloofendal sky, tone-mapped offline to sRGB. The sun
+// disc sits at equirect uv (0.5947, 0.2344) which is azimuth 0.595 rad and
+// elevation 0.840 rad in three's equirect convention; the dome is spun so the
+// photograph's sun shares the authoritative sun's azimuth.
+const PHOTO_SKY_AZ=.5947,PHOTO_SUN_EL=.5605;
+const PHOTO_TINT=new THREE.Color(),PHOTO_NIGHT=new THREE.Color(0x0c1526),PHOTO_WHITE=new THREE.Color(0xffffff),PHOTO_DIR=new THREE.Vector3();
 // Deterministic storm-front lightning envelope. Clear weather and reduced
 // motion never flash; a rain front gets one sharp strike per 8.5 s cycle plus
 // a softer follow-up sheet. Pure function of scene time so the same deployment
@@ -268,6 +274,9 @@ export class RaidView {
  // footprint.
  refreshArt(){
   if(!this.scene)return;
+  // Swap the procedural gradient sheet for the photographed CC0 sky as soon as
+  // it decodes, and keep its real-photo PMREM alongside for material reflections.
+  this.refreshSky();
   // The held gun is built during the first sync, before the scanned GLBs land.
   // Rebuild it here so the first frame shows a real weapon, not box geometry.
   if(HQP.guns&&this.gunRoot&&this.snapshot?.self){
@@ -344,6 +353,24 @@ export class RaidView {
    next.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
    this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
   }
+ }
+ // Real photographic sky dome. The procedural sheet stays on the scene as the
+ // night/storm fallback; this copy becomes visible only on clear/mist daylight
+ // (tinted by the same conditions curve) and gets an honest photogrammetry IBL.
+ refreshSky(){
+  if(!this.scene||!HQP.sky||this.skyPhoto)return;
+  const material=new THREE.MeshBasicMaterial({map:HQP.sky,side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,toneMapped:true});
+  material.userData.raidOwned=true;
+  const geometry=new THREE.SphereGeometry(195*this.viewScale,48,24);geometry.userData.raidOwned=true;
+  const dome=new THREE.Mesh(geometry,material);
+  dome.renderOrder=-11;dome.frustumCulled=false;dome.visible=false;
+  this.skyPhoto=dome;this.scene.add(dome);
+  if(!this.photoEnvRT){
+   const pmrem=new THREE.PMREMGenerator(this.renderer);
+   try{this.photoEnvRT=pmrem.fromEquirectangular(HQP.sky)}catch(error){console.warn('sky env',error&&error.message);this.photoEnvRT=null}
+   pmrem.dispose();
+  }
+  if(this.environmentTarget)this.updateEnvironment(1);
  }
  // Swap the flat palette surfaces the player stands on for photographed PBR.
  // Road, sidewalk and embankment materials keep their authored instancing and
@@ -747,6 +774,7 @@ export class RaidView {
  }
  clear(){
   if(this.envMapRT)this.envMapRT.dispose();
+  if(this.photoEnvRT)this.photoEnvRT.dispose();
   if(this.postTarget)this.postTarget.dispose();
   this.postTarget=null;
   for(const target of this.bloomTargets||[])target.dispose();
@@ -756,7 +784,7 @@ export class RaidView {
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.lastTime=0;this.footDust=[];this.footDustCursor=0;if(this.enemyShotLight){this.enemyShotLight.visible=false;this.enemyShotLight.intensity=0}this.enemyShotLight=null;this.enemyShotLightAt=-1e9;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
-  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth','natureRoot'])this[name]=null;this.chase=null;this.wetness=0;
+  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','skyPhoto','envMapRT','photoEnvRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth','natureRoot'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
  this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
@@ -766,6 +794,7 @@ export class RaidView {
  }
  start(snapshot){
   if(this.envMapRT){this.envMapRT.dispose();this.envMapRT=null}
+  if(this.photoEnvRT){this.photoEnvRT.dispose();this.photoEnvRT=null}
   if(this.postTarget){this.postTarget.dispose();this.postTarget=null}
   for(const target of this.bloomTargets||[])target.dispose();
   this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
@@ -1127,7 +1156,43 @@ export class RaidView {
   this.sunGain=1.45+.55*daylight;this.hemiGain=1.25+.09*(1-daylight);
   this.sun.intensity=this.sunBase*this.sunGain;this.hemi.intensity=this.hemiBase*this.hemiGain;this.ambientFill.intensity=.85*daylight*(weather==='rain'?.8:weather==='ash'?.85:1);
   this.skyBounce.intensity=.62*daylight*(weather==='rain'?.72:weather==='ash'?.8:1);
-  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun).normalize().multiplyScalar(150*this.viewScale).add(this.camera.position);this.moonOrb.position.copy(target.sun).normalize().multiplyScalar(-150*this.viewScale).add(this.camera.position);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
+  // A real photographed sky replaces the gradient sheet on clear/mist daylight.
+  // It is tinted by the same daylight curve the procedural deck used, so dusk
+  // slides into the night gradient instead of a bright photo popping in, and it
+  // swaps the IBL so metal reflects the photographed clouds rather than a
+  // painted gradient. Rain/ash fronts keep the procedural storm deck.
+  const photoActive=!!this.skyPhoto&&daylight>.45&&(weather==='clear'||weather==='mist');
+  if(photoActive){
+   // Matched sunlight: the photographed sun sits 32° above its horizon, so the
+   // shadow-casting light is lowered to the same elevation instead of the
+   // steeper authored noon angle. Facades, barrels and the pavement then show
+   // the lit/shaded split and the long soft shadows the photograph implies.
+   // Keep the sun/hemi factors in the gain terms: updateAtmosphere rebuilds
+   // those intensities from base*gain every frame, so scaling the live values
+   // here would be discarded one frame later (and only the flash terms read as
+   // if the photo fill existed).
+   this.sunGain*=1.15;this.hemiGain*=.72;
+   this.sun.intensity=this.sunBase*this.sunGain;this.hemi.intensity=this.hemiBase*this.hemiGain;
+   this.ambientFill.intensity*=.55;this.skyBounce.intensity*=.45;
+   PHOTO_DIR.set(Math.cos(PHOTO_SUN_EL)*Math.cos(Math.atan2(target.sun.z,target.sun.x)),Math.sin(PHOTO_SUN_EL),Math.cos(PHOTO_SUN_EL)*Math.sin(Math.atan2(target.sun.z,target.sun.x)));
+  }
+  if(this.skyPhoto){
+   this.skyPhoto.visible=photoActive;
+   if(this.skyDome)this.skyDome.visible=!photoActive;
+   if(photoActive){
+    PHOTO_TINT.copy(PHOTO_NIGHT).lerp(PHOTO_WHITE,Math.min(1,daylight));
+    if(weather==='mist')PHOTO_TINT.lerp(target.fog,.32);
+    this.skyPhoto.material.color.copy(PHOTO_TINT);
+    const sunDir=target.sun.clone().normalize();
+    // Spin the dome so the photograph's sun shares the authoritative sun's
+    // azimuth; the disc, cloud shading and cast shadows then agree.
+    this.skyPhoto.rotation.y=PHOTO_SKY_AZ-Math.atan2(sunDir.z,sunDir.x);
+   }
+  }
+  const environment=photoActive&&this.photoEnvRT?this.photoEnvRT.texture:this.envMapRT?.texture||null;
+  if(this.scene.environment!==environment)this.scene.environment=environment;
+  if(this.overlay&&this.overlay.environment!==environment)this.overlay.environment=environment;
+  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(photoActive?PHOTO_DIR:lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun).normalize().multiplyScalar(150*this.viewScale).add(this.camera.position);this.moonOrb.position.copy(target.sun).normalize().multiplyScalar(-150*this.viewScale).add(this.camera.position);this.sunOrb.visible=target.sun.y>0&&!photoActive;this.moonOrb.visible=target.sun.y<0&&!photoActive;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01&&!photoActive;
   if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;SKY_TOP.copy(target.sky).offsetHSL(0,.08,-.17);u.top.value.lerp(SKY_TOP,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
    // Cloud deck follows the weather: thin haze by day, heavy low ceiling under
    // rain, dust-laden ash, and dark night cover whose tint comes from the same
@@ -2094,6 +2159,10 @@ export class RaidView {
   if(this.visualSelf.distanceTo(target)>5)this.visualSelf.copy(target);else this.visualSelf.lerp(target,Math.min(1,dt*16));this.camera.position.copy(this.visualSelf);
   if(!reduced)this.camera.position.y+=feel.bob-feel.dip-feel.slide-feel.bump*.035;
   if(this.horizonDepth){this.horizonDepth.position.copy(this.camera.position);if(this.horizonDepth.userData.raidHorizonTick)this.horizonDepth.userData.raidHorizonTick(seconds,!!this.settings?.reduced)}
+  // The photographic sky is a lit dome, not a direction-only shader, so it has
+  // to stay centred on the eye. Left at the map origin the sphere's equator
+  // cuts a visible pale cap across the view (the HDRI's below-horizon haze).
+  if(this.skyPhoto)this.skyPhoto.position.copy(this.camera.position);
   // Keep the 2048 shadow frustum centred on the player instead of the fixed
   // map origin; without this, shadows disappear once the operator walks more
   // than 80 m from centre. The light direction itself is kept at 90 m.

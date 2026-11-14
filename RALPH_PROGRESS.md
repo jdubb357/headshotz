@@ -8397,3 +8397,39 @@ The bank is the strongest improvement: the clean grey diagonal is gone and real 
 
 **Next action:** committed locally on `cypert/dev` only (no push, no PR, no `main`); have Austin playtest the live spawn-to-first-street beats before picking the next director note.
 
+
+## Iteration 108 — Photographed Kloofendal sky and matched daylight (DIRECTOR_NOTES item 1: LIGHTING + SKY; 2026-11-13)
+
+**Task:** Replace the flat grey sky and flat fill that framed every spawn view with the CC0 Poly Haven photographed Kloofendal 48d part-cloudy sky, matched 32° directional sun, soft PCF shadows and a real-photo IBL; remove the pale horizon disc and the flat washed foreground that made the lighting look wrong.
+
+### Acceptance criteria (recorded for this pass)
+1. Both 1024×720 and 844×390 offline spawn/action frames show a photographic sky (cloud shape, horizon haze, real sun placement) instead of flat grey; no seam or pale disc.
+2. `scene.environment` and the metal/glass IBL are PMREM images of the same photograph; the directional sun is lowered to the photo sun's elevation so façades have a lit side and shaded side, and barrels, lamp post and scout cast visible soft ground shadows.
+3. Night, dusk, dawn and rain restore the procedural sky sheet, tinting the photo on dawn; reduced motion unchanged.
+4. Relay FPS stays ≥55 on the probe, triangles/draws unchanged and no new player-facing UI.
+5. Asset source URL, authors and CC0 licence recorded in ASSETS.md.
+
+### Changed
+- `assets/tex/kloofendal_sky.jpg` — new 2048×1024 sRGB equirect JPEG (190,480 B), decoded from the CC0 Pure Sky HDRI offline with ACES tone mapping and the below-horizon haze blurred; new asset, recorded in ASSETS.md.
+- `assets.js` — `HQP.sky` slot and lazy fault-tolerant `loadSkyPhoto()`; Low quality skips.
+- `raid-view.mjs` — `refreshSky()` builds an eye-centred back-side sky dome and a PMREM `photoEnvRT`; photo dome/IBL active on clear or mist daylight with daylight >0.45; dome tinted by daylight (and fog for mist) and rotated to align the photograph's sun azimuth; sun gain ×1.15 and hemi gain ×0.72 kept in the gain terms so the per-frame atmosphere update cannot discard them; ambientFill ×.55, skyBounce ×.45; sun/moon/stars hidden while photo active; clean disposal on `clear()`/`start()`.
+- `raid-online.mjs` — loads the sky photo with the other raid art and reports `sky: true` through `window.__raidArt`.
+
+### Verification
+- `node --check assets.js raid-view.mjs raid-online.mjs` → 0.
+- Live probe with pinned clear daylight: sun 5.77, hemi 1.62, photo dome visible, `scene.environment === photoEnvRT.texture`; pinned rain: photo hidden, `env=proc`; pinned night (22:00): photo hidden, sun 0.37; dawn daylight .55 keeps the tinted photo; dusk below .45 reverts to the procedural sheet.
+- Relayed captures: after-1024.png / after-1024-action.png and after-844.png / after-844-action.png show photographed cloud sky and long barrel/lamp-post shadows; `window.__raidArt { photos:true, sky:true }`, `browserErrors:[]`.
+- `tests/raid-browser-atmosphere.mjs`, `raid-browser-horizon.mjs`, `raid-browser-performance.mjs`, `raid-browser-static-offline.mjs`, `raid-browser-mobile-hud.mjs` all green. Performance: p50 16.7 ms (~60 fps), render CPU p95 ≤ 10.2 ms, relay draws p50 2107 / triangles p50 11.25M; mobile-sized relay p95 16.7 ms.
+- `node --test tests/*.test.mjs` → 1248/1249; only the documented intermittent `matchmaking.test.mjs` ECONNRESET.
+- `raid-browser-render-resources.mjs` fails its `buffersAfterClear` assertion on both this build and unmodified HEAD (buffers 485,953,1421,1889 in both), so it is pre-existing and unrelated to the sky pass.
+
+### Acceptance status
+1. Met in all four final frames; the pale disc artifact is gone (dome centres on the eye).
+2. Met: photographed PMREM environment active, façades show lit/shaded planes and barrels show distinct cast shadows in both action frames; lamp post shadow is visible on the pavement. The soft shadow is strongest where barrels/lamp meet pavement; mid-distance building shadows are softened by the long sun angle.
+3. Met by probe: rain, dusk and night all restore the procedural sky and IBL; dawn keeps the photo tint then hands off below 0.45 daylight.
+4. Met on the relay performance probe; still no raid UI, rules or progression changed.
+5. Met in ASSETS.md (`kloofendal_sky.jpg`, 2048×1024, 190,480 B, Greg Zaal/Jarod Guest, CC0).
+
+### Honest critique
+The sky is now the largest single visual gain: real clouds, blue gradient and horizon haze replace the grey card and the scene finally has weather, while the long shadows and photo IBL give the barrels and telegraph pole contact. But the sunlit pavement still reads as a broad white sheet and the façade plaster stays uniformly salmon-brown rather than gritty; blue drums and the cyan loot ring remain the loudest prototype shapes, so the first three minutes are still fighting the props and ground finish, not just the light.
+**Next action:** committed on `cypert/dev` only (no push/PR/main). Continue DIRECTOR_NOTES item 2 — replace the floating rifle with real FPS arms or explicitly hide hands, then the toy scout.

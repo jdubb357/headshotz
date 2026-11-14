@@ -1,6 +1,6 @@
 // HeadShotz external assets (all CC0 from Poly Haven — see ASSETS.md). Loaded lazily after the menu appears; Low quality skips them and keeps the built-in procedural look.
 import {THREE,GQ,hqSwap} from './gfx.js';
-export const HQP={ready:false,models:{},guns:{},machines:{},windows:{},buildings:{},nature:{},ground:{}};
+export const HQP={ready:false,models:{},guns:{},machines:{},windows:{},buildings:{},nature:{},ground:{},sky:null};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
 const MODELS={crate:'assets/models/wooden_crate_02.glb',barrel:'assets/models/barrel_03.glb',chest:'assets/models/treasure_chest.glb'};
 // Raid machine bodies are scanned/rigged GLBs, not box geometry. They are loaded
@@ -218,6 +218,24 @@ export async function loadGround(onProg=()=>{}){
   onProg(++done/keys.length);
  }
  return ok
+}
+// Photographed CC0 sky can't be a bare .hdr on a static page without shipping
+// an extra HDR decoder, so the Poly Haven Kloofendal 48d Pure Sky source is
+// tone-mapped to a 2048 x 1024 sRGB equirect once, offline, and served here.
+// It backs the raid's daylight dome and a real-photo PMREM environment, which
+// keeps metal barrels and window glass reflecting a photographed horizon.
+export async function loadSkyPhoto(onProg=()=>{}){
+ if(GQ.level==='low'){onProg(1,'skipped');return false}
+ try{
+  const image=await img('assets/tex/kloofendal_sky.jpg');
+  const texture=new THREE.Texture(image);
+  texture.mapping=THREE.EquirectangularReflectionMapping;
+  texture.colorSpace=THREE.SRGBColorSpace;
+  texture.anisotropy=4;
+  texture.needsUpdate=true;
+  HQP.sky=texture;
+  onProg(1);return true;
+ }catch(e){console.warn('sky photo',e&&e.message);onProg(1);return false}
 }
 export async function loadBuildings(onProg=()=>{}){
  if(GQ.level==='low'){onProg(1,'skipped');return false}
