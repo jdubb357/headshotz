@@ -8668,3 +8668,37 @@ The pavement now reads as photographed warm grey rather than a white blob, but t
 The rifle now reads as worn grey metal rather than a black hole, but the scan's baked albedo still gives it a smooth, uniform finish, so close-up wear and grime are subtler than the real M4 photo; the weapon also floats without hands, and the bright red flying-machine cone in mid-frame remains the loudest ugly object on screen. The second half of DIRECTOR_NOTES item 5 (building grime variation + parapet depth) is untouched.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 5, buildings half: deterministic per-facade grime variation, deeper projecting parapet caps, and ensure scanned timber doors read in the dark ground-floor slots visible from spawn (doors already instanced since iteration 106). Then re-rank idle hazards (red flyer cone) by on-screen prominence.
+
+## Iteration 116 — FIRST-PERSON ARMS: real MakeHuman gloved hands gripping the scanned M4 (DIRECTOR_NOTES item 1; 2026-11-14)
+
+**Task:** The photoscanned M4 now has worn grey metal but still floats with no arms in every first-person frame. Derive realistic gloved arms and sleeve material from the shipped CC0 MakeHuman skin/cloth meshes, pose two hands so one grips the pistol grip and one grips the handguard, and keep the rifle's material detail readable. Presentation-only.
+
+### Acceptance criteria (recorded before verification)
+1. The held rifle advertises `firstPersonArms`, mounts four real skinned arm/hand meshes (two skin, two cloth) on the cloned MakeHuman skeleton, and uses only `glove`/`sleeve` materials; no box, capsule or procedural limb geometry.
+2. At 1024×720 and 844×390 the grip hand contacts the pistol-grip anchor and the support hand contacts the handguard: wrist bones and front finger segments project inside the weapon-camera frame and within one hand's width (≤ .13 m) of the authored `grip.c`/`lh` anchors; both hands are visibly in frame in `after-1024.png` and `after-844.png`.
+3. The scanned receiver, rail, magazine and stock keep their worn mid-grey metal and material detail.
+4. `tests/raid-browser-gunlight.mjs` green, required graders (static-offline, mobile-hud, performance) green with no browser errors, unit suite 1248/1249 with only the known matchmaking ECONNRESET, before/after frames at 1024×720 and 844×390 plus action frames in `~/headshotz-loop/shots/latest/`.
+5. No UI, systems, currencies, jargon, collision, route, server or mode change.
+
+### Implementation
+- `raid-models.mjs`: real MakeHuman skin/cloth geometry is extracted by dominant arm-bone weights with raw quantised attributes preserved, then cloned and rebound to the MakeHuman `game_engine` skeleton; the rest of the body is removed. `fpArmAxes` reads each bone's rest-space hinge axis, two-bone IK drives the wrists to wrist targets just below/rear of the grip and outside the handguard, and `aim` aligns each hand's knuckle line to the grip rake (right) or barrel (left), flips the right palm away from the camera, and curls the four fingers anatomically. Materials are tinted photographed skin into a dark leather glove and the photographed casual-suit cloth into olive drab; only these two materials are used.
+- `raid-view.mjs`: both held-rifle build paths request `weaponModel(..., true)` so the arms mount whenever the viewmodel rebuilds; the sleeve material joins the existing ADS fade list.
+- `tests/raid-browser-gunlight.mjs`: extended to assert the arms flag, four skinned arm meshes, glove/sleeve-only materials, and at both viewports the screen-space hand bones and the grip/handguard anchoring.
+- `ASSETS.md`: records the reused CC0 MakeHuman arm rig, skin and cloth as the arm source; no new third-party files were copied.
+
+### Verification (commands/results)
+- `node tests/raid-browser-gunlight.mjs` → green: 3 scanned material groups, effective linear .0789, four arm meshes (`glove`/`sleeve`, skinned, bones > 0), both wrists and finger fronts projected in-frame and within .063/.053/.10 m of the anchors at 1024×720 and 844×390, `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs` → green (offline boot/deploy/move/hit/loot/extract, no API traffic).
+- `node tests/raid-browser-mobile-hud.mjs` → green (1024×720 91.8% unobstructed, 844×390 81.6%; controls and auto-reload unchanged).
+- `node tests/raid-browser-performance.mjs` → green (all three maps, all targets true, zero browser errors).
+- `node --test tests/*.test.mjs` → 1,248 pass / 1 fail; retried `matchmaking.test.mjs` once and it remained the known intermittent `ECONNRESET`, unrelated to this presentation change.
+- Screenshots (`~/headshotz-loop/shots/latest/`, folder cleared first): equal-condition noon `before-1024.png`/`before-844.png` (arms hidden) vs `after-1024.png`/`after-844.png` (arms gripping), plus `after-1024-action.png` and `after-844-action.png`.
+- `raid-browser-viewmodel.mjs` still fails only its pre-existing "warm key light reads the metal" assertion (overlay key 2.6 vs stale ≥3); unchanged.
+
+### Acceptance status
+1–4 met by the grader and the two after frames; 5 met. Art landing is not claimed: Austin's live playtest is still the final judge.
+
+### Honest critique
+The arms are real MakeHuman skin/cloth tinted to glove and sleeve, but they are tinted body surfaces rather than scanned leather gloves, so the hands still read slightly rubbery and uniform, with no stitching, nail or seam material; the bright olive sleeve is flatter than the photographed world around it. The support hand wraps the front handguard from the outside while the grip hand sits behind the pistol grip with knuckles to camera, so both are readable at desktop size, but at 844×390 the grip hand's wrist is close to the bottom edge and the sleeve/glove tonal separation is weaker. The rifle's tonal detail is intact but edge wear and grime variation were not added (no scanned wear map available), so the finish remains smooth. Before/after frames and projections prove the structural acceptance; they do not replace Austin's live playtest.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (DENSITY + COVER IN THE COURTYARD) using the vetted CC0 library, then item 3 (foliage + specks) and item 4 (building variety/rooflines), with the red flyer-cone hazard reserved for spare budget.
