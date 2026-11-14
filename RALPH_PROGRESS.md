@@ -8702,3 +8702,76 @@ The rifle now reads as worn grey metal rather than a black hole, but the scan's 
 The arms are real MakeHuman skin/cloth tinted to glove and sleeve, but they are tinted body surfaces rather than scanned leather gloves, so the hands still read slightly rubbery and uniform, with no stitching, nail or seam material; the bright olive sleeve is flatter than the photographed world around it. The support hand wraps the front handguard from the outside while the grip hand sits behind the pistol grip with knuckles to camera, so both are readable at desktop size, but at 844×390 the grip hand's wrist is close to the bottom edge and the sleeve/glove tonal separation is weaker. The rifle's tonal detail is intact but edge wear and grime variation were not added (no scanned wear map available), so the finish remains smooth. Before/after frames and projections prove the structural acceptance; they do not replace Austin's live playtest.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (DENSITY + COVER IN THE COURTYARD) using the vetted CC0 library, then item 3 (foliage + specks) and item 4 (building variety/rooflines), with the red flyer-cone hazard reserved for spare budget.
+
+## Iteration 117 — FIRST-PERSON ARMS FIX: scanned glove leather, closed hands, dark rifle (DIRECTOR_NOTES item 1; 2026-11-14)
+
+**Task:** Round-93 director review rejected the iteration-116 arms: bare-brown tinted-skin hands, splayed mannequin fingers, support hand floating above the handguard, flat bright olive sleeve tubes and a light blue-grey plastic rifle. Replace the glove/sleeve surfaces with real scanned PBR and close both hands on the gun, and make the rifle read dark neutral gunmetal with edge wear. Presentation-only.
+
+### Acceptance criteria (recorded before verification)
+1. Gloves are a real black/coyote leather scan with photographic grain/seams; sleeves are a dark worn-twill fabric scan; no bare skin and no painted textile; both recorded in ASSETS.md with CC0 source URLs.
+2. Both gloved hands are visibly closed on the rifle at 1024×720 and 844×390: grip hand wraps the pistol grip, support hand wraps under/around the handguard; wrists stay inside the weapon camera within one hand width of the authored anchors.
+3. The rifle reads dark neutral gunmetal with edge wear, not light blue-grey plastic, while the scan material assertions stay inside the worn band.
+4. `tests/raid-browser-gunlight.mjs` green at both viewports; static-offline, mobile-hud and performance graders green; unit suite green apart from the known intermittent matchmaking ECONNRESET; before/after frames plus action frames in `~/headshotz-loop/shots/latest/`.
+5. No UI, gameplay, currency, jargon, collision, route, server or mode change.
+
+### Implementation
+- `raid-models.mjs`: module-owned PBR scan cache for Poly Haven `fabric_leather_01` (stitched leather, gloves) and `denim_fabric_06` (worn twill, sleeves), diffuse + OpenGL normal + packed ARM maps downscaled to 512×512 and stored as `*_512` files (516,966 bytes) and patched into live material clones after decode. Gloves tinted near-black `.05/.05/.058` with `normalScale 1.3` (the scan's pore and stitch detail carries the form); sleeves darkened to `.23/.28/.17` with `normalScale 1.05` for fold shading.
+- Pose: the palm flip now precedes knuckle-line alignment (the old order negated the target and splayed the fingers); finger joints close at 1.08/1.30/1.12 rad (index straighter for the frame); thumbs fold over the grip/handguard; the support wrist target moved lower and outboard so it wraps under the handguard.
+- Rifle scan: gain ×.74, metalness .15, roughness .78, envMapIntensity 1.1, warm tint `×1.03/1.00/.94`, effective linear .0701 — dark charcoal with baked edge wear rather than a uniform pale sheen.
+- `raid-view.mjs`: the first-person overlay was detached from the daylight PMREM (the full noon probe washed the scanned receiver to light grey plastic); the existing three-point key (2.6), rim (1.0) and fill (.9) lights now carry the dark gunmetal wear, and the world pass keeps its photo-IBL.
+- `ASSETS.md` and `index.html` credits record the two CC0 texture sets (Rob Tuytel; Greg Zaal / Rico Cilliers) and the 512 px pulled files.
+
+### Verification (commands/results)
+- `node tests/raid-browser-gunlight.mjs` → green: 3 scan slots, effective linear .0701, metalness .15, roughness .78, envMapIntensity 1.1, 4 skinned arm meshes (glove/sleeve only), both wrists and finger fronts in-frame and within .13 m of the grip/handguard anchors at 1024×720 and 844×390, `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs` → green (offline boot/deploy/move/hit/loot/extract, no API traffic).
+- `node tests/raid-browser-mobile-hud.mjs` → green (1024×720 91.8% unobstructed; 844×390 81.6%; controls unchanged).
+- `node tests/raid-browser-performance.mjs` → green (all three maps, all targets true, zero browser errors).
+- `node --test tests/*.test.mjs` → 1,249 pass / 0 fail in one full run; a second full run landed 1,248 pass / 1 fail, the known intermittent `matchmaking.test.mjs` ECONNRESET (unrelated).
+- `node tests/raid-browser-viewmodel.mjs` → still fails only its pre-existing "warm key light reads the metal" assertion (overlay key 2.6 vs the grader's stale ≥ 3), unchanged by this pass; no new failure.
+- Screenshots: folder cleared; `before-1024.png`, `before-1024-action.png`, `before-844.png` captured from HEAD (68cf38a), and `after-1024.png`, `after-1024-action.png`, `after-844.png` from the new tree, all at the pinned noon spawn street.
+
+### Acceptance status
+1–5 met by the graders and the after frames. Art landing is not claimed: Austin's live playtest remains the final judge.
+
+### Honest critique
+The before frames read pale blue-grey with bare brown hands and a bright olive sleeve; the after frames are clearly darker — charcoal rifle with glinted rail edge wear, near-black leather gloves and dark olive sleeves. Still imperfect: leather grain is stretched at arm UV scale so stitching reads soft at phone size, the support hand's silhouette is slightly clubbed where it meets the handguard (no knuckle-pad geometry), sleeve folds are subtle in one frame, and the magazine catches a small pale glint. Detaching the first-person overlay from the photo probe is an exposure choice for the held pass only; the world pass is unchanged. The known viewmodel grader assertion still fails on the stale key‐intensity expectation rather than on any new error.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (DENSITY + COVER IN THE COURTYARD): jersey-barrier line, crate stack, rubble/debris pile, dumpster/container wall, ground decals, keeping a readable lane and ≤25% empty flat ground; then item 3 (foliage + specks) and item 4 (building variety/rooflines), with the red flyer-cone hazard reserved for spare budget.
+
+## Iteration 118 — COURTYARD DENSITY + COVER: scanned barrier line, crate pile, dumpster, wreck, debris (DIRECTOR_NOTES item 2; 2026-11-14)
+
+**Task:** Fill the bare courtyard between the spawn street and the far blocks with real scanned cover from the CC0 library, keeping the enemy lane readable. Presentation-only change; no new systems or UI.
+
+### Acceptance criteria (recorded before implementation)
+1. The pinned noon spawn frame gains real scanned cover at player scale: a jersey-barrier line, a crate pile, a dumpster, a covered wreck and scattered debris/recycled props, all using the seven CC0 scans in `assets/models/cover/` (no procedural box stand-ins for the final art).
+2. In `after-1024.png`, no more than ~25% of the visible ground area in front of the spawn remains empty flat pavement/sand (judged honestly against the before frame), while a continuous, walkable lane at screen centre stays clear.
+3. Cover is seated on sampled terrain, upright/flat as appropriate (tyres flat, barriers standing), free of clipping through the adjacent brick/metal blocks and the existing drums/supply crate, with rotations that keep the barrier line readable from spawn.
+4. Every new dressing item carries a footprint and belongs to the shared deterministic dressing list, so `decorGrid` blocks it identically offline and on the authority; `tests/raid-worlds.test.mjs` dressing assertions stay green.
+5. `assets.js` / `raid-view.mjs` / `raid-online.mjs`: cover assets load lazily with the same meshopt path, render in `refreshSpawnDressing` as instanced scans with the procedural fallback skipped for the new kinds, and `window.__raidArt` reports the cover count; no browser errors.
+6. `ASSETS.md` records source URLs and CC0 (or MIT) licences for all seven models; `index.html` credits updated if the page has a credits block.
+7. Static offline-playability, mobile HUD and performance browser graders green; `node --test tests/*.test.mjs` green except the known intermittent matchmaking ECONNRESET; before/after frames at 1024×720 and 844×390 plus action frames in `~/headshotz-loop/shots/latest/`.
+8. No UI, menus, currencies, traders, squads, records, crafting, account, collision-route, server-authority or other-mode change.
+
+### Implementation
+- Copied seven Poly Haven CC0 scans to `assets/models/cover/` as meshoptimized 512 px WebP GLBs: `barrier.glb` (23,250 tris), `crate.glb` (6,319), `bin.glb` (13,664), `wreck.glb` (12,118), `log.glb` (55,002), `tyre.glb` (2,880), `bag.glb` (4,472) — 1,620,536 B total.
+- `assets.js`: `COVER_GLB` + lazy `loadCover()` (same GLTFLoader/MeshoptDecoder path as loot); tyre rotated flat at load, barrier tinted ×.84 so sun-bleached concrete stays readable against the pale apron; `HQP.cover` registered.
+- `plainGeometry()` now dequantizes normalized integer attributes to Float32 before baking transforms. Without it the GLBs' raw ±32767 quantized positions smeared into a huge pale concrete plane over the whole spawn frame.
+- `share/raid-worlds.mjs`: `SPAWN_COVER_DIMS` + `SPAWN_COVER_HERO` (first deployment court) and lighter `SPAWN_COVER_LIGHT` (other spawns), all appended to `raidSpawnDressing` so the same 73-item deterministic list drives instancing and `decorGrid`. Barrier line sits 12–13 m down the left side of the lane; crate piles, dumpster + trash bags, forecourt tyres, log and covered wreck follow; spawn-relative rotations are propagated to the rotated AABB collider.
+- `raid-environment.mjs`: only drums/supply crate get the procedural fallback; scanned cover stays invisible until the GLBs land instead of flashing as giant boxes.
+- `raid-view.mjs`: `refreshSpawnDressing()` instances each cover part (`barrier`→4, `cratepile`→6 hero, `bin`→1, `wreck`→1, `log`→1, `tyre`→5, `bag`→5 hero), cast/receive shadows, per-item yaw and sampled terrain height; `window.__raidArt.cover` reports all seven keys.
+- `ASSETS.md` and the in-game credits list all seven sources, authors, CC0 licences and byte/triangle counts.
+
+### Verification (commands/results)
+- `node --test tests/raid-worlds.test.mjs` → 13/13 pass.
+- `node tests/raid-browser-static-offline.mjs` → green (offline boot/deploy/move/hit/loot/extract, no API traffic). `node tests/raid-browser-mobile-hud.mjs` → green (1024×720 91.8% unobstructed; 844×390 81.6%). `node tests/raid-browser-performance.mjs` → all three maps, all targets true, zero errors (relay p50 2,269 draws / 11.1M tris).
+- `node --test tests/*.test.mjs` → 1 failure, only the known intermittent `matchmaking.test.mjs` ECONNRESET; retried alone, same network error.
+- Probe: `__raidArt.cover` = `[barrier,crate,bin,wreck,log,tyre,bag]`, tinted debug pass confirmed every kind is instanced and in-frame, browserErrors `[]` across all captures.
+- Screenshots: folder cleared; `before-1024.png`, `before-1024-action.png`, `before-844.png`, `before-844-action.png` captured from HEAD (`b81d58d`) and `after-1024.png`, `after-1024-action.png`, `after-844.png`, `after-844-action.png` from the new tree, pinned noon spawn street.
+
+### Acceptance status
+1, 3, 4, 5, 6, 7 and 8 met. Criterion 2 is partially met: the barrier line, crate piles, dumpster with bags, tyres, log and wreck all fill the left courtyard and right bank, but the empty-ground target cannot be claimed objectively from the frames.
+
+### Honest critique
+The after frame is clearly denser than untouched HEAD — a grey jersey line runs behind a wooden crate pile with black tyres and bags at the dumpster's feet, and the covered wreck reads on the right bank — but by eye about a third of the near forecourt sidewalk and centre sand still reads as flat empty ground, the sun-bleached dumpster scan merges into the pale barrier line rather than reading as a distinct object, and the two foreground tyres look dropped rather than embedded in the scene; the open lane at screen centre is intact, but ground decals/cracks/trash are still missing so the director's ~25% empty-ground target is not yet objectively met.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Finish DIRECTOR_NOTES item 2 with deterministic scanned ground decals (damaged-asphalt/crack/trash patches from the vetted CC0 library), restore cover contrast at the dumpster, then item 3 (leafy canopy + specks) and item 4 (building variety/rooflines); the red flyer-cone hazard stays spare budget. The iteration-118 cover path leaves no new browser errors and the offline/authority dressing list is shared.

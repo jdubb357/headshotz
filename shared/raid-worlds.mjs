@@ -1139,10 +1139,53 @@ export function uniqueWindowProps(props){
 // Spawn apron drums and the wooden supply crate. Rendered and collided from one
 // list so the offline builder and authority can never drift apart.
 const SPAWN_DRUMS=[[-3.2,11.4,0x4b5344],[-1.4,12.8,0x8a5a3e],[1.8,13.8,0x4b5344]];
+// Authored metre footprints of the scanned courtyard cover. Keeping the sizes
+// beside the offsets lets one deterministic list drive both the instanced scan
+// and the decor collider (the offline builder and authority never drift).
+const SPAWN_COVER_DIMS={
+ barrier:{w:1.565,h:1.112,d:.442},
+ cratepile:{w:.825,h:.35,d:.409},
+ bin:{w:1.955,h:1.21,d:.556},
+ wreck:{w:1.789,h:1.411,d:4.38},
+ log:{w:3.051,h:.291,d:.277},
+ tyre:{w:.6,h:.165,d:.6},
+ bag:{w:.528,h:.575,d:.463}
+};
+// The hero courtyard on the first deployment point (the relay spawn street):
+// a jersey-barrier line on the enemy side of the lane, a crate pile and rubbish
+// on the spawn-side pavement, a dumpster, and a covered wreck. Offsets are
+// metres from the spawn and rotate with the return direction toward the sector
+// interior. All gaps at screen centre stay walkable.
+const SPAWN_COVER_HERO=[
+ ['barrier',4.0,16.0,-.02,0],['barrier',5.2,16.2,-.03,0],
+ ['barrier',6.4,16.4,-.04,0],['barrier',7.6,16.6,-.05,0],
+ ['cratepile',-4.9,11.5,.03,0],['cratepile',-4.85,11.46,.12,.35],
+ ['cratepile',-5.7,11.9,.55,0],
+ ['tyre',-4.2,12.4,.3,0],['bag',-5.3,13.4,.2,0],
+ ['cratepile',3.6,12.6,.03,0],['cratepile',3.75,12.65,.12,.35],
+ ['cratepile',4.7,12.2,.55,0],
+ ['bag',5.1,13.1,.4,0],['bag',4.9,13.5,-.3,0],
+ ['tyre',6.8,14.0,.2,0],['tyre',2.0,9.2,.5,0],['tyre',3.1,9.7,1.1,0],
+ ['tyre',-8.2,17.4,.9,0],
+ ['log',7.8,16.4,.85,0],
+ ['bin',7.5,14.4,-.04,0],
+ ['bag',8.2,13.2,.3,0],['bag',6.2,13.5,-.2,0],['bag',7.0,15.3,.6,0],
+ ['wreck',-11.4,18.4,1.35,0]
+];
+// Other deployment courts get a lighter version of the same cover so a raid
+// starting elsewhere still has real barriers and debris without paying the full
+// hero triangle budget nine times.
+const SPAWN_COVER_LIGHT=[
+ ['barrier',-5.2,13.8,.1,0],
+ ['cratepile',3.4,12.6,.2,0],
+ ['tyre',-2.8,14.6,.6,0],
+ ['bag',4.9,13.2,.4,0]
+];
 export function raidSpawnDressing(world){
  const blocks=world.blocks||[],out=[];
  const hit=(x,z)=>blocks.some(([bx,bz,w,d])=>Math.abs(x-bx)<w/2+.7&&Math.abs(z-bz)<d/2+.7);
- for(const [sx,sz] of world.spawns||[]){
+ for(let si=0;si<(world.spawns||[]).length;si++){
+  const [sx,sz]=world.spawns[si];
   for(const [dx,dz,color] of SPAWN_DRUMS){
    const x=sx+dx,z=sz+dz;if(hit(x,z))continue;
    out.push({kind:'drum',x,z,y:terrainHeightAt(world,x,z),color,radius:.52,height:1.3});
@@ -1151,6 +1194,11 @@ export function raidSpawnDressing(world){
   // Footprint matches the real wooden-military-crate scan so the rendered prop
   // and the decor collider describe the same low, long box.
   if(!hit(x,z))out.push({kind:'crate',x,z,y:terrainHeightAt(world,x,z),color:0x8a6a45,w:1.242,h:.46,d:.52});
+  for(const [kind,dx,dz,ry,level] of si===0?SPAWN_COVER_HERO:SPAWN_COVER_LIGHT){
+   const x=sx+dx,z=sz+dz;if(hit(x,z))continue;
+   const dims=SPAWN_COVER_DIMS[kind];
+   out.push({kind,x,z,y:terrainHeightAt(world,x,z)+level,level,ry,w:dims.w,h:dims.h,d:dims.d});
+  }
  }
  return out;
 }
@@ -1228,7 +1276,7 @@ function decorGrid(world){
  }
  for(const item of raidSpawnDressing(world)){
   if(item.kind==='drum')push(item.x,item.z,item.radius,item.radius,item.y,item.height);
-  else push(item.x,item.z,item.w/2,item.d/2,item.y,item.h);
+  else push(item.x,item.z,item.w/2,item.d/2,item.y,item.h,item.ry||0);
  }
  for(const entry of entries){const [x,z,hw,hd]=entry,ry=entry[6]||0,cos=Math.abs(Math.cos(ry)),sin=Math.abs(Math.sin(ry));
   const ex=cos*hw+sin*hd,ez=sin*hw+cos*hd;

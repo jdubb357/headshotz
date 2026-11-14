@@ -1,6 +1,6 @@
 // HeadShotz external assets (all CC0 from Poly Haven — see ASSETS.md). Loaded lazily after the menu appears; Low quality skips them and keeps the built-in procedural look.
 import {THREE,GQ,hqSwap} from './gfx.js';
-export const HQP={ready:false,models:{},loot:{},guns:{},machines:{},windows:{},buildings:{},nature:{},ground:{},sky:null};
+export const HQP={ready:false,models:{},loot:{},guns:{},machines:{},windows:{},buildings:{},nature:{},ground:{},cover:{},sky:null};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
 const MODELS={crate:'assets/models/wooden_military_crate.glb',barrel:'assets/models/barrel_stove.glb',chest:'assets/models/treasure_chest.glb'};
 // Real CC0 loot props, loaded separately so the raid only pays for the small
@@ -26,6 +26,19 @@ const WINDOW_GLB={urban:'assets/models/windows/window_urban.glb'};
 // meshopt. Seven modules at 512 px maps keep the whole kit under 1 MB.
 const BUILDING_GLB={facade:{url:'assets/models/buildings/facade_kit.glb',
  modules:['wall_standard_standard_01','door_centered_large_01','cornice_standard_standard_01','base_standard_01','wall_pier_standard_01','dado_standard_standard_01','crown_standard_standard_01']}};
+// Scanned street-cover props for the raid courtyards (Poly Haven CC0): a
+// concrete jersey barrier, wooden crate, metal dumpster, covered car wreck,
+// dead-tree log, tyre and trash bag. Kept out of the lobby/BR path and loaded
+// only by the raid, with meshopt to stay under 1.6 MB total.
+const COVER_GLB={
+ barrier:'assets/models/cover/barrier.glb',
+ crate:'assets/models/cover/crate.glb',
+ bin:'assets/models/cover/bin.glb',
+ wreck:'assets/models/cover/wreck.glb',
+ log:'assets/models/cover/log.glb',
+ tyre:'assets/models/cover/tyre.glb',
+ bag:'assets/models/cover/bag.glb'
+};
 // Real scanned vegetation from Poly Haven's CC0 nature kit. Every asset is
 // baked to a metre-scale height and centred on x/z with its base at y=0 so the
 // raid can instance it directly on terrain height. Presentation only: their
@@ -54,12 +67,26 @@ export let skyTex=null;
 // plain-stride clone first; node transforms are baked into the geometry.
 function plainGeometry(source){
  const geo=new THREE.BufferGeometry();
+ // KHR_mesh_quantization stores positions/normals/UVs as normalized integers.
+ // Bake them to float before any CPU transform: BufferGeometry.applyMatrix4
+ // does not round-trip the normalize flag, so a baked quantized attribute would
+ // explode to its raw ±32767 range (seen as a wall-sized barrier at spawn).
+ const denorm=array=>array instanceof Float32Array?1:
+  array instanceof Int8Array?127:array instanceof Uint8Array?255:
+  array instanceof Int16Array?32767:array instanceof Uint16Array?65535:
+  array instanceof Int32Array?2147483647:array instanceof Uint32Array?4294967295:1;
  for(const name in source.attributes){
   const a=source.attributes[name];if(!a)continue;
+  const normalized=!!a.normalized&&!(a.array instanceof Float32Array);
   if(a.isInterleavedBufferAttribute){
    const count=a.count,itemSize=a.itemSize,out=new Float32Array(count*itemSize);
    for(let i=0;i<count;i++)for(let j=0;j<itemSize;j++)out[i*itemSize+j]=a.data.array[i*a.data.stride+a.offset+j];
-   geo.setAttribute(name,new THREE.BufferAttribute(out,itemSize,a.normalized));
+   if(normalized){const max=denorm(a.data.array);for(let i=0;i<out.length;i++)out[i]=out[i]/max}
+   geo.setAttribute(name,new THREE.BufferAttribute(out,itemSize,false));
+  }else if(normalized){
+   const out=new Float32Array(a.count*a.itemSize),max=denorm(a.array);
+   for(let i=0;i<out.length;i++)out[i]=a.array[i]/max;
+   geo.setAttribute(name,new THREE.BufferAttribute(out,a.itemSize,false));
   }else geo.setAttribute(name,new THREE.BufferAttribute(a.array.slice(),a.itemSize,a.normalized));
  }
  if(source.index)geo.setIndex(source.index.clone());
@@ -128,6 +155,45 @@ export async function loadLoot(onProg=()=>{}){
    for(const p of parts){photoModelMaterial(p.mat);if(p.mat)p.mat.envMapIntensity=1.15}
    HQP.loot[k]={parts,size,source:LOOT_GLB[k]};
   }catch(e){ok=false;console.warn('loot asset',k,e&&e.message)}
+  onProg(++done/keys.length);
+ }
+ return ok
+}
+// Scanned courtyard cover. Each GLB is centre-x/z and base-y baked to zero so
+// the deterministic dressing list can seat it on sampled terrain; tyres are
+// pre-rotated flat in the asset, keeping the instance transform to yaw only.
+export async function loadCover(onProg=()=>{}){
+ if(GQ.level==='low'){onProg(1,'skipped');return false}
+ const keys=Object.keys(COVER_GLB);if(!keys.length)return true;
+ const [{GLTFLoader},{MeshoptDecoder},{mergeGeometries}]=await Promise.all([
+  import('./lib/jsm/GLTFLoader.js'),import('./lib/jsm/meshopt_decoder.module.js'),
+  import('./lib/jsm/BufferGeometryUtils.js')]);
+ const L=new GLTFLoader();L.setMeshoptDecoder(MeshoptDecoder);
+ let ok=true,done=0;
+ for(const k of keys){
+  try{
+   const {parts,size,center,minY}=await loadGLBParts(L,COVER_GLB[k],mergeGeometries);
+   for(const p of parts){p.geo.translate(-center.x,-minY,-center.z);}
+   let width=size.x,height=size.y,depth=size.z;
+   if(k==='tyre'){
+    for(const p of parts)p.geo.rotateX(Math.PI/2);
+    const box=new THREE.Box3();
+    for(const p of parts){p.geo.computeBoundingBox();box.union(p.geo.boundingBox)}
+    const c=box.getCenter(new THREE.Vector3());
+    for(const p of parts)p.geo.translate(-c.x,-box.min.y,-c.z);
+    width=box.max.x-box.min.x;height=box.max.y-box.min.y;depth=box.max.z-box.min.z;
+   }
+   for(const p of parts){
+    p.geo.computeBoundingBox();p.geo.computeBoundingSphere();photoModelMaterial(p.mat);
+    if(p.mat){
+     p.mat.envMapIntensity=.9;
+     // Sun-bleached concrete scans blow to pure white against the pale apron;
+     // a gentle neutral tint keeps the jersey profile readable as cover.
+     if(k==='barrier')p.mat.color.multiplyScalar(.84);
+    }
+   }
+   HQP.cover[k]={parts,size:{x:width,y:height,z:depth},source:COVER_GLB[k]};
+  }catch(e){ok=false;console.warn('cover asset',k,e&&e.message)}
   onProg(++done/keys.length);
  }
  return ok

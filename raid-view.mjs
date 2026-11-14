@@ -789,17 +789,17 @@ export class RaidView {
 
  refreshSpawnDressing(){
   const dressing=this.environmentRoot?.userData?.raidSpawnDressing;
-  if(!dressing||dressing.group.userData.raidScanned||!HQP.ready)return;
+  if(!dressing || dressing.group.userData.raidScanned || !HQP.ready)return;
   const barrel=HQP.models.barrel,crate=HQP.models.crate;
-  // Only swap when both scans are available; removing the fallbacks while one
-  // model is missing would leave street props absent entirely.
+  // Only swap when both lobby scans are available; removing the fallbacks while
+  // one model is missing would leave street props absent entirely.
   if(!barrel||!crate)return;
   const {group,items}=dressing;
   for(const child of [...group.children]){group.remove(child);disposeOwned(child)}
   const dummy=new THREE.Object3D(),spin=item=>((item.x*.37+item.z*1.13)%6.283+6.283)%6.283;
-  const drums=barrel?items.filter(item=>item.kind==='drum'):[];
-  const crates=crate?items.filter(item=>item.kind==='crate'):[];
-  if(barrel&&drums.length){
+  const drums=items.filter(item=>item.kind==='drum');
+  const crates=items.filter(item=>item.kind==='crate');
+  if(drums.length){
    const mesh=new THREE.InstancedMesh(barrel.geo,barrel.mat,drums.length);
    mesh.castShadow=true;mesh.receiveShadow=true;
    drums.forEach((item,index)=>{
@@ -809,7 +809,7 @@ export class RaidView {
    });
    mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
   }
-  if(crate&&crates.length){
+  if(crates.length){
    const mesh=new THREE.InstancedMesh(crate.geo,crate.mat,crates.length);
    mesh.castShadow=true;mesh.receiveShadow=true;
    crates.forEach((item,index)=>{
@@ -818,6 +818,26 @@ export class RaidView {
     dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
    });
    mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
+  }
+  // Scanned courtyard cover: one instanced draw per material/part shared by every
+  // spawn, with each item's authored footprint seated on sampled terrain.
+  const coverKinds={barrier:'barrier',cratepile:'crate',bin:'bin',wreck:'wreck',log:'log',tyre:'tyre',bag:'bag'};
+  for(const kind of Object.keys(coverKinds)){
+   const asset=HQP.cover?.[coverKinds[kind]];
+   const list=items.filter(item=>item.kind===kind);
+   if(!asset||!list.length)continue;
+   for(const part of asset.parts){
+    const mesh=new THREE.InstancedMesh(part.geo,part.mat,list.length);
+    mesh.castShadow=true;mesh.receiveShadow=true;
+    list.forEach((item,index)=>{
+     dummy.position.set(item.x,item.y||0,item.z);
+     dummy.rotation.set(0,item.ry||0,0);
+     dummy.scale.setScalar(item.s||1);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate=true;
+    mesh.userData.raidSpawnCover=kind;
+    group.add(mesh);
+   }
   }
   group.userData.raidScanned=true;
  }
@@ -940,9 +960,10 @@ export class RaidView {
    // same horizon and sun the camera sees, and the render target is released by
    // clear()/start() so repeated deployments do not accumulate GPU memory.
    if(!this.envMapRT){this.envMapRT=this.createEnvironmentMap(this.environmentTarget);this.scene.environment=this.envMapRT.texture}}
-  // The first-person pass shares the deployment reflection probe so metal
-  // surfaces pick up the same sky and sun as the world, instead of a flat fill.
-  if(this.envMapRT&&this.overlay&&this.overlay.environment!==this.envMapRT.texture)this.overlay.environment=this.envMapRT.texture;
+  // The held pass stays out of the sky reflection probe: at noon the full
+  // daylight PMREM washes the scanned receiver to light blue-grey plastic.
+  // The three-point overlay lights below carry the dark gunmetal wear instead.
+  if(this.overlay&&this.overlay.environment!==null)this.overlay.environment=null;
   const weather=conditions.weather||'clear';
   if(weather==='clear'){if(this.weather)this.weather.visible=false}
   else{if(!this.weather||this.weatherKind!==weather)this.buildWeather(weather);this.weather.visible=!this.settings?.reduced;this.weather.material.color.setHex(weather==='ash'?0xd6a17b:weather==='mist'?0xc3d0c8:0xaecade)}
@@ -1240,7 +1261,6 @@ export class RaidView {
   }
   const environment=photoActive&&this.photoEnvRT?this.photoEnvRT.texture:this.envMapRT?.texture||null;
   if(this.scene.environment!==environment)this.scene.environment=environment;
-  if(this.overlay&&this.overlay.environment!==environment)this.overlay.environment=environment;
   const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(photoActive?PHOTO_DIR:lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun).normalize().multiplyScalar(150*this.viewScale).add(this.camera.position);this.moonOrb.position.copy(target.sun).normalize().multiplyScalar(-150*this.viewScale).add(this.camera.position);this.sunOrb.visible=target.sun.y>0&&!photoActive;this.moonOrb.visible=target.sun.y<0&&!photoActive;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01&&!photoActive;
   if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;SKY_TOP.copy(target.sky).offsetHSL(0,.08,-.17);u.top.value.lerp(SKY_TOP,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
    // Cloud deck follows the weather: thin haze by day, heavy low ceiling under
