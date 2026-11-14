@@ -383,7 +383,31 @@ export function humanModel(name,id,friendly,weapon='ar'){
  const tag=root.userData.tag;if(tag){tag.material.userData.raidOwned=true;tag.material.userData.raidOwnTexture=true}
  setHumanWeapon(root,weapon);root.userData.actor='human';return root;
 }
-export function setHumanWeapon(root,weapon){const mount=root.userData.gunMount;if(!mount)return;const old=root.userData.raidGun;if(old){mount.remove(old);disposeOwned(old)}root.userData.raidGun=null;root.userData.heldWeapon=weapon??null;if(weapon&&Object.hasOwn(WEAPONS,weapon)){const gun=weaponModel(weapon);gun.scale.setScalar(.5);mount.add(gun);root.userData.raidGun=gun}}
+// The first-person viewmodel mounts the scan at a toy-looking quarter-metre
+// size. An operator standing in the world needs the same scan at real rifle
+// scale, so every held weapon is measured and fitted to a class-appropriate
+// barrel length before it goes in the hands. `scanWeapon` redirects silhouette
+// variants without a scan (the support gun reuses the M4 scan) while the
+// authoritative weapon identity stays untouched.
+const HELD_LENGTH={smg:.7,ar:.86,shotgun:.96,lmg:.92};
+export function setHumanWeapon(root,weapon,scanWeapon=weapon){
+ const mount=root.userData.gunMount;if(!mount)return;
+ const old=root.userData.raidGun;if(old){mount.remove(old);disposeOwned(old)}
+ root.userData.raidGun=null;root.userData.heldWeapon=weapon??null;
+ if(!weapon||!Object.hasOwn(WEAPONS,weapon))return;
+ const gun=weaponModel(scanWeapon,false);
+ // Fit the scan to the requested real-world barrel length at the grip origin.
+ const bounds=new THREE.Box3().setFromObject(gun),size=bounds.getSize(new THREE.Vector3());
+ if(size.z>1e-3)gun.scale.multiplyScalar((HELD_LENGTH[weapon]||.86)/size.z);
+ // The scanned materials are per-actor clones; their photo textures and normal
+ // maps stay shared with the source asset and must never be disposed with the
+ // actor. Mark only the cloned material owned so per-actor disposal releases it.
+ if(HQP.guns&&PHOTO[scanWeapon])gun.traverse(node=>{
+  if(node.isMesh&&node.material?.userData)node.material.userData.raidOwned=true;
+  if(node.isMesh)node.castShadow=true;
+ });
+ mount.add(gun);root.userData.raidGun=gun;
+}
 // Each grounded machine class is a real CC0 MakeHuman operator wearing the
 // shared gear rig. The class picks the loadout silhouette (masked scout, helmeted
 // hunter, armoured bulwark, oversized warden) and a uniform tint; the world
@@ -393,10 +417,10 @@ const SOLDIER_MACHINES={
  scout:{cls:'scout',team:0x5f6653,weapon:'smg',scale:1.12,features:['boonie-hood','light-rig','chest-reactor']},
  hunter:{cls:'soldier',team:0x4e5b44,weapon:'ar',scale:1.2,features:['combat-helmet','plate-carrier','chest-reactor']},
  heavy:{cls:'juggernaut',team:0x3a3f46,weapon:'shotgun',scale:1.45,features:['sealed-helmet','armour-plates','chest-reactor']},
- overlord:{cls:'juggernaut',team:0x574a3c,weapon:'lmg',scale:2.7,features:['warden-helmet','warden-plates','core-vent']}
+ overlord:{cls:'juggernaut',team:0x574a3c,weapon:'lmg',scan:'ar',scale:2.7,features:['warden-helmet','warden-plates','core-vent']}
 };
 function soldierMachine(root,kind,def){
- const spec=SOLDIER_MACHINES[kind],scale=spec.scale,coreY=Math.max(.35,def.core)/scale,coreZ=-.20;
+ const spec=SOLDIER_MACHINES[kind],scale=spec.scale;
  root.scale.setScalar(scale);
  let body;
  try{body=makeCharacterWithCache(characterGeometryCache,spec.team,'','raid_machine_'+kind,spec.team,null,spec.cls);retainCharacterGeometry(body)}
@@ -404,17 +428,22 @@ function soldierMachine(root,kind,def){
  if(body.userData.tag){body.userData.tag.visible=false;body.userData.tag.removeFromParent();}
  body.userData.heldWeapon=spec.weapon;
  body.userData.actor='human';root.userData.humanActor=body;root.add(body);
- setHumanWeapon(body,spec.weapon);
- // The authoritative weak point stays exactly at the server's core height:
- // a stamped-metal housing and a hot reactor lamp sit in front of the chest so
- // the player can see what they are supposed to shoot. The housing carries the
- // shared worn-plating finish; only the amplifier is presentation-only.
- const housing=wornPart(root,'cylinder',0x2a2823,0,coreY,coreZ,.13,.032,.13,[Math.PI/2,0,0]);
- housing.userData.raidWorn=true;
- const rim=part(root,'cylinder',0x95846b,0,coreY,coreZ-.031,.155,.008,.155,[Math.PI/2,0,0]);
- rim.material=mat(0x95846b);
- lightPart(root,0,coreY,coreZ-.045,.115,true);
- root.userData.coreRadius=.115;
+ setHumanWeapon(body,spec.weapon,spec.scan||spec.weapon);
+ // Low-ready carry angle: a machine that faces the player dead-on points the
+ // muzzle straight at the camera, where a 0.8 m rifle collapses to a handful of
+ // pixels and the operator appears empty-handed. Cant the aim frame so the real
+ // scanned rifle stays legible from the front as well as in profile. This is
+ // presentation only; the authoritative hit band and attack timing are untouched.
+ body.userData.aim.rotation.y=.34;
+ // The server resolves a weak hit by height, not by a floating target sprite.
+ // Put the visible weak point flush in the operator's chest harness as a small
+ // dim reactor lamp: no orb, no halo, and still inside the authoritative core
+ // band (the local height is capped so it never sits above the hit window).
+ const lampY=Math.min(1.18,Math.max(.55,(def.core+.3)/scale)),lampZ=-.16;
+ const plate=wornPart(root,'cylinder',0x242b27,0,lampY,lampZ,.05,.012,.05,[Math.PI/2,0,0]);
+ plate.userData.raidWorn=true;
+ lightPart(root,0,lampY,lampZ-.015,.032,false);
+ root.userData.coreRadius=.032;
  root.userData.machineCore=true;root.userData.kind=kind;
  // A soft contact bed under the operator's boots stops the legs reading as
  // floating at the low grazing angle of the first-person camera.
@@ -424,7 +453,7 @@ function soldierMachine(root,kind,def){
  const hazeMat=new THREE.SpriteMaterial({map:TX.soft,color:0x0a100d,transparent:true,opacity:.32,depthWrite:false,blending:THREE.NormalBlending,fog:false});
  hazeMat.userData.raidOwned=true;
  const haze=new THREE.Sprite(hazeMat);haze.position.set(0,.24,0);haze.scale.set(2.1,.8,1);haze.renderOrder=4;root.add(haze);root.userData.groundHaze=haze;
- root.userData.machineDetail={worn:true,halo:true,features:spec.features,detailCount:spec.features.length,asset:true};
+ root.userData.machineDetail={worn:true,halo:false,features:spec.features,detailCount:spec.features.length,asset:true};
  root.userData.actor='human';return root;
 }
 export function machineModel(kind,options={}){
@@ -901,7 +930,9 @@ export function updateActor(root,state,dt,time){
   const hitFlash=Math.max(0,(root.userData.hitFlash||0)-dt*3.6);root.userData.hitFlash=reducedCore?0:hitFlash;
   const core=root.userData.core;if(core){
    const strobe=!reducedCore&&phase==='meltdown'&&Math.sin(time*14)>0;
-   core.material.color.setHex(state.state==='windup'?0xffe28e:strobe?0xfff4ea:phase==='meltdown'?0xff2c1e:phase==='furnace'?0xff9a2f:phase==='approach'?0xff6a52:0xff5038);
+   // A small harness lamp, not a body-sized orb: keep the base a dim brick red
+   // and only lift it for the authoritative windup/attack telegraphs.
+   core.material.color.setHex(state.state==='windup'?0xf0c486:strobe?0xffe8d2:phase==='meltdown'?0xe22b1b:phase==='furnace'?0xcc8136:phase==='approach'?0xa95438:0x7a3424);
    if(!reducedCore&&hitFlash>0)core.material.color.lerp(HIT_FLASH_COLOR,Math.min(1,hitFlash*.85));
    const phasePulse=phase==='furnace'&&!reducedCore?1.12+.18*Math.sin(time*9):strobe?1.5:1;
    const hitPulse=reducedCore?0:1+hitFlash*.5;
