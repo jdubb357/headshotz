@@ -46,10 +46,9 @@ try{
   view.applySettings({reduced:true,sfxVolume:0,fov:75});view.sync(rainReflect);view.updateEnvironment(1);view.wetness=0;view.updateWetness(.016);
   const reflectionReduced={wetness:view.wetness,opacity:view.wetReflections?.material.opacity??0,visible:!!view.wetReflections?.visible};
   view.applySettings({reduced:false,sfxVolume:0,fov:75});
-  const litWindows=(view.world.props||[]).filter(prop=>prop.kind==='window'&&prop.lit&&prop.color!=null).length;
   const groundFixtures=(view.world.props||[]).filter(prop=>((prop.kind==='lamp'||prop.kind==='campfire')&&(prop.y==null||prop.y===0))||(prop.kind==='floodlight'&&(prop.y==null||prop.y===0))).length;
   const lights=view.scene.children.filter(o=>o.isLight).length;window.__weatherView=view;window.__weatherRain=rainReflect;
-  return {dry,wet,restored,reducedWetness,terrainWet:{roughness:terrain.userData.raidWet,dryRoughness:terrain.userData.raidDry.roughness},lights,reflection:{field:{isInstanced:!!view.wetReflections?.isInstancedMesh,count:view.wetReflections?.count??0,expected:groundFixtures+litWindows,map:!!view.wetReflections?.material.map,additive:view.wetReflections?.material.blending===THREE.AdditiveBlending,depthWrite:view.wetReflections?.material.depthWrite},dry:reflectionDry,rain:reflectionRain,restored:reflectionRestored,reduced:reflectionReduced},equal:Math.abs(restored.terrain.roughness-dry.terrain.roughness)<.001&&Math.abs(restored.terrain.metalness-dry.terrain.metalness)<.001&&Math.abs(restored.terrain.envMapIntensity-dry.terrain.envMapIntensity)<.001};
+  return {dry,wet,restored,reducedWetness,terrainWet:{roughness:terrain.userData.raidWet,dryRoughness:terrain.userData.raidDry.roughness},lights,reflection:{field:{isInstanced:!!view.wetReflections?.isInstancedMesh,count:view.wetReflections?.count??0,expected:groundFixtures,map:!!view.wetReflections?.material.map,additive:view.wetReflections?.material.blending===THREE.AdditiveBlending,depthWrite:view.wetReflections?.material.depthWrite},dry:reflectionDry,rain:reflectionRain,restored:reflectionRestored,reduced:reflectionReduced},equal:Math.abs(restored.terrain.roughness-dry.terrain.roughness)<.001&&Math.abs(restored.terrain.metalness-dry.terrain.metalness)<.001&&Math.abs(restored.terrain.envMapIntensity-dry.terrain.envMapIntensity)<.001};
  })()`);
  assert.ok(result.dry.terrain.roughness>=.9,'dry terrain keeps its authored roughness');
  assert.ok(result.dry.asphalt&&result.dry.asphalt.roughness>result.wet.terrain.roughness,'street surfaces are present and start dry');
@@ -63,7 +62,7 @@ try{
  assert.equal(result.reducedWetness,1,'reduced motion snaps to the target wet state');
  const reflection=result.reflection;
  assert.equal(reflection.field.isInstanced,true,'wet glints are one instanced field');
- assert.equal(reflection.field.count,reflection.field.expected,'wet glints equal authored ground fixtures plus lit windows ('+reflection.field.count+')');
+ assert.equal(reflection.field.count,reflection.field.expected,'wet glints equal authored ground fixtures, with no window glint ('+reflection.field.count+')');
  assert.equal(reflection.field.map,true,'wet glints use their authored sheen');
  assert.equal(reflection.field.additive,true,'wet glints add reflected light to the ground');
  assert.equal(reflection.field.depthWrite,false,'wet glints leave scene depth intact');

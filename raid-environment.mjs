@@ -779,11 +779,11 @@ export function buildEnvironment(world){
    // Every opening record feeds the raid's real scanned window pass; the
    // procedural pane, trim, shutters and sills above remain the instant fallback
    // until assets.js decodes the CC0 frame and glass.
-   windowOpeningSites.push({x:x,y:y,z:z,onZ,wide,h,outward:sillOutward,lit});
-   // Lit windows join the shared practical halo budget so night facades bloom
-   // cohesively. Halos are depth-tested (with a fixture bias) rather than depth-
-   // independent, so a window behind a solid wall no longer ghosts through it.
-   if(lit){glow(x,y+h/2,z,prop.color||0xffd79a);wetReflect(x,z,prop.color||0xffd79a,Math.max(.82,d*.72),h*1.8)}
+   windowOpeningSites.push({x:x,y:y,z:z,onZ,wide,h,outward:sillOutward,lit,color:lit?(prop.color||0xffd79a):null});
+   // Lit windows are warm only as flat emissive glazing bounded by their frame.
+   // The authored colour lives on the pane material below (restored after
+   // sundown); no additive halo or ground glint is contributed by windows, so
+   // the light stays inside the opening instead of floating in front of it.
   }
   else if(prop.kind==='awning'){add('box',prop.color||0x8d382e,x,y+.18,z,prop.w||3,0.14,prop.d||2,0,'metal')}
   else if(prop.kind==='field'){add('box',prop.color||(world.theme==='wilderness'?0x5d7248:0x6d745f),x,y+.01,z,prop.w||20,.02,prop.d||20,0,world.theme==='wilderness'?'forest':'dirt')}

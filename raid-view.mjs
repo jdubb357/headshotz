@@ -300,6 +300,9 @@ export class RaidView {
   this.refreshSpawnDressing();
   this.refreshStreetProps();
   this.refreshWindows();
+  // refreshWindows may clone the scanned glass with per-colour emissive; adopt
+  // the updated list so the night curve drives the real glazing too.
+  this.windowMaterials=this.environmentRoot?.userData?.raidWindowMaterials||this.windowMaterials||[];
   this.refreshFacades();
   if(this.terrainMaterial){
    const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
@@ -582,10 +585,10 @@ export class RaidView {
   // its recessed glass just proud of the old pane so the dark interior still
   // backs the glazing instead of the wall showing through.
   const dummy=new THREE.Object3D(),seat=.14;
-  for(const part of asset.parts){
-   const mesh=new THREE.InstancedMesh(part.geo,part.mat,near.length);
-   mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
-   near.forEach((s,index)=>{
+  // One placement matrix drives both the timber frame and its glazing; keeping
+  // the glass deliberately recessed behind the frame is what confines the warm
+  // light to the opening. No sprite or ground glint is contributed here.
+  const place=(mesh,s,index)=>{
     // A small overlap past the frozen opening hides the exposed edge of the old
     // pane while still reading as a surface-mounted timber reveal.
     const frameW=s.wide*1.12,frameH=s.h*1.03,sx=frameW/asset.width,sy=frameH/asset.height,sz=sx;
@@ -598,10 +601,47 @@ export class RaidView {
     dummy.position.set(s.x+(s.onZ?0:outward*seat),s.y,s.z+(s.onZ?outward*seat:0));
     dummy.rotation.set(0,yaw,0);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();
     mesh.setMatrixAt(index,dummy.matrix);
-   });
-   mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+  };
+  const addScanned=(part,sites,material=part.mat)=>{
+    if(!sites.length)return null;
+    const mesh=new THREE.InstancedMesh(part.geo,material,sites.length);
+    mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+    sites.forEach((s,index)=>place(mesh,s,index));
+    mesh.instanceMatrix.needsUpdate=true;root.add(mesh);return mesh;
+  };
+  // The scanned module carries its glass as a separately named primitive. The
+  // timber frame is shared by every opening; only the glass varies, because a
+  // lit window needs its authored lamp colour as flat emissive glazing.
+  const glassPart=asset.parts.find(part=>/glass/i.test(part.mat?.name||''));
+  // The lit-glass clones join the environment's published window-material list
+  // so the night curve drives them alongside the procedural panes.
+  const windowMaterials=root.userData.raidWindowMaterials||this.windowMaterials||[];
+  for(const part of asset.parts)if(part!==glassPart)addScanned(part,near);
+  const litByColor=new Map();
+  if(glassPart){
+    addScanned(glassPart,near.filter(s=>!s.lit));
+    for(const s of near){
+      if(!s.lit)continue;
+      const color=(s.color||0xffd79a)&0xffffff;
+      if(!litByColor.has(color))litByColor.set(color,[]);
+      litByColor.get(color).push(s);
+    }
+    for(const [color,sites] of litByColor){
+      const material=glassPart.mat.clone();
+      material.emissive=new THREE.Color(color);
+      material.emissiveIntensity=.15;
+      if(glassPart.mat.map)material.emissiveMap=glassPart.mat.map;
+      material.needsUpdate=true;
+      material.userData.raidOwned=true;
+      material.userData.raidWindowGlass=true;
+      material.userData.raidWindowScan=true;
+      material.userData.raidWindowGlowColor=color;
+      windowMaterials.push(material);
+      addScanned(glassPart,sites,material);
+    }
   }
   root.userData.raidRealWindows=near.length;
+  root.userData.raidRealWindowsLit=[...litByColor.values()].reduce((sum,sites)=>sum+sites.length,0);
  }
  // Rebuilds every street façade from the scanned modular architecture kit. The
  // old block faces stay as the solid visual core but the surfaces the player
@@ -1221,9 +1261,9 @@ export class RaidView {
  if(this.glowPoints){const night=Math.pow(Math.max(0,Math.min(1,1-(target.daylight||0))),1.35),damp=weather==='rain'?.55:weather==='ash'?.7:1,targetOpacity=Math.min(.9,night*.85*damp);this.glowPoints.material.opacity+=(targetOpacity-this.glowPoints.material.opacity)*blend;this.glowPoints.visible=this.glowPoints.material.opacity>.008}
  if(this.glowPools){const night=Math.pow(Math.max(0,Math.min(1,1-(target.daylight||0))),1.2),damp=weather==='rain'?.55:weather==='ash'?.7:1,targetOpacity=Math.min(.6,night*.65*damp);this.glowPools.material.opacity+=(targetOpacity-this.glowPools.material.opacity)*blend;this.glowPools.visible=this.glowPools.material.opacity>.008}
  // Daylight burns the lamplight out of every glazed pane, leaving dark glass and
- // sky reflection; after sundown the authored warm colour returns. Both the pane
- // material and its halo field use the same night curve, so windows and lamps reach
- // full glow together instead of one popping on before the other.
+ // sky reflection; after sundown the authored warm colour returns as flat
+ // emissive glazing bounded by the scanned timber frame. Windows contribute no
+ // additive halo: their warm light is the pane itself, not a sprite in front.
  if(this.windowMaterials?.length){
   const windowNight=Math.pow(Math.max(0,Math.min(1,1-daylight)),1.15)*(weather==='rain'?.72:weather==='ash'?.82:1),targetIntensity=windowNight*1.55;
   for(const material of this.windowMaterials)material.emissiveIntensity+=(targetIntensity-material.emissiveIntensity)*blend;
