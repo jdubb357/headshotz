@@ -8737,3 +8737,41 @@ The arms are real MakeHuman skin/cloth tinted to glove and sleeve, but they are 
 The before frames read pale blue-grey with bare brown hands and a bright olive sleeve; the after frames are clearly darker — charcoal rifle with glinted rail edge wear, near-black leather gloves and dark olive sleeves. Still imperfect: leather grain is stretched at arm UV scale so stitching reads soft at phone size, the support hand's silhouette is slightly clubbed where it meets the handguard (no knuckle-pad geometry), sleeve folds are subtle in one frame, and the magazine catches a small pale glint. Detaching the first-person overlay from the photo probe is an exposure choice for the held pass only; the world pass is unchanged. The known viewmodel grader assertion still fails on the stale key‐intensity expectation rather than on any new error.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (DENSITY + COVER IN THE COURTYARD): jersey-barrier line, crate stack, rubble/debris pile, dumpster/container wall, ground decals, keeping a readable lane and ≤25% empty flat ground; then item 3 (foliage + specks) and item 4 (building variety/rooflines), with the red flyer-cone hazard reserved for spare budget.
+
+## Iteration 118 — COURTYARD DENSITY + COVER: scanned barrier line, crate pile, dumpster, wreck, debris (DIRECTOR_NOTES item 2; 2026-11-14)
+
+**Task:** Fill the bare courtyard between the spawn street and the far blocks with real scanned cover from the CC0 library, keeping the enemy lane readable. Presentation-only change; no new systems or UI.
+
+### Acceptance criteria (recorded before implementation)
+1. The pinned noon spawn frame gains real scanned cover at player scale: a jersey-barrier line, a crate pile, a dumpster, a covered wreck and scattered debris/recycled props, all using the seven CC0 scans in `assets/models/cover/` (no procedural box stand-ins for the final art).
+2. In `after-1024.png`, no more than ~25% of the visible ground area in front of the spawn remains empty flat pavement/sand (judged honestly against the before frame), while a continuous, walkable lane at screen centre stays clear.
+3. Cover is seated on sampled terrain, upright/flat as appropriate (tyres flat, barriers standing), free of clipping through the adjacent brick/metal blocks and the existing drums/supply crate, with rotations that keep the barrier line readable from spawn.
+4. Every new dressing item carries a footprint and belongs to the shared deterministic dressing list, so `decorGrid` blocks it identically offline and on the authority; `tests/raid-worlds.test.mjs` dressing assertions stay green.
+5. `assets.js` / `raid-view.mjs` / `raid-online.mjs`: cover assets load lazily with the same meshopt path, render in `refreshSpawnDressing` as instanced scans with the procedural fallback skipped for the new kinds, and `window.__raidArt` reports the cover count; no browser errors.
+6. `ASSETS.md` records source URLs and CC0 (or MIT) licences for all seven models; `index.html` credits updated if the page has a credits block.
+7. Static offline-playability, mobile HUD and performance browser graders green; `node --test tests/*.test.mjs` green except the known intermittent matchmaking ECONNRESET; before/after frames at 1024×720 and 844×390 plus action frames in `~/headshotz-loop/shots/latest/`.
+8. No UI, menus, currencies, traders, squads, records, crafting, account, collision-route, server-authority or other-mode change.
+
+### Implementation
+- Copied seven Poly Haven CC0 scans to `assets/models/cover/` as meshoptimized 512 px WebP GLBs: `barrier.glb` (23,250 tris), `crate.glb` (6,319), `bin.glb` (13,664), `wreck.glb` (12,118), `log.glb` (55,002), `tyre.glb` (2,880), `bag.glb` (4,472) — 1,620,536 B total.
+- `assets.js`: `COVER_GLB` + lazy `loadCover()` (same GLTFLoader/MeshoptDecoder path as loot); tyre rotated flat at load, barrier tinted ×.84 so sun-bleached concrete stays readable against the pale apron; `HQP.cover` registered.
+- `plainGeometry()` now dequantizes normalized integer attributes to Float32 before baking transforms. Without it the GLBs' raw ±32767 quantized positions smeared into a huge pale concrete plane over the whole spawn frame.
+- `share/raid-worlds.mjs`: `SPAWN_COVER_DIMS` + `SPAWN_COVER_HERO` (first deployment court) and lighter `SPAWN_COVER_LIGHT` (other spawns), all appended to `raidSpawnDressing` so the same 73-item deterministic list drives instancing and `decorGrid`. Barrier line sits 12–13 m down the left side of the lane; crate piles, dumpster + trash bags, forecourt tyres, log and covered wreck follow; spawn-relative rotations are propagated to the rotated AABB collider.
+- `raid-environment.mjs`: only drums/supply crate get the procedural fallback; scanned cover stays invisible until the GLBs land instead of flashing as giant boxes.
+- `raid-view.mjs`: `refreshSpawnDressing()` instances each cover part (`barrier`→4, `cratepile`→6 hero, `bin`→1, `wreck`→1, `log`→1, `tyre`→5, `bag`→5 hero), cast/receive shadows, per-item yaw and sampled terrain height; `window.__raidArt.cover` reports all seven keys.
+- `ASSETS.md` and the in-game credits list all seven sources, authors, CC0 licences and byte/triangle counts.
+
+### Verification (commands/results)
+- `node --test tests/raid-worlds.test.mjs` → 13/13 pass.
+- `node tests/raid-browser-static-offline.mjs` → green (offline boot/deploy/move/hit/loot/extract, no API traffic). `node tests/raid-browser-mobile-hud.mjs` → green (1024×720 91.8% unobstructed; 844×390 81.6%). `node tests/raid-browser-performance.mjs` → all three maps, all targets true, zero errors (relay p50 2,269 draws / 11.1M tris).
+- `node --test tests/*.test.mjs` → 1 failure, only the known intermittent `matchmaking.test.mjs` ECONNRESET; retried alone, same network error.
+- Probe: `__raidArt.cover` = `[barrier,crate,bin,wreck,log,tyre,bag]`, tinted debug pass confirmed every kind is instanced and in-frame, browserErrors `[]` across all captures.
+- Screenshots: folder cleared; `before-1024.png`, `before-1024-action.png`, `before-844.png`, `before-844-action.png` captured from HEAD (`b81d58d`) and `after-1024.png`, `after-1024-action.png`, `after-844.png`, `after-844-action.png` from the new tree, pinned noon spawn street.
+
+### Acceptance status
+1, 3, 4, 5, 6, 7 and 8 met. Criterion 2 is partially met: the barrier line, crate piles, dumpster with bags, tyres, log and wreck all fill the left courtyard and right bank, but the empty-ground target cannot be claimed objectively from the frames.
+
+### Honest critique
+The after frame is clearly denser than untouched HEAD — a grey jersey line runs behind a wooden crate pile with black tyres and bags at the dumpster's feet, and the covered wreck reads on the right bank — but by eye about a third of the near forecourt sidewalk and centre sand still reads as flat empty ground, the sun-bleached dumpster scan merges into the pale barrier line rather than reading as a distinct object, and the two foreground tyres look dropped rather than embedded in the scene; the open lane at screen centre is intact, but ground decals/cracks/trash are still missing so the director's ~25% empty-ground target is not yet objectively met.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Finish DIRECTOR_NOTES item 2 with deterministic scanned ground decals (damaged-asphalt/crack/trash patches from the vetted CC0 library), restore cover contrast at the dumpster, then item 3 (leafy canopy + specks) and item 4 (building variety/rooflines); the red flyer-cone hazard stays spare budget. The iteration-118 cover path leaves no new browser errors and the offline/authority dressing list is shared.

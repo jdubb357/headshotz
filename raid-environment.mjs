@@ -1394,7 +1394,13 @@ export function buildEnvironment(world){
  // what stops a body, bullet or machine leg.
  const spawnItems=raidSpawnDressing(world),spawnGroup=new THREE.Group();
  spawnGroup.name='raidSpawnDressing';
- for(const item of spawnItems){const node=spawnDressingFallback(item);node.userData.raidSpawnItem=item;spawnGroup.add(node)}
+ // Only the original drum/crate props get a procedural stand-in: the scanned
+ // courtyard cover is invisible for the first seconds instead of flashing as
+ // oversized boxes, then lands with the rest of the photogrammetry.
+ for(const item of spawnItems){
+  if(item.kind!=='drum'&&item.kind!=='crate')continue;
+  const node=spawnDressingFallback(item);node.userData.raidSpawnItem=item;spawnGroup.add(node);
+ }
  root.add(spawnGroup);root.userData.raidSpawnDressing={group:spawnGroup,items:spawnItems};
  // Cut-and-fill banks around the insertion points used to read as smooth pale
  // slabs at first-person range. Deterministic scrub covers the rising ground

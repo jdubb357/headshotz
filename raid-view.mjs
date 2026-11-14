@@ -789,17 +789,17 @@ export class RaidView {
 
  refreshSpawnDressing(){
   const dressing=this.environmentRoot?.userData?.raidSpawnDressing;
-  if(!dressing||dressing.group.userData.raidScanned||!HQP.ready)return;
+  if(!dressing || dressing.group.userData.raidScanned || !HQP.ready)return;
   const barrel=HQP.models.barrel,crate=HQP.models.crate;
-  // Only swap when both scans are available; removing the fallbacks while one
-  // model is missing would leave street props absent entirely.
+  // Only swap when both lobby scans are available; removing the fallbacks while
+  // one model is missing would leave street props absent entirely.
   if(!barrel||!crate)return;
   const {group,items}=dressing;
   for(const child of [...group.children]){group.remove(child);disposeOwned(child)}
   const dummy=new THREE.Object3D(),spin=item=>((item.x*.37+item.z*1.13)%6.283+6.283)%6.283;
-  const drums=barrel?items.filter(item=>item.kind==='drum'):[];
-  const crates=crate?items.filter(item=>item.kind==='crate'):[];
-  if(barrel&&drums.length){
+  const drums=items.filter(item=>item.kind==='drum');
+  const crates=items.filter(item=>item.kind==='crate');
+  if(drums.length){
    const mesh=new THREE.InstancedMesh(barrel.geo,barrel.mat,drums.length);
    mesh.castShadow=true;mesh.receiveShadow=true;
    drums.forEach((item,index)=>{
@@ -809,7 +809,7 @@ export class RaidView {
    });
    mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
   }
-  if(crate&&crates.length){
+  if(crates.length){
    const mesh=new THREE.InstancedMesh(crate.geo,crate.mat,crates.length);
    mesh.castShadow=true;mesh.receiveShadow=true;
    crates.forEach((item,index)=>{
@@ -818,6 +818,26 @@ export class RaidView {
     dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
    });
    mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
+  }
+  // Scanned courtyard cover: one instanced draw per material/part shared by every
+  // spawn, with each item's authored footprint seated on sampled terrain.
+  const coverKinds={barrier:'barrier',cratepile:'crate',bin:'bin',wreck:'wreck',log:'log',tyre:'tyre',bag:'bag'};
+  for(const kind of Object.keys(coverKinds)){
+   const asset=HQP.cover?.[coverKinds[kind]];
+   const list=items.filter(item=>item.kind===kind);
+   if(!asset||!list.length)continue;
+   for(const part of asset.parts){
+    const mesh=new THREE.InstancedMesh(part.geo,part.mat,list.length);
+    mesh.castShadow=true;mesh.receiveShadow=true;
+    list.forEach((item,index)=>{
+     dummy.position.set(item.x,item.y||0,item.z);
+     dummy.rotation.set(0,item.ry||0,0);
+     dummy.scale.setScalar(item.s||1);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate=true;
+    mesh.userData.raidSpawnCover=kind;
+    group.add(mesh);
+   }
   }
   group.userData.raidScanned=true;
  }

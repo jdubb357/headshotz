@@ -172,3 +172,19 @@ Two real photographed PBR surface sets now cover the first-person MakeHuman arms
 | `cloth_diff_512.jpg`, `cloth_nor_512.jpg`, `cloth_arm_512.jpg` | Denim Fabric 06 | Greg Zaal (photography), Rico Cilliers (processing) | https://polyhaven.com/a/denim_fabric_06 | CC0 1.0 |
 
 Total 516,966 bytes across the six 512 × 512 files; the `_512` suffix marks the shipped downscale of the 1k Poly Haven originals. Presentation only: the surfaces, pose and rifle tint live in `raid-models.mjs` and the first-person overlay lighting in `raid-view.mjs`; the scanned textures are module-owned so weapon disposal never frees a shared map.
+
+## Raid courtyard cover — seven scanned Poly Haven props (CC0), iteration 118
+
+The spawn courtyards now contain real photographed street cover instead of empty pavement or procedural boxes. Seven CC0 Poly Haven models were copied into `assets/models/cover/` as GLBs, simplified with glTF-Transform 4.5.1 (`--compress meshopt`, `--texture-size 512`, `--texture-compress webp`), then loaded only by the raid path (never the lobby or Battle Royale): `assets.js`'s `loadCover` registers them in `HQP.cover`, `raid-view.mjs` renders them as instanced scans in `refreshSpawnDressing`, and the procedural box fallback explicitly skips these kinds. They are decoration only and remain deterministic through `raidSpawnDressing`, so their footprints are blocked identically offline and on the authority.
+
+| File | Asset | Author(s) | Source | Used as | Triangles (from source) | Size |
+|---|---|---|---|---|---|---|
+| `barrier.glb` | Concrete Road Barrier 02 | Amal Kumar | https://polyhaven.com/a/concrete_road_barrier_02 | jersey-barrier line | 23,250 (from 42,578) | 261,340 B |
+| `crate.glb` | Wooden Crate 01 | James Ray Cock | https://polyhaven.com/a/wooden_crate_01 | crate pile / stack | 6,319 (from 6,576) | 136,500 B |
+| `bin.glb` | Metal Trash Can | GurJas Studios | https://polyhaven.com/a/metal_trash_can | dumpster / trash container | 13,664 (from 13,960) | 344,364 B |
+| `wreck.glb` | Covered Car | MP | https://polyhaven.com/a/covered_car | tarp-covered wreck | 12,118 (from 12,592) | 186,216 B |
+| `log.glb` | Dead Tree Trunk | Rob Tuytel | https://polyhaven.com/a/dead_tree_trunk | fallen log debris | 55,002 (from 101,802) | 449,052 B |
+| `tyre.glb` | Old Tyre | MP | https://polyhaven.com/a/old_tyre | flat tyre debris | 2,880 (from 2,880) | 119,948 B |
+| `bag.glb` | Trashbag | Benny Weimer | https://polyhaven.com/a/trashbag | scattered trash bags | 4,472 (from 4,472) | 123,116 B |
+
+All seven are **CC0 1.0** (public domain, credited anyway). Total 1,620,536 bytes and 117,705 rendered triangles (each model is meshoptimized and quantized with `KHR_mesh_quantization`; `plainGeometry` dequantizes the normalized integer attributes to Float32 before instancing so bounds stay in metres). The tyre scan is rotated flat on the ground and the barrier scan gets a gentle neutral tint so its sun-bleached concrete does not read as pure white against the pale apron. Presentation only — no gameplay, collision-route, server or other-mode change.
