@@ -304,6 +304,7 @@ export class RaidView {
   // the updated list so the night curve drives the real glazing too.
   this.windowMaterials=this.environmentRoot?.userData?.raidWindowMaterials||this.windowMaterials||[];
   this.refreshFacades();
+  this.refreshFacadeVariety();
   if(this.terrainMaterial){
    const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
    const live=getTex(key),liveNormal=normalTex(key,1.6);
@@ -669,10 +670,16 @@ export class RaidView {
   const wallMat=wall.parts[0].mat,baseMat=base.parts[0].mat,pierMat=pier.parts[0].mat;
   const nearCells=[],planeCells=[],baseCells=[],corniceCells=[],crownCells=[],pierCells=[],sillCells=[],doorHoodCells=[];
   const tintFor=b=>{
+   const c=new THREE.Color(b.color);
+   if(b.kind==='metal'){
+    // Galvanised sheds read cold and weathered instead of sharing the warm
+    // brick-plaster tint of every timber/residential block.
+    c.lerp(new THREE.Color(0x93a6ad),.58).multiplyScalar(.88);
+    return c;
+   }
    // The photographed plaster carries its own warm ochre colour. Mixing the
    // block's palette tint toward white keeps buildings distinct without the
    // over-bright normalisation that turned every façade neon orange.
-   const c=new THREE.Color(b.color);
    c.lerp(new THREE.Color(0xffffff),.56);
    return c;
   };
@@ -789,6 +796,132 @@ export class RaidView {
   }
   root.userData.raidFacadeModules=nearCells.length+planeCells.length+baseCells.length+corniceCells.length+crownCells.length+pierCells.length+sillCells.length+doorHoodCells.length+doorMats.length;
   root.userData.raidRealDoors=doorMats.length;
+ }
+
+ // The two volumes that bracket the spawn courtyard used to be the same plaster
+ // box with one repeated sash window. Dress each one with real scanned hardware
+ // so they read as different places: a boarded row of shop shutters with air
+ // conditioners and a downpipe on one side, an active loading bay of corrugated
+ // roller doors with condensers and a downpipe on the other. Roof-mounted
+ // condensers break both rooflines into silhouette. All assets are Poly Haven
+ // CC0 scans, instanced in a handful of draws; no collision or gameplay change.
+ refreshFacadeVariety(){
+  const root=this.environmentRoot,kit=HQP.buildings;
+  if(!root||root.userData.raidFacadeVariety||!kit?.aircon?.modules||!kit?.rollerDoor?.modules||!kit?.rollerWindow?.modules||!kit?.gutter?.modules)return;
+  const self=this.snapshot?.self,blocks=root.userData.raidFacadeBlocks;
+  if(!self||!blocks?.length)return;
+  // Guard reinstatement/refresh calls so the hardware instances are never
+  // appended twice (which would double the draws and z-fight the shutters).
+  root.userData.raidFacadeVariety=true;
+  const acMods=[kit.aircon.modules['exterior_aircon_unit'],kit.aircon.modules['exterior_aircon_unit_rusted']].filter(m=>m?.parts?.length);
+  const doors=kit.rollerDoor.modules['rollershutter_door'],shops=kit.rollerWindow.modules['rollershutter_window_01'];
+  const shopGraffiti=kit.rollerWindow.modules['rollershutter_window_01_graffiti'];
+  const graffiti=kit.rollerDoor.modules['rollershutter_door_graffiti'];
+  const pipe=kit.gutter.modules['modular_metal_gutter_section'],coupler=kit.gutter.modules['modular_metal_gutter_gutter_coupler'];
+  if(!acMods.length||!doors?.parts?.length||!shops?.parts?.length||!pipe?.parts?.length)return;
+  const dummy=new THREE.Object3D(),placed={doors:0,shops:0,aircon:0,roof:0,pipe:0};
+  // Courtyard-front thin walls are the broad (along-x) strips closest to spawn;
+  // keeping this tied to the frozen facadeBlocks avoids guessing at coordinates.
+  const front={};
+  for(const b of blocks){
+   if(!b.wall||b.w<b.d||b.w<6||(b.kind!=='planks'&&b.kind!=='metal'))continue;
+   const dist=Math.hypot(b.x-self.x,b.z-self.z);
+   if(!front[b.kind]||dist<front[b.kind].dist)front[b.kind]={block:b,dist};
+  }
+  const emit=(mod,list,tag,struct)=>{
+   if(!mod?.parts?.length||!list.length)return;
+   for(const part of mod.parts){
+    const mesh=new THREE.InstancedMesh(part.geo,part.mat,list.length);
+    list.forEach((it,i)=>{dummy.position.set(it.x,it.y,it.z);dummy.rotation.set(0,it.yaw??Math.PI,0);dummy.scale.set(it.sx??1,it.sy??1,it.sz??1);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix)});
+    mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+    mesh.userData.raidFacadePart=tag;if(struct)mesh.userData.raidStructure=struct;root.add(mesh);
+   }
+  };
+  const doorItems=[],graffitiItems=[],shopItems=[],shopGraffitiItems=[],metalShopItems=[],metalShopGraffitiItems=[],plainAC=[],rustedAC=[],roofPlain=[],roofRusted=[],pipeItems=[],jointItems=[];
+  // Every stacked plaster strip shares one outer plane, so a single proud offset
+  // clears the skin on both buildings and prevents z-fighting with the windows.
+  const faceZ=w=>w.z-w.d/2-.155;
+  const roofOf=kind=>{
+   let best=null;
+   for(const b of blocks){
+    if(b.wall||b.kind!==kind)continue;
+    const area=b.w*b.d,dist=Math.hypot(b.x-self.x,b.z-self.z);
+    if(area<20||dist>45)continue;
+    if(!best||area>best.area)best={block:b,area};
+   }
+   return best;
+  };
+  const addRoof=(kind,offs,plain,rusted)=>{
+   const roof=roofOf(kind);if(!roof)return;
+   const b=roof.block,z=b.z-b.d/2+0.42,y=b.y+b.h+0.012;
+   offs.forEach((off,i)=>(i%2?rusted:plain).push({x:b.x+off,y,z,yaw:Math.PI}));
+  };
+  if(front.planks){
+   const b=front.planks.block,cx=b.x,fz=faceZ(b);
+   // A closed row of four shuttered shop windows; roller maps are opaque so the
+   // old sash openings read as boarded units instead of another apartment block.
+   for(const off of [-4.5,-1.5,1.5,4.5]){
+    const bay={x:cx+off,y:.03,z:fz,yaw:Math.PI};
+    if(off===-1.5&&shopGraffiti?.parts?.length)shopGraffitiItems.push(bay);else shopItems.push(bay);
+   }
+   // Wall condensers sit high on the plaster band above the ground-floor openings.
+   plainAC.push({x:cx-4.4,y:4.02,z:fz,yaw:Math.PI});
+   rustedAC.push({x:cx-1.0,y:4.02,z:fz,yaw:Math.PI});
+   plainAC.push({x:cx+2.6,y:4.02,z:fz,yaw:Math.PI});
+   // Stacked real gutter pipe at the courtyard corner of the shop row.
+   for(let i=0;i<5;i++)pipeItems.push({x:cx-5.9,y:i,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+   for(let i=1;i<5;i++)jointItems.push({x:cx-5.9,y:i-.015,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+  }
+  if(front.metal){
+   const b=front.metal.block,cx=b.x,fz=faceZ(b);
+   // A loading bay: three real corrugated roller doors stretched to commercial
+   // bay width replace the paired sash windows on the ground floor -- the clear
+   // industrial difference from the row of shopfront shutters next door. The
+   // doors sit proud of the sash reveals so the closed steel, not a timber
+   // window, is what reads on the front face.
+   const doorFz=fz-.19;
+   for(const off of [-4.0,0,4.0]){
+    const bay={x:cx+off,y:.03,z:doorFz,yaw:Math.PI,sx:2.9};
+    // One tagged-up doorway keeps the loading bay from reading as three
+    // identical stamped steel rectangles.
+    if(off===0&&graffiti?.parts?.length)graffitiItems.push(bay);else doorItems.push(bay);
+   }
+   plainAC.push({x:cx-4.2,y:2.76,z:fz,yaw:Math.PI});
+   rustedAC.push({x:cx+0.2,y:2.76,z:fz,yaw:Math.PI});
+   plainAC.push({x:cx+4.6,y:2.76,z:fz,yaw:Math.PI});
+   for(let i=0;i<4;i++)pipeItems.push({x:cx+9.1,y:i,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+   for(let i=1;i<4;i++)jointItems.push({x:cx+9.1,y:i-.015,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+   // Close the factory windows on this façade only: corrugated roller panels
+   // replace the timber sashes that cover the shop row across the courtyard.
+   const wallZ=b.z-b.d/2;
+   (root.userData.raidWindowOpenings||[]).forEach((s,i)=>{
+    if(!s.onZ||Math.abs(s.z-wallZ)>.9||s.x<cx-b.w/2||s.x>cx+b.w/2||s.y<2.8)return;
+    const sx=(s.wide+.16)/shops.width,sy=(s.h+.16)/shops.height;
+    const item={x:s.x,y:s.y-.06,z:fz-.02,yaw:Math.PI,sx,sy,sz:sx};
+    if(i%2&&shopGraffiti?.parts?.length)metalShopGraffitiItems.push(item);else metalShopItems.push(item);
+   });
+  }
+  // Roofline clutter: real exterior condensers standing on both volumes break the
+  // identical box parapet into two different silhouettes.
+  addRoof('planks',[-4.0,-0.2,3.6],roofPlain,roofRusted);
+  addRoof('metal',[-5.6,-1.3,3.1],roofPlain,roofRusted);
+  emit(doors,doorItems,'rollers','rollerBay');
+  emit(graffiti,graffitiItems,'rollersGraffiti','rollerBay');
+  emit(shops,shopItems,'shutters');
+  emit(shopGraffiti,shopGraffitiItems,'shuttersGraffiti');
+  emit(shops,metalShopItems,'shuttersMetal','shutterWindow');
+  emit(shopGraffiti,metalShopGraffitiItems,'shuttersMetalGraffiti','shutterWindow');
+  emit(acMods[0],plainAC,'condensers');
+  if(acMods[1])emit(acMods[1],rustedAC,'condensersRusted');
+  emit(acMods[0],roofPlain,'roofCondensers');
+  if(acMods[1])emit(acMods[1],roofRusted,'roofCondensers');
+  emit(pipe,pipeItems,'downpipes','gutter');
+  emit(coupler,jointItems,'downpipeJoints','gutter');
+  placed.doors=doorItems.length+graffitiItems.length;placed.shops=shopItems.length;
+  placed.aircon=plainAC.length+rustedAC.length;placed.roof=roofPlain.length+roofRusted.length;
+  placed.pipe=pipeItems.length;
+  placed.metalShutters=metalShopItems.length+metalShopGraffitiItems.length;
+  root.userData.raidFacadeVarietyCount=placed;
  }
 
  refreshSpawnDressing(){

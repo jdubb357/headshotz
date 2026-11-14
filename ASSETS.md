@@ -199,3 +199,16 @@ The spawn courtyards now contain real photographed street cover instead of empty
 | `bag.glb` | Trashbag | Benny Weimer | https://polyhaven.com/a/trashbag | scattered trash bags | 4,472 (from 4,472) | 123,116 B |
 
 All seven are **CC0 1.0** (public domain, credited anyway). Total 1,620,536 bytes and 117,705 rendered triangles (each model is meshoptimized and quantized with `KHR_mesh_quantization`; `plainGeometry` dequantizes the normalized integer attributes to Float32 before instancing so bounds stay in metres). The tyre scan is rotated flat on the ground and the barrier scan gets a gentle neutral tint so its sun-bleached concrete does not read as pure white against the pale apron. Presentation only — no gameplay, collision-route, server or other-mode change.
+
+## Raid courtyard building hardware — four scanned Poly Haven kits (CC0), iteration 121
+
+The two volumes flanking the spawn courtyard no longer repeat the same plaster box and sash window. Four Poly Haven GLB scans were copied into `assets/models/buildings/`, normalized to metre-scale nodes with their bases at y = 0, simplified with glTF-Transform 4.5.1 (`--compress meshopt`, `--texture-size 512`, `--texture-compress webp`), and registered in `assets.js` only for the raid path. `raid-view.mjs refreshFacadeVariety()` instances them on the nearest broad courtyard walls; `plainGeometry()` dequantises the interleaved integer buffers before the node transforms are baked in.
+
+| File | Modules used | Asset | Author(s) | Source | Triangles in file | Size |
+|---|---|---|---|---|---|---|
+| `aircon.glb` | `exterior_aircon_unit`, `exterior_aircon_unit_rusted` | Exterior Aircon Unit | Monsta3D | https://polyhaven.com/a/exterior_aircon_unit | 18,550 | 571,184 B |
+| `roller_door.glb` | `rollershutter_door`, `rollershutter_door_graffiti` | Roller Shutter Door | MP | https://polyhaven.com/a/rollershutter_door | 1,064 | 97,272 B |
+| `roller_window.glb` | `rollershutter_window_01`, `rollershutter_window_01_graffiti` | Roller Shutter Window 01 | MP | https://polyhaven.com/a/rollershutter_window_01 | 1,064 | 108,720 B |
+| `gutter_kit.glb` | `modular_metal_gutter_section`, `modular_metal_gutter_gutter_coupler` (plus bend/outlet retained) | Modular Metal Gutter | Maxim Domnin | https://polyhaven.com/a/modular_metal_gutter | 15,064 | 397,004 B |
+
+All four are **CC0 1.0** (public domain, credited anyway); total 1,174,180 bytes. The aircon units sit at different heights on each wall, the doors form a commercial-width loading bay on the metal wall, and the roller window panels close the factory openings; one graffiti variant per facade keeps the bay from reading as stamped clones. Presentation only — no collision, doorway, window, world or gameplay data changed. The in-game credits list all four sources.

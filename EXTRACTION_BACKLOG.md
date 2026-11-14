@@ -10,13 +10,13 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 120, 2026-11-14)
+## Current art-directed priority (iteration 121, 2026-11-14)
 
 Director-notes order, one visible system per iteration, presentation-only:
 
-1. **FOLIAGE + SPECKS** (item 1) — LANDED this iteration: no floating specks, leafy scanned canopies with alpha cutout, denser/darker bank grass; awaits Austin's live look.
-2. **BUILDING VARIETY + ROOFLINES** (item 2) — NEXT: mixed window types, ground doors/stoops, AC units, downspouts, fire escape, signage, parapet caps, rooftop clutter and base grime so the two flanking buildings read clearly different.
-3. **VIEWMODEL POLISH** (item 3, small alongside a bigger item) — gloves visibly black/dark-olive with a cuff seam; rifle ~10-15% smaller and lower so the stock is fully off-screen at 844×390.
+1. **FOLIAGE + SPECKS** (item 1) — LANDED in iteration 120: no floating specks, leafy scanned canopies with alpha cutout, denser/darker bank grass; awaits Austin's live look.
+2. **BUILDING VARIETY + ROOFLINES** (item 2) — LANDED in iteration 121: the plank wall now reads as a shuttered shop row with wall ACs, stacked gutter and rooftop condensers, while the metal wall reads as a loading bay with graffiti doors, roller window panels, its own AC/downpipe run and roof condensers. Both use real Poly Haven CC0 scans; fire escape, base grime, plain signage and stoops remain open sub-notes. Awaits Austin's live look.
+3. **VIEWMODEL POLISH** (item 3, small alongside a bigger item) — CARRIED: gloves visibly black/dark-olive with a cuff seam; rifle ~10-15% smaller and lower so the stock is fully off-screen at 844×390.
 4. **GROUND DETAIL + COVER POLISH** (item 4) — scanned cracked/damaged asphalt, puddle and trash decals on the near-left pavement and centre sand; seat the foreground tyres; dumpster contrast.
 5. **ENEMY PRESENCE + MARKER** (item 5, spare budget) — first enemy partly behind cover at 20-30 m; smaller/quieter red cone; raised curbs.
 
