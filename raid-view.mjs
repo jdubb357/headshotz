@@ -234,7 +234,12 @@ function lootAccent(data){
 const lootWeapon=data=>(data.items||[]).find(item=>item.kind==='weapon')?.weapon||null;
 function lootVisual(data){
  if(lootWeapon(data))return 'gun';
- if((data.items||[]).some(item=>['armor','valuable','mod','contract'].includes(item.kind)))return 'chest';
+ const kinds=new Set((data.items||[]).map(item=>item.kind));
+ if(kinds.has('material'))return 'material';
+ if(kinds.has('med'))return 'med';
+ if(kinds.has('ammo'))return 'ammo';
+ if(kinds.has('valuable')||kinds.has('armor'))return 'chest';
+ if(kinds.has('mod')||kinds.has('contract'))return 'chest';
  return 'crate';
 }
 const lootOptions=data=>({visual:lootVisual(data),weapon:lootWeapon(data)});
@@ -295,6 +300,9 @@ export class RaidView {
   this.refreshSpawnDressing();
   this.refreshStreetProps();
   this.refreshWindows();
+  // refreshWindows may clone the scanned glass with per-colour emissive; adopt
+  // the updated list so the night curve drives the real glazing too.
+  this.windowMaterials=this.environmentRoot?.userData?.raidWindowMaterials||this.windowMaterials||[];
   this.refreshFacades();
   if(this.terrainMaterial){
    const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
@@ -517,7 +525,11 @@ export class RaidView {
    const mesh=new THREE.InstancedMesh(crate.geo,crate.mat,crates.length);
    mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
    crates.forEach((item,index)=>{
-    const s=item.h?item.h/Math.max(.001,crate.size.y):(item.w||1.1)/Math.max(.001,crate.size.y);
+    // The military crate scan is long and low, so fit its longest horizontal
+    // side to the authored footprint instead of stretching it to the old box
+    // height. A uniform scale keeps the planks, latches and weathering honest.
+    const footprint=Math.max(item.w||1.15,item.d||1.15);
+    const s=footprint/Math.max(Math.max(crate.size.x,crate.size.z),.001);
     dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item.x,item.z)+.3,0);dummy.scale.setScalar(s);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
    });
    mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
@@ -573,10 +585,10 @@ export class RaidView {
   // its recessed glass just proud of the old pane so the dark interior still
   // backs the glazing instead of the wall showing through.
   const dummy=new THREE.Object3D(),seat=.14;
-  for(const part of asset.parts){
-   const mesh=new THREE.InstancedMesh(part.geo,part.mat,near.length);
-   mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
-   near.forEach((s,index)=>{
+  // One placement matrix drives both the timber frame and its glazing; keeping
+  // the glass deliberately recessed behind the frame is what confines the warm
+  // light to the opening. No sprite or ground glint is contributed here.
+  const place=(mesh,s,index)=>{
     // A small overlap past the frozen opening hides the exposed edge of the old
     // pane while still reading as a surface-mounted timber reveal.
     const frameW=s.wide*1.12,frameH=s.h*1.03,sx=frameW/asset.width,sy=frameH/asset.height,sz=sx;
@@ -589,10 +601,47 @@ export class RaidView {
     dummy.position.set(s.x+(s.onZ?0:outward*seat),s.y,s.z+(s.onZ?outward*seat:0));
     dummy.rotation.set(0,yaw,0);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();
     mesh.setMatrixAt(index,dummy.matrix);
-   });
-   mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+  };
+  const addScanned=(part,sites,material=part.mat)=>{
+    if(!sites.length)return null;
+    const mesh=new THREE.InstancedMesh(part.geo,material,sites.length);
+    mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+    sites.forEach((s,index)=>place(mesh,s,index));
+    mesh.instanceMatrix.needsUpdate=true;root.add(mesh);return mesh;
+  };
+  // The scanned module carries its glass as a separately named primitive. The
+  // timber frame is shared by every opening; only the glass varies, because a
+  // lit window needs its authored lamp colour as flat emissive glazing.
+  const glassPart=asset.parts.find(part=>/glass/i.test(part.mat?.name||''));
+  // The lit-glass clones join the environment's published window-material list
+  // so the night curve drives them alongside the procedural panes.
+  const windowMaterials=root.userData.raidWindowMaterials||this.windowMaterials||[];
+  for(const part of asset.parts)if(part!==glassPart)addScanned(part,near);
+  const litByColor=new Map();
+  if(glassPart){
+    addScanned(glassPart,near.filter(s=>!s.lit));
+    for(const s of near){
+      if(!s.lit)continue;
+      const color=(s.color||0xffd79a)&0xffffff;
+      if(!litByColor.has(color))litByColor.set(color,[]);
+      litByColor.get(color).push(s);
+    }
+    for(const [color,sites] of litByColor){
+      const material=glassPart.mat.clone();
+      material.emissive=new THREE.Color(color);
+      material.emissiveIntensity=.15;
+      if(glassPart.mat.map)material.emissiveMap=glassPart.mat.map;
+      material.needsUpdate=true;
+      material.userData.raidOwned=true;
+      material.userData.raidWindowGlass=true;
+      material.userData.raidWindowScan=true;
+      material.userData.raidWindowGlowColor=color;
+      windowMaterials.push(material);
+      addScanned(glassPart,sites,material);
+    }
   }
   root.userData.raidRealWindows=near.length;
+  root.userData.raidRealWindowsLit=[...litByColor.values()].reduce((sum,sites)=>sum+sites.length,0);
  }
  // Rebuilds every street façade from the scanned modular architecture kit. The
  // old block faces stay as the solid visual core but the surfaces the player
@@ -1212,9 +1261,9 @@ export class RaidView {
  if(this.glowPoints){const night=Math.pow(Math.max(0,Math.min(1,1-(target.daylight||0))),1.35),damp=weather==='rain'?.55:weather==='ash'?.7:1,targetOpacity=Math.min(.9,night*.85*damp);this.glowPoints.material.opacity+=(targetOpacity-this.glowPoints.material.opacity)*blend;this.glowPoints.visible=this.glowPoints.material.opacity>.008}
  if(this.glowPools){const night=Math.pow(Math.max(0,Math.min(1,1-(target.daylight||0))),1.2),damp=weather==='rain'?.55:weather==='ash'?.7:1,targetOpacity=Math.min(.6,night*.65*damp);this.glowPools.material.opacity+=(targetOpacity-this.glowPools.material.opacity)*blend;this.glowPools.visible=this.glowPools.material.opacity>.008}
  // Daylight burns the lamplight out of every glazed pane, leaving dark glass and
- // sky reflection; after sundown the authored warm colour returns. Both the pane
- // material and its halo field use the same night curve, so windows and lamps reach
- // full glow together instead of one popping on before the other.
+ // sky reflection; after sundown the authored warm colour returns as flat
+ // emissive glazing bounded by the scanned timber frame. Windows contribute no
+ // additive halo: their warm light is the pane itself, not a sprite in front.
  if(this.windowMaterials?.length){
   const windowNight=Math.pow(Math.max(0,Math.min(1,1-daylight)),1.15)*(weather==='rain'?.72:weather==='ash'?.82:1),targetIntensity=windowNight*1.55;
   for(const material of this.windowMaterials)material.emissiveIntensity+=(targetIntensity-material.emissiveIntensity)*blend;
@@ -2232,18 +2281,18 @@ export class RaidView {
      if(leaf){leaf.visible=data.closed!==false;leaf.scale.set(w,h,d);leaf.position.set(0,h/2,0);leaf.material.color.setHex(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b)}
      if(sill){sill.scale.set(w,.1,d);sill.position.set(0,.05,0);sill.material.color.setHex(data.locked?0xe07a5b:data.closed?0xd8b062:0x9fe0ad)}
     }else if(type==='loot'){const beacon=model.userData.lootBeacon;
-     // Presentation-only pickup motion: the gem hovers and turns, the halo and
-     // wisp breathe, and the accent ring pulses. Reduced motion freezes a still,
-     // readable pose; loot state itself is authoritative and never touched here.
-     if(beacon){if(this.settings?.reduced){
-      beacon.gem.position.y=.95;beacon.halo.position.y=.95;beacon.gem.rotation.y=.4;
-      beacon.halo.material.opacity=.4;beacon.wisp.material.opacity=.16;
-      beacon.ring.material.opacity=.55;beacon.ring.scale.setScalar(.58);
-     }else{const phase=(data.x||0)*.21+(data.z||0)*.13,bob=Math.sin(seconds*2.1+phase),pulse=.5+.5*Math.sin(seconds*2.4+phase);
-      beacon.gem.position.y=.95+bob*.08;beacon.halo.position.y=beacon.gem.position.y;beacon.gem.rotation.y=seconds*.9+phase;
-      beacon.halo.material.opacity=.3+.14*pulse;beacon.wisp.material.opacity=.12+.1*pulse;
-      beacon.ring.material.opacity=.36+.24*pulse;beacon.ring.scale.setScalar(.58*(1+.035*pulse));
-     }}
+     // Presentation-only pickup glint: a small additive sparkle above the real
+     // item that gently breathes. It never hovers away from the object, and
+     // reduced motion freezes a still, readable pose. Loot state is authoritative
+     // and never touched here.
+     if(beacon?.glint){const phase=(data.x||0)*.21+(data.z||0)*.13;
+      if(this.settings?.reduced){
+       beacon.glint.material.opacity=.3;beacon.glint.scale.set(.32,.32,1);
+      }else{
+       const pulse=.5+.5*Math.sin(seconds*1.9+phase),scale=.30+.07*pulse;
+       beacon.glint.material.opacity=.22+.16*pulse;beacon.glint.scale.set(scale,scale,1);
+      }
+     }
     }else{
      if(type==='exit'){model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));if(model.userData.exitSignal)updateExitSignal(model.userData.exitSignal,data,this.snapshot.serverTime,seconds,!!this.settings?.reduced);const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}}
     }

@@ -1,7 +1,9 @@
 // Practical-lighting grader: proves authored lamps, floodlights and campfires
-// bloom as one deterministic additive sprite field, that the glow strengthens as
-// daylight falls and is damped by heavy weather, that the frame gains warm pixels
-// with the field enabled, and that lifecycle rebuilds do not leak resources.
+// bloom as one deterministic additive sprite field, that lit windows contribute
+// no additive points and instead keep flat emissive glazing bounded by their
+// frame, that the glow strengthens as daylight falls and is damped by heavy
+// weather, that the frame gains warm pixels with the field enabled, and that
+// lifecycle rebuilds do not leak resources.
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {writeFile} from 'node:fs/promises';
@@ -32,13 +34,15 @@ try{
    const uniqueProps=uniqueWindowProps(world.props||[]);
    const windows=uniqueProps.filter(prop=>prop.kind==='window'&&prop.lit&&prop.color!=null).length;
    authored.window=windows;
-   const expected=Object.values(authored).reduce((a,b)=>a+b,0);
+   // Lit windows are flat emissive glazing now, not practical halos: only the
+   // authored lamp/floodlight/campfire fixtures populate the additive field.
+   const expected=(authored.lamp||0)+(authored.floodlight||0)+(authored.campfire||0);
    const poolProps=(world.props||[]).filter(prop=>poolKinds.includes(prop.kind)&&(prop.y==null||prop.y===0));
    const build=()=>buildEnvironment(world);
    const root=build(),glow=root.userData.raidGlowPoints,pools=root.userData.raidGlowPools,glints=root.userData.raidWetReflections;
    if(!glow||!pools||!glints)continue;
    const pos=glow.geometry.attributes.position,col=glow.geometry.attributes.color;
-   const glintExpected=poolProps.length+windows+uniqueProps.filter(prop=>prop.kind==='floodlight'&&(prop.y==null||prop.y===0)).length;
+   const glintExpected=poolProps.length+uniqueProps.filter(prop=>prop.kind==='floodlight'&&(prop.y==null||prop.y===0)).length;
    const signature=()=>{const r=build(),g=r.userData.raidGlowPoints,p=r.userData.raidGlowPools,w=r.userData.raidWetReflections;return {count:g.geometry.attributes.position.count,pos:Array.from(g.geometry.attributes.position.array),col:Array.from(g.geometry.attributes.color.array),poolCount:p.count,poolMat:Array.from(p.instanceMatrix.array),poolCol:Array.from(p.instanceColor.array),glintCount:w.count,glintMat:Array.from(w.instanceMatrix.array),glintCol:Array.from(w.instanceColor.array)}};
    const a=signature(),b=signature();
    const deterministic=a.count===b.count&&a.pos.every((v,i)=>v===b.pos[i])&&a.col.every((v,i)=>v===b.col[i]);
@@ -70,14 +74,14 @@ try{
     glintSlopeError=Math.max(glintSlopeError,1-slopeUp.dot(slopeNormal));
    }
    if(glints.instanceColor)glintColorCount=glints.instanceColor.count;
-   // Every authored lamp/floodlight/campfire and lit window contributes one
-   // point at its own fixture offset; one of each family proves placement.
+   // Every authored lamp/floodlight/campfire contributes one point at its own
+   // fixture offset. A lit-window center must not carry any additive point now.
    const offsets={lamp:4.76,floodlight:6.4,campfire:.42};
    const sample={};
-   for(const kind of [...practicalKinds,'window']){
-    const prop=(world.props||[]).find(item=>item.kind===kind&&(item.kind!=='window'||(item.lit&&item.color!=null&&(!item.w||item.w<=.9))));
+   for(const kind of practicalKinds){
+    const prop=(world.props||[]).find(item=>item.kind===kind);
     if(!prop)continue;
-    const offset=prop.kind==='window'?(prop.h||1.3)/2:prop.kind==='campfire'?.42*(prop.scale||1):offsets[prop.kind];
+    const offset=prop.kind==='campfire'?.42*(prop.scale||1):offsets[prop.kind];
     const lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,prop.x,prop.z):0;
     let best=1e9,point=null;
     for(let i=0;i<pos.count;i++){
@@ -86,7 +90,24 @@ try{
     }
     sample[kind]={x:prop.x,z:prop.z,point};
    }
-   worlds[world.id]={authored,count:pos.count,expected,deterministic,sample,poolCount:pools.count,poolExpected:poolProps.length,poolDeterministic,poolBaseError:+poolBaseError.toFixed(4),poolSlopeError:+poolSlopeError.toFixed(6),poolColorCount,glintCount:glints.count,glintExpected,glintDeterministic,glintBaseError:+glintBaseError.toFixed(4),glintSlopeError:+glintSlopeError.toFixed(6),glintNormalYMin:+glintNormalYMin.toFixed(4),glintNormalLengthError:+glintNormalLengthError.toFixed(8),glintSteepCount,glintFinite,glintColorCount,wetReflectionField:{isInstanced:!!glints.isInstancedMesh,map:!!glints.material.map,additive:glints.material.blending===THREE.AdditiveBlending,depthWrite:glints.material.depthWrite,depthTest:glints.material.depthTest,triangles:glints.count},poolField:{isInstanced:!!pools.isInstancedMesh,map:!!pools.material.map,additive:pools.material.blending===THREE.AdditiveBlending,depthWrite:pools.material.depthWrite,triangles:pools.count}};
+   // Count additive points that land inside a lit opening: the window halo
+   // contract is zero, because the warm light is flat emissive glass instead.
+   const litWindows=[];
+   for(const prop of uniqueProps){
+    if(prop.kind!=='window'||!prop.lit||prop.color==null)continue;
+    const lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,prop.x,prop.z):0;
+    litWindows.push(prop.x,prop.y+lift+(prop.h||1.3)/2,prop.z);
+   }
+   let windowHaloPoints=0;
+   for(let i=0;i<pos.count;i++){
+    const px=pos.getX(i),py=pos.getY(i),pz=pos.getZ(i);
+    for(let j=0;j<litWindows.length;j+=3){
+     const dx=px-litWindows[j],dy=py-litWindows[j+1],dz=pz-litWindows[j+2];
+     if(dx*dx+dy*dy+dz*dz<.1225){windowHaloPoints++;break}
+    }
+   }
+   const windowMaterials=root.userData.raidWindowMaterials||[];
+   worlds[world.id]={authored,count:pos.count,expected,deterministic,sample,windowHaloPoints,windowMaterials:windowMaterials.length,windowGlassMaterials:windowMaterials.filter(m=>m.userData.raidWindowGlass).length,windowEmissive:windowMaterials.every(m=>m.emissive.getHex()!==0),poolCount:pools.count,poolExpected:poolProps.length,poolDeterministic,poolBaseError:+poolBaseError.toFixed(4),poolSlopeError:+poolSlopeError.toFixed(6),poolColorCount,glintCount:glints.count,glintExpected,glintDeterministic,glintBaseError:+glintBaseError.toFixed(4),glintSlopeError:+glintSlopeError.toFixed(6),glintNormalYMin:+glintNormalYMin.toFixed(4),glintNormalLengthError:+glintNormalLengthError.toFixed(8),glintSteepCount,glintFinite,glintColorCount,wetReflectionField:{isInstanced:!!glints.isInstancedMesh,map:!!glints.material.map,additive:glints.material.blending===THREE.AdditiveBlending,depthWrite:glints.material.depthWrite,depthTest:glints.material.depthTest,triangles:glints.count},poolField:{isInstanced:!!pools.isInstancedMesh,map:!!pools.material.map,additive:pools.material.blending===THREE.AdditiveBlending,depthWrite:pools.material.depthWrite,triangles:pools.count}};
   }
   // Malformed terrain: a corrupt height sample must not leak NaN into the
   // glint/pool orientation math; the tangent-plane helper falls back to the
@@ -100,7 +121,11 @@ try{
   const glow=view.glowPoints,pos=glow.geometry.attributes.position;
   const material={isPoints:!!glow.isPoints,map:!!glow.material.map,additive:glow.material.blending===THREE.AdditiveBlending,depthWrite:glow.material.depthWrite,depthTest:glow.material.depthTest,glowBias:glow.material.userData.raidGlowBias,vertexColors:glow.material.vertexColors,size:glow.material.size,count:pos.count};
   const state=(overrides,at={x:300,y:0,z:3})=>({...base,self:{...base.self,...at},conditions:{...base.conditions,...overrides}});
-  const daylight=x=>{view.sync(state(x));view.updateEnvironment(1);const night=Math.pow(Math.max(0,Math.min(1,1-(view.environmentTarget.daylight||0))),1.35);return {opacity:view.glowPoints.material.opacity,poolOpacity:view.glowPools.material.opacity,night,visible:view.glowPoints.visible,poolVisible:view.glowPools.visible}};
+  // The lit panes are flat emissive glass, not halos. Their intensity follows
+  // the same night curve the removed window points used to follow.
+  const windowMaterials=view.windowMaterials||[];
+  const windowMetrics=()=>{const intensities=windowMaterials.map(m=>m.emissiveIntensity);return {count:windowMaterials.length,glass:windowMaterials.filter(m=>m.userData.raidWindowGlass).length,allEmissive:windowMaterials.every(m=>m.emissive.getHex()!==0),maxIntensity:intensities.reduce((max,value)=>Math.max(max,value),0)}};
+  const daylight=x=>{view.sync(state(x));view.updateEnvironment(1);const night=Math.pow(Math.max(0,Math.min(1,1-(view.environmentTarget.daylight||0))),1.35);return {opacity:view.glowPoints.material.opacity,poolOpacity:view.glowPools.material.opacity,night,visible:view.glowPoints.visible,poolVisible:view.glowPools.visible,...windowMetrics()}};
   const noon=daylight({weather:'clear',period:'day',clock:'12:00',daylight:1,light:2.2,ambient:1.8,visibility:1,sky:0x9fb9c8,fog:0xadc2cc});
   const dusk=daylight({weather:'clear',period:'dusk',clock:'19:00',daylight:.3,light:1.1,ambient:1.25,visibility:.85,sky:0x9c7f74,fog:0x8a756b});
   const night=daylight({weather:'clear',period:'night',clock:'23:00',daylight:0,light:.16,ambient:.5,visibility:.7,sky:0x101a2f,fog:0x263349});
@@ -218,10 +243,13 @@ try{
  const total=Object.values(result.worlds).reduce((sum,w)=>sum+w.count,0);
  assert.ok(total>2000,'all three sectors share the glow budget ('+total+' points)');
  for(const [id,w] of Object.entries(result.worlds)){
-  assert.equal(w.count,w.expected,id+' glow points equal authored lamp/floodlight/campfire + lit-window count');
+  assert.equal(w.count,w.expected,id+' glow points equal authored lamp/floodlight/campfire fixtures only');
+  assert.equal(w.windowHaloPoints,0,id+' no additive bloom point lands inside a lit window');
+  assert.ok(w.windowMaterials>0,id+' lit windows still carry emissive pane materials');
+  assert.equal(w.windowMaterials,w.windowGlassMaterials,id+' every window material is glazing');
+  assert.equal(w.windowEmissive,true,id+' lit window panes keep their authored warm emissive colour');
   assert.equal(w.deterministic,true,id+' practical halos are deterministic across rebuilds');
   for(const [kind,sample] of Object.entries(w.sample))assert.ok(sample.point.dist<.02,id+' '+kind+' halo is anchored to its authored fixture ('+sample.point.dist+' m)');
-  assert.equal(w.sample.window!=null,true,id+' lit windows contribute a sampled bloom halo');
   assert.equal(w.poolField.isInstanced,true,id+' ground pools are a single instanced mesh');
   assert.equal(w.poolField.map,true,id+' ground pools use the shared soft falloff sprite');
   assert.equal(w.poolField.additive,true,id+' ground pools add warm light to the asphalt');
@@ -231,7 +259,7 @@ try{
   assert.equal(w.poolColorCount,w.poolCount,id+' every ground pool carries a warm instance colour');
   assert.ok(w.poolBaseError<.001,id+' ground pools sit exactly on sampled terrain (max error '+w.poolBaseError+' m)');
   assert.ok(w.poolSlopeError<.005,id+' ground pools lie flush on the terrain tangent plane (max up/normal error '+w.poolSlopeError+')');
-  assert.equal(w.glintCount,w.glintExpected,id+' wet reflections equal authored ground practicals plus lit windows ('+w.glintCount+')');
+  assert.equal(w.glintCount,w.glintExpected,id+' wet reflections equal authored ground fixtures only, with no window glint ('+w.glintCount+')');
   assert.equal(w.glintDeterministic,true,id+' wet-reflection instances rebuild deterministically');
   assert.equal(w.glintColorCount,w.glintCount,id+' every wet reflection carries its source colour');
   assert.ok(w.glintBaseError<.001,id+' wet reflections sit exactly on sampled terrain (max error '+w.glintBaseError+' m)');
@@ -255,6 +283,11 @@ try{
  assert.ok(result.material.glowBias>0&&result.material.glowBias<1.5,'halo depth bias clears its own fixture ('+result.material.glowBias+' m)');
  assert.equal(result.material.vertexColors,true,'per-family warm colours are authored');
  assert.ok(result.material.size>=.4&&result.material.size<=2,'halo sprite size is tuned ('+result.material.size+')');
+ assert.ok(result.noon.glass>0,'lit windows carry emissive glazing materials in the live view');
+ assert.equal(result.noon.allEmissive,true,'every lit window material keeps a non-black authored emissive colour');
+ assert.ok(result.noon.maxIntensity<.02,'midday burns warm glow out of lit windows ('+result.noon.maxIntensity.toFixed(3)+')');
+ assert.ok(result.dusk.maxIntensity>.2,'dusk restores flat warm window glazing ('+result.dusk.maxIntensity.toFixed(3)+')');
+ assert.ok(result.night.maxIntensity>result.dusk.maxIntensity,'night brings full window glow inside the frame ('+result.night.maxIntensity.toFixed(3)+' vs '+result.dusk.maxIntensity.toFixed(3)+')');
  assert.equal(result.poolField.isInstanced,true,'ground pools are instanced in the live view');
  assert.equal(result.poolField.count,result.worlds.relay.poolCount,'the live relay pool budget matches the authored field');
  const wetRefs=result.wetReflections;

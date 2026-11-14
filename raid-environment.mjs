@@ -452,7 +452,7 @@ export function buildEnvironment(world){
    structureDetail.streetGritClusters=(structureDetail.streetGritClusters||0)+1;
   }
  }
- root.userData.raidStructureDetail=structureDetail;root.userData.raidRoofPlants=roofPlantList;root.userData.raidStreetGrit=groundGritList;root.userData.raidWindowShutters=shutterSites;root.userData.raidWindowSills=sillSites;root.userData.raidWindowOpenings=windowOpeningSites;
+ root.userData.raidStructureDetail=structureDetail;root.userData.raidRoofPlants=roofPlantList;root.userData.raidStreetGrit=groundGritList;root.userData.raidWindowShutters=shutterSites;root.userData.raidWindowSills=sillSites;root.userData.raidWindowOpenings=windowOpeningSites;root.userData.raidStreetCurbs=0;
  root.userData.raidFacadeBlocks=facadeBlocks;
  for(const ramp of world.ramps||[]){const count=20;for(let i=0;i<count;i++){const t=(i+.5)/count,x=ramp.x+(ramp.axis==='x'?(t-.5)*ramp.w:0),z=ramp.z+(ramp.axis==='z'?(t-.5)*ramp.d:0),y=ramp.from+(ramp.to-ramp.from)*t;
   add('box',palette.metal,x,y-.08,z,ramp.axis==='x'?ramp.w/count:ramp.w,.16,ramp.axis==='z'?ramp.d/count:ramp.d,0,'metal');
@@ -513,13 +513,20 @@ export function buildEnvironment(world){
   return material;
  };
  const scenery=raidScenery(world);
+ // Axis-aligned road slabs drive the curb pass. Cross-street centres let the
+ // curb stop a few metres short of each intersection so it never floats over a
+ // crosswalk or a crossing lane.
+ const roadSlabs=[...(world.props||[]),...scenery].filter(p=>p.kind==='road'&&Number.isFinite(p.w)&&Number.isFinite(p.d)&&!(p.ry||0));
+ const roadCrossX=roadSlabs.filter(p=>p.d>p.w).map(p=>p.x);
+ const roadCrossZ=roadSlabs.filter(p=>p.w>=p.d).map(p=>p.z);
+ let curbCount=0;
  // Every street barrel/crate is listed here so RaidView can silence the
  // instanced lathe/box stand-ins and drop in the scanned CC0 props on refresh.
  const streetPropSites=[];
  // Authored vegetation near playable spawns is rebuilt from the scanned Poly
  // Haven nature kit once it decodes. The procedural groups are tagged and kept
  // hidden-ready as the assetless fallback; only presentation changes.
- const natureSites=[],NATURE_KINDS=new Set(['tree','bush','shrub','fern','moss','stump','rock']),NATURE_SWAP_RADIUS=52;
+ const natureSites=[],spawnTreeSites=[],NATURE_KINDS=new Set(['tree','bush','shrub','fern','moss','stump','rock']),NATURE_SWAP_RADIUS=52;
  const nearNatureSpawn=(x,z)=>(world.spawns||[]).some(([sx,sz])=>Math.hypot(x-sx,z-sz)<=NATURE_SWAP_RADIUS);
  for(const prop of uniqueWindowProps([...(world.props||[]),...scenery])){const{x,z,scale:s=1}=prop,baseY=prop.y??0,lift=(prop.y==null||prop.y===0)?terrainHeightAt(world,x,z):0,y=baseY+lift;
   const kindNear=NATURE_KINDS.has(prop.kind)&&nearNatureSpawn(x,z);
@@ -564,8 +571,30 @@ export function buildEnvironment(world){
   else if(prop.kind==='wreck'){add('box',0x3d302c,x,y+.8,z,6,1.4,2.4,0,'metal');add('box',0x6e4c38,x+1.6,y+1.6,z-.4,2.6,.4,1.6,0,'metal');add('cylinder',0x24201f,x-1.8,y+.5,z+.9,.45,.6,.45,0,'metal');add('box',0x3f4446,x+2.4,y+1.1,z+.2,2.2,.5,2.2,0,'metal')}
   else if(prop.kind==='road'||prop.kind==='sidewalk'||prop.kind==='plaza'){
    const color=prop.kind==='sidewalk'?0xb5afa2:prop.kind==='plaza'?0x9a9080:0x93978c;
-   add('box',color,x,y,z,prop.w,.024,prop.d,prop.ry||0,prop.kind==='road'?'asphalt':prop.kind==='plaza'?'tiles':'concrete');
+   const slabTag=prop.kind==='road'?'streetRoad':prop.kind==='sidewalk'?'streetSidewalk':'';
+   add('box',color,x,y,z,prop.w,.024,prop.d,prop.ry||0,prop.kind==='road'?'asphalt':prop.kind==='plaza'?'tiles':'concrete',0,0,false,slabTag);
    if(prop.kind==='road'){
+    // Real curb geometry along both long edges: one raised stone strip where
+    // sidewalk pavement meets the road, with a visible vertical face and a
+    // brighter top bevel. Intersections are left clear so curbs do not float
+    // over crosswalks. Presentation-only and deterministic from the road slab.
+    if(!prop.ry){
+     const axisX=prop.w>=prop.d,long=Math.max(prop.w,prop.d),short=Math.min(prop.w,prop.d),half=long/2;
+     const breaks=(axisX?roadCrossX:roadCrossZ).filter(v=>v>-half&&v<half).sort((a,b)=>a-b);
+     const segments=[];
+     for(let i=0;i<=breaks.length;i++){
+      const a=i===0?-half:breaks[i-1]+9.5,b=i===breaks.length?half:breaks[i]-9.5;
+      if(b-a>1.2)segments.push([a,b]);
+     }
+     for(const side of [-1,1])for(const [a,b] of segments){
+      const mid=(a+b)/2,len=b-a,edge=side*(short/2);
+      const cx=axisX?x+mid:x+edge,cz=axisX?z+edge:z+mid;
+      add('box',0x8f8b81,cx,y+.066,cz,axisX?len:.22,.13,axisX?.22:len,0,'concrete',0,0,false,'streetCurb');
+      add('box',0xaba79b,cx,y+.142,cz,axisX?len:.235,.014,axisX?.235:len,0,'concrete',0,0,false,'streetCurbTop');
+      curbCount++;
+     }
+     root.userData.raidStreetCurbs=curbCount;
+    }
     // Deterministic street wear so the near asphalt holds readable detail even
     // when the sun pass is in shadow: worn dark patches, pothole scars, cracked
     // seams and pale gravel chips lying just above the road plane. Presentation
@@ -779,11 +808,11 @@ export function buildEnvironment(world){
    // Every opening record feeds the raid's real scanned window pass; the
    // procedural pane, trim, shutters and sills above remain the instant fallback
    // until assets.js decodes the CC0 frame and glass.
-   windowOpeningSites.push({x:x,y:y,z:z,onZ,wide,h,outward:sillOutward,lit});
-   // Lit windows join the shared practical halo budget so night facades bloom
-   // cohesively. Halos are depth-tested (with a fixture bias) rather than depth-
-   // independent, so a window behind a solid wall no longer ghosts through it.
-   if(lit){glow(x,y+h/2,z,prop.color||0xffd79a);wetReflect(x,z,prop.color||0xffd79a,Math.max(.82,d*.72),h*1.8)}
+   windowOpeningSites.push({x:x,y:y,z:z,onZ,wide,h,outward:sillOutward,lit,color:lit?(prop.color||0xffd79a):null});
+   // Lit windows are warm only as flat emissive glazing bounded by their frame.
+   // The authored colour lives on the pane material below (restored after
+   // sundown); no additive halo or ground glint is contributed by windows, so
+   // the light stays inside the opening instead of floating in front of it.
   }
   else if(prop.kind==='awning'){add('box',prop.color||0x8d382e,x,y+.18,z,prop.w||3,0.14,prop.d||2,0,'metal')}
   else if(prop.kind==='field'){add('box',prop.color||(world.theme==='wilderness'?0x5d7248:0x6d745f),x,y+.01,z,prop.w||20,.02,prop.d||20,0,world.theme==='wilderness'?'forest':'dirt')}
@@ -942,7 +971,7 @@ export function buildEnvironment(world){
   // every unpaved slope within the initial forward cone, so the bank edge is
   // broken by real silhouettes instead of ending in a clean graded line.
   for(const [spawnIndex,[sx,sz]] of (world.spawns||[]).entries()){
-   let shrubClusters=0,treePlaced=false;
+   let shrubClusters=0,treesPlaced=0;
    for(let ox=-24;ox<=8;ox+=2.4)for(let oz=3;oz<=32;oz+=2.4){
     const x=sx+ox+(hash01(sx*1.7+sz*.4+ox*31.1+oz*7.3+spawnIndex)-.5)*1.5;
     const z=sz+oz+(hash01(sx*.4+sz*1.9+ox*17.7+oz*23.9+spawnIndex*.7)-.5)*1.5;
@@ -964,7 +993,7 @@ export function buildEnvironment(world){
      }
     }
     else if(roll>.995&&gy>1.2){placed.add(cell);natureSites.push({kind:'rock',x,y:gy,z,s:.55+hash01(x*.91+z*1.13)*.4,ry:hash01(x*1.3+z*.61)*6.283});}
-    else if(shrubClusters<3&&roll>=.88&&roll<.94){
+    else if(shrubClusters<5&&roll>=.86&&roll<.94){
      // Low scanned bushes sit on the bank lip where the ground lifts, giving
      // the slope a real silhouette against the pavement instead of a clean tan
      // diagonal.
@@ -981,18 +1010,18 @@ export function buildEnvironment(world){
    // from reading as one smooth tan polygon.
    let bankShrubs=0,bankFerns=0,bankGrass=0;
    for(let ring=8;ring<=30;ring+=3)for(let i=0;i<18;i++){
-    if(bankShrubs>=3&&bankFerns>=2&&bankGrass>=5)break;
+    if(bankShrubs>=5&&bankFerns>=3&&bankGrass>=7)break;
     const a=i*(Math.PI*2/18)+spawnIndex*.37,dx=Math.sin(a)*ring,dz=Math.cos(a)*ring;
     const x=sx+dx,z=sz+dz,gy=terrainHeightAt(world,x,z);
     if(!Number.isFinite(gy))continue;
     if(blocked(world,x,z,.35,gy,.35,true,true)||paved(x,z))continue;
     const sx1=terrainHeightAt(world,x+1.1,z),sz1=terrainHeightAt(world,x,z+1.1);
     if(Math.hypot(sx1-gy,sz1-gy)/1.1<.10)continue;
-    if(bankShrubs<3&&i%5===0){
+    if(bankShrubs<5&&i%5===0){
      bankShrubs++;natureSites.push({kind:'shrub',x,y:gy,z,s:.82+hash01(x*.4+z*1.6+i)*.25,ry:hash01(x*1.3+z*.7+i)*6.283});
-    }else if(bankFerns<2&&i%7===2){
+    }else if(bankFerns<3&&i%5===2){
      bankFerns++;natureSites.push({kind:'fern',x,y:gy,z,s:.85+hash01(x*.6+z*1.2+i)*.35,ry:hash01(x*1.1+z*.5+i)*6.283});
-    }else if(bankGrass<5&&i%4===1){
+    }else if(bankGrass<7&&(i%4===1||i%6===4)){
      bankGrass++;
      for(let k=0;k<3;k++)natureSites.push({kind:'grass',x:x+Math.sin(k*2.1+i)*.4,y:gy,z:z+Math.cos(k*2.1+i)*.36,s:1.15+hash01(x*.8+z*1.5+k+i)*.4,ry:k*2.1+i});
     }
@@ -1003,7 +1032,7 @@ export function buildEnvironment(world){
    // to the apron makes the cut fill read like a real verge instead of a
    // gradient ramp.
    let apronGrass=0,apronShrubs=0,apronFerns=0;
-   for(let gx=-16;gx<=-2&&(apronGrass<9||apronShrubs<3||apronFerns<2);gx+=2.4)for(let gz=6;gz<=22&&(apronGrass<9||apronShrubs<3||apronFerns<2);gz+=2.4){
+   for(let gx=-16;gx<=-2&&(apronGrass<12||apronShrubs<5||apronFerns<3);gx+=2.2)for(let gz=6;gz<=22&&(apronGrass<12||apronShrubs<5||apronFerns<3);gz+=2.2){
     const x=sx+gx+(hash01(sx*.7+sz*1.1+gx*11.3+gz*5.1)-.5)*1.2;
     const z=sz+gz+(hash01(sx*.4+sz*.9+gx*3.7+gz*13.9)-.5)*1.2;
     const cell=Math.round(x/1.4)+','+Math.round(z/1.4);if(placed.has(cell))continue;
@@ -1012,12 +1041,12 @@ export function buildEnvironment(world){
     const px=terrainHeightAt(world,x+1.1,z),pz=terrainHeightAt(world,x,z+1.1);
     const slope=Math.hypot(px-gy,pz-gy)/1.1;
     const r=hash01(x*.913+z*1.417+spawnIndex*7.7);
-    if(r<.25&&apronGrass<9){
+    if(r<.25&&apronGrass<12){
      apronGrass++;placed.add(cell);
      for(let k=0;k<3;k++)natureSites.push({kind:'grass',x:x+Math.sin(k*2.15)*.36,y:gy,z:z+Math.cos(k*2.15)*.34,s:1.2+hash01(x*.51+z*1.27+k)*.4,ry:k*2.15+hash01(x*1.7+z*.3)*.6});
-    }else if(r>=.25&&r<.36&&slope>.10&&apronFerns<2){
+    }else if(r>=.25&&r<.36&&slope>.10&&apronFerns<3){
      apronFerns++;placed.add(cell);natureSites.push({kind:'fern',x,y:gy,z,s:.95+hash01(x*.67+z*1.1)*.22,ry:hash01(x*1.3+z*.8)*6.283});
-    }else if(r>=.36&&r<.44&&apronShrubs<3){
+    }else if(r>=.36&&r<.46&&apronShrubs<5){
      apronShrubs++;placed.add(cell);natureSites.push({kind:'shrub',x,y:gy,z,s:.72+hash01(x*.43+z*1.5)*.24,ry:hash01(x*1.4+z*.81)*6.283});
     }
    }
@@ -1027,7 +1056,7 @@ export function buildEnvironment(world){
    // tight offsets put photographed grass clumps, stones and a low bush right
    // at the pavement seam so the eye never meets a clean graded diagonal.
    let seamGrass=0,seamRocks=0,seamShrubs=0;
-   for(let gz=3;gz<=12&&(seamGrass<10||seamRocks<4||seamShrubs<3);gz+=1.8)for(let gx=-9;gx<=-2&&(seamGrass<10||seamRocks<4||seamShrubs<3);gx+=1.8){
+   for(let gz=3;gz<=12&&(seamGrass<14||seamRocks<4||seamShrubs<5);gz+=1.6)for(let gx=-9;gx<=-2&&(seamGrass<14||seamRocks<4||seamShrubs<5);gx+=1.6){
     const x=sx+gx+(hash01(sx*.61+sz*1.4+gx*9.7+gz*4.1)-.5)*1.0;
     const z=sz+gz+(hash01(sx*.9+sz*.7+gx*5.3+gz*12.1)-.5)*1.0;
     const dist=Math.hypot(x-sx,z-sz);if(dist<3.4||dist>14)continue;
@@ -1036,12 +1065,12 @@ export function buildEnvironment(world){
     if(blocked(world,x,z,.35,gy,.35,true,true)||paved(x,z))continue;
     placed.add(cell);
     const r=hash01(x*.87+z*1.39+spawnIndex*6.1);
-    if(r<.52&&seamGrass<10){
+    if(r<.52&&seamGrass<14){
      seamGrass++;
      for(let k=0;k<3;k++)natureSites.push({kind:'grass',x:x+Math.sin(k*2.2+r)*.38,y:gy,z:z+Math.cos(k*2.2+r)*.35,s:1.15+hash01(x*.57+z*1.21+k)*.4,ry:k*2.2+r*4.1});
     }else if(r>=.52&&r<.68&&seamRocks<4){
      seamRocks++;natureSites.push({kind:'rock',x,y:gy,z,s:.55+hash01(x*.79+z*1.07)*.35,ry:hash01(x*1.6+z*.55)*6.283});
-    }else if(r>=.68&&r<.8&&seamShrubs<3){
+    }else if(r>=.66&&r<.82&&seamShrubs<5){
      seamShrubs++;natureSites.push({kind:'shrub',x,y:gy,z,s:.78+hash01(x*.67+z*1.31)*.24,ry:hash01(x*1.1+z*.9)*6.283});
     }
    }
@@ -1049,7 +1078,8 @@ export function buildEnvironment(world){
    // underfoot. Fixed blue-green bushes along the visible right-hand cut stay
    // here because landform sampling scattered them too far up the ridge to
    // survive the opening camera.
-   for(const [ox,oz] of [[-7,8],[-10,12],[-13,14],[-15,18],[-8,17]]){
+   const bankBushes=[[-7,8],[-10,12],[-13,14],[-15,18],[-8,17],[-6,12],[-9,20],[-12,23],[-17,22]];
+   for(const [bi,[ox,oz]] of bankBushes.entries()){
     const x=sx+ox+(hash01(sx*.6+sz*.9+ox*9.1+oz*2.7)-.5)*.9;
     const z=sz+oz+(hash01(sx*.8+sz*.5+ox*2.3+oz*11.1)-.5)*.9;
     const gy=terrainHeightAt(world,x,z),cell=Math.round(x/1.4)+','+Math.round(z/1.4);
@@ -1057,6 +1087,7 @@ export function buildEnvironment(world){
     if(blocked(world,x,z,.35,gy,.35,true,true)||paved(x,z))continue;
     placed.add(cell);
     natureSites.push({kind:'shrub',x,y:gy,z,s:.8+hash01(x*.9+z*1.1)*.2,ry:hash01(x*1.7+z*.6)*6.283});
+    if(bi%3===0)natureSites.push({kind:'fern',x:x+.55,y:gy,z:z-.32,s:.82+hash01(x*.5+z*1.4)*.28,ry:hash01(x*1.2+z*1.1)*6.283});
     const a=hash01(x*1.2+z*.95)*6.283;
     for(let k=0;k<3;k++)natureSites.push({kind:'grass',x:x+Math.sin(a+k*2.1)*.52,y:gy,z:z+Math.cos(a+k*2.1)*.44,s:1.05+hash01(x*.5+z*1.3+k)*.35,ry:a+k*2.1});
     if(hash01(x*.33+z*1.7)>.55)natureSites.push({kind:'rock',x:x-.35,y:gy,z:z+.25,s:.4+hash01(x*.8+z*.9)*.25,ry:hash01(x*1.4+z*.3)*6.283});
@@ -1076,18 +1107,29 @@ export function buildEnvironment(world){
     for(let k=0;k<3;k++)natureSites.push({kind:'grass',x:x+Math.sin(k*2.37)*.34,y:gy,z:z+Math.cos(k*2.37)*.32,s:1.0+hash01(x*.6+z*1.8+k)*.35,ry:k*2.37+hash01(x*1.4+z*.7)*.8});
     if(seams%3===0)natureSites.push({kind:'rock',x:x+.35,y:gy,z:z-.2,s:.34+hash01(x*.8+z*1.1)*.22,ry:hash01(x*1.2+z*.4)*6.283});
    }
-   // One small scanned tree per insertion horizon. Placed on the raised bank
-   // rather than in the apron, the real branch and leaf silhouette finally
-   // breaks the flat skyline the previous cone stand-ins left behind.
-   for(let t=0;t<12&&!treePlaced;t++){
-    const x=sx-20+hash01(sx*.31+sz*.83+t*5.7)*26,z=sz+10+hash01(sx*.77+sz*.37+t*3.1)*20;
+   // Two to four full-size scanned CC0 trees frame the insertion skyline.
+   // The authored offsets land on the unpaved bank inside the opening forward
+   // cone, so at least two real trunks and canopies are visible from spawn
+   // rather than only one scaled horizon stand-in. Footprints are presentation
+   // only; the sector's collision and loot data see none of them.
+   const treeOffsets=[[6,18],[2,24],[8,27],[-2,30]];
+   for(const [ti,[ox,oz]] of treeOffsets.entries()){
+    if(treesPlaced>=4)break;
+    const x=sx+ox+(hash01(sx*.31+sz*.83+ti*5.7)-.5)*1.4;
+    const z=sz+oz+(hash01(sx*.77+sz*.37+ti*3.1)-.5)*1.4;
     const gy=terrainHeightAt(world,x,z);
-    if(!Number.isFinite(gy)||gy<.55||blocked(world,x,z,.55,gy,.55,true,true)||paved(x,z))continue;
-    treePlaced=true;natureSites.push({kind:'tree',x,y:gy,z,s:.72+hash01(x*.43+z*1.19)*.18,ry:hash01(x*.27+z*1.7)*6.283});
+    if(!Number.isFinite(gy))continue;
+    if(blocked(world,x,z,.7,gy,.7,true,true)||paved(x,z))continue;
+    const cell=Math.round(x/1.4)+','+Math.round(z/1.4);
+    if(placed.has(cell))continue;
+    placed.add(cell);
+    const s=.94+hash01(x*.43+z*1.19)*.12;
+    natureSites.push({kind:'tree',x,y:gy,z,s,ry:hash01(x*.27+z*1.7)*6.283});
+    spawnTreeSites.push({x,z,y:gy,s,spawnIndex});treesPlaced++;
    }
   }
  }
- root.userData.raidNatureSites=natureSites;
+ root.userData.raidNatureSites=natureSites;root.userData.raidSpawnTrees=spawnTreeSites;
  // Street-level doorways derived from the frozen block and window layers: a
  // recessed dark opening framed by masonry, an entry stoop and the real scanned
  // CC0 timber door module (applied by RaidView). The opening is chosen
@@ -1511,6 +1553,12 @@ export function applyPhotoLook(root){
  root.userData.raidPhotoLook=true;
  for(const mat of root.userData.materials?.values()||[]){
   const surface=mat.userData.raidSurface;
+  // The large street slabs keep the photograph's albedo but receive a slight
+  // neutral tone-down so the sunlit sidewalk and road stay in mid-tone range
+  // instead of clipping to white. They are tagged, so the photo-look strip
+  // below (which hands every other surface a pure white tint) leaves them out.
+  if(mat.userData.raidStructure==='streetSidewalk'){mat.color.setHex(0xdedad2);mat.needsUpdate=true;continue}
+  if(mat.userData.raidStructure==='streetRoad'){mat.color.setHex(0xe9e6df);mat.needsUpdate=true;continue}
   if(!PHOTO_SURFACES.has(surface)||mat.userData.raidStructure||mat.userData.raidAuthoredColor==null)continue;
   // Foliage is tinted geometry dressed with the photographed leaf litter, not a
   // bare surface: handing it the photo albedo at full brightness turns every

@@ -37,6 +37,9 @@ try {
   await page.command('Emulation.setDeviceMetricsOverride', {width: 1280, height: 720, deviceScaleFactor: 1, mobile: false});
   await page.wait(`document.readyState==='complete'`);
   const result = await page.evaluate(`(async () => {
+    const assets = await import('./assets.js');
+    const lootLoaded = await assets.loadLoot();
+    const HQP = assets.HQP;
     const {RaidView} = await import('./raid-view.mjs');
     const THREE = await import('./lib/three.module.min.js');
     const {propModel} = await import('./raid-models.mjs');
@@ -55,56 +58,56 @@ try {
     const entries = [...view.actors.entries()].filter(([, entry]) => entry.type === 'loot');
     const beacons = entries.map(([key, entry]) => {
       const beacon = entry.model.userData.lootBeacon;
-      const source = expected.find(item => item.id === entry.data.id);
+      const item = entry.model.userData.lootItem;
       return {
         id: entry.data.id,
         pile: entry.model.userData.lootPile === true,
-        beacon: !!beacon,
-        gem: !!beacon?.gem,
-        halo: !!beacon?.halo?.isSprite,
-        wisp: !!beacon?.wisp,
-        ring: !!beacon?.ring,
-        accent: Number(beacon?.ring?.material?.color?.getHex?.()) || null,
-        sourceAccent: source ? source.accent : null
+        glint: !!beacon?.glint?.isSprite,
+        oldGem: !!beacon?.gem,
+        oldHalo: !!beacon?.halo,
+        oldWisp: !!beacon?.wisp,
+        oldRing: !!beacon?.ring,
+        item: item?.type || null,
+        itemMeshes: item?.group ? item.group.children.filter(child => child.isMesh).length : 0
       };
     });
-    // The animated beacon reuses one procedural glow map and one gem geometry,
-    // and per-actor disposal must never release that shared map.
-    const halos = entries.map(([, entry]) => entry.model.userData.lootBeacon?.halo).filter(Boolean);
-    const glowShared = halos.length > 0 && halos.every(halo => halo.material.map === halos[0].material.map);
-    const gemShared = entries.length > 0 && entries.every(([, entry]) => entry.model.userData.lootBeacon?.gem?.geometry === entries[0][1].model.userData.lootBeacon?.gem?.geometry);
+    // The glint reuses one procedural star map and per-actor disposal must never
+    // release it. The supply pile must also carry a real loaded loot scan.
+    const glints = entries.map(([, entry]) => entry.model.userData.lootBeacon?.glint).filter(Boolean);
+    const glintShared = glints.length > 0 && glints.every(glint => glint.material.map === glints[0].material.map);
+    const supply = entries.find(([, entry]) => (entry.data.items || []).some(i => i.kind === 'material'));
+    const supplyItem = supply?.[1].model.userData.lootItem;
     let sharedMapDisposed = 0;
-    if (halos.length) {
-      halos[0].material.map.addEventListener('dispose', () => { sharedMapDisposed++; });
+    if (glints.length) {
+      glints[0].material.map.addEventListener('dispose', () => { sharedMapDisposed++; });
       const victim = entries[entries.length - 1][1].model;
       disposeOwned(victim);
       victim.removeFromParent();
     }
-    // Presentation animation: gem hover/turn while running, frozen still pose
-    // under reduced motion. Values are read after two production frames.
+    // Presentation animation: only the glint breathes; the item stays planted.
+    // Under reduced motion it freezes at a still, readable pose.
     view.applySettings({reduced: false, sfxVolume: 0, fov: 75, viewMode: 'third'});
     const actor = entries[0][1].model.userData.lootBeacon;
     view.frame(1000, 0, 0, null, false);
-    const moving = {y: actor.gem.position.y, rot: actor.gem.rotation.y, ring: actor.ring.material.opacity};
+    const moving = {opacity: actor.glint.material.opacity, scale: actor.glint.scale.x, y: actor.glint.position.y};
     view.frame(1700, 0, 0, null, false);
-    const animated = Math.abs(actor.gem.position.y - moving.y) > 1e-4 && Math.abs(actor.gem.rotation.y - moving.rot) > 1e-4;
+    const animated = Math.abs(actor.glint.material.opacity - moving.opacity) > 1e-4 && Math.abs(actor.glint.scale.x - moving.scale) > 1e-4;
     view.applySettings({reduced: true, sfxVolume: 0, fov: 75, viewMode: 'third'});
     view.frame(2400, 0, 0, null, false);
-    const frozen = {y: actor.gem.position.y, rot: actor.gem.rotation.y, ring: actor.ring.material.opacity};
+    const frozen = {opacity: actor.glint.material.opacity, scale: actor.glint.scale.x, y: actor.glint.position.y};
     view.frame(3100, 0, 0, null, false);
-    const staticPose = Math.abs(actor.gem.position.y - frozen.y) < 1e-6 && Math.abs(actor.gem.rotation.y - frozen.rot) < 1e-6 && actor.gem.position.y === .95;
-    // Isolated evidence bench: production piles versus evidence-only flat piles,
-    // laid out on three rarities so the accent ladder is measurable.
+    const staticPose = actor.glint.material.opacity === frozen.opacity && actor.glint.scale.x === frozen.scale && actor.glint.position.y === frozen.y && frozen.opacity === .3 && frozen.scale === .32;
+    // Isolated evidence bench: real medical-box loot against evidence-only flat
+    // piles, so the measured pixel delta reflects the item + its glint.
     const bench = new THREE.Scene();
     bench.background = new THREE.Color(0x101c1a);
     bench.add(new THREE.HemisphereLight(0xdff4ff, 0x303834, 2.6));
     const benchSun = new THREE.DirectionalLight(0xffe6b8, 2.4);
     benchSun.position.set(2.4, 5, 3.2);
     bench.add(benchSun);
-    // Drop heart-stem motion: the beam group is a still frame for evidence.
     const rowColors = [lootTierColor(1), lootTierColor(3), lootTierColor(4)];
     const row = rowColors.map((color, index) => {
-      const model = propModel('loot', color);
+      const model = propModel('loot', color, {visual: 'med'});
       model.position.set((index - 1) * 1.6, 0, 0);
       bench.add(model);
       return model;
@@ -151,25 +154,26 @@ try {
       for (const model of row) model.visible = !plain;
       screenBench();
     };
-    return {beacons, glowShared, gemShared, sharedMapDisposed, animated, staticPose, changed};
+    return {beacons, lootLoaded, glintShared, supplyItem: supplyItem?.type || null, supplyMeshes: supplyItem?.group ? supplyItem.group.children.filter(child => child.isMesh).length : 0, sharedMapDisposed, animated, staticPose, changed};
   })()`);
   assert.deepEqual(page.errors, []);
+  assert.equal(result.lootLoaded, true, 'the real CC0 loot scans decode');
   assert.deepEqual(result.beacons.map(beacon => beacon.id), liveLoot.map(pile => pile.id), 'every visible ground loot pile is rendered');
   for (const beacon of result.beacons) {
     assert.equal(beacon.pile, true, beacon.id + ' is a production loot pile');
-    assert.equal(beacon.beacon, true, beacon.id + ' carries a pickup beacon');
-    assert.equal(beacon.gem, true, beacon.id + ' carries a floating gem');
-    assert.equal(beacon.halo, true, beacon.id + ' carries an additive halo');
-    assert.equal(beacon.wisp, true, beacon.id + ' carries a light wisp');
-    assert.equal(beacon.ring, true, beacon.id + ' carries an accent ring');
-    assert.equal(beacon.accent, beacon.sourceAccent, beacon.id + ' uses the authoritative pile rarity accent');
+    assert.equal(beacon.glint, true, beacon.id + ' carries the subtle pickup glint');
+    assert.equal(beacon.oldGem, false, beacon.id + ' no longer carries a floating gem');
+    assert.equal(beacon.oldHalo, false, beacon.id + ' no longer carries an additive halo');
+    assert.equal(beacon.oldWisp, false, beacon.id + ' no longer carries a light wisp');
+    assert.equal(beacon.oldRing, false, beacon.id + ' no longer carries a glowing accent ring');
   }
-  assert.equal(result.glowShared, true, 'every loot beacon reuses one shared procedural glow map');
-  assert.equal(result.gemShared, true, 'every loot beacon reuses one shared gem geometry');
-  assert.equal(result.sharedMapDisposed, 0, 'per-actor disposal never frees the shared loot glow map');
-  assert.equal(result.animated, true, 'the pickup gem hovers and turns while running');
+  assert.equal(result.supplyItem, 'material', 'the field-supply pile shows its real fuel-canister scan');
+  assert.equal(result.supplyMeshes > 0, true, 'the field-supply pile is a real mesh, not a flat box');
+  assert.equal(result.glintShared, true, 'every loot glint reuses one shared procedural star map');
+  assert.equal(result.sharedMapDisposed, 0, 'per-actor disposal never frees the shared loot glint map');
+  assert.equal(result.animated, true, 'the pickup glint breathes while running');
   assert.equal(result.staticPose, true, 'reduced motion freezes a still, readable pickup pose');
-  assert.ok(result.changed > 700, 'the pickup beacon paints ' + result.changed + ' isolated pixels');
+  assert.ok(result.changed > 500, 'the real loot item plus glint paints ' + result.changed + ' isolated pixels');
   await page.evaluate('window.__lootPileBench(true)');
   await screenshot(page, '/tmp/hs-loot-beacons-before.png');
   await page.evaluate('window.__lootPileBench(false)');

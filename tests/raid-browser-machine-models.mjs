@@ -47,7 +47,7 @@ try {
   await page.wait(`(window.__raidArt && window.__raidArt.humans)===true`);
   const result = await page.evaluate(`(async () => {
     const {RaidView} = await import('./raid-view.mjs');
-    const {machineModel, updateActor} = await import('./raid-models.mjs');
+    const {machineModel, updateActor, disposeOwned} = await import('./raid-models.mjs');
     const THREE = await import('./lib/three.module.min.js');
     const base = ${JSON.stringify(snapshot)};
     const expected = ${JSON.stringify(EXPECTED)};
@@ -81,15 +81,26 @@ try {
         if (node.isMesh && node.material?.map && node.material.userData?.raidWorn) worn++;
         if (node.isSprite && node.material?.map) haloMap = node.material.map;
       });
+      const gun = model.userData.humanActor?.userData?.raidGun || null;
+      let gunMeshes = 0, gunMappedMeshes = 0;
+      const gunBox = new THREE.Box3();
+      if (gun) { gun.traverse(node => { if (node.isMesh) { gunMeshes++; if (node.material?.map) gunMappedMeshes++; } }); gunBox.setFromObject(gun); }
+      const gunSize = gunBox.isEmpty() ? new THREE.Vector3() : gunBox.getSize(new THREE.Vector3());
       return {
         id: key,
         kind: model.userData.kind,
         detail: model.userData.machineDetail || null,
         core: !!model.userData.core,
+        coreScale: model.userData.core?.scale.x || 0,
+        coreSprites: (() => { let count = 0; model.userData.core?.traverse(node => { if (node.isSprite) count++; }); return count; })(),
         halo: !!model.userData.core?.userData.halo,
         haloIsSprite: model.userData.core?.userData.halo?.isSprite === true,
         haloHasMap: !!haloMap,
-        wornMeshes: worn
+        wornMeshes: worn,
+        gun: !!gun,
+        gunMeshes,
+        gunMappedMeshes,
+        gunWorldLength: gunSize.z
       };
     });
     // Evidence bench: one plain and one detailed model per class, rendered in
@@ -142,6 +153,16 @@ try {
     const mapA = tribA.children.find(node => node.material?.userData?.raidWorn)?.material.map;
     const mapB = tribB.children.find(node => node.material?.userData?.raidWorn)?.material.map;
     const wornMapShared = !!mapA && mapA === mapB;
+    // Per-actor disposal releases the owned rifle mesh and material, but the
+    // scanned photo textures are shared asset state: disposing one machine's gun
+    // must never free the albedo/normal maps used by every other operator.
+    const disposeGun = tribA.userData.humanActor?.userData.raidGun;
+    const gunScanMap = disposeGun?.children.find(node => node.isMesh && node.material?.map)?.material.map || null;
+    let gunScanMapDisposed = 0, wornMapDisposed = 0, ownedGunMaterials = 0, ownedGunMaterialsDisposed = 0;
+    if(gunScanMap)gunScanMap.addEventListener('dispose', () => { gunScanMapDisposed++ });
+    if(mapA)mapA.addEventListener('dispose', () => { wornMapDisposed++ });
+    disposeGun?.traverse(node => { if(node.isMesh && node.material?.userData?.raidOwned){ ownedGunMaterials++; node.material.addEventListener('dispose', () => { ownedGunMaterialsDisposed++ }) } });
+    disposeOwned(tribA);
     // Lay out both rows side by side for inspection screenshots; the event only
     // toggles visibility so the production camera view is never touched.
     const rowX = kinds.map((_, i) => (i - 2) * 3.2);
@@ -162,7 +183,8 @@ try {
       view.renderer.clear();
       view.renderer.render(bench, camera);
     };
-    return {inspected, deltas, wornMapShared};
+    return {inspected, deltas, wornMapShared,
+      gunDispose:{gunScanMap:!!gunScanMap,gunScanMapDisposed,wornMapDisposed,ownedGunMaterials,ownedGunMaterialsDisposed}};
   })()`);
   assert.deepEqual(page.errors, []);
   const inspected = result.inspected;
@@ -171,11 +193,25 @@ try {
     assert.ok(actor, 'production sync constructs the ' + kind + ' machine');
     assert.ok(actor.detail, kind + ' publishes machine detail metadata');
     assert.equal(actor.detail.worn, true, kind + ' carries worn plating');
-    assert.equal(actor.detail.halo, true, kind + ' carries a core halo');
-    assert.equal(actor.core, true, kind + ' retains its authoritative core');
-    assert.equal(actor.halo, true, kind + ' retains the additive core halo');
-    assert.equal(actor.haloIsSprite, true, kind + ' halo is a camera-facing sprite');
-    assert.equal(actor.haloHasMap, true, kind + ' halo uses the procedural glow map');
+    assert.equal(actor.core, true, kind + ' retains its authoritative weak point');
+    if (kind === 'flyer') {
+      // The flyer is still the acknowledged procedural drone (no realistic CC0
+      // flight asset yet); its sensor keeps the additive halo by design.
+      assert.equal(actor.detail.halo, true, 'the flyer sensor keeps its glow halo');
+      assert.equal(actor.halo, true, 'the flyer retains the additive core halo');
+      assert.equal(actor.haloIsSprite, true, 'the flyer halo is a camera-facing sprite');
+      assert.equal(actor.haloHasMap, true, 'the flyer halo uses the procedural glow map');
+    } else {
+      assert.ok(actor.coreScale <= .05, kind + ' weak point is a small harness lamp, not a body-sized orb');
+      assert.equal(actor.detail.halo, false, kind + ' carries no core halo');
+      assert.equal(actor.halo, false, kind + ' no longer floats an orb or halo on the body');
+      assert.equal(actor.haloIsSprite, false, kind + ' weak point is not a sprite');
+      assert.equal(actor.gun, true, kind + ' is visibly armed');
+      assert.ok(actor.gunMeshes > 0, kind + ' holds a real mesh weapon');
+      assert.ok(actor.gunMappedMeshes > 0, kind + ' held weapon uses its real photo scan');
+      assert.ok(actor.gunWorldLength > .55, kind + ' held weapon is fitted to real rifle scale');
+      assert.equal(actor.coreSprites, 0, kind + ' weak point has no sprite halo');
+    }
     assert.ok(actor.wornMeshes > 0, kind + ' hulls use the worn plating material');
     assert.deepEqual(actor.detail.features, EXPECTED[kind], kind + ' exposes its silhouette features');
     assert.ok(actor.detail.detailCount >= EXPECTED[kind].length, kind + ' silhouette parts are built');
@@ -184,6 +220,11 @@ try {
   assert.ok(relayScout, 'the authoritative relay scout is rendered and detailed too');
   assert.equal(relayScout.detail.worn, true);
   assert.equal(result.wornMapShared, true, 'the worn plating texture is shared between machines');
+  assert.equal(result.gunDispose.gunScanMap, true, 'the grounded operator gun carries a photo-scanned texture');
+  assert.equal(result.gunDispose.gunScanMapDisposed, 0, 'per-actor disposal never frees the shared scan maps');
+  assert.equal(result.gunDispose.wornMapDisposed, 0, 'per-actor disposal never frees the shared worn plating map');
+  assert.ok(result.gunDispose.ownedGunMaterials > 0, 'the held rifle publishes owned materials');
+  assert.equal(result.gunDispose.ownedGunMaterialsDisposed, result.gunDispose.ownedGunMaterials, 'disposal releases every owned rifle material');
   console.log('detail deltas', JSON.stringify(result.deltas));
   for (const delta of result.deltas) assert.ok(delta.changed > 200, delta.kind + ' detail pass paints ' + delta.changed + ' pixels');
   await page.evaluate('window.__machineBench(false)');
