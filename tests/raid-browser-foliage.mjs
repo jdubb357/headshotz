@@ -33,10 +33,12 @@ try{
   if(!tree){let best=1e9;for(const prop of view.world.props||[]){if(prop.kind!=='tree')continue;const dx=prop.x-self.x,dz=prop.z-self.z,dist=Math.hypot(dx,dz);if(dist>=10&&dist<best){best=dist;tree={x:prop.x,z:prop.z,y:terrainHeightAt(view.world,prop.x,prop.z)+4.2*(prop.scale||1),dist}}}}
   const yaw=Math.atan2(tree.x-self.x,tree.z-self.z),pitch=Math.atan2(tree.y-eyeY,Math.hypot(tree.x-self.x,tree.z-self.z));
   // The wind-material groups are the only visible nodes during the motion probe.
-  // Isolate the foliage groups: hide every other mesh, points field and sprite
-  // (dust, horizon embers, window halos, stars) so only wind-lit crowns and the
-  // static background can contribute to the motion probe.
-  const hidden=[];view.scene.traverse(o=>{if((o.isMesh||o.isInstancedMesh||o.isPoints||o.isSprite)&&!windSet.has(o.material)){o.visible=false;hidden.push(o)}});view.postMesh.visible=false;
+  // Isolate the foliage groups: hide every other mesh, line, points field and
+  // sprite (dust, horizon embers, window halos, stars, held-weapon edge glints)
+  // so only wind-lit crowns and the static background can contribute to the
+  // motion probe.
+  const hidden=[],differs=m=>{if(!m)return false;for(const mat of (Array.isArray(m)?m:[m]))if(windSet.has(mat))return true;return false};
+  view.scene.traverse(o=>{if((o.isMesh||o.isInstancedMesh||o.isPoints||o.isSprite||o.isLine||o.isLineSegments||o.isLineLoop)&&!differs(o.material)){o.visible=false;hidden.push(o)}});view.postMesh.visible=false;
   const frameAt=t=>{view.frame(t,yaw,pitch,clear.self,true);gl.finish()};
   // Warm the shader cache and let renderer.setSize establish the drawing buffer
   // before sampling, otherwise readPixels reads the 300x150 pre-size canvas.

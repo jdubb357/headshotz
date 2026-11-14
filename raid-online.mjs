@@ -24,7 +24,7 @@ import {keyName} from './shared/raid-settings.mjs';
 import {rankProgress} from './shared/raid-progression.mjs';
 import {communicationUI} from './raid-comms-ui.mjs';
 import {BOSS_PHASES,MACHINES} from './shared/raid-enemies.mjs';
-import {loadAssets,loadMachines,loadWindows,loadBuildings,HQP} from './assets.js';
+import {loadAssets,loadMachines,loadWindows,loadBuildings,loadNature,loadGround,HQP} from './assets.js';
 import {loadHumans,HUM} from './humans.js';
 import {RaidView,BasePreview} from './raid-view.mjs';
 import {RAID_WORLDS,getWorld,terrainHeightAt,clearLine} from './shared/raid-worlds.mjs';
@@ -507,9 +507,9 @@ function loadRaidArt(){
  if(raidArtStarted)return;
  raidArtStarted=true;
  const started=performance.now();
- Promise.allSettled([loadAssets(),loadHumans(),loadMachines(),loadWindows(),loadBuildings()]).then(results=>{
+ Promise.allSettled([loadAssets(),loadHumans(),loadMachines(),loadWindows(),loadBuildings(),loadNature(),loadGround()]).then(results=>{
   const assets=results[0].status==='fulfilled'&&results[0].value===true;
-  window.__raidArt={ms:Math.round(performance.now()-started),assets,humans:HUM.ready,machines:Object.keys(HQP.machines),windows:Object.keys(HQP.windows),buildings:Object.keys(HQP.buildings),photos:HQP.ready};
+  window.__raidArt={ms:Math.round(performance.now()-started),assets,humans:HUM.ready,machines:Object.keys(HQP.machines),windows:Object.keys(HQP.windows),buildings:Object.keys(HQP.buildings),nature:Object.keys(HQP.nature),ground:Object.keys(HQP.ground),photos:HQP.ready};
   view?.refreshArt?.();
   preview?.refreshArt?.();
  }).catch(()=>{});

@@ -5,7 +5,7 @@ import * as THREE from './lib/three.module.min.js';
 import {getWorld,terrainHeightAt,blocked} from './shared/raid-worlds.mjs';
 import {mapConditions} from './shared/raid-enemies.mjs';
 import {exitColor} from './shared/raid-exits.mjs';
-import {buildEnvironment,applyPhotoLook} from './raid-environment.mjs';
+import {buildEnvironment,applyPhotoLook,WIND_VERTEX} from './raid-environment.mjs';
 import {lootTierColor} from './shared/raid-loot-presentation.mjs';
 import {TX,getTex,normalTex,makeRaidHorizon} from './gfx.js';
 import {HUM} from './humans.js';
@@ -298,6 +298,8 @@ export class RaidView {
    if(liveNormal?.image&&mat.normalMap)mat.normalMap.needsUpdate=true;
    mat.needsUpdate=true;
   }
+  this.refreshGround();
+  this.refreshFoliage();
   // Loot actors are created during the deploy snapshot, before the shipped
   // props arrive. Rebuild them once the photo crate and scanned guns exist, so
   // the first piles a player kneels beside read as objects, not geometry blanks.
@@ -342,6 +344,121 @@ export class RaidView {
    next.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
    this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
   }
+ }
+ // Swap the flat palette surfaces the player stands on for photographed PBR.
+ // Road, sidewalk and embankment materials keep their authored instancing and
+ // collision; only the map/normal/roughness channels change. The terrain gets
+ // its own clones so its metres-wide tiling and photo grain stay sharp while
+ // asphalt slabs keep a 3.5 m tile.
+ refreshGround(){
+  const root=this.environmentRoot,ground=HQP.ground;
+  if(!root||!ground||!Object.keys(ground).length)return;
+  const surfaces={asphalt:'asphalt',concrete:'concrete',gravel:'gravelFloor'};
+  for(const material of root.userData.materials?.values()||[]){
+   const key=surfaces[material.userData.raidSurface];
+   if(!key||!ground[key]||material.userData.raidStructure)continue;
+   if(material.userData.raidGroundSkin===key)continue;
+   material.userData.raidGroundSkin=key;
+   material.map=ground[key].map;
+   material.normalMap=ground[key].normalMap;
+   material.roughnessMap=ground[key].roughnessMap;
+   material.roughness=1;
+   material.normalScale=new THREE.Vector2(1,1);
+   if(material.userData.raidDry){material.userData.raidDry.roughness=1;material.userData.raidDry.normalScale=1}
+   material.needsUpdate=true;
+  }
+  const mat=this.terrainMaterial,soil=ground.dirt||ground.gravel;
+  if(mat&&soil&&mat.userData.raidGroundSkin!=='terrain-dirt'){
+   const reps=Math.max(120,Math.round((this.world?.size||1440)/2.4));
+   const map=soil.map.clone(),normal=soil.normalMap.clone(),rough=soil.roughnessMap.clone();
+   for(const t of [map,normal,rough]){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(reps,reps);t.anisotropy=16;t.needsUpdate=true}
+   mat.userData.raidGroundSkin='terrain-dirt';
+   mat.map=map;mat.normalMap=normal;mat.roughnessMap=rough;mat.roughness=1;mat.metalness=0;
+   mat.normalScale.set(1.35,1.35);
+   if(mat.userData.raidDry){mat.userData.raidDry.roughness=1;mat.userData.raidDry.normalScale=1.35}
+   mat.needsUpdate=true;
+  }
+ }
+ // Replace the near-spawn procedural undergrowth (paper tufts, cone canopies,
+ // spherical bushes) with real scanned Poly Haven instancing. The fallback
+ // groups are tagged by buildEnvironment and hidden whole once the GLBs decode,
+ // so an assetless/Low-quality boot keeps its swaying planes instead of going
+ // bare. Base heights are baked in the loader; every instance derives its
+ // position from frozen authored props and sampled terrain only.
+ refreshFoliage(){
+  const root=this.environmentRoot,assets=HQP.nature||{},sites=root?.userData?.raidNatureSites;
+  if(!root||!this.scene||!sites?.length)return;
+  const keys=Object.keys(assets).filter(k=>assets[k]?.parts?.length);
+  if(!keys.length)return;
+  root.traverse(node=>{if(node.isInstancedMesh&&node.userData.raidStructure==='natureProcFallback')node.visible=false});
+  if(this.natureRoot&&this.natureRoot.userData.raidEnvironment===root)return;
+  if(this.natureRoot&&this.natureRoot.parent){this.natureRoot.parent.remove(this.natureRoot)}
+  this.natureRoot=null;
+  const groups=new Map();
+  for(const site of sites){
+   const key=site.kind==='bush'?'shrub':site.kind==='moss'?'grass':site.kind;
+   if(!assets[key])continue;
+   let list=groups.get(key);if(!list)groups.set(key,list=[]);list.push(site);
+  }
+  if(!groups.size)return;
+  // The terrain mesh and the shared terrainHeightAt sampler share corner
+  // samples but different interpolation, so instancing on the sampler alone
+  // leaves shrubs hovering a metre over the steeper banks. Read the drawn
+  // mesh's own triangle plane once, then seat every site on the surface the
+  // player can actually see.
+  const terrain=root.children.find(n=>n.isMesh&&n.material===this.terrainMaterial&&n.geometry?.attributes?.position?.count>1000);
+  const meshY=(x,z)=>{
+   if(!terrain)return null;
+   const geo=terrain.geometry,pos=geo.attributes.position.array,size=this.world?.size||1440,segments=160;
+   const step=size/segments,half=size/2,vertices=segments+1;
+   const fx=(x+half)/step,fz=(z+half)/step,i=Math.floor(fx),j=Math.floor(fz);
+   if(i<0||j<0||i>=segments||j>=segments)return null;
+   const tx=fx-i,tz=fz-j,at=(ii,jj)=>(jj*vertices+ii)*3+1;
+   const ha=pos[at(i,j)],hc=pos[at(i+1,j)],hb=pos[at(i,j+1)],he=pos[at(i+1,j+1)];
+   if(tx+tz<=1)return ha*(1-tx-tz)+hc*tx+hb*tz;
+   return hc*(1-tz)+hb*(1-tx)+he*(tx+tz-1);
+  };
+  const group=new THREE.Group();group.name='raidNature';group.userData.raidEnvironment=root;
+  const dummy=new THREE.Object3D(),windSet=new Set();
+  const spin=(x,z)=>((x*2.31+z*.87)%6.283+6.283)%6.283;
+  for(const [kind,list] of groups){
+   const asset=assets[kind];
+   // Scaned plants keep their real proportions; grass is grown to knee height
+   // so the meadow reads at 20-40 m instead of becoming paper dust.
+   const grow=kind==='grass'?1.8:kind==='fern'?1.15:1;
+   for(const part of asset.parts){
+    const mat=part.mat;
+    if(!mat)continue;
+    if(!windSet.has(mat)&&kind!=='rock'&&kind!=='stump'){
+     windSet.add(mat);mat.userData.raidFoliage=true;mat.userData.raidWind=true;
+     mat.onBeforeCompile=shader=>{
+      // The nature GLBs already carry real albedo/normal/roughness maps; this
+      // only adds the shared deterministic sway clock and per-instance phase.
+      shader.uniforms.uWindTime={value:0};
+      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uWindTime;').replace('#include <begin_vertex>','#include <begin_vertex>'+WIND_VERTEX);
+      mat.userData.raidShader=shader;
+     };
+     mat.customProgramCacheKey=()=>'raidNature-'+kind;
+    }
+    const mesh=new THREE.InstancedMesh(part.geo,mat,list.length);
+    mesh.castShadow=kind==='tree'||kind==='stump';
+    mesh.receiveShadow=true;
+    mesh.userData.raidNature=kind;
+    for(let i=0;i<list.length;i++){
+     const site=list[i],s=(site.s||1),sy=s*grow;
+     const sx=kind==='shrub'?s*.62:kind==='fern'?s*.74*grow:s*grow;
+     const sz=sx,ground=meshY(site.x,site.z);
+     dummy.position.set(site.x,ground==null?site.y:ground,site.z);
+     dummy.rotation.set(0,(site.ry||0)+spin(site.x,site.z),0);
+     dummy.scale.set(sx,sy,sz);
+     dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate=true;
+    group.add(mesh);
+   }
+  }
+  root.add(group);this.natureRoot=group;
+  for(const mat of windSet)if(!this.windMaterials.includes(mat))this.windMaterials.push(mat);
  }
  // The insertion apron's drums and crate are built with stack-only fallbacks
  // before the scanned CC0 props decode. Replace them with instanced
@@ -639,7 +756,7 @@ export class RaidView {
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.lastTime=0;this.footDust=[];this.footDustCursor=0;if(this.enemyShotLight){this.enemyShotLight.visible=false;this.enemyShotLight.intensity=0}this.enemyShotLight=null;this.enemyShotLightAt=-1e9;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
-  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth'])this[name]=null;this.chase=null;this.wetness=0;
+  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','envMapRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth','natureRoot'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
  this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;

@@ -8346,3 +8346,54 @@ The black box façades are gone and the first three minutes now read as a real s
 
 **Next action:** commit this pass on `cypert/dev` only (no push, no PR, never `main`); then continue the director list with item 2 (rifle arms or keep hands hidden) and item 3 (gravel-bank seam).
 
+## Iteration 107 — Real scanned ground and foliage (DIRECTOR_NOTES item 2: GROUND + TERRAIN + FOLIAGE; 2026-11-13)
+
+**Task:** Replace the flat tan/grey pavement slabs and the hard-edged gravel bank with real CC0 Poly Haven photographed ground PBR (asphalt, concrete pavement, gravel road) and replace the procedural near-spawn foliage cones/spheres/tufts with real scanned nature models (tree, shrub, fern, grass, rock, stump) instanced within 52 m of every spawn. Presentation-only; frozen world, collision, props and spawn data untouched.
+
+### Acceptance criteria (recorded before implementation)
+1. Spawn frames at 1024×720 and 844×390 show photographed asphalt/concrete grain and normal relief on the street, sidewalk and gravel bank instead of flat pale colour, and the pavement/bank seam is broken by real grass clumps and rocks rather than a hard diagonal edge.
+2. Real scanned Poly Haven nature instances (small tree, shrub, fern, grass, rock, stump) replace the procedural near-spawn cones/spheres/paper tufts within 52 m of every spawn; procedural foliage remains only beyond that radius and the swap never duplicates geometry at the same site.
+3. Nature assets live under `assets/models/nature/`, one optimised GLB per kind, 512 px maps, total under 3 MB, and the ground maps are copied under `assets/tex/` so offline play works; exact source URLs, authors and CC0 licences recorded in ASSETS.md.
+4. Nature materials publish photographed albedo and normal maps, sway with the shared wind clock and support reduced motion (zero wind, static frame) so `tests/raid-browser-foliage.mjs` stays green.
+5. Budget: scene triangles stay under ~6.6M, draws under ~450, measured relay FPS stays ≥55 on the same probe.
+6. Equal-condition offline before/after screenshots plus action frames in `~/headshotz-loop/shots/latest/`, with an honest critique recorded; the after frame must be clearly better.
+7. Frozen world/spawn/collision/door/loot/server authority and all other modes unchanged; static-offline, mobile-HUD, scenery, foliage, structures and node test suites remain green, with only documented pre-existing failures.
+
+### Changed
+- `assets/models/nature/` — six optimized CC0 Poly Haven scans (7,606 final triangles from 33,401 source): `tree_small_02` 1,681 tri / 847,728 B, `shrub_02` 1,059 tri / 204,468 B, `fern_02` 2,768 tri / 221,368 B, `grass_medium_02` 119 tri / 102,856 B, `tree_stump_01` 1,327 tri / 397,956 B, `rock_07` 652 tri / 225,224 B. One GLB per kind, 512 × 512 maps (WebP for scanned diffuse+alpha, JPEG normal/roughness), meshopt-simplified, base at y=0, x/z centred. Total 1,999,600 B.
+- `assets/tex/ground/` — five photographed PBR sets at 512 × 512 JPEG (asphalt, concrete, gravel, dirt from Brown Mud Dry, gravel floor): diffuse/normal/roughness × 5 = 15 files, 1,533,679 B. Shared as three material channels per surface.
+- `assets.js` — new `NATURE_GLB` and `GROUND_PBR` registries; `loadNature()` flattens each GLB into per-material merged geometries with scanned albedo, normal, roughness and alpha-tested leaf cutouts (`alphaTest .42`, front/back sides, deterministic normalisation) and `loadGround()` loads the three channels with SRGB diffuse, repeat wrapping and anisotropy; both lazy and fault-tolerant.
+- `raid-environment.mjs` — authored near-spawn vegetation within 52 m of every spawn is now published as deterministic `natureSites` (tree, bush→shrub, shrub, fern, moss→grass, stump, rock), and the procedural near-spawn nature instancing is tagged `natureProcFallback` so the view can hide it. Fallback instancing remains beyond the radius. Geometry, terrain, collision, props and world tuples untouched.
+- `raid-view.mjs` — `refreshArt()` calls `refreshGround()` and `refreshFoliage()`. Ground replaces the flat slab maps with the photographed asphalt/concrete/gravelFloor sets and clones the terrain with the photographed dirt maps (repeat ≥120, anisotropy 16, normalScale 1.35). Foliage hides all `natureProcFallback` nodes and builds one InstancedMesh per kind (shrub/bush, grass/moss, tree, rock, fern, stump) seated on the rendered terrain; tree, shrub, fern and grass materials share the `wind` vertex shader clock and set `uWindTime=0` under reduced motion; shader program cache keys are stable per kind.
+- `raid-online.mjs` — starts `loadNature()` and `loadGround()` alongside the existing asset loads with `Promise.allSettled`, and reports `nature`/`ground` through `window.__raidArt`.
+- `tests/raid-browser-structures.mjs` — fixed the expected structure tag census to include the new `natureProcFallback` tag (1,092 instances).
+- `tests/raid-browser-foliage.mjs` — tightened the reduced-motion isolation to hide every other renderable class (`Mesh`, `InstancedMesh`, `Points`, `Sprite`, `Line`, `LineSegments`, `LineLoop`) and to consult material arrays. Held-weapon additive edge glints were previously left visible and produced a false 188-pixel static-frame diff; the foliage static frame is now 0 changed pixels. The wind shader and reduced-motion contract are unchanged.
+- `ASSETS.md` — added the iteration-107 section with all 21 source assets, exact authors, Poly Haven URLs and CC0 licences, optimisation and totals.
+- `~/headshotz-loop/shots/latest/` — replaced with the current equal-condition before/after captures at 1024×720 and 844×390, four action frames, and `before-1024-bank.png` / `after-1024-bank.png`.
+
+### Verification (2026-11-13)
+- `node --check assets.js raid-environment.mjs raid-view.mjs raid-online.mjs tests/raid-browser-foliage.mjs tests/raid-browser-structures.mjs` → exit 0.
+- `node tests/raid-browser-foliage.mjs` → exit 0; 77 wind materials, textured and normal-mapped true, 63 rendered shaders; moving 17,944 changed pixels; reduced-motion static 0 changed pixels and `stillTime:0`; `browserErrors:[]`.
+- `node tests/raid-browser-static-offline.mjs` → exit 0; deploy, movement, machine hit, loot, extraction, 270 credits, `noApiTraffic:true`, `browserErrors:[]`.
+- `node tests/raid-browser-mobile-hud.mjs` → exit 0; unobstructed window 0.918 (1024×720) and 0.816 (844×390); thumbstick, look drag, interact, auto-fire, auto-reload, aim, swap all true; `browserErrors:[]`.
+- `node tests/raid-browser-structures.mjs` → exit 0; 419 structures and 130 doorways preserved, `natureProcFallback` census 1,092; `pbr:true`, `deterministic:true`, reduced-motion matrices unchanged while change detection still true; `browserErrors:[]`.
+- `node tests/raid-browser-scenery.mjs` → exit 0; relay 1,926, reservoir 1,991, switchyard 1,880 scenery objects; fern/shrub/stump/moss/rubble counts as documented; `terrain:true`; `browserErrors:[]`.
+- `node tests/raid-browser-doors.mjs` → exit 0; ordinary door open/close with E, locked door disabled without key, key consumed, map markers authoritative; `browserErrorCount:0`.
+- `node --test tests/*.test.mjs` → 1249 tests, 1248 pass, 1 fail: `tests/matchmaking.test.mjs:41` `TypeError: fetch failed` (ECONNRESET), documented as pre-existing/network-intermittent.
+- `/tmp/hsz-tools/probe-metrics.mjs` (relay, current assets) → 6,581,364 scene triangles, 434 draws, 3-second/181-frame sample 60.3 FPS; art loads all six nature kinds and five ground sets in 380 ms.
+- Nature byte total re-counted 1,999,600 B (six GLBs), ground byte total 1,533,679 B (15 files); every embedded image verified 512 × 512; source URLs/authors confirmed through the Poly Haven API.
+
+### Acceptance status
+1. Met in both spawn frames; the gravel bank is now the photographed brown dirt/gravel bank dressed with real grass, ferns, shrubs and rocks, so the old bare grey wedge is broken. Street and sidewalk show photographed asphalt/concrete grain; normal relief is present but subtle at the camera's distance rather than a dominant bump effect.
+2. Met; nature instances are authored deterministically on the 52 m ring around every spawn, and all procedural near-spawn nature instancing is hidden. The procedural fallback is only drawn beyond the radius; no visible duplicate sits at an authored site.
+3. Met; assets are under the required paths, six GLBs total 1,999,600 B (3 MB cap), 512 px maps throughout, and every source URL, author and CC0 licence is recorded in `ASSETS.md`.
+4. Met; vegetation materials carry photographed albedo and normal maps, share the frozen wind clock (`stillTime:0`), and the tightened foliage grader reports 0 changed pixels in a reduced-motion frame while still showing 17,944 changed pixels for normal wind.
+5. Met; 6,581,364 triangles (under 6.6 M), 434 draws (under 450), measured 60.3 FPS (≥ 55) on the same relay probe.
+6. Met; equal-condition before/after and action frames plus bank close-crops are in `~/headshotz-loop/shots/latest/`, and the after frames clearly improve the ground, bank and near-spawn foliage.
+7. Met to the available evidence; no world, spawn, collision, door, loot, server-authority or other-mode files were changed. Static-offline, mobile-HUD, scenery, foliage, structures and doors graders pass. The unit suite has one known pre-existing matchmaking ECONNRESET failure, unchanged by this pass. Travis/Austin playtest is still needed before calling the art finished.
+
+### Honest critique
+The bank is the strongest improvement: the clean grey diagonal is gone and real clumps now meet the pavement, giving the first walk out of spawn a much more photographic edge. The pavement grain is genuine but its normal relief is understated at eye height and distance; up close the sidewalk reads as grainy concrete, without the pronounced relief the ground maps already contain, and a few pale/yellow grass blades read dry or toy-like. Some rocks blend into the brown dirt. Grass is only 119 triangles per clump and cobbled sidewalk edges can look slightly repeated, but the scanned silhouettes carry far more natural variety than the procedural cones and paper tufts they replaced. No player-facing jargon or new UI was added, and the first three minutes remain deploy → move → fight machines → loot → extract.
+
+**Next action:** committed locally on `cypert/dev` only (no push, no PR, no `main`); have Austin playtest the live spawn-to-first-street beats before picking the next director note.
+
