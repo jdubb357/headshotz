@@ -1010,7 +1010,7 @@ export function buildEnvironment(world){
    // from reading as one smooth tan polygon.
    let bankShrubs=0,bankFerns=0,bankGrass=0;
    for(let ring=8;ring<=30;ring+=3)for(let i=0;i<18;i++){
-    if(bankShrubs>=5&&bankFerns>=3&&bankGrass>=7)break;
+    if(bankShrubs>=5&&bankFerns>=3&&bankGrass>=10)break;
     const a=i*(Math.PI*2/18)+spawnIndex*.37,dx=Math.sin(a)*ring,dz=Math.cos(a)*ring;
     const x=sx+dx,z=sz+dz,gy=terrainHeightAt(world,x,z);
     if(!Number.isFinite(gy))continue;
@@ -1021,9 +1021,12 @@ export function buildEnvironment(world){
      bankShrubs++;natureSites.push({kind:'shrub',x,y:gy,z,s:.82+hash01(x*.4+z*1.6+i)*.25,ry:hash01(x*1.3+z*.7+i)*6.283});
     }else if(bankFerns<3&&i%5===2){
      bankFerns++;natureSites.push({kind:'fern',x,y:gy,z,s:.85+hash01(x*.6+z*1.2+i)*.35,ry:hash01(x*1.1+z*.5+i)*6.283});
-    }else if(bankGrass<7&&(i%4===1||i%6===4)){
+    }else if(bankGrass<10&&(i%4===1||i%6===4)){
+     // A four-card thicket instead of three overlaps the same species at
+     // different heights, so the bank margin keeps a dense vertical fringe
+     // (director note 2: darker/denser grass at the base).
      bankGrass++;
-     for(let k=0;k<3;k++)natureSites.push({kind:'grass',x:x+Math.sin(k*2.1+i)*.4,y:gy,z:z+Math.cos(k*2.1+i)*.36,s:1.15+hash01(x*.8+z*1.5+k+i)*.4,ry:k*2.1+i});
+     for(let k=0;k<4;k++)natureSites.push({kind:'grass',x:x+Math.sin(k*2.1+i)*.4,y:gy,z:z+Math.cos(k*2.1+i)*.36,s:1.15+hash01(x*.8+z*1.5+k+i)*.4,ry:k*2.1+i});
     }
    }
    // Dense apron cover on the right-hand bank face (screen right is -x when

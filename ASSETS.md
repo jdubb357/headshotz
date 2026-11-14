@@ -160,7 +160,7 @@ Near-spawn vegetation is rebuilt from six optimized CC0 Poly Haven scans in `ass
 
 | File | Asset | Author(s) | Source | Final triangles | Size |
 |---|---|---|---|---|---|
-| `tree_small_02.glb` | Tree Small 02 | Rico Cilliers | https://polyhaven.com/a/tree_small_02 | 1,681 (from 8,726) | 847,728 B |
+| `tree_small_02.glb` | Tree Small 02 (full-scan web LOD simplified to a denser leafy canopy for the spawn skyline) | Rico Cilliers | https://polyhaven.com/a/tree_small_02 | 7,527 (from 61,758) | 914,512 B |
 | `shrub_02.glb` | Shrub 02 | Rico Cilliers | https://polyhaven.com/a/shrub_02 | 1,059 (from 8,160) | 204,468 B |
 | `fern_02.glb` | Fern 02 | Rob Tuytel (scanning), Rico Cilliers (modelling) | https://polyhaven.com/a/fern_02 | 2,768 (from 2,801) | 221,368 B |
 | `grass_medium_02.glb` | Grass Medium 02 | Rico Cilliers | https://polyhaven.com/a/grass_medium_02 | 119 (from 397) | 102,856 B |

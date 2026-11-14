@@ -8809,3 +8809,26 @@ The after frame is clearly denser than untouched HEAD — a grey jersey line run
 Both gloves now read as closed hands — the grip hand shows a thumb hooked over the frame and a knuckled fist, and the support glove and cuff sit below the handguard instead of resting on the top rail — and the rifle is charcoal, not grey; still bad: at 844×390 the support hand is a blunt dark cuff with no distinct thumb cap over the rail, the scanned leather/twill UVs stretch across the knuckles so stitching and creases are soft at gameplay size, and the stock tube still scuffs the bottom-right edge instead of ducking fully out of frame.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`; normal commit, no rewrite/amend). Await Austin's live playtest of the grip before moving to DIRECTOR_NOTES item 2 (foliage + specks) — the carried grip item must be judged on iPad/phone gameplay frames, not unit counts. No new browser errors and no change to gameplay, modes or raid authority.
+
+## Iteration 120 — FOLIAGE + SPECKS: dense scanned canopies, no dust dots, darker bank grass (DIRECTOR_NOTES item 1; 2026-11-14)
+
+**Task:** Land DIRECTOR_NOTES item 1 (THIS ITERATION — FOLIAGE + SPECKS): remove the white specks over sky/walls, replace the bare spawn saplings with leafy scanned trees, and make the bank grass denser and darker at the base. Presentation-only; no rule, collision, UI, server or mode change. The item-3 viewmodel polish remains carried and is judged live.
+
+### Acceptance criteria
+1. No additive dust point field or white floating specks over the sky or façades at 1024x720 and 844x390. 2. Spawn trees use real leafy scanned canopies (alpha-cutout leaves), not bare branch skeletons. 3. Bank grass is denser and visibly darker at the base.
+
+### Implementation
+- `assets/models/nature/tree_small_02.glb` upgraded from the 1,681-tri decimation to the full web LOD, welded and simplified to 7,527 tris, textures resized 512 and WebP-encoded via glTF-Transform (914,512 B); `assets.js` tri count and the ASSETS.md row updated; same Poly Haven CC0 source.
+- `raid-view.mjs buildAtmosphere` no longer creates the 240-point additive mote field and `updateAtmosphere`'s dust drift block is removed.
+- `raid-environment.mjs` bank grass grows to 10 four-card thickets per spawn (relay grass instances 1,901 > 1,965); `refreshFoliage` tints the scanned grass material to linear (.60,.64,.48).
+- `tests/raid-browser-atmosphere.mjs` dust assertions retired (field is now null) while the sky scattering, cloud deck and reduced-motion checks remain.
+
+### Verification (commands/results)
+- `node tests/raid-browser-gunlight.mjs` PASS both viewports, `browserErrors: []`; `raid-browser-atmosphere.mjs` green (`dustAbsent: true`); `raid-browser-foliage.mjs` green (77 wind materials, 17,414 moving px, 0 still px); `raid-browser-performance.mjs` all targets green (60 fps p50 16.7 ms desktop and phone-sized relay); `raid-browser-static-offline.mjs` green; `raid-browser-mobile-hud.mjs` green (91.8% / 81.6%).
+- `node --test tests/*.test.mjs` 1,247/1,249 with only the known matchmaking ECONNRESET (same ECONNRESET when rerun alone); `tests/raid-load.test.mjs` 3/3 alone.
+- Shots: `~/headshotz-loop/shots/latest/before-1024.png`, `before-844.png`, `before-action-1024.png` vs `after-1024.png`, `after-844.png`, `after-action-1024.png`; plus `/tmp/hs-foliage-wind.png`.
+
+### Honest critique
+After frames are clearly cleaner and greener — dense leafy crowns replace the skeletal dots and the sky/façade specks are gone — but all 85 tree instances still share one silhouette so the skyline reads repeated, the grass tips stay pale straw above the darker olive base, and at 844x390 the canopy collapses to a small dark blob with no leaf detail.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Next: DIRECTOR_NOTES item 2 — BUILDING VARIETY + ROOFLINES (mixed window types, ground doors/stoops, AC units, downspouts, fire escape, signage, parapet caps, rooftop clutter, base grime) so the flanking brick boxes look clearly different. Item 1's foliage still awaits Austin's live playtest.

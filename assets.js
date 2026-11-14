@@ -44,7 +44,7 @@ const COVER_GLB={
 // raid can instance it directly on terrain height. Presentation only: their
 // placement is recorded by buildEnvironment and no collision is derived.
 const NATURE_GLB={
- tree:{url:'assets/models/nature/tree_small_02.glb',height:5.2,tri:1681},
+ tree:{url:'assets/models/nature/tree_small_02.glb',height:5.2,tri:7527},
  shrub:{url:'assets/models/nature/shrub_02.glb',height:1.15,tri:1059},
  fern:{url:'assets/models/nature/fern_02.glb',height:.72,tri:2768},
  grass:{url:'assets/models/nature/grass_medium_02.glb',height:.55,tri:119},
