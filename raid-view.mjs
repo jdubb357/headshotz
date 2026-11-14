@@ -234,7 +234,12 @@ function lootAccent(data){
 const lootWeapon=data=>(data.items||[]).find(item=>item.kind==='weapon')?.weapon||null;
 function lootVisual(data){
  if(lootWeapon(data))return 'gun';
- if((data.items||[]).some(item=>['armor','valuable','mod','contract'].includes(item.kind)))return 'chest';
+ const kinds=new Set((data.items||[]).map(item=>item.kind));
+ if(kinds.has('material'))return 'material';
+ if(kinds.has('med'))return 'med';
+ if(kinds.has('ammo'))return 'ammo';
+ if(kinds.has('valuable')||kinds.has('armor'))return 'chest';
+ if(kinds.has('mod')||kinds.has('contract'))return 'chest';
  return 'crate';
 }
 const lootOptions=data=>({visual:lootVisual(data),weapon:lootWeapon(data)});
@@ -517,7 +522,11 @@ export class RaidView {
    const mesh=new THREE.InstancedMesh(crate.geo,crate.mat,crates.length);
    mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
    crates.forEach((item,index)=>{
-    const s=item.h?item.h/Math.max(.001,crate.size.y):(item.w||1.1)/Math.max(.001,crate.size.y);
+    // The military crate scan is long and low, so fit its longest horizontal
+    // side to the authored footprint instead of stretching it to the old box
+    // height. A uniform scale keeps the planks, latches and weathering honest.
+    const footprint=Math.max(item.w||1.15,item.d||1.15);
+    const s=footprint/Math.max(Math.max(crate.size.x,crate.size.z),.001);
     dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item.x,item.z)+.3,0);dummy.scale.setScalar(s);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
    });
    mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
@@ -2232,18 +2241,18 @@ export class RaidView {
      if(leaf){leaf.visible=data.closed!==false;leaf.scale.set(w,h,d);leaf.position.set(0,h/2,0);leaf.material.color.setHex(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b)}
      if(sill){sill.scale.set(w,.1,d);sill.position.set(0,.05,0);sill.material.color.setHex(data.locked?0xe07a5b:data.closed?0xd8b062:0x9fe0ad)}
     }else if(type==='loot'){const beacon=model.userData.lootBeacon;
-     // Presentation-only pickup motion: the gem hovers and turns, the halo and
-     // wisp breathe, and the accent ring pulses. Reduced motion freezes a still,
-     // readable pose; loot state itself is authoritative and never touched here.
-     if(beacon){if(this.settings?.reduced){
-      beacon.gem.position.y=.95;beacon.halo.position.y=.95;beacon.gem.rotation.y=.4;
-      beacon.halo.material.opacity=.4;beacon.wisp.material.opacity=.16;
-      beacon.ring.material.opacity=.55;beacon.ring.scale.setScalar(.58);
-     }else{const phase=(data.x||0)*.21+(data.z||0)*.13,bob=Math.sin(seconds*2.1+phase),pulse=.5+.5*Math.sin(seconds*2.4+phase);
-      beacon.gem.position.y=.95+bob*.08;beacon.halo.position.y=beacon.gem.position.y;beacon.gem.rotation.y=seconds*.9+phase;
-      beacon.halo.material.opacity=.3+.14*pulse;beacon.wisp.material.opacity=.12+.1*pulse;
-      beacon.ring.material.opacity=.36+.24*pulse;beacon.ring.scale.setScalar(.58*(1+.035*pulse));
-     }}
+     // Presentation-only pickup glint: a small additive sparkle above the real
+     // item that gently breathes. It never hovers away from the object, and
+     // reduced motion freezes a still, readable pose. Loot state is authoritative
+     // and never touched here.
+     if(beacon?.glint){const phase=(data.x||0)*.21+(data.z||0)*.13;
+      if(this.settings?.reduced){
+       beacon.glint.material.opacity=.3;beacon.glint.scale.set(.32,.32,1);
+      }else{
+       const pulse=.5+.5*Math.sin(seconds*1.9+phase),scale=.30+.07*pulse;
+       beacon.glint.material.opacity=.22+.16*pulse;beacon.glint.scale.set(scale,scale,1);
+      }
+     }
     }else{
      if(type==='exit'){model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));if(model.userData.exitSignal)updateExitSignal(model.userData.exitSignal,data,this.snapshot.serverTime,seconds,!!this.settings?.reduced);const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}}
     }

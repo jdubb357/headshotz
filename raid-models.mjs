@@ -67,6 +67,27 @@ function coreGlowTexture(){
  g.fillStyle=grd;g.fillRect(0,0,size,size);
  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;coreGlowTex=texture;return texture;
 }
+// A small four-point sun glint for parked loot, deliberately not the old
+// diamond/gem/halo rig: it reads as light catching the item, not as a HUD
+// target. One texture is shared by every pile and is never charged to per-actor
+// disposal.
+let lootGlintTex=null;
+function lootGlintTexture(){
+ if(lootGlintTex)return lootGlintTex;
+ const size=64,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const g=canvas.getContext('2d');
+ const core=g.createRadialGradient(32,32,0,32,32,15);
+ core.addColorStop(0,'rgba(255,255,255,.92)');core.addColorStop(.4,'rgba(255,244,219,.42)');core.addColorStop(1,'rgba(255,238,205,0)');
+ g.fillStyle=core;g.fillRect(0,0,size,size);
+ g.globalCompositeOperation='lighter';
+ const spike=(x0,y0,x1,y1)=>{
+  const line=g.createLinearGradient(x0,y0,x1,y1);
+  line.addColorStop(0,'rgba(255,249,235,.85)');line.addColorStop(1,'rgba(255,245,225,0)');
+  g.strokeStyle=line;g.lineWidth=1.6;g.lineCap='round';g.beginPath();g.moveTo(x0,y0);g.lineTo(x1,y1);g.stroke();
+ };
+ spike(32,32,32,2);spike(32,32,32,62);spike(32,32,2,32);spike(32,32,62,32);
+ const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;texture.needsUpdate=true;
+ lootGlintTex=texture;return texture;
+}
 function wornMat(color){const key='worn|'+color;if(!materials.has(key)){const material=new THREE.MeshStandardMaterial({color,map:wornPlatingTexture(),roughness:.74,metalness:.53,envMapIntensity:.95});material.userData.raidWorn=true;
  // Cool grazing-angle rim on the repaired plating. Large flat hull faces keep
  // their authored rust tint, while shoulders, seams and limbs catch a steel
@@ -654,68 +675,62 @@ export function propModel(kind,color=0xe0aa4d,options={}){
   root.userData.cacheTier=tier;root.userData.cacheAccent=accent;root.userData.cacheTierGroup=tierGroup;
  }else if(kind==='loot'){
   // `plain` reconstructs the former flat pile for evidence benches only;
-  // production sync never passes it. Once the main game's CC0 props have
-  // loaded, a pile is dressed as a real object: a photo-scanned gun for weapon
-  // drops, a treasure chest for valuables, or a wooden crate for supplies. The
-  // beacon and rarity ring stay on the root, so pickup state is unchanged.
+  // production sync never passes it. Production piles carry the real CC0 item a
+  // player is picking up: a photo-scanned weapon for weapon drops, an ammo/med/
+  // fuel scan for supplies, a chest for valuables. Each model is uniformly
+  // scaled to a readable gameplay footprint and grounded at y=0 without
+  // squashing its authored proportions. The sole marker is one small additive
+  // star glint; pickup radius, contents and ownership stay authoritative.
   const plain=options.plain===true,visual=plain?'pile':(options.visual||'crate');
-  const place=mesh=>{root.add(mesh);return mesh};
-  let dressed=false;
-  if(!plain&&HQP.models.crate){
-   // The pile is dressed with real scanned props only; the old pale drop-cloth
-   // rectangle sat under the objective marker as a visible sticker. The scanned
-   // prop's own silhouette carries the drop at gameplay range.
+  const ground=(group,maxFootprint,maxHeight,yaw)=>{
+   group.rotation.y=yaw;
+   group.updateMatrixWorld(true);
+   const before=new THREE.Box3().setFromObject(group),bs=before.getSize(new THREE.Vector3());
+   const scale=Math.min(maxFootprint/Math.max(Math.max(bs.x,bs.z),.001),maxHeight/Math.max(bs.y,.001));
+   group.scale.multiplyScalar(scale);
+   group.updateMatrixWorld(true);
+   const b=new THREE.Box3().setFromObject(group);
+   group.position.set(-(b.min.x+b.max.x)/2,.02-b.min.y,-(b.min.z+b.max.z)/2);
+   group.updateMatrixWorld(true);
+   root.add(group);return b.max.y-b.min.y+.02;
+  };
+  let top=0;
+  if(!plain){
    if(visual==='gun'&&HQP.guns){
-    const slots=options.weapon?photoItems({ar:'ar',smg:'smg',shotgun:'shotgun',sniper:'sniper',pistol:'handgun',lmg:'ar'}[options.weapon]||'ar',false,HQP):null;
+    const slots=photoItems({ar:'ar',smg:'smg',shotgun:'shotgun',sniper:'sniper',pistol:'handgun',lmg:'ar'}[options.weapon]||'ar',false,HQP);
     if(slots&&slots.length){
-     // Normalise each scan to a readable length and show its broad profile to
-     // the approaching player instead of the thin end-on silhouette.
-     const bounds=new THREE.Box3();
-     let longest=0;
-     for(const slot of slots){slot.geo.computeBoundingBox();bounds.union(slot.geo.boundingBox);const size=slot.geo.boundingBox.getSize(new THREE.Vector3());longest=Math.max(longest,size.x,size.z)}
-     const target={pistol:.42,smg:.76,shotgun:1.05,sniper:1.2,ar:1.05,lmg:1.05}[options.weapon]||.95;
-     const scale=Math.max(.55,Math.min(1.6,target/Math.max(longest,1)));
      const gun=new THREE.Group();
-     for(const slot of slots){const mesh=new THREE.Mesh(slot.geo,slot.mat);mesh.castShadow=false;gun.add(mesh)}
-     gun.scale.setScalar(scale);gun.rotation.y=Math.PI/2.24;
-     const box=new THREE.Box3().setFromObject(gun);
-     gun.position.set(-(box.min.x+box.max.x)/2,.03-box.min.y,-(box.min.z+box.max.z)/2);
-     place(gun);dressed=true;
+     for(const slot of slots){const mesh=new THREE.Mesh(slot.geo,slot.mat);mesh.castShadow=true;mesh.receiveShadow=true;gun.add(mesh)}
+     top=ground(gun,1.1,.8,Math.PI/2.24);
+     root.userData.lootItem={type:'gun',group:gun};
     }
    }
-   if(!dressed&&HQP.models.chest&&visual==='chest'){
-    const chest=new THREE.Mesh(HQP.models.chest.geo,HQP.models.chest.mat);
-    chest.scale.setScalar(.64);chest.rotation.y=.38;place(chest);dressed=true;
+   const asset=HQP.loot&&HQP.loot[visual];
+   if(!top&&asset?.parts?.length){
+    const item=new THREE.Group();
+    for(const p of asset.parts){const mesh=new THREE.Mesh(p.geo,p.mat);mesh.castShadow=true;mesh.receiveShadow=true;item.add(mesh)}
+    top=ground(item,.9,.8,.38);
+    root.userData.lootItem={type:visual,group:item};
    }
-   if(!dressed){
+   if(!top&&visual==='chest'&&HQP.models.chest){
+    const chest=new THREE.Mesh(HQP.models.chest.geo,HQP.models.chest.mat);
+    chest.castShadow=true;chest.receiveShadow=true;
+    top=ground(chest,1.0,.8,.38);
+    root.userData.lootItem={type:'chest',group:chest};
+   }
+   if(!top&&HQP.models.crate){
     const crate=new THREE.Mesh(HQP.models.crate.geo,HQP.models.crate.mat);
-    crate.scale.setScalar(.66);crate.rotation.y=.34;place(crate);dressed=true;
+    crate.castShadow=true;crate.receiveShadow=true;
+    top=ground(crate,1.0,.8,.34);
+    root.userData.lootItem={type:'crate',group:crate};
    }
   }
-  if(!dressed)part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]),part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]),part(root,'box',0x343933,.05,.22,0,.2,.2,.16),part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
-  const ring=part(root,'ring',color,0,.3,0,.58,.58,.58,[Math.PI/2,0,0]);
+  if(!top)part(root,'box',0x3d463d,-.12,.09,0,.85,.12,.28,[0,.15,0]),part(root,'box',0x7b8577,-.12,.15,0,.55,.05,.55,[0,.15,0]),part(root,'box',0x343933,.05,.22,0,.2,.2,.16),part(root,'box',0x303833,0,.1,.22,.5,.18,.38);
   if(!plain){
-   // Loose ground drops are easy to miss against debris, so production piles
-   // carry presentation-only pickup beacons: an additive tinted gem, a soft
-   // halo sprite, a short light wisp and a pulsing accent ring. `color` is the
-   // authoritative rarity accent passed by the raid client; loot items, ids,
-   // ownership and settlement are untouched. The old ground-anchored stem is
-   // gone: it read as a grey ghost pylon standing at the left doorway. The ring
-   // keeps the rarity grey; only the floating pickup glint warms up for common
-   // drops so it stays readable on bright pavement without a spectral shaft.
-   ring.material=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending});
-   ring.material.userData.raidOwned=true;
-   const glint=color===0x94a6ae?0xe2b56b:color;
-   const gemMaterial=new THREE.MeshBasicMaterial({color:glint});
-   gemMaterial.userData.raidOwned=true;
-   const gem=new THREE.Mesh(geometries.gem,gemMaterial);gem.position.set(0,.95,0);gem.scale.setScalar(.18);gem.rotation.y=.4;root.add(gem);
-   const haloMaterial=new THREE.SpriteMaterial({map:coreGlowTexture(),color:glint,transparent:true,opacity:.5,depthWrite:false,blending:THREE.AdditiveBlending});
-   haloMaterial.userData.raidOwned=true;
-   const halo=new THREE.Sprite(haloMaterial);halo.position.set(0,.95,0);halo.scale.setScalar(1.1);root.add(halo);gem.userData.halo=halo;
-   const wispMaterial=new THREE.MeshBasicMaterial({color:glint,transparent:true,opacity:.16,depthWrite:false,blending:THREE.AdditiveBlending});
-   wispMaterial.userData.raidOwned=true;
-   const wisp=new THREE.Mesh(geometries.cylinder,wispMaterial);wisp.position.set(0,.72,0);wisp.scale.set(.02,.44,.02);wisp.renderOrder=-1;root.add(wisp);
-   root.userData.lootBeacon={gem,halo,wisp,ring};
+   const glintMaterial=new THREE.SpriteMaterial({map:lootGlintTexture(),color:0xfff0d6,transparent:true,opacity:.3,depthWrite:false,blending:THREE.AdditiveBlending});
+   glintMaterial.userData.raidOwned=true;
+   const glint=new THREE.Sprite(glintMaterial);glint.position.set(0,top>0?top+.12:.78,0);glint.scale.set(.32,.32,1);root.add(glint);
+   root.userData.lootBeacon={glint,baseY:glint.position.y};
   }
   root.userData.lootPile=!plain;
  }else if(kind==='bag'){

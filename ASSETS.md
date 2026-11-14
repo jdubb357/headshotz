@@ -21,15 +21,22 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Texture: cobble surface (v59) | Cobblestone Floor 04 | Rob Tuytel | https://polyhaven.com/a/cobblestone_floor_04 | CC0 |
 | HDRI sky (environment reflections) | Kloofendal 48d Partly Cloudy (Pure Sky) | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
 | Texture: raid photographed sky dome (iteration 108, derived) | Kloofendal 48d Partly Cloudy (Pure Sky), tone-mapped to 2048×1024 sRGB equirect | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
-| Model: barrels | Barrel 03 | Serhii Khromov | https://polyhaven.com/a/barrel_03 | CC0 |
+| Model: street barrels (iteration 111) | Barrel Stove — weathered/rusty burn drum, dents and muted paint | MP | https://polyhaven.com/a/barrel_stove | CC0 |
+| Model: street/spawn crates (iteration 111) | Wooden Military Crate — weathered planks, latches and stencils | Prabhjinder Singh | https://polyhaven.com/a/wooden_military_crate | CC0 |
+| Model: loot ammunition box (iteration 111) | Ammo Box | DanKit | https://polyhaven.com/a/ammo_box | CC0 |
+| Model: loot medical box (iteration 111) | Medical Box | Ulan Cabanilla | https://polyhaven.com/a/medical_box | CC0 |
+| Model: loot fuel canister (iteration 111) | Metal Jerrycan Green | Ulan Cabanilla | https://polyhaven.com/a/metal_jerrycan_green | CC0 |
 | Model: Royale loot chest (v46) | Treasure Chest | Rico Cilliers | https://polyhaven.com/a/treasure_chest | CC0 |
-| Model: crates | Wooden Crate 02 | James Ray Cock, Jurita Burger | https://polyhaven.com/a/wooden_crate_02 | CC0 |
+| Model: retired crate scan | Wooden Crate 02 | James Ray Cock, Jurita Burger | https://polyhaven.com/a/wooden_crate_02 | CC0 |
+| Model: retired barrel scan | Barrel 03 | Serhii Khromov | https://polyhaven.com/a/barrel_03 | CC0 |
 | Model: Pistol weapon (v60) | Service Pistol | Mateusz Sadek | https://polyhaven.com/a/service_pistol | CC0 |
 | Model: Sniper rifle weapon (v60) | Bolt Action Rifle 7.62 | Mateusz Sadek | https://polyhaven.com/a/bolt_action_rifle_7_62 | CC0 |
 | Model: Katana weapon (v60) | Antique Katana 01 | Tal Swicegood | https://polyhaven.com/a/antique_katana_01 | CC0 |
 | Models: Assault rifle (M4A1), SMG (Grease Gun) and Shotgun weapons (v60) | Guns & Explosives pack (M4A1, AK-47, Grease Gun, Suomi KP, Sniper, Luger, Shotgun, Frag Grenade, Smoke Grenade, Flashbang, Molotov Cocktail) | 3dmodelscc0 | https://3dmodelscc0.itch.io/free-cc0-guns-explosives-pack | CC0 |
 | Model: Axe weapon (v60) | Wooden Axe | Ulan Cabanilla | https://polyhaven.com/a/wooden_axe | CC0 |
 | Texture: gun wood grain (v60) | Black Walnut Veneer 02 | Jenelle van Heerden | https://polyhaven.com/a/black_walnut_veneer_02 | CC0 |
+
+Processing (iteration 111 loot + props): the five new scans were packaged with the repo-side dependency-free GLTF→GLB packer used for these assets (geometry left unmodified in its authored metre scale, node transforms baked by the loader), with photographed textures embedded as 512px diffuse JPEGs and 256px packed normal/ARM JPEGs. Sizes: barrel_stove 381 KB, wooden_military_crate 800 KB, ammo_box 228 KB, medical_box 247 KB, metal_jerrycan_green 383 KB. No meshopt compression is applied to these files; they are ordinary embedded-texture GLBs.
 
 Processing (v60 weapons): scanned meshes simplified with meshoptimizer to a ~8k-triangle first-person version and a ~3-4k-triangle third-person version, textures resized to 1024/256px WebP, original node names kept so slides, bolts and magazines still animate.
 

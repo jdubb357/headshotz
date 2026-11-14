@@ -1,8 +1,16 @@
 // HeadShotz external assets (all CC0 from Poly Haven — see ASSETS.md). Loaded lazily after the menu appears; Low quality skips them and keeps the built-in procedural look.
 import {THREE,GQ,hqSwap} from './gfx.js';
-export const HQP={ready:false,models:{},guns:{},machines:{},windows:{},buildings:{},nature:{},ground:{},sky:null};
+export const HQP={ready:false,models:{},loot:{},guns:{},machines:{},windows:{},buildings:{},nature:{},ground:{},sky:null};
 const TEX={gunWood:1,concrete:2,brick:3,planks:2,asphalt:2,rock:2,tiles:3,metal:2,grass:3,sand:2,forest:3,dirt:3,gravel:4,cobble:3,plaster:2,crate:1.5};
-const MODELS={crate:'assets/models/wooden_crate_02.glb',barrel:'assets/models/barrel_03.glb',chest:'assets/models/treasure_chest.glb'};
+const MODELS={crate:'assets/models/wooden_military_crate.glb',barrel:'assets/models/barrel_stove.glb',chest:'assets/models/treasure_chest.glb'};
+// Real CC0 loot props, loaded separately so the raid only pays for the small
+// pickups and Battle Royale never downloads them. Each model is kept in its
+// authored metre scale and merged per material by loadGLBParts.
+const LOOT_GLB={
+ ammo:'assets/models/loot/ammo_box.glb',
+ med:'assets/models/loot/medical_box.glb',
+ material:'assets/models/loot/metal_jerrycan_green.glb'
+};
 // Raid machine bodies are scanned/rigged GLBs, not box geometry. They are loaded
 // separately from the lobby props so the raid (the only mode that spawns these
 // actors) never pays for them in Battle Royale.
@@ -41,17 +49,89 @@ function shrinkTex(t,max){const im=t.image;if(!im||!im.width||im.width<=max)retu
 const GUNS=['pistol_hi','pistol_lo','rifle_hi','rifle_lo','m4a1_hi','m4a1_lo','grease_hi','grease_lo','shotgun_hi','shotgun_lo','ak47_hi','ak47_lo','suomi_hi','suomi_lo','snip_hi','snip_lo','luger_hi','luger_lo','frag_hi','smokeg_hi','flashb_hi','molo_hi','katana_hi','axe_hi'];
 const img=u=>new Promise((res,rej)=>{const i=new Image();i.decoding='async';i.onload=()=>res(i);i.onerror=rej;i.src=u});
 export let skyTex=null;
+// Poly Haven exports mix interleaved and plain vertex buffers. BufferGeometryUtils
+// cannot merge an interleaved attribute, so models are copied through a
+// plain-stride clone first; node transforms are baked into the geometry.
+function plainGeometry(source){
+ const geo=new THREE.BufferGeometry();
+ for(const name in source.attributes){
+  const a=source.attributes[name];if(!a)continue;
+  if(a.isInterleavedBufferAttribute){
+   const count=a.count,itemSize=a.itemSize,out=new Float32Array(count*itemSize);
+   for(let i=0;i<count;i++)for(let j=0;j<itemSize;j++)out[i*itemSize+j]=a.data.array[i*a.data.stride+a.offset+j];
+   geo.setAttribute(name,new THREE.BufferAttribute(out,itemSize,a.normalized));
+  }else geo.setAttribute(name,new THREE.BufferAttribute(a.array.slice(),a.itemSize,a.normalized));
+ }
+ if(source.index)geo.setIndex(source.index.clone());
+ return geo;
+}
+// Collapse every mesh in a scene into material-grouped, world-baked parts. Each
+// part issues one instanced draw, and the combined bounds stay in the scan's
+// authored metre scale so the existing height-normalisation in the raid props
+// keeps working unchanged.
+async function loadGLBParts(L,url,mergeGeometries){
+ const g=await L.loadAsync(url);
+ g.scene.updateMatrixWorld(true);
+ const groups=new Map();
+ g.scene.traverse(o=>{
+  if(!o.isMesh||!o.geometry)return;
+  const mat=o.material||new THREE.MeshStandardMaterial();
+  let geos=groups.get(mat);if(!geos){geos=[];groups.set(mat,geos)}
+  const geo=plainGeometry(o.geometry);geo.applyMatrix4(o.matrixWorld);geos.push(geo);
+ });
+ const parts=[];
+ for(const [mat,geos] of groups){
+  if(geos.length===1){parts.push({geo:geos[0],mat});continue}
+  const merged=mergeGeometries(geos,false);
+  if(merged)parts.push({geo:merged,mat});
+  else for(const geo of geos)parts.push({geo,mat});
+ }
+ if(!parts.length)throw new Error('no meshes');
+ const box=new THREE.Box3();
+ for(const p of parts){p.geo.computeBoundingBox();box.union(p.geo.boundingBox)}
+ if(box.isEmpty())throw new Error('empty bounds');
+ const size=box.getSize(new THREE.Vector3());
+ return {parts,size,box,center:box.getCenter(new THREE.Vector3()),minY:box.min.y};
+}
+function photoModelMaterial(mat){
+ if(!mat)return;
+ mat.envMapIntensity=mat.envMapIntensity||.95;
+ if(mat.map){mat.map.colorSpace=THREE.SRGBColorSpace;mat.map.anisotropy=4}
+ if(mat.normalMap)mat.normalMap.anisotropy=4;
+ if(mat.roughnessMap)mat.roughnessMap.anisotropy=4;
+ if(mat.metalnessMap)mat.metalnessMap.anisotropy=4;
+ if(mat.aoMap)mat.aoMap.anisotropy=4;
+}
 export async function loadAssets(onProg=()=>{}){if(GQ.level==='low'){onProg(1,'skipped');return false}
  const jobs=[];let done=0;const tick=()=>onProg(++done/total);
  for(const k in TEX)jobs.push(()=>Promise.all([img(`assets/tex/${k}_d.jpg`),img(`assets/tex/${k}_n.jpg`)]).then(([d,n])=>{hqSwap(k,d,n,TEX[k])}));
  jobs.push(()=>img('assets/tex/sky.jpg').then(i=>{const t=new THREE.Texture(i);t.mapping=THREE.EquirectangularReflectionMapping;t.colorSpace=THREE.SRGBColorSpace;t.needsUpdate=true;skyTex=t}));
- let L=null;jobs.push(async()=>{const [{GLTFLoader},{MeshoptDecoder}]=await Promise.all([import('./lib/jsm/GLTFLoader.js'),import('./lib/jsm/meshopt_decoder.module.js')]);L=new GLTFLoader();L.setMeshoptDecoder(MeshoptDecoder)});
- for(const k in MODELS)jobs.push(async()=>{while(!L)await new Promise(r=>setTimeout(r,30));const g=await L.loadAsync(MODELS[k]);let mesh=null;g.scene.traverse(o=>{if(o.isMesh&&!mesh)mesh=o});if(!mesh)return;
-  mesh.updateWorldMatrix(true,false);const geo=mesh.geometry.clone();geo.applyMatrix4(mesh.matrixWorld);geo.computeBoundingBox();const bb=geo.boundingBox,sz=bb.getSize(new THREE.Vector3());
-  geo.translate(-(bb.min.x+bb.max.x)/2,-bb.min.y,-(bb.min.z+bb.max.z)/2);const m=mesh.material;m.envMapIntensity=.8;HQP.models[k]={geo,mat:m,size:sz}});
+ let L=null,mergeFN=null;jobs.push(async()=>{const [{GLTFLoader},{MeshoptDecoder},{mergeGeometries}]=await Promise.all([import('./lib/jsm/GLTFLoader.js'),import('./lib/jsm/meshopt_decoder.module.js'),import('./lib/jsm/BufferGeometryUtils.js')]);L=new GLTFLoader();L.setMeshoptDecoder(MeshoptDecoder);mergeFN=mergeGeometries});
+ for(const k in MODELS)jobs.push(async()=>{while(!L||!mergeFN)await new Promise(r=>setTimeout(r,30));const {parts,size,center,minY}=await loadGLBParts(L,MODELS[k],mergeFN);
+  for(const p of parts){p.geo.translate(-center.x,-minY,-center.z);p.geo.computeBoundingBox();p.geo.computeBoundingSphere();photoModelMaterial(p.mat)}
+  HQP.models[k]={geo:parts[0].geo,mat:parts[0].mat,size,parts,source:MODELS[k]}});
  for(const k of GUNS)jobs.push(async()=>{while(!L)await new Promise(r=>setTimeout(r,30));const g=await L.loadAsync(`assets/models/guns/${k}.glb`);const seen=new Set();g.scene.traverse(o=>{if(o.isMesh&&o.material){const m=o.material;m.envMapIntensity=1.1;if(m.map)m.map.anisotropy=4;if(TOUCH)for(const t of[m.map,m.normalMap,m.metalnessMap,m.roughnessMap,m.aoMap])if(t&&!seen.has(t)){seen.add(t);shrinkTex(t,512)}}});HQP.guns[k]=g.scene});
  const total=jobs.length;let ok=true;for(const j of jobs){try{await j()}catch(e){ok=false;console.warn('asset',e&&e.message)}tick()}
  HQP.ready=Object.keys(HQP.models).length>0;return ok}
+// Real CC0 ground-loot models (ammo box, medical box, fuel canister). They are
+// kept separate from the lobby props so the raid can dress each pile with the
+// item a player will actually pick up, and the menu/BR never downloads them.
+export async function loadLoot(onProg=()=>{}){
+ if(GQ.level==='low'){onProg(1,'skipped');return false}
+ const keys=Object.keys(LOOT_GLB);if(!keys.length)return true;
+ const [{GLTFLoader},{mergeGeometries}]=await Promise.all([import('./lib/jsm/GLTFLoader.js'),import('./lib/jsm/BufferGeometryUtils.js')]);
+ const L=new GLTFLoader();
+ let ok=true,done=0;
+ for(const k of keys){
+  try{
+   const {parts,size}=await loadGLBParts(L,LOOT_GLB[k],mergeGeometries);
+   for(const p of parts){photoModelMaterial(p.mat);if(p.mat)p.mat.envMapIntensity=1.15}
+   HQP.loot[k]={parts,size,source:LOOT_GLB[k]};
+  }catch(e){ok=false;console.warn('loot asset',k,e&&e.message)}
+  onProg(++done/keys.length);
+ }
+ return ok
+}
 // Scanned, rigged raid machines. Loaded after the lobby props so the raid can
 // swap its procedural scout for the real animated GLB as soon as the browser
 // has it. Normalised to the authoritative machine height and centred on the

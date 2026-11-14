@@ -8497,3 +8497,41 @@ The rifle now reads as a held object with texture rather than a black cut-out, a
 The scout now looks like an actual soldier — real cloth folds, skin, helmet, goggles, hands and rifle at human-plus scale — and that is the biggest enemy win so far. Still bad: the flyer remains the only boxy procedural enemy, and the large orange lamp sits at the belt rather than the chest because it must stay on the server's authoritative core height.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (LOOT + PROPS: real item model/sweet glint, scanned weathered barrels and crate); flyer asset remains a gap.
+
+## Iteration 111 — LOOT + PROPS: real item models, rusty barrels, scanned crate (DIRECTOR_NOTES item 1; 2026-11-13)
+
+**Task:** Replace the cyan diamond/halo/wisp/ring loot gizmo with real CC0 loot models at a readable scale and one subtle glint; replace every glossy saturated-blue street barrel with the weathered rusty barrel scan; replace the brown crates with the wooden-military-crate scan. Presentation only: loot contents, ownership, pickup radius and collisions stay authoritative.
+
+### Acceptance criteria (recorded before implementation)
+1. Offline gameplay frames at 1024×720 and 844×390 during the first loot/deploy moment show a real scanned item (weapon scan for weapon drops; medical/ammo/fuel scan for supply piles; chest/crate for valuables/containers) resting on the ground at a readable scale, with no cyan diamond, floating gem, halo sprite, wisp beam or glowing accent ring — only one small subtle glint.
+2. The same frames show the street/spawn drums as the weathered rusty barrel_stove scan instead of glossy saturated blue barrel_03, and crates as the wooden_military_crate scan; no procedural lathe/box stand-in remains visible once assets land.
+3. Every copied GLB's source URL and CC0 licence/author recorded in ASSETS.md; no non-CC0/MIT asset introduced; no stylized-fallback art.
+4. Static-offline and mobile-HUD graders green, loot-beacon grader updated to the glint/real-model contract and green, performance grader within budget, and `node --test tests/*.test.mjs` run. Before/after 1024×720 and 844×390 frames plus action frames copied into `~/headshotz-loop/shots/latest/`.
+5. No new UI, systems, currencies, menus or player-facing jargon; server authority and online/Node path untouched.
+
+### Changed
+- `assets/js` pipeline: ADDED a `plainGeometry`/`loadGLBParts` path that material-groups and world-bakes every mesh in a GLB (the old loader took only the first mesh, losing latches/lids on multi-mesh scans); MODELS now point at the rusty barrel_stove and wooden military crate scans; new `loadLoot` loads the CC0 ammo box, medical box and fuel canister into `HQP.loot`.
+- `raid-models.mjs`: real loot items replace the cyan diamond/gem/halo/wisp/ring. Weapon drops assemble the existing photo-scanned gun at a readable 1.1 m footprint; supplies use the medical/ammo/fuel scans at a uniform 0.9 m footprint; chest/crate fallback scans stay grounded. Everything sits at y=0, casts real sun shadows, and carries only one small four-point additive glint (shared star texture, per-actor material).
+- `raid-view.mjs`: lootVisual now picks material > med > ammo > weapon > chest by authoritative pile contents; per-frame motion only breathes the glint (frozen at opacity .3 / scale .32 under reduced motion); street crate instancing now uses uniform scale from the authored footprint instead of stretching to the old box height.
+- `shared/raid-worlds.mjs`: spawn-apron crate footprint/height now matches the real military-crate scan (`1.242 × .46 × .52`) so visuals and decor colliders describe the same object.
+- `raid-online.mjs`: `loadLoot()` joins the raid art Promise.allSettled and `__raidArt.loot` reports the decoded loot keys.
+- `tests/raid-browser-loot-beacons.mjs`: requires the real loot scans to decode; asserts shared glint map, no gem/halo/wisp/ring, real material-canister mesh on the field supply pile, glint breathing and reduced-motion freeze, and a real-item evidence bench.
+- `ASSETS.md` + `index.html` credits: Barrel Stove (MP), Wooden Military Crate (Prabhjinder Singh), Ammo Box (DanKit), Medical Box and Metal Jerrycan Green (Ulan Cabanilla), all Poly Haven CC0; retired barrel/crate scans listed honestly.
+
+### Verification & screenshots
+- `node --check` on all touched app files → clean.
+- `tests/raid-browser-loot-beacons.mjs` → green: lootLoaded true; both live piles glint-only (`oldGem/oldHalo/oldWisp/oldRing` false); field supply is the real material canister mesh; shared glint texture; 0 shared-map disposals; animated true; reduced-motion static pose at `.3/.32`; real-item evidence bench changed 2873 px.
+- `tests/raid-browser-static-offline.mjs` → green: deploy, move, headshot machine, loot the dropped weapon, extract, credits/XP settlement, no API traffic.
+- `tests/raid-browser-mobile-hud.mjs` → green at both 1024×720 and 844×390 (keyboard, arrow keys, touch, auto-fire, swap); 91.8% / 81.6% unobstructed.
+- `tests/raid-browser-performance.mjs` → all six desktop/mobile targets within budget; relay draws 2247 / 11.26M triangles at p50 16.7 ms.
+- `tests/raid-browser-machine-models.mjs` → green (no regression from the asset-loader change).
+- `node --test tests/*.test.mjs` → 1248 pass / 1 fail, only the documented intermittent `matchmaking.test.mjs` ECONNRESET.
+- Captures at 1024×720 and 844×390 with W-held action frames: `~/headshotz-loop/shots/latest/before-1024.png`, `before-1024-action.png`, `before-844.png`, `before-844-action.png` (cyan diamond + ring, glossy blue drums, tall stretched crate) and matching `after-*` frames (gun scan on the pavement with a tiny star glint, rust-brown barrel_stove drums, low weathered military crate on the bank).
+
+### Acceptance status
+1. Met by the offline frames: the cyan diamond, floating gem, halo, wisp beam and accent ring are gone; a real photo-scanned weapon rests on the pavement at readable scale with only the subtle star glint. Supply piles now use real CC0 ammo/med/fuel scans (grader confirms material) rather than nav-style boxes. 2. Met: all street/spawn drums are rusty barrel_stove scans and all crates are wooden_military_crate scans; the old lathe/box stand-ins are hidden once assets land. 3. Met: only Poly Haven CC0 assets added; every new GLB source URL, author and licence recorded in ASSETS.md and credits. 4. Met: loot-beacon, static-offline, mobile-HUD, performance and machine-model graders green; unit suite 1248/1249 with the known ECONNRESET; before/after screenshots copied. 5. Met: no UI/systems/jargon changes; loot contents, ownership, pickup radius, server authority and online/Node path untouched.
+
+### Honest critique
+The blue drums are gone — the burnt rusty barrel scans immediately read as place, and the cyan diamond/ring is finally suppressed; the small star glint is a much better hint than a floating UI target. The first weapon drop now reads as a gun lying on the kerb, but it is still a dark photo scan and its magazine/trigger rest keeps it slightly upright rather than flat on its side. The military crate is authentic and matches its collider, but because the scan is a low, long box it is noticeably smaller behind the grass than the previous tall stand-in; that is the correct real-world shape, not a bug. The orange chest orb (DIRECTOR_NOTES item 2) and the blurry window halos (item 3) remain unfixed, and pavement highlights still clip toward white (item 4). This needs Austin's live playtest before loot art is marked landed.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Continue DIRECTOR_NOTES item 2 (ENEMY FINISH: remove/shrink the orange core orb, give the operator a real rifle and an aim/idle-with-weapon pose); item 3 (window glow halos), item 4 (exposure + ground) and item 5 remain.

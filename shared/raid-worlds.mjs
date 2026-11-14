@@ -1148,7 +1148,9 @@ export function raidSpawnDressing(world){
    out.push({kind:'drum',x,z,y:terrainHeightAt(world,x,z),color,radius:.52,height:1.3});
   }
   const x=sx-4.4,z=sz+9.7;
-  if(!hit(x,z))out.push({kind:'crate',x,z,y:terrainHeightAt(world,x,z),color:0x8a6a45,w:1.05,h:1.1,d:1.05});
+  // Footprint matches the real wooden-military-crate scan so the rendered prop
+  // and the decor collider describe the same low, long box.
+  if(!hit(x,z))out.push({kind:'crate',x,z,y:terrainHeightAt(world,x,z),color:0x8a6a45,w:1.242,h:.46,d:.52});
  }
  return out;
 }
