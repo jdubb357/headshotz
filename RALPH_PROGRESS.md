@@ -8861,3 +8861,30 @@ After frames are clearly cleaner and greener — dense leafy crowns replace the 
 The upper windows now make the split obvious — pale corrugated roller panels with graffiti above the loading doors versus dark timber sashes and a bright shop row across the court — but at spawn the right loading doors are still half eaten by the near grass berm, both walls keep the same warm plaster hue above their trim, and at 844×390 the rooftop condensers are cropped by the top HUD, so the dialogue is carried mostly by window shape and colour rather than silhouette. The fire escape scan was evaluated but not shipped because the modular kit assembled incoherently at façade scale; base grime, signage beyond the graffiti, and stoops remain open notes.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Await Austin's live playtest of the two facades; if they still read too alike, the next pass should strengthen silhouette/grime differences (fire escape rebuilt from individual locked modules or a scanned decal band at the base) rather than adding another UI or gameplay system.
+
+## Iteration 122 — GLOVES + RIFLE: dark olive hands, smaller held weapon, brick/plaster courtyard split (DIRECTOR_NOTES item 1; 2026-11-14)
+
+**Task:** Land DIRECTOR_NOTES item 1 (VIEWMODEL GLOVES + RIFLE SIZE) and carry the façade material split from item 3. The gloves must read as dark tactical leather, the held rifle must occupy less of the bottom-right, and the two courtyard volumes must be different photographed materials at a glance. Presentation-only; no rule, collision, UI, server or other-mode change.
+
+### Acceptance criteria
+1. At 1024×720 and 844×390 the hands read as dark olive/charcoal gloves — no skin-tone brown — with the scanned leather's pore/stitch detail and a visible cuff boundary against the olive sleeve.
+2. The rifle is ~10–15% smaller in frame, drops the buttstock past the bottom edge, and no longer spans from the corner to mid-frame at either viewport.
+3. The planks courtyard wall reads as red brick and the metal wall as pale weathered plaster; rooftop flue stacks break each parapet above the AC units.
+4. Static offline boot/deploy/loot/extract, mobile HUD, gunlight and the unit suite are green with no browser errors.
+
+### Implementation
+- `raid-models.mjs`: the first-person glove material now grades the photographed tan leather albedo to charcoal-olive in `onBeforeCompile` (desaturate toward luminance, cool/olive tint, mix .88) and darkens it (color .13/.145/.10 linear, roughness .92); normalScale rises to 1.7 so the scan's stitching, pores and knuckle creases stay legible while no skin tone survives. Sleeve tint lifts slightly (.38/.44/.28) so the glove/sleeve cuff boundary is readable.
+- `raid-view.mjs`: `VIEW_SCALE` .74 → .65 (12% smaller) at the same hip anchor so the buttstock drops out of frame and the optic stays in the lower third. `refreshFacades()` adds per-kind wall materials from the existing CC0 brick/plaster photo-PBR maps, with normalized per-instance tints (planks → brick, metal → shed plaster). `refreshFacadeVariety()` adds a roller-shutter doorway to the shop row and rooftop flues built from stacked scanned gutter sections + couplers above both roof volumes.
+- No new assets downloaded; all scans were already licensed and logged in `ASSETS.md` (brick Red Brick 03, plaster Painted Plaster Wall, gutter kit; all Poly Haven CC0). Draws remain instanced.
+
+### Verification (commands/results)
+- `node tests/raid-browser-gunlight.mjs` → PASS both viewports, 3 scanned rifle material groups, 4 skinned arm meshes, `browserErrors: []`.
+- `node tests/raid-browser-mobile-hud.mjs` → green (unobstructed 91.8% desktop / 81.8% 844×390, all touch/aim/fire behaviours).
+- `node tests/raid-browser-static-offline.mjs` → green (offline boot/deploy/move/machine hit/loot/extract, `noApiTraffic: true`, `browserErrors: []`).
+- `node --test tests/*.test.mjs` → 1,248/1,249 pass; only the known `tests/matchmaking.test.mjs` ECONNRESET fails.
+- Shots at `~/headshotz-loop/shots/latest/`: `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-action-1024.png`/`after-action-1024.png`, `before-action-844.png`/`after-action-844.png`; rooftop crops `/tmp/crop-roofleft.png`, `/tmp/crop-roofright.png`; hand crop `/tmp/c844b.png`.
+
+### Honest critique
+The gloves now read as dark olive leather with a clear cuff line, and the smaller rifle leaves the sidewalk far more readable, but the support hand is still a blunt low-contrast wedge at 844×390, the quilted stock rear is a big black slab against the right edge (clipped rather than gracefully cleared), and the brick/plaster split plus thin flue stacks are improvement without yet reading as a true parapet step. Base grime, a storefront sign and a fire escape remain open sub-notes.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Await Austin's live playtest of the gloves and rifle; if it still reads soft at phone-landscape scale, the next pass should re-pose the support wrist for a clearer thumb/knuckle silhouette and shorten the stock tube rather than adding UI or camera churn.

@@ -470,13 +470,22 @@ function fpArmScanTextures(){
 fpArmScanTextures();
 function fpArmMaterial(part){
  if(part==='skin'){
-  // Coyote-black tactical leather: lifted just enough that the scanned stitching,
-  // pores and knuckle creases remain readable instead of collapsing to a blob,
-  // but rough enough that the glove stays matte leather under four lights.
-  const m=new THREE.MeshStandardMaterial({name:'glove',roughness:.84,metalness:.02,envMapIntensity:.35,side:THREE.DoubleSide});
-  m.color.setRGB(.105,.088,.07);m.normalScale.setScalar(1.55);
+  // Issue glove leather: the scanned tan leather is graded to a matte
+  // charcoal-olive so the hands read as dark tactical gloves rather than bare
+  // skin, while the scan's pores, stitch line and knuckle creases survive the
+  // grade because only hue and value are compressed, not the surface detail.
+  const m=new THREE.MeshStandardMaterial({name:'glove',roughness:.92,metalness:.01,envMapIntensity:.22,side:THREE.DoubleSide});
+  m.color.setRGB(.13,.145,.10);m.normalScale.setScalar(1.7);
   const scan=FP_SCAN_TEX.glove;
   if(scan){m.map=scan.map;m.normalMap=scan.normalMap;m.roughnessMap=scan.roughnessMap}
+  m.onBeforeCompile=shader=>{
+   shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
+    '#include <map_fragment>\n'+
+    'float gloveLuma=dot(diffuseColor.rgb,vec3(.299,.587,.114));\n'+
+    'vec3 gloveOlive=vec3(gloveLuma*.86,gloveLuma*1.02,gloveLuma*.76);\n'+
+    'diffuseColor.rgb=mix(diffuseColor.rgb,gloveOlive,.88);\n');
+  };
+  m.customProgramCacheKey=()=>'raidGloveGrade';
   fpArmMaterialLive.add(m);
   m.userData.raidOwned=true;return m;
  }
@@ -484,7 +493,7 @@ function fpArmMaterial(part){
  // overlay fill instead of disappearing into a black tube. Rough like field
  // cloth, so the folds show as soft shading rather than a wet plastic sheen.
  const m=new THREE.MeshStandardMaterial({name:'sleeve',roughness:.95,metalness:.01,envMapIntensity:.25,side:THREE.DoubleSide});
- m.color.setRGB(.29,.33,.22);m.normalScale.setScalar(1.3);
+ m.color.setRGB(.38,.44,.28);m.normalScale.setScalar(1.3);
  const scan=FP_SCAN_TEX.sleeve;
  if(scan){m.map=scan.map;m.normalMap=scan.normalMap;m.roughnessMap=scan.roughnessMap}
  fpArmMaterialLive.add(m);

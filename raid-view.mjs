@@ -162,10 +162,11 @@ const ENEMY_RIB_TAIL=new THREE.Vector3(),ENEMY_RIB_HEAD=new THREE.Vector3(),ENEM
 // Authoritative recoil amplitude per weapon class; presenting the same kick to
 // the gun and camera keeps heavy weapons distinct without touching ballistics.
 const RECOIL_KICK={ar:.095,smg:.06,shotgun:.18,sniper:.16,pistol:.08,lmg:.13};
-// First-person view-model home pose. Raised and pulled closer than the earlier
-// low-slung pose so the weapon and both hands stay above the bottom touch row
-// at 844x390 and read as a held firearm rather than a sliver at the screen edge.
-const VIEW_HIP={x:.2,y:-.135,z:-.46},VIEW_SCALE=.74;
+// First-person view-model home pose. The rifle is deliberately small in frame:
+// scaled down and settled low enough that the buttstock drops off the bottom
+// edge and the optic sits around the lower third, leaving the street and the
+// machines readable at both 1024x720 and 844x390.
+const VIEW_HIP={x:.2,y:-.135,z:-.46},VIEW_SCALE=.65;
 // Authored first-person muzzle silhouettes per weapon family. Each profile is
 // painted once when the weapon is equipped; the draw path adds no objects.
 const FLASH_PROFILES={
@@ -668,6 +669,27 @@ export class RaidView {
   // cornice are deleted in raid-environment; there is nothing left here to hide.
   const dummy=new THREE.Object3D(),planeGeo=new THREE.PlaneGeometry(1,1),reach=90,reach2=reach*reach;
   const wallMat=wall.parts[0].mat,baseMat=base.parts[0].mat,pierMat=pier.parts[0].mat;
+  // Two flanking courtyard volumes must not read as the same plaster box. Keep
+  // the photographed kit for most blocks, but give timber-planked blocks the
+  // real photographed red-brick surface and galvanised/shed blocks a pale
+  // weathered concrete surface. These are the same CC0 photo-PBR maps the main
+  // game already ships (assets/tex/brick_*.jpg, concrete_*.jpg); no procedural
+  // painting and no extra downloads. Instance tints stay per-block so each
+  // building keeps its authored colour range.
+  const surfaceMat=(tex,ns,rough,tint)=>{
+   const m=wall.parts[0].mat.clone();
+   m.map=getTex(tex);m.normalMap=normalTex(tex,ns);
+   m.normalScale=new THREE.Vector2(1,1);
+   m.roughness=rough;m.metalness=0;m.roughnessMap=null;m.metalnessMap=null;m.aoMap=null;
+   m.color=new THREE.Color(tint);m.envMapIntensity=.75;m.needsUpdate=true;
+   return m;
+  };
+  const brickWallMat=surfaceMat('brick',2.4,.9,0xffffff);
+  // Painted plaster (real Poly Haven photo) keeps the loading bay pale and
+  // low-contrast next to the coarse red-brick shop row.
+  const shedWallMat=surfaceMat('plaster',1.2,.93,0xffffff);
+  const brickTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xece0d2),.82).multiplyScalar(.92)};
+  const shedTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xdbe4e5),.88)};
   const nearCells=[],planeCells=[],baseCells=[],corniceCells=[],crownCells=[],pierCells=[],sillCells=[],doorHoodCells=[];
   const tintFor=b=>{
    const c=new THREE.Color(b.color);
@@ -687,6 +709,7 @@ export class RaidView {
   for(const b of blocks){
    const dx=b.x-self.x,dz=b.z-self.z,near=dx*dx+dz*dz<reach2;
    const tint=tintFor(b),stone=stoneFor(tint);
+   const wallTint=b.kind==='planks'?brickTint(b):b.kind==='metal'?shedTint(b):tint;
    const faces=b.wall
     ? (b.w>=b.d
       ? [{len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
@@ -711,7 +734,7 @@ export class RaidView {
       const px=(f.onZ?f.cx+(col+.5-cols/2)*cw:f.cx)+f.nx*.006;
       const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
       dummy.position.set(px,b.y+r*ch,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,ch/3,1);
-      dummy.updateMatrix();nearCells.push({matrix:dummy.matrix.clone(),color:tint});
+      dummy.updateMatrix();nearCells.push({matrix:dummy.matrix.clone(),color:wallTint,kind:b.kind});
      }
      // One continuous photographed-stone base for the whole face (not a dark atlas
      // strip) and one projecting roofline cornice keep the scanned moulding
@@ -768,7 +791,9 @@ export class RaidView {
    if(structTag)mesh.userData.raidStructure=structTag;
    root.add(mesh);
   };
-  instanced(wall.parts[0].geo,wallMat,nearCells,true,'wallsNear');
+  instanced(wall.parts[0].geo,wallMat,nearCells.filter(c=>c.kind!=='planks'&&c.kind!=='metal'),true,'wallsNear');
+  instanced(wall.parts[0].geo,brickWallMat,nearCells.filter(c=>c.kind==='planks'),true,'wallsNear','brickWall');
+  instanced(wall.parts[0].geo,shedWallMat,nearCells.filter(c=>c.kind==='metal'),true,'wallsNear','shedWall');
   instanced(planeGeo,wallMat,planeCells,false,'wallsFar');
   instanced(base.parts[0].geo,wallMat,baseCells,true,'plinth','plinth');
   instanced(cornice.parts[0].geo,wallMat,corniceCells,true,'cornice','cornice');
@@ -858,12 +883,16 @@ export class RaidView {
   };
   if(front.planks){
    const b=front.planks.block,cx=b.x,fz=faceZ(b);
-   // A closed row of four shuttered shop windows; roller maps are opaque so the
+   // A closed row of shuttered shop windows; roller maps are opaque so the
    // old sash openings read as boarded units instead of another apartment block.
-   for(const off of [-4.5,-1.5,1.5,4.5]){
+   for(const off of [-4.6,-1.2,2.2]){
     const bay={x:cx+off,y:.03,z:fz,yaw:Math.PI};
-    if(off===-1.5&&shopGraffiti?.parts?.length)shopGraffitiItems.push(bay);else shopItems.push(bay);
+    if(off===-1.2&&shopGraffiti?.parts?.length)shopGraffitiItems.push(bay);else shopItems.push(bay);
    }
+   // One corrugated roller-shutter entrance ends the shuttered row: a real
+   // Poly Haven scan at shop-door scale, so the block reads as a boarded shop
+   // street with a doorway rather than a wall of identical window bays.
+   if(graffiti?.parts?.length)graffitiItems.push({x:cx+5.2,y:.03,z:fz-.19,yaw:Math.PI,sx:.96});
    // Wall condensers sit high on the plaster band above the ground-floor openings.
    plainAC.push({x:cx-4.4,y:4.02,z:fz,yaw:Math.PI});
    rustedAC.push({x:cx-1.0,y:4.02,z:fz,yaw:Math.PI});
@@ -905,6 +934,19 @@ export class RaidView {
   // identical box parapet into two different silhouettes.
   addRoof('planks',[-4.0,-0.2,3.6],roofPlain,roofRusted);
   addRoof('metal',[-5.6,-1.3,3.1],roofPlain,roofRusted);
+  // Stacked scanned gutter sections with couplers make rooftop flues above the
+  // parapet. The shop row gets a tall thick stack plus a short one; the loading
+  // bay gets a single squat stack, so the two rooflines differ in height as
+  // well as material, not just in the windows punched into their walls.
+  const addVentStack=(kind,off,sections,sx,sy)=>{
+   const roof=roofOf(kind);if(!roof)return;
+   const b=roof.block,z=b.z-b.d/2+0.62,base=b.y+b.h+0.02;
+   for(let i=0;i<sections;i++)pipeItems.push({x:b.x+off,y:base+i,z,yaw:Math.PI/2,sx,sy,sz:sx});
+   for(let i=1;i<sections;i++)jointItems.push({x:b.x+off,y:base+i-.015,z,yaw:Math.PI/2,sx,sz:sx});
+  };
+  addVentStack('planks',5.6,3,2.6,1.25);
+  addVentStack('planks',-6.4,1,2.0,1.0);
+  addVentStack('metal',5.9,2,2.4,1.5);
   emit(doors,doorItems,'rollers','rollerBay');
   emit(graffiti,graffitiItems,'rollersGraffiti','rollerBay');
   emit(shops,shopItems,'shutters');
