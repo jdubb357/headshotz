@@ -8832,3 +8832,32 @@ Both gloves now read as closed hands — the grip hand shows a thumb hooked over
 After frames are clearly cleaner and greener — dense leafy crowns replace the skeletal dots and the sky/façade specks are gone — but all 85 tree instances still share one silhouette so the skyline reads repeated, the grass tips stay pale straw above the darker olive base, and at 844x390 the canopy collapses to a small dark blob with no leaf detail.
 
 **Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Next: DIRECTOR_NOTES item 2 — BUILDING VARIETY + ROOFLINES (mixed window types, ground doors/stoops, AC units, downspouts, fire escape, signage, parapet caps, rooftop clutter, base grime) so the flanking brick boxes look clearly different. Item 1's foliage still awaits Austin's live playtest.
+
+## Iteration 121 — BUILDING VARIETY + ROOFLINES: shop row vs loading bay on the courtyard facades (DIRECTOR_NOTES item 2; 2026-11-14)
+
+**Task:** Land DIRECTOR_NOTES item 2 (BUILDING VARIETY + ROOFLINES). The two volumes flanking the spawn courtyard were still the same plaster box with one repeated sash window, so dress them with real Poly Haven scanned hardware: mixed shutter windows, ground-level bays, air conditioners, stacked gutter downpipes, rooftop clutter and a graffitied variant on each side. Presentation-only; no rule, collision, UI, server or other-mode change.
+
+### Acceptance criteria
+1. In the first-minute spawn frames at 1024×720 and 844×390 the two flanking buildings look clearly different: one reads as a shop row (dark timber sashes above a shuttered ground floor), the other as a loading bay (pale corrugated roller-shutter openings above commercial-width doors), not two copies of the before-frame window band.
+2. Each difference is carried by real extracted scans rather than flat stand-ins: wall condensers at different heights, a stacked metal downpipe, roof condensers that break each parapet, and one graffiti door/window per facade.
+3. No procedural box, painted wood or fabricated wall/door/AC geometry is used for these props; the four assets are CC0 Poly Haven scans registered in `assets.js`, loaded only by the raid path, and recorded with source/license in `ASSETS.md`.
+4. Static offline boot/deploy/loot/extract, mobile HUD, gunlight and the unit suite show no new regressions or browser errors.
+
+### Implementation
+- `assets.js`: `BUILDING_GLB` now registers `aircon.glb` (2 AC variants + rusted), `roller_door.glb` (plain + graffiti), `roller_window.glb` (plain + graffiti) and `gutter_kit.glb` (4 gutter modules). `loadBuildings` dequantises the interleaved KHR_mesh_quantization buffers with `plainGeometry()` before baking node transforms, so facades keep their real 0.8–2.4 m dimensions.
+- `raid-view.mjs`: `refreshFacadeVariety()` finds the two nearest broad courtyard-front wall blocks. The `planks` wall gets four roller shop windows (one graffiti), three wall condensers at 4.02 m, a five-section + four-coupler downpipe stack, and three roof condensers. The `metal` wall gets three 2.9×-wide loading doors at ground level (middle tagged), three condensers at 2.76 m, roller panels across its upper window openings (one graffiti), a four-section downpipe and roof condensers; the metal instance tint is cool/weathered so it does not share the warm plaster read.
+- The variety guard is set once, so resume/refresh cannot append a second layer of hardware; placed counts are published as `environmentRoot.userData.raidFacadeVarietyCount`.
+- Assets total 1,174,180 B and 35,742 triangles in four GLBs (all 512 px WebP maps, meshoptimised via glTF-Transform 4.5.1): aircon 18,550 tris, roller door 1,064, roller window 1,064, gutter kit 15,064. Presentational only: no server, collision, door or world tuple changed.
+
+### Verification (commands/results)
+- `node tests/raid-browser-gunlight.mjs` → PASS at 1024×720 + 844×390, 3 scanned rifle material groups, 4 skinned arm meshes, `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs` → green (offline boot/deploy/move/machine hit/loot/extract, credits settlement, `noApiTraffic: true`, `browserErrors: []`).
+- `node tests/raid-browser-mobile-hud.mjs` → green (unobstructed 91.8% desktop / 81.6% 844×390, all touch/aim/fire behaviours).
+- `node tests/raid-browser-ground-finish.mjs` → green (clip 0, 338 curb pairs, 0 floating near-spawn seats).
+- `node --test tests/*.test.mjs` → only the known `tests/matchmaking.test.mjs` ECONNRESET fails; rerunning that file alone shows the same pre-existing network flake, all other tests pass (1,248/1,249).
+- Shots: before/after at `~/headshotz-loop/shots/latest/`: `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, `before-action-1024.png`/`after-action-1024.png`, plus `after-facade-1024.png`, `after-facade-844.png` (doorfront loading bay) and `after-shopleft-1024.png` (shop row). Same noon spawn/camera; the facade views are the explicit screenshot check.
+
+### Honest critique
+The upper windows now make the split obvious — pale corrugated roller panels with graffiti above the loading doors versus dark timber sashes and a bright shop row across the court — but at spawn the right loading doors are still half eaten by the near grass berm, both walls keep the same warm plaster hue above their trim, and at 844×390 the rooftop condensers are cropped by the top HUD, so the dialogue is carried mostly by window shape and colour rather than silhouette. The fire escape scan was evaluated but not shipped because the modular kit assembled incoherently at façade scale; base grime, signage beyond the graffiti, and stoops remain open notes.
+
+**Next action:** committed on `cypert/dev` only (no push, no PR, no `main`). Await Austin's live playtest of the two facades; if they still read too alike, the next pass should strengthen silhouette/grime differences (fire escape rebuilt from individual locked modules or a scanned decal band at the base) rather than adding another UI or gameplay system.

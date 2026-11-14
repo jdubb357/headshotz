@@ -24,8 +24,18 @@ const WINDOW_GLB={urban:'assets/models/windows/window_urban.glb'};
 // roofline cornice, a wall pier and window/door dressing trim, all extracted
 // from Poly Haven's CC0 "Modular Urban Apartments Facade" and simplified with
 // meshopt. Seven modules at 512 px maps keep the whole kit under 1 MB.
-const BUILDING_GLB={facade:{url:'assets/models/buildings/facade_kit.glb',
- modules:['wall_standard_standard_01','door_centered_large_01','cornice_standard_standard_01','base_standard_01','wall_pier_standard_01','dado_standard_standard_01','crown_standard_standard_01']}};
+const BUILDING_GLB={
+ facade:{url:'assets/models/buildings/facade_kit.glb',
+ modules:['wall_standard_standard_01','door_centered_large_01','cornice_standard_standard_01','base_standard_01','wall_pier_standard_01','dado_standard_standard_01','crown_standard_standard_01']},
+ // Real scanned façade hardware for the two buildings flanking the spawn
+ // courtyard: weathered split AC units, a corrugated roller shutter door and
+ // shuttered shop window (Poly Haven CC0), plus real metal gutter sections used
+ // as wall downpipes. 1.1 MB total at 512 px WebP maps.
+ aircon:{url:'assets/models/buildings/aircon.glb',modules:['exterior_aircon_unit','exterior_aircon_unit_rusted']},
+ rollerDoor:{url:'assets/models/buildings/roller_door.glb',modules:['rollershutter_door','rollershutter_door_graffiti']},
+ rollerWindow:{url:'assets/models/buildings/roller_window.glb',modules:['rollershutter_window_01','rollershutter_window_01_graffiti']},
+ gutter:{url:'assets/models/buildings/gutter_kit.glb',modules:['modular_metal_gutter_section','modular_metal_gutter_gutter_coupler','modular_metal_gutter_bend','modular_metal_gutter_outlet']}
+};
 // Scanned street-cover props for the raid courtyards (Poly Haven CC0): a
 // concrete jersey barrier, wooden crate, metal dumpster, covered car wreck,
 // dead-tree log, tyre and trash bag. Kept out of the lobby/BR path and loaded
@@ -396,7 +406,11 @@ export async function loadBuildings(onProg=()=>{}){
     const node=g.scene.getObjectByName(name);
     if(!node)throw new Error('missing module '+name);
     const parts=[];
-    node.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone();geo.applyMatrix4(o.matrixWorld);parts.push({geo,mat:o.material})});
+    // Poly Haven GLBs interleave position/normal/uv in one strided buffer.
+    // plainGeometry() flattens and dequantizes each accessor before the node
+    // transform is baked in; copying the interleaved array directly turned the
+    // facades into cube-shaped shards.
+    node.traverse(o=>{if(!o.isMesh)return;const geo=plainGeometry(o.geometry);geo.applyMatrix4(o.matrixWorld);parts.push({geo,mat:o.material})});
     if(!parts.length)throw new Error('no meshes in '+name);
     const box=new THREE.Box3();
     for(const p of parts){p.geo.computeBoundingBox();box.union(p.geo.boundingBox)}
