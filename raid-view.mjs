@@ -464,6 +464,10 @@ export class RaidView {
    for(const part of asset.parts){
     const mat=part.mat;
     if(!mat)continue;
+    // Dry-scan grass reads pale straw under noon sun; a muted olive tint makes
+    // the bank base sink into the dirt and read as dense ground cover instead
+    // of pale sticks against the pavement (director note 2).
+    if(kind==='grass'&&!mat.userData.raidBankTint){mat.color.setRGB(.60,.64,.48);mat.userData.raidBankTint=true;mat.needsUpdate=true}
     if(!windSet.has(mat)&&kind!=='rock'&&kind!=='stump'){
      windSet.add(mat);mat.userData.raidFoliage=true;mat.userData.raidWind=true;
      mat.onBeforeCompile=shader=>{
@@ -1131,19 +1135,11 @@ export class RaidView {
   this.buildAtmosphere();
  }
  buildAtmosphere(){
-  // Sunlit dust motes drift through a 32 m volume around the operator. They are
-  // additive sparks caught in daylight, deterministic in placement, and hidden
-  // during rain/ash, at night and whenever reduced motion is requested.
-  const count=240,offsets=new Float32Array(count*3),phases=new Float32Array(count),positions=new Float32Array(count*3);
-  for(let i=0;i<count;i++){
-   const angle=i*2.399963,radius=2+14*((i*.6180339)%1),height=.35+12.5*((i*.381966)%1);
-   offsets[i*3]=Math.cos(angle)*radius;offsets[i*3+1]=height;offsets[i*3+2]=Math.sin(angle)*radius;phases[i]=i*.73;
-  }
-  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));geometry.userData.raidOwned=true;
-  const material=new THREE.PointsMaterial({map:TX.soft,color:0xffdd9e,size:.075,transparent:true,opacity:0,blending:THREE.AdditiveBlending,sizeAttenuation:true,depthWrite:false,fog:true});
-  material.userData.raidOwned=true;
-  this.motes=new THREE.Points(geometry,material);this.motes.frustumCulled=false;this.motes.renderOrder=2;this.motes.visible=false;this.scene.add(this.motes);
-  this.motesState={offsets,phases};this.motesAnchor=null;
+  // Floating dust motes were retired by the art direction pass: additive points
+  // read as white specks over facades and the sky rather than atmosphere. The
+  // surviving atmosphere is the sky/cloud/scattering shader plus fog, so no
+  // point field is created and nothing dithers the air in front of buildings.
+  this.motes=null;this.motesState=null;this.motesAnchor=null;
  }
  buildRainSplashes(){
   // 48 flat additive rings cycle through a 1.7 s impact rhythm inside a 12 m
@@ -1313,20 +1309,6 @@ export class RaidView {
    // with the sky instead of staying a flat fog band beneath it.
    if(this.scene?.fog&&this.flashColor)this.scene.fog.color.lerp(this.flashColor,flash*.3);
   }
-  if(!this.motes)return;const target=this.environmentTarget;
-  const visible=!reduced&&!!target&&target.daylight>.25&&weather==='clear';
-  this.motes.visible=visible;this.motes.material.opacity=visible?Math.min(.55,.5*target.daylight):0;
-  if(!visible)return;
-  const s=this.snapshot?.self||this.snapshot?.camera;if(!s)return;
-  if(!this.motesAnchor)this.motesAnchor=new THREE.Vector3();
-  this.motesAnchor.set(s.x||0,s.y||0,s.z||0);
-  const position=this.motes.geometry.attributes.position.array,{offsets,phases}=this.motesState;
-  for(let i=0;i<phases.length;i++){const k=i*3,p=phases[i];
-   position[k]=this.motesAnchor.x+offsets[k]+Math.sin(seconds*.31+p)*.6;
-   position[k+1]=this.motesAnchor.y+offsets[k+1]+Math.cos(seconds*.27+p*1.3)*.35;
-   position[k+2]=this.motesAnchor.z+offsets[k+2]+Math.sin(seconds*.23+p*.7)*.55;
-  }
-  this.motes.geometry.attributes.position.needsUpdate=true;
  }
  updateRainSplashes(seconds,pose){
   const mesh=this.splashes;if(!mesh||!pose)return;
