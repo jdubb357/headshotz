@@ -825,9 +825,40 @@ export class RaidView {
    return m;
   };
   const brickWallMat=surfaceMat('brick',2.4,.9,0xffffff);
-  // Painted plaster (real Poly Haven photo) keeps the loading bay pale and
-  // low-contrast next to the coarse red-brick shop row.
-  const shedWallMat=surfaceMat('plaster',1.2,.93,0xffffff);
+  // Painted plaster (real Poly Haven photo) for the residential-concrete volumes
+  // is left to the kit's authored wall material, so no clone is needed here.
+  // The loading-bay warehouse is scanned pre-cast concrete cladding, not smooth
+  // plaster. This is a real Poly Haven CC0 scan (concrete_panels) shipped at
+  // 512 px: vertical board ribs, panel joints and dirt washing down from the
+  // joints read at 25 m from spawn and at 3 m close-up. Per-instance UV tiling
+  // (same hook as the stone band) holds one scan width per facade bay, so the
+  // ribbing never smears across the 20 m wall. Instance tints stay pale-grey so
+  // it still reads as the white warehouse beside the warm brick shop row.
+  const corrugatedWallMat=(()=>{
+   const m=wall.parts[0].mat.clone();
+   m.map=getTex('corrugated');m.normalMap=normalTex('corrugated',2.4);
+   m.normalScale=new THREE.Vector2(1.4,1.4);
+   m.roughness=.86;m.metalness=0;m.roughnessMap=null;m.metalnessMap=null;m.aoMap=null;
+   m.color=new THREE.Color(0xf4f4ee);m.envMapIntensity=.8;m.needsUpdate=true;
+   const map=m.map.clone();map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(1,1);map.needsUpdate=true;
+   const nrm=m.normalMap.clone();nrm.wrapS=nrm.wrapT=THREE.RepeatWrapping;nrm.repeat.set(1,1);nrm.needsUpdate=true;
+   m.map=map;m.normalMap=nrm;
+   m.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>',`#include <uv_vertex>
+#ifdef USE_INSTANCING
+ vec3 corrScale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
+ vec2 corrRep=max(vec2(1.0),vec2(1.25)*corrScale.xy);
+ #ifdef USE_MAP
+  vMapUv*=corrRep;
+ #endif
+ #ifdef USE_NORMALMAP
+  vNormalMapUv*=corrRep;
+ #endif
+#endif`);
+   };
+   m.customProgramCacheKey=()=>'raidFacadeCorrugatedTiled';
+   return m;
+  })();
   // Ground-floor stone band. The facade kit's base module was built to tile a
   // 3 m bay; stretching one copy across a 12 m face crushed its photographed
   // relief into a flat brown slab at 2-3 m. Per-instance UV tiling (same hook
@@ -860,7 +891,7 @@ export class RaidView {
    return m;
   })();
   const brickTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xece0d2),.82).multiplyScalar(.92)};
-  const shedTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xdbe4e5),.88)};
+  const shedTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xfbfdf8),.9)};
   const nearCells=[],planeCells=[],baseCells=[],corniceCells=[],crownCells=[],pierCells=[],sillCells=[],doorHoodCells=[];
   const tintFor=b=>{
    const c=new THREE.Color(b.color);
@@ -876,11 +907,11 @@ export class RaidView {
    c.lerp(new THREE.Color(0xffffff),.56);
    return c;
   };
-  const stoneFor=t=>t.clone().lerp(new THREE.Color(0x746b60),.42);
+  const stoneFor=t=>t.clone().lerp(new THREE.Color(0x8d8578),.34);
   const bayShade=v=>{const s=Math.sin(v*127.1+37.73)*43758.5453;return s-Math.floor(s)};
   for(const b of blocks){
    const dx=b.x-self.x,dz=b.z-self.z,near=dx*dx+dz*dz<reach2;
-   const tint=tintFor(b),stone=stoneFor(tint);
+   const tint=tintFor(b),stone=b.kind==='metal'?tint.clone().lerp(new THREE.Color(0xbfc6c4),.78):stoneFor(tint);
    const wallTint=b.kind==='planks'?brickTint(b):b.kind==='metal'?shedTint(b):tint;
    const faces=b.wall
     ? (b.w>=b.d
@@ -916,10 +947,14 @@ export class RaidView {
       const along=(col+.5-cols/2)*cw;
       dummy.position.set(f.onZ?f.cx+along+f.nx*.036:f.cx+f.nx*.036,b.y,f.onZ?f.cz+f.nz*.036:f.cz+along+f.nz*.036);
       dummy.rotation.set(0,f.ry,0);
-      dummy.scale.set(cw/3,.86,1.5);dummy.updateMatrix();
+      // Warehouse cladding sits on a shallow concrete curb, not the deep brown
+      // mossy slab that swallowed the shop front; brick blocks get a lighter,
+      // thinner band too so the ground floor stays readable.
+      const metal=b.kind==='metal';
+      dummy.scale.set(cw/3,metal?.58:.74,metal?1.0:1.25);dummy.updateMatrix();
       baseCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.9+bayShade(f.cx+f.cz+col*.73)*.18)});
       dummy.position.set(f.onZ?f.cx+along+f.nx*.04:f.cx+f.nx*.04,b.y+b.h,f.onZ?f.cz+f.nz*.04:f.cz+along+f.nz*.04);
-      dummy.scale.set(cw/3,.92,2.6);dummy.updateMatrix();
+      dummy.scale.set(cw/3,metal?.58:.78,metal?1.2:1.6);dummy.updateMatrix();
       corniceCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.97+bayShade(f.cx+f.cz+col*1.17)*.14)});
      }
      // Solid volumes also receive the kit's tile parapet, scaled low and warm so
@@ -931,6 +966,7 @@ export class RaidView {
      }
      // Two sculpted plaster piers bracket the bay grid and catch a vertical
      // highlight, giving the flat photograph a readable three-dimensional rhythm.
+     if(b.kind==='metal')continue; // sheet cladding needs no plaster pilasters
      for(let col=0;col<=cols;col+=cols){
       const a=col-cols/2;
       const px=(f.onZ?f.cx+a*cw:f.cx)+f.nx*.055;
@@ -970,7 +1006,7 @@ export class RaidView {
   };
   instanced(wall.parts[0].geo,wallMat,nearCells.filter(c=>c.kind!=='planks'&&c.kind!=='metal'),true,'wallsNear');
   instanced(wall.parts[0].geo,brickWallMat,nearCells.filter(c=>c.kind==='planks'),true,'wallsNear','brickWall');
-  instanced(wall.parts[0].geo,shedWallMat,nearCells.filter(c=>c.kind==='metal'),true,'wallsNear','shedWall');
+  instanced(wall.parts[0].geo,corrugatedWallMat,nearCells.filter(c=>c.kind==='metal'),true,'wallsNear','shedWall');
   instanced(planeGeo,wallMat,planeCells,false,'wallsFar');
   instanced(base.parts[0].geo,stoneWallMat,baseCells,true,'plinth','plinth');
   instanced(cornice.parts[0].geo,stoneWallMat,corniceCells,true,'cornice','cornice');
@@ -1021,7 +1057,7 @@ export class RaidView {
   const graffiti=kit.rollerDoor.modules['rollershutter_door_graffiti'];
   const pipe=kit.gutter.modules['modular_metal_gutter_section'],coupler=kit.gutter.modules['modular_metal_gutter_gutter_coupler'];
   if(!acMods.length||!doors?.parts?.length||!shops?.parts?.length||!pipe?.parts?.length)return;
-  const dummy=new THREE.Object3D(),placed={doors:0,shops:0,aircon:0,roof:0,pipe:0};
+  const dummy=new THREE.Object3D(),placed={doors:0,shops:0,aircon:0,roof:0,pipe:0},glaze=HQP.windows?.urban;
   // Courtyard-front thin walls are the broad (along-x) strips closest to spawn;
   // keeping this tied to the frozen facadeBlocks avoids guessing at coordinates.
   const front={};
@@ -1039,7 +1075,7 @@ export class RaidView {
     mesh.userData.raidFacadePart=tag;if(struct)mesh.userData.raidStructure=struct;root.add(mesh);
    }
   };
-  const doorItems=[],graffitiItems=[],shopItems=[],shopGraffitiItems=[],metalShopItems=[],metalShopGraffitiItems=[],plainAC=[],rustedAC=[],roofPlain=[],roofRusted=[],pipeItems=[],jointItems=[];
+  const doorItems=[],graffitiItems=[],shopItems=[],shopGraffitiItems=[],metalShopItems=[],metalShopGraffitiItems=[],factoryGlaze=[],plainAC=[],rustedAC=[],roofPlain=[],roofRusted=[],pipeItems=[],jointItems=[];
   // Every stacked plaster strip shares one outer plane, so a single proud offset
   // clears the skin on both buildings and prevents z-fighting with the windows.
   const faceZ=w=>w.z-w.d/2-.155;
@@ -1105,6 +1141,11 @@ export class RaidView {
     const sx=(s.wide+.16)/shops.width,sy=(s.h+.16)/shops.height;
     const item={x:s.x,y:s.y-.06,z:fz-.02,yaw:Math.PI,sx,sy,sz:sx};
     if(i%2&&shopGraffiti?.parts?.length)metalShopGraffitiItems.push(item);else metalShopItems.push(item);
+    // The pale roller blinds are shop hardware, not factory glazing. Seat the
+    // scanned timber sash a few centimetres proud of the roller housing so the
+    // recessed glass and casing are what read from 2 m and at spawn; the roller
+    // scan stays as the boarded backing behind it.
+    if(glaze?.parts?.length)factoryGlaze.push({x:s.x,y:s.y,z:fz-.075,yaw:Math.PI,sx:(s.wide*1.12)/glaze.width,sy:(s.h*1.03)/glaze.height,sz:(s.wide*1.12)/glaze.width});
    });
   }
   // Roofline clutter: real exterior condensers standing on both volumes break the
@@ -1130,6 +1171,15 @@ export class RaidView {
   emit(shopGraffiti,shopGraffitiItems,'shuttersGraffiti');
   emit(shops,metalShopItems,'shuttersMetal','shutterWindow');
   emit(shopGraffiti,metalShopGraffitiItems,'shuttersMetalGraffiti','shutterWindow');
+  // Glazed factory sashes proud of the roller blinds: real scanned frame plus
+  // recessed glass, so the warehouse windows read dimensional rather than as
+  // flat pale rectangles. Presentation only; no state or collision change.
+  if(factoryGlaze.length&&glaze?.parts?.length)for(const part of glaze.parts){
+   const mesh=new THREE.InstancedMesh(part.geo,part.mat,factoryGlaze.length);
+   factoryGlaze.forEach((it,i)=>{dummy.position.set(it.x,it.y,it.z);dummy.rotation.set(0,it.yaw,0);dummy.scale.set(it.sx,it.sy,it.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix)});
+   mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   mesh.userData.raidFacadePart='factoryWindows';root.add(mesh);
+  }
   emit(acMods[0],plainAC,'condensers');
   if(acMods[1])emit(acMods[1],rustedAC,'condensersRusted');
   emit(acMods[0],roofPlain,'roofCondensers');
@@ -1218,6 +1268,19 @@ export class RaidView {
      py:y,pz:f.pz+(f.nz?f.nz*(out+i*.004):0)+(f.along==='z'?along:0),
      yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
      sw:w,sh:h,c:i%2?0x877c69:0x93876f});
+   }
+  }
+  // The pale sheet-clad loading bay wears a heavier foot of dirt than the brick
+  // shop row: splash-back, road grit and grass contact leave a soft damp band
+  // where the cladding meets the yard. Still oil-free dirt, never black blocks.
+  for(const f of sides.slice(2)){
+   const span=f.len;
+   for(let i=0;i<5;i++){
+    const along=(rnd(i*17.3+f.len*.47)-.5)*span*.92;
+    stains.push({px:f.px+(f.nx?f.nx*(.2+i*.004):0)+(f.along==='x'?along:0),
+     py:.02,pz:f.pz+(f.nz?f.nz*(.2+i*.004):0)+(f.along==='z'?along:0),
+     yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
+     sw:.7+rnd(i*4.9)*1.1,sh:.18+rnd(i*6.1)*.34,c:i%2?0x6e6759:0x5d584c});
    }
   }
   const stainGeo=new THREE.PlaneGeometry(1,1);

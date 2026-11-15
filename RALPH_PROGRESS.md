@@ -9015,3 +9015,27 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the base band now reads as photographed weathered masonry and the solid black rectangles are gone, but the stone still runs cool-dark beside the warm brick and the 3 m tone steps show faint joins between bays, while the grey loading-bay panel at the row's right end still lacks close detail; art acceptance waits on Austin's live playtest.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 3 WHITE WAREHOUSE — blend a scanned corrugated-metal/concrete panel with grime and window detail onto the long grey right-side building; keep item 4 GROUND TOUCH-UP and item 5 VIEWMODEL SLEEVES + ENEMY COVER queued.
+
+## Iteration 129 — WHITE WAREHOUSE: scanned concrete-panel cladding, foot grime, glazed factory windows (DIRECTOR_NOTES item 1; 2026-11-15)
+
+**Acceptance criteria:** at 1024×720 and 844×390, spawn and warehouse views show a textured, pale scanned cladding on the long right-side shed block instead of smooth white slabs; the window band reads as framed glass with depth; the wall foot carries soft dirt; static-offline, mobile-HUD, structures graders and the unit suite stay green apart from the known matchmaking flake; presentation-only.
+
+### Implementation
+- `assets.js`: register `corrugated:1`, so the raid lazy texture loader fetches `assets/tex/corrugated_d.jpg` and `assets/tex/corrugated_n.jpg`.
+- `assets/tex/corrugated_d.jpg` / `_n.jpg`: 512 × 512 JPEG downscales of the Poly Haven CC0 **"Concrete Panels"** scan by Amal Kumar (https://polyhaven.com/a/concrete_panels), source URLs recorded in ASSETS.md.
+- `raid-view.mjs refreshFacades`: metal-kind near cells now draw through a new `corrugatedWallMat` — scanned diffuse + normal (normalScale 1.4), pale tint, roughness .86 / metalness 0, and an `onBeforeCompile` per-instance UV repeat (1.25 × instance size) so stamped grooves and panel seams stay in register across the 20 m facade. Plaster piers are skipped for metal blocks, and their plinth/cornice modules are thinner and lighter so masonry no longer swallows the cladding.
+- `raid-view.mjs refreshFacadeVariety`: scanned timber-sash factory glazing (`HQP.windows.urban`) is instanced 7.5 cm proud of the roller housings on the loading-bay face, so framed recessed glass sits over roller-backed shutters instead of flat pale boxes.
+- `raid-view.mjs refreshFacadeAccents`: five extra soft brown-grey stains per metal facade side, seated at the wall foot.
+- `raid-view.mjs`: `stoneFor` lightened from 0x746b60@.42 to 0x8d8578@.34, easing the charcoal-mossy slab DIRECTOR flagged on the shopfront (folded in per the note).
+
+### Verification
+- `node --check assets.js raid-view.mjs` clean.
+- `node tests/raid-browser-structures.mjs` green: 419 structures / 419 plinths / 419 cornices, pbr true, deterministic, browserErrors `[]`; tag counts unchanged (shedWall 284, shutterWindow 3).
+- `node tests/raid-browser-static-offline.mjs` green: deploy/move/machine hit/loot/extract, no API traffic, browserErrors `[]`.
+- `node tests/raid-browser-mobile-hud.mjs` green: 91.80% unobstructed at 1024×720, 81.63% at 844×390, all touch affordances exercised.
+- `node --test tests/*.test.mjs`: 1248 pass / 1 fail — the known `matchmaking` ECONNRESET, reproduced on a standalone rerun (environment network flake, unrelated to this change).
+- Shots in `~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png and before-844.png / after-844.png (warehouse front, both sizes), plus after-spawn, after-cover, after-courtyard, after-loot, after-shopfront and after-enemy frames. Before shows flat white slabs and pale roller boxes; after shows ribbed panel joints, weathered wash and deep timber/glass window frames. The enemy frame shows an operator at spawn; the item's spawn view shows the warehouse texture.
+
+**Honest critique:** the facade is unmistakably textured and the windows now have real casing depth, but the scan's warm brown patina makes the "white warehouse" read pale-tan/beige at spawn instead of the old cool white, the stamped-panel grid repeats a little mechanically across bays, and the loading-bay roller doors below still read as flat pale sheets; art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 FLAT BROWN FACADES + TILED YARD — give the three-storey brown courtyard building scanned brick/stucco, stains and a drainpipe, and replace the bathroom-checker yard with scanned paving while fixing the near-black sky/ceiling; keep items 3 LOOT YARD, 4 WEST-WALL/EXTRACT GROUND and 5 TREE CROWNS queued.

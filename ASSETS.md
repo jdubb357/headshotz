@@ -14,6 +14,7 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Texture: grass surface | Leafy Grass | Charlotte Baglioni | https://polyhaven.com/a/leafy_grass | CC0 |
 | Texture: sand surface | Coast Sand 01 | Rob Tuytel | https://polyhaven.com/a/coast_sand_01 | CC0 |
 | Texture: plaster surface | Painted Plaster Wall | Amal Kumar | https://polyhaven.com/a/painted_plaster_wall | CC0 |
+| Texture: warehouse cladding surface (iteration 129) | Concrete Panels — stamped concrete with corrugated grooves, weathered brown patina | Amal Kumar | https://polyhaven.com/a/concrete_panels | CC0 |
 | Texture: crate surface | Plywood | Rob Tuytel | https://polyhaven.com/a/plywood | CC0 |
 | Texture: forest floor surface (v59) | Forrest Ground 01 | Rob Tuytel | https://polyhaven.com/a/forrest_ground_01 | CC0 |
 | Texture: dirt surface (v59) | Brown Mud Dry | Rob Tuytel | https://polyhaven.com/a/brown_mud_dry | CC0 |
@@ -133,6 +134,10 @@ All grounded machine classes (scout, hunter, heavy, overlord) are now rendered a
 
 ## Raid first-person arms — CC0 MakeHuman rig, skin and cloth (iteration 116)
 The raid viewmodel's two gloved hands and olive sleeves are **real MakeHuman** geometry and textures from the existing CC0 asset system documented above (`assets/hum/hum_md.glb` with the `makehuman_system` skin/cloth WebP maps). The arm skin/cloth triangles are extracted by their dominant `upperarm`/`lowerarm`/`hand`/finger weights, rebound to the shipped `game_engine` skeleton (23 bones per arm) with `SkeletonUtils`, and tinted in the material to a dark leather glove and olive-drab sleeve; no new or third-party files were copied, no box/capsule geometry is used, and the rest of the MakeHuman body is removed from the overlay. Source: MakeHuman Community `makehuman_system` asset pack, https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html, **CC0 1.0** (public domain, credited anyway); the base mesh, rig and weights are the ones already used for raid operators. Presentation-only; the server's deployment/equipment data is unchanged.
+
+## Raid warehouse cladding — Poly Haven "Concrete Panels" scan (CC0), iteration 129
+
+The long pale shed facade no longer draws flat grey slabs. `assets/tex/corrugated_d.jpg` (74,845 B) and `assets/tex/corrugated_n.jpg` (80,208 B) are 512 × 512 JPEG downscales of the 1k Poly Haven **"Concrete Panels"** texture by **Amal Kumar**, https://polyhaven.com/a/concrete_panels, **CC0 1.0** (public domain, credited anyway). Source files: https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_panels/concrete_panels_diff_1k.jpg and https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_panels/concrete_panels_nor_dx_1k.jpg. The scan is registered as `corrugated` in `assets.js` and used by `raid-view.mjs refreshFacades()` for metal-kind blocks: per-instance vertex UV tiling holds stamped grooves, panel joints and dirt wash in register at bay scale, tinted pale and lit at roughness .86 / metalness 0. Presentation only — collision, world data and server state are unchanged.
 
 ## Raid facades — Poly Haven "Modular Urban Apartments Facade" window module (CC0), iteration 105
 
