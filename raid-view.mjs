@@ -307,6 +307,7 @@ export class RaidView {
   this.windowMaterials=this.environmentRoot?.userData?.raidWindowMaterials||this.windowMaterials||[];
   this.refreshFacades();
   this.refreshFacadeVariety();
+  this.refreshFacadeAccents();
   if(this.terrainMaterial){
    const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
    const live=getTex(key),liveNormal=normalTex(key,1.6);
@@ -1063,6 +1064,202 @@ export class RaidView {
   placed.pipe=pipeItems.length;
   placed.metalShutters=metalShopItems.length+metalShopGraffitiItems.length;
   root.userData.raidFacadeVarietyCount=placed;
+ }
+
+ // The modular façade skin deliberately stops at the masonry. This pass adds the
+ // street-level wear and one readable shop sign the courtyard needs to feel lived
+ // in, plus a real Poly Haven fire escape and a stepped parapet so the two
+ // volumes stop sharing a silhouette. Every piece is either the photographed
+ // rock/concrete/plaster maps already in the repo or the CC0 fire-escape scan;
+ // nothing here writes collision, doors, props or server state.
+ refreshFacadeAccents(){
+  const root=this.environmentRoot,kit=HQP.buildings,blocks=root?.userData?.raidFacadeBlocks,self=this.snapshot?.self;
+  if(!root||!blocks?.length||!self||!HQP.ready)return;
+  const front={};
+  for(const b of blocks){
+   if(!b.wall||b.w<b.d||b.w<6||(b.kind!=='planks'&&b.kind!=='metal'))continue;
+   const dist=Math.hypot(b.x-self.x,b.z-self.z);
+   if(!front[b.kind]||dist<front[b.kind].dist)front[b.kind]={block:b,dist};
+  }
+  if(!front.planks||!front.metal)return;
+  const brick=front.planks.block,bay=front.metal.block;
+  const brickZ=brick.z-brick.d/2,bayZ=bay.z-bay.d/2;
+  const DUMMY=new THREE.Object3D();
+  // Damp foundation: irregular plates tinted nearly to soot, seated just proud
+  // of the stone plinth on the faces the spawn camera actually sees. The alpha
+  // matte is the shipped ground-decal mask; the colour is the photographed rock
+  // map. Staggering the plates a few mm apart keeps their overlaps stable.
+  if(!root.userData.raidFoundationGrime){
+  const decal=HQP.decal?.wear||HQP.decal?.damage||HQP.decal?.crack;
+  let grimeMask=decal?.mask||null;
+  if(!grimeMask){
+   const g=document.createElement('canvas');g.width=g.height=128;const gx=g.getContext('2d');
+   const rg=gx.createRadialGradient(64,64,4,64,64,64);rg.addColorStop(0,'#fff');rg.addColorStop(.6,'#fff');rg.addColorStop(1,'rgba(255,255,255,0)');
+   gx.fillStyle=rg;gx.fillRect(0,0,128,128);grimeMask=new THREE.CanvasTexture(g);
+  }
+  const grimeMap=(decal?.map||getTex('rock')).clone();
+  grimeMap.wrapS=grimeMap.wrapT=THREE.RepeatWrapping;grimeMap.repeat.set(1.4,.55);grimeMap.needsUpdate=true;
+  const grimeNormal=normalTex('rock',1.5).clone();
+  grimeNormal.wrapS=grimeNormal.wrapT=THREE.RepeatWrapping;grimeNormal.repeat.set(1.4,.55);grimeNormal.needsUpdate=true;
+  const grimeMat=new THREE.MeshStandardMaterial({map:grimeMap,normalMap:grimeNormal,alphaMap:grimeMask,alphaTest:.12,
+   color:0xffffff,roughness:.98,metalness:0,envMapIntensity:.45,transparent:true,opacity:.92,depthWrite:false,side:THREE.DoubleSide});
+  grimeMat.userData.raidOwned=true;
+  const sides=[
+   {px:brick.x,pz:brickZ,nx:0,nz:-1,len:brick.w,along:'x'},
+   {px:brick.x-brick.w/2-.225,pz:-572.6,nx:-1,nz:0,len:14.6,along:'z'},
+   {px:bay.x,pz:bayZ,nx:0,nz:-1,len:bay.w,along:'x'},
+   {px:bay.x+bay.w/2+.225,pz:-566.6,nx:1,nz:0,len:15.6,along:'z'}
+  ];
+  const rnd=n=>{const s=Math.sin(n*127.1+37.73)*43758.5453;return s-Math.floor(s)};
+  const stains=[];
+  for(const f of sides){
+   const out=0.19;
+   for(let i=0;i<8;i++){
+    const t=i/7, span=f.len, along=(rnd(i*3.17+f.len*.31)-.5)*(i<2?span*.72:span*.9);
+    let w,h,y;
+    if(i===0){w=span*.5;h=.3+rnd(i+2.2)*.16;y=.1}
+    else if(i===1){w=span*.4;h=.45+rnd(i+3.4)*.25;y=.3}
+    else if(i<6){w=.8+rnd(i*5.71)*1.8;h=.3+rnd(i*7.13+1.1)*.8;y=.08+rnd(i*2.63)*.4}
+    else {w=.22+rnd(i*4.31)*.32;h=.7+rnd(i*6.91)*1.1;y=.45+rnd(i*3.3)*.35}
+    stains.push({px:f.px+(f.nx?f.nx*(out+i*.004):0)+(f.along==='x'?along:0),
+     py:y,pz:f.pz+(f.nz?f.nz*(out+i*.004):0)+(f.along==='z'?along:0),
+     yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
+     sw:w,sh:h,c:0x5b5344-(i%3)*0x080706});
+   }
+  }
+  const stainGeo=new THREE.PlaneGeometry(1,1);
+  const stainMesh=new THREE.InstancedMesh(stainGeo,grimeMat,stains.length);
+  stains.forEach((st,i)=>{
+   DUMMY.position.set(st.px,st.py+st.sh/2,st.pz);DUMMY.rotation.set(0,st.yaw,0);DUMMY.scale.set(st.sw,st.sh,1);DUMMY.updateMatrix();
+   stainMesh.setMatrixAt(i,DUMMY.matrix);
+   stainMesh.setColorAt(i,new THREE.Color(st.c).multiplyScalar(.86+rnd(i*9.1)*.22));
+  });
+  stainMesh.instanceMatrix.needsUpdate=true;if(stainMesh.instanceColor)stainMesh.instanceColor.needsUpdate=true;
+  stainMesh.receiveShadow=true;stainMesh.castShadow=false;stainMesh.frustumCulled=false;
+  stainMesh.userData.raidFacadePart='foundationGrime';
+  if(stainGeo)stainGeo.userData.raidOwned=true;
+  root.add(stainMesh);
+  root.userData.raidFoundationGrime={count:stains.length};
+  }
+
+  // A single painted fascia above the shop row's shutter bays. The substrate is
+  // the photographed metal plate scan already shipped in assets/tex; the sign
+  // lettering is painted into that photo in a canvas, which keeps the wall from
+  // reading as a blank brick plane at the exact moment the player walks in.
+  if(!root.userData.raidShopSign){
+  const signCan=document.createElement('canvas');signCan.width=1024;signCan.height=288;
+  const sx=signCan.getContext('2d');
+  if(sx){
+   const photo=getTex('metal').image;
+   if(photo&&photo.width&&photo.height){
+    const k=Math.max(1024/photo.width,288/photo.height);
+    sx.drawImage(photo,(1024-photo.width*k)/2,(288-photo.height*k)/2,photo.width*k,photo.height*k);
+    sx.globalCompositeOperation='multiply';sx.fillStyle='#4d5851';sx.fillRect(0,0,1024,288);sx.globalCompositeOperation='source-over';
+   }else{sx.fillStyle='#4b534d';sx.fillRect(0,0,1024,288)}
+   const veil=sx.createLinearGradient(0,0,0,288);
+   veil.addColorStop(0,'rgba(18,20,16,.34)');veil.addColorStop(.45,'rgba(18,20,16,.02)');veil.addColorStop(1,'rgba(18,20,16,.34)');
+   sx.fillStyle=veil;sx.fillRect(0,0,1024,288);
+   let seed=4177;const wr=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff};
+   for(let i=0;i<58;i++){
+    const rx=wr()*1024,ry=wr()*288,rad=8+wr()*22;
+    const rg=sx.createRadialGradient(rx,ry,0,rx,ry,rad);
+    rg.addColorStop(0,`rgba(112,62,34,${.10+wr()*.20})`);rg.addColorStop(1,'rgba(70,42,25,0)');
+    sx.fillStyle=rg;sx.beginPath();sx.arc(rx,ry,rad,0,Math.PI*2);sx.fill();
+   }
+   sx.strokeStyle='#242b26';sx.lineWidth=16;sx.strokeRect(8,8,1008,272);
+   sx.strokeStyle='#e5d7b3';sx.lineWidth=3;sx.strokeRect(24,24,976,240);
+   for(const px of [28,996])for(const py of [28,260]){
+    sx.fillStyle='#cbbd98';sx.beginPath();sx.arc(px,py,7,0,Math.PI*2);sx.fill();
+    sx.fillStyle='#363d36';sx.beginPath();sx.arc(px,py,3,0,Math.PI*2);sx.fill();
+   }
+   let font=176;
+   sx.textAlign='center';sx.textBaseline='middle';
+   sx.font=`900 ${font}px "Arial Black","Helvetica Neue",Impact,sans-serif`;
+   while(sx.measureText('HARDWARE').width>880&&font>84){font-=4;sx.font=`900 ${font}px "Arial Black","Helvetica Neue",Impact,sans-serif`}
+   sx.fillStyle='rgba(8,11,8,.58)';sx.fillText('HARDWARE',516,120);
+   sx.fillStyle='#eadfb9';sx.fillText('HARDWARE',512,114);
+   sx.fillStyle='rgba(255,250,226,.42)';sx.font=`600 ${font*.14|0}px "Arial Narrow",Arial,sans-serif`;sx.fillText('SALVAGE & SUPPLY',512,204);
+  }
+  const signTex=new THREE.CanvasTexture(signCan);
+  signTex.colorSpace=THREE.SRGBColorSpace;signTex.anisotropy=8;signTex.needsUpdate=true;
+  const signMat=new THREE.MeshStandardMaterial({map:signTex,roughness:.74,metalness:.18,envMapIntensity:.7});
+  signMat.userData.raidOwned=true;signMat.userData.raidOwnTexture=true;
+  const frameMat=new THREE.MeshStandardMaterial({map:getTex('metal'),normalMap:normalTex('metal',2.2),color:0x6d6455,roughness:.78,metalness:.42,envMapIntensity:.7});
+  frameMat.userData.raidOwned=true;
+  const signPlane=new THREE.PlaneGeometry(1,1);
+  const signW=5.0,signH=1.42,signY=3.14,signX=brick.x-1.2,signZ=brickZ-.175;
+  const frame=new THREE.Mesh(signPlane,frameMat);
+  frame.position.set(signX,signY,signZ+.012);frame.rotation.y=Math.PI;frame.scale.set(signW+.16,signH+.14,1);frame.receiveShadow=true;frame.castShadow=false;
+  frame.userData.raidFacadePart='shopSignFrame';
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(1,1),signMat);
+  face.position.set(signX,signY,signZ);face.rotation.y=Math.PI;face.scale.set(signW,signH,1);face.receiveShadow=true;face.castShadow=false;
+  face.userData.raidFacadePart='shopSign';
+  face.geometry.userData.raidOwned=true;
+  root.add(frame);root.add(face);
+  root.userData.raidShopSign={x:signX,y:signY,z:signZ,w:signW,h:signH};
+  }
+
+  // Real scanned fire escape on the brick building's west side, the tall face
+  // the spawn camera sees at the corner. It spans the full storey height and
+  // projects its landings west, replacing the old flat spinning hooks with a
+  // recognisable iron structure. Poly Haven modular_fire_escape, CC0.
+  const esc=kit?.fireEscape;
+  const feReady=!!(esc?.parts?.length&&esc?.width&&esc?.depth);
+  if(!root.userData.raidRealFireEscape&&feReady){
+   let brickCore=null;
+   for(const c of blocks){
+    if(c.wall||c.kind!=='planks'||c.w*c.d<120||Math.abs(c.x-brick.x)>3)continue;
+    const d=Math.hypot(c.x-self.x,c.z-self.z);
+    if(!brickCore||d<brickCore.d)brickCore={block:c,d};
+   }
+   const core=brickCore?.block||brick;
+   const wallWest=core.x-core.w/2-.425;
+   const s=8.35/9.756; // model is 9.756 m tall; roof skin is 8.6 m on this block.
+   const g=new THREE.Group();
+   esc.parts.forEach(p=>{
+    const m=new THREE.Mesh(p.geo,p.mat);
+    m.scale.setScalar(s);m.castShadow=true;m.receiveShadow=true;m.frustumCulled=false;
+    g.add(m);
+   });
+   g.rotation.y=-Math.PI/2;
+   // Flush against the west wall and set back from the front corner: the iron
+   // staircase now starts at the street and climbs the face the spawn camera sees.
+   g.userData.raidFacadePart='fireEscapeScan';
+   const halfDepth=esc.depth*s/2,halfWidth=esc.width*s/2;
+   g.position.set(wallWest-halfDepth-.02,0.10,brick.z-brick.d/2+halfWidth+.12);
+   root.add(g);
+   root.userData.raidRealFireEscape={parts:esc.parts.length,width:esc.width,height:esc.height,depth:esc.depth,x:g.position.x,z:g.position.z};
+  }
+
+  // One roof now steps up by a storey-and-a-half of photographed plaster with a
+  // real tile coping; the other stays flat. Presentation only, and the unit sits
+  // on the loading bay's roof plane rather than intersecting the street blocks.
+  let bayCore=null;
+  for(const c of blocks){
+   if(c.wall||c.kind!=='metal'||c.w*c.d<120||Math.abs(c.x-bay.x)>3)continue;
+   const d=Math.hypot(c.x-self.x,c.z-self.z);
+   if(!bayCore||d<bayCore.d)bayCore={block:c,d};
+  }
+  const facade=kit?.facade?.modules;
+  if(!root.userData.raidParapetStep&&bayCore&&facade?.wall_standard_standard_01?.parts?.length){
+   const b=bayCore.block,y0=b.y+b.h,z0=b.z-b.d/2;
+   const cap=6.0,ph=1.35;
+   const wallGeo=facade.wall_standard_standard_01.parts[0].geo,wallMat=facade.wall_standard_standard_01.parts[0].mat;
+   const parapet=new THREE.InstancedMesh(wallGeo,wallMat,1);
+   DUMMY.position.set(b.x+4.4,y0,z0-.06);DUMMY.rotation.set(0,Math.PI,0);DUMMY.scale.set(cap/3,ph/3,1);DUMMY.updateMatrix();
+   parapet.setMatrixAt(0,DUMMY.matrix);parapet.setColorAt(0,new THREE.Color(0xcfd2c5));
+   parapet.instanceMatrix.needsUpdate=true;parapet.userData.raidFacadePart='parapetStep';
+   parapet.castShadow=true;parapet.receiveShadow=true;parapet.frustumCulled=false;root.add(parapet);
+   const cp=facade.crown_standard_standard_01;
+   if(cp?.parts?.length){
+    const coping=new THREE.InstancedMesh(cp.parts[0].geo,cp.parts[0].mat,1);
+    DUMMY.position.set(b.x+4.4,y0+ph-.02,z0-.22);DUMMY.rotation.set(0,Math.PI,0);DUMMY.scale.set(cap/3,.22/.75,1.5);DUMMY.updateMatrix();
+    coping.setMatrixAt(0,DUMMY.matrix);coping.setColorAt(0,new THREE.Color(0xa7a58f));
+    coping.instanceMatrix.needsUpdate=true;coping.userData.raidFacadePart='parapetCap';
+    coping.castShadow=true;coping.receiveShadow=true;coping.frustumCulled=false;root.add(coping);
+   }
+   root.userData.raidParapetStep={x:b.x+4.4,y:y0,z:z0,h:ph,cap};
+  }
  }
 
  refreshSpawnDressing(){

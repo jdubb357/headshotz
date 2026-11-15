@@ -34,7 +34,10 @@ const BUILDING_GLB={
  aircon:{url:'assets/models/buildings/aircon.glb',modules:['exterior_aircon_unit','exterior_aircon_unit_rusted']},
  rollerDoor:{url:'assets/models/buildings/roller_door.glb',modules:['rollershutter_door','rollershutter_door_graffiti']},
  rollerWindow:{url:'assets/models/buildings/roller_window.glb',modules:['rollershutter_window_01','rollershutter_window_01_graffiti']},
- gutter:{url:'assets/models/buildings/gutter_kit.glb',modules:['modular_metal_gutter_section','modular_metal_gutter_gutter_coupler','modular_metal_gutter_bend','modular_metal_gutter_outlet']}
+ gutter:{url:'assets/models/buildings/gutter_kit.glb',modules:['modular_metal_gutter_section','modular_metal_gutter_gutter_coupler','modular_metal_gutter_bend','modular_metal_gutter_outlet']},
+ // Real Poly Haven CC0 scanned apartment fire escape (stairs, landings, railings,
+ // retractable ladder). Kept as one scene, normalised to metres in loadBuildings.
+ fireEscape:{url:'assets/models/buildings/fire_escape.glb',whole:true}
 };
 // Scanned street-cover props for the raid courtyards (Poly Haven CC0): a
 // concrete jersey barrier, wooden crate, metal dumpster, covered car wreck,
@@ -421,11 +424,26 @@ export async function loadSkyPhoto(onProg=()=>{}){
 }
 export async function loadBuildings(onProg=()=>{}){
  if(GQ.level==='low'){onProg(1,'skipped');return false}
- const [{GLTFLoader}]=await Promise.all([import('./lib/jsm/GLTFLoader.js')]);
- const L=new GLTFLoader();let ok=true,done=0;
+ const [{GLTFLoader},{MeshoptDecoder}]=await Promise.all([import('./lib/jsm/GLTFLoader.js'),import('./lib/jsm/meshopt_decoder.module.js')]);
+ const L=new GLTFLoader();L.setMeshoptDecoder(MeshoptDecoder);let ok=true,done=0;
  for(const k in BUILDING_GLB){
   try{
    const g=await L.loadAsync(BUILDING_GLB[k].url);
+   if(BUILDING_GLB[k].whole){
+    g.scene.updateMatrixWorld(true);
+    const parts=[];
+    g.scene.traverse(o=>{if(!o.isMesh||!o.geometry)return;const geo=plainGeometry(o.geometry);geo.applyMatrix4(o.matrixWorld);const mat=o.material;
+     if(mat){mat.envMapIntensity=1.0;for(const t of [mat.map,mat.normalMap,mat.roughnessMap,mat.metalnessMap,mat.aoMap])if(t){t.colorSpace=t===mat.map?THREE.SRGBColorSpace:t.colorSpace;t.anisotropy=4}if(mat.transparent)mat.depthWrite=false}
+     parts.push({geo,mat})});
+    if(!parts.length)throw new Error('no meshes');
+    const box=new THREE.Box3();
+    for(const p of parts){p.geo.computeBoundingBox();box.union(p.geo.boundingBox)}
+    if(box.isEmpty())throw new Error('empty bounds');
+    const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),minY=box.min.y;
+    for(const p of parts){p.geo.translate(-center.x,-minY,-center.z);p.geo.computeBoundingBox();p.geo.computeBoundingSphere()}
+    HQP.buildings[k]={parts,url:BUILDING_GLB[k].url,width:size.x,height:size.y,depth:size.z,source:'Poly Haven '+k};
+    onProg(++done/Object.keys(BUILDING_GLB).length);continue;
+   }
    g.scene.updateMatrixWorld(true);
    const mods={};
    for(const name of BUILDING_GLB[k].modules){

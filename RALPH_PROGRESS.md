@@ -8928,3 +8928,25 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the buttstock slab is gone and the receiver/hands now sit in the bottom-right corner; the support glove's knuckles and thumb ride above the handguard instead of hiding behind the receiver. But at 1024 the rifle can read as a short floating silhouette with its rear receiver tube clipped near the right edge, and the bright berm grass crowds that corner and competes with the glove. Art acceptance waits on Austin's live playtest.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 3 BUILDING BASE GRIME — dark street-level stain band, one storefront sign, fire escape on the brick row, and a parapet step so the two rooflines differ.
+
+## Iteration 125 — BUILDING BASE GRIME + SIGNAGE + ROOFLINE (DIRECTOR_NOTES item 1; 2026-11-14)
+
+**Acceptance criteria:** a visible dark grime/stain band at street level on the brick shop row and the loading bay; one readable storefront sign on the shop row in after-1024.png; a real fire escape on the brick building; a parapet step so the two roof silhouettes differ; gunlight, static-offline, machine-model and mobile-HUD graders green with no browser errors and offline play intact.
+
+### Implementation
+- `assets/models/buildings/fire_escape.glb` (263,600 B, 11,322 tris, meshopt + 512 px WebP): Poly Haven **Modular Fire Escape** by Juniix, CC0; whole scene imported via the new `whole:true` branch of `assets.js loadBuildings()`, which now installs MeshoptDecoder, bakes node transforms, normalises to metres and reports `HQP.buildings.fireEscape`.
+- `raid-view.mjs refreshFacadeAccents()` (new, called from `refreshArt()`): 32 irregular foundation-grime plates per boots-on-site pass — photographed rock map + shipped decal alpha matte, tinted 0x5b5344 and staggered 4 mm apart so overlaps do not band — seated proud of the plinth on the four spawn-visible faces; one 5.0 × 1.42 m shop sign above the shutter bays (lettering painted into the shipped photographed metal-plate scan, "HARDWARE / SALVAGE & SUPPLY"), plate at z −580.503 with its frame 12 mm behind so the canvas face wins the depth test; the scanned fire escape scaled to 8.35 m and flush to the brick west wall; a 1.35 m plaster parapet + tile coping step on the loading-bay roof. Per-feature guards let later `refreshArt()` passes fill in an asset that has not landed yet.
+- `ASSETS.md` + `index.html` credits: Modular Fire Escape, source URL, CC0.
+
+### Verification
+- `node --check assets.js`, `node --check raid-view.mjs` → clean.
+- `node tests/raid-browser-gunlight.mjs` → green at 1024×720 and 844×390, 3 held scan meshes, `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs` → green (deploy/move/machine hit/loot/extract, `noApiTraffic: true`).
+- `node tests/raid-browser-machine-models.mjs`, `node tests/raid-browser-mobile-hud.mjs` → green (91.88% / 81.63% unobstructed).
+- `node tests/raid-browser-structures.mjs` → exit 1 on its stale exact tag list (actual scene now also tags brickWall/gutter/rollerBay/shedWall/shutterWindow/streetCurb/streetCurbTop/streetRoad/streetSidewalk; pre-existing, not from these `raidFacadePart` additions).
+- `node --test tests/*.test.mjs` → known `matchmaking.test.mjs` ECONNRESET; `raid-load.test.mjs` concurrency assertion passed when rerun alone. (Both reproduced at HEAD; unrelated to presentation.)
+- Shots in `~/headshotz-loop/shots/latest/`: before-1024.png, before-1024-action.png, before-844.png, after-1024.png, after-1024-action.png, after-844.png. Sign world position (-587.803, 3.14, -580.503) projects to screen (112, 322) at 1024 with a readable 1024×288 sRGB canvas; fire escape at (-593.956, 0.10, -577.357) with 2 scanned child meshes; `raidFoundationGrime` reports 32 plates; parapet step sits at roof y and is visible in after-1024.
+
+**Honest critique:** the sign is now genuinely readable and the loading-bay parapet breaks the roofline, but the base grime is still washed out and partly hidden behind foreground props at 844×390 (foreground barrel/crates cover the bay front), and the fire escape reads as a thin dark ladder at 1024 rather than a full staircase; the brick front sign is far/small on phone width. Art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 FOLIAGE FOLLOW-UP — mix 2-3 scanned tree species/sizes, fuller crowns, darker green grass tips, thin the tall blades next to the rifle; do not regrade the buildings until Austin's playtest.

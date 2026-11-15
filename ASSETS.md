@@ -217,3 +217,13 @@ The spawn courtyard floor is painted with photographed pavement wear instead of 
 | `decal_mask.jpg`, `decal_mask_b.jpg` | derived alpha mattes | composed offline from the scanned patches above | versioned here | n/a |
 
 All six source scans are **CC0 1.0** (public domain, credited anyway); the two masks carry no art of their own, only alpha falloff. Total 660,978 bytes across the eight 512 × 512 files. The in-game credits list all six sources.
+
+## Raid facade fire escape — Poly Haven scan (CC0), iteration 125
+
+A real photographed iron apartment fire escape now climbs the brick shop row's west wall at the spawn courtyard, replacing the old flat hook shapes. The full scene was copied from the Poly Haven Modular Fire Escape source, meshoptimized and converted to metre scale GLBs offline, and is loaded only by the raid path through the whole-scene branch of `assets.js loadBuildings()`; `raid-view.mjs refreshFacadeAccents()` places it flush to the authored façade. It is decoration only — no collision, actions, world data or other-mode change.
+
+| File | Asset | Author(s) | Source | Used as | Triangles | Size |
+|---|---|---|---|---|---|---|
+| `assets/models/buildings/fire_escape.glb` | Modular Fire Escape | Juniix | https://polyhaven.com/a/modular_fire_escape | brick shop-row fire escape | 11,322 (from 11,322) | 263,600 B |
+
+**CC0 1.0** (public domain, credited anyway). Presentation only. The in-game credits list the source.
