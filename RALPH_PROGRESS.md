@@ -9085,3 +9085,17 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 FLOATING WINDOW FRAME + AC GRILLE HOLES — remove or seat the dark mid-air frame/grate at crosshair height on the warehouse front, fix the AC grilles' black/white holes, and break the stamped panel grid's bathroom-tile repeat; keep items 3 LOOT/EXTRACT YARD, 4 SHOP ROW and 5 TREE CROWNS queued.
 
+## Iteration 132 — WHITE WAREHOUSE FINISH: no floating frame, real grilles, no bathroom-tile cladding (DIRECTOR_NOTES item 2; 2026-11-15)
+
+**Acceptance criteria:** at 1024×720 and 844×390 the warehouse front shows no dark floating sash or stone sill at crosshair height over the graffiti roller bay; condenser fan covers read as dark recessed perforated grilles without black/white speckles; the pale metal cladding has no stamped bathroom-tile grid and carries rib seams, per-bay variation and dirt streaks; structures, static-offline and mobile-HUD graders stay green with only the known matchmaking ECONNRESET in the unit suite; presentation-only.
+
+**Implementation:** `raid-view.mjs closedShedBay` identifies ground-level broad thin metal bays; refreshWindows skips scanned sashes there while using the unfiltered list to hide procedural framing/shutter/sill/flower box, and refreshFacades suppresses the stone sill. `corrugatedWallMat` replaces the concrete_panels map/normal with the reused plaster scan at per-bay jittered UV period/phase, plus a vertex world position feeding fragment rib bands, sheet seams, broad mottle and vertical rain streaks. `refreshFacadeVariety airconGrilleMat` caches an opaque 256² grille canvas texture (recessed frame, punched holes with lit rims, scuffs/rust) and dresses scanned `_02` covers as matte, opaque, double-sided galvanised plates.
+
+**Verification:** `node --check assets.js raid-view.mjs` clean. Structures ✓ (419 structures/plinths/cornices, shedWall 284, rollerBay 4, pbr true, deterministic, browserErrors `[]`). Static-offline ✓ (deploy/move/machine hit hp 100/boot/extract, noApiTraffic true, browserErrors `[]`). Mobile-HUD ✓ (91.80% unobstructed at 1024×720, 81.63% at 844×390, all touch affordances exercised, browserErrors `[]`). Unit suite 1248/1249 — only the known matchmaking ECONNRESET, reproduced on an isolated rerun (environmental flake unrelated to this presentation-only diff).
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared then saved before-1024.png/after-1024.png and before-844.png/after-844.png (warehouse front, both sizes), plus distinct spawn, courtyard, shopfront, warehouseClose, warehouseDiag, bank, loot, extract and enemy frames at both sizes.
+
+**Honest critique:** the bathroom-tile grid and floating sash are gone and the AC covers now read as grilles, but the procedural ribs still look a little evenly striped like painted corrugation rather than dented rolled sheet, the wall can still read blank from spawn distance, and the roller door's own dark handle bar still sits at crosshair height; art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: EXTRACTION_BACKLOG item 3 LOOT / EXTRACT YARD — seat the floating rusty container slab, replace the brown meat-like rubble blobs with scanned debris or remove, and resolve the orange/tan curved ground line; keep items 4 SHOP ROW and 5 TREE CROWNS / WEST YARD queued.
+

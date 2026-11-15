@@ -14,6 +14,20 @@ import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor
 
 import {RaidAudio,spatialCue} from './raid-audio.mjs';
 export {RaidAudio} from './raid-audio.mjs';
+// Industrial loading-bay walls are shut roller bays, not glazed shopfronts: a
+// scanned sash seated on those ground-floor openings would hang in mid air over
+// the graffiti door. Shared by refreshWindows and the facade sill pass so every
+// dress-up layer agrees these openings are closed steel.
+const closedShedBay=(blocks,s)=>{
+ if(!s.onZ||s.y>2.4)return false;
+ for(const b of blocks){
+  if(b.kind!=='metal'||!b.wall||b.w<b.d||b.w<6)continue;
+  if(Math.abs(s.z-(b.z-b.d/2))>.7)continue;
+  if(s.x<b.x-b.w/2-.8||s.x>b.x+b.w/2+.8)continue;
+  return true;
+ }
+ return false;
+};
 // Bounded first-person locomotion bob; shared by the frame loop so the hand
 // motion stays below the recoil and aim budgets.
 const bobReach=speed=>.016*Math.max(0,Math.min(1,speed));
@@ -741,18 +755,26 @@ export class RaidView {
   if(!root||!sites?.length||!asset?.parts?.length||root.userData.raidWindowsScanned)return;
   const self=this.snapshot?.self;if(!self)return;
   const reach=90,reach2=reach*reach;
-  const near=sites.filter(s=>{const dx=s.x-self.x,dz=s.z-self.z;return dx*dx+dz*dz<reach2});
+  let near=sites.filter(s=>{const dx=s.x-self.x,dz=s.z-self.z;return dx*dx+dz*dz<reach2});
+  const allNear=near;
+  // The corrugated loading-bay walls are industrial shutter bays, not glazed
+  // shopfronts. A scanned sash seated on those ground-floor openings hangs over
+  // the graffiti roller door as a dark mid-air frame at crosshair height; keep
+  // only the steel roller bays there and leave the sash pass to the shop row.
+  const shedBlocks=root.userData.raidFacadeBlocks||[];
+  near=near.filter(s=>!closedShedBay(shedBlocks,s));
   if(!near.length)return;
   root.userData.raidWindowsScanned=true;
   // Silence the procedural reveal/stall/plant boxes at upgraded openings. Zero
-  // matrices keep both draw buffers and neighbour placements untouched.
+  // matrices keep both draw buffers and neighbour placements untouched. Use the
+  // unfiltered list so closed shed bays also lose their old sill/framing boards.
   const hideTags=new Set(['framing','windowShutter','windowSill','flowerBox']);
   root.traverse(node=>{
    if(!node.isInstancedMesh||!node.userData.raidStructure||!hideTags.has(node.userData.raidStructure))return;
    const arr=node.instanceMatrix.array;let changed=false;
    for(let i=0;i<node.count;i++){
     const x=arr[i*16+12],y=arr[i*16+13],z=arr[i*16+14];
-    for(const s of near){
+    for(const s of allNear){
      const dx=x-s.x,dz=z-s.z;
      if(dx*dx+dz*dz>1.8)continue;
      if(Math.abs(y-(s.y+s.h/2))>s.h*.95+.35)continue;
@@ -910,44 +932,63 @@ export class RaidView {
    m.needsUpdate=true;
    return m;
   })();
-  // Painted plaster (real Poly Haven photo) for the residential-concrete volumes
-  // is left to the kit's authored wall material, so no clone is needed here.
-  // The loading-bay warehouse is scanned pre-cast concrete cladding, not smooth
-  // plaster. This is a real Poly Haven CC0 scan (concrete_panels) shipped at
-  // 512 px: vertical board ribs, panel joints and dirt washing down from the
-  // joints read at 25 m from spawn and at 3 m close-up. Per-instance UV tiling
-  // (same hook as the stone band) holds one scan width per facade bay, so the
-  // ribbing never smears across the 20 m wall. Instance tints stay pale-grey so
-  // it still reads as the white warehouse beside the warm brick shop row.
+  // The loading-bay warehouse is painted corrugated sheet, so the small stamped
+  // block pattern of the concrete_panels scan no longer fits: it read as bathroom
+  // tile at 3 m. This real Poly Haven CC0 plaster scan (relief included) is a
+  // clean, wetted sheet under a per-instance UV jitter; a procedural rib/shadow
+  // pass supplies the vertical corrugation while world-space mottle and rain
+  // streaks age it. Tints stay pale-grey so it still reads as the white warehouse
+  // beside the warm brick shop row.
   const corrugatedWallMat=(()=>{
    const m=wall.parts[0].mat.clone();
-   m.map=getTex('corrugated');m.normalMap=normalTex('corrugated',2.4);
-   m.normalScale=new THREE.Vector2(1.4,1.4);
-   m.roughness=.86;m.metalness=0;m.roughnessMap=null;m.metalnessMap=null;m.aoMap=null;
-   m.color=new THREE.Color(0xf4f4ee);m.envMapIntensity=.8;m.needsUpdate=true;
+   m.map=getTex('plaster');m.normalMap=normalTex('plaster',1.8);
+   m.normalScale=new THREE.Vector2(.45,.45);
+   m.roughness=.9;m.metalness=0;m.roughnessMap=null;m.metalnessMap=null;m.aoMap=null;
+   m.color=new THREE.Color(0xf1f3ec);m.envMapIntensity=.7;m.needsUpdate=true;
    const map=m.map.clone();map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(1,1);map.needsUpdate=true;
    const nrm=m.normalMap.clone();nrm.wrapS=nrm.wrapT=THREE.RepeatWrapping;nrm.repeat.set(1,1);nrm.needsUpdate=true;
    m.map=map;m.normalMap=nrm;
    m.onBeforeCompile=shader=>{
-    shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>',`#include <uv_vertex>
+    shader.vertexShader='varying vec3 vCorrWorld;\n'+shader.vertexShader.replace('#include <uv_vertex>',`#include <uv_vertex>
+ vCorrWorld=position;
 #ifdef USE_INSTANCING
  vec3 corrScale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
- vec2 corrRep=max(vec2(1.0),vec2(1.25)*corrScale.xy);
+ vec3 corrPos=instanceMatrix[3].xyz;
+ float corrHash=fract(sin(dot(corrPos.xz,vec2(127.1,311.7)))*43758.5453);
+ float corrHash2=fract(sin(dot(corrPos.xy,vec2(269.5,183.3)))*24634.6345);
+ // Every bay samples a different part of the plaster scan: varying the tile
+ // period and phase per bay keeps the wet-dirt wash from lining up into a
+ // single grid across the 20 m wall.
+ vec2 corrRep=max(vec2(1.0),vec2(1.1+corrHash*.35,1.05+corrHash2*.3)*corrScale.xy);
+ vec2 corrOff=vec2(corrHash,corrHash2)*vec2(2.3,1.7);
  #ifdef USE_MAP
-  vMapUv*=corrRep;
+  vMapUv=vMapUv*corrRep+corrOff;
  #endif
  #ifdef USE_NORMALMAP
-  vNormalMapUv*=corrRep;
+  vNormalMapUv=vNormalMapUv*corrRep+corrOff;
  #endif
+ vCorrWorld=(instanceMatrix*vec4(position,1.0)).xyz;
 #endif`);
-    // The scan is warm-brown weathered concrete. Wash most of the colour away
-    // and lean the remaining tone cool so tenements' white industrial shed
-    // reads as pale galvanised concrete, not tan plaster; joints, ribs and
-    // dirt wash survive as tonal contrast instead of brown patches.
-    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+    shader.fragmentShader='varying vec3 vCorrWorld;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
  float shedLum=dot(diffuseColor.rgb,vec3(0.2126,0.7152,0.0722));
- diffuseColor.rgb=mix(diffuseColor.rgb,vec3(shedLum),0.74)*vec3(0.92,1.0,1.05);
- diffuseColor.rgb=clamp(diffuseColor.rgb,0.0,0.95);
+ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(shedLum),0.8)*vec3(0.94,1.0,1.05);
+ // White painted sheet cladding: vertical rib shading and a dark seam every
+ // sheet keep the smooth plaster scan from reading as a blank flat slab, and
+ // tie the wall to the corrugated roller doors below.
+ float shedU=vCorrWorld.x+vCorrWorld.z;
+ float shedRib=0.5+0.5*sin(shedU*15.0+vCorrWorld.y*.35);
+ float shedSeam=1.0-smoothstep(0.0,0.055,abs(fract(shedU/1.7+0.5)-0.5));
+ diffuseColor.rgb*=(0.89+0.13*shedRib)*(1.0-shedSeam*0.3);
+ // Weather the pale sheet with broad non-tiled mottle plus narrow vertical
+ // dirt streaks. The frequencies are deliberately incommensurate so the wash
+ // never lines up bay-to-bay.
+ float shedMottle=0.5+0.5*sin(vCorrWorld.x*0.83+vCorrWorld.z*0.46+vCorrWorld.y*0.31)
+                  *sin(vCorrWorld.z*0.57-vCorrWorld.x*0.22+1.9);
+ float shedStreak=smoothstep(0.64,0.97,0.5+0.5*sin((vCorrWorld.x+vCorrWorld.z)*1.6+vCorrWorld.y*0.13));
+ float shedWeather=shedMottle*0.09+shedStreak*0.10;
+ diffuseColor.rgb*=1.0-shedWeather;
+ diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(0.84,0.86,0.80),shedStreak*0.22);
+ diffuseColor.rgb=clamp(diffuseColor.rgb,0.0,0.96);
 `);
    };
    m.customProgramCacheKey=()=>'raidFacadeCorrugatedTiled';
@@ -1084,6 +1125,8 @@ export class RaidView {
   const windows=root.userData.raidWindowOpenings||[],sillReach2=100*100;
   for(const s of windows){
    const dx=s.x-self.x,dz=s.z-self.z;if(dx*dx+dz*dz>sillReach2)continue;
+   if(closedShedBay(blocks,s))continue;
+
    const outward=s.outward||(s.onZ?Math.sign(self.z-s.z):Math.sign(self.x-s.x));
    if(!outward)continue;
    const yaw=s.onZ?(outward>0?0:Math.PI):(outward>0?Math.PI/2:-Math.PI/2);
@@ -1154,6 +1197,55 @@ export class RaidView {
   const graffiti=kit.rollerDoor.modules['rollershutter_door_graffiti'];
   const pipe=kit.gutter.modules['modular_metal_gutter_section'],coupler=kit.gutter.modules['modular_metal_gutter_gutter_coupler'];
   if(!acMods.length||!doors?.parts?.length||!shops?.parts?.length||!pipe?.parts?.length)return;
+  // The scanned condenser's fan-cover primitive (_02) declares alpha blending
+  // but ships no usable alpha channel, so sampled raw it paints bright black/
+  // white speckles over the unit. Replace that cover with an opaque perforated
+  // galvanised plate texture -- a real fan grille reads dark and recessed. The
+  // cached clone keeps the scanned cabinet body untouched and shares one material
+  // between the wall and roof instances (two variants: plain and rusted).
+  const airconVents=new Map();
+  const airconGrilleMat=mat=>{
+   if(!/_02$/i.test(mat?.name||''))return mat;
+   const cached=airconVents.get(mat.uuid);if(cached)return cached;
+   const rust=/rusted/i.test(mat.name||'');
+   const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
+   const bg=g.createLinearGradient(0,0,0,256);
+   bg.addColorStop(0,rust?'#5c4234':'#6e7b78');
+   bg.addColorStop(.5,rust?'#402d22':'#4b5754');
+   bg.addColorStop(1,rust?'#24190f':'#1f2725');
+   g.fillStyle=bg;g.fillRect(0,0,256,256);
+   // recessed frame around the perforated plate
+   g.fillStyle='rgba(6,8,8,.7)';g.fillRect(0,0,256,12);g.fillRect(0,244,256,12);g.fillRect(0,0,12,256);g.fillRect(244,0,12,256);
+   g.fillStyle=rust?'rgba(150,105,78,.4)':'rgba(168,186,180,.4)';g.fillRect(12,7,232,3);g.fillRect(7,12,3,232);
+   g.fillStyle='rgba(0,0,0,.55)';g.fillRect(12,244,232,3);g.fillRect(244,12,3,232);
+   // punched fan-cover holes: dark pit plus a lit lower rim, offset per row
+   for(let y=26;y<236;y+=14){
+    for(let x=20+((y/14)%2)*7;x<240;x+=14){
+     const r=4.2;
+     g.fillStyle='rgba(4,6,6,.92)';g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();
+     g.fillStyle=rust?'rgba(130,92,64,.55)':'rgba(140,157,151,.55)';
+     g.beginPath();g.arc(x+1.1,y-1.1,3.1,0.15*Math.PI,0.85*Math.PI);g.fill();
+    }
+   }
+   // vertical scuffs and dirt drips wash the plate down
+   for(let i=0;i<20;i++){
+    const x=15+(i*41)%224;
+    g.fillStyle=rust?'rgba(48,27,18,.16)':'rgba(22,27,25,.15)';
+    g.fillRect(x,12,1+(i%3),214);
+   }
+   if(rust)for(let i=0;i<30;i++){
+    g.fillStyle='rgba('+(112+(i*13)%46)+','+(58+(i*7)%30)+','+(32+(i*5)%18)+','+(0.10+0.02*(i%6)).toFixed(2)+')';
+    g.beginPath();g.ellipse(15+(i*97)%226,20+(i*53)%216,2+((i*17)%7),1.5+((i*29)%5),i*0.73,0,Math.PI*2);g.fill();
+   }
+   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;
+   tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.needsUpdate=true;
+   const m=mat.clone();
+   m.map=tex;m.normalMap=null;m.roughnessMap=null;m.metalnessMap=null;m.alphaMap=null;
+   m.transparent=false;m.depthWrite=true;m.opacity=1;m.alphaTest=0;m.side=THREE.DoubleSide;
+   m.color=new THREE.Color(0xc3cecc);m.roughness=.82;m.metalness=.16;m.envMapIntensity=.45;
+   m.userData.raidOwned=true;m.needsUpdate=true;
+   airconVents.set(mat.uuid,m);return m;
+  };
   const dummy=new THREE.Object3D(),placed={doors:0,shops:0,aircon:0,roof:0,pipe:0},glaze=HQP.windows?.urban;
   // Courtyard-front thin walls are the broad (along-x) strips closest to spawn;
   // keeping this tied to the frozen facadeBlocks avoids guessing at coordinates.
@@ -1314,10 +1406,10 @@ export class RaidView {
    mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
    mesh.userData.raidFacadePart='factoryWindows';root.add(mesh);
   }
-  emit(acMods[0],plainAC,'condensers');
-  if(acMods[1])emit(acMods[1],rustedAC,'condensersRusted');
-  emit(acMods[0],roofPlain,'roofCondensers');
-  if(acMods[1])emit(acMods[1],roofRusted,'roofCondensers');
+  emit(acMods[0],plainAC,'condensers',null,airconGrilleMat);
+  if(acMods[1])emit(acMods[1],rustedAC,'condensersRusted',null,airconGrilleMat);
+  emit(acMods[0],roofPlain,'roofCondensers',null,airconGrilleMat);
+  if(acMods[1])emit(acMods[1],roofRusted,'roofCondensers',null,airconGrilleMat);
   emit(pipe,pipeItems,'downpipes','gutter');
   emit(coupler,jointItems,'downpipeJoints','gutter');
   placed.doors=doorItems.length+graffitiItems.length;placed.shops=shopItems.length;

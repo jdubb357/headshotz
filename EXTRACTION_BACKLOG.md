@@ -10,12 +10,12 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 131, 2026-11-15)
+## Current art-directed priority (iteration 132, 2026-11-15)
 
 Director-notes order for the next passes, presentation-only:
 
 1. **CHECKERBOARD FLOOR + BROWN FACADES** — FINISHED in iteration 131 (awaiting Austin's playtest): the courtyard room floors and plaza slabs now use the shipped CC0 asphalt ground scan instead of the bathroom-tile atlas, and the near ground-level floors carry small wear/crack/oil/moss plates; roof slabs were remapped to photographed concrete and capped with a slim concrete fascia so doorway roof edges read as lit stone lintels; the brown brick front got per-bay brick-joint stagger and tone jitter, a heavier damp wash at the foot, darker tall damp plates on the south and west faces, and a real galvanised downpipe just west of the courtyard doorway. Structures/static-offline/mobile-HUD graders green; unit suite 1248/1249 with only the known matchmaking ECONNRESET; before/after and action frames in `~/headshotz-loop/shots/latest/`.
-2. **WHITE WAREHOUSE FINISH** — landed in iterations 129–130 (awaiting playtest), but its follow-ups are NEXT: break the stamped panel grid (larger UV scale, per-bay rotation/offset, streaks), remove or seat the floating dark window frame/grate at crosshair height, and fix the AC units' black/white grille holes with a real grille texture or scanned model.
+2. **WHITE WAREHOUSE FINISH** — FINISHED in iteration 132 (awaiting Austin's playtest): the stamped concrete_panels grid is retired in favour of the CC0 plaster scan with per-bay UV jitter plus a world-space procedural rib/seam/dirt pass; the scanned sash and stone sill are suppressed over the closed steel loading bays so the dark floating frame at crosshair height is gone; and the condenser fan covers now use an opaque procedurally perforated galvanised grille texture instead of the unusable alpha-blended scanned holes. Structures/static-offline/mobile-HUD graders green; unit suite 1248/1249 with only the known matchmaking ECONNRESET; before/after and action frames in `~/headshotz-loop/shots/latest/`.
 3. **LOOT / EXTRACT YARD** — NEXT: seat the floating rusty container slab on the ground or a scanned support structure; replace the brown meat-like rubble blobs on the grass with scanned rubble/debris or remove; hide the orange/tan curved ground line unless it reads as a deliberate extract marker.
 4. **SHOP ROW** — NEXT: give the HARDWARE sign a frame/backing, slight bevel and grime; remove the dark vertical placeholder slab between the two shutters.
 5. **TREE CROWNS / WEST YARD** — NEXT: thicken crowns so the broadleaf trees read as solid green masses instead of sky-through twigs; fill the bare sand west yard with scanned ground and clutter; keep the near-camera grass caps.
