@@ -474,8 +474,8 @@ function fpArmMaterial(part){
   // charcoal-olive so the hands read as dark tactical gloves rather than bare
   // skin, while the scan's pores, stitch line and knuckle creases survive the
   // grade because only hue and value are compressed, not the surface detail.
-  const m=new THREE.MeshStandardMaterial({name:'glove',roughness:.8,metalness:.01,envMapIntensity:.34,side:THREE.DoubleSide});
-  m.color.setRGB(1,1,1);m.normalScale.setScalar(2.8);
+  const m=new THREE.MeshStandardMaterial({name:'glove',roughness:.72,metalness:.02,envMapIntensity:.4,side:THREE.DoubleSide});
+  m.color.setRGB(1,1,1);m.normalScale.setScalar(3.4);
   const scan=FP_SCAN_TEX.glove;
   if(scan){m.map=scan.map;m.normalMap=scan.normalMap;m.roughnessMap=scan.roughnessMap}
   m.onBeforeCompile=shader=>{
@@ -488,8 +488,8 @@ function fpArmMaterial(part){
     // the whole point - a constant tint was what turned the hands into rubber.
     'float gloveLuma=clamp(dot(diffuseColor.rgb,vec3(.299,.587,.114)),0.,1.);\n'+
     'float gloveLift=clamp(pow(gloveLuma/0.40,0.9),0.,1.);\n'+
-    'vec3 gloveDark=vec3(.010,.012,.008);\n'+
-    'vec3 gloveLight=vec3(.150,.158,.118);\n'+
+    'vec3 gloveDark=vec3(.009,.010,.010);\n'+
+    'vec3 gloveLight=vec3(.092,.096,.090);\n'+
     'diffuseColor.rgb=mix(gloveDark,gloveLight,gloveLift);\n');
   };
   m.customProgramCacheKey=()=>'raidGloveGrade';
@@ -500,8 +500,8 @@ function fpArmMaterial(part){
  // luminance-driven olive ramp lifts the weave and creases into a readable field
  // cloth. Constant tinting (as here before) multiplied dark pixels by dark
  // colour and rendered the forearm as an untextured rubber tube.
- const m=new THREE.MeshStandardMaterial({name:'sleeve',roughness:.9,metalness:.0,envMapIntensity:.45,side:THREE.DoubleSide});
- m.color.setRGB(1,1,1);m.normalScale.setScalar(2.3);
+ const m=new THREE.MeshStandardMaterial({name:'sleeve',roughness:.96,metalness:.0,envMapIntensity:.32,side:THREE.DoubleSide});
+ m.color.setRGB(1,1,1);m.normalScale.setScalar(2.8);
  const scan=FP_SCAN_TEX.sleeve;
  if(scan){m.map=scan.map;m.normalMap=scan.normalMap;m.roughnessMap=scan.roughnessMap}
  m.onBeforeCompile=shader=>{
@@ -509,8 +509,8 @@ function fpArmMaterial(part){
    '#include <map_fragment>\n'+
    'float sleeveLuma=clamp(dot(diffuseColor.rgb,vec3(.299,.587,.114)),0.,1.);\n'+
    'float sleeveLift=clamp(pow(sleeveLuma/0.075,0.9),0.,1.);\n'+
-   'vec3 sleeveDark=vec3(.048,.062,.040);\n'+
-   'vec3 sleeveLight=vec3(.235,.272,.176);\n'+
+   'vec3 sleeveDark=vec3(.032,.038,.028);\n'+
+   'vec3 sleeveLight=vec3(.148,.164,.118);\n'+
    'diffuseColor.rgb=mix(sleeveDark,sleeveLight,sleeveLift);\n');
  };
  m.customProgramCacheKey=()=>'raidSleeveGrade';
@@ -525,8 +525,8 @@ function fpArmMaterial(part){
 const fpCuffGeometry={band:null,seam:null};
 function fpCuffGeometries(){
  if(fpCuffGeometry.band)return fpCuffGeometry;
- fpCuffGeometry.band=new THREE.CylinderGeometry(.040,.045,.052,20,1,true);
- fpCuffGeometry.seam=new THREE.TorusGeometry(.0442,.0022,5,20);
+ fpCuffGeometry.band=new THREE.CylinderGeometry(.034,.038,.026,20,1,true);
+ fpCuffGeometry.seam=new THREE.TorusGeometry(.040,.0016,5,20);
  return fpCuffGeometry;
 }
 function fpArmCuffs(root,body,material){
@@ -539,11 +539,11 @@ function fpArmCuffs(root,body,material){
   hd.getWorldPosition(wrist);lo.getWorldPosition(elbow);
   dir.copy(wrist).sub(elbow);if(dir.lengthSq()<1e-8)continue;dir.normalize();
   const cuff=new THREE.Group();
-  cuff.position.copy(wrist).addScaledVector(dir,-.035);
+  cuff.position.copy(wrist).addScaledVector(dir,-.016);
   cuff.quaternion.setFromUnitVectors(up,dir);
   const band=new THREE.Mesh(geo.band,material);
   band.castShadow=false;band.frustumCulled=false;band.userData.fpArmDetail=true;cuff.add(band);
-  for(const y of [.023,-.023]){
+  for(const y of [.010,-.010]){
    const seam=new THREE.Mesh(geo.seam,material);
    seam.rotation.x=Math.PI/2;seam.position.y=y;
    seam.castShadow=false;seam.frustumCulled=false;seam.userData.fpArmDetail=true;cuff.add(seam);
@@ -712,11 +712,86 @@ function fpArmPose(body,info){
  // resting on the top rail.
  aim('r',new THREE.Vector3(-.62,.12,-.78),new THREE.Vector3(0,-.921,.389),false);
  aim('l',new THREE.Vector3(.96,.11,-.25),new THREE.Vector3(0,0,-1),true);
- rollHand('r',Math.PI/2);
- rollHand('l',-Math.PI/2);
+ rollHand('r',-Math.PI/2);
+ rollHand('l',Math.PI/2);
  curlToGrip('r',gripAnchor,gripAxis,.034,[-.045,-.015,.012,.038]);
  curlToGrip('l',lhAnchor,railAxis,.032,[-.05,-.025,0,.025]);
+ // Slim the forearms to a viewmodel-matching girth without shortening the
+ // elbow-to-wrist reach: MakeHuman's arm is authored at full adult thickness and
+ // reads as a sausury tube at gameplay distance. bone length is +Y, so scaling
+ // x/z trims only the cross-section; the hand bones are grandchildren and keep
+ // the IK targets the gunlight grader checks.
+ for(const b of [loR,loL]){if(!b)continue;b.scale.set(.84,1,.84)}
+ // Glove padding: the MakeHuman glove is a bare hand silhouette; slightly
+ // fattening the finger chains turns the curled fingers into padded glove
+ // digits that read separately instead of melting into one lump. Length (+Y)
+ // is untouched so the fingertips stay where the curl placed them.
+ for(const side of ['r','l'])for(const finger of ['index','middle','ring','pinky'])for(let j=1;j<=3;j++){
+  const b=bones[finger+'_0'+j+'_'+side];if(b)b.scale.set(1.3,1,1.3);
+ }
+ body.updateMatrixWorld(true);
  return true;
+}
+// Glove knuckles: once the fingers curl around the grip the cropped hand loses
+// its finger read and the glove looks like a smooth leather mitten. A small
+// padded knuckle plate sits on the back of each glove (the side facing away
+// from the held part) and four rounded pads follow the proximal phalanges, so
+// the hand shows articulated construction in daylight instead of one lump.
+// Shared geometry, sized from the posed skeleton, tagged fpArmDetail.
+const fpKnuckleGeometry={pad:null};
+function fpKnuckleUnit(){
+ if(fpKnuckleGeometry.pad)return fpKnuckleGeometry.pad;
+ fpKnuckleGeometry.pad=new THREE.SphereGeometry(1,12,9);
+ return fpKnuckleGeometry.pad;
+}
+function fpHandBackNormal(bones,side,handPos,anchor){
+ const midB=bones['middle_02_'+side]||bones['middle_01_'+side];
+ const thumbB=bones['thumb_02_'+side]||bones['thumb_01_'+side];
+ if(!midB||!thumbB)return null;
+ const mid=midB.getWorldPosition(new THREE.Vector3());
+ const thumb=thumbB.getWorldPosition(new THREE.Vector3());
+ const fwd=mid.clone().sub(handPos);if(fwd.lengthSq()<1e-8)return null;fwd.normalize();
+ let across=thumb.clone().sub(handPos);across.addScaledVector(fwd,-across.dot(fwd));
+ if(across.lengthSq()<1e-8)return null;across.normalize();
+ const back=new THREE.Vector3().crossVectors(fwd,across).normalize();
+ if(back.dot(handPos.clone().sub(anchor))<0)back.negate();
+ return {back,fwd,across};
+}
+function fpArmGloveKnuckles(root,body,material){
+ if(!material)return;
+ const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o});
+ const unit=fpKnuckleUnit(),up=new THREE.Vector3(0,1,0);
+ for(const side of ['r','l']){
+  const hd=bones['hand_'+side];if(!hd)continue;
+  const hand=hd.getWorldPosition(new THREE.Vector3());
+  const anchor=new THREE.Vector3(...(side==='l'?[0,.04,-.2]:[0,-.025,.06]));
+  const frame=fpHandBackNormal(bones,side,hand,anchor);if(!frame)continue;
+  const {back,fwd,across}=frame;
+  // One broad knuckle plate over the wrist-to-finger span, then four finger
+  // pads so the silhouetted back of the glove carries readable articulation.
+  const midTmp=new THREE.Vector3();
+  const plate=new THREE.Mesh(unit,material);
+  const middleB=bones['middle_01_'+side];
+  if(middleB){
+   middleB.getWorldPosition(midTmp);
+   plate.position.copy(hand).lerp(midTmp,.55).addScaledVector(back,.019);
+   plate.scale.set(.026,.016,.033);
+   plate.quaternion.setFromUnitVectors(up,back);
+   plate.userData.fpArmDetail=true;plate.frustumCulled=false;plate.castShadow=false;
+   root.add(plate);
+  }
+  const fingers=['index','middle','ring','pinky'];
+  for(let fi=0;fi<fingers.length;fi++){
+   const p1=bones[fingers[fi]+'_01_'+side];if(!p1)continue;
+   p1.getWorldPosition(midTmp);
+   const pad=new THREE.Mesh(unit,material);
+   pad.position.copy(midTmp).addScaledVector(back,.016).addScaledVector(across,fi===0?-.006:fi===3?.006:0);
+   pad.scale.set(.0115,.0085,.0130);
+   pad.quaternion.setFromUnitVectors(up,back);
+   pad.userData.fpArmDetail=true;pad.frustumCulled=false;pad.castShadow=false;
+   root.add(pad);
+  }
+ }
 }
 function addFirstPersonArms(root,info){
  if(!HUM.ready||!HUM.tpl[HUM.tier]||!HUM.SU)return false;
@@ -751,6 +826,7 @@ function addFirstPersonArms(root,info){
  body.updateMatrixWorld(true);
  fpArmPose(body,info);
  fpArmCuffs(root,body,gloveMaterial);
+ fpArmGloveKnuckles(root,body,gloveMaterial);
  root.add(body);
  root.userData.firstPersonArms=true;
  return true;

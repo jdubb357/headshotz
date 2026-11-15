@@ -9183,3 +9183,20 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the black sausage, flat cloth and hard wrist cut are gone and the cuff + grain read in the closing crop, but the MakeHuman crop still gives rounded mitten-shaped glove fingers and a smooth leather sheen at gameplay distance; the J-Toastie "Rigged Fps Arms" CC-BY asset was downloaded and inspected but rejected (faceted low-poly gloves/sleeves with no texture set), so a dedicated rigged FPS-arms asset remains the real fix; art acceptance waits on Austin's live playtest.
 
 **Next action:** update EXTRACTION_BACKLOG.md and commit on `cypert/dev` only (no push, no PR, no `main`) with Co-Authored-By: Claude Code. Next loop: if Austin still sees mittens, source/vet a dedicated rigged CC-BY FPS arms asset and swap the MakeHuman crop; otherwise item 2 MORE HUMAN ENEMIES AT HIGH-LOOT AREAS.
+
+## Iteration 138 — FIRST-PERSON ARMS tone, grip fingers + cuff (DIRECTOR_NOTES item 1, AUSTIN PRIORITY; 2026-11-15)
+
+**Acceptance criteria:** offline clear-noon at 1024×720 and 844×390, spawn viewmodel — (a) glove leather clearly separates from sleeve cloth in daylight; (b) gloved digits read on the pistol grip instead of a smooth mitten; (c) glove articulation shows on the handguard; (d) cuff reads as a glove cuff, not a collar; (e) gunlight/static-offline/mobile-HUD green; presentation-only.
+
+**Status:** implementation landed, all measurable criteria met; visual criterion (b) only partly met.
+- (a) MET — glove graded toward charcoal leather (`gloveLight` .092/.096/.090, roughness .72), sleeve toward muted olive twill (`sleeveLight` .148/.164/.118, roughness .96); the same tone no longer blends arm and hand.
+- (b) PARTIAL — wrist rolls flipped (right −90°, left +90°); finger-chain x/z padded ×1.3 (thumbs untouched); four finger pads plus a knuckle plate ride the glove back so the grip hand silhouettes 4 distinct gloved segments plus thumb. It reads as an articulated glove fist, not four wrapped digits.
+- (c) MET-ish — the support glove now shows knuckle/finger pads wrapping over the handguard instead of a smooth lump; fingertips stay below the top rail.
+- (d) MET — cuff band slimmed from 40/45×52 mm to 34/38×26 mm and moved from −35 mm to −16 mm along the forearm, so it tucks at the sleeve hem instead of reading as a collar.
+- (e) MET — gunlight ✓ (4 skinned arms, glove/sleeve only, 6 hand bones in frame/anchored, no errors) at both sizes; static-offline ✓; mobile-HUD ✓ 8.20%/18.37% covered with every touch affordance; `node --check` clean.
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared and regenerated (19 files): `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png` spawn hero; `after-viewmodel.png` (1024-wide, 2× crop of rifle + both gloves) plus spawn/courtyard/cover/loot/enemy/extract `after-*` frames at both sizes and one firing action frame.
+
+**Honest critique:** the glove back now has knuckle texture and the glove/sleeve tone separates, but the support glove is still a rounded lump rather than wrapped fingers, the "fingers" are padding ridges rather than real digits, and the sleeve remains a smooth tube — director check (b) does not pass yet.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`); continue item 1 via a vetted dedicated rigged CC0/CC-BY FPS arms+glove asset (CC-BY-only existing candidates need checking) or, if blocked, move to item 2 guards at high-loot caches.
