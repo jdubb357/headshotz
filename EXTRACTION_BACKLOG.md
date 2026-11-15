@@ -10,18 +10,18 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 139, 2026-11-15)
+## Current priority — FRAME RATE ONLY (iteration 140, 2026-11-15)
 
-Director notes (1:05 PM CT) order for the next passes, presentation-only. Trees are closed (`3d555c8`/iteration 135) and must not get another round. Iterations 131–139 remain awaiting Austin's live playtest.
+Director notes (1:35 PM CT) override every art/arms/enemy/loot item: until Austin says the frame rate is right, every round works only on performance, with zero visible quality loss (same assets, textures, lighting, near-player shadows, foliage density). Iterations 131–139 remain awaiting Austin's live playtest; do not start new art work this round.
 
-1. **FIRST-PERSON ARMS** — CUFF-RING REMOVAL LANDED in iteration 139 (director note 1a), awaiting Austin: `fpArmCuffs` and its cylinder band/torus seams were deleted entirely, so no ring or hoop is visible anywhere and the sleeve hem meets the glove directly (`after-viewmodel.png`, new `after-wrist.png`); the cuff clearance brings the spawn frame from 25 to 19 draw calls. STILL OPEN for director check (b)/(c): the grip glove still reads as fat pads instead of thin jointed fingers with an index on the trigger guard, the support hand is a dark lump with no fingers wrapping the handguard, and the sleeve is one smooth tube. Next round: vet a dedicated rigged CC0/CC-BY FPS arms+gloves asset (Sketchfab Downloadable CC-BY/CC0, Poly Pizza, OpenGameArt) per note 1b; if none, re-pose the finger chains thinner with visible joints and add a folded sleeve seam per 1c. Every round saves `after-viewmodel.png`; log FPS and draw calls.
-2. **MORE HUMAN ENEMIES AT HIGH-LOOT AREAS** — seed additional MakeHuman operator guards by cache tier (denser and tougher around high-tier/vault caches; few/none at low), using distance LOD and culling as item 4 lands (see `server/raid-ai.mjs`, MACHINE_CAP=12).
-3. **MARKED LOOT TIERS** — world-visible HIGH / MEDIUM / LOW signage/colour markers on crates and zones plus the same tier colours and short labels on the minimap (vaults = HIGH); scale loot quality inside to match.
-4. **FRAME RATE** — profile draw calls/triangles/shadow cost, then cap pixel ratio on touch, step sun shadows down/tighten the follow-cam frustum, restore frustum culling for instanced world meshes, use md/lo human LOD by distance, and trim unused gun scans; target 60 desktop / 30+ iPad without multi-second hitches.
-5. **SHOP ROW + SIGNS** — FINISHED in iteration 136, awaiting Austin's live playtest: QUARANTINE LINE re-anchored whole and readable on the spawn sight line with real posts/footings; HARDWARE fascia gains a metal body, straps and bolts; the stray diagonal support is gone from the shop-front foreground; roller housings now shade as ribbed galvanised sheet.
-6. **WAREHOUSE SIDE WALL** — still open: the long white side wall keeps tan bands and blank cladding; match the front finish, one plinth, add windows/downpipes.
+1. **MEASURE** — LANDED iteration 140: `?perf=1` in `raid-online.mjs` exposes `window.__raidPerf` (pose/sample/probe/top), and `tests/raid-browser-perf-scan.mjs` deploys the static offline raid and records fps/ms/calls/triangles/geometries/textures at spawn, courtyard, loot, warehouse and extract at 1024×720 and 844×390. Before/after numbers are in RALPH_PROGRESS iteration 140.
+2. **CHEAP BIG WINS** — LANDED iteration 140: touch dpr capped at 1, desktop at `min(dpr, 1.25)`; shadow map 1024 touch / 2048 desktop; map-wide static InstancedMeshes split into 256 m chunks with exact bounding spheres, fog-far distance culling and chunk instance-buffer disposal. Frame triangles fell from 25.7M to 8.1–11.8M at every spot with identical screenshots; draw calls rose from 702–1074 to 702–1370, so the world pass is still 981 calls / 7.7M triangles at spawn. TARGETS (<800 calls, <3M tris) are NOT MET except loot calls.
+3. **TRIANGLES + LOD** — OPEN and next: decimate the dense scanned crate/barrel/tree geometry into distance-LOD variants (plus `hum_md`/`hum_lo` for operators beyond ~25 m) and/or tune the chunk cell size per material; the split still submits 8–12M triangles because the near props are full scans with 9,216–22,986 tris each.
+4. **DRAW CALLS** — OPEN: get every spot under 800. The 256 m chunk split added calls, so next measure a coarser cell or merge against the triangle win rather than blindly shipping more chunks.
+5. **ADAPTIVE QUALITY** — OPEN: real quality tiers with pixel ratio/shadow/LOD distances and an auto-drop only after a measured slowdown on the device.
+6. **CHECK** — LANDED iteration 140: unit suite 1,247/1,249 (only known matchmaking ECONNRESET and parallel raid-load flake), static-offline, mobile-HUD and performance graders green; the pre-existing render-resources buffer leak is unchanged.
 
-Scope unchanged: raid mode only; no gameplay, UI, server or other-mode change.
+Scope unchanged: raid mode only; no gameplay, UI, server or other-mode change. No visible quality loss: keep the real assets, textures, lighting, foliage and near-player shadows, and revert the whole slice if a shot looks worse.
 
 ## Director P1 — controls must match the main HeadShotz game (iteration 70, 2026-11-11)
 
