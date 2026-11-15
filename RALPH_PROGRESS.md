@@ -9148,3 +9148,20 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the crowns are now visibly denser and the trunks warm brown, but individual leaf cards still read against the sky at arm's length, only trees within 30 m of the insertion are thickened (distant saplings and the taller world trees remain thin), and the scanned branch silhouettes are still low-poly; art acceptance waits on Austin's live playtest.
 
 **Next action:** committed as `3d555c8` on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 1 expansions if Austin still sees sky-through crowns (extend the crown shells or increase leaf density), otherwise item 2 SHOP ROW + SIGNS.
+
+## Iteration 136 — SHOP ROW + SIGNS seated, whole, and ribbed-metal (DIRECTOR_NOTES item 5 of the 09:50 CT playtest list; 2026-11-15)
+
+**Acceptance criteria:** offline noon at 1024×720 and 844×390, deploy eye — (a) QUARANTINE LINE is whole and readable in the opening frame instead of reading "RANTINE LINE"; (b) it is visibly seated on posts and footings, not hanging over air; (c) the HARDWARE fascia has real plate thickness/straps/bolts on the brick wall; (d) the stray dark vertical slab between the shop shutters is gone; (e) the roller housings read as ribbed galvanised sheet at close range; (f) presentation-only, no authority/rules/other modes and static-offline, mobile-HUD, structures green.
+
+**Status:** implementation complete, presentation-only; DIRECTOR_NODES item 5 addressed; item 1 FIRST-PERSON ARMS is the 09:50 priority and becomes NEXT.
+- (a)/(b) MET — `raid-environment.mjs` re-anchors each spawn QUARANTINE notice onto its spawn's +z sight line at 17 m (fallback 15–19 m if blocked), leaving the authored prop, collision, loot and server data untouched; screenshots at both sizes read the full board, between two chamfered shafts on poured footings with collar plates.
+- (c) MET — `raid-view.mjs` gives the painted fascias a 0.26 m metal body behind the face, two projecting straps and ten corner/cheek studs.
+- (d) MET — the relocated sign's diagonal support post no longer stands in the shop-front foreground; the cut-through reads as brick piers and framed shutter housings.
+- (e) MET at 3–4 m and still legible at 15 m — the housing shader now multiplies a height-scaled corrugation wave (±6% luminance plus cool crest), raised normalScale 2.4 and metalness .44; before frames show a smooth stamped sheet.
+- (f) MET — no collision/route/UI/server change; `node --check` clean; static-offline, structures and mobile-HUD (91.80%/81.81%, all touch affordances) green with `browserErrors: []`; unit suite 1247/1249 (known matchmaking ECONNRESET and parallel raid-load timeout; raid-load 3/3 on solo rerun), unrelated.
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared and regenerated, 22 distinct files at 1024×720 and 844×390: spawn hero before/after (`before-1024.png`=HEAD `43c3437`, `after-1024.png`=working tree) plus before/after frames for `sign-near`, `shop-front`, `shop-row`, `shutter-close`, and current `after-viewmodel.png` / `after-viewmodel-844.png`.
+
+**Honest critique:** the opening frame now reads a whole checkpoint sign where before it was a clipped fragment, and the shutters finally look like ribbed steel; but the HARDWARE plate thickness and bolts are subtle at spawn range, corrugation flattens beyond ~15 m, and the sign now centres the courtyard entry so it may narrow the lane read — and the arms/viewmodel still look bad, untouched here.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`), update `EXTRACTION_BACKLOG.md`, then DIRECTOR_NOTES item 1 AUSTIN PRIORITY: replace the MakeHuman viewmodel crop with a dedicated rigged CC0/CC-BY FPS arms+gloves asset and grade its leather/twill in daylight.

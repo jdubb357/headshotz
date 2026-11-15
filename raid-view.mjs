@@ -1397,9 +1397,15 @@ export class RaidView {
   // them into weathered loading-bay steel without touching the scanned graffiti.
   const rollerSteelMat=(base,height)=>{
    const m=base.clone(),h=Math.max(1,height||2.4).toFixed(3);
-   m.color=new THREE.Color(0x8e9b9f);
-   m.roughness=.55;m.metalness=.38;m.envMapIntensity=1.15;
-   if(m.normalMap)m.normalScale.set(2.2,2.2);
+   // Art direction: shutter housings read as pale lavender plastic instead of
+   // galvanised steel because the scan's rib shading is washed out by the tint.
+   // One slat count scaled to the panel's real height, then a lit crest and a
+   // shaded trough in the diffuse pass, gives the housings a readable metal
+   // corrugation at gameplay range without any new texture or draw call.
+   const ribs=Math.max(6,Math.round((height||2.4)*9));
+   m.color=new THREE.Color(0x869296);
+   m.roughness=.48;m.metalness=.44;m.envMapIntensity=1.22;
+   if(m.normalMap)m.normalScale.set(2.4,2.4);
    m.onBeforeCompile=shader=>{
     shader.vertexShader='varying float vShutterY;\n'+shader.vertexShader
      .replace('#include <uv_vertex>','#include <uv_vertex>\n vShutterY=clamp(position.y/'+h+',0.0,1.0);');
@@ -1407,8 +1413,18 @@ export class RaidView {
      .replace('#include <map_fragment>',`#include <map_fragment>
  float shutterDirt=(1.0-smoothstep(0.0,0.26,vShutterY))*0.88;
  float shutterStreak=0.5+0.5*sin(vMapUv.x*23.0+vMapUv.y*3.0);
+ // Horizontal slat ridges: ±6% luminance plus a cool galvanised crest, so the
+ // pale roller sheets read ribbed sheet metal rather than flat painted panels.
+ float slatWave=abs(sin(vShutterY*${ribs.toFixed(1)}*3.14159265));
+ float slatShade=0.94+0.12*slatWave;
+ diffuseColor.rgb*=slatShade*vec3(0.985,0.995,1.0);
+ diffuseColor.rgb+=slatWave*slatWave*vec3(0.035,0.042,0.046);
  diffuseColor.rgb*=mix(1.0,0.58,shutterDirt);
  diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(0.80,0.77,0.70),shutterDirt*shutterStreak);
+ // Weathered seam bands at third-height intervals keep the housings from
+ // reading as one smooth stamped sheet.
+ float seamBand=mod(vShutterY*3.0,1.0);
+ diffuseColor.rgb*=0.93+0.07*smoothstep(0.0,0.12,seamBand);
  diffuseColor.rgb=clamp(diffuseColor.rgb,0.0,0.96);
 `);
    };
@@ -1716,7 +1732,33 @@ export class RaidView {
   face.position.set(signX,signY,signZ);face.rotation.y=Math.PI;face.scale.set(signW,signH,1);face.receiveShadow=true;face.castShadow=false;
   face.userData.raidFacadePart='shopSign';
   face.geometry.userData.raidOwned=true;
-  root.add(frame);root.add(face);
+  // Give the painted fascia a real metal body and two projecting side straps so
+  // it reads as bolted shop hardware rather than a decal glued to the brick:
+  // the plaque gains visible plate thickness, corner studs and two straps that
+  // carry load back into the wall. Presentation-only, no collision or state.
+  const body=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),frameMat);
+  body.scale.set(signW+.34,signH+.28,.26);
+  body.position.set(signX,signY,signZ+.16);
+  body.castShadow=true;body.receiveShadow=true;body.userData.raidFacadePart='shopSignBody';
+  const straps=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),frameMat,2);
+  const sd=new THREE.Object3D();
+  [-signW/2-.20,signW/2+.20].forEach((dx,i)=>{
+   sd.position.set(signX+dx,signY,signZ+.02);
+   sd.rotation.set(0,0,0);sd.scale.set(.14,signH+.30,.40);sd.updateMatrix();straps.setMatrixAt(i,sd.matrix);
+  });
+  straps.instanceMatrix.needsUpdate=true;straps.castShadow=true;straps.receiveShadow=true;straps.userData.raidFacadePart='shopSignStraps';
+  const studs=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({map:getTex('metal'),color:0xcfd3c8,roughness:.5,metalness:.55,envMapIntensity:.85}),10);
+  let si=0;
+  // Corner bolts in front of the painted plate, plus six cheek bolts where the
+  // straps meet the cladding.
+  for(const dx of [-signW/2+.10,signW/2-.10])for(const dy of [-signH/2+.10,signH/2-.10]){
+   sd.position.set(signX+dx,signY+dy,signZ-.012);sd.rotation.set(0,0,0);sd.scale.set(.15,.15,.06);sd.updateMatrix();studs.setMatrixAt(si++,sd.matrix);
+  }
+  for(const dx of [-signW/2-.20,signW/2+.20])for(const dy of [-signH/2+.06,0,signH/2-.06]){
+   sd.position.set(signX+dx,signY+dy,signZ-.13);sd.rotation.set(0,0,0);sd.scale.set(.11,.11,.14);sd.updateMatrix();studs.setMatrixAt(si++,sd.matrix);
+  }
+  studs.count=si;studs.instanceMatrix.needsUpdate=true;studs.userData.raidFacadePart='shopSignStuds';studs.castShadow=false;studs.receiveShadow=false;
+  root.add(body);root.add(straps);root.add(studs);root.add(frame);root.add(face);
   root.userData.raidShopSign={x:signX,y:signY,z:signZ,w:signW,h:signH};
   }
 

@@ -10,15 +10,16 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 135, 2026-11-15)
+## Current art-directed priority (iteration 136, 2026-11-15)
 
-Director notes (review of `7bf5ee4`) order for the next passes, presentation-only. Iterations 131–135 remain awaiting Austin's live playtest (checkerboard floor + brown facades; white warehouse finish; warehouse ground storey; loot/extract yard; tree bark + crowns).
+Director notes (09:50 CT playtest list) order for the next passes, presentation-only. Trees are closed (`3d555c8`/iteration 135) and must not get another round. Iterations 131–136 remain awaiting Austin's live playtest.
 
-1. **TREES** — PARTLY FINISHED in iteration 135 (awaiting Austin's live playtest): every tree branch/trunk within the scanned nature set is warmed to grey-brown bark with roughness 1, lowered env sheen and the scan normal map at 1.6×; two extra yaw-crossed instanced shells of the scanned leaf cards (reusing the leaves material/wind shader) fill the crowns of trees within 30 m of the deploy point, closing most of the sky-through gaps at the insertion grove. The remaining gap is global: distant saplings/world trees and taller crowns still show individual cards and low-poly branch silhouettes, so `fuller crowns everywhere` needs the shells extended map-wide or a denser scan if Austin still sees through them. Foliage/static-offline/mobile-HUD/performance green; unit suite 1248/1249 with only the known matchmaking ECONNRESET; 14 distinct before/after and action frames at 1024×720 and 844×390 in `~/headshotz-loop/shots/latest/`.
-2. **SHOP ROW + SIGNS** — NEXT: the QUARANTINE LINE sign is cut off (`RANTINE LINE`) and floats at the spawn edge; seat it and the HARDWARE sign on a wall or posts, remove the stray dark vertical slab between shutters, and give shutter housings real metal texture.
-3. **WAREHOUSE SIDE SEAMS** — NEXT: two dark horizontal bands still run at ground-storey height on the warehouse side and the lower fill is lighter than the cladding above; match tint and keep one plinth line.
-4. **EXTRACT / BRICK BUILDING** — NEXT: the black horizontal bar/slab at right by the crate floats without supports; seat or remove it, and give the dark doorway interior a real interior or shutter.
-5. **CONCRETE WALL + SLOPE** — NEXT: the concrete boundary wall reads flat/dark on its shaded side with a hard grass seam at the foot; add an AO/dirt band and grain contrast, and swap the toy-smooth hill loot crate for a weathered container scan if one exists.
+1. **FIRST-PERSON ARMS** — NEXT, AUSTIN PRIORITY: the MakeHuman arm crop reads as a thick black-olive sausage with mitten hands, no cuff join and flat light. Replace it with a dedicated rigged CC0/CC-BY FPS arms+gloves asset (preferred J-Toastie "Rigged Fps Arms", CC-BY, poly.pizza; CC0 Squash fallback), wrap the grip/handguard with real fingers, meet the sleeves at a cuff, grade the leather/twill scans in daylight, scale hands honestly. Every round saves `after-viewmodel.png`.
+2. **MORE HUMAN ENEMIES AT HIGH-LOOT AREAS** — seed additional MakeHuman operator guards by cache tier (denser and tougher around high-tier/vault caches; few/none at low), using distance LOD and culling as item 4 lands (see `server/raid-ai.mjs`, MACHINE_CAP=12).
+3. **MARKED LOOT TIERS** — world-visible HIGH / MEDIUM / LOW signage/colour markers on crates and zones plus the same tier colours and short labels on the minimap (vaults = HIGH); scale loot quality inside to match.
+4. **FRAME RATE** — profile draw calls/triangles/shadow cost, then cap pixel ratio on touch, step sun shadows down/tighten the follow-cam frustum, restore frustum culling for instanced world meshes, use md/lo human LOD by distance, and trim unused gun scans; target 60 desktop / 30+ iPad without multi-second hitches.
+5. **SHOP ROW + SIGNS** — FINISHED in iteration 136, awaiting Austin's live playtest: QUARANTINE LINE re-anchored whole and readable on the spawn sight line with real posts/footings; HARDWARE fascia gains a metal body, straps and bolts; the stray diagonal support is gone from the shop-front foreground; roller housings now shade as ribbed galvanised sheet.
+6. **WAREHOUSE SIDE WALL** — still open: the long white side wall keeps tan bands and blank cladding; match the front finish, one plinth, add windows/downpipes.
 
 Scope unchanged: raid mode only; no gameplay, UI, server or other-mode change.
 
