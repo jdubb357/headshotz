@@ -261,7 +261,17 @@ function lootVisual(data){
 const lootOptions=data=>({visual:lootVisual(data),weapon:lootWeapon(data)});
 export class RaidView {
  constructor(canvas){
-  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.22;
+  this.canvas=canvas;
+  // A retinal iPad at 2× used to render four times the pixels of a 1× phone;
+  // the scene is fog-dominated and soft-shadowed, so the extra samples bought
+  // almost no readable detail at query time. Keep the desktop cap high, cap
+  // touch to 1× so the GPU bottleneck stays geometry, not fill.
+  this.touch=(typeof matchMedia==='function')&&matchMedia('(pointer:coarse)').matches;
+  this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.touch?1:1.25));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.22;
+  // Count every pass of a presented frame (world, bloom composite, held gun)
+  // instead of only the last render. The dev perf readout and the browser
+  // graders both need the true total, so frame() resets this at its start.
+  this.renderer.info.autoReset=false;
   this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;this.splashes=this.splashesState=this.splashesAnchor=null;
 
   this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.enemyShotCursor=0;this.enemyShotSeen=new Map();this.enemyShotLight=null;this.enemyShotLightAt=-1e9;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
@@ -360,6 +370,9 @@ export class RaidView {
     this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
    }
   }
+  // The world is now fully dressed, so collapse its map-wide static batches
+  // into view-frustum-sized pieces (see packStaticBatches).
+  this.packStaticBatches();
   if(!HUM.ready)return;
   const self=this.snapshot?.self;
   if(this.selfActor&&self){
@@ -379,6 +392,95 @@ export class RaidView {
    next.position.copy(entry.model.position);next.rotation.copy(entry.model.rotation);
    next.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
    this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
+  }
+ }
+ // The photographed district is authored as a handful of map-wide batches. Each
+ // InstancedMesh bounds the whole 1.44 km sector, so Three's frustum test can
+ // never reject one: every frame and every shadow pass submits all of its
+ // instances no matter where the player looks. Re-emit the heavier static
+ // batches as spatial chunks that keep the exact geometry, material, local
+ // transforms and per-instance colours. Culling then drops only chunks whose
+ // bounds lie outside the camera or shadow frustum, which is mathematically
+ // invisible even though it removes most of the submitted triangles.
+ packStaticBatches(cell=256,minTriangles=100000){
+  const root=this.environmentRoot;
+  if(!root?.isObject3D||root.userData.raidBatchesPacked)return;
+  // Only reshape the map after the photographed dressing has replaced the
+  // procedural placeholders; otherwise cores rebuilt by refreshArt would lose
+  // their scanned cover and variety.
+  if(!HQP.ready||!this.scene)return;
+  this.scene.updateMatrixWorld(true);
+  const batches=[];
+  root.traverse(node=>{if(node.isInstancedMesh&&node.visible&&node.count>1)batches.push(node)});
+  if(!batches.length)return;
+  // Window trim and planter details sit flush in façades and cast no readable
+  // shadow anywhere a player stands; they only inflated the shadow pass.
+  const trimShadows=new Set(['framing','windowShutter','windowSill','flowerBox','shopSignStuds','shopSignStraps']);
+  // Merge batches sharing a draw state so the per-facade kit collapses into one
+  // draw per cell instead of one per module part.
+  const combos=new Map(),consumed=[];
+  for(const mesh of batches){
+   if(mesh.instanceMatrix.usage===THREE.DynamicDrawUsage)continue;
+   const geometry=mesh.geometry,material=mesh.material,position=geometry?.attributes?.position;
+   if(!geometry||!material||Array.isArray(material)||!position)continue;
+   const triangles=Math.round((geometry.index?geometry.index.count:position.count)/3);
+   if(triangles*mesh.count<minTriangles)continue;
+   const trim=trimShadows.has(mesh.userData.raidStructure)||trimShadows.has(mesh.userData.raidFacadePart);
+   const castShadow=mesh.castShadow&&!trim;
+   const key=geometry.uuid+'|'+material.uuid+'|'+Number(castShadow)+Number(mesh.receiveShadow)+Number(!!mesh.instanceColor)+'|'+mesh.renderOrder;
+   let combo=combos.get(key);
+   if(!combo){combo={geometry,material,castShadow,receiveShadow:mesh.receiveShadow,color:!!mesh.instanceColor,order:mesh.renderOrder,cells:new Map()};combos.set(key,combo)}
+   const matrix=mesh.instanceMatrix.array,color=mesh.instanceColor?.array;
+   for(let i=0;i<mesh.count;i++){
+    const o=i*16;
+    // refreshWindows blanks openings it replaced with an all-zero matrix; those
+    // instances draw no triangle at all and would otherwise pull a distant
+    // chunk's bounds open.
+    if(!matrix[o]&&!matrix[o+1]&&!matrix[o+2]&&!matrix[o+4]&&!matrix[o+5]&&!matrix[o+6]&&!matrix[o+8]&&!matrix[o+9]&&!matrix[o+10])continue;
+    const cx=Math.floor(matrix[o+12]/cell),cz=Math.floor(matrix[o+14]/cell),at=cx+','+cz;
+    let bucket=combo.cells.get(at);
+    if(!bucket){bucket={m:[],c:[]};combo.cells.set(at,bucket)}
+    for(let k=0;k<16;k++)bucket.m.push(matrix[o+k]);
+    if(color)for(let k=0;k<3;k++)bucket.c.push(color[i*3+k]);
+   }
+   consumed.push(mesh);
+  }
+  if(!consumed.length)return;
+  const chunkRoot=new THREE.Group();chunkRoot.name='raidInstanceChunks';this.scene.add(chunkRoot);
+  const capture=new THREE.Matrix4(),tint=new THREE.Color(),chunkList=[];
+  for(const combo of combos.values())for(const bucket of combo.cells.values()){
+   const count=bucket.m.length/16;
+   if(!count)continue;
+   const chunk=new THREE.InstancedMesh(combo.geometry,combo.material,count);
+   for(let i=0;i<count;i++)chunk.setMatrixAt(i,capture.fromArray(bucket.m,i*16));
+   if(combo.color)for(let i=0;i<count;i++)chunk.setColorAt(i,tint.setRGB(bucket.c[i*3],bucket.c[i*3+1],bucket.c[i*3+2]));
+   chunk.instanceMatrix.needsUpdate=true;if(chunk.instanceColor)chunk.instanceColor.needsUpdate=true;
+   chunk.castShadow=combo.castShadow;chunk.receiveShadow=combo.receiveShadow;chunk.renderOrder=combo.order;
+   // InstancedMesh computes over its own instance matrices, so a chunk's sphere
+   // is the real local bound and the frustum test is exact.
+   chunk.frustumCulled=true;chunk.computeBoundingSphere();
+   // Chunks own a GPU instance buffer even though they share the source
+   // geometry; tag them so the scene teardown next to it releases both.
+   chunk.userData.raidChunk=true;chunkList.push(chunk);
+   chunkRoot.add(chunk);
+  }
+  for(const mesh of consumed)mesh.visible=false;
+  this.chunkList=chunkList;
+  root.userData.raidBatchesPacked=true;
+ }
+ // The sector fog paints every fragment past its far plane in one flat colour,
+ // so a chunk whose nearest surface already sits past the fog far can never show
+ // a readable pixel. Retire those every frame before the renderer walks them;
+ // this is exact distance culling against the same Fog the composite uses.
+ cullChunks(camera){
+  const list=this.chunkList;
+  if(!list||!list.length||!camera)return;
+  const fog=this.scene?.fog,far=fog?fog.far:1e9,ox=camera.position.x,oy=camera.position.y,oz=camera.position.z;
+  for(const chunk of list){
+   const sphere=chunk.boundingSphere;
+   if(!sphere){chunk.visible=true;continue}
+   const dx=sphere.center.x-ox,dy=sphere.center.y-oy,dz=sphere.center.z-oz;
+   chunk.visible=Math.sqrt(dx*dx+dy*dy+dz*dz)-sphere.radius<far;
   }
  }
  // Real photographic sky dome. The procedural sheet stays on the scene as the
@@ -1925,7 +2027,7 @@ export class RaidView {
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
   if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.lastTime=0;this.footDust=[];this.footDustCursor=0;if(this.enemyShotLight){this.enemyShotLight.visible=false;this.enemyShotLight.intensity=0}this.enemyShotLight=null;this.enemyShotLightAt=-1e9;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
-  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','skyPhoto','envMapRT','photoEnvRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth','natureRoot'])this[name]=null;this.chase=null;this.wetness=0;
+  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','skyPhoto','envMapRT','photoEnvRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth','natureRoot','chunkList'])this[name]=null;this.chase=null;this.wetness=0;
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
  this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
@@ -1940,7 +2042,7 @@ export class RaidView {
   for(const target of this.bloomTargets||[])target.dispose();
   this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
   if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.footDust=[];this.footDustCursor=0;this.enemyShotLight=null;this.enemyShotLightAt=-1e9;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.audio.reset();
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.footDust=[];this.footDustCursor=0;this.enemyShotLight=null;this.enemyShotLightAt=-1e9;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.chunkList=null;this.audio.reset();
   this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
  this.feel=freshFeel();
   this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
@@ -1954,7 +2056,7 @@ export class RaidView {
   // dome that a low sun leaves out. It lands mostly on roads, pavement, rubble
   // and rooftops (near-horizontal normals), so vertical façades keep their sun
   // direction and the ground does not collapse into a black wedge at spawn.
-  this.skyBounce=new THREE.DirectionalLight(0xffe4c4,0);this.skyBounce.castShadow=false;this.skyBounce.position.set(12,72,18);this.scene.add(this.skyBounce);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.ambientFill,this.sun,this.sun.target);this.hemiNeutral=new THREE.Color(0xe5f2ed);this.flashColor=new THREE.Color(0xcfe4ff);this.sunBase=null;this.hemiBase=null;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
+  this.skyBounce=new THREE.DirectionalLight(0xffe4c4,0);this.skyBounce.castShadow=false;this.skyBounce.position.set(12,72,18);this.scene.add(this.skyBounce);this.sun.position.set(-30,65,35);this.sun.castShadow=true;const shadowSize=this.touch?1024:2048;this.sun.shadow.mapSize.set(shadowSize,shadowSize);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.ambientFill,this.sun,this.sun.target);this.hemiNeutral=new THREE.Color(0xe5f2ed);this.flashColor=new THREE.Color(0xcfe4ff);this.sunBase=null;this.hemiBase=null;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
   this.environmentTarget=null;this.buildSky(snapshot);
   this.overlay=new THREE.Scene();this.weaponCamera=new THREE.PerspectiveCamera(58,1,.02,8);
   // Three-point first-person lighting: a warm key (sun through the scene), a
@@ -3485,6 +3587,8 @@ export class RaidView {
   // Reduced motion freezes grain and keeps the bloom field static; all targets
   // are rebuilt only on size changes and released by clear()/start().
   const composite=!!(this.postScene&&this.postMaterial&&this.postMesh&&this.postMesh.visible),postTarget=composite?this.ensurePostTarget():null,camera=third?this.renderCamera:this.camera;
+  this.renderer.info.reset();
+  this.cullChunks(camera);
   this.renderer.setRenderTarget(postTarget);this.renderer.clear();this.renderer.render(this.scene,camera);
   this.gunRoot.visible=!!held&&!third;
   if(composite){
@@ -3503,7 +3607,7 @@ export class RaidView {
 }
 export class BasePreview {
  constructor(canvas){
-  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.scene=new THREE.Scene();
+  this.canvas=canvas;this.touch=(typeof matchMedia==='function')&&matchMedia('(pointer:coarse)').matches;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.touch?1:1.25));this.scene=new THREE.Scene();
   // Deploy-screen studio rather than a flat teal slab: a cool overhead gradient
   // falls to a warm pool at the platform, so the operator and gear sit inside a
   // dim hangar volume instead of floating on a blank field.

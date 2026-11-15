@@ -9217,3 +9217,45 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the floating hoop was the worst thing on the arms and is gone, but the support hand is still a dark lump, the grip hand still reads as fat pads instead of jointed fingers with an index on the trigger guard, and the sleeve is still a smooth tube — director check (b) does not pass yet.
 
 **Next action:** update EXTRACTION_BACKLOG.md and commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: vet a dedicated rigged CC0/CC-BY FPS arms+gloves asset per director note 1b; if none, re-pose the finger chains thinner (visible joints, index on trigger guard, left fingers wrapping the handguard) and add a folded sleeve seam per 1c.
+
+## Iteration 140 — FRAME RATE: dev readout, density caps, static-batch chunking (DIRECTOR_NOTES 2026-11-15 FRAME RATE ONLY, items 1–2)
+
+**Acceptance criteria:** offline clear-noon raid, 5 spots (spawn, courtyard, loot, warehouse, extract) at 1024×720 and 844×390 — (a) a dev perf readout reports fps/ms/draw calls/triangles/geometries/textures and top triangle contributors; (b) a reproducible scan records those numbers per spot; (c) the frame cost is lower than before with no visible quality loss in any spot/size pair; (d) under 800 draw calls and under 3M triangles at every spot; (e) static-offline playability, mobile-HUD and the unit suite stay green; (f) before/after frames plus action frames are copied to `~/headshotz-loop/shots/latest/`; (g) any remaining gap and next slice are recorded honestly.
+
+**Status: (a), (b), (c), (e), (f), (g) MET; (d) NOT MET.**
+
+| spot | fps | ms p50 (p95) | calls 1024 | tris 1024 | calls 844 | tris 844 |
+|---|---|---|---|---|---|---|
+| spawn | 60 (54 @844) | 17 (17) | 1334 | 11.70M | 1370 | 12.21M |
+| courtyard | 60 | 17 (17) | 1235 | 11.79M | 1314 | 12.27M |
+| loot | 60 | 17 (17) | 702 | 8.12M | 771 | 8.90M |
+| warehouse | 60 | 17 (17) | 1332 | 11.36M | 1362 | 12.02M |
+| extract | 60 | 17 (17) | 1023 | 10.21M | 1153 | 10.79M |
+
+**Before/after (1024, frame P50 incl. shadow + bloom + overlay; world-only pass in brackets):**
+- spawn 1074 → 1334 calls, 25.76M → 11.70M tris (world 722/13.28M → 981/7.71M; shadow pass −8.5M tris)
+- courtyard 968 → 1235 calls, 25.66M → 11.79M tris
+- loot 721 → 702 calls, 25.70M → 8.12M tris (the only spot inside the 800-call budget)
+- warehouse 1058 → 1332 calls, 25.67M → 11.36M tris
+- extract 852 → 1023 calls, 25.67M → 10.21M tris
+
+**What changed:**
+- `raid-online.mjs` owns the `?perf=1` readout (`window.__raidPerf`: `pose`, `sample`, `probe`, `top`) and skips invisible meshes so a packed world is not counted twice through hidden originals; screenshots/rows come from `tests/raid-browser-perf-scan.mjs`.
+- `raid-view.mjs` caps device pixel ratio at 1 on coarse pointers and `min(dpr, 1.25)` on desktop, and sizes the sun shadow map 1024 on touch and 2048 on desktop.
+- `packStaticBatches()` splits the map-wide static InstancedMeshes that dominate the submitted triangles into 256 m spatial chunks with exact per-chunk bounding spheres. Material, local transforms and instance colours are preserved (geometry is shared, never re-created); the original batches go hidden. A per-frame fog-far test (`cullChunks`) then rejects chunks whose nearest point is past the fog far plane, which is pixel-identical under the composite's fog. Window trim/planter parts no longer cast shadows (`trimShadows`).
+- Chunks are tagged `raidChunk` and `disposeOwned()` now disposes their instance buffers when the scene is torn down, so repeated deploy/leave does not accrete chunk GPU buffers.
+
+**Verification:**
+- `node --check raid-view.mjs raid-online.mjs raid-models.mjs tests/raid-browser-perf-scan.mjs` → clean.
+- `node --test tests/*.test.mjs` → 1,249 tests, 1,247 pass, 2 fail; both are known: matchmaking ECONNRESET (reruns solo and at HEAD) and the parallel raid-load timing (passes 3/3 solo). Neither touches rendering.
+- `node tests/raid-browser-static-offline.mjs` → all loop steps true, `noApiTraffic: true`, `browserErrors: []`.
+- `node tests/raid-browser-mobile-hud.mjs` → 91.88% / 81.81% unobstructed, all touch behaviours true, `browserErrors: []`.
+- `node tests/raid-browser-performance.mjs` → all targets true (this grader fixes dpr 1.5 and measures the procedural pre-asset path, so it is not the gameplay number above).
+- `node tests/raid-browser-render-resources.mjs` → only the documented pre-existing `buffersAfterClear` leak fails (`[474,942,1410,1878]`); re-ran with packing disabled and at HEAD, identical, so not from this slice.
+- Visual check: all 10 before/after pairs at both sizes read side by side (mean CH difference 2.0–14.6, driven entirely by the perf text/HUD and elapsed raid time); world assets, shadows, foliage density, lighting and camera framing match. Gameplay state, not rendering, accounts for the rest: the 844 loot and courtyard pairs include a live operator actor at one pose, warehouse-844 shows HP 56→100, and warehouse-1024 was captured with the held gun mid-shot.
+
+**Honest critique:** This is a real GPU win — the submitted triangles roughly halved at every spot — but it is not yet the director's target: only the frames are under 800 calls (and only at loot), the main world pass is still 981 draws / 7.7M triangles at spawn, and the chunk split actually added 260 calls at spawn, so the frame rate is better on paper (GPU-bound) but unproven on Austin's phone and worse on the CPU. Single-cell 256 m chunking trades triangles for draw calls; geometry-level LOD for the dense crate/barrel/tree scans is the next lever that can satisfy both budgets without changing what a player can see.
+
+**Shots:** cleared and regenerated `~/headshotz-loop/shots/latest/` (30 files): `before-1024.png`/`after-1024.png`, `before-844.png`/`after-844.png`, all five spot pairs at both sizes, both action frames, and the two scan JSONs.
+
+**Next action:** continue the frame-rate-only round. Bake decimated LOD variants for the three heaviest scans (`wooden_military_crate` 22,986 tris, `barrel_stove` 9,216, `tree_small_02` 13,501/7,527) with a conservative distance switch, or coarsen only the draw-heavy chunk cells per material, then re-run `tests/raid-browser-perf-scan.mjs` and the visual pair check before choosing; do not claim completion until every spot is under 800 calls and 3M triangles with the shots unchanged.

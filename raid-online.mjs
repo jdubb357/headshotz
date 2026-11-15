@@ -534,6 +534,99 @@ function swapWeapon(){
  const other=weapons[0];
  if(other)run(()=>action({type:'equip',itemId:other.id}));
 }
+// Developer-only frame readout (?perf=1). Static-but-live numbers straight out
+// of the renderer for the same presented frame the player sees: world, bloom
+// composite and held gun all counted together. The pose helper moves the view to
+// a named spot so one headless pass can compare spawn, courtyard, loot and the
+// freight/extraction approach without changing the authority or save state.
+const perfEnabled=new URLSearchParams(location.search).get('perf')==='1';
+let perfSpot=null,perfSamples=[],perfEl=null,perfPaintedAt=0,perfLastAt=0;
+const perfFmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e4?(n/1e3).toFixed(1)+'k':String(Math.round(n));
+function perfTris(mesh){
+ const g=mesh.geometry;if(!g)return 0;
+ const per=g.index?g.index.count/3:g.attributes?.position?g.attributes.position.count/3:0;
+ return per*(mesh.isInstancedMesh?mesh.count:1);
+}
+function perfRows(){
+ if(!view?.scene)return [];
+ const rows=[];
+ view.scene.traverse(node=>{
+  // Chunked static batches stay in the scene at their original map-wide size
+  // (hidden behind the chunks) so held references keep working; skip them here
+  // or the top-triangle table would count every static triangle twice.
+  if(!node.isMesh||!node.visible)return;
+  const material=node.material,matName=Array.isArray(material)?material.length+'mats':material?.name||material?.type||'';
+  rows.push({name:node.name||node.parent?.name||node.userData?.raidFacadePart||node.userData?.raidStructure||'(unnamed)',material:matName,tris:Math.round(perfTris(node)),instances:node.isInstancedMesh?node.count:1});
+ });
+ rows.sort((a,b)=>b.tris-a.tris);
+ return rows;
+}
+function perfSnapshot(){
+ const list=[...perfSamples].slice(-240),
+  sortedMs=list.map(s=>s.ms).sort((a,b)=>a-b),
+  sortedCalls=list.map(s=>s.calls).sort((a,b)=>a-b),
+  sortedTris=list.map(s=>s.tris).sort((a,b)=>a-b),
+  q=(a,p)=>a.length?Math.round(a[Math.min(a.length-1,Math.floor((a.length-1)*p))]):0,
+  span=list.length>1?(list[list.length-1].t-list[0].t)/1000:0,fps=span>0?(list.length-1)/span:0,
+  info=view?.renderer?.info||{};
+ return {
+  spot:perfSpot?.label||'spawn',frames:list.length,fps:Math.round(fps),
+  msP50:q(sortedMs,.5),msP95:q(sortedMs,.95),
+  callsP50:q(sortedCalls,.5),trianglesP50:q(sortedTris,.5),
+  geometries:info.memory?.geometries||0,textures:info.memory?.textures||0,
+  top:perfRows().slice(0,15)
+ };
+}
+function perfPaint(now){
+ if(!perfEl||now-perfPaintedAt<200)return;perfPaintedAt=now;
+ const s=perfSnapshot(),top=s.top[0];
+ perfEl.textContent=`PERF ${s.fps} fps  ${s.msP50} ms (p95 ${s.msP95})\n`+
+  `${s.callsP50} calls  ${perfFmt(s.trianglesP50)} tris  ${s.geometries} geo  ${s.textures} tex  ·  ${s.spot}`+
+  (top?`\ntop: ${top.name} ${perfFmt(top.tris)} tris${top.instances>1?' ×'+top.instances:''}`:'');
+}
+function installPerfReadout(){
+ const el=document.createElement('div');
+ el.id='raidPerf';
+ el.style.cssText='position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:120;pointer-events:none;'+
+  'max-width:calc(100vw - 24px);padding:5px 9px;border-radius:5px;background:rgba(10,14,12,.78);'+
+  'border:1px solid rgba(154,205,189,.24);color:#d9f3e7;font:10px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;'+
+  'letter-spacing:.02em;text-shadow:0 1px 0 rgba(0,0,0,.6);white-space:pre;overflow:hidden';
+ el.textContent='PERF warming';
+ document.body.appendChild(el);
+ perfEl=el;
+ window.__raidPerf={
+  enabled:true,
+  pose(spot){
+   if(!snapshot?.map)throw new Error('Raid is not deployed');
+   const world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);
+   if(!world)throw new Error('Unknown raid map');
+   perfSpot={x:Number(spot.x),y:Number.isFinite(spot.y)?Number(spot.y):terrainHeightAt(world,spot.x,spot.z),z:Number(spot.z),label:String(spot.label||'spot')};
+   if(Number.isFinite(spot.yaw))yaw=spot.yaw;
+   if(Number.isFinite(spot.pitch))pitch=Math.max(-1.2,Math.min(1.2,spot.pitch));
+   perfSamples=[];
+  },
+  clear(){perfSpot=null},
+  sample(ms=2000){
+   perfSamples=[];
+   return new Promise(resolve=>setTimeout(()=>resolve(perfSnapshot()),ms));
+  },
+  top(n=15){return perfRows().slice(0,n)},
+  view:()=>view,
+  // Render one isolated pass per stage so the report can attribute triangles
+  // and calls to the world, its shadow map and the held-weapon overlay instead
+  // of guessing from a single combined frame.
+  probe(){
+   const v=view;if(!v)return null;
+   const info=v.renderer.info.render,shadow=!!v.renderer.shadowMap.enabled,read=()=>({calls:info.calls,triangles:info.triangles});
+   v.renderer.info.reset();v.renderer.shadowMap.enabled=true;v.renderer.render(v.scene,v.camera);const withShadows=read();
+   v.renderer.info.reset();v.renderer.shadowMap.enabled=false;v.renderer.render(v.scene,v.camera);const noShadows=read();
+   v.renderer.shadowMap.enabled=shadow;
+   v.renderer.info.reset();v.renderer.render(v.overlay,v.weaponCamera);const overlay=read();
+   return {withShadows,noShadows,overlay,shadowEnabled:shadow};
+  }
+ };
+}
+if(perfEnabled)installPerfReadout();
 function renderFrame(time){
  const dt=Math.min(.2,(time-lastFrame)/1000||.016);lastFrame=time;aiming=!!(inRaid&&snapshot?.self.alive&&!snapshot.self.downed&&snapshot.self.weaponId&&!weaponWork&&!preferences.isModal()&&$('communications').hidden&&!mapOpen&&(aimMouse||aimTouch||input.held('aim')));$('aim').setAttribute('aria-pressed',String(aiming));$('play').dataset.aiming=String(aiming);
  applyTouchLook(dt);
@@ -548,7 +641,19 @@ function renderFrame(time){
  trigger.hold('keyboard',input.held('fire'));trigger.tick();
  autoReloadIfNeeded(!!sighted);
  frame=requestAnimationFrame(renderFrame);
- if(inRaid)view?.frame(time,yaw,pitch,prediction?.frame(movementInput(),time),aiming);
+ if(inRaid){
+  let pose=prediction?.frame(movementInput(),time);
+  // The dev scan renders named map spots without touching authoritative state.
+  if(perfEnabled&&perfSpot&&pose)pose={...pose,x:perfSpot.x,y:perfSpot.y,z:perfSpot.z,alive:true,downed:false,grounded:true,sliding:false,sprint:false,move:{x:0,z:0},vault:null,fallPeak:perfSpot.y};
+  view?.frame(time,yaw,pitch,pose,aiming);
+  if(perfEnabled){
+   const interval=perfLastAt?time-perfLastAt:0;perfLastAt=time;
+   const info=view?.renderer?.info?.render||{calls:0,triangles:0};
+   if(interval>0)perfSamples.push({t:time,ms:interval,calls:info.calls,tris:info.triangles});
+   if(perfSamples.length>600)perfSamples.splice(0,perfSamples.length-240);
+   perfPaint(time);
+  }
+ }
  else if(profile&&!$('base').hidden){preview||=new BasePreview($('basePreview'));preview.setLoadout(previewLoadout);preview.applySettings(preferences.get());preview.frame(time,true)}
  renderNavHud();
 }
