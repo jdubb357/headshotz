@@ -680,6 +680,22 @@ export class RaidView {
      mat.customProgramCacheKey=()=>'raidRockCool';
      mat.userData.raidRockCool=true;mat.needsUpdate=true;
     }
+    // Director note 2: the scanned sapling bark read pale and flat under noon
+    // sun, like smooth planks either side of the player. Warm the albedo toward
+    // weathered grey-brown, keep the photographed grain, and damp the sky
+    // reflection that washed the trunks out. The leaf atlas slips its
+    // alpha cutout a little so edge texels join the crown instead of punching
+    // sky holes through it. Presentation-only: no gameplay state changes.
+    if(kind==='tree'&&!mat.userData.raidTreeTint){
+     const ident=(mat.name||'').toLowerCase();
+     if(ident.includes('leaves')){mat.alphaTest=.3;mat.roughness=1;mat.envMapIntensity=.55}
+     else if(ident.includes('branch')||ident.includes('trunk')||ident.includes('bark')){
+      mat.color.setRGB(.52,.43,.35,THREE.SRGBColorSpace);
+      mat.roughness=1;mat.envMapIntensity=.35;
+      if(mat.normalMap&&mat.normalScale)mat.normalScale.set(1.6,1.6);
+     }
+     mat.userData.raidTreeTint=true;mat.needsUpdate=true;
+    }
     if(!windSet.has(mat)&&kind!=='rock'&&kind!=='stump'){
      windSet.add(mat);mat.userData.raidFoliage=true;mat.userData.raidWind=true;
      mat.onBeforeCompile=shader=>{
@@ -714,6 +730,38 @@ export class RaidView {
     }
     mesh.instanceMatrix.needsUpdate=true;
     group.add(mesh);
+   }
+   // Director note 2: the sapling scan's crown is sparse at gameplay scale and
+   // leaves the sky straight through it. Lay a second, yaw-swung shell of the
+   // scanned leaf cards over the trees that frame the insertion area, so the
+   // canopies read as overlapping foliage instead of a bare twig net. The same
+   // material keeps it a wind-lit instanced draw and adds no new textures;
+   // presentation-only, no collision or gameplay data.
+   if(kind==='tree'){
+    const anchor=this.snapshot?.self||{x:spawns[0]?.[0]??0,z:spawns[0]?.[1]??0};
+    const crowns=list.filter(site=>Math.hypot(site.x-anchor.x,site.z-anchor.z)<=30);
+    if(crowns.length)for(const part of asset.parts){
+     const ident=((part.mat&&part.mat.name)||'').toLowerCase();
+     if(!ident.includes('leaves'))continue;
+     // Two extra shells, yaw-swung against each other and the trunk layer. A
+     // single thin card shell barely closes the gaps, but three crossed layers
+     // read as one dense crown at arm's length.
+     for(const alt of [{rot:1.94,scale:.96,dy:.14},{rot:3.88,scale:1.02,dy:-.16}]){
+      const shell=new THREE.InstancedMesh(part.geo,part.mat,crowns.length);
+      shell.castShadow=false;shell.receiveShadow=true;shell.frustumCulled=false;
+      shell.userData.raidNature='tree';shell.userData.raidCrownShell=true;
+      for(let i=0;i<crowns.length;i++){
+       const site=crowns[i],s=site.s||1,ground=meshY(site.x,site.z);
+       const base=ground==null?site.y:ground,a=(site.ry||0)+spin(site.x,site.z);
+       dummy.position.set(site.x+Math.cos(a)*.22*s,base+s*alt.dy,site.z-Math.sin(a)*.22*s);
+       dummy.rotation.set(0,a+alt.rot,0);
+       dummy.scale.set(s*alt.scale,s*alt.scale,s*alt.scale);
+       dummy.updateMatrix();shell.setMatrixAt(i,dummy.matrix);
+      }
+      shell.instanceMatrix.needsUpdate=true;
+      group.add(shell);
+     }
+    }
    }
   }
   root.add(group);this.natureRoot=group;
