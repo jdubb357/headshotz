@@ -9039,3 +9039,24 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the facade is unmistakably textured and the windows now have real casing depth, but the scan's warm brown patina makes the "white warehouse" read pale-tan/beige at spawn instead of the old cool white, the stamped-panel grid repeats a little mechanically across bays, and the loading-bay roller doors below still read as flat pale sheets; art acceptance waits on Austin's live playtest.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 FLAT BROWN FACADES + TILED YARD — give the three-storey brown courtyard building scanned brick/stucco, stains and a drainpipe, and replace the bathroom-checker yard with scanned paving while fixing the near-black sky/ceiling; keep items 3 LOOT YARD, 4 WEST-WALL/EXTRACT GROUND and 5 TREE CROWNS queued.
+
+## Iteration 130 — WHITE WAREHOUSE FINISH: cool pale cladding + galvanised roller shutters (DIRECTOR_NOTES item 1 follow-up; 2026-11-15)
+
+**Acceptance criteria:** the warehouse front at 1024×720 and 844×390 reads as a cool pale-white industrial shed rather than warm tan plaster; its loading-bay roller doors show corrugated steel shading, dirt at the foot and per-bay tonal variation instead of flat pale lavender sheets; shop-row shutters and window rollers share the same steel language; static-offline, mobile-HUD and structures graders plus the unit suite stay green; presentation-only.
+
+### Implementation
+- `raid-view.mjs corrugatedWallMat`: fragment pass desaturates the scanned albedo 74% and leans the result cool (`*vec3(.92,1,1.05)`), clamped at .95. The scan's panel joints, ribs and dirt wash persist as tonal contrast, so the shed now reads pale weathered concrete rather than the scan's tan patina. Near metal cells get a deterministic per-bay tint (0.965–1.025) so the stamped panel grid no longer repeats perfectly.
+- `raid-view.mjs rollerSteelMat(base,height)`: roller door/shop shutter materials are cloned with a neutral steel tint (0x8e9b9f), roughness .55, metalness .38, envMapIntensity 1.15 and normalScale 2.2 so the corrugation actually shades; a vertex varying passes the module's local height to a fragment wash that darkens and brow-greens the lower ~26% with low-frequency streak noise, seating the panels on the ground.
+- `raid-view.mjs emit(...)`: now accepts a material dresser and per-instance color jitter (deterministic) used by all six roller/shop instanced draws. The shredded-steel panels get 0.93–1.05 lightness spread instead of clones of one sheet. Presentation only; no collision, window data or server state changed.
+
+### Verification
+- `node --check raid-view.mjs` clean; `git diff --stat` shows only `raid-view.mjs` (52+/12−).
+- `node tests/raid-browser-structures.mjs` green: 419 structures, tags unchanged (`rollerBay` 4, `shutterWindow` 3, `shedWall` 284), pbr true, deterministic, `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs` green: deploy/move/machine hit/loot/extract, `noApiTraffic: true`, `browserErrors: []`.
+- `node tests/raid-browser-mobile-hud.mjs` green: 91.88% unobstructed at 1024×720, 81.63% at 844×390, all touch affordances exercised.
+- `node --test tests/*.test.mjs`: 1247/1249 — the known matchmaking ECONNRESET plus a parallel-run `Control request timed out` in `raid-load`; both tests pass when rerun alone (environmental load flake, unrelated to a presentation-only diff).
+- Shots in `~/headshotz-loop/shots/latest/` (folder cleared first): before/after-1024 and before/after-844, plus spawn, warehouse front, shopfront, courtyard and extract at both sizes. Before: warm-tan concrete block wall and light lavender roller doors. After: cool pale-grey cladding with a readable panel/rib grid and blue-grey galvanised shutters with corrugation and base dirt.
+
+**Honest critique:** the warehouse now reads belatedly as a cold white industrial shed and the doors convincingly as galvanised steel instead of lavender plastic, but the concrete scan still stamps an obvious square panel grid that reads a little like outdoor bathroom tile at 3 m, and the shutters have no dents or water streaks along their top edge — art acceptance still waits on Austin's live iPad/phone playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 FLAT BROWN FACADES + TILED YARD — scanned brick/stucco with stains and a drainpipe on the three-storey brown courtyard building, and replace the bathroom-checker courtyard floor with scanned paving while fixing the near-black ceiling/sky band; keep items 3 LOOT YARD, 4 WEST-WALL/EXTRACT GROUND and 5 TREE CROWNS queued.

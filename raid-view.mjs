@@ -855,11 +855,19 @@ export class RaidView {
   vNormalMapUv*=corrRep;
  #endif
 #endif`);
+    // The scan is warm-brown weathered concrete. Wash most of the colour away
+    // and lean the remaining tone cool so tenements' white industrial shed
+    // reads as pale galvanised concrete, not tan plaster; joints, ribs and
+    // dirt wash survive as tonal contrast instead of brown patches.
+    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+ float shedLum=dot(diffuseColor.rgb,vec3(0.2126,0.7152,0.0722));
+ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(shedLum),0.74)*vec3(0.92,1.0,1.05);
+ diffuseColor.rgb=clamp(diffuseColor.rgb,0.0,0.95);
+`);
    };
    m.customProgramCacheKey=()=>'raidFacadeCorrugatedTiled';
    return m;
   })();
-  // Ground-floor stone band. The facade kit's base module was built to tile a
   // 3 m bay; stretching one copy across a 12 m face crushed its photographed
   // relief into a flat brown slab at 2-3 m. Per-instance UV tiling (same hook
   // the street props use) keeps the scan's aggregate and mortar grain visible
@@ -937,7 +945,7 @@ export class RaidView {
       const px=(f.onZ?f.cx+(col+.5-cols/2)*cw:f.cx)+f.nx*.006;
       const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
       dummy.position.set(px,b.y+r*ch,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,ch/3,1);
-      dummy.updateMatrix();nearCells.push({matrix:dummy.matrix.clone(),color:wallTint,kind:b.kind});
+      dummy.updateMatrix();nearCells.push({matrix:dummy.matrix.clone(),color:b.kind==='metal'?wallTint.clone().multiplyScalar(.965+bayShade(px*1.7+pz*2.9)*.06):wallTint,kind:b.kind});
      }
      // One photographed-stone base per 3 m bay (not an atlas strip stretched
      // across the whole face) so the aggregate, mortar grain and moulding stay
@@ -1066,15 +1074,46 @@ export class RaidView {
    const dist=Math.hypot(b.x-self.x,b.z-self.z);
    if(!front[b.kind]||dist<front[b.kind].dist)front[b.kind]={block:b,dist};
   }
-  const emit=(mod,list,tag,struct)=>{
+  const emit=(mod,list,tag,struct,dress,jitter)=>{
    if(!mod?.parts?.length||!list.length)return;
    for(const part of mod.parts){
-    const mesh=new THREE.InstancedMesh(part.geo,part.mat,list.length);
-    list.forEach((it,i)=>{dummy.position.set(it.x,it.y,it.z);dummy.rotation.set(0,it.yaw??Math.PI,0);dummy.scale.set(it.sx??1,it.sy??1,it.sz??1);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix)});
-    mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+    const mat=dress?dress(part.mat):part.mat;
+    const mesh=new THREE.InstancedMesh(part.geo,mat,list.length);
+    list.forEach((it,i)=>{dummy.position.set(it.x,it.y,it.z);dummy.rotation.set(0,it.yaw??Math.PI,0);dummy.scale.set(it.sx??1,it.sy??1,it.sz??1);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
+     if(jitter)mesh.setColorAt(i,jitter(i,it))});
+    mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+    mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
     mesh.userData.raidFacadePart=tag;if(struct)mesh.userData.raidStructure=struct;root.add(mesh);
    }
   };
+  // Roller shutters ship as pale galvanised sheets that read as lavender plastic
+  // in frontal noon sun. A neutral steel tint, stronger corrugation relief, a
+  // clean metal response and a dirt wash where the panel meets the ground turn
+  // them into weathered loading-bay steel without touching the scanned graffiti.
+  const rollerSteelMat=(base,height)=>{
+   const m=base.clone(),h=Math.max(1,height||2.4).toFixed(3);
+   m.color=new THREE.Color(0x8e9b9f);
+   m.roughness=.55;m.metalness=.38;m.envMapIntensity=1.15;
+   if(m.normalMap)m.normalScale.set(2.2,2.2);
+   m.onBeforeCompile=shader=>{
+    shader.vertexShader='varying float vShutterY;\n'+shader.vertexShader
+     .replace('#include <uv_vertex>','#include <uv_vertex>\n vShutterY=clamp(position.y/'+h+',0.0,1.0);');
+    shader.fragmentShader='varying float vShutterY;\n'+shader.fragmentShader
+     .replace('#include <map_fragment>',`#include <map_fragment>
+ float shutterDirt=(1.0-smoothstep(0.0,0.26,vShutterY))*0.88;
+ float shutterStreak=0.5+0.5*sin(vMapUv.x*23.0+vMapUv.y*3.0);
+ diffuseColor.rgb*=mix(1.0,0.58,shutterDirt);
+ diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(0.80,0.77,0.70),shutterDirt*shutterStreak);
+ diffuseColor.rgb=clamp(diffuseColor.rgb,0.0,0.96);
+`);
+   };
+   m.customProgramCacheKey=()=>'raidShutterSteel'+h;
+   m.needsUpdate=true;
+   return m;
+  };
+  // Per-instance tonal jitter keeps the six roller bays from reading as the
+  // same stamped rectangle repeated down the wall.
+  const steelShade=(i,it)=>{const v=Math.sin((i+1)*37.1+(it.x||0)*.31+(it.z||0)*.17)*43758.5453;const k=.93+((v%1+1)%1)*.12;return new THREE.Color(k,k,k)};
   const doorItems=[],graffitiItems=[],shopItems=[],shopGraffitiItems=[],metalShopItems=[],metalShopGraffitiItems=[],factoryGlaze=[],plainAC=[],rustedAC=[],roofPlain=[],roofRusted=[],pipeItems=[],jointItems=[];
   // Every stacked plaster strip shares one outer plane, so a single proud offset
   // clears the skin on both buildings and prevents z-fighting with the windows.
@@ -1165,12 +1204,13 @@ export class RaidView {
   addVentStack('planks',5.6,3,2.6,1.25);
   addVentStack('planks',-6.4,1,2.0,1.0);
   addVentStack('metal',5.9,2,2.4,1.5);
-  emit(doors,doorItems,'rollers','rollerBay');
-  emit(graffiti,graffitiItems,'rollersGraffiti','rollerBay');
-  emit(shops,shopItems,'shutters');
-  emit(shopGraffiti,shopGraffitiItems,'shuttersGraffiti');
-  emit(shops,metalShopItems,'shuttersMetal','shutterWindow');
-  emit(shopGraffiti,metalShopGraffitiItems,'shuttersMetalGraffiti','shutterWindow');
+  const doorSteel=mat=>rollerSteelMat(mat,doors.height),shopSteel=mat=>rollerSteelMat(mat,shops.height);
+  emit(doors,doorItems,'rollers','rollerBay',doorSteel,steelShade);
+  emit(graffiti,graffitiItems,'rollersGraffiti','rollerBay',doorSteel,steelShade);
+  emit(shops,shopItems,'shutters',null,shopSteel,steelShade);
+  emit(shopGraffiti,shopGraffitiItems,'shuttersGraffiti',null,shopSteel,steelShade);
+  emit(shops,metalShopItems,'shuttersMetal','shutterWindow',shopSteel,steelShade);
+  emit(shopGraffiti,metalShopGraffitiItems,'shuttersMetalGraffiti','shutterWindow',shopSteel,steelShade);
   // Glazed factory sashes proud of the roller blinds: real scanned frame plus
   // recessed glass, so the warehouse windows read dimensional rather than as
   // flat pale rectangles. Presentation only; no state or collision change.
