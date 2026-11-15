@@ -8974,3 +8974,23 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the mix now shows two different silhouettes and the bank grass is materially greener, but the fir scan is still a young sapling — its needle sprays read as dark lace rather than a full mature conifer crown at 1024, and the central leafy crown is still thin compared with a summer street tree. Sun-struck grass tips on the far bank still carry some straw gold, though the pale-straw meadow is gone. The clear rifle corner and deeper grass tint are improvements; art acceptance waits on Austin's live playtest.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 3 GROUND DETAIL CONTINUATION — discrete potholes, litter and softer decal blend edges; do not advance until Austin's playtest on the new foliage composition.
+
+## Iteration 127 — FOLIAGE FINISH: near-camera caps, fern keep-out, broadleaf grove, moss bank blend (DIRECTOR_NOTES item 1; 2026-11-14)
+
+**Acceptance criteria:** at 1024×720 and 844×390 the enemy/berm view shows the enemy and held rifle clearly with no grass/fern taller than the rifle; no fern spawns within ~1.5 m of the camera; trees read as full-crowned green masses at 2–3 sizes; the brown bank carries a scanned grass/dirt blend rather than flat orange-brown; static-offline and mobile-HUD graders stay green; presentation-only.
+
+### Implementation
+- `raid-view.mjs refreshFoliage`: fern instances within 1.6 m of spawn are filtered out; grass and fern height/scale are capped from nearest-spawn distance (grass ≤0.34 m under 6 m, ≤0.58 m under 14 m; fern ≤0.44 m under 10 m), so no blade reaches the rifle corner in the enemy/berm view.
+- `raid-environment.mjs`: four broadleaf `tree_small_02` crowns at scale 1.2/1.45/1.55/1.95 replace the fir saplings on the spawn skyline; the fir sites are gone along with `fir_sapling.glb`, its `NATURE_GLB` entry, credits and asset row.
+- `raid-view.mjs refreshGround`: sloped terrain is blended after vertex colour with the existing CC0 Brown Mud Leaves scan at a 6 m tiling (slope mask from `objectNormal.y`); flat roads keep the photographed dirt. Shader audit: compiled program contains `uBankLeaf`, `browserErrors: []`.
+- Screenshots: `~/headshotz-loop/shots/latest/` holds before-1024.png (HEAD spawn), after-1024.png (spawn), before-844.png/after-844.png (berm view with enemy and rifle), plus after-1024-enemy/close/shopfront/westwall/bank frames. `ASSETS.md` now lists six nature scans (1,716,828 B); no new asset, fir credit removed.
+
+### Verification
+- `node tests/raid-browser-ground-finish.mjs` green: trees 4 / inFrame 4, grass 302, seat floating 0.
+- `node tests/raid-browser-foliage.mjs` green: 77 wind materials / 63 shaders, 14,448 moving px, 0 reduced-motion px.
+- `node tests/raid-browser-static-offline.mjs` green; `node tests/raid-browser-mobile-hud.mjs` green (91.79% / 81.81% unobstructed); `node --check` on `assets.js`, `raid-environment.mjs`, `raid-view.mjs` clean.
+- `node --test tests/*.test.mjs`: 1248/1249; only the known `matchmaking` ECONNRESET (reproduced on a standalone rerun; no product-test regression).
+
+**Honest critique:** the bank now reads mossy olive and the skyline is full green crowns instead of lacy firs, and the fixed enemy frames keep the rifle clear. It still looks rough: the moss blend flattens into one olive wash on distant slopes, the broadleaf crowns are thinner than a mature street tree, and the wide 844 spawn framing still catches an operator at point-blank (present at HEAD and after, so not from this change); art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 CLOSE-UP BUILDING FIX — remove/replace the flat dark post at the shop front and soften the foundation grime plates; keep item 3 WHITE WAREHOUSE and item 4 GROUND TOUCH-UP queued.
