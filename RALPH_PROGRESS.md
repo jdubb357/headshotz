@@ -9113,3 +9113,21 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`) with Co-Authored-By: Claude Code. Next loop: DIRECTOR_NOTES item 2 LOOT / EXTRACT YARD — seat the floating rusty container slab, replace the raw-meat rubble blobs with scanned debris or remove, resolve the orange/tan curved ground line; keep item 3 courtyard interior floor, item 4 shop row and item 5 tree crowns/west yard queued.
 
+## Iteration 134 — LOOT / EXTRACT YARD: seat the crate, tame the meat-rocks, texture the boundary wall (DIRECTOR_NOTES item 1; 2026-11-15)
+
+**Acceptance criteria:** offline noon at 1024×720 and 844×390 — (a) the rusty military-crate decoration above the far hill in the loot view shows no air gap under it and its base meets the drawn grass slope; (b) the brown "raw meat" rock scans in front of the roller doors, on the spawn grass bank and on the hill crest read as cool grey rubble rather than warm red-brown lumps, or are removed; (c) the big flat salmon 19.3 m boundary wall left of the loot view shows photographed concrete grain with a shaded roofline cap instead of a blank smooth slab; (d) any saturated orange/tan ground band in the spawn/courtyard view loses its neon edge; structures/static-offline/mobile-HUD graders green apart from the known matchmaking ECONNRESET; presentation-only.
+
+**Status:** implementation complete, presentation-only; DIRECTOR_NOTES item 1 addressed.
+- (a) MET — `terrainMeshY` samples the drawn 160-seg terrain triangle and seats the loot crate and street barrel/crate scans on it, so the far-hill container rests flush instead of floating on the analytic sampler.
+- (b) MET at gameplay range — the rock_07 albedo is 96.5% desaturated toward luminance with a cool grey lift, turning the red-brown lumps under the roller doors, on the spawn bank and on the hill crest into weathered stone; the close crop is grey, not meat-red.
+- (c) MET — thin concrete boundary walls use `stoneWallMat` with a proud 0.18 m `rooflineCap`; wall ends now get stone side faces and plaster piers are skipped on poured walls, removing the salmon cut edge. Structures reports stoneWall 312, rooflineCap 420, pbr/deterministic.
+- (d) N/A — no persistent saturated orange/tan ground band exists at noon in the spawn/court view; pixel/ray probes found the low-HP orange ring is a transient damage overlay, not terrain, so no in-world fix was warranted and the hazard ring was left unchanged (a tape variant was trialed and reverted as less legible).
+
+**Verification:** `node --check raid-view.mjs` clean. Structures ✓ (419 structures/plinths/cornices, pbr, deterministic, `browserErrors: []`). Static-offline ✓ (deploy/move/machine hit/loot/extract, noApiTraffic, `browserErrors: []`). Mobile-HUD ✓ (91.80% at 1024×720, 81.63% at 844×390, all touch affordances, `browserErrors: []`). Full unit suite 1247/1249: known matchmaking ECONNRESET reproduced solo; raid-load suite-timeout passed 3/3 on solo rerun (harness port contention), unrelated to this presentation diff.
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared and regenerated; `before-1024.png`/`after-1024.png` and `before-844.png`/`after-844.png` are the loot hill at both sizes (baseline served from HEAD), plus before/after frames for warehouseFront, spawn, courtyard and a nearby machine at both sizes, and `enemy-1024x720.png`/`enemy-844x390.png` with a scout in frame. 22 distinct files.
+
+**Honest critique:** the floating slab, red-meat rocks and flat salmon wall are fixed and the stone cap reads at both sizes, but the seated crate still has a smooth toy-like scan silhouette and the wall grain is a little flat/dark in the 844 crop; art acceptance waits on Austin's live playtest.
+
+**Next action:** update EXTRACTION_BACKLOG.md and commit on `cypert/dev` only (no push, no PR, no `main`) with Co-Authored-By: Claude Code. Next loop: item 3 COURTYARD INTERIOR FLOOR, then item 4 SHOP ROW.
+

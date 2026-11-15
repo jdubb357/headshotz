@@ -604,6 +604,22 @@ export class RaidView {
  // so an assetless/Low-quality boot keeps its swaying planes instead of going
  // bare. Base heights are baked in the loader; every instance derives its
  // position from frozen authored props and sampled terrain only.
+ // The terrain mesh and the shared terrainHeightAt sampler share corner
+ // samples but interpolate differently, so seating on the sampler alone
+ // leaves props hovering above bank crests. Read the drawn mesh's own
+ // triangle plane so stamped visuals meet the grass the player sees.
+ terrainMeshY(x,z){
+  const terrain=this.environmentRoot?.children.find(n=>n.isMesh&&n.material===this.terrainMaterial&&n.geometry?.attributes?.position?.count>1000);
+  if(!terrain)return null;
+  const geo=terrain.geometry,pos=geo.attributes.position.array,size=this.world?.size||1440,segments=160;
+  const step=size/segments,half=size/2,vertices=segments+1;
+  const fx=(x+half)/step,fz=(z+half)/step,i=Math.floor(fx),j=Math.floor(fz);
+  if(i<0||j<0||i>=segments||j>=segments)return null;
+  const tx=fx-i,tz=fz-j,at=(ii,jj)=>(jj*vertices+ii)*3+1;
+  const ha=pos[at(i,j)],hc=pos[at(i+1,j)],hb=pos[at(i,j+1)],he=pos[at(i+1,j+1)];
+  if(tx+tz<=1)return ha*(1-tx-tz)+hc*tx+hb*tz;
+  return hc*(1-tz)+hb*(1-tx)+he*(tx+tz-1);
+ }
  refreshFoliage(){
   const root=this.environmentRoot,assets=HQP.nature||{},sites=root?.userData?.raidNatureSites;
   if(!root||!this.scene||!sites?.length)return;
@@ -620,23 +636,7 @@ export class RaidView {
    let list=groups.get(key);if(!list)groups.set(key,list=[]);list.push(site);
   }
   if(!groups.size)return;
-  // The terrain mesh and the shared terrainHeightAt sampler share corner
-  // samples but different interpolation, so instancing on the sampler alone
-  // leaves shrubs hovering a metre over the steeper banks. Read the drawn
-  // mesh's own triangle plane once, then seat every site on the surface the
-  // player can actually see.
-  const terrain=root.children.find(n=>n.isMesh&&n.material===this.terrainMaterial&&n.geometry?.attributes?.position?.count>1000);
-  const meshY=(x,z)=>{
-   if(!terrain)return null;
-   const geo=terrain.geometry,pos=geo.attributes.position.array,size=this.world?.size||1440,segments=160;
-   const step=size/segments,half=size/2,vertices=segments+1;
-   const fx=(x+half)/step,fz=(z+half)/step,i=Math.floor(fx),j=Math.floor(fz);
-   if(i<0||j<0||i>=segments||j>=segments)return null;
-   const tx=fx-i,tz=fz-j,at=(ii,jj)=>(jj*vertices+ii)*3+1;
-   const ha=pos[at(i,j)],hc=pos[at(i+1,j)],hb=pos[at(i,j+1)],he=pos[at(i+1,j+1)];
-   if(tx+tz<=1)return ha*(1-tx-tz)+hc*tx+hb*tz;
-   return hc*(1-tz)+hb*(1-tx)+he*(tx+tz-1);
-  };
+  const meshY=this.terrainMeshY.bind(this);
   const group=new THREE.Group();group.name='raidNature';group.userData.raidEnvironment=root;
   const dummy=new THREE.Object3D(),windSet=new Set();
   const spin=(x,z)=>((x*2.31+z*.87)%6.283+6.283)%6.283;
@@ -667,6 +667,19 @@ export class RaidView {
     // pale straw blades down into dark green tips that sit against the dirt
     // instead of glowing like dry hay (director note 2).
     if(kind==='grass'&&!mat.userData.raidBankTint){mat.color.setRGB(.24,.43,.22,THREE.SRGBColorSpace);mat.userData.raidBankTint=true;mat.needsUpdate=true}
+    // The scanned boulder albedo is a saturated red-brown that reads as raw
+    // meat next to pale pavement. Keep the photographed surface detail but
+    // flatten the hue toward luminance with a cool lift, so map rubble reads as
+    // weathered stone instead of a butcher's offcut. Presentation-only.
+    if(kind==='rock'&&!mat.userData.raidRockCool){
+     const base=mat.onBeforeCompile;
+     mat.onBeforeCompile=shader=>{
+      if(base)base(shader);
+      shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n float rockLum=dot(diffuseColor.rgb,vec3(0.2126,0.7152,0.0722));\n diffuseColor.rgb=mix(vec3(rockLum),diffuseColor.rgb,0.035)*vec3(0.96,0.99,1.02);');
+     };
+     mat.customProgramCacheKey=()=>'raidRockCool';
+     mat.userData.raidRockCool=true;mat.needsUpdate=true;
+    }
     if(!windSet.has(mat)&&kind!=='rock'&&kind!=='stump'){
      windSet.add(mat);mat.userData.raidFoliage=true;mat.userData.raidWind=true;
      mat.onBeforeCompile=shader=>{
@@ -728,7 +741,8 @@ export class RaidView {
    mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
    barrels.forEach((item,index)=>{
     const scale=(item.scale||1)*1.3/Math.max(.001,barrel.size.y);
-    dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item.x,item.z),0);dummy.scale.setScalar(scale);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+    const ground=this.terrainMeshY(item.x,item.z);
+    dummy.position.set(item.x,ground==null?(item.y||0):ground,item.z);dummy.rotation.set(0,spin(item.x,item.z),0);dummy.scale.setScalar(scale);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
    });
    mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
   }
@@ -741,7 +755,8 @@ export class RaidView {
     // height. A uniform scale keeps the planks, latches and weathering honest.
     const footprint=Math.max(item.w||1.15,item.d||1.15);
     const s=footprint/Math.max(Math.max(crate.size.x,crate.size.z),.001);
-    dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item.x,item.z)+.3,0);dummy.scale.setScalar(s);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+    const ground=this.terrainMeshY(item.x,item.z);
+    dummy.position.set(item.x,ground==null?(item.y||0):ground,item.z);dummy.rotation.set(0,spin(item.x,item.z)+.3,0);dummy.scale.setScalar(s);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
    });
    mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
   }
@@ -1026,7 +1041,7 @@ export class RaidView {
   })();
   const brickTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xece0d2),.82).multiplyScalar(.92)};
   const shedTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xfbfdf8),.9)};
-  const nearCells=[],planeCells=[],baseCells=[],corniceCells=[],crownCells=[],pierCells=[],sillCells=[],doorHoodCells=[];
+  const nearCells=[],planeCells=[],baseCells=[],corniceCells=[],crownCells=[],capCells=[],pierCells=[],sillCells=[],doorHoodCells=[];
   const tintFor=b=>{
    const c=new THREE.Color(b.color);
    if(b.kind==='metal'){
@@ -1047,12 +1062,20 @@ export class RaidView {
    const dx=b.x-self.x,dz=b.z-self.z,near=dx*dx+dz*dz<reach2;
    const tint=tintFor(b),stone=b.kind==='metal'?tint.clone().lerp(new THREE.Color(0xbfc6c4),.78):stoneFor(tint);
    const wallTint=b.kind==='planks'?brickTint(b):b.kind==='metal'?shedTint(b):tint;
+   // Thin boundary walls only skinned their two long faces, leaving the
+   // winger/end posts bare salmon plaster on the source-lot side. Complete
+   // the perimeter with the same masonry so every visible face reads as the
+   // same poured stone, not a bright cut edge.
    const faces=b.wall
     ? (b.w>=b.d
       ? [{len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
-         {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true}]
+         {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true},
+         {len:b.d,cx:b.x+b.w/2,cz:b.z,nx:1,nz:0,ry:Math.PI/2,onZ:false},
+         {len:b.d,cx:b.x-b.w/2,cz:b.z,nx:-1,nz:0,ry:-Math.PI/2,onZ:false}]
       : [{len:b.d,cx:b.x+b.w/2,cz:b.z,nx:1,nz:0,ry:Math.PI/2,onZ:false},
-         {len:b.d,cx:b.x-b.w/2,cz:b.z,nx:-1,nz:0,ry:-Math.PI/2,onZ:false}])
+         {len:b.d,cx:b.x-b.w/2,cz:b.z,nx:-1,nz:0,ry:-Math.PI/2,onZ:false},
+         {len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
+         {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true}])
     : [{len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
        {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true},
        {len:b.d,cx:b.x+b.w/2,cz:b.z,nx:1,nz:0,ry:Math.PI/2,onZ:false},
@@ -1072,10 +1095,19 @@ export class RaidView {
       const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
       dummy.position.set(px,b.y+r*ch,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,ch/3,1);
       dummy.updateMatrix();
+      // Boundary and retaining walls are poured concrete, not residential
+      // plaster: their 19 m faces read as a flat salmon slab from the loot
+      // yard. Instance them with the photographed stone scan (aggregate and
+      // formwork grain) under a pale grey tint while residential volumes keep
+      // the plaster kit.
+      const stoneFace=b.wall&&b.kind==='concrete';
+      const cellKind=stoneFace?'stone':b.kind;
       const cellTint=b.kind==='metal'
        ?wallTint.clone().multiplyScalar(.965+bayShade(px*1.7+pz*2.9)*.06)
-       :b.kind==='planks'?wallTint.clone().multiplyScalar(.93+bayShade(px*1.31+pz*2.17)*.11):wallTint;
-      nearCells.push({matrix:dummy.matrix.clone(),color:cellTint,kind:b.kind});
+       :b.kind==='planks'?wallTint.clone().multiplyScalar(.93+bayShade(px*1.31+pz*2.17)*.11)
+       :stoneFace?wallTint.clone().lerp(new THREE.Color(0xd6d4c8),.7).multiplyScalar(.93)
+       :wallTint;
+      nearCells.push({matrix:dummy.matrix.clone(),color:cellTint,kind:cellKind});
      }
      // One photographed-stone base per 3 m bay (not an atlas strip stretched
      // across the whole face) so the aggregate, mortar grain and moulding stay
@@ -1109,10 +1141,13 @@ export class RaidView {
        const px=(f.onZ?f.cx+(col+.5-cols/2)*cw:f.cx)+f.nx*.006;
        const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
        dummy.position.set(px,b.y+b.h,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,fillH/3,1);dummy.updateMatrix();
+       const stoneFace=b.wall&&b.kind==='concrete';
        const fillTint=b.kind==='metal'
         ?wallTint.clone().multiplyScalar(.965+bayShade(px*1.7+pz*2.9)*.06)
-        :b.kind==='planks'?wallTint.clone().multiplyScalar(.93+bayShade(px*1.31+pz*2.17)*.11):wallTint;
-       nearCells.push({matrix:dummy.matrix.clone(),color:fillTint,kind:b.kind});
+        :b.kind==='planks'?wallTint.clone().multiplyScalar(.93+bayShade(px*1.31+pz*2.17)*.11)
+        :stoneFace?wallTint.clone().lerp(new THREE.Color(0xd6d4c8),.7).multiplyScalar(.93)
+        :wallTint;
+       nearCells.push({matrix:dummy.matrix.clone(),color:fillTint,kind:stoneFace?'stone':b.kind});
       }
      }
      // Solid volumes also receive the kit's tile parapet, scaled low and warm so
@@ -1124,7 +1159,9 @@ export class RaidView {
      }
      // Two sculpted plaster piers bracket the bay grid and catch a vertical
      // highlight, giving the flat photograph a readable three-dimensional rhythm.
-     if(b.kind==='metal')continue; // sheet cladding needs no plaster pilasters
+     // Sheet cladding and poured boundary walls carry no plaster pilasters; the
+     // concrete scan already gives the latter their own corner relief.
+     if(b.kind==='metal'||(b.wall&&b.kind==='concrete'))continue;
      for(let col=0;col<=cols;col+=cols){
       const a=col-cols/2;
       const px=(f.onZ?f.cx+a*cw:f.cx)+f.nx*.055;
@@ -1147,6 +1184,15 @@ export class RaidView {
      }
     }
    }
+  }
+  // Thin poured boundary walls get a low, slightly proud coping course so the
+  // rooftop edge catches a shadow line instead of ending in a flat frayed cap.
+  for(const b of blocks){
+   if(!(b.wall&&b.kind==='concrete'&&b.h>=3.4))continue;
+   const capTint=new THREE.Color(b.color).lerp(new THREE.Color(0xd2d0c4),.65).multiplyScalar(.88);
+   dummy.position.set(b.x,b.y+b.h,b.z);dummy.rotation.set(0,0,0);
+   dummy.scale.set(b.w+.16,.18,b.d+.16);dummy.updateMatrix();
+   capCells.push({matrix:dummy.matrix.clone(),color:capTint});
   }
   // A real stone sill under every nearby scanned window; hidden fallback trim
   // is still suppressed by refreshWindows.
@@ -1172,9 +1218,11 @@ export class RaidView {
    if(structTag)mesh.userData.raidStructure=structTag;
    root.add(mesh);
   };
-  instanced(wall.parts[0].geo,wallMat,nearCells.filter(c=>c.kind!=='planks'&&c.kind!=='metal'),true,'wallsNear');
+  instanced(wall.parts[0].geo,wallMat,nearCells.filter(c=>c.kind!=='planks'&&c.kind!=='metal'&&c.kind!=='stone'),true,'wallsNear');
   instanced(wall.parts[0].geo,brickWallMat,nearCells.filter(c=>c.kind==='planks'),true,'wallsNear','brickWall');
   instanced(wall.parts[0].geo,corrugatedWallMat,nearCells.filter(c=>c.kind==='metal'),true,'wallsNear','shedWall');
+  instanced(wall.parts[0].geo,stoneWallMat,nearCells.filter(c=>c.kind==='stone'),true,'wallsNear','stoneWall');
+  instanced(new THREE.BoxGeometry(1,1,1),stoneWallMat,capCells,true,'rooflineCap','rooflineCap');
   instanced(planeGeo,wallMat,planeCells,false,'wallsFar');
   instanced(base.parts[0].geo,stoneWallMat,baseCells,true,'plinth','plinth');
   instanced(cornice.parts[0].geo,stoneWallMat,corniceCells,true,'cornice','cornice');
