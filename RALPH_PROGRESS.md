@@ -9165,3 +9165,21 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the opening frame now reads a whole checkpoint sign where before it was a clipped fragment, and the shutters finally look like ribbed steel; but the HARDWARE plate thickness and bolts are subtle at spawn range, corrugation flattens beyond ~15 m, and the sign now centres the courtyard entry so it may narrow the lane read — and the arms/viewmodel still look bad, untouched here.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`), update `EXTRACTION_BACKLOG.md`, then DIRECTOR_NOTES item 1 AUSTIN PRIORITY: replace the MakeHuman viewmodel crop with a dedicated rigged CC0/CC-BY FPS arms+gloves asset and grade its leather/twill in daylight.
+
+## Iteration 137 — FIRST-PERSON ARMS regraded + wrist cuffs seated (DIRECTOR_NOTES item 1, AUSTIN PRIORITY; 2026-11-15)
+
+**Acceptance criteria:** offline noon at 1024×720 and 844×390, spawn hero viewmodel — (a) the gloves and sleeves stop rendering as flat black rubber: the scanned leather grain, stitched seam and twill weave/creases read in daylight; (b) the wrist/glove cutoff is closed by a real cuff band with stitch ridges; (c) hands sit on the pistol grip/handguard with real projected bones and stay within a hand width of the anchors; (d) rifle exposure unchanged; (e) presentation-only, no authority/rules/other modes, gunlight/static-offline/mobile-HUD green.
+
+**Status:** implementation complete, presentation-only; DIRECTOR_NOTES item 1 addressed at the material/cuff level, asset review recorded.
+- (a) MET — both CC0 Poly Haven scans (`Fabric Leather 01` gloves, `Denim Fabric 06` sleeves, see ASSETS.md) are now graded by a shader luma ramp (`onBeforeCompile`, 0.40 glove / 0.075 sleeve cutoffs) instead of a constant tint; normalScale raised 1.7→2.8 glove and 1.3→2.3 sleeve, glove roughness .92→.8, sleeve tint gone, so pores/stitch and fabric folds survive daylight. Baseline frames render near-black sleeves and no glove texture.
+- (b) MET — `fpArmCuffs` seats a short leather band (plus two stitch ridge tori) at the wrist computed from posed `hand_r/l` and `lowerarm_r/l` world positions, scaled with the arms; shared geometry, meshes flagged `userData.fpArmDetail` so the rifle-material grader never scans them.
+- (c) MET — gunlight green at both sizes; the .88 slimmer-arm trial was reverted to .94 because `hand_l` drifted 0.175 m from the handguard anchor (the 0.13 m grader cap) and the crop showed no visible gain.
+- (d)/(e) MET — no rifle, authority, HUD, collision or other-mode change; `node --check` clean; static-offline ✓ (`noApiTraffic:true`, `browserErrors:[]`); mobile-HUD ✓ 91.8%/81.64%.
+
+**Verification:** gunlight ✓ 4 skinned arms, glove/sleeve only, 6 hand bones in frame, no browser errors; unit suite 1247/1249 (known matchmaking ECONNRESET reproduced solo) and parallel raid-load timeout passed 3/3 on solo rerun; unrelated to this presentation diff.
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared and regenerated, 19 distinct files: `before-1024.png`/`after-1024.png` and `before-844.png`/`after-844.png` are the spawn viewmodel hero frame, `before-viewmodel.png`/`after-viewmodel.png` are 1024-wide hand crops, plus `after-spawn-`, `after-courtyard-`, `after-cover-`, `after-loot-`, `after-enemy-` (scout in frame) and `after-extract-` at 1024×720 and 844×390, and one firing `after-action-1024x720.png`.
+
+**Honest critique:** the black sausage, flat cloth and hard wrist cut are gone and the cuff + grain read in the closing crop, but the MakeHuman crop still gives rounded mitten-shaped glove fingers and a smooth leather sheen at gameplay distance; the J-Toastie "Rigged Fps Arms" CC-BY asset was downloaded and inspected but rejected (faceted low-poly gloves/sleeves with no texture set), so a dedicated rigged FPS-arms asset remains the real fix; art acceptance waits on Austin's live playtest.
+
+**Next action:** update EXTRACTION_BACKLOG.md and commit on `cypert/dev` only (no push, no PR, no `main`) with Co-Authored-By: Claude Code. Next loop: if Austin still sees mittens, source/vet a dedicated rigged CC-BY FPS arms asset and swap the MakeHuman crop; otherwise item 2 MORE HUMAN ENEMIES AT HIGH-LOOT AREAS.

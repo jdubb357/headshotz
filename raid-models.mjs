@@ -474,34 +474,86 @@ function fpArmMaterial(part){
   // charcoal-olive so the hands read as dark tactical gloves rather than bare
   // skin, while the scan's pores, stitch line and knuckle creases survive the
   // grade because only hue and value are compressed, not the surface detail.
-  const m=new THREE.MeshStandardMaterial({name:'glove',roughness:.92,metalness:.01,envMapIntensity:.22,side:THREE.DoubleSide});
-  m.color.setRGB(.13,.145,.10);m.normalScale.setScalar(1.7);
+  const m=new THREE.MeshStandardMaterial({name:'glove',roughness:.8,metalness:.01,envMapIntensity:.34,side:THREE.DoubleSide});
+  m.color.setRGB(1,1,1);m.normalScale.setScalar(2.8);
   const scan=FP_SCAN_TEX.glove;
   if(scan){m.map=scan.map;m.normalMap=scan.normalMap;m.roughnessMap=scan.roughnessMap}
   m.onBeforeCompile=shader=>{
    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
     '#include <map_fragment>\n'+
-    'float gloveLuma=dot(diffuseColor.rgb,vec3(.299,.587,.114));\n'+
-    'vec3 gloveOlive=vec3(gloveLuma*.86,gloveLuma*1.02,gloveLuma*.76);\n'+
-    'diffuseColor.rgb=mix(diffuseColor.rgb,gloveOlive,.88);\n');
+    // Grade the tan leather scan into the issue glove's olive-black leather
+    // WITHOUT flattening its grain: a lifted curve driven by the scan's own
+    // luminance keeps pores, creases and the stitched seam readable, while the
+    // narrow dark-to-light olive ramp cancels the tan hue. Colour variation is
+    // the whole point - a constant tint was what turned the hands into rubber.
+    'float gloveLuma=clamp(dot(diffuseColor.rgb,vec3(.299,.587,.114)),0.,1.);\n'+
+    'float gloveLift=clamp(pow(gloveLuma/0.40,0.9),0.,1.);\n'+
+    'vec3 gloveDark=vec3(.010,.012,.008);\n'+
+    'vec3 gloveLight=vec3(.150,.158,.118);\n'+
+    'diffuseColor.rgb=mix(gloveDark,gloveLight,gloveLift);\n');
   };
   m.customProgramCacheKey=()=>'raidGloveGrade';
   fpArmMaterialLive.add(m);
   m.userData.raidOwned=true;return m;
  }
- // Ranger-green sleeve twill: scanned fabric whose creased folds catch the
- // overlay fill instead of disappearing into a black tube. Rough like field
- // cloth, so the folds show as soft shading rather than a wet plastic sheen.
- const m=new THREE.MeshStandardMaterial({name:'sleeve',roughness:.95,metalness:.01,envMapIntensity:.25,side:THREE.DoubleSide});
- m.color.setRGB(.38,.44,.28);m.normalScale.setScalar(1.3);
+ // Ranger-green sleeve twill: the scanned denim sheet is nearly black, so a
+ // luminance-driven olive ramp lifts the weave and creases into a readable field
+ // cloth. Constant tinting (as here before) multiplied dark pixels by dark
+ // colour and rendered the forearm as an untextured rubber tube.
+ const m=new THREE.MeshStandardMaterial({name:'sleeve',roughness:.9,metalness:.0,envMapIntensity:.45,side:THREE.DoubleSide});
+ m.color.setRGB(1,1,1);m.normalScale.setScalar(2.3);
  const scan=FP_SCAN_TEX.sleeve;
  if(scan){m.map=scan.map;m.normalMap=scan.normalMap;m.roughnessMap=scan.roughnessMap}
+ m.onBeforeCompile=shader=>{
+  shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
+   '#include <map_fragment>\n'+
+   'float sleeveLuma=clamp(dot(diffuseColor.rgb,vec3(.299,.587,.114)),0.,1.);\n'+
+   'float sleeveLift=clamp(pow(sleeveLuma/0.075,0.9),0.,1.);\n'+
+   'vec3 sleeveDark=vec3(.048,.062,.040);\n'+
+   'vec3 sleeveLight=vec3(.235,.272,.176);\n'+
+   'diffuseColor.rgb=mix(sleeveDark,sleeveLight,sleeveLift);\n');
+ };
+ m.customProgramCacheKey=()=>'raidSleeveGrade';
  fpArmMaterialLive.add(m);
  m.userData.raidOwned=true;return m;
 }
+// Glove cuff: the MakeHuman crop meets the wrist with a hard geometric edge.
+// A short leather band with raised stitch ridges closes that join the way real
+// field gloves do, so the sleeve-to-glove transition reads as construction
+// instead of a black tube cut off by the screen edge. Geometry is built once
+// and shared; the meshes ride the gun root (presentation-only, no skeleton).
+const fpCuffGeometry={band:null,seam:null};
+function fpCuffGeometries(){
+ if(fpCuffGeometry.band)return fpCuffGeometry;
+ fpCuffGeometry.band=new THREE.CylinderGeometry(.040,.045,.052,20,1,true);
+ fpCuffGeometry.seam=new THREE.TorusGeometry(.0442,.0022,5,20);
+ return fpCuffGeometry;
+}
+function fpArmCuffs(root,body,material){
+ if(!material)return;
+ const geo=fpCuffGeometries(),bones={};
+ body.traverse(o=>{if(o.isBone)bones[o.name]=o});
+ const wrist=new THREE.Vector3(),elbow=new THREE.Vector3(),dir=new THREE.Vector3(),up=new THREE.Vector3(0,1,0);
+ for(const [handName,armName] of [['hand_r','lowerarm_r'],['hand_l','lowerarm_l']]){
+  const hd=bones[handName],lo=bones[armName];if(!hd||!lo)continue;
+  hd.getWorldPosition(wrist);lo.getWorldPosition(elbow);
+  dir.copy(wrist).sub(elbow);if(dir.lengthSq()<1e-8)continue;dir.normalize();
+  const cuff=new THREE.Group();
+  cuff.position.copy(wrist).addScaledVector(dir,-.035);
+  cuff.quaternion.setFromUnitVectors(up,dir);
+  const band=new THREE.Mesh(geo.band,material);
+  band.castShadow=false;band.frustumCulled=false;band.userData.fpArmDetail=true;cuff.add(band);
+  for(const y of [.023,-.023]){
+   const seam=new THREE.Mesh(geo.seam,material);
+   seam.rotation.x=Math.PI/2;seam.position.y=y;
+   seam.castShadow=false;seam.frustumCulled=false;seam.userData.fpArmDetail=true;cuff.add(seam);
+  }
+  cuff.name='fp-arm-cuff';
+  root.add(cuff);
+ }
+}
 function fpArmPose(body,info){
- const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o});
- const upR=bones.upperarm_r,loR=bones.lowerarm_r,hR=bones.hand_r;
+ const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o}); const upR=bones.upperarm_r,loR=bones.lowerarm_r,hR=bones.hand_r;
  const upL=bones.upperarm_l,loL=bones.lowerarm_l,hL=bones.hand_l;
  if(!upR||!loR||!hR||!upL||!loL||!hL)return false;
  const axes=fpArmAxes(HUM.tier);
@@ -674,7 +726,9 @@ function addFirstPersonArms(root,info){
  let skinSource=null,clothSource=null;
  body.traverse(o=>{if(!o.isSkinnedMesh)return;if(o.userData.part==='skin'&&!skinSource)skinSource=o;else if(o.userData.part==='cloth'&&!clothSource)clothSource=o});
  if(!skinSource||!clothSource)return false;
+ let gloveMaterial=null;
  for(const [part,source,material] of [['skin',skinSource,fpArmMaterial('skin')],['cloth',clothSource,fpArmMaterial('cloth')]]){
+  if(part==='skin')gloveMaterial=material;
   for(const side of ['r','l']){
    const geo=geometries[part]?.[side];if(!geo)continue;
    const mesh=new THREE.SkinnedMesh(geo,material);
@@ -696,6 +750,7 @@ function addFirstPersonArms(root,info){
  body.position.set(FP_ARM_BODY[0],FP_ARM_BODY[1],FP_ARM_BODY[2]);
  body.updateMatrixWorld(true);
  fpArmPose(body,info);
+ fpArmCuffs(root,body,gloveMaterial);
  root.add(body);
  root.userData.firstPersonArms=true;
  return true;

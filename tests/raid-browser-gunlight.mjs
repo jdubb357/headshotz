@@ -95,6 +95,8 @@ const sampleMaterial=async page=>page.evaluate(`(()=>{
  if(!v.gun)return {mats:out,armMats:arms,meshes:0,armMeshes:0,visible:false};
  v.gun.traverse(n=>{
   if(!n.isMesh)return;
+  // Glove cuffs are static arm attachments (not weapon scan geometry).
+  if(n.userData.fpArmDetail)return;
   if(n.userData.fpArmPart){
    arms.push({part:n.userData.fpArmPart,side:n.userData.fpArmSide,visible:n.visible&&!!v.gunRoot?.visible,skinned:!!n.isSkinnedMesh,bones:n.skeleton?.bones?.length||0,material:n.material.name});
    return;
