@@ -9147,4 +9147,4 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 
 **Honest critique:** the crowns are now visibly denser and the trunks warm brown, but individual leaf cards still read against the sky at arm's length, only trees within 30 m of the insertion are thickened (distant saplings and the taller world trees remain thin), and the scanned branch silhouettes are still low-poly; art acceptance waits on Austin's live playtest.
 
-**Next action:** update EXTRACTION_BACKLOG.md, test the affected foliage/offline/hud paths, then commit on `cypert/dev` only (no push, no PR, no `main`) with Co-Authored-By: Claude Code. Next loop: DIRECTOR_NOTES item 1 expansions if Austin still sees sky-through crowns, otherwise item 2 SHOP ROW.
+**Next action:** committed as `3d555c8` on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 1 expansions if Austin still sees sky-through crowns (extend the crown shells or increase leaf density), otherwise item 2 SHOP ROW + SIGNS.
