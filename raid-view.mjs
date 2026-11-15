@@ -393,7 +393,33 @@ export class RaidView {
  refreshGround(){
   const root=this.environmentRoot,ground=HQP.ground;
   if(!root||!ground||!Object.keys(ground).length)return;
-  const surfaces={asphalt:'asphalt',concrete:'concrete',gravel:'gravelFloor'};
+  // The authored floor/plaza 'tiles' scan is a bathroom-tile atlas that reads
+  // as an outdoor checkerboard the moment the player looks through a courtyard
+  // doorway. Retire it in favour of the same photographed CC0 pavement used by
+  // the street slabs, so every room floor and open plaza reads as weathered
+  // paving; the per-instance UV tiling hook already in raid-environment keeps
+  // the pavers at a believable size on each individual slab.
+  const surfaces={asphalt:'asphalt',concrete:'concrete',gravel:'gravelFloor',tiles:'asphalt'};
+  // Roof slabs are read edge-on through courtyard doorways at eye level; the
+  // slate-metal skin there was the near-black band the director flagged. Swap
+  // only the roof groups (identifiable by the palette roof tint they keep in
+  // userData after the photo-look pass) to the shipped photographed pavement
+  // set, so the roof edge reads as a pale weathered concrete fascia instead of
+  // an unlit stripe. Rooftops seen from the hill keep their slab silhouette.
+  const roofTints=new Set([0x44565f,0x4c6662,0x5c5f6a]);
+  for(const material of root.userData.materials?.values()||[]){
+   if(material.userData.raidSurface!=='metal'||!roofTints.has(material.userData.raidAuthoredColor)||material.userData.raidRoofSkin)continue;
+   if(!ground.concrete)break;
+   material.userData.raidRoofSkin=true;
+   material.map=ground.concrete.map;
+   material.normalMap=ground.concrete.normalMap;
+   material.roughnessMap=ground.concrete.roughnessMap;
+   material.roughness=1;material.metalness=0;
+   material.normalScale.set(1,1);
+   material.color.setHex(0xffffff);
+   if(material.userData.raidDry){material.userData.raidDry.roughness=1;material.userData.raidDry.normalScale=1}
+   material.needsUpdate=true;
+  }
   for(const material of root.userData.materials?.values()||[]){
    const key=surfaces[material.userData.raidSurface];
    if(!key||!ground[key]||material.userData.raidStructure)continue;
@@ -483,6 +509,31 @@ export class RaidView {
    ['rubble',3.9,13.4,1.5,1.0,-.6,0xc0b29b],
    ['wear',-3.0,13.4,1.7,1.1,.3,0xd9d3c4]
   ];
+  // The paving retires the checkerboard pattern, but bare square slabs still
+  // read as newly poured ground through a doorway. Dress the nearest ground-level
+  // room and plaza floors with the same photographed wear, cracks, oil-dark
+  // damage and moss as the spawn apron; the plates follow each slab's footprint
+  // instead of hanging in mid-air from the deployment point.
+  const decalRnd=n=>{const s=Math.sin(n*127.1+37.73)*43758.5453;return s-Math.floor(s)};
+  const spawnX=spawn[0],spawnZ=spawn[1];
+  let floorSeed=0;
+  for(const prop of this.world.props||[]){
+   if(prop.kind!=='floor'&&prop.kind!=='plaza')continue;
+   if((prop.w||0)<4||(prop.d||0)<4||(prop.y??0)>1)continue;
+   const dx=prop.x-spawnX,dz=prop.z-spawnZ,dist=Math.hypot(dx,dz);
+   if(dist<6||dist>72)continue;
+   const seed=++floorSeed,r=n=>decalRnd(seed*11.7+n);
+   // Keep the plates small and close to the paving tone: a 3 m slab-sized
+   // light patch reads as a giant beige smear underfoot. These read as worn
+   // paving edges, oil spot and moss rather than floating decals.
+   const dress=[['wear',1.7,.68,0xa9a49b],['crack',1.4,.58,0xbcb6a8],['damage',1.05,.62,0x5b5850],['moss',1.05,.58,0x84906a]];
+   for(let i=0;i<dress.length;i++){
+    const ox=(r(i*3.1+seed)-.5)*(prop.w*.3),oz=(r(i*4.7+1.3)-.5)*(prop.d*.3);
+    const w=Math.min(dress[i][1],prop.w*.22)*(.85+r(i*2.3)*.3);
+    const d=Math.min(dress[i][2],prop.d*.17)*(.85+r(i*5.9)*.3);
+    plates.push([dress[i][0],dx+ox,dz+oz,Math.max(.6,w),Math.max(.5,d),(r(i*7.1)-.5)*2.2,dress[i][3]]);
+   }
+  }
   const puddles=[['puddle',2.4,8.2,1.1,.8,.1],['puddle',-2.9,11.2,1.2,.85,1.3]];
   const base={
    transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,
@@ -824,7 +875,41 @@ export class RaidView {
    m.color=new THREE.Color(tint);m.envMapIntensity=.75;m.needsUpdate=true;
    return m;
   };
-  const brickWallMat=surfaceMat('brick',2.4,.9,0xffffff);
+  // The brown block shares one photographed brick scan across its bays, so the
+  // bond lines line up like wallpaper on a three-storey wall. Shift the map by
+  // an amount derived from each module's world position: mortar joints stagger
+  // bay-by-bay with no extra texture, and a damp wash rising from the pavement
+  // gives the wall a lived-in base instead of a flat red sheet.
+  const brickWallMat=(()=>{
+   const m=surfaceMat('brick',2.4,.9,0xffffff);
+   if(m.map){m.map.wrapS=m.map.wrapT=THREE.RepeatWrapping}
+   if(m.normalMap){m.normalMap.wrapS=m.normalMap.wrapT=THREE.RepeatWrapping}
+   m.onBeforeCompile=shader=>{
+    shader.vertexShader='varying float vBrickY;\n'+shader.vertexShader.replace('#include <uv_vertex>',`#include <uv_vertex>
+#ifdef USE_INSTANCING
+ float brickOffX=instanceMatrix[3][0]*.37+instanceMatrix[3][2]*.11;
+ float brickOffZ=instanceMatrix[3][2]*.29-instanceMatrix[3][0]*.07;
+ #ifdef USE_MAP
+  vMapUv+=vec2(brickOffX,brickOffZ);
+ #endif
+ #ifdef USE_NORMALMAP
+  vNormalMapUv+=vec2(brickOffX,brickOffZ);
+ #endif
+ vBrickY=(instanceMatrix*vec4(position,1.0)).y;
+#else
+ vBrickY=position.y;
+#endif`);
+    shader.fragmentShader='varying float vBrickY;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+ float brickFoot=1.0-smoothstep(0.15,3.1,vBrickY);
+ float brickStreak=0.5+0.5*sin(vMapUv.x*9.0+vMapUv.y*2.2);
+ float brickDamp=clamp(brickFoot*(0.22+0.34*brickStreak),0.0,0.5);
+ diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(0.70,0.64,0.56),brickDamp);
+`);
+   };
+   m.customProgramCacheKey=()=>'raidFacadeBrickStaggered';
+   m.needsUpdate=true;
+   return m;
+  })();
   // Painted plaster (real Poly Haven photo) for the residential-concrete volumes
   // is left to the kit's authored wall material, so no clone is needed here.
   // The loading-bay warehouse is scanned pre-cast concrete cladding, not smooth
@@ -945,7 +1030,11 @@ export class RaidView {
       const px=(f.onZ?f.cx+(col+.5-cols/2)*cw:f.cx)+f.nx*.006;
       const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
       dummy.position.set(px,b.y+r*ch,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,ch/3,1);
-      dummy.updateMatrix();nearCells.push({matrix:dummy.matrix.clone(),color:b.kind==='metal'?wallTint.clone().multiplyScalar(.965+bayShade(px*1.7+pz*2.9)*.06):wallTint,kind:b.kind});
+      dummy.updateMatrix();
+      const cellTint=b.kind==='metal'
+       ?wallTint.clone().multiplyScalar(.965+bayShade(px*1.7+pz*2.9)*.06)
+       :b.kind==='planks'?wallTint.clone().multiplyScalar(.93+bayShade(px*1.31+pz*2.17)*.11):wallTint;
+      nearCells.push({matrix:dummy.matrix.clone(),color:cellTint,kind:b.kind});
      }
      // One photographed-stone base per 3 m bay (not an atlas strip stretched
      // across the whole face) so the aggregate, mortar grain and moulding stay
@@ -1152,6 +1241,11 @@ export class RaidView {
    // Stacked real gutter pipe at the courtyard corner of the shop row.
    for(let i=0;i<5;i++)pipeItems.push({x:cx-5.9,y:i,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
    for(let i=1;i<5;i++)jointItems.push({x:cx-5.9,y:i-.015,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+   // The camera meets this block's west face, not the signed shop front: give
+   // the courtyard-facing brick wall a real galvanised downpipe just clear of
+   // the doorway, both to break the flat sheet and to seat the wall on the lane.
+   for(let i=0;i<5;i++)pipeItems.push({x:cx-b.w/2-.33,y:i,z:-576.35,yaw:0,sx:1.8,sz:1.8});
+   for(let i=1;i<5;i++)jointItems.push({x:cx-b.w/2-.33,y:i-.015,z:-576.35,yaw:0,sx:1.8,sz:1.8});
   }
   if(front.metal){
    const b=front.metal.block,cx=b.x,fz=faceZ(b);
@@ -1308,6 +1402,21 @@ export class RaidView {
      py:y,pz:f.pz+(f.nz?f.nz*(out+i*.004):0)+(f.along==='z'?along:0),
      yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
      sw:w,sh:h,c:i%2?0x877c69:0x93876f});
+   }
+  }
+  // Damp streaks climb the ground storey of the brown brick front in irregular
+  // widths and heights, tinted wet mortar grey-brown rather than black. They
+  // stay clear of the courtyard doorway on the west face (z -574.3..-570.9) so
+  // no translucent plate ever floats across the opening.
+  for(const f of sides.slice(0,2)){
+   for(let i=0;i<6;i++){
+    const span=f.len,along=(rnd(i*9.37+f.len*.77)-.5)*span*.88;
+    if(f.along==='z'&&Math.abs((f.pz??-572.6)+along+572.6)<2.4)continue;
+    const h=1.2+rnd(i*6.7+3.1)*2.1;
+    stains.push({px:f.px+f.nx*(.025+i*.003)+(f.along==='x'?along:0),
+     py:.08+rnd(i*5.1)*.14,pz:f.pz+f.nz*(.025+i*.003)+(f.along==='z'?along:0),
+     yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
+     sw:.24+rnd(i*2.9)*.34,sh:h,c:i%2?0x4a4239:0x554c40});
    }
   }
   // The pale sheet-clad loading bay wears a heavier foot of dirt than the brick

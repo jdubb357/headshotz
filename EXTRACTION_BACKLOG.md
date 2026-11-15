@@ -10,15 +10,15 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 129, 2026-11-15)
+## Current art-directed priority (iteration 131, 2026-11-15)
 
 Director-notes order for the next passes, presentation-only:
 
-1. **WHITE WAREHOUSE** — FINISHED in iteration 130 (awaiting Austin's playtest): the long metal-kind shed facade desaturates the CC0 Poly Haven `concrete_panels` scan and leans it cool, with deterministic per-bay tint variation, so it reads pale-white weathered concrete rather than tan plaster; loading-bay doors, shop shutters and window rollers share a galvanised-steel material (tint 0x8e9b9f, stronger corrugation normal, base dirt/streak wash, per-panel lightness jitter) instead of flat pale lavender sheets. Structures/static-offline/mobile-HUD graders green; unit suite 1247/1249 with the known matchmaking ECONNRESET plus an unrelated parallel `raid-load` control timeout that passes standalone; shots in `~/headshotz-loop/shots/latest/`. Still weak: the scan's square panel stamps read like outdoor bathroom tile at 3 m, and shutters have no dents or top-edge water streaks.
-2. **FLAT BROWN FACADES + TILED YARD** — NEXT: in courtyard-1024 the big brown three-storey building is a smooth single-colour plaster sheet (no brick, no weathering) — give it the same scanned brick/stucco PBR as the brick row, with stains and a drainpipe. In cover-1024 the open yard floor is a bright grey/white checkerboard tile that looks like a bathroom floor outdoors, and the sky above it reads near-black — replace with scanned concrete/paving and fix the dark sky/ceiling there.
-3. **LOOT YARD SILHOUETTE** — seat the floating rusty container block on the ground or a scanned support structure; replace the flat beige ground squares/planks in courtyard-1024 with scanned pallet/plank GLBs or remove.
-4. **WEST-WALL / EXTRACT YARD + GROUND** — break the flat brown dirt plane in the enemy view with scanned gravel/dirt variation, tyre tracks, scanned props/cover and denser fence-line grass; add puddles/oil stains and edge wear to the empty spawn asphalt.
-5. **TREE CROWNS** — denser canopy on the broadleaf trees so they read as solid green masses rather than sky-through twigs; keep the near-camera grass caps.
+1. **CHECKERBOARD FLOOR + BROWN FACADES** — FINISHED in iteration 131 (awaiting Austin's playtest): the courtyard room floors and plaza slabs now use the shipped CC0 asphalt ground scan instead of the bathroom-tile atlas, and the near ground-level floors carry small wear/crack/oil/moss plates; roof slabs were remapped to photographed concrete and capped with a slim concrete fascia so doorway roof edges read as lit stone lintels; the brown brick front got per-bay brick-joint stagger and tone jitter, a heavier damp wash at the foot, darker tall damp plates on the south and west faces, and a real galvanised downpipe just west of the courtyard doorway. Structures/static-offline/mobile-HUD graders green; unit suite 1248/1249 with only the known matchmaking ECONNRESET; before/after and action frames in `~/headshotz-loop/shots/latest/`.
+2. **WHITE WAREHOUSE FINISH** — landed in iterations 129–130 (awaiting playtest), but its follow-ups are NEXT: break the stamped panel grid (larger UV scale, per-bay rotation/offset, streaks), remove or seat the floating dark window frame/grate at crosshair height, and fix the AC units' black/white grille holes with a real grille texture or scanned model.
+3. **LOOT / EXTRACT YARD** — NEXT: seat the floating rusty container slab on the ground or a scanned support structure; replace the brown meat-like rubble blobs on the grass with scanned rubble/debris or remove; hide the orange/tan curved ground line unless it reads as a deliberate extract marker.
+4. **SHOP ROW** — NEXT: give the HARDWARE sign a frame/backing, slight bevel and grime; remove the dark vertical placeholder slab between the two shutters.
+5. **TREE CROWNS / WEST YARD** — NEXT: thicken crowns so the broadleaf trees read as solid green masses instead of sky-through twigs; fill the bare sand west yard with scanned ground and clutter; keep the near-camera grass caps.
 
 Scope unchanged: raid mode only; no gameplay, UI, server or other-mode change.
 
