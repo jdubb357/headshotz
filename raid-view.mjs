@@ -756,7 +756,6 @@ export class RaidView {
   const self=this.snapshot?.self;if(!self)return;
   const reach=90,reach2=reach*reach;
   let near=sites.filter(s=>{const dx=s.x-self.x,dz=s.z-self.z;return dx*dx+dz*dz<reach2});
-  const allNear=near;
   // The corrugated loading-bay walls are industrial shutter bays, not glazed
   // shopfronts. A scanned sash seated on those ground-floor openings hangs over
   // the graffiti roller door as a dark mid-air frame at crosshair height; keep
@@ -765,16 +764,17 @@ export class RaidView {
   near=near.filter(s=>!closedShedBay(shedBlocks,s));
   if(!near.length)return;
   root.userData.raidWindowsScanned=true;
-  // Silence the procedural reveal/stall/plant boxes at upgraded openings. Zero
-  // matrices keep both draw buffers and neighbour placements untouched. Use the
-  // unfiltered list so closed shed bays also lose their old sill/framing boards.
+  // Silence the procedural reveal/stall/plant boxes only at openings this pass
+  // actually glazes. Shed bays are filtered out above, so their pane would keep a
+  // flat pure-black look once the trim is hidden; leave their sill, lintel and
+  // jambs seated so the industrial windows read as real framed openings instead.
   const hideTags=new Set(['framing','windowShutter','windowSill','flowerBox']);
   root.traverse(node=>{
    if(!node.isInstancedMesh||!node.userData.raidStructure||!hideTags.has(node.userData.raidStructure))return;
    const arr=node.instanceMatrix.array;let changed=false;
    for(let i=0;i<node.count;i++){
     const x=arr[i*16+12],y=arr[i*16+13],z=arr[i*16+14];
-    for(const s of allNear){
+    for(const s of near){
      const dx=x-s.x,dz=z-s.z;
      if(dx*dx+dz*dz>1.8)continue;
      if(Math.abs(y-(s.y+s.h/2))>s.h*.95+.35)continue;
@@ -1095,6 +1095,26 @@ export class RaidView {
       dummy.scale.set(cw/3,metal?.58:.78,metal?1.2:1.6);dummy.updateMatrix();
       corniceCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.97+bayShade(f.cx+f.cz+col*1.17)*.14)});
      }
+     // room() splits every undrilled storey wall into a 1.1 m sill and an upper
+     // slab that starts at 2.2 m, leaving a one-metre air band in between. Seen
+     // at eye level that slot read as a hollow stripe with daylight/sky through
+     // the building, and every storey cornice floated over it as a loose slab.
+     // Fill the band with the same skin the wall above uses so the ground storey
+     // is solid cladding with openings only where roller bays and windows sit.
+     const bandTop=2.2;
+     const bandFill=b.wall&&b.y<.35&&b.h>0.9&&b.h<1.19&&b.h<bandTop;
+     if(bandFill){
+      const fillH=bandTop-b.y-b.h;
+      for(let col=0;col<cols;col++){
+       const px=(f.onZ?f.cx+(col+.5-cols/2)*cw:f.cx)+f.nx*.006;
+       const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
+       dummy.position.set(px,b.y+b.h,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,fillH/3,1);dummy.updateMatrix();
+       const fillTint=b.kind==='metal'
+        ?wallTint.clone().multiplyScalar(.965+bayShade(px*1.7+pz*2.9)*.06)
+        :b.kind==='planks'?wallTint.clone().multiplyScalar(.93+bayShade(px*1.31+pz*2.17)*.11):wallTint;
+       nearCells.push({matrix:dummy.matrix.clone(),color:fillTint,kind:b.kind});
+      }
+     }
      // Solid volumes also receive the kit's tile parapet, scaled low and warm so
      // it caps the roofline without the heavy black edge of the old box.
      if(!b.wall&&b.h>=3.4&&crown){
@@ -1117,6 +1137,14 @@ export class RaidView {
      dummy.position.set(f.cx+f.nx*.006,b.y+b.h/2,f.cz+f.nz*.006);dummy.rotation.set(0,f.ry,0);
      dummy.scale.set(f.len,b.h,1);dummy.updateMatrix();
      planeCells.push({matrix:dummy.matrix.clone(),color:tint});
+     // Same solid ground-storey fill for the low-cost distant pass, so the
+     // sill/2.2 m air band never opens a sky slot on far façades either.
+     if(b.wall&&b.y<.35&&b.h>0.9&&b.h<1.19){
+      const fillH=2.2-b.y-b.h;
+      dummy.position.set(f.cx+f.nx*.006,b.y+b.h+fillH/2,f.cz+f.nz*.006);dummy.rotation.set(0,f.ry,0);
+      dummy.scale.set(f.len,fillH,1);dummy.updateMatrix();
+      planeCells.push({matrix:dummy.matrix.clone(),color:tint});
+     }
     }
    }
   }
