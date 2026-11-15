@@ -566,10 +566,15 @@ export class RaidView {
    for(const part of asset.parts){
     const mat=part.mat;
     if(!mat)continue;
-    // Dry-scan grass reads pale straw under noon sun; a muted olive tint makes
-    // the bank base sink into the dirt and read as dense ground cover instead
-    // of pale sticks against the pavement (director note 2).
-    if(kind==='grass'&&!mat.userData.raidBankTint){mat.color.setRGB(.60,.64,.48);mat.userData.raidBankTint=true;mat.needsUpdate=true}
+    // Dry-scan grass reads pale straw under noon sun; a deep olive-green tint
+    // (authored in sRGB; three r160 treats bare setRGB as linear) pulls the
+    // pale straw blades down into dark green tips that sit against the dirt
+    // instead of glowing like dry hay (director note 2).
+    if(kind==='grass'&&!mat.userData.raidBankTint){mat.color.setRGB(.24,.43,.22,THREE.SRGBColorSpace);mat.userData.raidBankTint=true;mat.needsUpdate=true}
+    // The fir scan's dry needle cards wash out against the white bank
+    // building at noon; a cooler, darker pine tint keeps the conifer shape
+    // legible against the facade.
+    if(kind==='fir'&&!mat.userData.raidFirTint){mat.color.setRGB(.34,.46,.3,THREE.SRGBColorSpace);mat.userData.raidFirTint=true;mat.needsUpdate=true}
     if(!windSet.has(mat)&&kind!=='rock'&&kind!=='stump'){
      windSet.add(mat);mat.userData.raidFoliage=true;mat.userData.raidWind=true;
      mat.onBeforeCompile=shader=>{

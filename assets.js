@@ -57,7 +57,8 @@ const COVER_GLB={
 // raid can instance it directly on terrain height. Presentation only: their
 // placement is recorded by buildEnvironment and no collision is derived.
 const NATURE_GLB={
- tree:{url:'assets/models/nature/tree_small_02.glb',height:5.2,tri:7527},
+ tree:{url:'assets/models/nature/tree_small_02.glb',height:5.2,tri:13501},
+ fir:{url:'assets/models/nature/fir_sapling.glb',height:4.9,tri:22380,alphaTest:.26},
  shrub:{url:'assets/models/nature/shrub_02.glb',height:1.15,tri:1059},
  fern:{url:'assets/models/nature/fern_02.glb',height:.72,tri:2768},
  grass:{url:'assets/models/nature/grass_medium_02.glb',height:.55,tri:119},
@@ -347,7 +348,7 @@ export async function loadNature(onProg=()=>{}){
     // the transparent queue over nearby facades and no black atlas card remains.
     if(mat.map&&mat.map.image){
      mat.transparent=false;mat.depthWrite=true;mat.depthTest=true;
-     if(!mat.alphaTest)mat.alphaTest=.42;
+     if(!mat.alphaTest)mat.alphaTest=cfg.alphaTest||.42;
      mat.alphaMap=null;mat.needsUpdate=true;
     }
     mat.side=THREE.DoubleSide;

@@ -1111,12 +1111,12 @@ export function buildEnvironment(world){
     if(seams%3===0)natureSites.push({kind:'rock',x:x+.35,y:gy,z:z-.2,s:.34+hash01(x*.8+z*1.1)*.22,ry:hash01(x*1.2+z*.4)*6.283});
    }
    // Two to four full-size scanned CC0 trees frame the insertion skyline.
-   // The authored offsets land on the unpaved bank inside the opening forward
-   // cone, so at least two real trunks and canopies are visible from spawn
-   // rather than only one scaled horizon stand-in. Footprints are presentation
+   // Alternating the leafy Tree Small 02 scan with the dense Fir Sapling scan
+   // gives the opening view two different silhouettes and scales instead of the
+   // same thin sapling repeated across the centre. Footprints are presentation
    // only; the sector's collision and loot data see none of them.
-   const treeOffsets=[[6,18],[2,24],[8,27],[-2,30]];
-   for(const [ti,[ox,oz]] of treeOffsets.entries()){
+   const treeOffsets=[[2,24,'tree'],[-10,20,'fir'],[-8.4,22.2,'fir'],[1.6,26.6,'tree']];
+   for(const [ti,[ox,oz,species]] of treeOffsets.entries()){
     if(treesPlaced>=4)break;
     const x=sx+ox+(hash01(sx*.31+sz*.83+ti*5.7)-.5)*1.4;
     const z=sz+oz+(hash01(sx*.77+sz*.37+ti*3.1)-.5)*1.4;
@@ -1126,10 +1126,23 @@ export function buildEnvironment(world){
     const cell=Math.round(x/1.4)+','+Math.round(z/1.4);
     if(placed.has(cell))continue;
     placed.add(cell);
-    const s=.94+hash01(x*.43+z*1.19)*.12;
-    natureSites.push({kind:'tree',x,y:gy,z,s,ry:hash01(x*.27+z*1.7)*6.283});
+    // Leafy trees carry the fuller crown slightly larger; the fir pair is
+    // scaled up so the scanned needles still draw a conifer silhouette at the
+    // bank, and staggered in size so the two crowns do not read as one wall.
+    const s=species==='fir'?(ti===1?1.95:1.52)+hash01(x*.43+z*1.19)*.1:ti===3?1.0+hash01(x*.43+z*1.19)*.08:1.08+hash01(x*.43+z*1.19)*.1;
+    natureSites.push({kind:species,x,y:gy,z,s,ry:hash01(x*.27+z*1.7)*6.283});
     spawnTreeSites.push({x,z,y:gy,s,spawnIndex});treesPlaced++;
    }
+  }
+  // The insertion eye sits at chest height right at the road edge; the tallest
+  // straw blades within a few metres crowded the held rifle and read as pale
+  // paper at both review viewports. Nearest grass fades to ankle height while
+  // the far bank keeps its full stalks (director note 2, blades-next-to-rifle).
+  for(const site of natureSites){
+   if(site.kind!=='grass')continue;
+   let near=Infinity;
+   for(const [px,pz] of world.spawns||[])near=Math.min(near,Math.hypot(site.x-px,site.z-pz));
+   if(near<14)site.s*=.32+.68*(near/14);
   }
  }
  root.userData.raidNatureSites=natureSites;root.userData.raidSpawnTrees=spawnTreeSites;
