@@ -9099,3 +9099,17 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: EXTRACTION_BACKLOG item 3 LOOT / EXTRACT YARD — seat the floating rusty container slab, replace the brown meat-like rubble blobs with scanned debris or remove, and resolve the orange/tan curved ground line; keep items 4 SHOP ROW and 5 TREE CROWNS / WEST YARD queued.
 
+## Iteration 133 — WAREHOUSE GROUND-FLOOR STRIP: solid storey + framed bay windows (DIRECTOR_NOTES item 1; 2026-11-15)
+
+**Acceptance criteria:** at 1024×720 and 844×390 the courtyard-facing warehouse ground storey reads as one solid wall in the same cladding, with no sky/grass through the 1.1–2.2 m horizontal band and no floating cornice; the two ground-floor windows beside the roller doors show timber casing, sill and glass, not flat black rectangles; near and distant façades both receive the fill; structures/static-offline/mobile-HUD graders stay green apart from the known matchmaking flake; presentation-only.
+
+**Implementation:** `raid-view.mjs refreshFacades` adds per-bay band-fill cells to the near kit-wall pass (b.wall, b.y<.35, .9<b.h<1.19, tinted by kind) and a matching plane-cell fill to the distant pass, spanning b.y+b.h to 2.2 so roller bays and windows stay open. `raid-view.mjs refreshWindows`: `allNear` retired; the filtered `near` list now drives hideTags, so shed-bay openings keep their procedural sill/lintel/jambs and the two bay windows no longer read as bare black panes.
+
+**Verification:** `node --check raid-view.mjs` clean. Structures ✓ (419 structures/plinths/cornices, shedWall 372, brickWall 232, wallsNear 452, pbr, deterministic, `browserErrors: []`). Static-offline ✓ (deploy/move/machine hit hp 100/loot/extract, `noApiTraffic: true`, `browserErrors: []`). Mobile-HUD ✓ (91.88% at 1024×720, 81.81% at 844×390, all touch affordances exercised, `browserErrors: []`). Unit suite 1248/1249 — only the known matchmaking ECONNRESET; solo rerun 11/11.
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared then saved `before-1024.png`/`after-1024.png` (courtyard warehouse wall) and `before-844.png`/`after-844.png` (warehouse front) plus distinct 1024 action frames at spawn, warehouseFront, warehouseDiag, loot, extract and machine3 (scout operator in frame). Before: open band with brown posts, sky and lattice, flat black window slabs. After: solid pale corrugated ground storey with stone seams and framed timber windows beside the roller bays.
+
+**Honest critique:** the air band and flat-black windows are gone, but the fill runs slightly cooler/lighter than the cladding above so two horizontal seams still read as bands, and the roller door's graffiti panel plus the brown rubble blobs in front of it still pull the eye down; art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`) with Co-Authored-By: Claude Code. Next loop: DIRECTOR_NOTES item 2 LOOT / EXTRACT YARD — seat the floating rusty container slab, replace the raw-meat rubble blobs with scanned debris or remove, resolve the orange/tan curved ground line; keep item 3 courtyard interior floor, item 4 shop row and item 5 tree crowns/west yard queued.
+
