@@ -416,6 +416,23 @@ export class RaidView {
    mat.map=map;mat.normalMap=normal;mat.roughnessMap=rough;mat.roughness=1;mat.metalness=0;
    mat.normalScale.set(1.35,1.35);
    if(mat.userData.raidDry){mat.userData.raidDry.roughness=1;mat.userData.raidDry.normalScale=1.35}
+   // The cut-and-fill bank is the largest bare polygon in the opening view, and
+   // a plain brown dirt tile flattens it to one orange wedge. Blend in the
+   // photographed Brown Mud Leaves scan with leaf-litter and moss on any
+   // non-level ground, leaving flat pavement and the courtyard walk untouched.
+   const bankMap=HQP.decal?.moss?.map;
+   if(bankMap&&!mat.userData.raidBankLeaf){
+    mat.userData.raidBankLeaf=true;
+    const leafMap=bankMap.clone();
+    leafMap.wrapS=leafMap.wrapT=THREE.RepeatWrapping;
+    leafMap.anisotropy=8;leafMap.needsUpdate=true;
+    mat.onBeforeCompile=shader=>{
+     shader.uniforms.uBankLeaf={value:leafMap};
+     shader.vertexShader='varying float vBankMix;\n'+shader.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nvBankMix=clamp((1.0-objectNormal.y)*24.0,0.0,1.0);');
+     shader.fragmentShader='uniform sampler2D uBankLeaf;\nvarying float vBankMix;\n'+shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nvec3 bankLeafCol=texture2D(uBankLeaf,vMapUv*.28).rgb*vec3(0.55,1.4,0.5)*1.25;\ndiffuseColor.rgb=mix(diffuseColor.rgb,bankLeafCol,clamp(vBankMix*.9,0.0,1.0));');
+    };
+    mat.customProgramCacheKey=()=>'raid-terrain-bank';
+   }
    mat.needsUpdate=true;
   }
  }
@@ -558,11 +575,25 @@ export class RaidView {
   const group=new THREE.Group();group.name='raidNature';group.userData.raidEnvironment=root;
   const dummy=new THREE.Object3D(),windSet=new Set();
   const spin=(x,z)=>((x*2.31+z*.87)%6.283+6.283)%6.283;
-  for(const [kind,list] of groups){
+  // The insertion eye and the berm are within the first frame of every deploy,
+  // so near-camera plants must never read taller than the held rifle. Resolve
+  // each site's shortest authoring distance once, then cap its final world
+  // height per stride: ankle-high within six metres, waist-high at the berm,
+  // full height only on the horizon. Ferns close enough to touch the muzzle
+  // are dropped outright rather than scaled to nothing.
+  const spawns=this.world?.spawns||[];
+  const spawnDistance=(x,z)=>{
+   let near=Infinity;
+   for(const [px,pz] of spawns)near=Math.min(near,Math.hypot(x-px,z-pz));
+   return near;
+  };
+  for(const [kind,list0] of groups){
    const asset=assets[kind];
-   // Scaned plants keep their real proportions; grass is grown to knee height
-   // so the meadow reads at 20-40 m instead of becoming paper dust.
-   const grow=kind==='grass'?1.8:kind==='fern'?1.15:1;
+   const list=kind==='fern'?list0.filter(site=>spawnDistance(site.x,site.z)>=1.6):list0;
+   if(!list.length)continue;
+   // Scaned plants keep their real proportions; grass is grown only to knee
+   // height so the meadow reads at 20-40 m instead of becoming paper dust.
+   const grow=kind==='grass'?1.15:kind==='fern'?1.05:1;
    for(const part of asset.parts){
     const mat=part.mat;
     if(!mat)continue;
@@ -571,10 +602,6 @@ export class RaidView {
     // pale straw blades down into dark green tips that sit against the dirt
     // instead of glowing like dry hay (director note 2).
     if(kind==='grass'&&!mat.userData.raidBankTint){mat.color.setRGB(.24,.43,.22,THREE.SRGBColorSpace);mat.userData.raidBankTint=true;mat.needsUpdate=true}
-    // The fir scan's dry needle cards wash out against the white bank
-    // building at noon; a cooler, darker pine tint keeps the conifer shape
-    // legible against the facade.
-    if(kind==='fir'&&!mat.userData.raidFirTint){mat.color.setRGB(.34,.46,.3,THREE.SRGBColorSpace);mat.userData.raidFirTint=true;mat.needsUpdate=true}
     if(!windSet.has(mat)&&kind!=='rock'&&kind!=='stump'){
      windSet.add(mat);mat.userData.raidFoliage=true;mat.userData.raidWind=true;
      mat.onBeforeCompile=shader=>{
@@ -591,8 +618,16 @@ export class RaidView {
     mesh.receiveShadow=true;
     mesh.userData.raidNature=kind;
     for(let i=0;i<list.length;i++){
-     const site=list[i],s=(site.s||1),sy=s*grow;
-     const sx=kind==='shrub'?s*.62:kind==='fern'?s*.74*grow:s*grow;
+     const site=list[i],s=(site.s||1),near=spawnDistance(site.x,site.z);
+     let sy=s*grow;
+     let sx=kind==='shrub'?s*.62:kind==='fern'?s*.74*grow:s*grow;
+     if(kind==='grass'||kind==='fern'){
+      const maxH=kind==='grass'
+       ?(near<6?.34:near<14?.58:.9)
+       :(near<10?.44:near<22?.68:1);
+      const cap=maxH/asset.height;
+      if(sy>cap){const shrink=cap/sy;sy=cap;sx*=shrink}
+     }
      const sz=sx,ground=meshY(site.x,site.z);
      dummy.position.set(site.x,ground==null?site.y:ground,site.z);
      dummy.rotation.set(0,(site.ry||0)+spin(site.x,site.z),0);
