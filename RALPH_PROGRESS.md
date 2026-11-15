@@ -9200,3 +9200,20 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the glove back now has knuckle texture and the glove/sleeve tone separates, but the support glove is still a rounded lump rather than wrapped fingers, the "fingers" are padding ridges rather than real digits, and the sleeve remains a smooth tube — director check (b) does not pass yet.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`); continue item 1 via a vetted dedicated rigged CC0/CC-BY FPS arms+glove asset (CC-BY-only existing candidates need checking) or, if blocked, move to item 2 guards at high-loot caches.
+
+## Iteration 139 — FIRST-PERSON ARMS floating cuff rings removed (DIRECTOR_NOTES item 1a; 2026-11-15)
+
+**Acceptance criteria:** offline clear-noon at 1024×720 and 844×390, spawn viewmodel — (a) no cuff ring/hoop visible anywhere; (b) sleeve meets glove with no gap; (c) presentation-only, corresponding graders green; (d) distinct spot frames for the reviewer.
+
+**Status:** landed, presentation-only; DIRECTOR_NOTES item 1a addressed.
+- (a) MET — deleted `fpArmCuffs` and its cylinder-band/torus-seam geometry from `raid-models.mjs` entirely (not resized): the huge loose collar around the left forearm and the secondary coil at the right wrist are gone from every frame, leaving only the sleeve+glove meshes.
+- (b) MET-ish — `after-viewmodel.png` and the new `after-wrist.png` show the olive sleeve hem sitting directly against the charcoal glove with no ring and no visible gap. The sleeve is still one smooth tube (fold/seam remains item 1c).
+- (c) MET — `node --check raid-models.mjs` clean; gunlight ✓ at both viewports (4 skinned arms, glove/sleeve only, hands anchored, `browserErrors:[]`); static-offline ✓ (`noApiTraffic:true`); mobile-HUD ✓ 91.80%/81.81% unobstructed. Performance relay p50 16.7 ms, 2,291 draw calls, 13.5M tris; the cuff removal drops the spawn frame from 25 to 19 draw calls.
+
+**Verification:** unit suite 1,247/1,249 — only the known matchmaking ECONNRESET (also reproduced solo and at HEAD) and the known parallel raid-load timeout; neither touches this presentation-only diff. `raid-browser-viewmodel.mjs` overlay-light 3≠2 is pre-existing at HEAD.
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared and regenerated, 27 files: `before-1024.png`/`after-1024.png` and `before-844.png`/`after-844.png` spawn hero; `before-viewmodel.png`/`after-viewmodel.png` (1024-wide 2× hand crop) plus new `after-wrist.png` (3× wrist/glove proof); and spawn/loot/courtyard/cover/enemy/extract before/after frames at 1024×720 and 844×390, all offline noon at the same poses.
+
+**Honest critique:** the floating hoop was the worst thing on the arms and is gone, but the support hand is still a dark lump, the grip hand still reads as fat pads instead of jointed fingers with an index on the trigger guard, and the sleeve is still a smooth tube — director check (b) does not pass yet.
+
+**Next action:** update EXTRACTION_BACKLOG.md and commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: vet a dedicated rigged CC0/CC-BY FPS arms+gloves asset per director note 1b; if none, re-pose the finger chains thinner (visible joints, index on trigger guard, left fingers wrapping the handguard) and add a folded sleeve seam per 1c.
