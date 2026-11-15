@@ -828,6 +828,37 @@ export class RaidView {
   // Painted plaster (real Poly Haven photo) keeps the loading bay pale and
   // low-contrast next to the coarse red-brick shop row.
   const shedWallMat=surfaceMat('plaster',1.2,.93,0xffffff);
+  // Ground-floor stone band. The facade kit's base module was built to tile a
+  // 3 m bay; stretching one copy across a 12 m face crushed its photographed
+  // relief into a flat brown slab at 2-3 m. Per-instance UV tiling (same hook
+  // the street props use) keeps the scan's aggregate and mortar grain visible
+  // at every bay width. The map clone keeps the shared scan repeat untouched.
+  const stoneWallMat=(()=>{
+   const m=surfaceMat('concrete',2.2,.94,0xffffff);
+   const map=m.map.clone();map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(1,1);map.needsUpdate=true;
+   const nrm=m.normalMap.clone();nrm.wrapS=nrm.wrapT=THREE.RepeatWrapping;nrm.repeat.set(1,1);nrm.needsUpdate=true;
+   m.map=map;m.normalMap=nrm;m.normalScale=new THREE.Vector2(1.7,1.7);
+   m.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\n')
+     .replace('#include <uv_vertex>',`#include <uv_vertex>
+#ifdef USE_INSTANCING
+ vec3 stoneScale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
+ vec2 stoneRep;
+ if(abs(normal.x)>.5)stoneRep=vec2(stoneScale.z,stoneScale.y);
+ else if(abs(normal.y)>.5)stoneRep=vec2(stoneScale.x,stoneScale.z);
+ else stoneRep=vec2(stoneScale.x,stoneScale.y);
+ stoneRep=max(vec2(1.0),stoneRep/3.0);
+ #ifdef USE_MAP
+  vMapUv*=stoneRep;
+ #endif
+ #ifdef USE_NORMALMAP
+  vNormalMapUv*=stoneRep;
+ #endif
+#endif`);
+   };
+   m.customProgramCacheKey=()=>'raidFacadeStoneTiled';
+   return m;
+  })();
   const brickTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xece0d2),.82).multiplyScalar(.92)};
   const shedTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xdbe4e5),.88)};
   const nearCells=[],planeCells=[],baseCells=[],corniceCells=[],crownCells=[],pierCells=[],sillCells=[],doorHoodCells=[];
@@ -846,6 +877,7 @@ export class RaidView {
    return c;
   };
   const stoneFor=t=>t.clone().lerp(new THREE.Color(0x746b60),.42);
+  const bayShade=v=>{const s=Math.sin(v*127.1+37.73)*43758.5453;return s-Math.floor(s)};
   for(const b of blocks){
    const dx=b.x-self.x,dz=b.z-self.z,near=dx*dx+dz*dz<reach2;
    const tint=tintFor(b),stone=stoneFor(tint);
@@ -876,15 +908,20 @@ export class RaidView {
       dummy.position.set(px,b.y+r*ch,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,ch/3,1);
       dummy.updateMatrix();nearCells.push({matrix:dummy.matrix.clone(),color:wallTint,kind:b.kind});
      }
-     // One continuous photographed-stone base for the whole face (not a dark atlas
-     // strip) and one projecting roofline cornice keep the scanned moulding
-     // profile while spanning the authored facade length.
-     dummy.position.set(f.cx+f.nx*.036,b.y,f.cz+f.nz*.036);dummy.rotation.set(0,f.ry,0);
-     dummy.scale.set(f.len/3,.86,1.5);dummy.updateMatrix();
-     baseCells.push({matrix:dummy.matrix.clone(),color:stone});
-     dummy.position.set(f.cx+f.nx*.04,b.y+b.h,f.cz+f.nz*.04);dummy.rotation.set(0,f.ry,0);
-     dummy.scale.set(f.len/3,.92,2.6);dummy.updateMatrix();
-     corniceCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(1.08)});
+     // One photographed-stone base per 3 m bay (not an atlas strip stretched
+     // across the whole face) so the aggregate, mortar grain and moulding stay
+     // readable from 2-3 m. Adjacent bays get a deterministic tonal shift, which
+     // reads as real stone courses without adding a texture or collision change.
+     for(let col=0;col<cols;col++){
+      const along=(col+.5-cols/2)*cw;
+      dummy.position.set(f.onZ?f.cx+along+f.nx*.036:f.cx+f.nx*.036,b.y,f.onZ?f.cz+f.nz*.036:f.cz+along+f.nz*.036);
+      dummy.rotation.set(0,f.ry,0);
+      dummy.scale.set(cw/3,.86,1.5);dummy.updateMatrix();
+      baseCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.9+bayShade(f.cx+f.cz+col*.73)*.18)});
+      dummy.position.set(f.onZ?f.cx+along+f.nx*.04:f.cx+f.nx*.04,b.y+b.h,f.onZ?f.cz+f.nz*.04:f.cz+along+f.nz*.04);
+      dummy.scale.set(cw/3,.92,2.6);dummy.updateMatrix();
+      corniceCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.97+bayShade(f.cx+f.cz+col*1.17)*.14)});
+     }
      // Solid volumes also receive the kit's tile parapet, scaled low and warm so
      // it caps the roofline without the heavy black edge of the old box.
      if(!b.wall&&b.h>=3.4&&crown){
@@ -935,8 +972,8 @@ export class RaidView {
   instanced(wall.parts[0].geo,brickWallMat,nearCells.filter(c=>c.kind==='planks'),true,'wallsNear','brickWall');
   instanced(wall.parts[0].geo,shedWallMat,nearCells.filter(c=>c.kind==='metal'),true,'wallsNear','shedWall');
   instanced(planeGeo,wallMat,planeCells,false,'wallsFar');
-  instanced(base.parts[0].geo,wallMat,baseCells,true,'plinth','plinth');
-  instanced(cornice.parts[0].geo,wallMat,corniceCells,true,'cornice','cornice');
+  instanced(base.parts[0].geo,stoneWallMat,baseCells,true,'plinth','plinth');
+  instanced(cornice.parts[0].geo,stoneWallMat,corniceCells,true,'cornice','cornice');
   instanced(pier.parts[0].geo,pierMat,pierCells,true,'piers');
   instanced(base.parts[0].geo,baseMat,sillCells,false,'sills');
   if(crown)instanced(crown.parts[0].geo,crown.parts[0].mat,crownCells,true,'parapet');
@@ -1125,24 +1162,25 @@ export class RaidView {
   const brick=front.planks.block,bay=front.metal.block;
   const brickZ=brick.z-brick.d/2,bayZ=bay.z-bay.d/2;
   const DUMMY=new THREE.Object3D();
-  // Damp foundation: irregular plates tinted nearly to soot, seated just proud
-  // of the stone plinth on the faces the spawn camera actually sees. The alpha
-  // matte is the shipped ground-decal mask; the colour is the photographed rock
-  // map. Staggering the plates a few mm apart keeps their overlaps stable.
+  // Damp foundation dirt: soft-edged photographed pavement stains, tinted warm
+  // brown-grey and held low on the wall so they darken the ground band rather
+  // than painting solid black rectangles over the shutter graffiti. The alpha
+  // matte is the shipped ground-decal mask; opacity stays low and the plates are
+  // kept apart so overlaps cannot stack into soot-black patches.
   if(!root.userData.raidFoundationGrime){
   const decal=HQP.decal?.wear||HQP.decal?.damage||HQP.decal?.crack;
   let grimeMask=decal?.mask||null;
   if(!grimeMask){
    const g=document.createElement('canvas');g.width=g.height=128;const gx=g.getContext('2d');
-   const rg=gx.createRadialGradient(64,64,4,64,64,64);rg.addColorStop(0,'#fff');rg.addColorStop(.6,'#fff');rg.addColorStop(1,'rgba(255,255,255,0)');
+   const rg=gx.createRadialGradient(64,64,4,64,64,64);rg.addColorStop(0,'#fff');rg.addColorStop(.55,'rgba(255,255,255,.72)');rg.addColorStop(1,'rgba(255,255,255,0)');
    gx.fillStyle=rg;gx.fillRect(0,0,128,128);grimeMask=new THREE.CanvasTexture(g);
   }
   const grimeMap=(decal?.map||getTex('rock')).clone();
   grimeMap.wrapS=grimeMap.wrapT=THREE.RepeatWrapping;grimeMap.repeat.set(1.4,.55);grimeMap.needsUpdate=true;
   const grimeNormal=normalTex('rock',1.5).clone();
   grimeNormal.wrapS=grimeNormal.wrapT=THREE.RepeatWrapping;grimeNormal.repeat.set(1.4,.55);grimeNormal.needsUpdate=true;
-  const grimeMat=new THREE.MeshStandardMaterial({map:grimeMap,normalMap:grimeNormal,alphaMap:grimeMask,alphaTest:.12,
-   color:0xffffff,roughness:.98,metalness:0,envMapIntensity:.45,transparent:true,opacity:.92,depthWrite:false,side:THREE.DoubleSide});
+  const grimeMat=new THREE.MeshStandardMaterial({map:grimeMap,normalMap:grimeNormal,alphaMap:grimeMask,alphaTest:.02,
+   color:0xffffff,roughness:.98,metalness:0,envMapIntensity:.35,transparent:true,opacity:.34,depthWrite:false,side:THREE.DoubleSide});
   grimeMat.userData.raidOwned=true;
   const sides=[
    {px:brick.x,pz:brickZ,nx:0,nz:-1,len:brick.w,along:'x'},
@@ -1154,17 +1192,32 @@ export class RaidView {
   const stains=[];
   for(const f of sides){
    const out=0.19;
-   for(let i=0;i<8;i++){
-    const t=i/7, span=f.len, along=(rnd(i*3.17+f.len*.31)-.5)*(i<2?span*.72:span*.9);
-    let w,h,y;
-    if(i===0){w=span*.5;h=.3+rnd(i+2.2)*.16;y=.1}
-    else if(i===1){w=span*.4;h=.45+rnd(i+3.4)*.25;y=.3}
-    else if(i<6){w=.8+rnd(i*5.71)*1.8;h=.3+rnd(i*7.13+1.1)*.8;y=.08+rnd(i*2.63)*.4}
-    else {w=.22+rnd(i*4.31)*.32;h=.7+rnd(i*6.91)*1.1;y=.45+rnd(i*3.3)*.35}
+   for(let i=0;i<7;i++){
+    const span=f.len;
+    if(i===0){
+     // The continuous damp seam where wall meets pavement.
+     stains.push({px:f.px+(f.nx?f.nx*out:0)+(f.along==='x'?(rnd(f.len*.31)-.5)*span*.2:0),
+      py:.02,pz:f.pz+(f.nz?f.nz*out:0)+(f.along==='z'?(rnd(f.len*.31)-.5)*span*.2:0),
+      yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,sw:span*(.42+rnd(f.len*.7)*.2),sh:.16,c:0x8a806c});
+     continue;
+    }
+    if(i===5||i===6){
+     // Two thin rising damp streaks, not opaque pillars.
+     const along=(rnd(i*7.1+f.len*.31)-.5)*span*.9;
+     const h=.24+rnd(i*3.3)*.26;
+     stains.push({px:f.px+(f.nx?f.nx*(out+i*.003):0)+(f.along==='x'?along:0),
+      py:.06,pz:f.pz+(f.nz?f.nz*(out+i*.003):0)+(f.along==='z'?along:0),
+      yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,sw:.10+rnd(i*4.31)*.13,sh:h,c:0x7d7361});
+     continue;
+    }
+    const along=(rnd(i*3.17+f.len*.31)-.5)*span*.84;
+    const w=.55+rnd(i*5.71)*.9;
+    const h=.14+rnd(i*7.13+1.1)*.27;
+    const y=.05+rnd(i*2.63)*.14;
     stains.push({px:f.px+(f.nx?f.nx*(out+i*.004):0)+(f.along==='x'?along:0),
      py:y,pz:f.pz+(f.nz?f.nz*(out+i*.004):0)+(f.along==='z'?along:0),
      yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
-     sw:w,sh:h,c:0x5b5344-(i%3)*0x080706});
+     sw:w,sh:h,c:i%2?0x877c69:0x93876f});
    }
   }
   const stainGeo=new THREE.PlaneGeometry(1,1);
@@ -1172,7 +1225,7 @@ export class RaidView {
   stains.forEach((st,i)=>{
    DUMMY.position.set(st.px,st.py+st.sh/2,st.pz);DUMMY.rotation.set(0,st.yaw,0);DUMMY.scale.set(st.sw,st.sh,1);DUMMY.updateMatrix();
    stainMesh.setMatrixAt(i,DUMMY.matrix);
-   stainMesh.setColorAt(i,new THREE.Color(st.c).multiplyScalar(.86+rnd(i*9.1)*.22));
+   stainMesh.setColorAt(i,new THREE.Color(st.c).multiplyScalar(.88+rnd(i*9.1)*.2));
   });
   stainMesh.instanceMatrix.needsUpdate=true;if(stainMesh.instanceColor)stainMesh.instanceColor.needsUpdate=true;
   stainMesh.receiveShadow=true;stainMesh.castShadow=false;stainMesh.frustumCulled=false;

@@ -8994,3 +8994,24 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the bank now reads mossy olive and the skyline is full green crowns instead of lacy firs, and the fixed enemy frames keep the rifle clear. It still looks rough: the moss blend flattens into one olive wash on distant slopes, the broadleaf crowns are thinner than a mature street tree, and the wide 844 spawn framing still catches an operator at point-blank (present at HEAD and after, so not from this change); art acceptance waits on Austin's live playtest.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 CLOSE-UP BUILDING FIX — remove/replace the flat dark post at the shop front and soften the foundation grime plates; keep item 3 WHITE WAREHOUSE and item 4 GROUND TOUCH-UP queued.
+
+## Iteration 128 — CLOSE-UP BUILDING FIX: photographed stone base per bay, soft brown-grey foundation stains (DIRECTOR_NOTES item 2; 2026-11-14)
+
+**Acceptance criteria:** from 2–3 m in front of the HARDWARE shop row at 1024×720 and 844×390, no flat untextured dark post/beam remains in front of the facade; the base grime plates read as soft-edged brown-grey dirt stains at low opacity instead of solid black rectangles under the shutters, with the graffiti still visible; static-offline, mobile-HUD and structures graders stay green; presentation-only — no collision, route, loot, server or other-mode change.
+
+### Implementation
+- `raid-view.mjs refreshFacades`: added `stoneWallMat`, a photographed concrete surface with cloned wrapping diffuse/normal maps, and an `onBeforeCompile` hook that repeats the scan at a 3 m bay using each instance's scale (normalScale 1.7). The plinth and cornice are now instanced once per 3 m bay (`cols` loop) with deterministic `bayShade` tonal shifts instead of one module stretched across the whole face, which at 2–3 m flattened the scan into a brown slab. Relay reports 419 structures/plinths/cornices and 602 plinth + 602 cornice instances.
+- `raid-view.mjs refreshFacadeAccents`: foundation plates now use the shipped worn decal map and a softer radial fallback mask (opaque to 55%, transparent by the edge), with `alphaTest .02`, `opacity .34`, roughness .98 and depthWrite off. Seven stains per visible side: a low ground seam, four shallow patches 0.55–1.45 m wide by 0.14–0.41 m tall, and two thin rising streaks 0.24–0.5 m tall, tinted 0x8a806c / 0x877c69 / 0x93876f instead of near-black 0x5b5344. No plate is tall/wide enough to cover the shutter graffiti as a solid rectangle.
+- `tests/raid-browser-structures.mjs`: extended the instanced-tag expectation with the legitimate groups added by earlier facade/street work (`brickWall`, `gutter`, `rollerBay`, `shedWall`, `shutterWindow`, `streetCurb`, `streetCurbTop`, `streetRoad`, `streetSidewalk`). Verified the same assertion was already failing on HEAD, so this is stale-test repair, not a regression.
+
+### Verification
+- `node --check raid-view.mjs` clean.
+- `node tests/raid-browser-structures.mjs` green: 419 structures / 419 plinths / 419 cornices, plinth count 602, cornice count 602, `pbr: true`, deterministic, `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs` green: deploy/move/machine hit/loot/extract, `noApiTraffic: true`, `browserErrors: []`.
+- `node tests/raid-browser-mobile-hud.mjs` green: unobstructed 91.80% at 1024×720 and 81.81% at 844×390; all touch affordances exercised.
+- `node --test tests/*.test.mjs`: 1248/1249, only the known `matchmaking` ECONNRESET.
+- Shots in `~/headshotz-loop/shots/latest/`: before-1024.png / after-1024.png (HARDWARE shopfront), before-844.png / after-844.png (landscape), plus spawn, courtyard, cover, loot, enemy and walk frames at both sizes. Before shows a flat maroon base band and black plates over the graffiti; after shows the photographed stone base with grain and soft brown stains, graffiti intact.
+
+**Honest critique:** the base band now reads as photographed weathered masonry and the solid black rectangles are gone, but the stone still runs cool-dark beside the warm brick and the 3 m tone steps show faint joins between bays, while the grey loading-bay panel at the row's right end still lacks close detail; art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 3 WHITE WAREHOUSE — blend a scanned corrugated-metal/concrete panel with grime and window detail onto the long grey right-side building; keep item 4 GROUND TOUCH-UP and item 5 VIEWMODEL SLEEVES + ENEMY COVER queued.

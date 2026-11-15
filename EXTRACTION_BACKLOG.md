@@ -10,13 +10,13 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 127, 2026-11-14)
+## Current art-directed priority (iteration 128, 2026-11-14)
 
 Director-notes order for the next passes, presentation-only:
 
 1. **FOLIAGE FINISH** — IMPLEMENTED in iteration 127 (awaiting Austin's playtest): ferns within 1.6 m of spawn are excluded and grass/fern height is capped by spawn distance (grass ≤0.34 m under 6 m, ≤0.58 m under 14 m; fern ≤0.44 m under 10 m) so nothing crosses the rifle; the fir sapling is removed and four full-crowned `tree_small_02` broadleaf trees at 1.2–1.95 scale form the centre/right skyline; sloped terrain samples the CC0 Brown Mud Leaves scan at a 6 m tiling after vertex colour, so the right bank reads mottled olive moss instead of flat tan. Ground-finish/foliage/static-offline/mobile-HUD graders are green; shots in `~/headshotz-loop/shots/latest/`. Still weak: the moss blend flattens into one olive wash on distant slopes, the broadleaf crowns are thinner than a mature street tree, and the wide spawn framing still catches an operator at point-blank (unchanged from HEAD).
-2. **CLOSE-UP BUILDING FIX** — NEXT: from 2–3 m in front of the HARDWARE shop row, remove/replace the flat untextured dark post/beam and soften the 32 base-grime plates into brown-grey dirt stains (soft alpha edges, low opacity) so no solid black rectangles sit under the shutters; screenshot proof is a close shop-front frame with no flat black shapes.
-3. **WHITE WAREHOUSE** — blend a scanned corrugated-metal/concrete panel with grime and window detail onto the long grey/white right-side building so the facade texture reads from spawn and loot.
+2. **CLOSE-UP BUILDING FIX** — IMPLEMENTED in iteration 128 (awaiting Austin's playtest): the plinth and cornice are now instanced once per 3 m bay with a photographed concrete surface and per-instance UV tiling at that bay, replacing the single stretched flat brown slab; deterministic bay shading breaks the band into stone courses. The base grime plates are now low-opacity (0.34) soft-alpha photographed stains tinted brown-grey, held under 0.5 m and never wide enough to hide the shutter graffiti, with no near-black solid rectangles. Structures/static-offline/mobile-HUD graders green (structures list repaired for the current instanced tags); shots and action frames in `~/headshotz-loop/shots/latest/`. Still weak: the stone tint is cool-dark next to the warm brick, bay tone joins can show, and the loading-bay grey panel at the row's right end lacks close detail.
+3. **WHITE WAREHOUSE** — NEXT: blend a scanned corrugated-metal/concrete panel with grime and window detail onto the long grey/white right-side building so the facade texture reads from spawn and loot.
 4. **GROUND TOUCH-UP** — break the rust/brown smear band across the centre walk into smaller irregular decals with no rectangular blend edges, and fix the QUARANTINE LINE sign clipping the courtyard camera.
 5. **VIEWMODEL SLEEVES + ENEMY COVER** (spare budget) — dark sleeve behind the grip hand; put the spawn-view centre enemy partly behind barrels/barrier.
 
