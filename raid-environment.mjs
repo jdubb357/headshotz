@@ -860,41 +860,57 @@ export function buildEnvironment(world){
   else if(prop.kind==='dumpster'){const s=prop.scale||1,c=prop.color||0x4e6550;add('box',c,x,y+.7*s,z,2.1*s,1.4*s,1.25*s,0,'metal');add('box',0x333d3f,x,y+1.42*s,z,2.15*s,.1*s,1.3*s,0,'metal');for(const s2 of [-.7,.7])add('cylinder',0x1f2420,x+s2*s,y+.22*s,z+.52*s,.2*s,.2*s,.2*s,0,'metal')}
   else if(prop.kind==='sign'){
    const name=String(prop.name||'SECTOR').toUpperCase();
+   let px=prop.x,pz=prop.z;
+   // The spawn-entry QUARANTINE notices are authored 18 m along the diagonal
+   // approach road, so the deploy eye (authoritative yaw 0, facing +z) clips
+   // their left frame: the opening frame reads "RANTINE LINE" over empty air.
+   // Re-seat each one in the courtyard's own forward sight line, clear of solid
+   // geometry, so the first thing a player reads is the whole notice on its two
+   // posts and footings. Presentation only: collision, loot, routes and server
+   // authority keep the authored prop position untouched.
+   if(name==='QUARANTINE LINE'){
+    let home=null,homeDist=Infinity;
+    for(const [wx,wz] of world.spawns||[]){const d=Math.hypot(wx-prop.x,wz-prop.z);if(d>=15&&d<=21&&d<homeDist){homeDist=d;home=[wx,wz]}}
+    if(home)for(const dz of [17,16,18,15,19]){
+     const z=home[1]+dz;
+     if(!blocked(world,home[0],z,1.2,0,4)){px=home[0];pz=z;break}
+    }
+   }
    let boardY=Number.isFinite(prop.y)?prop.y:2.8;
    let host=null;
    // Street signs are authored a short distance outside a building face. Find
    // that façade from the same coarse block index used for window trim; the sign
    // then keeps its readable offset but gains two metal jibs tying it back to the
    // wall. Free-standing notices get real posts and footings below.
-   for(let ix=Math.floor(prop.x/FACADE_CELL)-1;ix<=Math.floor(prop.x/FACADE_CELL)+1&&!host;ix++){
-    for(let iz=Math.floor(prop.z/FACADE_CELL)-1;iz<=Math.floor(prop.z/FACADE_CELL)+1&&!host;iz++){
+   for(let ix=Math.floor(px/FACADE_CELL)-1;ix<=Math.floor(px/FACADE_CELL)+1&&!host;ix++){
+    for(let iz=Math.floor(pz/FACADE_CELL)-1;iz<=Math.floor(pz/FACADE_CELL)+1&&!host;iz++){
      const list=facadeGrid.get(ix+','+iz);if(!list)continue;
      for(const [bx,bz,bw,bd,bh,base=0] of list){
       if((base||0)>.3||bh<Math.max(2.6,boardY-1.2)||bw<5||bd<5)continue;
-      const xInside=Math.abs(prop.x-bx)<=bw/2+.15,zInside=Math.abs(prop.z-bz)<=bd/2+.15;
-      if(xInside&&Math.abs(prop.z-bz)>=bd/2-.1&&Math.abs(prop.z-bz)<bd/2+1.05){
-       const nz=prop.z>bz?1:-1;host={nx:0,nz,onZ:true,wallX:bx,wallZ:bz+nz*bd/2,top:base+bh};break;
+      const xInside=Math.abs(px-bx)<=bw/2+.15,zInside=Math.abs(pz-bz)<=bd/2+.15;
+      if(xInside&&Math.abs(pz-bz)>=bd/2-.1&&Math.abs(pz-bz)<bd/2+1.05){
+       const nz=pz>bz?1:-1;host={nx:0,nz,onZ:true,wallX:bx,wallZ:bz+nz*bd/2,top:base+bh};break;
       }
-      if(zInside&&Math.abs(prop.x-bx)>=bw/2-.1&&Math.abs(prop.x-bx)<bw/2+1.75){
-       const nx=prop.x>bx?1:-1;host={nx,nz:0,onZ:false,wallX:bx+nx*bw/2,wallZ:bz,top:base+bh};break;
+      if(zInside&&Math.abs(px-bx)>=bw/2-.1&&Math.abs(px-bx)<bw/2+1.75){
+       const nx=px>bx?1:-1;host={nx,nz:0,onZ:false,wallX:bx+nx*bw/2,wallZ:bz,top:base+bh};break;
       }
      }
     }
    }
-   let toX=prop.x,toZ=prop.z-1,best=Infinity;
-   if(!host)for(const [px2,pz2] of world.spawns||[]){const dist=Math.hypot(px2-prop.x,pz2-prop.z);if(dist<best){best=dist;toX=px2;toZ=pz2}}
-   const ry=host?Math.atan2(host.nx,host.nz):Math.atan2(toX-prop.x,toZ-prop.z);
+   let toX=px,toZ=pz-1,best=Infinity;
+   if(!host)for(const [px2,pz2] of world.spawns||[]){const dist=Math.hypot(px2-px,pz2-pz);if(dist<best){best=dist;toX=px2;toZ=pz2}}
+   const ry=host?Math.atan2(host.nx,host.nz):Math.atan2(toX-px,toZ-pz);
    const nx=Math.sin(ry),nz=Math.cos(ry),panelW=host?3.6:5.2,panelH=host?.86:1.24;
    if(host)boardY=Math.max(1.4,Math.min(boardY,host.top-.35));
-   else boardY=Math.max(terrainHeightAt(world,prop.x,prop.z)+2.15,boardY);
+   else boardY=Math.max(terrainHeightAt(world,px,pz)+2.15,boardY);
    if(host){
-    const off=Math.max(.22,host.nx?Math.abs(prop.x-host.wallX):Math.abs(prop.z-host.wallZ));
+    const off=Math.max(.22,host.nx?Math.abs(px-host.wallX):Math.abs(pz-host.wallZ));
     // The two mounting jibs sit just outside the board edge so they stay visible
     // from the street instead of disappearing behind the panel.
     for(const side of [-1,1]){
      const lateral=side*(panelW/2+.12);
-     if(host.onZ)add('box',0x46565b,prop.x+lateral,boardY,prop.z-host.nz*off/2,off+.10,.08,.08,0,'metal',0,0,false,'');
-     else add('box',0x46565b,prop.x-host.nx*off/2,boardY,prop.z+lateral,.08,.08,off+.10,0,'metal',0,0,false,'');
+     if(host.onZ)add('box',0x46565b,px+lateral,boardY,pz-host.nz*off/2,off+.10,.08,.08,0,'metal',0,0,false,'');
+     else add('box',0x46565b,px-host.nx*off/2,boardY,pz+lateral,.08,.08,off+.10,0,'metal',0,0,false,'');
     }
    }else{
     // The posts sit well outside the board footprint so the sign reads as a
@@ -903,17 +919,23 @@ export function buildEnvironment(world){
     // sign on a grade stays planted at both feet. The old cream hazard sleeve
     // is gone: at first-person range it read as a pale tan post under the board.
     for(const side of [-1,1]){
-     const lateral=side*(panelW/2+.58),px2=prop.x+Math.cos(ry)*lateral,pz2=prop.z-Math.sin(ry)*lateral;
+     const lateral=side*(panelW/2+.58),px2=px+Math.cos(ry)*lateral,pz2=pz-Math.sin(ry)*lateral;
      const ground=terrainHeightAt(world,px2,pz2),postH=boardY+panelH/2+.05-ground;
-     add('box',0x7d8883,px2,ground+postH/2,pz2,.28,postH,.28,0,'metal',0,0,false,'');
-     add('box',0x8d8b80,px2,ground+.10,pz2,.72,.20,.72,0,'concrete',0,0,false,'');
+     // Squared, chamfered shafts over poured footings read as poured-concrete
+     // street furniture instead of two thin sticks the panel floats between.
+     add('box',0x6d7a7a,px2,ground+postH/2,pz2,.34,postH,.34,0,'metal',0,0,false,'');
+     add('box',0x5e6662,px2+Math.sign(side)*.13,ground+postH/2,pz2,.16,postH*.98,.16,0,'metal',0,0,false,'');
+     add('box',0x8d8b80,px2,ground+.11,pz2,.86,.22,.86,0,'concrete',0,0,false,'');
+     add('box',0x6f6c60,px2,ground+.02,pz2,1.02,.10,1.02,0,'concrete',0,0,false,'');
+     // Collar plates where each shaft meets the board rails.
+     add('box',0x36464b,px2,boardY-panelH/2-.16,pz2,.44,.10,.44,0,'metal',0,0,false,'');
     }
-    add('box',0x384b52,prop.x,boardY+panelH/2+.10,prop.z,panelW+1.4,.12,.14,ry,'metal',0,0,false,'');
-    add('box',0x384b52,prop.x,boardY-panelH/2-.12,prop.z,panelW+.9,.09,.11,ry,'metal',0,0,false,'');
+    add('box',0x384b52,px,boardY+panelH/2+.10,pz,panelW+1.4,.12,.14,ry,'metal',0,0,false,'');
+    add('box',0x384b52,px,boardY-panelH/2-.12,pz,panelW+.9,.09,.11,ry,'metal',0,0,false,'');
    }
-   add('box',0x26363b,prop.x,boardY,prop.z,panelW+.14,panelH+.14,.08,ry,'metal',0,0,false,'');
+   add('box',0x26363b,px,boardY,pz,panelW+.14,panelH+.14,.08,ry,'metal',0,0,false,'');
    const panel=new THREE.Mesh(signPlaneGeometry,signMaterial(name));
-   panel.position.set(prop.x+nx*.052,boardY,prop.z+nz*.052);panel.rotation.y=ry;panel.scale.set(panelW,panelH,1);
+   panel.position.set(px+nx*.052,boardY,pz+nz*.052);panel.rotation.y=ry;panel.scale.set(panelW,panelH,1);
    panel.castShadow=true;panel.receiveShadow=true;panel.userData.raidOwned=true;root.add(panel);
   }
  }
