@@ -517,41 +517,10 @@ function fpArmMaterial(part){
  fpArmMaterialLive.add(m);
  m.userData.raidOwned=true;return m;
 }
-// Glove cuff: the MakeHuman crop meets the wrist with a hard geometric edge.
-// A short leather band with raised stitch ridges closes that join the way real
-// field gloves do, so the sleeve-to-glove transition reads as construction
-// instead of a black tube cut off by the screen edge. Geometry is built once
-// and shared; the meshes ride the gun root (presentation-only, no skeleton).
-const fpCuffGeometry={band:null,seam:null};
-function fpCuffGeometries(){
- if(fpCuffGeometry.band)return fpCuffGeometry;
- fpCuffGeometry.band=new THREE.CylinderGeometry(.034,.038,.026,20,1,true);
- fpCuffGeometry.seam=new THREE.TorusGeometry(.040,.0016,5,20);
- return fpCuffGeometry;
-}
-function fpArmCuffs(root,body,material){
- if(!material)return;
- const geo=fpCuffGeometries(),bones={};
- body.traverse(o=>{if(o.isBone)bones[o.name]=o});
- const wrist=new THREE.Vector3(),elbow=new THREE.Vector3(),dir=new THREE.Vector3(),up=new THREE.Vector3(0,1,0);
- for(const [handName,armName] of [['hand_r','lowerarm_r'],['hand_l','lowerarm_l']]){
-  const hd=bones[handName],lo=bones[armName];if(!hd||!lo)continue;
-  hd.getWorldPosition(wrist);lo.getWorldPosition(elbow);
-  dir.copy(wrist).sub(elbow);if(dir.lengthSq()<1e-8)continue;dir.normalize();
-  const cuff=new THREE.Group();
-  cuff.position.copy(wrist).addScaledVector(dir,-.016);
-  cuff.quaternion.setFromUnitVectors(up,dir);
-  const band=new THREE.Mesh(geo.band,material);
-  band.castShadow=false;band.frustumCulled=false;band.userData.fpArmDetail=true;cuff.add(band);
-  for(const y of [.010,-.010]){
-   const seam=new THREE.Mesh(geo.seam,material);
-   seam.rotation.x=Math.PI/2;seam.position.y=y;
-   seam.castShadow=false;seam.frustumCulled=false;seam.userData.fpArmDetail=true;cuff.add(seam);
-  }
-  cuff.name='fp-arm-cuff';
-  root.add(cuff);
- }
-}
+// The sleeve already meets the glove at the wrist, so no separate cuff ring is
+// needed: the old cylinder band and its stitch tori read as a floating bracelet
+// around the forearm instead of a glove hem. The cuff geometry is removed
+// entirely rather than resized, so no hoop can survive at gameplay distance.
 function fpArmPose(body,info){
  const bones={};body.traverse(o=>{if(o.isBone)bones[o.name]=o}); const upR=bones.upperarm_r,loR=bones.lowerarm_r,hR=bones.hand_r;
  const upL=bones.upperarm_l,loL=bones.lowerarm_l,hL=bones.hand_l;
@@ -825,7 +794,6 @@ function addFirstPersonArms(root,info){
  body.position.set(FP_ARM_BODY[0],FP_ARM_BODY[1],FP_ARM_BODY[2]);
  body.updateMatrixWorld(true);
  fpArmPose(body,info);
- fpArmCuffs(root,body,gloveMaterial);
  fpArmGloveKnuckles(root,body,gloveMaterial);
  root.add(body);
  root.userData.firstPersonArms=true;
