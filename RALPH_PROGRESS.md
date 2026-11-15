@@ -9131,3 +9131,20 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 
 **Next action:** update EXTRACTION_BACKLOG.md and commit on `cypert/dev` only (no push, no PR, no `main`) with Co-Authored-By: Claude Code. Next loop: item 3 COURTYARD INTERIOR FLOOR, then item 4 SHOP ROW.
 
+
+## Iteration 135 — TREE BARK + CROWN DENSITY around the insertion grove (DIRECTOR_NOTES item 1; 2026-11-15)
+
+**Acceptance criteria:** offline noon at 1024×720 and 844×390 — (a) the four courtyard trees that frame the deploy show materially fuller crowns than HEAD, with leaf-card gaps visibly closed; (b) their trunks/branches read as warm grey-brown photographically-textured bark, not pale flat planks; (c) no gameplay, authority, other-mode or asset changes; foliage/static-offline/mobile-HUD/performance graders green apart from the known matchmaking ECONNRESET; presentation-only.
+
+**Status:** implementation complete, presentation-only; DIRECTOR_NOTES item 1 (TREES) addressed at the insertion grove.
+- (a) MET at the first frames — `refreshFoliage` adds two extra yaw-crossed instanced shells of the scanned `tree_small_02_leaves` cards (rot 1.94 / 3.88 rad, scale 0.96 / 1.02, ±0.14/0.16 m vertical) for every tree within 30 m of the deploy position. They reuse the leaves material, so one wind-lit draw per shell, no new textures; the crown reads as overlapping foliage rather than a twig net.
+- (b) MET — tree branch/trunk albedo tinted warm grey-brown (linear-sRGB `.52/.43/.35`), roughness pinned to 1, envMapIntensity cut to .35 and the scan normal map raised to 1.6×; photographed grain stays legible at arm's length. Leaf alphaTest slips .42 → .3 so fringe texels join the crown instead of punching sky holes.
+- (c) MET — presentation-only; no server/authority/collision/HUD change; foliage count 77, textured/normal-mapped wind groups, 17,413 wind-motion pixels and 0 reduced-motion pixels; static-offline, mobile-HUD (91.8% / 81.81% unobstructed) and performance (`allTargets:true`) green, `browserErrors: []`.
+
+**Verification:** `node --check raid-view.mjs` clean. Foliage ✓. Static-offline ✓ (`noApiTraffic:true`). Mobile-HUD ✓ at 1024×720 and 844×390. Performance ✓. Unit suite 1248/1249: known matchmaking ECONNRESET, reproduced once alone then passed 11/11 solo; unrelated to this presentation diff. Before = HEAD `7bf5ee4`, after = working tree.
+
+**Shots:** `~/headshotz-loop/shots/latest/` cleared and regenerated, 14 distinct files: `before-1024.png`/`after-1024.png` and `before-844.png`/`after-844.png` are the tree-crown hero frame at the same pose and pinned noon; `after-spawn-`, `after-courtyard-`, `after-warehouse-`, `after-loot-` and `after-machine-` (scout in frame) at 1024×720 and 844×390.
+
+**Honest critique:** the crowns are now visibly denser and the trunks warm brown, but individual leaf cards still read against the sky at arm's length, only trees within 30 m of the insertion are thickened (distant saplings and the taller world trees remain thin), and the scanned branch silhouettes are still low-poly; art acceptance waits on Austin's live playtest.
+
+**Next action:** committed as `3d555c8` on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 1 expansions if Austin still sees sky-through crowns (extend the crown shells or increase leaf density), otherwise item 2 SHOP ROW + SIGNS.
