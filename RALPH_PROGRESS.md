@@ -8950,3 +8950,27 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the sign is now genuinely readable and the loading-bay parapet breaks the roofline, but the base grime is still washed out and partly hidden behind foreground props at 844×390 (foreground barrel/crates cover the bay front), and the fire escape reads as a thin dark ladder at 1024 rather than a full staircase; the brick front sign is far/small on phone width. Art acceptance waits on Austin's live playtest.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 FOLIAGE FOLLOW-UP — mix 2-3 scanned tree species/sizes, fuller crowns, darker green grass tips, thin the tall blades next to the rifle; do not regrade the buildings until Austin's playtest.
+
+## Iteration 126 — FOLIAGE FOLLOW-UP: species mix, fir pair on the bank, deep-green grass, clear rifle corner (DIRECTOR_NOTES item 2; 2026-11-14)
+
+**Acceptance criteria:** at 1024×720 and 844×390 the spawn skyline shows at least two visibly different scanned tree silhouettes/sizes (broadleaf + conifer); crowns read fuller than iteration 125; the right-side berm grass tips are darker green rather than pale straw; no tall grass crosses the held rifle or its corner; offline static play and mobile HUD stay green; presentation only — no collision, route, loot or server change.
+
+### Implementation
+- `raid-environment.mjs`: deterministic spawn tree offsets now mix species and scales — leafy `tree_small_02` at +2/+24 m (s≈1.16) and a second leafy at +1.6/+26.6 m (s≈1.0) so the central crown layers, plus fir saplings at −10/+20 m (s≈1.99) and −8.4/+22.2 m (s≈1.56) for a two-tree conifer group on the right bank. Footprints remain presentation-only; no collision/loot/route data change.
+- Same file: the nearest <14 m grass instances are scaled `s*=.32+.68*(near/14)`, so tall stalks fade to ankle height at the insertion eye and cannot cross the rifle corner.
+- `raid-view.mjs refreshFoliage`: grass tint is now sRGB deep olive `(.24,.43,.22)` (former `(.60,.64,.48)` linear-washed straw), fir materials get a darker sRGB pine tint `(.34,.46,.3)` for legibility against the white bank facades.
+- Assets: `tree_small_02.glb` is the denser 13,501-tri/564,956 B web LOD; `fir_sapling.glb` is the 22,380-tri/888,772 B 512 px-WebP scan with `alphaTest .26` so its needle cards survive at 20 m (both CC0 Poly Haven; source counts and credits in ASSETS.md). Nature total is 2,605,600 B, under the 3 MB cap; the in-game credits list the fir and the updated tree.
+- `ASSETS.md`/`index.html`: nature section is now seven scans; fir credit added (Rob Tuytel, Rico Cilliers), tree credit updated.
+
+### Verification
+- `node --check assets.js`, `node --check raid-environment.mjs`, `node --check raid-view.mjs` → clean.
+- `node tests/raid-browser-ground-finish.mjs` → green: near tree 5, fir 2, spawn `trees: 4, inFrame: 4`, seat sampled 362 / floating 0, `browserErrors: []`.
+- `node tests/raid-browser-foliage.mjs` → green: 77 wind materials, 63 shaders, moving pixels 14,448, reduced motion still 0 px.
+- `node tests/raid-browser-static-offline.mjs` → green: deploy/move/machine hit/loot/extract, `noApiTraffic: true`, no browser errors.
+- `node tests/raid-browser-mobile-hud.mjs` → green: unobstructed 91.88% at 1024×720 and 81.63% at 844×390; all touch affordances exercised.
+- `node --test tests/*.test.mjs` → 1247/1249. Two transient failures: the known `matchmaking` ECONNRESET and one `raid-load` control-request timeout; `tests/raid-load.test.mjs` rerun alone is 3/3 green. No product-test regression.
+- Shots in `~/headshotz-loop/shots/latest/`: before-1024.png, before-1024-action.png, before-844.png, after-1024.png, after-1024-action.png, after-844.png, after-844-action.png. In after-1024 the broadleaf crown sits centre-left (sx≈434) and the fir pair stands on the right bank in front of the loading-bay facade; at 844 both crowns read without grass crossing the rifle.
+
+**Honest critique:** the mix now shows two different silhouettes and the bank grass is materially greener, but the fir scan is still a young sapling — its needle sprays read as dark lace rather than a full mature conifer crown at 1024, and the central leafy crown is still thin compared with a summer street tree. Sun-struck grass tips on the far bank still carry some straw gold, though the pale-straw meadow is gone. The clear rifle corner and deeper grass tint are improvements; art acceptance waits on Austin's live playtest.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 3 GROUND DETAIL CONTINUATION — discrete potholes, litter and softer decal blend edges; do not advance until Austin's playtest on the new foliage composition.

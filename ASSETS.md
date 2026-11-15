@@ -145,18 +145,19 @@ The pavement, sidewalk, gravel bank and terrain no longer rely on flat author-pi
 
 The 15 ground files total 1,533,679 bytes. Only the map channels change at load; surface instancing, slab footprints, terrain collision and all authored data are untouched.
 
-Near-spawn vegetation is rebuilt from six optimized CC0 Poly Haven scans in `assets/models/nature/`, one GLB per kind. Each was transformed to a metre-scale height, centred on x/z with its base at y = 0, simplified with meshoptimizer and glTF-Transform, and its textures resized to 512 × 512 (WebP where the scan has alpha; JPEG normal/roughness otherwise). Presentation only; placement is deterministic and seeded from frozen world props, and no collision is derived from it.
+Near-spawn vegetation is rebuilt from seven optimized CC0 Poly Haven scans in `assets/models/nature/`, one GLB per kind. Each was transformed to a metre-scale height, centred on x/z with its base at y = 0, simplified with meshoptimizer and glTF-Transform, and its textures resized to 512 × 512 (WebP where the scan has alpha; JPEG normal/roughness otherwise). Presentation only; placement is deterministic and seeded from frozen world props, and no collision is derived from it.
 
 | File | Asset | Author(s) | Source | Final triangles | Size |
 |---|---|---|---|---|---|
-| `tree_small_02.glb` | Tree Small 02 (full-scan web LOD simplified to a denser leafy canopy for the spawn skyline) | Rico Cilliers | https://polyhaven.com/a/tree_small_02 | 7,527 (from 61,758) | 914,512 B |
+| `tree_small_02.glb` | Tree Small 02 (full-scan web LOD simplified to a denser 13.5 k-tri leafy canopy for the spawn skyline) | Rico Cilliers | https://polyhaven.com/a/tree_small_02 | 13,501 (from 61,758) | 564,956 B |
+| `fir_sapling.glb` | Fir Sapling (web LOD simplified at 35% so the needle foliage survives at 20 m and reads as a distinct darker conifer) | Rob Tuytel, Rico Cilliers | https://polyhaven.com/a/fir_sapling | 22,380 (from 64,399) | 888,772 B |
 | `shrub_02.glb` | Shrub 02 | Rico Cilliers | https://polyhaven.com/a/shrub_02 | 1,059 (from 8,160) | 204,468 B |
 | `fern_02.glb` | Fern 02 | Rob Tuytel (scanning), Rico Cilliers (modelling) | https://polyhaven.com/a/fern_02 | 2,768 (from 2,801) | 221,368 B |
 | `grass_medium_02.glb` | Grass Medium 02 | Rico Cilliers | https://polyhaven.com/a/grass_medium_02 | 119 (from 397) | 102,856 B |
 | `tree_stump_01.glb` | Tree Stump 01 | Rob Tuytel | https://polyhaven.com/a/tree_stump_01 | 1,327 (from 7,381) | 397,956 B |
 | `rock_07.glb` | Rock 07 | Jenelle van Heerden | https://polyhaven.com/a/rock_07 | 652 (from 5,936) | 225,224 B |
 
-All six are CC0 1.0, total 1,999,600 bytes (under the 3 MB cap). Leaves use the scanned diffuse + alpha packed as a WebP and an alpha-tested cutout (`alphaTest .42`) so instances stay opaque to the depth buffer; the remaining materials keep photographed albedo, normal and roughness maps. The shared deterministic wind shader and its reduced-motion zero-clock behavior are applied by `raid-view.mjs`.
+All seven are CC0 1.0, total 2,605,600 bytes (under the 3 MB cap). Leaves use the scanned diffuse + alpha packed as a WebP and an alpha-tested cutout (`.42`, lowered to `.26` for the fir so its thin needle alpha does not dissolve into specks at spawn-view distance) so instances stay opaque to the depth buffer; the remaining materials keep photographed albedo, normal and roughness maps. The shared deterministic wind shader and its reduced-motion zero-clock behavior are applied by `raid-view.mjs`.
 
 ## Raid sky — photographed Poly Haven daylight dome (CC0), iteration 108
 

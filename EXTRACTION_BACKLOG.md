@@ -10,13 +10,13 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 125, 2026-11-14)
+## Current art-directed priority (iteration 126, 2026-11-14)
 
 Director-notes order for the next passes, presentation-only:
 
 1. **BUILDING BASE GRIME + SIGNAGE + ROOFLINE** — IMPLEMENTED in iteration 125 (awaiting Austin's playtest): 32 irregular photographed-rock grime plates seated on the brick and loading-bay plinth faces, a readable "HARDWARE / SALVAGE & SUPPLY" plate above the shop shutters, the CC0 Poly Haven modular fire escape flush on the brick west wall, and a 1.35 m plaster parapet + tile coping step on the loading-bay roof. These sit on `raidFacadeBlocks` faces and never touch collision, doors, props or server state. Still weak: grime is occluded by foreground props at 844×390 and reads washed out; the fire escape reads thin/ladder-like at 1024.
-2. **FOLIAGE FOLLOW-UP** — NEXT: mix 2–3 scanned tree species/size variants so the skyline does not repeat one silhouette, fuller crowns, darker green grass tips (the right-side berm grass is still pale straw), and thin the tall blades crowding the rifle corner; the no-specks half landed in iteration 120.
-3. **GROUND DETAIL CONTINUATION** — iteration 123's scanned crack/mud decal plates still read as broad stained bands at 844×390; discrete potholes, litter and softer blend edges are the next look; the iteration-125 foundation grime may need to be paired with ground-level soot patches.
+2. **FOLIAGE FOLLOW-UP** — IMPLEMENTED in iteration 126 (awaiting Austin's playtest): four deterministic spawn trees now mix two leafy `tree_small_02` crowns (one layered behind the other centre-left) with two scaled fir saplings on the right bank, the grass material carries a deep sRGB olive tint `(.24,.43,.22)` instead of the pale straw wash, and grass within 14 m of spawn fades to `s*=.32+.68*(near/14)` so no blade crosses the held rifle. Ground-finish, foliage, static-offline and mobile-HUD graders are green; screenshots at 1024×720 and 844×390 are in `~/headshotz-loop/shots/latest/`. Still weak: the fir scan reads as a dark lacy sapling rather than a full mature conifer, the central leafy crown is still thin, and sun-struck far-bank tips retain some straw gold.
+3. **GROUND DETAIL CONTINUATION** — NEXT: iteration 123's scanned crack/mud decal plates still read as broad stained bands at 844×390; discrete potholes, litter and softer blend edges are the next look; the iteration-125 foundation grime may need to be paired with ground-level soot patches.
 4. **ENEMY PRESENCE + MARKER** (item 5, spare budget) — put the ~25 m spawn machine partly behind cover instead of fully in the open; shrink/tone down the red cone marker over the centre building.
 
 Scope unchanged: raid mode only; no gameplay, UI, server or other-mode change.
