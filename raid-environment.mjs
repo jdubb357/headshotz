@@ -310,6 +310,14 @@ export function buildEnvironment(world){
    if(wide)for(const sz of [-1,1]){add('box',0xb7a25f,x,y+1.12,z+sz*(d*.5+.02),w,.11,.04,0,'plain');add('box',0xd4bd77,x,y+.55,z+sz*(d*.5+.035),plate,.52,.035,0,'hazard')}
    else for(const sx of [-1,1]){add('box',0xb7a25f,x+sx*(w*.5+.02),y+1.12,z,.04,.11,d,0,'plain');add('box',0xd4bd77,x+sx*(w*.5+.035),y+.55,z,.035,.52,plate,0,'hazard')}
   }
+  else if(kind==='roof'){
+   // Slate roof slabs read as a near-black stripe when seen edge-on through a
+   // doorway at eye level. Cap each one with a slim photographed-concrete
+   // fascia so the roof edge catches daylight and reads as architecture rather
+   // than an unlit band. Presentation only: no change to the slab footprint.
+   add('box',tint??(palette.roof||0x44565f),x,y+h/2,z,w,h,d,0,'metal');
+   add('box',0x9ba39b,x,y+h+.028,z,w+.14,Math.max(.045,h*.24),d+.14,0,'concrete');
+  }
   else add('box',tint??(palette[kind]||palette.brick),x,y+h/2,z,w,h,d,0,blockTex(kind));
  }
  // Presentation-only structure weathering derived from the frozen block layer:

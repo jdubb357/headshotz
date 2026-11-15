@@ -9060,3 +9060,28 @@ The gloves now read as dark olive leather with a clear cuff line, and the smalle
 **Honest critique:** the warehouse now reads belatedly as a cold white industrial shed and the doors convincingly as galvanised steel instead of lavender plastic, but the concrete scan still stamps an obvious square panel grid that reads a little like outdoor bathroom tile at 3 m, and the shutters have no dents or water streaks along their top edge — art acceptance still waits on Austin's live iPad/phone playtest.
 
 **Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 FLAT BROWN FACADES + TILED YARD — scanned brick/stucco with stains and a drainpipe on the three-storey brown courtyard building, and replace the bathroom-checker courtyard floor with scanned paving while fixing the near-black ceiling/sky band; keep items 3 LOOT YARD, 4 WEST-WALL/EXTRACT GROUND and 5 TREE CROWNS queued.
+
+## Iteration 131 — CHECKERBOARD FLOOR + BROWN BRICK FACADE (DIRECTOR_NOTES item 1; 2026-11-15)
+
+**Acceptance criteria:** at 1024×720 and 844×390, the floor seen through the brown building's courtyard doorway reads as scanned weathered concrete paving with dirt/crack/moss decals instead of the grey/white bathroom checker; the doorway's dark slate roof-edge band reads as a lit, plausible roof/fascia rather than a near-black stripe; the brown three-storey brick facade carries visible damp/weather stains, a real downpipe and staggered brick joints (no obvious per-bay repeat); static-offline, mobile-HUD and structures graders and the unit suite stay green apart from the known matchmaking flake; presentation-only — no collision, route, loot, server or other-mode change.
+
+### Implementation
+- `raid-view.mjs refreshGround`: floor/plaza `tiles` now resolves to the shipped CC0 asphalt ground scan (diffuse/normal/roughness, same per-bay UV module as the street), retiring the bathroom-tile atlas from every room floor and courtyard slab. Metal roof groups whose authored tint matches the slate palette are swapped to the photographed concrete ground set (roughness 1, metalness 0).
+- `raid-environment.mjs buildEnvironment`: roof blocks keep their slab footprint and gain a slim photographed-concrete fascia cap above the roof line, so the edge seen through a doorway catches daylight instead of showing a dark slate stripe.
+- `raid-view.mjs refreshCourtyardGround`: the nearest ground-level floor/plaza slabs get four small wear, crack, oil-dark damage and moss plates anchored to each slab's footprint (not the spawn apron); the per-floor seed and spawn reference are resolved before the plate list so the pass actually runs.
+- `raid-view.mjs refreshFacades`: brick façade material now shifts its map UVs per wall module using the instance's world position, staggering brick joints bay-by-bay with no second texture; near brick cells also carry deterministic 0.93–1.04 tone jitter, and the fragment damp wash is stronger at the wall foot.
+- `raid-view.mjs refreshFacadeVariety`: a real galvanised downpipe and joint rings added to the courtyard-facing west wall of the brown building, just clear of the doorway.
+- `raid-view.mjs refreshFacadeAccents`: darker, taller rising-damp plates on the south and west brick faces, excluded from the doorway span.
+
+### Verification
+- `node --check raid-view.mjs raid-environment.mjs` clean.
+- `node tests/raid-browser-structures.mjs` green: 419 structures / 419 plinths / 419 cornices, `brickWall` 192, pbr true, deterministic, `browserErrors: []`.
+- `node tests/raid-browser-static-offline.mjs` green: deploy/move/headshot/loot/extract, `noApiTraffic: true`, `browserErrors: []`.
+- `node tests/raid-browser-mobile-hud.mjs` green: 91.88% unobstructed at 1024×720, 81.63% at 844×390; every touch affordance exercised.
+- `node --test tests/*.test.mjs`: 1248/1249, only the known `matchmaking` ECONNRESET.
+- Shots in `~/headshotz-loop/shots/latest/` (folder cleared first): `before-1024.png` / `after-1024.png` and `before-844.png` / `after-844.png` are the courtyard doorway (the changed moment), plus distinct action frames at both sizes for spawn, shopfront, shopfront angle, warehouse south/east, bank extract, loot pile and an enemy. Before: grey/white bathroom checker, navy slate stripe overhead, no downpipe. After: grey asphalt paving with soft wear patches and cracks, a mottled concrete fascia lintel, a galvanised downpipe at the wall edge, and brick with per-bay shifts and a wet base.
+
+**Honest critique:** the bathroom checker is gone and the doorway roof edge now reads as mottled stone instead of a black stripe, but the near floor decals are so soft that they read as low-contrast smudges at distance, the brick damp wash collapses into one dark band beside the base rather than separate water streaks, and the shaded doorway lintel still reads a little lonely and dim.
+
+**Next action:** commit on `cypert/dev` only (no push, no PR, no `main`). Next loop: DIRECTOR_NOTES item 2 FLOATING WINDOW FRAME + AC GRILLE HOLES — remove or seat the dark mid-air frame/grate at crosshair height on the warehouse front, fix the AC grilles' black/white holes, and break the stamped panel grid's bathroom-tile repeat; keep items 3 LOOT/EXTRACT YARD, 4 SHOP ROW and 5 TREE CROWNS queued.
+
