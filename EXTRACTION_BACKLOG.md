@@ -10,16 +10,14 @@ behavior and it has been exercised; a passing unit test alone is not gameplay
 acceptance. Visual polish alone is not primary; stay scoped to raid UI, raid rules
 and raid progression.
 
-## Current art-directed priority (iteration 124, 2026-11-14)
+## Current art-directed priority (iteration 125, 2026-11-14)
 
 Director-notes order for the next passes, presentation-only:
 
-1. **BUILDING BASE GRIME + SIGNAGE + ROOFLINE** (item 3) — dark street-level stain band on both buildings, one storefront sign on the shop row, a rebuilt fire escape on the brick building, and a parapet height step so the two silhouettes differ. The brick/plaster split and rooftop flue stacks landed in iteration 122.
-2. **FOLIAGE FOLLOW-UP** (item 4) — mix 2–3 scanned tree species/sizes so the skyline does not repeat one silhouette, fuller crowns, darker green grass tips (the right-side berm grass is still pale straw); the no-specks/darker-base half landed in iteration 120.
-3. **GROUND DETAIL CONTINUATION** (item 1 follow-up) — iteration 123's scanned crack/mud decal plates still read as broad stained bands at 844×390; discrete potholes, litter and softer blend edges are the next look.
+1. **BUILDING BASE GRIME + SIGNAGE + ROOFLINE** — IMPLEMENTED in iteration 125 (awaiting Austin's playtest): 32 irregular photographed-rock grime plates seated on the brick and loading-bay plinth faces, a readable "HARDWARE / SALVAGE & SUPPLY" plate above the shop shutters, the CC0 Poly Haven modular fire escape flush on the brick west wall, and a 1.35 m plaster parapet + tile coping step on the loading-bay roof. These sit on `raidFacadeBlocks` faces and never touch collision, doors, props or server state. Still weak: grime is occluded by foreground props at 844×390 and reads washed out; the fire escape reads thin/ladder-like at 1024.
+2. **FOLIAGE FOLLOW-UP** — NEXT: mix 2–3 scanned tree species/size variants so the skyline does not repeat one silhouette, fuller crowns, darker green grass tips (the right-side berm grass is still pale straw), and thin the tall blades crowding the rifle corner; the no-specks half landed in iteration 120.
+3. **GROUND DETAIL CONTINUATION** — iteration 123's scanned crack/mud decal plates still read as broad stained bands at 844×390; discrete potholes, litter and softer blend edges are the next look; the iteration-125 foundation grime may need to be paired with ground-level soot patches.
 4. **ENEMY PRESENCE + MARKER** (item 5, spare budget) — put the ~25 m spawn machine partly behind cover instead of fully in the open; shrink/tone down the red cone marker over the centre building.
-
-VIEWMODEL FINISH (item 2) landed in iteration 124 — the buttstock is omitted from the held overlay, the support wrist is re-posed with a visible knuckle/thumb silhouette, and the hip pose drops 2 cm so the scanned receiver sits in the bottom-right corner. Awaits Austin's live playtest.
 
 Scope unchanged: raid mode only; no gameplay, UI, server or other-mode change.
 
