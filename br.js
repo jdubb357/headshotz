@@ -17,10 +17,10 @@ export function dressBld(B,o,lite){const {x,z,w,d,h=3.4,c=0xe8dcc8,tex='plaster'
  for(const [sd,dx,dz,span] of faces){const along=span,n=Math.max(1,Math.floor(along/(lite?4.2:2.6)));
   for(let i=0;i<n;i++){const u=(i+.5)/n-.5,p=u*along*.86;if(sd===door&&Math.abs(p)<dg*.62)continue;
    for(let row=0;row<rows;row++){const wy=row?h*.62:Math.min(1.15,h*.32),ww=1.05,wh=Math.min(1.35,h*.42);
-    const px=x+dx*((dx?w:d)/2+.02)+(dx?0:p),pz=z+dz*((dz?d:w)/2+.02)+(dz?0:p);
+    const px=x+dx*((dx?w:d)/2+.16)+(dx?0:p),pz=z+dz*((dz?d:w)/2+.16)+(dz?0:p);
     if(dx){bx(px,wy,pz,.06,wh,ww,glass,'window');B.glow(px,Y+wy,pz,.04,wh*.86,ww*.8,glass);bx(px,wy+wh/2,pz,.14,.1,ww+.28,trim,'concrete');bx(px,wy-wh/2-.02,pz,.16,.1,ww+.34,trim,'concrete');bx(px,wy,pz-ww/2-.08,.14,wh+.18,.1,trim,'concrete');bx(px,wy,pz+ww/2+.08,.14,wh+.18,.1,trim,'concrete')}
     else{bx(px,wy,pz,ww,wh,.06,glass,'window');B.glow(px,Y+wy,pz,ww*.8,wh*.86,.04,glass);bx(px,wy+wh/2,pz,ww+.28,.1,.14,trim,'concrete');bx(px,wy-wh/2-.02,pz,ww+.34,.1,.16,trim,'concrete');bx(px-ww/2-.08,wy,pz,.1,wh+.18,.14,trim,'concrete');bx(px+ww/2+.08,wy,pz,.1,wh+.18,.14,trim,'concrete')}}}}
- const fx=x+dv[0]*(w/2),fz=z+dv[1]*(d/2),ox=dv[0]*.1,oz=dv[1]*.1;
+ const fx=x+dv[0]*(w/2),fz=z+dv[1]*(d/2),ox=dv[0]*.2,oz=dv[1]*.2;
  if(dv[0]){bx(fx+ox,0,fz-dg/2-.12,.16,2.7,.16,trim,'concrete');bx(fx+ox,0,fz+dg/2+.12,.16,2.7,.16,trim,'concrete');bx(fx+ox,2.55,fz,.18,.22,dg+.5,trim,'concrete');bx(fx+dv[0]*.45,0,fz,dg+.3,.16,.7,shadeHex(c,.5),'concrete')}
  else{bx(fx-dg/2-.12,0,fz+oz,.16,2.7,.16,trim,'concrete');bx(fx+dg/2+.12,0,fz+oz,.16,2.7,.16,trim,'concrete');bx(fx,2.55,fz+oz,dg+.5,.22,.18,trim,'concrete');bx(fx,0,fz+dv[1]*.45,dg+.3,.16,.7,shadeHex(c,.5),'concrete')}
  if(theme!=='bunker'){const aw=theme==='works'?0xc45a22:theme==='mason'?0x9a2e28:theme==='cabin'?0x2a6b3e:accent;if(dv[0])bx(fx+dv[0]*1.05,2.85,fz,1.7,.1,dg+1.1,aw,'metal');else bx(fx,2.85,fz+dv[1]*1.05,dg+1.1,.1,1.7,aw,'metal')}
