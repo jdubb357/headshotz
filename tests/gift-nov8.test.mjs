@@ -86,7 +86,7 @@ test('service worker cache is headshotz-v100 or newer and gift3 is exported', ()
   assert.ok(m, 'sw.js cache name');
   assert.ok(+m[1] >= 100, 'cache bump must be v100+ so clients drop v99');
   assert.match(game, /gift3Check,gift3Due,GIFT3/);
-  assert.match(game, /function giftLater\(\)\{gift2Check\(\);gift3Check\(\)\}/);
+  assert.match(game, /function giftLater\(\)\{gift2Check\(\);gift3Check\(\);gift4Check\(\)\}/);
   assert.match(game, /setTimeout\(giftLater,2500\)/);
   assert.match(game, /setInterval\(giftLater,30000\)/);
   assert.match(game, /visibilitychange',\(\)=>\{if\(!document\.hidden\)setTimeout\(giftLater,300\)\}/);

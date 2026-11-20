@@ -104,6 +104,9 @@ No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunde
 ## v96 — Pet batch 3
 No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
 
+## v108 — Thanksgiving gem gift
+No third-party assets. The turkey popup is original HTML and CSS in `style.css` and `game.js`. The 200,000 gem grant uses the existing diamond wallet.
+
 ## v107 — Fizzy the Rainbow Chameleon
 No third-party assets. Fizzy is an original in-code chameleon in `petmodels4.js` (rainbow bands, turret eyes, tongue). Riding and the tongue grab are original code in `petabil3.js` and `sidekicks.js`. Nothing here is a copyrighted character.
 
