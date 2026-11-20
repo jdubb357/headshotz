@@ -56,15 +56,17 @@ function load() {
 }
 
 test('Thanksgiving weekend pays 200000 once inside the Chicago window and never outside it', () => {
-  const start = chicagoTime(2026, 11, 21, 0, 0, 0, 0);
+  const start = chicagoTime(2026, 11, 19, 0, 0, 0, 0);
   const before = start - 1;
   const sunday = chicagoTime(2026, 11, 22, 15, 0, 0, 0);
   const end = chicagoTime(2026, 11, 23, 0, 0, 0, 0);
   const g = load();
   assert.equal(g.api.GIFT4.key, 'gift_200k_nov21');
   assert.equal(g.api.GIFT4.n, 200000);
-  assert.deepEqual(g.api.ctYMD(start), [2026, 11, 21]);
-  assert.deepEqual(g.api.ctYMD(before), [2026, 11, 20]);
+  assert.deepEqual(g.api.GIFT4.from, [2026, 11, 19]);
+  assert.deepEqual(g.api.GIFT4.until, [2026, 11, 23]);
+  assert.deepEqual(g.api.ctYMD(start), [2026, 11, 19]);
+  assert.deepEqual(g.api.ctYMD(before), [2026, 11, 18]);
   assert.deepEqual(g.api.ctYMD(end), [2026, 11, 23]);
 
   g.window.__mockNow = before;
