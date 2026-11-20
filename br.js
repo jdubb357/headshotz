@@ -1,5 +1,35 @@
 // HeadShotz v44: Battle Royale island "Skyline Island" (v59: 540 x 540 m). Procedural, original. Named zones, climbable roofs/towers, lots of cover & loot spots.
 import {brExtra,BR_ZONES2} from './br2.js';import {biomeProps} from './biomeprops.js';
+// Visual-only architectural dress. Every box is non-solid so roofs, stairs, ladders and bot paths stay put.
+function shadeHex(hex,f){let r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255;const k=v=>Math.max(0,Math.min(255,(v*f)|0));return (k(r)<<16)|(k(g)<<8)|k(b)}
+export function dressBld(B,o,lite){const {x,z,w,d,h=3.4,c=0xe8dcc8,tex='plaster',door='s',dg=2.1,y:Y=0,stair}=o;const V={solid:false,shadow:false};
+ const bx=(px,py,pz,a,b2,c2,col,tx)=>B.box(px,py+Y,pz,a,b2,c2,col,tx,V);
+ const theme=tex==='metal'?'works':tex==='brick'?'mason':tex==='planks'?'cabin':tex==='concrete'?'bunker':'town';
+ const trim=theme==='works'?0x23282c:theme==='mason'?0x4a2c22:theme==='cabin'?0x3d2a18:theme==='bunker'?0x2c3238:0x3a342c;
+ const accent=theme==='works'?0xff5a18:theme==='mason'?0xc4322a:theme==='cabin'?0x2f7a45:theme==='bunker'?0x4aa0ff:0xe23d78;
+ const wallTex=theme==='town'?'siding':theme==='mason'?'brick':theme==='cabin'?'planks':tex;
+ const glass=theme==='works'?0xffb060:theme==='bunker'?0x9fd8ff:theme==='cabin'?0xffe0a0:0xd8f4ff;
+ const dv={n:[0,1],s:[0,-1],e:[1,0],w:[-1,0]}[door]||[0,-1];
+ bx(x,0,z,w+.2,.55,d+.2,shadeHex(c,.62),wallTex);
+ bx(x,h-.22,z,w+.55,.28,d+.55,trim,'concrete');
+ const faces=[['n',0,1,w,d],['s',0,-1,w,d],['e',1,0,d,w],['w',-1,0,d,w]];
+ const rows=lite?1:(h>=5.2?2:1);
+ for(const [sd,dx,dz,span] of faces){const along=span,n=Math.max(1,Math.floor(along/(lite?4.2:2.6)));
+  for(let i=0;i<n;i++){const u=(i+.5)/n-.5,p=u*along*.86;if(sd===door&&Math.abs(p)<dg*.62)continue;
+   for(let row=0;row<rows;row++){const wy=row?h*.62:Math.min(1.15,h*.32),ww=1.05,wh=Math.min(1.35,h*.42);
+    const px=x+dx*((dx?w:d)/2+.16)+(dx?0:p),pz=z+dz*((dz?d:w)/2+.16)+(dz?0:p);
+    if(dx){bx(px,wy,pz,.06,wh,ww,glass,'window');B.glow(px,Y+wy,pz,.04,wh*.86,ww*.8,glass);bx(px,wy+wh/2,pz,.14,.1,ww+.28,trim,'concrete');bx(px,wy-wh/2-.02,pz,.16,.1,ww+.34,trim,'concrete');bx(px,wy,pz-ww/2-.08,.14,wh+.18,.1,trim,'concrete');bx(px,wy,pz+ww/2+.08,.14,wh+.18,.1,trim,'concrete')}
+    else{bx(px,wy,pz,ww,wh,.06,glass,'window');B.glow(px,Y+wy,pz,ww*.8,wh*.86,.04,glass);bx(px,wy+wh/2,pz,ww+.28,.1,.14,trim,'concrete');bx(px,wy-wh/2-.02,pz,ww+.34,.1,.16,trim,'concrete');bx(px-ww/2-.08,wy,pz,.1,wh+.18,.14,trim,'concrete');bx(px+ww/2+.08,wy,pz,.1,wh+.18,.14,trim,'concrete')}}}}
+ const fx=x+dv[0]*(w/2),fz=z+dv[1]*(d/2),ox=dv[0]*.2,oz=dv[1]*.2;
+ if(dv[0]){bx(fx+ox,0,fz-dg/2-.12,.16,2.7,.16,trim,'concrete');bx(fx+ox,0,fz+dg/2+.12,.16,2.7,.16,trim,'concrete');bx(fx+ox,2.55,fz,.18,.22,dg+.5,trim,'concrete');bx(fx+dv[0]*.45,0,fz,dg+.3,.16,.7,shadeHex(c,.5),'concrete')}
+ else{bx(fx-dg/2-.12,0,fz+oz,.16,2.7,.16,trim,'concrete');bx(fx+dg/2+.12,0,fz+oz,.16,2.7,.16,trim,'concrete');bx(fx,2.55,fz+oz,dg+.5,.22,.18,trim,'concrete');bx(fx,0,fz+dv[1]*.45,dg+.3,.16,.7,shadeHex(c,.5),'concrete')}
+ if(theme!=='bunker'){const aw=theme==='works'?0xc45a22:theme==='mason'?0x9a2e28:theme==='cabin'?0x2a6b3e:accent;if(dv[0])bx(fx+dv[0]*1.05,2.85,fz,1.7,.1,dg+1.1,aw,'metal');else bx(fx,2.85,fz+dv[1]*1.05,dg+1.1,.1,1.7,aw,'metal')}
+ if(h>3.1){if(dv[0]){bx(fx+dv[0]*.16,3.15,fz,.12,.7,Math.min(3.2,w*.45),accent,wallTex);B.glow(fx+dv[0]*.2,Y+3.35,fz,.06,.18,Math.min(2.6,w*.35),0xfff2c0)}else{bx(fx,3.15,fz+dv[1]*.16,Math.min(3.2,w*.45),.7,.12,accent,wallTex);B.glow(fx,Y+3.35,fz+dv[1]*.2,Math.min(2.6,w*.35),.18,.06,0xfff2c0)}}
+ const ry=h+.42;
+ for(const s of[-1,1]){if(stair!==(s>0?'n':'s'))bx(x,ry,z+s*(d/2+.05),w+.3,.45,.16,trim,'concrete');if(stair!==(s>0?'e':'w'))bx(x+s*(w/2+.05),ry,z,.16,.45,d+.3,trim,'concrete')}
+ if(theme==='works'||theme==='bunker'){bx(x-w*.2,ry,z-d*.1,2,.95,1.4,0xb7c0c8,'metal');bx(x-w*.2,ry+.95,z-d*.1,1.5,.12,1,0x6a737c,'metal');bx(x+w*.22,ry,z,.16,2.4,.16,0xe6edf2,'metal');bx(x+w*.22,ry+2.4,z,1.3,.08,.08,0xe6edf2,'metal')}
+ else if(theme==='cabin'||theme==='mason'){bx(x+w*.16,ry,z-d*.12,.8,1.5,.8,0x6a3828,'brick');bx(x-w*.18,ry,z,1.6,.55,1.1,0xd5dbe0,'metal')}
+ else{bx(x-w*.16,ry,z,1.7,.7,1.15,0xdfe6ee,'metal');bx(x-w*.16,ry+.7,z,1.2,.1,.8,0x8b949e,'metal');bx(x+w*.22,ry,z,.14,2.1,.14,0xf2f6f8,'metal');bx(x+w*.22,ry+2.1,z,1.05,.06,.06,0xf2f6f8,'metal')}}
 export const BR_ZONES0=[
  {n:'Neon City',x:0,z:0,r:62,c:'#ff3df0'},{n:'Inferno Forge',x:112,z:-104,r:46,c:'#ff5a1a'},{n:'Golden Savanna',x:108,z:108,r:50,c:'#ffc23a'},
  {n:'Nebula Realm',x:-122,z:-12,r:50,c:'#b36bff'},{n:'Moonlit Lagoon',x:-18,z:150,r:46,c:'#3ee0d0'},{n:'Aurora Ridge',x:-18,z:-142,r:42,c:'#5affb0'},
@@ -46,6 +76,7 @@ export function brDef({G,rng,_c}){
     else if(side==='n')B.stairs(x-w/2+wd/2+.6,Y,z+d/2+e+L,'z-',n,sh,run,wd,0x9aa0a6,'concrete');else B.stairs(x-w/2+wd/2+.6,Y,z-d/2-e-L,'z+',n,sh,run,wd,0x9aa0a6,'concrete');
     lootAt(x+rr(-w/4,w/4),Y+h+.35,z+rr(-d/4,d/4),id);if(R()<.2)B.brChests.push([+x.toFixed(1),Y+h+.35,+z.toFixed(1),R()*6.28,id]);B.spot(x,Y+h+.35,z)}
    if(!stairs&&Y>0){const lx=side==='e'?x+w/2:side==='w'?x-w/2:x,lz=side==='n'?z+d/2:side==='s'?z-d/2:z;B.ladder(lx,lz,Y,Y+h+.05,{n:'z+',s:'z-',e:'x+',w:'x-'}[side])}// v97: raised buildings without stairs get a roof ladder
+   dressBld(B,{x,z,w,d,h,c,tex,door,rc,dg,y:Y,stair:side},typeof navigator!=='undefined'&&(navigator.maxTouchPoints|0)>1);
    block(x,z,w+(stairs?7:0),d+(stairs?7:0),1.5);return id}
   const tower=(x,z,h=9,c=0x7a5a3a)=>{// lookout tower: four legs, deck, rails, ladder
    for(const a of[-1,1])for(const b of[-1,1])B.box(x+a*1.5,0,z+b*1.5,.3,h,.3,c,'planks',{gy:0});B.box(x,h,z-.7,4,.35,5.4,0x8a6a45,'planks',{gy:h});// deck reaches past the south ladder so the exit is a floor

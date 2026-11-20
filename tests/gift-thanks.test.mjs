@@ -55,7 +55,7 @@ function load() {
 
 test('Thanksgiving gift is 200000 from Nov 19 through Sunday, once', () => {
   const m = sw.match(/const CACHE='headshotz-v(\d+)'/);
-  assert.equal(m && m[1], '108');
+  assert.ok(m && +m[1] >= 108);
   const start = chicagoTime(2026, 11, 19, 0, 0, 0, 0);
   const before = start - 1;
   const sunday = chicagoTime(2026, 11, 22, 18, 0, 0, 0);

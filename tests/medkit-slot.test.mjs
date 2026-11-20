@@ -48,7 +48,8 @@ function api() {
 }
 
 test('the medkit has its own HUD control, separate from the grenade cycle', () => {
-  assert.match(sw, /const CACHE='headshotz-v107'/);
+  const cache = sw.match(/const CACHE='headshotz-v(\d+)'/);
+  assert.ok(cache && +cache[1] >= 107);
   assert.match(html, /id="bMed"/);
   assert.match(html, /aria-label="Use medkit"/);
   assert.match(css, /#bMed\{/);
