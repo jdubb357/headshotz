@@ -104,8 +104,8 @@ No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunde
 ## v96 — Pet batch 3
 No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
 
-## v108 — Fizzy, realistic chameleon
-No third-party assets. The v108 Fizzy mesh is still original code in `petmodels4.js`: olive and brown scales, a flattened casque, turret eyes, a curled tail, and gripping feet, with rainbow color only as a glow on that body. Nothing here is a copyrighted character.
+## v108 — Thanksgiving gift, small Fizzy, Royale building dress
+No third-party assets. The Thanksgiving turkey is original HTML and CSS. Fizzy is a small original rainbow chameleon in `petmodels4.js` (casque, turret eyes, curled tail, glowing colors). The lick cloak is original code in `petabil3.js` and `sidekicks.js`. Battle Royale building trim, frames, glass, awnings, balconies and roof props are extra non-solid boxes in `br.js`, merged into the existing texture chunks. Nothing here is a copyrighted character.
 
 ## v107 — Fizzy the Rainbow Chameleon
 No third-party assets. Fizzy is an original in-code chameleon in `petmodels4.js` (rainbow bands, turret eyes, tongue). Riding and the tongue grab are original code in `petabil3.js` and `sidekicks.js`. Nothing here is a copyrighted character.
