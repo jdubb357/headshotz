@@ -30,6 +30,7 @@ const TEXGEN={
  carpet(x,n,r){x.fillStyle='#eee';x.fillRect(0,0,n,n);noise(x,n,r,175,255,4000,1);x.fillStyle='rgba(0,0,0,.06)';for(let i=0;i<n;i+=8)x.fillRect(0,i,n,1)},
  asphalt(x,n,r){x.fillStyle='#d8d8d8';x.fillRect(0,0,n,n);noise(x,n,r,90,255,3500,1.6)},
  plaster(x,n,r){x.fillStyle='#f3f3f3';x.fillRect(0,0,n,n);noise(x,n,r,205,255,1500,3);x.fillStyle='rgba(0,0,0,.08)';x.fillRect(0,n-6,n,6)},
+ siding(x,n,r){x.fillStyle='#efe6d6';x.fillRect(0,0,n,n);const rows=10,bh=n/rows;for(let j=0;j<rows;j++){const v=214+r()*28|0;x.fillStyle=`rgb(${v},${v-8|0},${v-22|0})`;x.fillRect(0,j*bh,n,bh-2);x.fillStyle='rgba(90,60,30,.35)';x.fillRect(0,j*bh+bh-3,n,2)}noise(x,n,r,180,240,400,1.2)},
  crate(x,n,r){TEXGEN.planks(x,n,r);x.strokeStyle='rgba(70,40,15,.85)';x.lineWidth=n*.09;x.strokeRect(n*.045,n*.045,n*.91,n*.91);x.beginPath();x.moveTo(n*.08,n*.08);x.lineTo(n*.92,n*.92);x.stroke();
   x.fillStyle='rgba(30,20,10,.6)';for(const[a,b]of[[.05,.05],[.95,.05],[.05,.95],[.95,.95]]){x.beginPath();x.arc(a*n,b*n,2.5,0,7);x.fill()}},
  hazard(x,n){x.fillStyle='#fff';x.fillRect(0,0,n,n);x.fillStyle='#333';for(let i=-n;i<n*2;i+=n/4){x.beginPath();x.moveTo(i,0);x.lineTo(i+n/8,0);x.lineTo(i+n/8-n,n);x.lineTo(i-n,n);x.fill()}},

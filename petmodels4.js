@@ -4,6 +4,16 @@ import {THREE,GQ} from './gfx.js';
 import {P,G,mat,glowEye,GE} from './petkit.js';
 const em=(c,e)=>mat(c,{em:e,ro:.35,me:.25});
 function legs4(b,rig,x,z,y,m,dk,h=.12){for(const s of[-1,1])for(const q of[1,-1]){const g=G(b,s*x,y,q*z);P(g,'cyl',0,0,-h/2,0,.028,h/2,.028,0,0,0,{m});P(g,'sph',0,0,-h,.02,.04,.03,.055,0,0,0,{m:dk});rig.legs.push({g,ph:s*q>0?0:Math.PI})}}
+function hueRGB(h,s,l){const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h*12)%12;return l-a*Math.max(Math.min(k-3,9-k,1),-1)};return[f(0),f(8),f(4)]}
+function rainbowSkin(){const m=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.32,metalness:.06,emissive:0xffffff,emissiveIntensity:.45});const hue={value:0};m.userData.hue=hue;m.onBeforeCompile=sh=>{sh.uniforms.uHue=hue;sh.fragmentShader='uniform float uHue;\n'+sh.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>\n{vec3 c=diffuseColor.rgb;float mx=max(c.r,max(c.g,c.b)),mn=min(c.r,min(c.g,c.b)),d=mx-mn+1e-4;float H=mx==c.r?mod((c.g-c.b)/d,6.):mx==c.g?(c.b-c.r)/d+2.:(c.r-c.g)/d+4.;H=fract(H/6.+uHue);vec3 k=abs(mod(H*6.+vec3(0.,4.,2.),6.)-3.);diffuseColor.rgb=mix(vec3(mn),vec3(mx),clamp(k-1.,0.,1.));}`).replace('#include <lights_fragment_begin>','#include <lights_fragment_begin>\ntotalEmissiveRadiance += diffuseColor.rgb * 0.72;');};return m}
+function loftCham(keys,S,A){const st=[];for(let i=0;i<S;i++){const t=i/(S-1)*(keys.length-1),i0=t|0,i1=Math.min(keys.length-1,i0+1),f=t-i0,a=keys[i0],b=keys[i1];const m=k=>a[k]*(1-f)+b[k]*f;st.push({z:m('z'),cy:m('cy'),rx:m('rx'),ry:m('ry'),crest:m('crest'),casque:m('casque')})}
+ const pos=new Float32Array(S*A*3),col=new Float32Array(S*A*3),idx=[];const z0=st[0].z,z1=st[S-1].z;
+ for(let i=0;i<S;i++){const s=st[i];for(let j=0;j<A;j++){const ang=j/A*Math.PI*2,ct=Math.cos(ang),sn=Math.sin(ang),up=Math.max(0,ct);let rx=s.rx,ry=s.ry;if(up>.4)ry+=s.crest*up*Math.abs(Math.sin(j*2.4))*Math.abs(Math.sin(i*1.6));if(s.casque&&up>.1){ry+=s.casque*up*up;rx*=1-up*.7}if(ct<0)ry*=.9;const k=(i*A+j)*3;pos[k]=sn*rx;pos[k+1]=s.cy+ct*ry;pos[k+2]=s.z;const along=(s.z-z0)/((z1-z0)||1);const rgb=hueRGB((1-along)*.82,.88,.52);col[k]=rgb[0];col[k+1]=rgb[1];col[k+2]=rgb[2]}}
+ for(let i=0;i<S-1;i++)for(let j=0;j<A;j++){const a=i*A+j,b=i*A+(j+1)%A,c=(i+1)*A+j,d=(i+1)*A+(j+1)%A;idx.push(a,c,b,b,c,d)}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.setIndex(idx);g.computeVertexNormals();return g}
+function hueTube(pts,segs,radial,radius,hue0,hue1){const curve=new THREE.CatmullRomCurve3(pts);const geo=new THREE.TubeGeometry(curve,segs,radius,radial,false);const pos=geo.attributes.position,R=radial+1,col=new Float32Array(pos.count*3);
+ for(let i=0;i<=segs;i++){const t=Math.min(.999,Math.max(.001,i/segs)),c=curve.getPointAt(t),tap=1-t*.78;for(let j=0;j<=radial;j++){const k=i*R+j;const x=pos.getX(k)-c.x,y=pos.getY(k)-c.y,z=pos.getZ(k)-c.z,len=Math.hypot(x,y,z)||1;pos.setXYZ(k,c.x+x/len*len*tap,c.y+y/len*len*tap,c.z+z/len*len*tap);const rgb=hueRGB(hue0+(hue1-hue0)*t,.88,.52);col[k*3]=rgb[0];col[k*3+1]=rgb[1];col[k*3+2]=rgb[2]}}
+ geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.computeVertexNormals();return geo}
 export const NB4={
 chimera(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.05,glow:[],sc:1.15};
  const gd=mat(0xf0c14a,{me:.72,ro:.28,em:.25,ec:0xffb000}),dk=mat(0xb8860b,{me:.6,ro:.35}),wh=mat(0xfff6d0,{ro:.45}),mn=mat(0x6a3a18,{ro:.5});
@@ -84,16 +94,23 @@ peacock(){const root=new THREE.Group(),b=G(root);const rig={legs:[],tail:null,ea
  for(let i=0;i<7;i++){const a=(i-3)*.22;P(b,'cone',0,Math.sin(a)*.04,.34,-.08-Math.abs(i-3)*.01,.04,.16,.012,-.4,a,0,{m:cols[i%cols.length]})}
  for(const s of[-1,1]){const g=G(b,s*.04,.2,0);P(g,'cyl',0,0,-.08,0,.012,.08,.012,0,0,0,{m:bd});rig.legs.push({g,ph:s>0?0:Math.PI})}
  root.userData.rig=rig;return root},
-fizzy(){const root=new THREE.Group(),b=G(root);const lite=GQ.level==='low';const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.03,glow:[],eyes:[],tongue:null,casque:1,curl:1,turret:1,rainbow:1,sc:.78};
- const glow=c=>{const m=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.1,roughness:.26,metalness:.18});rig.glow.push(m);return m};
- const R=[glow(0xff3355),glow(0xff8a1a),glow(0xffe14a),glow(0x3dff7a),glow(0x3d8cff),glow(0xc45cff)];
- const n=lite?4:6;for(let i=0;i<n;i++)P(b,'sph',0,0,.2,-.07+i*(lite?.045:.03),.05,.062,.04,0,0,0,{m:R[i%6]});
- const casque=G(b,0,.26,.02);for(let i=0;i<(lite?3:5);i++)P(casque,'cone',0,0,.015+i*.006,-.015+i*.016,.01,.055,.008,-.45,0,0,{m:R[i%6]});
- const hd=G(b,0,.28,.09);rig.head=hd;P(hd,'sph',0,0,.015,0,.046,.05,.046,0,0,0,{m:R[2]});P(hd,'cone',0,0,-.008,.055,.018,.05,.014,-Math.PI/2,0,0,{m:R[3]});
- for(const s of[-1,1]){const e=G(hd,s*.028,.018,.01);e.userData.ph=s;e.userData.turret=1;P(e,'cone',0,s*.016,0,0,.016,.028,.016,0,0,s>0?-Math.PI/2:Math.PI/2,{m:R[4]});const ball=G(e,s*.032,0,0);e.userData.lid=ball;P(ball,'sph',0,0,0,0,.016,.016,.012,0,0,0,{m:mat(0xf7fbff,{ro:.16,em:.35,ec:0xffffff})});const iris=glow(s<0?0x3dff6a:0xffc24a);P(ball,'sph',0,0,0,s*.008,.007,.008,.005,0,0,0,{m:iris});const pupil=P(ball,'sph',0,0,0,s*.013,.003,.003,.0025,0,0,0,{m:mat(0x111418,{ro:.2})});e.userData.pupil=pupil;rig.eyes.push(e)}
- const mouth=G(hd,0,-.012,.07);const tongue=G(mouth,0,0,0);rig.tongue=tongue;P(tongue,'cyl',0,0,0,.1,.005,.18,.0035,-Math.PI/2,0,0,{m:mat(0xff4d6a,{ro:.3,em:.45,ec:0xff4d6a})});P(tongue,'sph',0,0,0,.2,.009,.006,.007,0,0,0,{m:mat(0xff9aab,{ro:.25,em:.35,ec:0xff9aab})});
- const curl=G(b,0,.18,-.09);rig.tail=curl;const tn=lite?6:10;for(let i=0;i<tn;i++){const a=i*.72,rad=.045*(1-i/tn*.25);P(curl,'sph',0,Math.sin(a)*rad*.35,.008-(1-Math.cos(a))*rad,-.015-Math.sin(a)*rad,.018-i*.0008,.016,.018,0,0,0,{m:R[i%6]})}
- for(const sx of[-1,1])for(const sz of[1,-1]){const g=G(b,sx*.035,.14,sz*.035);P(g,'cyl',0,0,-.035,0,.007,.035,.007,0,0,0,{m:R[1]});rig.legs.push({g,ph:sx*sz>0?0:Math.PI})}
+fizzy(){const root=new THREE.Group(),b=G(root);const lite=GQ.level==='low';
+ const skin=rainbowSkin();
+ const rig={legs:[],tail:null,ears:[],wings:[],head:null,fly:.02,glow:[],eyes:[],tongue:null,casque:1,curl:1,turret:1,rainbow:1,coil:1,hue:skin.userData.hue,sc:.78};
+ rig.glow.push(skin);
+ const keys=[{z:-.02,cy:.15,rx:.02,ry:.038,crest:.006,casque:0},{z:.06,cy:.165,rx:.026,ry:.062,crest:.012,casque:0},{z:.13,cy:.18,rx:.024,ry:.068,crest:.014,casque:0},{z:.19,cy:.2,rx:.02,ry:.046,crest:.006,casque:.02},{z:.23,cy:.22,rx:.018,ry:.042,crest:.004,casque:.07},{z:.28,cy:.2,rx:.012,ry:.024,crest:0,casque:.012},{z:.34,cy:.188,rx:.005,ry:.01,crest:0,casque:0}];
+ b.add(new THREE.Mesh(loftCham(keys,lite?14:26,lite?8:14),skin));
+ const hd=G(b,0,.22,.23);rig.head=hd;
+ for(const s of[-1,1]){const e=G(hd,s*.02,.01,0);e.userData.ph=s;e.userData.turret=1;P(e,'cone',0,s*.02,0,0,.02,.04,.02,0,0,s>0?-Math.PI/2:Math.PI/2,{m:skin});const ball=G(e,s*.04,0,0);e.userData.lid=ball;P(ball,'sph',0,0,0,0,.016,.016,.012,0,0,0,{m:mat(0xf4f7ef,{ro:.2,em:.2,ec:0xffffff})});const iris=new THREE.MeshStandardMaterial({color:s<0?0x3dff6a:0xffc24a,emissive:s<0?0x3dff6a:0xffc24a,emissiveIntensity:1.1,roughness:.2});P(ball,'sph',0,0,0,s*.008,.008,.009,.006,0,0,0,{m:iris});const pupil=P(ball,'sph',0,0,0,s*.014,.0035,.004,.003,0,0,0,{m:mat(0x111418,{ro:.15})});e.userData.pupil=pupil;rig.eyes.push(e);rig.glow.push(iris)}
+ const mouth=G(hd,0,-.02,.1);P(mouth,'box',0,0,0,0,.034,.006,.07,0,0,0,{m:mat(0x2a1218,{ro:.45})});
+ const tongue=G(mouth,0,-.004,.02);rig.tongue=tongue;P(tongue,'cyl',0,0,0,.08,.004,.16,.003,-Math.PI/2,0,0,{m:mat(0xff4d6a,{ro:.3,em:.4,ec:0xff4d6a})});P(tongue,'sph',0,0,0,.16,.008,.005,.006,0,0,0,{m:mat(0xff9aab,{ro:.25,em:.3,ec:0xff9aab})});
+ const curl=G(b,0,.15,-.02);rig.tail=curl;const n=lite?14:24,turns=lite?1.7:2.15,pts=[];
+ for(let i=0;i<=n;i++){const t=i/n,ang=t*Math.PI*2*turns,R=.05*(1-t*.5);pts.push(new THREE.Vector3(Math.sin(ang)*R*.2,-.008*t-(1-Math.cos(ang))*R*.95,-.015*t-Math.sin(ang)*R))}
+ curl.add(new THREE.Mesh(hueTube(pts,lite?12:22,lite?5:7,.016,.82,.02),skin));
+ const up=new THREE.Vector3(0,1,0);
+ for(const sx of[-1,1])for(const sz of[1,-1]){const z0=sz>0?.12:.03;const g=G(b,sx*.015,.15,z0);const wrist=new THREE.Vector3(sx*.045,-.075,sz*.012);const limb=[new THREE.Vector3(0,0,0),new THREE.Vector3(sx*.055,-.02,sz*.01),wrist];g.add(new THREE.Mesh(hueTube(limb,lite?3:5,5,.011,.15,.45),skin));
+  for(let k=0;k<2;k++){const yaw=(k?1:-1)*.55+(sz>0?.2:-.2);const dir=new THREE.Vector3(Math.sin(yaw)*sx,-.35,Math.cos(yaw)*sz).normalize();const len=.028;const toe=new THREE.Mesh(GE.cone,skin);toe.scale.set(.008,len,.006);toe.position.copy(wrist).addScaledVector(dir,len*.5);toe.quaternion.setFromUnitVectors(up,dir);g.add(toe)}
+  rig.legs.push({g,ph:sx*sz>0?0:Math.PI})}
  root.userData.rig=rig;return root}
 };
 function whSafe(){return mat(0xf7f7f2,{ro:.4})}

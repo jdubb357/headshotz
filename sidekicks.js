@@ -3,7 +3,7 @@
 // active ones (scout / decoy) use the ability button / X key, sprinter + tracker run on the client. Equipped pet id travels in the weapon-skin
 // object (ws.pet) so it syncs everywhere ws already syncs (join, lobby, 'ws' messages).
 import {THREE} from './gfx.js';
-import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {NB4,detailOriginal} from './petmodels4.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {RIDES,rideOf,shouldDismount,hostOmni,hostSpinGrab,hostSecret,tryRebirth,hostCloak,tickCloak,CLOAK} from './petabil3.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
+import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {NB4,detailOriginal} from './petmodels4.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {RIDES,rideOf,shouldDismount,hostOmni,hostSpinGrab,hostSecret,tryRebirth,hostCloak,tickCloak,CLOAK,OMNI_MARK} from './petabil3.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
 export {RIDES,rideOf,shouldDismount};
 export const RAR_N=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY','GODLY','SECRET'];
 export const RAR_C=['#9aa4b2','#4cd964','#4dabff','#b37bff','#ffb020','#ffd700','#ff2b2b'];
@@ -23,7 +23,7 @@ export const AB={
  batform:{n:'Shadow Form',ic:'🦇',act:1,d:(p,t=1)=>`Ability button / X: turn into a small, fast flying bat for ${TV.batform.dur[t-1]} s (T1 3 s · T2 6 s · T3 10 s). You cannot shoot while a bat; walls still block you. ${TV.batform.cd} s cooldown.`},
  firebreath:{n:'Ember Strike',ic:'🔥',act:1,d:(p,t=1)=>`Ability button / X: your dragon hovers and spits fireballs at the nearest visible enemy within 50 m for 50 damage each, one every ${TV.firebreath.gap[t-1]} s for ${TV.firebreath.dur[t-1]} s. ${TV.firebreath.cd} s cooldown.`},
  finder:{n:'Diamond Finder',ic:'💎',act:0,d:p=>`Sniffs out 1 💎 every ${Math.round(85/p)} s while you play a match (max 4 per match).`},
- omni:{n:'Celestial',ic:'✨',act:0,d:()=>`Uses every safe buddy trick for you: a slow heal that speeds up when you are calm, a Phoenix rebirth when a hit would kill you (35/50/65 HP, 2.5 s protection, once every 150 s), plus zap, shield, loot magnet, luck, diamonds, a decoy and a short flame. You can still shoot. Not rideable.`},
+ omni:{n:'Celestial',ic:'✨',act:0,d:(p,t=1)=>`Uses every safe buddy trick for you: a slow heal that speeds up when you are calm, a Phoenix rebirth when a hit would kill you (35/50/65 HP, 2.5 s protection, once every 150 s), plus zap, shield, loot magnet, luck, diamonds, a decoy and a short flame. Marks enemies through walls for ${OMNI_MARK.dur[t-1]} s, ready again in ${OMNI_MARK.cd[t-1]} s (T1 ${OMNI_MARK.dur[0]} s / ${OMNI_MARK.cd[0]} s · T2 ${OMNI_MARK.dur[1]} s / ${OMNI_MARK.cd[1]} s · T3 ${OMNI_MARK.dur[2]} s / ${OMNI_MARK.cd[2]} s). You can still shoot. Not rideable.`},
  lantern:{n:'Nova Pulse',ic:'🦋',act:0,d:()=>`Every 16 s, marks enemies through walls for 3 s. Secret chest only.`},
  tide:{n:'Coral Mend',ic:'🪸',act:0,d:p=>`Always mends you for ${(0.9*p).toFixed(1)} HP per second. Secret chest only.`},
  sting:{n:'Glass Sting',ic:'🦂',act:0,d:()=>`Every 7 s, stings the nearest enemy within 6 m for a small hit and a short slow. Secret chest only.`},
@@ -156,7 +156,8 @@ const ORIG15=new Set(['dog','cat','bunny','bat','fox','penguin','bear','tiger','
 export function makePet(id,tier=1){const f=B[id];const g=new THREE.Group();if(!f)return g;const m=f();const def=SK_BY[id]||{};if(ORIG15.has(id))detailOriginal(m,id,def.col,tier);m.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false}});const sc=(m.userData.rig&&m.userData.rig.sc)||1;m.scale.setScalar(sc*1.15);g.add(m);g.userData.rig=m.userData.rig;g.userData.inner=m;g.userData.id=id;g.userData.tier=tier;decorate(g,def.col||0xffffff,tier,LITE);return g}
 export function animPet(g,t,mv,dt){const r=g.userData.rig;if(!r)return;const m=Math.min(1,mv);const ph=t*(r.speedy?20:r.waddle?10:12);
  for(const l of r.legs)l.g.rotation.x=Math.sin(ph+l.ph)*.8*m*(r.waddle?.6:1);
- if(r.tail)r.tail.rotation.y=Math.sin(t*(m>.1?11:6))*(r.waddle?0:.55);if(r.tail&&r.speedy)r.tail.rotation.x=Math.sin(t*15)*.2;
+ if(r.tail)r.tail.rotation.y=Math.sin(t*(m>.1?11:6))*(r.waddle?0:r.coil?.12:.55);if(r.tail&&r.speedy)r.tail.rotation.x=Math.sin(t*15)*.2;
+ if(r.hue)r.hue.value=(t*.04)%1;
  if(r.head){r.head.rotation.y=Math.sin(t*1.3)*.25*(1-m);r.head.rotation.x=Math.sin(t*2.1)*.05}
  if(r.eyes){for(const e of r.eyes){const ph=e.userData.ph||1;const blink=Math.sin(t*.62+ph)>.96?.16:1;e.rotation.y=Math.sin(t*.9+ph*2.1)*.85;e.rotation.x=Math.sin(t*.5+ph*1.4)*.42;const lid=e.userData.lid;if(lid)lid.scale.y=blink;const pu=e.userData.pupil;if(pu){pu.position.y=Math.sin(t*.9+ph*2.1)*.004;pu.position.z=Math.sin(t*.5+ph)*.004}}}
  if(r.tongue){let out=0;if(r.flick){const e=(performance.now()-r.flick)/480;out=e<1?Math.sin(Math.min(1,e)*Math.PI):0;if(e>=1)r.flick=0}r.tongue.scale.set(1,1,.18+out*2.8);r.tongue.rotation.x=-out*1.15;r.tongue.position.y=out*.14;r.tongue.position.z=.02}

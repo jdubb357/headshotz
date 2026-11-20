@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { rideOf, shouldDismount, grabNearby, hostOmni, tryRebirth, omniHealRate } from '../petabil3.js';
+import { rideOf, shouldDismount, grabNearby, hostOmni, tryRebirth, omniHealRate, OMNI_MARK } from '../petabil3.js';
 
 const game = readFileSync(new URL('../game.js', import.meta.url), 'utf8');
 const pets = readFileSync(new URL('../sidekicks.js', import.meta.url), 'utf8');
@@ -110,6 +110,28 @@ test('Secret chests roll Secret pets and Secret weapons, and those pets cost 250
   for (const gun of ['awp', 'minigun', 'rpg', 'gl']) assert.match(secret, new RegExp(`'wpn','${gun}'`));
   assert.doesNotMatch(secret, /chimera|gk_ak47|\['pet','ghost'\]|\['pet','dragon'\]/);
   assert.match(game, /secret:25000,godly:50000/);
+});
+
+test('Sol tier 3 marks enemies for at least 10 s and the mark cooldown is 10 s', () => {
+  assert.ok(OMNI_MARK.dur[2] >= 10);
+  assert.equal(OMNI_MARK.cd[2], 10);
+  assert.ok(OMNI_MARK.dur[0] <= OMNI_MARK.dur[1] && OMNI_MARK.dur[1] <= OMNI_MARK.dur[2]);
+  assert.ok(OMNI_MARK.cd[0] >= OMNI_MARK.cd[1] && OMNI_MARK.cd[1] >= OMNI_MARK.cd[2]);
+  const p = { id: 'me', alive: true, hp: 100, sh: 25, hurtT: 0, p: [0, 0, 0, 0] };
+  const S = { fl: [], shT: 99, mag: 99, fd: 99, auto: 99, g: 99 };
+  const sent = [];
+  const X = { plist: () => [p], enemy: () => false, los: () => false, bcast: m => sent.push(m), toPlayer() {}, damage() {}, take: () => false };
+  const quiet = { phase: 'play', br: { items: {} } };
+  hostOmni(X, p, S, { ...quiet, t: 5 }, 1.15, 3, 0);
+  const mark = sent.find(m => m.k === 'omniscan');
+  assert.ok(mark && mark.d >= 10);
+  assert.equal(S.mk, 15);
+  sent.length = 0;
+  hostOmni(X, p, S, { ...quiet, t: 14 }, 1.15, 3, 0);
+  assert.equal(sent.some(m => m.k === 'omniscan'), false);
+  hostOmni(X, p, S, { ...quiet, t: 15 }, 1.15, 3, 0);
+  assert.equal(sent.some(m => m.k === 'omniscan' && m.d >= 10), true);
+  assert.match(pets, /OMNI_MARK\.dur\[t-1\]/);
 });
 
 test('Sol rebirths on a killing hit and still heals while hurt', () => {
