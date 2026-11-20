@@ -33,6 +33,22 @@ const TEXGEN={
  crate(x,n,r){TEXGEN.planks(x,n,r);x.strokeStyle='rgba(70,40,15,.85)';x.lineWidth=n*.09;x.strokeRect(n*.045,n*.045,n*.91,n*.91);x.beginPath();x.moveTo(n*.08,n*.08);x.lineTo(n*.92,n*.92);x.stroke();
   x.fillStyle='rgba(30,20,10,.6)';for(const[a,b]of[[.05,.05],[.95,.05],[.05,.95],[.95,.95]]){x.beginPath();x.arc(a*n,b*n,2.5,0,7);x.fill()}},
  hazard(x,n){x.fillStyle='#fff';x.fillRect(0,0,n,n);x.fillStyle='#333';for(let i=-n;i<n*2;i+=n/4){x.beginPath();x.moveTo(i,0);x.lineTo(i+n/8,0);x.lineTo(i+n/8-n,n);x.lineTo(i-n,n);x.fill()}},
+ // Painted-steel drum: soft vertical falloff, two pressed rib bands, a welded
+ // seam with rivets and a little rust bloom. White-ish so the prop tint carries
+ // the drum's paint colour; the rib shadows survive at gameplay distance.
+ drum(x,n,r){const g=x.createLinearGradient(0,0,n,0);g.addColorStop(0,'#9ea09a');g.addColorStop(.45,'#cfd2c9');g.addColorStop(1,'#969990');x.fillStyle=g;x.fillRect(0,0,n,n);
+  noise(x,n,r,150,235,900,1.4);
+  for(const t of [.30,.64]){const y=t*n;x.fillStyle='rgba(24,26,24,.34)';x.fillRect(0,y-2,n,3);x.fillStyle='rgba(96,98,92,.22)';x.fillRect(0,y+1,n,2);x.fillStyle='rgba(255,255,255,.34)';x.fillRect(0,y+3,n,1)}
+  x.fillStyle='rgba(74,76,70,.35)';x.fillRect(n*.83,0,2,n);
+  for(let y=7;y<n;y+=12){x.fillStyle='rgba(52,54,50,.55)';x.beginPath();x.arc(n*.84,y,1.4,0,7);x.fill()}
+  for(let i=0;i<20;i++){x.fillStyle=`rgba(${115+(r()*35|0)},${58+(r()*24|0)},${26+(r()*18|0)},${.16+r()*.26})`;x.beginPath();x.ellipse(r()*n,r()*n,1.4+r()*3.4,1+r()*6,r()*3,0,7);x.fill()}
+  for(let i=0;i<9;i++){x.fillStyle='rgba(238,238,232,.22)';x.beginPath();x.ellipse(r()*n,r()*n,2+r()*5,1+r()*2,r()*3,0,7);x.fill()}},
+ // Smooth, brushed cold steel for drum rims, lids and wall caps. No weave: the
+ // old metal tiles read as basketwork when they were stretched over drums.
+ steel(x,n,r){const g=x.createLinearGradient(0,0,0,n);g.addColorStop(0,'#d5d8d1');g.addColorStop(1,'#aeb2ab');x.fillStyle=g;x.fillRect(0,0,n,n);
+  noise(x,n,r,160,235,700,1);
+  x.strokeStyle='rgba(255,255,255,.22)';x.lineWidth=.5;for(let i=0;i<n;i+=3){x.beginPath();x.moveTo(0,i+r()*.8);x.lineTo(n,i+r()*1.4);x.stroke()}
+  x.fillStyle='rgba(70,74,70,.16)';for(let i=0;i<6;i++){x.beginPath();x.ellipse(r()*n,r()*n,2+r()*4,1+r()*2,r()*3,0,7);x.fill()}},
  leaves(x,n,r){x.fillStyle='#ccc';x.fillRect(0,0,n,n);for(let i=0;i<500;i++){const v=170+r()*85|0;x.fillStyle=`rgb(${v},${v},${v})`;x.beginPath();x.ellipse(r()*n,r()*n,3+r()*4,1.5+r()*2,r()*3,0,7);x.fill()}},
  gunMetal(x,n,r){x.fillStyle='#d8d8d8';x.fillRect(0,0,n,n);noise(x,n,r,160,255,9500,.8);x.strokeStyle='rgba(255,255,255,.18)';x.lineWidth=.5;for(let i=0;i<n;i+=2){x.beginPath();x.moveTo(0,i+r());x.lineTo(n,i+r()*1.5);x.stroke()}x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=.6;for(let i=0;i<18;i++){x.beginPath();const px=r()*n,py=r()*n,a=r()*6.28,l=3+r()*14;x.moveTo(px,py);x.lineTo(px+Math.cos(a)*l,py+Math.sin(a)*l);x.stroke()}},
  gunAlu(x,n,r){x.fillStyle='#d6d6d6';x.fillRect(0,0,n,n);noise(x,n,r,185,255,5200,.8);x.strokeStyle='rgba(255,255,255,.22)';x.lineWidth=.5;for(let i=0;i<n;i+=3){x.beginPath();x.moveTo(0,i);x.lineTo(n,i+r()*.8);x.stroke()}},
@@ -56,7 +72,7 @@ export function hqSwap(name,img,nimg,rep=2){const t=getTex(name);t.image=img;t.r
  if(nimg){let n=nrmCache[name];if(!n){n=new THREE.Texture();n.wrapS=n.wrapT=THREE.RepeatWrapping;n.colorSpace=THREE.NoColorSpace;nrmCache[name]=n}n.image=nimg;n.repeat.set(rep,rep);n.anisotropy=4;n.needsUpdate=true}}
 // normal map from texture luminance (Sobel), tangent-space, linear
 const nrmCache={};
-function normalTex(name,str){if(nrmCache[name])return nrmCache[name];const src=getTex(name).image,n=src.width;const sx=src.getContext('2d').getImageData(0,0,n,n).data;
+export function normalTex(name,str){if(nrmCache[name])return nrmCache[name];const src=getTex(name).image,n=src.width;const sx=src.getContext('2d').getImageData(0,0,n,n).data;
  const H=new Float32Array(n*n);for(let i=0;i<n*n;i++)H[i]=(sx[i*4]*.3+sx[i*4+1]*.59+sx[i*4+2]*.11)/255;
  for(let pass=0;pass<2;pass++){const T=new Float32Array(n*n);for(let j=0;j<n;j++)for(let i=0;i<n;i++){let s=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++)s+=H[((j+dj+n)%n)*n+((i+di+n)%n)];T[j*n+i]=s/9}H.set(T)}
  const[c,x]=cvs(n);const out=x.createImageData(n,n);const h=(i,j)=>H[((j+n)%n)*n+((i+n)%n)];
@@ -197,6 +213,143 @@ export function makeHorizon(kind,fogCol,seed=3){const r=rng(seed),parts=[];const
  if(kind==='city'||kind==='coast'){const R=kind==='coast'?300:290,N=kind==='coast'?36:110;for(let i=0;i<N;i++){const a=kind==='coast'?Math.PI*.95+i/N*1.4:i/N*Math.PI*2;const h=18+r()*r()*95,w=10+r()*16;
    parts.push({g:G('box',w,h,w),p:[Math.cos(a)*(R+r()*30),h/2-4,Math.sin(a)*(R+r()*30)],r:[0,-a,0],c:tone(.45+r()*.2,0x34465e)})}}
  if(!parts.length)return null;const m=new THREE.Mesh(mergeParts(parts),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,depthWrite:false}));m.renderOrder=-9;m.frustumCulled=false;return m}
+// Distant ruined-district horizon: two concentric rings of jagged masonry and
+// industrial silhouettes painted toward the supplied fog colour, with soft dust
+// columns rising from the nearer roofs. The layout is derived from a seeded PRNG
+// so sector rebuilds are pixel-identical; the group is camera-anchored by the
+// caller and every mesh is presentation-only (no collision, navigation or game
+// state changes). Colours are baked rather than lit so sub-pixel far detail
+// dissolves into the same atmospheric haze as makeHorizon.
+export function makeRaidHorizon(seed,fogCol=0x9aa9b4,opt={}){
+ const radius=Math.max(60,opt.radius??300),scale=Math.max(.1,opt.scale??1);
+ const fog=new THREE.Color(fogCol),base=new THREE.Color(opt.base??0x354951);
+ let s=0;if(typeof seed==='number')s=seed>>>0;else{const text=String(seed);for(let i=0;i<text.length;i++)s=Math.imul(s^text.charCodeAt(i),16777619)>>>0}
+ const R=rng(s||1),group=new THREE.Group();
+ const specs=[{r:radius*.86,mix:.68,clusters:26,order:-8,name:'near',height:[10,30]},{r:radius,mix:.30,clusters:30,order:-9,name:'far',height:[13,38]}];
+ const layers=[],puffParts=[],nearTops=[];
+ for(let li=0;li<specs.length;li++){
+  const spec=specs[li],parts=[],near=li===0;
+  for(let c=0;c<spec.clusters;c++){
+   const a=c/spec.clusters*Math.PI*2+(R()-.5)*.34;
+   const rad=spec.r*(.95+R()*.10),cx=Math.cos(a)*rad,cz=Math.sin(a)*rad;
+   const tangentX=-Math.sin(a),tangentZ=Math.cos(a),ry=-a+Math.PI/2;
+   const w=(8+R()*15)*scale,d=(6+R()*10)*scale;
+   const h=(spec.height[0]+R()*(spec.height[1]-spec.height[0]))*scale*(near?1:1.18);
+   const tone=fog.clone().lerp(base,spec.mix+(R()-.5)*.07).getHex();
+   const wingH=h*(.42+R()*.40),wingW=w*(.32+R()*.36),offset=(w*.5+wingW*.35)*(R()<.5?1:-1);
+   // Main broken mass, then a staggered low wing that reads as collapsed floors.
+   parts.push({g:G('box',w,h,d),p:[cx,h/2,cz],r:[0,ry,0],c:tone});
+   parts.push({g:G('box',wingW,wingH,d*.86),p:[cx+tangentX*offset,wingH/2,cz+tangentZ*offset],r:[0,ry+(R()-.5)*.18,0],c:fog.clone().lerp(base,spec.mix*(.6+R()*.22)).getHex()});
+   // Tall chimneys, stair cores and leaning slabs break the flat rooflines.
+   if(R()<.5){const th=h*(1.12+R()*.55),tw=(2.6+R()*2.6)*scale;parts.push({g:G('box',tw,th,d*.5),p:[cx-tangentX*(w*.23),th/2,cz-tangentZ*(w*.23)],r:[0,ry,0],c:tone})}
+   if(R()<.35){const sh=h*(.9+R()*.45),sr=(.7+R()*.8)*scale;parts.push({g:G('cyl',sr,sh,6),p:[cx+tangentX*(w*.48),sh/2,cz+tangentZ*(w*.48)],c:tone})}
+   if(R()<.58){const rw=w*(.28+R()*.33),rh=(1.1+R()*2.2)*scale;parts.push({g:G('box',rw,rh,rw*.55),p:[cx+(R()-.5)*w*.36,h+rh*.18,cz+(R()-.5)*d*.36],r:[(R()-.5)*.38,ry+(R()-.5)*.5,(R()-.5)*.38],c:fog.clone().lerp(base,spec.mix*(.42+R()*.25)).getHex()})}
+   if(near)nearTops.push({x:cx,z:cz,top:h+(R()-.5)*1.5,w,d,a});
+  }
+  const geometry=mergeParts(parts,{ao:false});geometry.userData.raidOwned=true;
+  // Partial opacity keeps the silhouettes hazy rather than solid, so the warm
+  // horizon scattering (and any sun setting beyond the ruins) still bleeds
+  // through the distant skyline.
+  const material=new THREE.MeshBasicMaterial({vertexColors:true,fog:false,depthWrite:false,toneMapped:false,transparent:true,opacity:spec.name==='near'?0.64:0.52});
+  material.userData.raidOwned=true;material.userData.raidHorizonLayer=li;
+  const mesh=new THREE.Mesh(geometry,material);mesh.renderOrder=spec.order;mesh.frustumCulled=false;mesh.matrixAutoUpdate=false;
+  mesh.userData.raidHorizonLayer=li;group.add(mesh);
+  layers.push({mesh,name:spec.name,clusters:spec.clusters,pieces:parts.length,fogMix:spec.mix,radius:spec.r,base:opt.base??0x354951});
+ }
+ // Dust columns rise from a deterministic selection of the nearest broken roofs.
+ nearTops.sort((a,b)=>b.top-a.top||a.x-b.x||a.z-b.z);
+ const plumes=nearTops.slice(0,Math.min(10,nearTops.length)),puffsPer=3,plumeMeta=[];
+ const ash=new THREE.Color(0x3f3a34),light=fog.clone().lerp(new THREE.Color(0xb9ada0),.42);
+ for(const roof of plumes){
+  const rise=(9+R()*7)*scale;plumeMeta.push({x:roof.x,z:roof.z,top:roof.top,rise});
+  for(let k=0;k<puffsPer;k++){
+   const t=(k+1)/puffsPer,spread=(1.1+k*.9)*scale;
+   const color=ash.clone().lerp(light,t+.12).multiplyScalar(.92+R()*.1);
+   puffParts.push({x:roof.x+(R()-.5)*spread,y:roof.top+rise*t+(R()-.5)*scale*.8,z:roof.z+(R()-.5)*spread,color});
+  }
+ }
+ let dust=null;
+ if(puffParts.length){
+  const positions=new Float32Array(puffParts.length*3),colors=new Float32Array(puffParts.length*3);
+  for(let i=0;i<puffParts.length;i++){const p=puffParts[i],o=i*3;positions[o]=p.x;positions[o+1]=p.y;positions[o+2]=p.z;colors[o]=p.color.r;colors[o+1]=p.color.g;colors[o+2]=p.color.b}
+  const dustGeometry=new THREE.BufferGeometry();dustGeometry.setAttribute('position',new THREE.BufferAttribute(positions,3));dustGeometry.setAttribute('color',new THREE.BufferAttribute(colors,3));dustGeometry.computeBoundingSphere();dustGeometry.userData.raidOwned=true;
+  const dustMaterial=new THREE.PointsMaterial({map:TX.soft,vertexColors:true,color:0xffffff,size:16*scale,transparent:true,opacity:.7,depthWrite:false,depthTest:true,sizeAttenuation:true,fog:false,blending:THREE.NormalBlending});
+  dustMaterial.userData.raidOwned=true;
+  dust=new THREE.Points(dustGeometry,dustMaterial);dust.renderOrder=-7;dust.frustumCulled=false;dust.userData.raidHorizonDust=true;group.add(dust);
+ }
+ // Warm inhabited glimpses: a soft light-scattering haze band at the foot of
+ // the buildings, lit windows on the inward facades, and a handful of roof
+ // beacons. All are deterministic presentation-only additive sprites built
+ // from the shared soft-sprite texture (not owned, so clear() keeps it).
+ const clock={value:0};
+ const glowField=(parts,size,opacity,order,tag)=>{
+  if(!parts.length)return null;
+  const positions=new Float32Array(parts.length*3),colors=new Float32Array(parts.length*3);
+  for(let i=0;i<parts.length;i++){const p=parts[i],o=i*3;positions[o]=p.x;positions[o+1]=p.y;positions[o+2]=p.z;colors[o]=p.color.r;colors[o+1]=p.color.g;colors[o+2]=p.color.b}
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));geometry.computeBoundingSphere();geometry.userData.raidOwned=true;
+  const material=new THREE.PointsMaterial({map:TX.soft,vertexColors:true,color:0xffffff,size,transparent:true,opacity,depthWrite:false,depthTest:true,sizeAttenuation:true,fog:false,blending:THREE.AdditiveBlending,toneMapped:false});material.userData.raidOwned=true;material.userData.raidHorizonLights=tag;
+  const points=new THREE.Points(geometry,material);points.renderOrder=order;points.frustumCulled=false;points.userData.raidHorizonLights=tag;group.add(points);return points;
+ };
+ const windowParts=[],beaconParts=[],hazeParts=[];
+ const pale=new THREE.Color(0xffd9a3),amber=new THREE.Color(0xffb066),ember=new THREE.Color(0xff6247);
+ for(let i=0;i<nearTops.length;i++){
+  const roof=nearTops[i],nx=-Math.cos(roof.a),nz=-Math.sin(roof.a),tx=-Math.sin(roof.a),tz=Math.cos(roof.a);
+  if(i%3===0){
+   // Two lit apertures per selected irregular roofline, on the facade facing
+   // the sector, set back from the centre by half the visible mass depth.
+   const front=roof.d*.5+roof.w*.06;
+   for(const [level,side,hex] of [[.4,-.28,amber],[.68,.24,pale]]){
+    const color=hex.clone().lerp(fog,.16).multiplyScalar(.9);
+    windowParts.push({x:roof.x+nx*front+tx*side*roof.w,y:roof.top*level,z:roof.z+nz*front+tz*side*roof.w,color});
+   }
+  }
+  if(i%5===1){
+   // Beacons cap the tallest survivors; one ember warning glow, the rest pale.
+   const color=(i===11?ember:amber).clone().lerp(fog,.06);
+   beaconParts.push({x:roof.x+nx*roof.d*.12,y:roof.top+1.7*scale,z:roof.z+nz*roof.d*.12,color});
+  }
+ }
+ const hazeN=14;
+ for(let i=0;i<hazeN;i++){
+  const a=i/hazeN*Math.PI*2+.19,rad=radius*(.85+(i%3===0)*.025);
+  const color=pale.clone().lerp(fog,.52).multiplyScalar(.8);
+  hazeParts.push({x:Math.cos(a)*rad,y:(4.4+(i%3)*1.7)*scale,z:Math.sin(a)*rad,color});
+ }
+ const windowField=glowField(windowParts,9*scale,.72,-5,'windows');
+ const beaconField=glowField(beaconParts,15*scale,.7,-4,'beacons');
+ const hazeField=glowField(hazeParts,48*scale,.11,-6,'haze');
+ // GPU-side firelight: each beacon flickers on its own phase (seeded from its
+ // world position), and embers rise and sway from the burning roofs. One
+ // shared time uniform keeps all horizon firelight in sync with the scene
+ // clock; reduced motion pins it to zero for a calm, static tableau.
+ const patchGlow=(points,kind,drift)=>{
+  if(!points)return;
+  const material=points.material;
+  material.userData.raidHorizonAnimated=true;material.userData.raidHorizonAnimation=kind;
+  material.customProgramCacheKey=()=>'raid-horizon-'+kind;
+  material.onBeforeCompile=shader=>{
+   shader.uniforms.uHorizonTime=clock;
+   const phase='float hseed=fract(sin(dot(position.xz,vec2(43.21,19.87)))*43758.5453);\n vFlicker=.68+.32*sin(uHorizonTime*(2.2+hseed*2.6)+hseed*6.2831);\n';
+   const driftCode=drift?'float dr=mod(uHorizonTime*(.32+hseed*.5)+hseed*9.,9.); transformed.y+=dr; transformed.x+=sin(uHorizonTime*.6+hseed*6.2831)*.55; transformed.z+=cos(uHorizonTime*.47+hseed*4.7124)*.45;\n':'';
+   shader.vertexShader='uniform float uHorizonTime;\nvarying float vFlicker;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n'+phase+driftCode);
+   shader.fragmentShader='varying float vFlicker;\n'+shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n diffuseColor.a*=vFlicker;');
+  };
+ };
+ patchGlow(beaconField,'beacons',false);
+ const emberParts=[],emberPalette=[0xffb066,0xff8a3d,0xffd28a];
+ for(let i=0;i<Math.min(6,plumes.length);i++){
+  const roof=plumes[i];
+  for(let k=0;k<5;k++){
+   const color=new THREE.Color(emberPalette[k%emberPalette.length]).clone().lerp(fog,.05);
+   emberParts.push({x:roof.x+(R()-.5)*3.2*scale,y:roof.top+(.35+R()*2.1)*scale,z:roof.z+(R()-.5)*3.2*scale,color});
+  }
+ }
+ const emberField=glowField(emberParts,6*scale,.8,-3,'embers');
+ patchGlow(emberField,'embers',true);
+ group.userData.raidHorizonTick=(time,reduced)=>{clock.value=reduced?0:Math.max(0,time||0)};
+ group.userData.raidHorizonClock=clock;
+ group.userData.raidHorizonDepth={seed:s||1,radius,scale,layers:layers.map(l=>({name:l.name,clusters:l.clusters,pieces:l.pieces,fogMix:l.fogMix,radius:l.radius,heightMin:(l.name==='near'?10:13)*scale,heightMax:(l.name==='near'?30:38)*1.18*scale})),silhouettes:layers.reduce((n,l)=>n+l.pieces,0),plumes:plumeMeta.length,puffs:puffParts.length,dustMinY:Math.min(...puffParts.map(p=>p.y)),dustMaxY:Math.max(...puffParts.map(p=>p.y)),windows:windowParts.length,beacons:beaconParts.length,haze:hazeParts.length,embers:emberParts.length,windowMaxY:Math.max(...windowParts.map(p=>p.y)),hazeMinY:Math.min(...hazeParts.map(p=>p.y)),hazeMaxY:Math.max(...hazeParts.map(p=>p.y)),emberMaxY:Math.max(...emberParts.map(p=>p.y)),animated:true,fogAttenuated:true,presentationOnly:true};
+ return group}
 // ---------- animated water (fresnel sky reflection, sun glint) ----------
 export const WT={value:0};
 export function makeWater(deep,skyTop,skyMid,sunDir,sunCol){const u=THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{deep:{value:new THREE.Color(deep)},shal:{value:new THREE.Color(deep).lerp(new THREE.Color(0x5fd0c8),.45)},

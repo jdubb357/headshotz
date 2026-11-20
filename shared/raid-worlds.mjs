@@ -1,5 +1,29 @@
 // Original raid layouts shared by rendering and authoritative collision checks.
 const blockGrids=new WeakMap();
+// Declared up front because the frozen sector builders call blocked() during
+// module initialisation, before the prop APIs at the bottom of this file.
+const propGrids=new WeakMap();
+// Decor collision grids derive from deterministic scenery/doorway/spawn data,
+// so online authority, offline in-page rules and both builders agree. Scenery
+// is memoized per sector; it must not see decor collision while selecting
+// plant/ruin sites (see the ignoreDecor control flow in blocked()).
+const decorGrids=new WeakMap(),sceneryCache=new WeakMap(),doorwayCache=new WeakMap();
+const FOOTPRINT={
+ car:p=>{const s=p.scale||1;return {hw:1.15*s+.12,hd:.62*s+.12,h:1.75*s}},
+ truck:p=>{const s=p.scale||1;return {hw:3.05*s+.2,hd:1.25*s+.1,h:2.1*s}},
+ tank:p=>{const s=p.scale||1;return {hw:1.3*s,hd:1.3*s,h:3.25*s}},
+ dumpster:p=>{const s=p.scale||1;return {hw:1.1*s,hd:.68*s,h:1.5*s}},
+ crate:p=>{const s=p.scale||1;return {hw:.62*s,hd:.62*s,h:1.15*s}},
+ barrel:p=>{const s=p.scale||1;return {hw:.55*s,hd:.55*s,h:1.35*s}},
+ sandbag:p=>{const s=p.scale||1;return {hw:.8*s,hd:.5*s,h:.7*s}},
+ pallet:p=>{const s=p.scale||1;return {hw:.72*s,hd:.55*s,h:.8*s}},
+ hay:p=>{const s=p.scale||1;return {hw:1*s,hd:.64*s,h:1.35*s}},
+ wreck:()=>({hw:3.0,hd:1.25,h:2.0}),
+ scrap:()=>({hw:.95,hd:.66,h:.95}),
+ rock:p=>{const s=p.scale||1;return {hw:1.35*s,hd:1.15*s,h:.9*s}},
+ tree:p=>{const s=p.scale||1;return {hw:.3*s,hd:.3*s,h:1.2*s}},
+ stump:p=>{const s=p.scale||1;return {hw:.34*s,hd:.34*s,h:1.3*s}}
+};
 const world=(id,name,theme,blocks)=>({id,name,theme,version:1,size:120,blocks,
  spawns:[[-48,-48],[48,-48],[0,48]],
  caches:[[-35,-30],[-20,15],[20,-20],[34,20],[0,0],[-40,35],[40,-38],[10,36]],
@@ -30,6 +54,18 @@ function room(m,x,z,w,d,h,doors=['n','s'],wallKind='brick',roofKind='roof',tint=
  m.props.push({kind:'floor',x,y:.02,z,w:w-.5,d:d-.5,color:wallKind==='planks'?0x6b5137:0x62615d},{kind:'lamp',x,y:h-.5,z});
 }
 function cache(m,x,z,tier,name,y=0,vault=false){m.caches.push([x,z,y]);m.cacheMeta.push({tier,name,vault})}
+// Interactive doors are authored at the same wall gaps the room builder leaves
+// for movement. Descriptors remain axis-aligned boxes so shared collision, LOS
+// and ballistics can test them without knowing which wall side produced them.
+function doorsForRoom(m,x,z,w,d,h,sides,label,locked=false){
+ for(const side of sides){
+  if(!['n','s','e','w'].includes(side))continue;
+  const horizontal=side==='n'||side==='s',sign=side==='n'||side==='w'?-1:1;
+  m.doorSeq=(m.doorSeq||0)+1;
+  m.doors.push({id:m.id+'-door-'+String(m.doorSeq).padStart(2,'0'),x:horizontal?x:x+sign*w/2,y:0,z:horizontal?z+sign*d/2:z,
+   w:horizontal?3.4:.32,d:horizontal?.32:3.4,h,side,label,locked,closed:false});
+ }
+}
 function roofAccess(m,x,z,h){m.ramps.push({x:x+14,z,w:4,d:16,from:0,to:h+.22,axis:'z'});box(m,x+11,z+7,7,4,.18,h+.04,'metal')}
 function landmark(m,name,x,z,radius=16){m.landmarks.push({name,x,z,radius});m.props.push({kind:'sign',name,x,y:2.8,z:z+radius*.6})}
 function scatter(m,seed){
@@ -52,6 +88,7 @@ function enlargedWorld(world,factor,version=4){
  enlarged.landmarks=(enlarged.landmarks||[]).map(marker=>({...marker,x:marker.x*factor,z:marker.z*factor,radius:marker.radius*factor}));
  enlarged.hazards=(enlarged.hazards||[]).map(hazard=>({...hazard,x:hazard.x*factor,z:hazard.z*factor,radius:hazard.radius*factor}));
  enlarged.caches=enlarged.caches.map(([x,z,y=0])=>[x*factor,z*factor,y]);
+ enlarged.doors=(enlarged.doors||[]).map(door=>({...door,x:door.x*factor,z:door.z*factor,w:door.w*factor,d:door.d*factor,closed:!!door.closed}));
  enlarged.exits=enlarged.exits.map(exit=>({...exit,x:exit.x*factor,z:exit.z*factor}));
  enlarged.spawns=enlarged.spawns.map(([x,z])=>[x*factor,z*factor]);
  if(enlarged.supply)enlarged.supply={...enlarged.supply,x:enlarged.supply.x*factor,z:enlarged.supply.z*factor};
@@ -63,7 +100,7 @@ function enlargedWorld(world,factor,version=4){
 // decks, towers and terrain cuts so the larger ground area has distinct places
 // to explore instead of one stretched district.
 function arena(id,name,theme){
- return {id,name,theme,version:5,size:720,blocks:[],ramps:[],props:[],landmarks:[],hazards:[],caches:[],cacheMeta:[],
+ return {id,name,theme,version:5,size:720,blocks:[],ramps:[],props:[],landmarks:[],hazards:[],caches:[],cacheMeta:[],doors:[],doorSeq:0,
   spawns:[[-300,-300],[-80,-320],[140,-320],[320,-140],[320,160],[160,320],[-140,320],[-320,160],[-320,-120]],
   exits:[{id:'call',x:-330,y:0,z:0,kind:'call',name:'West evacuation beacon'},{id:'transport',x:200,y:0,z:330,kind:'timed',name:'South cargo lift'},{id:'hatch',x:0,y:0,z:-330,kind:'key',name:'North maintenance hatch'},{id:'freight',x:330,y:0,z:-180,kind:'resource',name:'Emergency freight winch'}],
   supply:{x:0,y:0,z:100}};
@@ -323,17 +360,21 @@ function townWindowRows(m,x,z,w,d,base,height,R,litChance=.55){
  }
 }
 
-function townBuilding(m,x,z,R,theme,facing,names){
+function townBuilding(m,x,z,R,theme,facing,names,wallOverride=null){
  const walls=theme==='wilderness'?['planks','brick','concrete']:theme==='settlement'?['brick','brick','concrete','planks']:['brick','concrete','planks','metal'];
- const wall=walls[Math.floor(R()*walls.length)];
+ // Consume the original random draw even when the caller pins a wall kind, so
+ // every later dimension and window in the deterministic layout is unchanged.
+ const wallPick=R();
+ const wall=wallOverride||walls[Math.floor(wallPick*walls.length)];
+ const tint=tintFor(theme,x,z,wall);
  const w=12+Math.floor(R()*9),d=11+Math.floor(R()*7);
  const h=4.2+R()*1.8,floors=R()<(theme==='reservoir'?.22:.36)?2:1;
  if(!clearFootprint(m,x,z,w,d,5))return false;
- room(m,x,z,w,d,h,R()<.5?['n','e']:['s','w'],wall,'roof');
+ room(m,x,z,w,d,h,R()<.5?['n','e']:['s','w'],wall,'roof',tint);
  let top=h;
  if(floors===2){
   const up=2.8+R()*.7;
-  box(m,x,z,w-.4,d-.4,up,h,wall);
+  box(m,x,z,w-.4,d-.4,up,h,wall,tint);
   townWindowRows(m,x,z,w-.4,d-.4,h,up,R,.6);
   top=h+up;
  }
@@ -375,16 +416,26 @@ function townStreet(m,cx,cz,width=14,length=220){
  }
 }
 
+const WALL_CYCLES={
+ industrial:['planks','brick','concrete','metal','concrete','brick','planks','concrete','brick','metal','metal','concrete'],
+ wilderness:['planks','planks','brick','concrete','planks','brick','planks','concrete','brick','planks','concrete','brick'],
+ settlement:['brick','concrete','brick','planks','metal','brick','concrete','brick','planks','brick','metal','concrete']
+};
 function settlement(m,cx,cz,R,theme,names,district=false,facingHint){
  townStreet(m,cx,cz,district?16:14,district?240:220);
  const lots=district
   ?[[-72,-48],[-36,-54],[0,-56],[36,-54],[72,-48],[-86,-14],[-86,20],[-72,54],[-36,58],[0,58],[36,58],[72,54],[86,-14],[86,20]]
   :[[-46,-32],[-46,-2],[-46,28],[46,-32],[46,-2],[46,28],[-15,-46],[17,-46],[-15,44],[17,44],[-78,-26],[78,24]];
+ // A deterministic material rotation gives each settlement street a legible
+ // mix of concrete, brick, metal siding and timber instead of a row of the
+ // same warm plank facade. Only the surface material changes; footprints,
+ // heights, windows and doorway gaps are untouched.
+ const wallCycle=(WALL_CYCLES[theme]||WALL_CYCLES.industrial);
  let built=0;
- for(const [lx,lz] of lots){
+ for(const [k,[lx,lz]] of lots.entries()){
   const x=cx+lx,z=cz+lz;
   const facing=Math.abs(lx)>=Math.abs(lz)?(lx<0?'e':'w'):(lz<0?'s':'n');
-  if(townBuilding(m,x,z,R,theme,R()<.7?facing:facingHint||facing,names))built++;
+  if(townBuilding(m,x,z,R,theme,R()<.7?facing:facingHint||facing,names,wallCycle[k%wallCycle.length]))built++;
  }
  // A settlement square with supplies, shelter and abandoned transport.
  for(let i=0;i<4;i++){
@@ -460,13 +511,37 @@ const BUILDING_TINTS={
  wilderness:[0xa98f69,0xbb9b70,0x8c7a56,0xc0a379,0x9a865f,0x8a704f],
  settlement:[0xc08862,0xb99673,0xd1a47b,0xaa8067,0xbfa088,0x9f8a74,0xc5b29a]
 };
+// Walls read by material, not by theme alone: concrete is pale cool cement,
+// brick is a muted fired clay, metal is galvanised siding, timber is weathered
+// grey-brown. The tints multiply the shared white-ish surface maps, so a metal
+// block no longer inherits the warm tan that made every facade look like planks.
+const WALL_TINTS={
+ industrial:{
+  concrete:[0xb7b8ae,0xabaea8,0xc2c1b8,0x9da3a1,0xbfbdb0],
+  brick:[0x9a7d6c,0x8d6f61,0xa78b7a,0x7f6357,0x94796b],
+  metal:[0xc4c6bf,0xb4b8b2,0xcbcdc6,0xa5a9a3,0xbcc0b8],
+  planks:[0x8a7b66,0x7c6e59,0x95866f,0x6d6053,0x9b8a74]
+ },
+ wilderness:{
+  concrete:[0xa9aba2,0x9fa59d,0xb4b3a8],
+  brick:[0x9b7663,0x8e6b58,0xb0836d],
+  metal:[0x969a94,0x878c88,0x9c9f99],
+  planks:[0x957d5f,0x8a7357,0xa38c6b,0x796446]
+ },
+ settlement:{
+  concrete:[0xb8b2a4,0xcac4b6,0xaba598,0xbfb5a4],
+  brick:[0x9e6752,0x8d5c48,0xb4795f,0x835344,0xa97a64],
+  metal:[0x929693,0x838884,0x9fa3a0],
+  planks:[0x93755a,0x877058,0xa0856b,0x775d45]
+ }
+};
 const ROOF_TINTS={
  industrial:[0x3f4b4e,0x505a58,0x5e5d4c,0x465d5b],
  wilderness:[0x4f5847,0x5f5f4c,0x6c5d49,0x45584a],
  settlement:[0x53545e,0x6a5b50,0x5f6672,0x7a6b5c,0x4d4948]
 };
-function tintFor(theme,x,z){
- const list=BUILDING_TINTS[theme]||BUILDING_TINTS.industrial;
+function tintFor(theme,x,z,kind=null){
+ const list=(kind&&WALL_TINTS[theme]&&WALL_TINTS[theme][kind])||BUILDING_TINTS[theme]||BUILDING_TINTS.industrial;
  return list[Math.round(Math.abs((x*7+z*13+(x+z)*3)))%list.length];
 }
 function roofTintFor(theme,x,z){
@@ -496,7 +571,7 @@ function addUnit(m,cx,cz,w,d,R,theme,height){
  // taller apartment or silo.
  const h=height??(R()<.22?10+R()*7.5:R()<.45?7.4+R()*2.2:4.4+R()*2.2);
  if(!clearFootprint(m,cx,cz,w,d,2.5))return false;
- const wall=wallKindFor(theme,R),tint=tintFor(theme,cx,cz);
+ const wall=wallKindFor(theme,R),tint=tintFor(theme,cx,cz,wall);
  box(m,cx,cz,w,d,h,0,wall,tint);
  box(m,cx,cz,w+.7,d+.7,.24,h,'roof',roofTintFor(theme,cx,cz));
  facadeWindows(m,cx,cz,w,d,0,h,R,'z',1,.45);
@@ -513,7 +588,7 @@ function rowHouses(m,cx,cz,units,R,theme,horiz=true){
  for(let i=0;i<units;i++){
   const x=horiz?cx+(i-(units-1)/2)*uw:cx,z=horiz?cz:cz+(i-(units-1)/2)*uw;
   const uW=horiz?uw:depth,uD=horiz?depth:uw;
-  box(m,x,z,uW-.2,uD-.2,h,0,wall,tintFor(theme,x,z));
+  box(m,x,z,uW-.2,uD-.2,h,0,wall,tintFor(theme,x,z,wall));
   facadeWindows(m,x,z,uW-.2,uD-.2,0,h,R,horiz?'z':'x',1,.55);
   facadeWindows(m,x,z,uW-.2,uD-.2,0,h,R,horiz?'z':'x',-1,.5);
   if(R()<.22){
@@ -553,10 +628,10 @@ function residentialCell(m,cx,cz,R){
  for(let i=0;i<9;i++){const a=R()*Math.PI*2,r=26+R()*32,x=cx+Math.sin(a)*r,z=cz+Math.cos(a)*r;if(R()<.45)hedgeSegment(m,x,z,2.4+R()*2.4,2.2,0,0x477045);else addTree(m,x,z,R,[0x556b4f,0x6d835f,0x47583d])}
 }
 function industrialCell(m,cx,cz,R){
- warehouse(m,cx-28,cz-40,R,tintFor('industrial',cx-28,cz-40));shed(m,cx+40,cz-38,R,'metal','metal',tintFor('industrial',cx+40,cz-38));containers(m,cx-42,cz+38,R);containers(m,cx+42,cz+40,R);
+ warehouse(m,cx-28,cz-40,R,tintFor('industrial',cx-28,cz-40,'concrete'));shed(m,cx+40,cz-38,R,'metal','metal',tintFor('industrial',cx+40,cz-38,'metal'));containers(m,cx-42,cz+38,R);containers(m,cx+42,cz+40,R);
  const fw=30+Math.round(R()*16),fd=20+Math.round(R()*12),fh=7+Math.round(R()*4),fx=cx+15,fz=cz-4;
  if(clearFootprint(m,fx,fz,fw,fd,3)){
-  box(m,fx,fz,fw,fd,fh,0,'concrete',tintFor('industrial',fx,fz));box(m,fx,fz,fw+.8,fd+.8,.28,fh,'roof',roofTintFor('industrial',fx,fz));
+  box(m,fx,fz,fw,fd,fh,0,'concrete',tintFor('industrial',fx,fz,'concrete'));box(m,fx,fz,fw+.8,fd+.8,.28,fh,'roof',roofTintFor('industrial',fx,fz));
   facadeWindows(m,fx,fz,fw,fd,0,fh,R,'z',1,.3);facadeWindows(m,fx,fz,fw,fd,0,fh,R,'z',-1,.25);
   rooftop(m,fx,fz,fw,fd,fh,R);
   m.props.push({kind:'floor',x:fx,y:.02,z:fz+fd/2+9,w:fw*.9,d:12,color:0x7b807a});
@@ -579,9 +654,9 @@ function industrialCell(m,cx,cz,R){
 function ruralCell(m,cx,cz,R){
  if(R()<.5){
   fieldPatch(m,cx-12,cz-8,116,78,0x5d7248);fieldPatch(m,cx+44,cz+44,54,38,0x6a7a52);
-  house(m,cx-48,cz-40,R,'planks','planks',tintFor('wilderness',cx-48,cz-40));shed(m,cx-22,cz-56,R,'planks','planks',tintFor('wilderness',cx-22,cz-56));shed(m,cx+54,cz-34,R,'planks','planks',tintFor('wilderness',cx+54,cz-34));
+  house(m,cx-48,cz-40,R,'planks','planks',tintFor('wilderness',cx-48,cz-40,'planks'));shed(m,cx-22,cz-56,R,'planks','planks',tintFor('wilderness',cx-22,cz-56,'planks'));shed(m,cx+54,cz-34,R,'planks','planks',tintFor('wilderness',cx+54,cz-34,'planks'));
   const bw=34+Math.round(R()*16),bd=20+Math.round(R()*10),bh=7+R()*2,bx=cx+12,bz=cz+12;
-  if(clearFootprint(m,bx,bz,bw,bd,4)){box(m,bx,bz,bw,bd,bh,0,'planks',tintFor('wilderness',bx,bz));box(m,bx,bz,bw+.9,bd+.9,.3,bh,'roof',roofTintFor('wilderness',bx,bz));facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',1,.45);facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',-1,.4)}
+  if(clearFootprint(m,bx,bz,bw,bd,4)){box(m,bx,bz,bw,bd,bh,0,'planks',tintFor('wilderness',bx,bz,'planks'));box(m,bx,bz,bw+.9,bd+.9,.3,bh,'roof',roofTintFor('wilderness',bx,bz));facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',1,.45);facadeWindows(m,bx,bz,bw,bd,0,bh,R,'z',-1,.4)}
   m.props.push({kind:'tank',x:cx+46,y:0,z:cz+2,scale:.8+R()*.5,color:0x9a9a8a});
   m.props.push({kind:'tank',x:cx-56,y:0,z:cz+34,scale:.6+R()*.4,color:0x7b8b7c});
   for(let i=0;i<9;i++)hayProp(m,cx+(R()*2-1)*70,cz+(R()*2-1)*58,.8+R()*.5);
@@ -591,7 +666,7 @@ function ruralCell(m,cx,cz,R){
  }else{
   fieldPatch(m,cx,cz,26,26,0x6a704f);
   for(const [dx,dz] of [[-58,-42],[56,-40],[-54,42],[52,44],[-18,-62],[24,58]]){
-   const roll=R(),tint=tintFor('wilderness',cx+dx,cz+dz);if(roll<.55)house(m,cx+dx,cz+dz,R,'planks','planks',tint);else if(roll<.8)ruin(m,cx+dx,cz+dz,R,'planks',tint);else shed(m,cx+dx,cz+dz,R,'planks','planks',tint);
+   const roll=R(),tint=tintFor('wilderness',cx+dx,cz+dz,'planks');if(roll<.55)house(m,cx+dx,cz+dz,R,'planks','planks',tint);else if(roll<.8)ruin(m,cx+dx,cz+dz,R,'planks',tint);else shed(m,cx+dx,cz+dz,R,'planks','planks',tint);
   }
   m.props.push({kind:'campfire',x:cx,z:cz,y:0,scale:.8,color:0xffb64d});
   for(const [dx,dz] of [[-11,-7],[11,7],[-9,10],[10,-9]])m.props.push({kind:'tent',x:cx+dx,z:cz+dz,y:0,scale:.75+R()*.3,color:0x8a9b7a});
@@ -638,7 +713,7 @@ function districtTower(m,cx,cz,R,theme){
  const w=14+Math.round(R()*8),d=12+Math.round(R()*6),h=18+Math.round(R()*14);
  if(!clearFootprint(m,cx,cz,w,d,8))return false;
  const wall=theme==='wilderness'?'planks':theme==='settlement'?'brick':'concrete';
- box(m,cx,cz,w,d,h,0,wall,tintFor(theme,cx,cz));
+ box(m,cx,cz,w,d,h,0,wall,tintFor(theme,cx,cz,wall));
  box(m,cx,cz,w+.9,d+.9,.32,h,'roof',roofTintFor(theme,cx,cz));
  facadeWindows(m,cx,cz,w,d,0,h,R,'z',1,.3);
  facadeWindows(m,cx,cz,w,d,0,h,R,'z',-1,.28);
@@ -867,9 +942,9 @@ landmark(switchyard,'Freight Office',-36,-28);landmark(switchyard,'Dispatch',0,-
 for(const args of [[-36,-28,1,'Freight office'],[0,-25,2,'Dispatch console'],[34,30,2,'Depot stores'],[34,30,3,'Depot roof strongbox',4.42],[-22,30,2,'Bridge signal box',3.4],[-48,21,0,'Trackside salvage'],[20,-40,1,'Signal supplies'],[46,-26,1,'Burned carriage'],[-18,-45,0,'Worker camp'],[-1,48,0,'Evacuation stores'],[54,14,1,'Platform luggage'],[0,22,3,'Locked dispatch vault',0,true]])cache(switchyard,...args);
 switchyard.hazards.push({id:'live_rail',name:'Live rail discharge',x:8,z:8,y:0,radius:7,period:50,active:8,warning:4,damage:9});scatter(switchyard,2033);
 const relay5=arena('relay','Relay Graveyard','industrial');
-room(relay5,0,0,30,24,5.4);roofLink(relay5,0,0,5.4);
-room(relay5,-180,40,26,20,5.0);roofLink(relay5,-180,40,5.0);
-room(relay5,180,-40,24,18,4.6);
+room(relay5,0,0,30,24,5.4);doorsForRoom(relay5,0,0,30,24,5.4,['n','s'],'Relay control door',true);roofLink(relay5,0,0,5.4);
+room(relay5,-180,40,26,20,5.0);doorsForRoom(relay5,-180,40,26,20,5.0,['n','s'],'Freight hall door');roofLink(relay5,-180,40,5.0);
+room(relay5,180,-40,24,18,4.6);doorsForRoom(relay5,180,-40,24,18,4.6,['n','s'],'Turbine hall door');
 for(const [x,z]of [[-180,-160],[-160,-160]]){box(relay5,x,z,2,2,10,0,'metal');relay5.props.push({kind:'dish',x,y:10,z})}
 for(const [x,z]of [[80,-140],[100,-140],[120,-140],[-60,160],[-40,160],[-20,160]])box(relay5,x,z,6,12,2.4,0,'container');
 for(const [x,z]of [[-220,-260],[220,-260],[-180,240],[180,240]])box(relay5,x,z,4,2,1.2,0,'barrier');
@@ -894,9 +969,9 @@ relay5.hazards.push({id:'substation_arcs',name:'Substation discharge',x:240,y:0,
 scatterBig(relay5,9271);
 
 const reservoir5=arena('reservoir','Dry Reservoir','wilderness');
-room(reservoir5,-180,-160,24,20,5.0);roofLink(reservoir5,-180,-160,5.0);
-room(reservoir5,180,160,22,18,6.0);roofLink(reservoir5,180,160,6.0);
-room(reservoir5,180,-160,20,16,5.4);roofLink(reservoir5,180,-160,5.4);
+room(reservoir5,-180,-160,24,20,5.0);doorsForRoom(reservoir5,-180,-160,24,20,5.0,['n','s'],'Pump house door',true);roofLink(reservoir5,-180,-160,5.0);
+room(reservoir5,180,160,22,18,6.0);doorsForRoom(reservoir5,180,160,22,18,6.0,['n','s'],'Watch station door');roofLink(reservoir5,180,160,6.0);
+room(reservoir5,180,-160,20,16,5.4);doorsForRoom(reservoir5,180,-160,20,16,5.4,['n','s'],'Intake door');roofLink(reservoir5,180,-160,5.4);
 for(const [x,z,w,d,h]of [[-200,120,26,20,4.2],[220,220,22,18,3.8],[-260,-220,30,22,4.0]])box(reservoir5,x,z,w,d,h,0,'rock');
 deck(reservoir5,0,0,260,10,1.6);
 reservoir5.props.push({kind:'basin',x:0,y:.01,z:0,w:220,d:70},{kind:'pump',x:-220,y:0,z:-190},{kind:'waterTower',x:220,y:0,z:-200});
@@ -918,9 +993,9 @@ reservoir5.hazards.push({id:'coolant_vent',name:'Coolant vent',x:60,y:0,z:60,rad
 scatterBig(reservoir5,7719);
 
 const switchyard5=arena('switchyard','Ember Switchyard','settlement');
-room(switchyard5,-180,-120,26,20,5.0);roofLink(switchyard5,-180,-120,5.0);
-room(switchyard5,0,-140,22,20,4.6);
-room(switchyard5,160,140,30,24,5.2);roofLink(switchyard5,160,140,5.2);
+room(switchyard5,-180,-120,26,20,5.0);doorsForRoom(switchyard5,-180,-120,26,20,5.0,['n','s'],'Freight office door');roofLink(switchyard5,-180,-120,5.0);
+room(switchyard5,0,-140,22,20,4.6);doorsForRoom(switchyard5,0,-140,22,20,4.6,['n','s'],'Dispatch door',true);
+room(switchyard5,160,140,30,24,5.2);doorsForRoom(switchyard5,160,140,30,24,5.2,['n','s'],'Depot strongbox door',true);roofLink(switchyard5,160,140,5.2);
 for(const z of [-60,40])for(const x of [-220,-160,-100,60,120,200])box(switchyard5,x,z,14,4,2.5,0,'container');
 deck(switchyard5,-80,0,200,10,2.8);
 for(const z of [-100,100])switchyard5.props.push({kind:'rail',x:0,y:.02,z,w:600,d:2.2});
@@ -1001,9 +1076,236 @@ function nearbyBlocks(world,x,z,r=0){
  for(let i=minX;i<=maxX;i++)for(let j=minZ;j<=maxZ;j++){const list=grid.cells.get(i*65536+j);if(list)for(const block of list)out.push(block)}
  return out;
 }
-export function blocked(world,x,z,r=.5,y=0,height=1.7){
+// ===================== Prop collision =====================
+// World props (cars, trucks, crates, barrels, ...) used to be presentation-only:
+// the operator could walk through a parked car and bullets passed through it.
+// Anything that reads as solid cover gets a real footprint here, derived from
+// the same dimensions the offline builder draws. A spatial hash (mirroring the
+// block grid) keeps the extra test proportional to nearby props.
+function propGrid(world){
+ const props=world.props||[];
+ let grid=propGrids.get(props);
+ if(!props.length){if(!grid){grid={count:0,cells:new Map(),cell:24};propGrids.set(props,grid)}return grid}
+ if(grid&&grid.count===props.length)return grid;
+ // Deployment spawns, caches and exits must stay reachable. A prop authored on
+ // top of one of those interchange points stays visual-only rather than sealing
+ // the only approach (an authored wreck currently sits on the switchyard cache).
+ const keepClear=[];for(const [px,pz]of world.spawns||[])keepClear.push([px,pz,2.6]);
+ for(const [px,pz]of world.caches||[])keepClear.push([px,pz,2.2]);
+ for(const exit of world.exits||[])keepClear.push([exit.x,exit.z,2.4]);
+ const cell=24,cells=new Map();
+ for(const prop of props){
+  const footprint=FOOTPRINT[prop.kind]?FOOTPRINT[prop.kind](prop):null;if(!footprint)continue;
+  if(keepClear.some(([qx,qz,pad])=>Math.abs(prop.x-qx)<footprint.hw+pad&&Math.abs(prop.z-qz)<footprint.hd+pad))continue;
+  const y=Number.isFinite(prop.y)&&Math.abs(prop.y)>.01?prop.y:terrainHeightAt(world,prop.x,prop.z);
+  const entry=[prop.x,prop.z,footprint.hw,footprint.hd,y,footprint.h];
+  const x0=Math.floor((prop.x-footprint.hw)/cell),x1=Math.floor((prop.x+footprint.hw)/cell);
+  const z0=Math.floor((prop.z-footprint.hd)/cell),z1=Math.floor((prop.z+footprint.hd)/cell);
+  for(let i=x0;i<=x1;i++)for(let j=z0;j<=z1;j++){const key=i*65536+j;let list=cells.get(key);if(!list)cells.set(key,list=[]);list.push(entry)}
+ }
+ grid={count:props.length,cells,cell};propGrids.set(props,grid);return grid;
+}
+function propBlocked(world,x,z,r,y,height){
+ const grid=propGrid(world),cell=grid.cell,minX=Math.floor((x-r)/cell),maxX=Math.floor((x+r)/cell),minZ=Math.floor((z-r)/cell),maxZ=Math.floor((z+r)/cell);
+ const test=([px,pz,hw,hd,base,h])=>Math.abs(x-px)<hw+r&&Math.abs(z-pz)<hd+r&&y+height>base+.04&&y<base+h-.04;
+ for(let i=minX;i<=maxX;i++)for(let j=minZ;j<=maxZ;j++){
+  const list=grid.cells.get(i*65536+j);
+  if(list&&list.some(test))return true;
+ }
+ return false;
+}
+// ===================== Decor collision =====================
+// The neutral builder draws undergrowth, ruin walls, doorway stoops and spawn
+// clutter from deterministic data that used to be presentation-only. The same
+// data is lowered into a second spatial hash so the operator, bullets and AI
+// stop on what the player sees. Nothing here mutates the frozen layout.
+function decorHash(n){const v=Math.sin(n)*43758.5453123;return v-Math.floor(v)}
+const windowFootprint=prop=>[prop.x.toFixed(4),prop.z.toFixed(4),Number(prop.y||0).toFixed(4),prop.w??'',prop.d??'',prop.h??''].join('|');
+export function uniqueWindowProps(props){
+ const keep=new Map();
+ for(const prop of props){
+  if(prop.kind!=='window')continue;
+  const key=windowFootprint(prop),prev=keep.get(key);
+  if(!prev||(!prev.lit&&prop.lit))keep.set(key,prop);
+ }
+ if(!keep.size)return props;
+ const out=[];
+ for(const prop of props){
+  if(prop.kind==='window'&&keep.get(windowFootprint(prop))!==prop)continue;
+  out.push(prop);
+ }
+ return out;
+}
+// Spawn apron drums and the wooden supply crate. Rendered and collided from one
+// list so the offline builder and authority can never drift apart.
+const SPAWN_DRUMS=[[-3.2,11.4,0x4b5344],[-1.4,12.8,0x8a5a3e],[1.8,13.8,0x4b5344]];
+// Authored metre footprints of the scanned courtyard cover. Keeping the sizes
+// beside the offsets lets one deterministic list drive both the instanced scan
+// and the decor collider (the offline builder and authority never drift).
+const SPAWN_COVER_DIMS={
+ barrier:{w:1.565,h:1.112,d:.442},
+ cratepile:{w:.825,h:.35,d:.409},
+ bin:{w:1.955,h:1.21,d:.556},
+ wreck:{w:1.789,h:1.411,d:4.38},
+ log:{w:3.051,h:.291,d:.277},
+ tyre:{w:.6,h:.165,d:.6},
+ bag:{w:.528,h:.575,d:.463}
+};
+// The hero courtyard on the first deployment point (the relay spawn street):
+// a jersey-barrier line on the enemy side of the lane, a crate pile and rubbish
+// on the spawn-side pavement, a dumpster, and a covered wreck. Offsets are
+// metres from the spawn and rotate with the return direction toward the sector
+// interior. All gaps at screen centre stay walkable.
+const SPAWN_COVER_HERO=[
+ ['barrier',4.0,16.0,-.02,0],['barrier',5.2,16.2,-.03,0],
+ ['barrier',6.4,16.4,-.04,0],['barrier',7.6,16.6,-.05,0],
+ ['cratepile',-4.9,11.5,.03,0],['cratepile',-4.85,11.46,.12,.35],
+ ['cratepile',-5.7,11.9,.55,0],
+ ['tyre',-4.2,12.4,.3,0],['bag',-5.3,13.4,.2,0],
+ ['cratepile',3.6,12.6,.03,0],['cratepile',3.75,12.65,.12,.35],
+ ['cratepile',4.7,12.2,.55,0],
+ ['bag',5.1,13.1,.4,0],['bag',4.9,13.5,-.3,0],
+ ['tyre',6.8,14.0,.2,0],['tyre',2.0,9.2,.5,0],['tyre',3.1,9.7,1.1,0],
+ ['tyre',-8.2,17.4,.9,0],
+ ['log',7.8,16.4,.85,0],
+ ['bin',7.5,14.4,-.04,0],
+ ['bag',8.2,13.2,.3,0],['bag',6.2,13.5,-.2,0],['bag',7.0,15.3,.6,0],
+ ['wreck',-11.4,18.4,1.35,0]
+];
+// Other deployment courts get a lighter version of the same cover so a raid
+// starting elsewhere still has real barriers and debris without paying the full
+// hero triangle budget nine times.
+const SPAWN_COVER_LIGHT=[
+ ['barrier',-5.2,13.8,.1,0],
+ ['cratepile',3.4,12.6,.2,0],
+ ['tyre',-2.8,14.6,.6,0],
+ ['bag',4.9,13.2,.4,0]
+];
+export function raidSpawnDressing(world){
+ const blocks=world.blocks||[],out=[];
+ const hit=(x,z)=>blocks.some(([bx,bz,w,d])=>Math.abs(x-bx)<w/2+.7&&Math.abs(z-bz)<d/2+.7);
+ for(let si=0;si<(world.spawns||[]).length;si++){
+  const [sx,sz]=world.spawns[si];
+  for(const [dx,dz,color] of SPAWN_DRUMS){
+   const x=sx+dx,z=sz+dz;if(hit(x,z))continue;
+   out.push({kind:'drum',x,z,y:terrainHeightAt(world,x,z),color,radius:.52,height:1.3});
+  }
+  const x=sx-4.4,z=sz+9.7;
+  // Footprint matches the real wooden-military-crate scan so the rendered prop
+  // and the decor collider describe the same low, long box.
+  if(!hit(x,z))out.push({kind:'crate',x,z,y:terrainHeightAt(world,x,z),color:0x8a6a45,w:1.242,h:.46,d:.52});
+  for(const [kind,dx,dz,ry,level] of si===0?SPAWN_COVER_HERO:SPAWN_COVER_LIGHT){
+   const x=sx+dx,z=sz+dz;if(hit(x,z))continue;
+   const dims=SPAWN_COVER_DIMS[kind];
+   out.push({kind,x,z,y:terrainHeightAt(world,x,z)+level,level,ry,w:dims.w,h:dims.h,d:dims.d});
+  }
+ }
+ return out;
+}
+// Street-level doorway sites, derived from frozen blocks and the authored window
+// layer. This picker is the single source of truth for both the façade dress
+// (raid-environment.mjs) and the doorway stoop colliders.
+export function raidDoorwaySites(world){
+ let sites=doorwayCache.get(world);if(sites)return sites;
+ const windows=uniqueWindowProps(world.props||[]).filter(p=>p.kind==='window');
+ sites=[];
+ for(const block of world.blocks||[]){
+  const [x,z,w,d,h,y=0,kind='concrete']=block;
+  if(y>.4||h<2.8||w<6||d<6)continue;
+  if(kind!=='brick'&&kind!=='concrete'&&kind!=='planks')continue;
+  const doorHash=decorHash(x*57.1+z*37.7+world.id.length*3.3+h*1.9);
+  if(doorHash>=.45)continue;
+  const primary=Math.floor(decorHash(doorHash*7.31)*4)%4;
+  for(let attempt=0;attempt<4;attempt++){
+   const face=(primary+attempt)%4,onZ=face<2,nx=face===2?-1:face===3?1:0,nz=face===0?1:face===1?-1:0;
+   const minA=(onZ?x:z)-(onZ?w:d)/2+1.5,maxA=(onZ?x:z)+(onZ?w:d)/2-1.5;
+   const faceWins=[];
+   for(const p of windows){
+    if(onZ){if(Math.abs(p.z-(z+nz*(d/2+.27)))<.8&&p.x>=x-w/2-.1&&p.x<=x+w/2+.1)faceWins.push({a:p.x,width:p.w||1.2})}
+    else if(Math.abs(p.x-(x+nx*(w/2+.27)))<.8&&p.z>=z-d/2-.1&&p.z<=z+d/2+.1)faceWins.push({a:p.z,width:p.d||1.2});
+   }
+   faceWins.sort((a,b)=>a.a-b.a);
+   const gaps=[];let cursor=minA;
+   for(const win of faceWins){const s=win.a-win.width/2-.18,e=win.a+win.width/2+.18;if(s-cursor>=1.8)gaps.push([cursor,s]);cursor=Math.max(cursor,e)}
+   if(maxA-cursor>=1.8)gaps.push([cursor,maxA]);
+   if(!gaps.length)continue;
+   gaps.sort((a,b)=>(b[1]-b[0])-(a[1]-a[0]));
+   const a=(gaps[0][0]+gaps[0][1])/2,wallX=x+nx*w/2,wallZ=z+nz*d/2,ddx=onZ?a:wallX,ddz=onZ?wallZ:a;
+   const doorBase=y+.38,doorW=1.12,doorH=Math.min(2.15,h-.5);
+   const outX=onZ?0:nx,outZ=onZ?nz:0;
+   const awning=decorHash(doorHash*29.3+face*4.2)<.55;
+   sites.push({x:ddx,y:doorBase,z:ddz,base:y,top:y+h,face,onZ,outX,outZ,w:doorW,h:doorH,windows:faceWins.length,awning,doorHash});
+   break;
+  }
+ }
+ doorwayCache.set(world,sites);return sites;
+}
+// A rotated box footprint is tested against the same surface height rule as
+// authored blocks, so low rubble stays passable while standing walls stop a
+// body, a bullet or a machine. Only live (v10) deployments carry decor solids:
+// the v7-v9 construction worlds consult blocked() while their frozen prop
+// scatter is still being assembled.
+function decorGrid(world){
+ const cached=decorGrids.get(world);if(cached)return cached;
+ const cell=24,cells=new Map();
+ if(!world||!(world.version>=10)){const empty={cells,cell,count:0};decorGrids.set(world,empty);return empty}
+ const keepClear=[];for(const [px,pz]of world.spawns||[])keepClear.push([px,pz,2.6]);
+ for(const [px,pz]of world.caches||[])keepClear.push([px,pz,2.2]);
+ for(const exit of world.exits||[])keepClear.push([exit.x,exit.z,2.4]);
+ const entries=[];
+ const push=(x,z,hw,hd,base,h,ry=0)=>entries.push([x,z,hw,hd,base,h,ry]);
+ const pushDoor=(x,z,hw,hd,base,h)=>{
+  // Leave the immediate approach to a deployment point open: a decorative
+  // stoop beside a cache must never be the only thing sealing it.
+  if(keepClear.some(([qx,qz,pad])=>Math.abs(x-qx)<hw+pad&&Math.abs(z-qz)<hd+pad))return;
+  entries.push([x,z,hw,hd,base,h,0]);
+ };
+ for(const item of raidScenery(world)){
+  if(item.kind==='ruin'){
+   const s=item.scale||1,base=terrainHeightAt(world,item.x,item.z),ry=item.ry||0;
+   push(item.x,item.z,.275*s,1.2*s,base,1.7*s,ry);
+   push(item.x+Math.sin(ry)*1.25*s,item.z+Math.cos(ry)*1.25*s,.25*s,.75*s,base,1.16*s,ry);
+  } else if(item.kind==='stump'){
+   const s=item.scale||1;
+   push(item.x,item.z,.3*s,.3*s,terrainHeightAt(world,item.x,item.z),1.3*s);
+  }
+ }
+ for(const door of raidDoorwaySites(world)){
+  const hw=door.onZ?(door.w+.7)/2:.34,hd=door.onZ?.34:(door.w+.7)/2;
+  pushDoor(door.x+(door.onZ?0:door.outX*.34),door.z+(door.onZ?door.outZ*.34:0),hw,hd,door.y-.35,.30);
+ }
+ for(const item of raidSpawnDressing(world)){
+  if(item.kind==='drum')push(item.x,item.z,item.radius,item.radius,item.y,item.height);
+  else push(item.x,item.z,item.w/2,item.d/2,item.y,item.h,item.ry||0);
+ }
+ for(const entry of entries){const [x,z,hw,hd]=entry,ry=entry[6]||0,cos=Math.abs(Math.cos(ry)),sin=Math.abs(Math.sin(ry));
+  const ex=cos*hw+sin*hd,ez=sin*hw+cos*hd;
+  const x0=Math.floor((x-ex)/cell),x1=Math.floor((x+ex)/cell);
+  const z0=Math.floor((z-ez)/cell),z1=Math.floor((z+ez)/cell);
+  for(let i=x0;i<=x1;i++)for(let j=z0;j<=z1;j++){const key=i*65536+j;let list=cells.get(key);if(!list)cells.set(key,list=[]);list.push(entry)}
+ }
+ const grid={cells,cell,count:entries.length};decorGrids.set(world,grid);return grid;
+}
+function decorBlocked(world,x,z,r,y,height){
+ const grid=decorGrid(world);if(!grid.count)return false;
+ const cell=grid.cell,minX=Math.floor((x-r)/cell),maxX=Math.floor((x+r)/cell),minZ=Math.floor((z-r)/cell),maxZ=Math.floor((z+r)/cell);
+ for(let i=minX;i<=maxX;i++)for(let j=minZ;j<=maxZ;j++){
+  const list=grid.cells.get(i*65536+j);if(!list)continue;
+  for(const [px,pz,hw,hd,base,h,ry]of list){
+   if(y+height<=base+.04||y>=base+h-.04)continue;
+   if(!ry){if(Math.abs(x-px)<hw+r&&Math.abs(z-pz)<hd+r)return true;continue}
+   const dx=x-px,dz=z-pz,cos=Math.cos(ry),sin=Math.sin(ry);
+   if(Math.abs(dx*cos-dz*sin)<hw+r&&Math.abs(dx*sin+dz*cos)<hd+r)return true;
+  }
+ }
+ return false;
+}
+export function blocked(world,x,z,r=.5,y=0,height=1.7,ignoreProps=false,ignoreDecor=false){
  if(Math.abs(x)>world.size/2-r||Math.abs(z)>world.size/2-r)return true;
  if(nearbyBlocks(world,x,z,r).some(([bx,bz,w,d,h,base=0])=>Math.abs(x-bx)<w/2+r&&Math.abs(z-bz)<d/2+r&&y+height>base+.04&&y<base+h-.04))return true;
+ if((world.doors||[]).some(door=>door.closed&&Math.abs(x-door.x)<door.w/2+r&&Math.abs(z-door.z)<door.d/2+r&&y+height>(door.y||0)+.04&&y<(door.y||0)+door.h-.04))return true;
+ if(!ignoreProps&&propBlocked(world,x,z,r,y,height))return true;
+ if(!ignoreDecor&&decorBlocked(world,x,z,r,y,height))return true;
  return (world.ramps||[]).some(ramp=>{const level=rampLevel(ramp,x,z);return level!=null&&y<level-.04&&y+height>level-.12});
 }
 export function rampLevel(r,x,z){if(Math.abs(x-r.x)>r.w/2||Math.abs(z-r.z)>r.d/2)return null;const t=r.axis==='x'?(x-r.x)/r.w+.5:(z-r.z)/r.d+.5;return r.from+(r.to-r.from)*t}
@@ -1015,6 +1317,62 @@ export function terrainHeightAt(world,x,z){
  let fx=Math.max(0,Math.min(res-1,(x+half)/cell-.5)),fz=Math.max(0,Math.min(res-1,(z+half)/cell-.5));
  const x0=Math.floor(fx),z0=Math.floor(fz),x1=Math.min(res-1,x0+1),z1=Math.min(res-1,z0+1),ax=fx-x0,az=fz-z0,heights=t.heights,row0=z0*res,row1=z1*res;
  return heights[row0+x0]*(1-ax)*(1-az)+heights[row0+x1]*ax*(1-az)+heights[row1+x0]*(1-ax)*az+heights[row1+x1]*ax*az;
+}
+// Presentation-only scenery. It is derived deterministically from frozen world
+// data instead of being stored in the versioned layout, so checkpoints, block
+// collision and spawn/cache/exit routes remain byte-for-byte unchanged.
+export function raidScenery(world){
+ const cached=sceneryCache.get(world);if(cached)return cached;
+ const seedText=world.id+'|'+world.size+'|'+world.theme;
+ let seed=2166136261;for(let i=0;i<seedText.length;i++)seed=Math.imul(seed^seedText.charCodeAt(i),16777619)>>>0;
+ const R=prng(seed),half=world.size/2,props=world.props||[],out=[];
+ const roads=props.filter(p=>(p.kind==='road'||p.kind==='sidewalk'||p.kind==='crosswalk'||p.kind==='plaza')&&p.w&&p.d);
+ const clearRoad=(x,z,pad=2.4)=>{for(const p of roads){if(Math.abs(x-p.x)<(p.w||0)/2+pad&&Math.abs(z-p.z)<(p.d||0)/2+pad)return false}return true};
+ const points=[];for(const [x,z] of world.spawns||[])points.push([x,z,15]);
+ for(const [x,z] of world.caches||[])points.push([x,z,11]);
+ for(const exit of world.exits||[])points.push([exit.x,exit.z,13]);
+ if(world.supply)points.push([world.supply.x,world.supply.z,10]);
+ const nearPoint=(x,z)=>points.some(([px,pz,r])=>Math.hypot(x-px,z-pz)<r);
+ const usable=(x,z)=>Math.abs(x)<half-18&&Math.abs(z)<half-18&&!nearPoint(x,z)&&!blocked(world,x,z,1.2,0,1.7,false,true)&&clearRoad(x,z);
+ const foliage=world.theme==='wilderness'?[[0x3f6238,0x587446,0x688b52],[0x45673d,0x5e8248,0x36533a],[0x577a4a,0x6f8d54]]:
+   world.theme==='settlement'?[[0x4c7042,0x668550,0x3f5e39],[0x567748,0x6a8b58,0x45653f],[0x6f8753,0x5f7d49]]:
+   [[0x4f7048,0x64854d,0x38553a],[0x52744a,0x5d7f4f,0x3c5a40],[0x6a844f,0x5f7b47]];
+ const rubbleColors=[0x8a8777,0x6d6a60,0x9a9689];
+ const fernScale=()=>.55+R()*.85,shrubScale=()=>.6+R()*1.05,stumpScale=()=>.7+R()*.7;
+ // Dense undergrowth across the open ground: ferns/shrubs dominate, with moss
+ // cushions on the ground and dead trunks adding vertical silhouette.
+ const step=world.size>=1200?30:20;
+ for(let gx=-half+12;gx<half-12;gx+=step)for(let gz=-half+12;gz<half-12;gz+=step){
+  const x=Math.round(gx+R()*(step-18)),z=Math.round(gz+R()*(step-18));
+  if(!usable(x,z))continue;
+  const roll=R(),theme=world.theme,kind=theme==='wilderness'?(roll<.52?'fern':roll<.82?'shrub':roll<.9?'moss':'stump'):theme==='settlement'?(roll<.46?'fern':roll<.7?'shrub':roll<.87?'moss':'stump'):(roll<.4?'fern':roll<.65?'shrub':roll<.84?'moss':'stump');
+  const palette=foliage[kind==='fern'?0:kind==='shrub'?1:2];
+  out.push({kind,x,z,y:0,scale:kind==='fern'?fernScale():kind==='shrub'?shrubScale():stumpScale(),color:palette[Math.floor(R()*palette.length)],ry:R()*Math.PI*2});
+  // Moss cushions share a cell only occasionally; two nearby plants keep the
+  // cluster silhouette natural instead of a single repeated stamp.
+  if(R()<.28){const x2=Math.round(x+(R()-.5)*9),z2=Math.round(z+(R()-.5)*9);if(usable(x2,z2))out.push({kind:R()<.65?'fern':'shrub',x:x2,z:z2,y:0,scale:.5+R()*.75,color:foliage[0][Math.floor(R()*3)],ry:R()*Math.PI*2})}
+ }
+ // Standing ruin walls and rubble fields anchor destroyed structures around
+ // real blocks, then loose rubble draws the eye along their former footprints.
+ const structures=[];
+ for(const block of world.blocks){const [x,z,w,d,h,base=0,kind='concrete']=block;if(base<=.4&&h>=2.4&&w>=4&&d>=4&&kind!=='window')structures.push(block)}
+ let ruins=0;
+ for(let i=0;i<structures.length&&ruins<18;i+=Math.max(1,Math.floor(structures.length/18))){
+  const [bx,bz,w,d,h]=structures[i],angle=R()*Math.PI*2,offset=Math.max(w,d)/2+2.4+R()*2.5;
+  const x=Math.round(bx+Math.cos(angle)*offset),z=Math.round(bz+Math.sin(angle)*offset);
+  if(!usable(x,z))continue;
+  const scale=.8+R()*.55,ry=angle+Math.PI/2,rx=Math.round(x+(R()-.5)*4),rz=Math.round(z+(R()-.5)*4),rubbleOk=usable(rx,rz);
+  out.push({kind:'ruin',x,z,y:0,scale,color:rubbleColors[Math.floor(R()*rubbleColors.length)],ry});
+  out.push({kind:'rubble',x:rubbleOk?rx:x,z:rubbleOk?rz:z,y:0,scale:.6+R()*.8,color:rubbleColors[Math.floor(R()*3)],ry:R()*Math.PI*2});
+  ruins++;
+ }
+ for(let i=0;i<structures.length&&out.filter(p=>p.kind==='rubble').length<34;i+=Math.max(1,Math.floor(structures.length/30))){
+  const [bx,bz,w,d]=structures[i],angle=R()*Math.PI*2,offset=Math.max(w,d)/2+1.7+R()*1.6;
+  const x=Math.round(bx+Math.cos(angle)*offset),z=Math.round(bz+Math.sin(angle)*offset);
+  if(usable(x,z))out.push({kind:'rubble',x,z,y:0,scale:.5+R()*.7,color:rubbleColors[Math.floor(R()*3)],ry:R()*Math.PI*2});
+ }
+ sceneryCache.set(world,out);
+ return out;
 }
 export function floorAt(world,x,z,ceiling=Infinity){
  let y=terrainHeightAt(world,x,z);

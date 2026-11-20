@@ -54,7 +54,7 @@ export function hitRival(raid,rival,damage,hitY,now=raid.now){
  if(rival.hp>0)return true;
  rival.hp=0;rival.alive=false;rival.state='down';rival.attack=null;rival.path=[];
  const roll=ratio((raid.id||'raid')+':rival:'+rival.id),weapon=rival.weapon||'smg',ammo=WEAPONS[weapon]?.ammo||'light';
- raid.bags.push({id:rival.id+'_salvage',x:rival.x,y:floorAt(raid.world,rival.x,rival.z,rival.y||0),z:rival.z,items:[
+ raid.bags.push({id:rival.id+'_salvage',x:rival.x,y:floorAt(raid.world,rival.x,rival.z,rival.y||0),z:rival.z,kind:'rival',label:rival.name+' salvage',items:[
   item('weapon',{weapon,condition:35+Math.floor(roll*50),rarity:2,loaded:WEAPONS[weapon]?.mag||30}),
   item('ammo',{ammo,quantity:Math.round(({light:30,medium:30,heavy:18,shell:12}[ammo]||30)*(.5+roll))})
  ]});
@@ -74,7 +74,7 @@ export function advanceRivals(service,raid,dt,now){
     const shot=rival.attack;rival.attack=null;rival.nextFire=now+rival.cooldown;
     const current=raid.players.get(shot.account);
     if(current&&rivalSees(raid,rival,current)&&distance(rival,current)<=rival.range){
-     service.damage(raid,current,rival.damage,{source:'rival',zone:'body'});
+     service.damage(raid,current,rival.damage,{source:'rival',zone:'body',from:{x:rival.x,z:rival.z}});
     }
     continue;
    }

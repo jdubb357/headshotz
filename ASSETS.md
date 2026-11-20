@@ -14,15 +14,22 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Texture: grass surface | Leafy Grass | Charlotte Baglioni | https://polyhaven.com/a/leafy_grass | CC0 |
 | Texture: sand surface | Coast Sand 01 | Rob Tuytel | https://polyhaven.com/a/coast_sand_01 | CC0 |
 | Texture: plaster surface | Painted Plaster Wall | Amal Kumar | https://polyhaven.com/a/painted_plaster_wall | CC0 |
+| Texture: warehouse cladding surface (iteration 129) | Concrete Panels — stamped concrete with corrugated grooves, weathered brown patina | Amal Kumar | https://polyhaven.com/a/concrete_panels | CC0 |
 | Texture: crate surface | Plywood | Rob Tuytel | https://polyhaven.com/a/plywood | CC0 |
 | Texture: forest floor surface (v59) | Forrest Ground 01 | Rob Tuytel | https://polyhaven.com/a/forrest_ground_01 | CC0 |
 | Texture: dirt surface (v59) | Brown Mud Dry | Rob Tuytel | https://polyhaven.com/a/brown_mud_dry | CC0 |
 | Texture: gravel surface (v59) | Gravel Ground 01 | Rob Tuytel | https://polyhaven.com/a/gravel_ground_01 | CC0 |
 | Texture: cobble surface (v59) | Cobblestone Floor 04 | Rob Tuytel | https://polyhaven.com/a/cobblestone_floor_04 | CC0 |
 | HDRI sky (environment reflections) | Kloofendal 48d Partly Cloudy (Pure Sky) | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
-| Model: barrels | Barrel 03 | Serhii Khromov | https://polyhaven.com/a/barrel_03 | CC0 |
+| Texture: raid photographed sky dome (iteration 108, derived) | Kloofendal 48d Partly Cloudy (Pure Sky), tone-mapped to 2048×1024 sRGB equirect | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
+| Model: street barrels (iteration 111) | Barrel Stove — weathered/rusty burn drum, dents and muted paint | MP | https://polyhaven.com/a/barrel_stove | CC0 |
+| Model: street/spawn crates (iteration 111) | Wooden Military Crate — weathered planks, latches and stencils | Prabhjinder Singh | https://polyhaven.com/a/wooden_military_crate | CC0 |
+| Model: loot ammunition box (iteration 111) | Ammo Box | DanKit | https://polyhaven.com/a/ammo_box | CC0 |
+| Model: loot medical box (iteration 111) | Medical Box | Ulan Cabanilla | https://polyhaven.com/a/medical_box | CC0 |
+| Model: loot fuel canister (iteration 111) | Metal Jerrycan Green | Ulan Cabanilla | https://polyhaven.com/a/metal_jerrycan_green | CC0 |
 | Model: Royale loot chest (v46) | Treasure Chest | Rico Cilliers | https://polyhaven.com/a/treasure_chest | CC0 |
-| Model: crates | Wooden Crate 02 | James Ray Cock, Jurita Burger | https://polyhaven.com/a/wooden_crate_02 | CC0 |
+| Model: retired crate scan | Wooden Crate 02 | James Ray Cock, Jurita Burger | https://polyhaven.com/a/wooden_crate_02 | CC0 |
+| Model: retired barrel scan | Barrel 03 | Serhii Khromov | https://polyhaven.com/a/barrel_03 | CC0 |
 | Model: Pistol weapon (v60) | Service Pistol | Mateusz Sadek | https://polyhaven.com/a/service_pistol | CC0 |
 | Model: Sniper rifle weapon (v60) | Bolt Action Rifle 7.62 | Mateusz Sadek | https://polyhaven.com/a/bolt_action_rifle_7_62 | CC0 |
 | Model: Katana weapon (v60) | Antique Katana 01 | Tal Swicegood | https://polyhaven.com/a/antique_katana_01 | CC0 |
@@ -30,9 +37,11 @@ Everything below is **CC0 1.0 (public domain)** from [Poly Haven](https://polyha
 | Model: Axe weapon (v60) | Wooden Axe | Ulan Cabanilla | https://polyhaven.com/a/wooden_axe | CC0 |
 | Texture: gun wood grain (v60) | Black Walnut Veneer 02 | Jenelle van Heerden | https://polyhaven.com/a/black_walnut_veneer_02 | CC0 |
 
+Processing (iteration 111 loot + props): the five new scans were packaged with the repo-side dependency-free GLTF→GLB packer used for these assets (geometry left unmodified in its authored metre scale, node transforms baked by the loader), with photographed textures embedded as 512px diffuse JPEGs and 256px packed normal/ARM JPEGs. Sizes: barrel_stove 381 KB, wooden_military_crate 800 KB, ammo_box 228 KB, medical_box 247 KB, metal_jerrycan_green 383 KB. No meshopt compression is applied to these files; they are ordinary embedded-texture GLBs.
+
 Processing (v60 weapons): scanned meshes simplified with meshoptimizer to a ~8k-triangle first-person version and a ~3-4k-triangle third-person version, textures resized to 1024/256px WebP, original node names kept so slides, bolts and magazines still animate.
 
-Processing: textures downscaled to 512px (colour maps converted to greyscale detail so map tints still apply); models optimised with gltf-transform (meshopt geometry, 512px WebP textures, simplified). Libraries: three.js r160 GLTFLoader + meshopt decoder (MIT).
+Processing: surface textures downscaled to 512px and kept in full colour (the raid scene repeats them at real brick/board scale and keeps the photographed hue; building tints now set exposure only, with the pre-photo greyscale tint retired); gun wood grain likewise keeps the black-walnut colour. Models optimised with gltf-transform (meshopt geometry, 512px WebP textures, simplified). Libraries: three.js r160 GLTFLoader + meshopt decoder (MIT).
 
 ## Characters (v39)
 
@@ -59,6 +68,8 @@ Generated headless with Blender 4.2 + MPFB 2.0.18 (the exporter output is CC0 pe
 | Hyper3D Rodin | No (no key) | API needs a Business plan; env var would be `HYPER3D_API_KEY` (Rodin docs call it `RODIN_API_KEY`). ~0.5 credit per Gen-1 generation at ~$1.50/credit. |
 
 Heroes (`toon.js`), battle bus, glider and gun grips are original, procedurally built in code. Gun hands are the existing procedural viewmodel hands (no third-party assets).
+
+Raid first-person hands are intentionally hidden (iteration 109): the vetted asset library's only first-person arms model is a J-Toastie stylized-fallback rig stored under `stylized-fallback/`, which CATALOG.md reserves for animation/rig reference and which the director's real-asset rule forbids as shipped final art. No gloved-arms asset is used, so the scanned M4 is presented alone rather than with flat-shaded toy sleeves. This is an open asset gap, not a completed hands replacement.
 
 ## Character skins (v56)
 
@@ -112,3 +123,126 @@ No third-party assets: all new geometry (ladders, stair runs) and code are origi
 
 ## v98 — Godly/Secret chests, sculpted add-ons, Galaxy rebuild
 No third-party assets: ears, horns, tails, wings, crowns, halos and the Galaxy helmet/visor (`addons.js`, `galaxyhead.js`) and the nebula/starfield shader (`wskins.js`) are original procedural code.
+
+## Raid mode (iteration 87) — ships the main game's art
+No new downloads or third-party files. Raids opt in to the art the main game already ships and reuse the existing registry above: the CC0 Poly Haven surface textures (`assets/tex/*.jpg`) through `assets.js`/`loadAssets()`, the CC0 MakeHuman bodies and skins through `humans.js`/`loadHumans()`, and the CC0 scanned guns already registered for v60. Everything is the same origin-relative static payload; raid-specific procedural fallbacks remain in place until the load resolves.
+
+Iteration 93: the painted-steel `drum` map, brushed-steel rim/lid map and the crate battens/lid/bracing added to `gfx.js`/`raid-environment.mjs` are **original procedural code and geometry**, no third-party files; all other raid surfaces continue to use the CC0 Poly Haven texture pipeline above.
+
+## Raid scout — Quaternius "Robot Enemy Legs Gun" (CC0), iteration 99
+`assets/models/machines/scout.glb` (316 KB, ~4.7k tris, 15-joint skin, seven authored clips) by **Quaternius**, published on Poly Pizza at https://poly.pizza/m/lFZfDh2hzP, licence **Public Domain (CC0 1.0)**; source FBX/GLTF "Robot Enemy Legs Gun" (Aug 2022, animated). **Retired in iteration 110**: `raid-online.mjs` no longer calls `loadMachines()`, and the grounded scout no longer uses this stylized robot. It remains on disk only as unused historical payload, retained for reference.
+
+## Raid enemies — CC0 MakeHuman operators (iteration 110)
+All grounded machine classes (scout, hunter, heavy, overlord) are now rendered as **MakeHuman** characters from the existing CC0 asset system documented above: real scanned body meshes, photographed skin/cloth/hair/eye WebP textures, shared skeletons and the stock gear rig from `gear.js` (procedural HeadShotz code, listed in the original-procedural section above). Scout uses the light-rig `scout` loadout (boonie hood, goggles, pouches) at 2 m; hunter uses the helmeted `soldier` loadout; heavy and overlord use the armoured `juggernaut` loadout at 2.6 m and a 4.9 m boss respectively. No new third-party files were copied for this iteration; the Quaternius scout GLB above is retired. The flyer still uses the procedural drone because no realistic CC0/CC-BY flight asset is available — recorded as the remaining enemy asset gap.
+
+## Raid first-person arms — CC0 MakeHuman rig, skin and cloth (iteration 116)
+The raid viewmodel's two gloved hands and olive sleeves are **real MakeHuman** geometry and textures from the existing CC0 asset system documented above (`assets/hum/hum_md.glb` with the `makehuman_system` skin/cloth WebP maps). The arm skin/cloth triangles are extracted by their dominant `upperarm`/`lowerarm`/`hand`/finger weights, rebound to the shipped `game_engine` skeleton (23 bones per arm) with `SkeletonUtils`, and tinted in the material to a dark leather glove and olive-drab sleeve; no new or third-party files were copied, no box/capsule geometry is used, and the rest of the MakeHuman body is removed from the overlay. Source: MakeHuman Community `makehuman_system` asset pack, https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html, **CC0 1.0** (public domain, credited anyway); the base mesh, rig and weights are the ones already used for raid operators. Presentation-only; the server's deployment/equipment data is unchanged.
+
+## Raid warehouse cladding — Poly Haven "Concrete Panels" scan (CC0), iteration 129
+
+The long pale shed facade no longer draws flat grey slabs. `assets/tex/corrugated_d.jpg` (74,845 B) and `assets/tex/corrugated_n.jpg` (80,208 B) are 512 × 512 JPEG downscales of the 1k Poly Haven **"Concrete Panels"** texture by **Amal Kumar**, https://polyhaven.com/a/concrete_panels, **CC0 1.0** (public domain, credited anyway). Source files: https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_panels/concrete_panels_diff_1k.jpg and https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_panels/concrete_panels_nor_dx_1k.jpg. The scan is registered as `corrugated` in `assets.js` and remains available for other surfaces. Iteration 132 switched the metal-kind warehouse cladding in `raid-view.mjs refreshFacades()` to the reused plaster scan plus a procedural rib/dirt shader: the stamped panel grid read as bathroom tile at 3 m, so the wall now reads as white painted corrugated sheet while collision, world data and server state stay untouched. No new asset files were downloaded.
+
+## Raid facades — Poly Haven "Modular Urban Apartments Facade" window module (CC0), iteration 105
+
+`assets/models/windows/window_urban.glb` (186 KB, ~1.4k tris, two materials with 512 px WebP maps) is a single façade window extracted from **"Modular Urban Apartments Facade" by James Ray Cock**, published on Poly Haven at https://polyhaven.com/a/modular_urban_apartments_facade under **CC0 1.0** (public domain, no attribution required; credited anyway). The source GLB `window_centered_large_01` is a photogrammetry-scanned timber sash window with recessed glass; unrelated alley modules were removed, node transforms and bounds normalised, textures resized and converted to WebP with glTF-Transform. Raid mode instances the frame and glass into existing near-spawn window openings; the procedural dark pane remains behind the glass as the interior and the procedural trim/shutter/sill boxes are hidden at upgraded sites. Presentation only — the server's world, collision and window data are unchanged.
+
+## Raid building façades — Poly Haven "Modular Urban Apartments Facade" kit (CC0), iteration 106
+
+`assets/models/buildings/facade_kit.glb` (636 KB, seven instanced modules, 512 px WebP maps) is derived from **"Modular Urban Apartments Facade" by James Ray Cock**, published on Poly Haven at https://polyhaven.com/a/modular_urban_apartments_facade under **CC0 1.0** (public domain, no attribution required; credited anyway). Modules kept: `wall_standard_standard_01` (dressed plaster wall bay), `door_centered_large_01` (timber door with recessed glass), `base_standard_01` (projecting foundation plinth), `cornice_standard_standard_01` (roofline cornice), `wall_pier_standard_01` (sculpted façade pier), `dado_standard_standard_01` and `crown_standard_standard_01` (wall-band and roof-tile trim). Unrelated alley modules were removed, node transforms and bounds normalised so each module is centred on x/z with its base at y = 0 and front facing +z, textures resized to 512 px WebP/JPEG, and scanned geometry simplified with meshoptimizer (per-module triangle counts: wall 459, door 1,070, base 8, cornice 18, pier 375, crown 578, dado 8). Raid mode instances these modules map-wide as the visible street façade; the old flat extruded box skins and procedural plank doors are no longer drawn. Presentation only — the server's world, collision, door and prop data are unchanged.
+
+## Raid ground and nature — Poly Haven scans (CC0), iteration 107
+
+The pavement, sidewalk, gravel bank and terrain no longer rely on flat author-picked colours in the raid. Five photographed PBR sets live under `assets/tex/ground/` as 512 × 512 JPEGs: a diffuse albedo, a tangent-space normal map and a packed roughness map (`*_d.jpg`, `*_n.jpg`, `*_r.jpg`). The street slabs use asphalt/concrete; the raised bank uses the gravel set plus the dirt terrain tile; each map is exposed with `RepeatWrapping` and the terrain gets its own high-repeat clones so grains stay small at first-person range. All are CC0 1.0 (public domain, credited anyway):
+
+| Sets | Asset | Author(s) | Source | License |
+|---|---|---|---|---|
+| `asphalt_d/n/r.jpg` | Asphalt 02 | Rob Tuytel | https://polyhaven.com/a/asphalt_02 | CC0 1.0 |
+| `concrete_d/n/r.jpg` | Concrete Floor 02 | Rob Tuytel | https://polyhaven.com/a/concrete_floor_02 | CC0 1.0 |
+| `gravel_d/n/r.jpg` | Gravel Ground 01 | Rob Tuytel | https://polyhaven.com/a/gravel_ground_01 | CC0 1.0 |
+| `dirt_d/n/r.jpg` | Brown Mud Dry | Rob Tuytel | https://polyhaven.com/a/brown_mud_dry | CC0 1.0 |
+| `gravelfloor_d/n/r.jpg` | Gravel Floor | Jenelle van Heerden (processing), Matterfield (photography) | https://polyhaven.com/a/gravel_floor | CC0 1.0 |
+
+The 15 ground files total 1,533,679 bytes. Only the map channels change at load; surface instancing, slab footprints, terrain collision and all authored data are untouched.
+
+Near-spawn vegetation is rebuilt from six optimized CC0 Poly Haven scans in `assets/models/nature/`, one GLB per kind. Each was transformed to a metre-scale height, centred on x/z with its base at y = 0, simplified with meshoptimizer and glTF-Transform, and its textures resized to 512 × 512 (WebP where the scan has alpha; JPEG normal/roughness otherwise). Presentation only; placement is deterministic and seeded from frozen world props, and no collision is derived from it.
+
+| File | Asset | Author(s) | Source | Final triangles | Size |
+|---|---|---|---|---|---|
+| `tree_small_02.glb` | Tree Small 02 (full-scan web LOD simplified to a denser 13.5 k-tri leafy canopy for the spawn grove) | Rico Cilliers | https://polyhaven.com/a/tree_small_02 | 13,501 (from 61,758) | 564,956 B |
+| `shrub_02.glb` | Shrub 02 | Rico Cilliers | https://polyhaven.com/a/shrub_02 | 1,059 (from 8,160) | 204,468 B |
+| `fern_02.glb` | Fern 02 | Rob Tuytel (scanning), Rico Cilliers (modelling) | https://polyhaven.com/a/fern_02 | 2,768 (from 2,801) | 221,368 B |
+| `grass_medium_02.glb` | Grass Medium 02 | Rico Cilliers | https://polyhaven.com/a/grass_medium_02 | 119 (from 397) | 102,856 B |
+| `tree_stump_01.glb` | Tree Stump 01 | Rob Tuytel | https://polyhaven.com/a/tree_stump_01 | 1,327 (from 7,381) | 397,956 B |
+| `rock_07.glb` | Rock 07 | Jenelle van Heerden | https://polyhaven.com/a/rock_07 | 652 (from 5,936) | 225,224 B |
+
+All six are CC0 1.0, total 1,716,828 bytes (under the 3 MB cap). Leaves use the scanned diffuse + alpha packed as a WebP and an alpha-tested cutout (`.42`) so instances stay opaque to the depth buffer; the remaining materials keep photographed albedo, normal and roughness maps. The shared deterministic wind shader and its reduced-motion zero-clock behavior are applied by `raid-view.mjs`.
+
+## Raid sky — photographed Poly Haven daylight dome (CC0), iteration 108
+
+`assets/tex/kloofendal_sky.jpg` (2048 × 1024, 190,480 B) is the photographed **Kloofendal 48d Partly Cloudy (Pure Sky)** HDRI by **Greg Zaal and Jarod Guest**, https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky, **CC0 1.0** (public domain, credited anyway). The static Pages build has no RGBE decoder, so the 48-d angular-resolution HDRI is decoded offline, exposure-normalised (EV 0.729, ACES Narkowicz tone curve) and written once as a sharp sRGB equirect JPEG at the same aspect; the embedded below-horizon haze is blurred into a neutral ground half so the dome has no mirrored buildings. `raid-view.mjs` renders it as an eye-centred back-side dome on clear/mist daylight and builds a PMREM environment from the same texture for scanned metal and glass; dusk, night, rain and ash restore the procedural sky sheet. Presentation only; conditions, light levels and server state are unchanged.
+
+## Raid first-person gloves and sleeves — Poly Haven texture scans (CC0), iteration 117
+
+Two real photographed PBR surface sets now cover the first-person MakeHuman arms, replacing the tinted skin/cloth stand-ins. Files live in `assets/tex/raiders/` as 512 × 512 JPEGs (quality 80, resized offline from the Poly Haven 1k source): diffuse albedo, OpenGL tangent-space normal and a packed AO/roughness/metalness (ARM) sheet. Both are loaded once, tinted in-material (never painted) and mapped with `RepeatWrapping`; the gloves sample the scan's pored leather and stitching, the sleeves its worn twill creases.
+
+| Files | Asset | Author(s) | Source | License |
+|---|---|---|---|---|
+| `leather_diff_512.jpg`, `leather_nor_512.jpg`, `leather_arm_512.jpg` | Fabric Leather 01 | Rob Tuytel | https://polyhaven.com/a/fabric_leather_01 | CC0 1.0 |
+| `cloth_diff_512.jpg`, `cloth_nor_512.jpg`, `cloth_arm_512.jpg` | Denim Fabric 06 | Greg Zaal (photography), Rico Cilliers (processing) | https://polyhaven.com/a/denim_fabric_06 | CC0 1.0 |
+
+Total 516,966 bytes across the six 512 × 512 files; the `_512` suffix marks the shipped downscale of the 1k Poly Haven originals. Presentation only: the surfaces, pose and rifle tint live in `raid-models.mjs` and the first-person overlay lighting in `raid-view.mjs`; the scanned textures are module-owned so weapon disposal never frees a shared map.
+
+## Raid courtyard cover — seven scanned Poly Haven props (CC0), iteration 118
+
+The spawn courtyards now contain real photographed street cover instead of empty pavement or procedural boxes. Seven CC0 Poly Haven models were copied into `assets/models/cover/` as GLBs, simplified with glTF-Transform 4.5.1 (`--compress meshopt`, `--texture-size 512`, `--texture-compress webp`), then loaded only by the raid path (never the lobby or Battle Royale): `assets.js`'s `loadCover` registers them in `HQP.cover`, `raid-view.mjs` renders them as instanced scans in `refreshSpawnDressing`, and the procedural box fallback explicitly skips these kinds. They are decoration only and remain deterministic through `raidSpawnDressing`, so their footprints are blocked identically offline and on the authority.
+
+| File | Asset | Author(s) | Source | Used as | Triangles (from source) | Size |
+|---|---|---|---|---|---|---|
+| `barrier.glb` | Concrete Road Barrier 02 | Amal Kumar | https://polyhaven.com/a/concrete_road_barrier_02 | jersey-barrier line | 23,250 (from 42,578) | 261,340 B |
+| `crate.glb` | Wooden Crate 01 | James Ray Cock | https://polyhaven.com/a/wooden_crate_01 | crate pile / stack | 6,319 (from 6,576) | 136,500 B |
+| `bin.glb` | Metal Trash Can | GurJas Studios | https://polyhaven.com/a/metal_trash_can | dumpster / trash container | 13,664 (from 13,960) | 344,364 B |
+| `wreck.glb` | Covered Car | MP | https://polyhaven.com/a/covered_car | tarp-covered wreck | 12,118 (from 12,592) | 186,216 B |
+| `log.glb` | Dead Tree Trunk | Rob Tuytel | https://polyhaven.com/a/dead_tree_trunk | fallen log debris | 55,002 (from 101,802) | 449,052 B |
+| `tyre.glb` | Old Tyre | MP | https://polyhaven.com/a/old_tyre | flat tyre debris | 2,880 (from 2,880) | 119,948 B |
+| `bag.glb` | Trashbag | Benny Weimer | https://polyhaven.com/a/trashbag | scattered trash bags | 4,472 (from 4,472) | 123,116 B |
+
+All seven are **CC0 1.0** (public domain, credited anyway). Total 1,620,536 bytes and 117,705 rendered triangles (each model is meshoptimized and quantized with `KHR_mesh_quantization`; `plainGeometry` dequantizes the normalized integer attributes to Float32 before instancing so bounds stay in metres). The tyre scan is rotated flat on the ground and the barrier scan gets a gentle neutral tint so its sun-bleached concrete does not read as pure white against the pale apron. Presentation only — no gameplay, collision-route, server or other-mode change.
+
+## Raid courtyard building hardware — four scanned Poly Haven kits (CC0), iteration 121
+
+The two volumes flanking the spawn courtyard no longer repeat the same plaster box and sash window. Four Poly Haven GLB scans were copied into `assets/models/buildings/`, normalized to metre-scale nodes with their bases at y = 0, simplified with glTF-Transform 4.5.1 (`--compress meshopt`, `--texture-size 512`, `--texture-compress webp`), and registered in `assets.js` only for the raid path. `raid-view.mjs refreshFacadeVariety()` instances them on the nearest broad courtyard walls; `plainGeometry()` dequantises the interleaved integer buffers before the node transforms are baked in.
+
+| File | Modules used | Asset | Author(s) | Source | Triangles in file | Size |
+|---|---|---|---|---|---|---|
+| `aircon.glb` | `exterior_aircon_unit`, `exterior_aircon_unit_rusted` | Exterior Aircon Unit | Monsta3D | https://polyhaven.com/a/exterior_aircon_unit | 18,550 | 571,184 B |
+| `roller_door.glb` | `rollershutter_door`, `rollershutter_door_graffiti` | Roller Shutter Door | MP | https://polyhaven.com/a/rollershutter_door | 1,064 | 97,272 B |
+| `roller_window.glb` | `rollershutter_window_01`, `rollershutter_window_01_graffiti` | Roller Shutter Window 01 | MP | https://polyhaven.com/a/rollershutter_window_01 | 1,064 | 108,720 B |
+| `gutter_kit.glb` | `modular_metal_gutter_section`, `modular_metal_gutter_gutter_coupler` (plus bend/outlet retained) | Modular Metal Gutter | Maxim Domnin | https://polyhaven.com/a/modular_metal_gutter | 15,064 | 397,004 B |
+
+All four are **CC0 1.0** (public domain, credited anyway); total 1,174,180 bytes. The aircon units sit at different heights on each wall, the doors form a commercial-width loading bay on the metal wall, and the roller window panels close the factory openings; one graffiti variant per facade keeps the bay from reading as stamped clones. Presentation only — no collision, doorway, window, world or gameplay data changed. The in-game credits list all four sources.
+
+## Raid courtyard ground decals — six CC0 scans + two derived alpha mattes, iteration 123
+
+The spawn courtyard floor is painted with photographed pavement wear instead of blank slab colour. Six diffuse scans were downscaled to 512 × 512 JPEGs offline (`sips -Z 512`) and copied into `assets/tex/ground/`; two blurred organic alpha mattes were then composited from those same photographs offline to keep the plates from ending on a hard rectangular edge. `assets.js loadGroundDecals()` registers them in `HQP.decal` for the raid path only, and `raid-view.mjs refreshCourtyardGround()` instances them as flat plates tinted per instance; the photographs are never repainted, only toned down, so the cracks, mud and rubble remain real scanned surface detail. Presentation only — no collision, traversal, UI, server or other-mode change.
+
+| File | Asset | Author(s) | Source | License |
+|---|---|---|---|---|
+| `crack_d.jpg` | Asphalt 02 | Rob Tuytel | https://polyhaven.com/a/asphalt_02 | CC0 1.0 |
+| `pavement_d.jpg` | Concrete Pavement | Charlotte Baglioni | https://polyhaven.com/a/concrete_pavement | CC0 1.0 |
+| `damage_d.jpg` | Road Damaged | Dimitrios Savva | https://polyhaven.com/a/road_damaged | CC0 1.0 |
+| `tracks_d.jpg` | Muddy Tracks | Amal Kumar | https://polyhaven.com/a/muddy_tracks | CC0 1.0 |
+| `moss_d.jpg` | Brown Mud Leaves 01 | Rob Tuytel | https://polyhaven.com/a/brown_mud_leaves_01 | CC0 1.0 |
+| `rubble_d.jpg` | Ground108 | ambientCG (Lennart Demes) | https://ambientcg.com/view?id=Ground108 | CC0 1.0 |
+| `decal_mask.jpg`, `decal_mask_b.jpg` | derived alpha mattes | composed offline from the scanned patches above | versioned here | n/a |
+
+All six source scans are **CC0 1.0** (public domain, credited anyway); the two masks carry no art of their own, only alpha falloff. Total 660,978 bytes across the eight 512 × 512 files. The in-game credits list all six sources.
+
+## Raid facade fire escape — Poly Haven scan (CC0), iteration 125
+
+A real photographed iron apartment fire escape now climbs the brick shop row's west wall at the spawn courtyard, replacing the old flat hook shapes. The full scene was copied from the Poly Haven Modular Fire Escape source, meshoptimized and converted to metre scale GLBs offline, and is loaded only by the raid path through the whole-scene branch of `assets.js loadBuildings()`; `raid-view.mjs refreshFacadeAccents()` places it flush to the authored façade. It is decoration only — no collision, actions, world data or other-mode change.
+
+| File | Asset | Author(s) | Source | Used as | Triangles | Size |
+|---|---|---|---|---|---|---|
+| `assets/models/buildings/fire_escape.glb` | Modular Fire Escape | Juniix | https://polyhaven.com/a/modular_fire_escape | brick shop-row fire escape | 11,322 (from 11,322) | 263,600 B |
+
+**CC0 1.0** (public domain, credited anyway). Presentation only. The in-game credits list the source.

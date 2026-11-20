@@ -15,6 +15,9 @@ export function bossPhaseFor(machine){
 }
 export function hazardState(hazard,elapsed){const phase=((elapsed%hazard.period)+hazard.period)%hazard.period;return {...hazard,active:phase>=hazard.period-hazard.active,warning:phase>=hazard.period-hazard.active-hazard.warning&&phase<hazard.period-hazard.active}}
 export function mapConditions(world,seed=0){
- const variants=world.theme==='wilderness'?[{name:'Morning mist',sky:0xb4c8bd,fog:0x9fb5a5,visibility:.8,light:1.6,weather:'mist'},{name:'Clear midday',sky:0x91b8ca,fog:0xb4ccd0,visibility:1,light:2,weather:'clear'}]:world.theme==='industrial'?[{name:'Golden hour',sky:0xc4a18d,fog:0xbfa491,visibility:1,light:1.9,weather:'clear'},{name:'Electrical squall',sky:0x657f8e,fog:0x6d8790,visibility:.7,light:1.3,weather:'rain'}]:[{name:'Ember dusk',sky:0x84717c,fog:0x8f7f80,visibility:.85,light:1.4,weather:'ash'},{name:'Blue-hour rain',sky:0x526a83,fog:0x667d90,visibility:.7,light:1.15,weather:'rain'}];
+ // Daylight fronts are cool blue with a pale ground haze so silhouettes and
+ // lit facades read sharply; the second front in each theme stays overcast or
+ // wet and carries the grit. Light values are scaled by RaidView's sun pass.
+ const variants=world.theme==='wilderness'?[{name:'Morning mist',sky:0xa8c0c7,fog:0xb1c0bb,visibility:.82,light:1.8,weather:'mist'},{name:'Clear midday',sky:0x7fafd2,fog:0xb0c3c8,visibility:1,light:2.3,weather:'clear'}]:world.theme==='industrial'?[{name:'Clear afternoon',sky:0x83b2d4,fog:0xb2c1c3,visibility:1,light:2.35,weather:'clear'},{name:'Electrical squall',sky:0x5a7690,fog:0x708591,visibility:.7,light:1.35,weather:'rain'}]:[{name:'Clear afternoon',sky:0x85b3d4,fog:0xb4c1be,visibility:1,light:2.25,weather:'clear'},{name:'Blue-hour rain',sky:0x4f6882,fog:0x667d90,visibility:.7,light:1.2,weather:'rain'}];
  return variants[Math.abs(seed)%variants.length];
 }

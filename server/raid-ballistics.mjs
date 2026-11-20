@@ -2,6 +2,7 @@ import {SHOT_EYE_HEIGHT,intersectBody,shotRays,distanceDamage,bulletClear} from 
 import {MACHINES} from '../shared/raid-enemies.mjs';
 import {hitMachine} from './raid-ai.mjs';
 import {hitRival} from './raid-rivals.mjs';
+import {recordShotHit} from './raid-hit-feedback.mjs';
 export function resolveShot(service,raid,shooter,stats){
  const origin={x:shooter.x,y:(shooter.y||0)+SHOT_EYE_HEIGHT,z:shooter.z},now=service.now(),targets=[...raid.players.values()].filter(p=>p!==shooter&&p.alive&&p.team!==shooter.team).concat(raid.machines.filter(m=>m.hp>0),(raid.rivals||[]).filter(r=>r.alive)),hits=[];
  for(const ray of shotRays(shooter.yaw,shooter.pitch||0,stats,shooter.facts.roundsFired)){
@@ -12,15 +13,19 @@ export function resolveShot(service,raid,shooter,stats){
   const hit=candidates.find(({point})=>bulletClear(raid.world,origin,point));if(hit)hits.push(hit);
  }
  const groups=new Map();let pelletsHit=0,damageDealt=0;
- for(const {target,point}of hits){
+ for(const hit of hits){
+  const {target,point}=hit;
   if(target.rival){
    pelletsHit++;if(target.alive&&target.hp>0){const before=Math.max(0,target.hp);hitRival(raid,target,distanceDamage(stats,point.distance)/(stats.pellets||1),point.y,service.now());damageDealt+=before-Math.max(0,target.hp)}
   }else if(target.account){
    if((target.protectedUntil||0)>service.now())continue;
    const zone=point.y-(target.y||0)>1.6?'head':point.y-(target.y||0)<.65?'leg':'body',key=target.account+':'+zone;let group=groups.get(key);if(!group){group={target,zone,damage:0};groups.set(key,group)}group.damage+=distanceDamage(stats,point.distance)/(stats.pellets||1)*(zone==='head'?1.6:1);pelletsHit++;
-  }else{pelletsHit++;if(target.hp>0){const before=Math.max(0,target.hp);hitMachine(service,raid,target,distanceDamage(stats,point.distance)/(stats.pellets||1),point.y,shooter.team);damageDealt+=before-Math.max(0,target.hp)}}
+  }else{pelletsHit++;if(target.hp>0){const before=Math.max(0,target.hp),outcome=hitMachine(service,raid,target,distanceDamage(stats,point.distance)/(stats.pellets||1),point.y,shooter.team);if(outcome?.weak)hit.weak=true;damageDealt+=before-Math.max(0,target.hp)}}
  }
- for(const {target,zone,damage}of groups.values())if(target.alive){const before=Math.max(0,target.hp),absorbed=target.facts?.damageAbsorbed||0;service.damage(raid,target,damage,{source:'operator',zone});damageDealt+=before-Math.max(0,target.hp)+Math.max(0,(target.facts?.damageAbsorbed||0)-absorbed)}
+ for(const {target,zone,damage}of groups.values())if(target.alive){const before=Math.max(0,target.hp),absorbed=target.facts?.damageAbsorbed||0;service.damage(raid,target,damage,{source:'operator',zone,from:{x:shooter.x,z:shooter.z}});damageDealt+=before-Math.max(0,target.hp)+Math.max(0,(target.facts?.damageAbsorbed||0)-absorbed)}
+ // Record after damage resolution so kill/boss/elite flags describe the
+ // authoritative outcome of this shot, not a guess from its input.
+ recordShotHit(shooter,hits,now);
  if(pelletsHit)shooter.facts.shotsHit=(shooter.facts.shotsHit||0)+1;
  shooter.facts.pelletsFired=(shooter.facts.pelletsFired||0)+(stats.pellets||1);shooter.facts.pelletsHit=(shooter.facts.pelletsHit||0)+pelletsHit;shooter.facts.damageDealt=(shooter.facts.damageDealt||0)+damageDealt;
 }

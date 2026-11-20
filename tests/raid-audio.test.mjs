@@ -22,6 +22,17 @@ test('terminal outcome does not sound an extraction interruption or leak spectat
  audio.observe({...s,self:{...s.self,alive:false,hp:-10,board:null,result:{outcome:'dead'}},camera:{x:5,z:5}});
  assert.deepEqual(heard,['eliminated']);
 });
+test('authoritative weak hits cue once and yield to a kill cue',()=>{
+ const audio=new RaidAudio(),heard=[];audio.play=kind=>heard.push(kind);
+ const base={serverTime:1,self:{deploymentId:'a',hp:100,alive:true},machines:[]};
+ audio.observe(base);
+ audio.observe({...base,serverTime:1.1,self:{...base.self,hit:{token:1,weak:true,headshot:false,kill:false}}});
+ assert.deepEqual(heard,['weak'],'a weak hit sounds its own cue');
+ audio.observe({...base,serverTime:1.2,self:{...base.self,hit:{token:1,weak:true,headshot:false,kill:false}}});
+ assert.deepEqual(heard,['weak'],'polling the same token does not repeat');
+ audio.observe({...base,serverTime:1.3,self:{...base.self,hit:{token:2,weak:true,headshot:false,kill:true}}});
+ assert.deepEqual(heard,['weak','kill'],'a weak kill reports as a kill');
+});
 test('machine cue direction follows the actual first-person right axis and falls off with distance',()=>{
  const front={x:0,z:0,yaw:0};assert.equal(spatialCue(front,{x:-5,z:0}).pan,1);assert.equal(spatialCue(front,{x:5,z:0}).pan,-1);
  assert.equal(spatialCue({...front,yaw:Math.PI/2},{x:0,z:5}).pan,1);

@@ -45,6 +45,28 @@ test('armor resists body damage while an exposed core rewards aimed shots',t=>{
  hitMachine(service,raid,m,20,def.core,p.team);assert.equal(m.hp,270);
  m.state='windup';hitMachine(service,raid,m,20,def.core,p.team);assert.equal(m.hp,220);
 });
+test('weak-point hits stagger a charging attack within a capped window',t=>{
+ const {raid,p,service,setTime}=setup(t);raid.world={...raid.world,blocks:[],ramps:[]};raid.conditions={...raid.conditions,visibility:1};raid.machines=[];raid.telegraphs=[];
+ p.x=0;p.y=0;p.z=6;p.hp=100;p.alive=true;p.downed=false;p.grounded=true;p.protectedUntil=0;
+ const def=MACHINES.scout,m={id:'stagger_scout',kind:'scout',x:0,y:0,z:0,hp:def.hp,yaw:0,nextAttack:0,state:'patrol',home:{x:0,y:0,z:0}};
+ raid.machines.push(m);
+ advanceMachines(service,raid,.05,1000);
+ assert.equal(m.state,'windup');assert.ok(Math.abs(m.attack.at-1000.55)<1e-9,'the scout charges a .55s windup');
+ assert.equal(raid.telegraphs.length,1,'one charge telegraph');const ring=raid.telegraphs[0];
+ hitMachine(service,raid,m,1,0,p.team);
+ assert.ok(Math.abs(m.attack.at-1000.55)<1e-9,'a body hit leaves the charge clock intact');
+ for(let i=0;i<3;i++)hitMachine(service,raid,m,1,def.core,p.team);
+ assert.ok(Math.abs(m.attack.at-1001.21)<1e-9,'three core hits add .66s');
+ assert.equal(ring.until,m.attack.at,'the warning ring follows the stagger');
+ hitMachine(service,raid,m,1,def.core,p.team);
+ assert.ok(Math.abs(m.attack.at-1001.21)<1e-9,'a fourth hit cannot extend past the cap');
+ const delayed=m.attack.at;
+ setTime(delayed-.01);advanceMachines(service,raid,.05,delayed-.01);
+ assert.equal(p.hp,100,'no damage before the staggered attack clock');
+ setTime(delayed);advanceMachines(service,raid,.05,delayed);
+ assert.equal(p.hp,93,'the delayed charge still resolves');assert.equal(m.attack,null);
+ assert.equal(m.staggerHits,0,'resolution resets the stagger cap');
+});
 test('Warden phases advance once per threshold and keep responses inside the machine cap',t=>{
  const {raid,service,p}=setup(t);raid.world={...raid.world,blocks:[],ramps:[]};raid.players=new Map([[p.account,p]]);
  const boss={id:'warden',kind:'overlord',x:0,y:0,z:5,hp:760,maxHp:760,yaw:Math.PI,nextAttack:2000,state:'patrol',home:{x:0,y:0,z:5},bossPhase:'approach'};

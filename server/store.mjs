@@ -1,8 +1,10 @@
 import {rankProgress} from '../shared/raid-progression.mjs';
+import {squadLinkBonus} from '../shared/raid-exits.mjs';
+import {squadRole} from '../shared/raid-roles.mjs';
 import {outcomeReason} from '../shared/raid-report.mjs';
 import {stackPortion} from './raid-inventory.mjs';
 import {compatibleStacks,recyclingQuote} from '../shared/raid-inventory.mjs';
-import {grantBalance,spendCredits,awardCredits,bindGrant,canRecoverGrant,clearForeignGrantAmmo,repairCost} from '../shared/raid-grants.mjs';
+import {grantBalance,spendCredits,awardCredits,bindGrant,canRecoverGrant,clearForeignGrantAmmo,repairCost,patchTarget} from '../shared/raid-grants.mjs';
 import {matchPreferences} from '../shared/raid-matchmaking.mjs';
 import {SCHEMA_VERSION} from './schema.mjs';
 import {chmodSync,existsSync} from 'node:fs';
@@ -12,6 +14,7 @@ import {digest as hash,encodePassword,verifyPassword} from './credentials.mjs';
 import {RuleError,requireRule,item} from './rules.mjs';
 import {WEAPONS,MODS,UTILITIES,ARMOR,MEDICAL,armorStats,equipmentPrice,TRADERS,RECIPES,CONTRACTS,stashCapacity,maxStack,itemWeight,skuDefinition} from '../shared/raid-catalog.mjs';
 import {ARTIFACTS,contractItemReserved} from '../shared/raid-sectors.mjs';
+import {sellValue} from '../shared/raid-appraisal.mjs';
 
 export {RuleError,item} from './rules.mjs';
 const starter=account=>({credits:250,grantCredits:250,items:[item('weapon',{weapon:'ar'}),item('armor'),item('med'),item('med')].map(it=>bindGrant(it,account,true)),materials:{steel:0,wire:0,chem:0,fuel:0},upgrades:{stash:0,bay:0},revision:0});
@@ -205,7 +208,8 @@ export class RaidStore {
     if(location==='stash')state.items.push(it);
    }
    if(outcome==='aborted'){awardCredits(state,(deployed.premium||0)-(deployed.premiumGrant||0));awardCredits(state,deployed.premiumGrant||0,{grant:true})}else awardCredits(state,credits);
-   const xp=outcome==='aborted'?0:(outcome==='extract'?20:0)+Math.min(50,(facts.machines||0)*5+(facts.explorations||[]).length*3);
+   const objectiveXp=facts.objective?.completed?(facts.objective.rewardXp||0):0;
+   const xp=outcome==='aborted'?0:(outcome==='extract'?20:0)+objectiveXp+(outcome==='extract'?squadLinkBonus(facts.squadLink||0,'xp'):0)+Math.min(50,(facts.machines||0)*5+(facts.explorations||[]).length*3);
    state.xp+=xp;const previousContracts=structuredClone(state.contracts);this.applyContractFacts(state,facts);
    const contracts=Object.entries(state.contracts).filter(([id,p])=>p.progress>(previousContracts[id]?.progress||0)).map(([id,p])=>{const definition=CONTRACTS[id],stage=definition.stages[p.stage];return {id,name:definition.name,stage:p.stage,progress:p.progress,need:stage.need,delta:p.progress-(previousContracts[id]?.progress||0),requirementsMet:p.progress>=stage.need}});
    this.db.prepare("UPDATE insurance SET status=?,due=? WHERE deployment=? AND status='covered'").run(outcome==='aborted'?'not_needed':'pending',Date.now()+120000,deploymentId);
@@ -222,6 +226,14 @@ export class RaidStore {
   let count=0;for(const row of rows)if(!retained.has(row.id)){this.settle(row.id,{outcome:'aborted'});count++}
   return count;
  }
+ latestDeploymentId(account){return this.db.prepare('SELECT id FROM deployments WHERE account=? ORDER BY active DESC,rowid DESC LIMIT 1').get(account)?.id??null}
+ purgeRaid(raidId){
+  this.transaction(()=>{
+   this.db.prepare('DELETE FROM raid_checkpoints WHERE id=?').run(raidId);
+   this.db.prepare("UPDATE inventory SET location='lost',account=NULL WHERE raid=? AND location='raid'").run(raidId);
+  });
+ }
+ blockedBetween(a,b){return !!this.db.prepare("SELECT 1 FROM comm_blocks WHERE mode='block' AND ((account=? AND target=?) OR (account=? AND target=?))").get(a,b,b,a)}
  acquireLease(owner,now=Date.now(),ttl=15000){return this.transaction(()=>{
   const lease=this.db.prepare("SELECT * FROM leases WHERE name='simulation'").get();requireRule(!lease||lease.owner===owner||lease.expires<=now,'Another simulation process owns this database');
   this.db.prepare("INSERT INTO leases VALUES('simulation',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires=excluded.expires").run(owner,now+ttl);
@@ -285,8 +297,12 @@ export class RaidStore {
    requireRule(current,'Create or join a party first');
    requireRule(typeof action.ready==='boolean','Invalid ready state',400);
    if(!action.ready)this.db.prepare('UPDATE party_members SET ready=0 WHERE account=?').run(account);
-   else{this.preflightLoadout(account,action.loadout);const {itemIds=[],recovery=false,insureIds=[]}=action.loadout||{};
-    this.db.prepare('UPDATE party_members SET ready=1,loadout=? WHERE account=?').run(JSON.stringify({itemIds,recovery,insureIds}),account)}
+   else{
+    const {itemIds=[],recovery=false,insureIds=[],role=null}=action.loadout||{};
+    requireRule(role==null||squadRole(role),'Unknown squad role',400);
+    this.preflightLoadout(account,{itemIds,recovery,insureIds});
+    const loadout={itemIds,recovery,insureIds};if(role)loadout.role=role;
+    this.db.prepare('UPDATE party_members SET ready=1,loadout=? WHERE account=?').run(JSON.stringify(loadout),account)}
   }else throw new RuleError('Unknown party action',400);
   this.audit(account,'party_changed',{type:action.type});return this.partyFor(account);
  })}
@@ -328,7 +344,7 @@ export class RaidStore {
   s.items=s.items.filter(it=>it.quantity>0);return bound;
  }
  addItem(s,it){requireRule(s.items.length<stashCapacity(s),'Stash full; sell, recycle or expand storage');s.items.push(it)}
- value(it){return it.kind==='utility'?Math.floor((UTILITIES[it.utility]?.price||0)*.3)*(it.quantity||1):it.kind==='contract'?(ARTIFACTS[it.artifact]?.value||0):it.kind==='valuable'?(it.value||1):it.kind==='weapon'?Math.floor((WEAPONS[it.weapon]?.price||100)*.3):it.kind==='armor'?Math.floor(armorStats(it).price*.3):it.kind==='med'?Math.floor((MEDICAL[it.medical]?.price||25)*.2)*(it.quantity||1):it.kind==='mod'?Math.floor((MODS[it.mod]?.price||30)*.3):it.kind==='ammo'?Math.floor((it.quantity||1)*.1):Math.max(1,Math.floor((it.quantity||1)*(it.kind==='material'?2:5)))}
+ value(it){return sellValue(it)}
  trade(account,action){
   return this.transaction(()=>{
    const s=this.state(account);requireRule(!this.db.prepare('SELECT id FROM deployments WHERE account=? AND active=1').get(account),'Return from your raid before trading');
@@ -357,7 +373,14 @@ export class RaidStore {
     const it=s.items.find(it=>it.id===action.itemId);requireRule(it,'Item not owned');it.favorite=!!action.favorite;
    }else if(action.type==='repair'){
     const it=s.items.find(it=>it.id===action.itemId&&['weapon','armor'].includes(it.kind));requireRule(it,'Equipment not owned');
-    const cost=repairCost(s,it);requireRule(cost>0&&s.credits>=cost,'Repair unavailable');const bound=this.consumeMaterials(s,{steel:1}),grant=spendCredits(s,cost);if(bound||grant)it.grantOwner=account;it.condition=100;
+    const quality=action.quality||'full';requireRule(['full','patch'].includes(quality),'Unknown repair quality',400);
+    const target=quality==='patch'?patchTarget(it):100;
+    requireRule(target>it.condition,'Repair unavailable');
+    const cost=repairCost(s,it,target);requireRule(cost>0&&s.credits>=cost,'Repair unavailable');
+    const before=it.condition,bound=this.consumeMaterials(s,quality==='patch'?{wire:1}:{steel:1}),grant=spendCredits(s,cost);
+    if(bound||grant)it.grantOwner=account;
+    it.condition=target;
+    this.audit(account,'equipment_repair',{itemId:it.id,quality,from:before,to:target,credits:cost,grant:!!grant||bound});
    }else if(action.type==='craft'){
     requireRule(Object.hasOwn(RECIPES,action.recipe),'Unknown recipe');const recipe=RECIPES[action.recipe];requireRule(rankProgress(s.xp).level>=(recipe.rank||1),'Earn rank '+(recipe.rank||1)+' to unlock this blueprint');requireRule(s.upgrades.bench>=recipe.bench,'Upgrade the workbench for this recipe');requireRule(s.credits>=recipe.credits,'Insufficient credits');
     const bound=this.consumeMaterials(s,recipe.materials),grant=spendCredits(s,recipe.credits);this.addItem(s,bindGrant(item(recipe.output.kind,recipe.output),account,bound||grant>0));s.reputation.engineer=Math.min(20,s.reputation.engineer+1);
@@ -366,7 +389,7 @@ export class RaidStore {
     requireRule(!contractItemReserved(s,it),'Contract item reserved: deliver it or complete its contract before recycling');const quote=recyclingQuote(it);requireRule(quote,'Item cannot be recycled; use salvage directly');requireRule(quote.quantity>0,'Need at least '+quote.batchSize+' rounds of this ammunition to recycle');
     if(quote.remaining)it.quantity=quote.remaining;else s.items.splice(i,1);
     for(const child of flatten(it.attachments||[]))this.db.prepare("UPDATE inventory SET location='consumed',account=NULL WHERE id=?").run(child.id);
-    const output=bindGrant(item('material',{material:quote.material,quantity:quote.quantity}),account,!!it.grantOwner);this.addItem(s,output);this.audit(account,'item_recycled',{itemId:it.id,outputId:output.id,...quote});
+    const output=bindGrant(item('material',{material:quote.material,quantity:quote.quantity}),account,!!it.grantOwner);this.addItem(s,output);this.audit(account,'item_recycled',{itemId:it.id,outputId:output.id,...quote,condition:it.condition});
    }else if(action.type==='upgrade'){
     requireRule(['stash','bay','bench'].includes(action.upgrade),'Unknown base upgrade');const level=s.upgrades[action.upgrade],max=action.upgrade==='stash'?3:2;
     requireRule(level<max,'Upgrade already at maximum');const cost=100+50*level;requireRule(s.credits>=cost,'Insufficient credits');this.consumeMaterials(s,{steel:2+level,wire:1});spendCredits(s,cost);s.upgrades[action.upgrade]++;
@@ -402,7 +425,7 @@ export class RaidStore {
     requireRule(Array.isArray(action.itemIds)&&action.itemIds.length<=8&&action.itemIds.every(id=>s.items.some(it=>it.id===id&&it.kind!=='contract')),'Preset items must be deployable items in your stash');requireRule(Object.keys(s.presets).length<12||Object.hasOwn(s.presets,action.name),'At most twelve presets');Object.defineProperty(s.presets,action.name,{value:action.itemIds,enumerable:true,configurable:true,writable:true});
    }else throw new RuleError('Unknown trade action',400);
    this.save(account,s);if(!['favorite','contract','preset'].includes(action.type)||(action.type==='contract'&&action.operation==='deliver'))this.db.prepare('UPDATE party_members SET ready=0 WHERE account=?').run(account);
-   const auditFields=['type','sku','trader','itemId','itemIds','weaponId','recipe','upgrade','contract','operation','favorite','name','quantity','targetId','expectedRevision'];
+   const auditFields=['type','sku','trader','itemId','itemIds','weaponId','recipe','upgrade','quality','contract','operation','favorite','name','quantity','targetId','expectedRevision'];
    this.audit(account,'trade',Object.fromEntries(auditFields.filter(key=>action[key]!==undefined).map(key=>[key,action[key]])));return s;
   });
  }

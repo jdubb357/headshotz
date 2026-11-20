@@ -33,7 +33,7 @@ try{
  for(const cue of [...Object.values(result.cues),...Object.values(result.utilities),...Object.values(result.weapons),...Object.values(result.actions)]){assert.ok(cue.rms.every(v=>v>.0001));assert.equal(cue.remaining,0)}
  assert.equal(new Set(Object.values(result.cues).map(c=>c.hash)).size,5,'each archetype renders a different original waveform');
  assert.equal(new Set(Object.values(result.weapons).map(c=>c.hash)).size,6,'each owned firearm has a distinct rendered signature');
- assert.equal(new Set(Object.values(result.actions).map(c=>c.hash)).size,12,'important actions/statuses have distinct rendered signatures');
+ assert.equal(new Set(Object.values(result.actions).map(c=>c.hash)).size,Object.keys(result.actions).length,'every authored action cue renders a distinct signature');
  for(const cue of Object.values(result.bossPhases)){assert.ok(cue.rms.every(v=>v>.0001));assert.equal(cue.remaining,0)}
  assert.equal(new Set(Object.values(result.bossPhases).map(c=>c.hash)).size,2,'furnace and meltdown stings render distinct signatures');
  assert.equal(Object.keys(result.bossPhases).length,2);
@@ -46,6 +46,7 @@ try{
  await game.command('Page.reload');await game.wait("!document.getElementById('base').hidden && document.body.getAttribute('aria-busy')==='false'");
  const profile=await game.evaluate("fetch('/api/profile').then(r=>r.json())");
  await game.evaluate("(async()=>{const {RaidAudio}=await import('./raid-audio.mjs');const original=RaidAudio.prototype.play;window.__cues=[];RaidAudio.prototype.play=function(kind,spatial){window.__cues.push(kind);return original.call(this,kind,spatial)}})()");
+ await game.evaluate("(async()=>{const {RaidView}=await import('./raid-view.mjs');const original=RaidView.prototype.beginReload;window.__reloadPresentations=0;RaidView.prototype.beginReload=function(...args){window.__reloadPresentations++;return original.apply(this,args)}})()");
  await game.evaluate(`for(const input of document.querySelectorAll('#stash [data-equip]'))input.checked=${JSON.stringify(profile.items.filter(i=>i.kind==='weapon'||i.kind==='ammo').map(i=>i.id))}.includes(input.value);document.getElementById('maxRtt').value='0';document.getElementById('maxRtt').dispatchEvent(new Event('change'));document.getElementById('deploy').click()`);
  await game.wait("document.getElementById('play').style.display==='block' && document.body.getAttribute('aria-busy')==='false'");
  const actor=()=>runtime.raids.byAccount.get(profile.id);runtime.raids.raids.get(actor().raidId).machines=[];
@@ -53,9 +54,11 @@ try{
  await key('KeyB');await game.evaluate("document.getElementById('view').focus()");await key('KeyF');
  await game.wait("window.__cues.includes('shot:ar')");await new Promise(r=>setTimeout(r,250));await key('KeyR');
  await game.wait("window.__cues.includes('reload')");assert.equal(actor().ammo,30);
- await new Promise(r=>setTimeout(r,2200));const reloads=await game.evaluate("window.__cues.filter(k=>k==='reload').length");await key('KeyR');
+ assert.equal(await game.evaluate("window.__reloadPresentations"),1,'an accepted native reload starts exactly one handling presentation');
+ await new Promise(r=>setTimeout(r,2200));const reloads=await game.evaluate("window.__cues.filter(k=>k==='reload').length");const presentations=await game.evaluate("window.__reloadPresentations");await key('KeyR');
  await new Promise(r=>setTimeout(r,350));assert.equal(await game.evaluate("window.__cues.filter(k=>k==='reload').length"),reloads,'rejected full-magazine reload must not play an accepted action cue');
+ assert.equal(await game.evaluate("window.__reloadPresentations"),presentations,'a rejected reload starts no handling presentation');
  actor().hp-=10;await game.wait("window.__cues.includes('hurt')");assert.equal(await game.evaluate("window.__cues.includes('hit')"),false,'damage must not play both old and new cues');
  assert.deepEqual(game.errors,[]);
- console.log(JSON.stringify({runtimeRoot:root.href,distinctMachineCues:5,utilityCuesRendered:4,distinctWeaponCues:6,distinctActionCues:12,distinctBossPhaseCues:2,realWebAudioRendering:true,directionalStereo:true,muteSilent:true,boundedVoices:true,nodesReleased:true,nativeFireAndAcceptedReload:true,rejectedReloadSilent:true,damageCueNotDoubled:true,browserErrors:[...p.errors,...game.errors],scope:'Actual offline Web Audio rendering and local authoritative native-input integration; not human mix/readability acceptance.'}));
+ console.log(JSON.stringify({runtimeRoot:root.href,distinctMachineCues:5,utilityCuesRendered:4,distinctWeaponCues:6,distinctActionCues:Object.keys(result.actions).length,distinctBossPhaseCues:2,realWebAudioRendering:true,directionalStereo:true,muteSilent:true,boundedVoices:true,nodesReleased:true,nativeFireAndAcceptedReload:true,rejectedReloadSilent:true,damageCueNotDoubled:true,browserErrors:[...p.errors,...game.errors],scope:'Actual offline Web Audio rendering and local authoritative native-input integration; not human mix/readability acceptance.'}));
 }finally{await h.close();runtime.server.close();await once(runtime.server,'close');store.close();if(prior===undefined)delete process.env.RAID_TEST_URL;else process.env.RAID_TEST_URL=prior}

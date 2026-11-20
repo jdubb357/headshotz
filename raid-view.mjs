@@ -5,42 +5,2091 @@ import * as THREE from './lib/three.module.min.js';
 import {getWorld,terrainHeightAt,blocked} from './shared/raid-worlds.mjs';
 import {mapConditions} from './shared/raid-enemies.mjs';
 import {exitColor} from './shared/raid-exits.mjs';
-import {buildEnvironment} from './raid-environment.mjs';
-import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,disposeOwned,part,beaconModel} from './raid-models.mjs';
+import {buildEnvironment,applyPhotoLook,WIND_VERTEX} from './raid-environment.mjs';
+import {lootTierColor} from './shared/raid-loot-presentation.mjs';
+import {TX,getTex,normalTex,makeRaidHorizon} from './gfx.js';
+import {HUM} from './humans.js';
+import {HQP} from './assets.js';
+import {humanModel,setHumanWeapon,machineModel,propModel,weaponModel,updateActor,updateExitSignal,disposeOwned,part,beaconModel} from './raid-models.mjs';
 
-import {RaidAudio} from './raid-audio.mjs';
+import {RaidAudio,spatialCue} from './raid-audio.mjs';
 export {RaidAudio} from './raid-audio.mjs';
+// Industrial loading-bay walls are shut roller bays, not glazed shopfronts: a
+// scanned sash seated on those ground-floor openings would hang in mid air over
+// the graffiti door. Shared by refreshWindows and the facade sill pass so every
+// dress-up layer agrees these openings are closed steel.
+const closedShedBay=(blocks,s)=>{
+ if(!s.onZ||s.y>2.4)return false;
+ for(const b of blocks){
+  if(b.kind!=='metal'||!b.wall||b.w<b.d||b.w<6)continue;
+  if(Math.abs(s.z-(b.z-b.d/2))>.7)continue;
+  if(s.x<b.x-b.w/2-.8||s.x>b.x+b.w/2+.8)continue;
+  return true;
+ }
+ return false;
+};
+// Bounded first-person locomotion bob; shared by the frame loop so the hand
+// motion stays below the recoil and aim budgets.
+const bobReach=speed=>.016*Math.max(0,Math.min(1,speed));
+// Presentation-only camera feel state. The authoritative pose still comes from
+// the snapshot/prediction; these offsets only move the render camera.
+const freshFeel=()=>({bob:0,step:0,footSide:0,dip:0,dipVel:0,slide:0,sprintFov:0,bump:0,grounded:null});
+// Gradient sky dome: cheap, no textures, follows the authoritative sky/sun so
+// dusk, night and storm fronts read as depth instead of a flat clear colour.
+const SKY_VERT=`varying vec3 vD;void main(){vD=position;vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}`;
+const SKY_FRAG=`uniform vec3 top,mid,bot,sunCol;uniform vec3 sunDir;uniform float sunI;uniform float uScatter;uniform vec3 cloudCol;uniform float uCloud;uniform float cloudTime;uniform vec3 flashCol;uniform float uFlash;varying vec3 vD;
+#include <common>
+// Deterministic value-noise fbm used for the overcast deck. There is no runtime
+// randomness: the same view direction and cloud time always paint the same deck.
+float cloudHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float cloudNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+ return mix(mix(cloudHash(i),cloudHash(i+vec2(1.,0.)),f.x),mix(cloudHash(i+vec2(0.,1.)),cloudHash(i+vec2(1.,1.)),f.x),f.y);}
+float cloudFbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*cloudNoise(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return v;}
+void main(){vec3 d=normalize(vD);float y=d.y;
+ vec3 c=y>0.?mix(mid,top,pow(clamp(y,0.,1.),.55)):mix(mid,bot,clamp(-y*5.,0.,1.));
+ c+=mid*.22*exp(-abs(y)*12.);
+ // Soft cumulus layers: two offset fbm samples create billows and wispy edges.
+ // Coverage shrinks toward the horizon so the fog band stays unbroken, and the
+ // drifting coordinates follow cloudTime at a gentle real-world pace.
+ vec2 plan=d.xz/(.24+max(y,.04));
+ float drift=cloudTime*.045;
+ float deck=cloudFbm(plan*1.9+vec2(drift,drift*.55))*.85+cloudNoise(plan*4.4-vec2(drift*.7,drift*.35))*.3;
+ float cover=smoothstep(.4,.76,deck)*uCloud*smoothstep(0.,.10,y);
+ float s=max(dot(d,sunDir),0.);
+ // Cloud undersides stay a shade darker than the sky while sun-facing edges
+ // pick up the authored sun colour, so the deck reads as volume rather than a
+ // flat grey wash. Near the horizon the mask above keeps the fog band unbroken.
+ vec3 shade=mix(cloudCol*.78,cloudCol+sunCol*.32,clamp(pow(s,2.)*.7,0.,1.));
+ c=mix(c,shade,clamp(cover,0.,1.)*.62);
+ c+=sunCol*(pow(s,700.)*12.*sunI+pow(s,32.)*.28+pow(s,5.)*.07);
+ // Cinematic atmospheric scattering: a broad bloom around the sun plus a warm
+ // horizon band. uScatter follows daylight and is damped by heavy weather, so
+ // night and storm fronts stay cold while golden hour gains a soft hush of light.
+ float horizon=exp(-abs(y)*3.2);
+ c+=sunCol*uScatter*(pow(s,4.)*.20+pow(s,1.8)*horizon*.15+horizon*.045);
+ // Lightning sheet: a cold, cloud-lit lift concentrated overhead with a faint
+ // horizon echo. uFlash is a deterministic storm-front pulse (zero otherwise),
+ // so the flash never paints under clear skies or reduced motion.
+ c+=flashCol*uFlash*(.45+.55*smoothstep(-.15,.75,y)+smoothstep(.0,.4,horizon)*.32);
+ gl_FragColor=vec4(c,1.);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`;
+const SKY_MID=new THREE.Color(),SKY_TOP=new THREE.Color(),CLOUD_MIX=new THREE.Color(),CLOUD_WHITE=new THREE.Color(0xffffff);
+// Photographed Poly Haven Kloofendal sky, tone-mapped offline to sRGB. The sun
+// disc sits at equirect uv (0.5947, 0.2344) which is azimuth 0.595 rad and
+// elevation 0.840 rad in three's equirect convention; the dome is spun so the
+// photograph's sun shares the authoritative sun's azimuth.
+const PHOTO_SKY_AZ=.5947,PHOTO_SUN_EL=.5605;
+const PHOTO_TINT=new THREE.Color(),PHOTO_NIGHT=new THREE.Color(0x0c1526),PHOTO_WHITE=new THREE.Color(0xffffff),PHOTO_DIR=new THREE.Vector3();
+// Deterministic storm-front lightning envelope. Clear weather and reduced
+// motion never flash; a rain front gets one sharp strike per 8.5 s cycle plus
+// a softer follow-up sheet. Pure function of scene time so the same deployment
+// paints the same flashes on every client, with no runtime randomness.
+export function lightningPulse(seconds,weather){
+ if(weather!=='rain')return 0;
+ const cycle=8.5,phase=Math.max(0,seconds||0)%cycle,age=phase-1.1;
+ const strike=Math.exp(-Math.pow(age/.06,2));
+ const tail=age>0?Math.max(0,.38*(1-age/1.45)):0;
+ const sheet=Math.exp(-Math.pow((age-.3)/.075,2))*.55;
+ return Math.min(1,strike+tail+sheet);
+}
+// Presentation-only frame composite drawn after the world and weapon overlay:
+// a soft edge vignette with fine, temporally animated film grain. Both effects
+// are procedural, resolution-independent and never touch gameplay state.
+const POST_VERT=`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`;
+const POST_FRAG=`varying vec2 vUv;uniform sampler2D uScene;uniform sampler2D uBloomTex;uniform vec2 uResolution;uniform float uTime;uniform float uVignette;uniform float uGrain;uniform float uBloom;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+void main(){
+ vec2 uv=vUv;
+ vec3 base=texture2D(uScene,uv).rgb;
+ // Soft multi-pass bloom: the half-resolution chain in BLOOM_FRAG has already
+ // extracted the highlights and separable-blurred them, so this pass only
+ // upsamples and adds the accumulated glow. Because the scene target is linear
+ // and the bloom chain never tone-maps, the renderer's injected ACES + sRGB
+ // chunks still finish the frame exactly like the direct path.
+ vec3 bloom=texture2D(uBloomTex,uv).rgb;
+ vec3 col=base+bloom*uBloom*1.4;
+ vec2 d=(uv-.5)*vec2(uResolution.x/max(uResolution.y,1.),1.);
+ float edge=smoothstep(.38,.86,length(d));
+ float n=hash(floor(uv*uResolution*.5)+vec2(floor(mod(uTime,60.)*10.),1.));
+ float grain=(n-.5)*uGrain;
+ float dark=clamp(edge*uVignette+grain,0.,.7);
+ gl_FragColor=vec4(col*(1.0-dark),1.);
+ #include <tonemapping_fragment>
+ #include <colorspace_fragment>
+}`;
+// Half-resolution bloom chain. Pass 0 averages a 2×2 source footprint and keeps
+// only highlights above a soft threshold; pass 1 and pass 2 are separable
+// five-per-side Gaussian blurs. The half-resolution kernel, written in relative
+// pixel units, keeps the halo the same size across 720p and high-DPI buffers.
+const BLOOM_FRAG=`varying vec2 vUv;uniform sampler2D uSource;uniform vec2 uTexel;uniform float uThreshold;uniform float uBlurScale;uniform int uPass;
+float luma(vec3 c){return dot(c,vec3(.2126,.7152,.0722));}
+vec3 blurH(vec2 uv){
+ vec2 o=vec2(uTexel.x*uBlurScale,0.);
+ vec3 c=texture2D(uSource,uv).rgb*.2270270270;
+ c+=texture2D(uSource,uv+o).rgb*.1945945946;
+ c+=texture2D(uSource,uv-o).rgb*.1945945946;
+ c+=texture2D(uSource,uv+o*2.0).rgb*.1216216216;
+ c+=texture2D(uSource,uv-o*2.0).rgb*.1216216216;
+ c+=texture2D(uSource,uv+o*3.0).rgb*.0540540541;
+ c+=texture2D(uSource,uv-o*3.0).rgb*.0540540541;
+ c+=texture2D(uSource,uv+o*4.0).rgb*.0162162162;
+ c+=texture2D(uSource,uv-o*4.0).rgb*.0162162162;
+ return c;
+}
+vec3 blurV(vec2 uv){
+ vec2 o=vec2(0.,uTexel.y*uBlurScale);
+ vec3 c=texture2D(uSource,uv).rgb*.2270270270;
+ c+=texture2D(uSource,uv+o).rgb*.1945945946;
+ c+=texture2D(uSource,uv-o).rgb*.1945945946;
+ c+=texture2D(uSource,uv+o*2.0).rgb*.1216216216;
+ c+=texture2D(uSource,uv-o*2.0).rgb*.1216216216;
+ c+=texture2D(uSource,uv+o*3.0).rgb*.0540540541;
+ c+=texture2D(uSource,uv-o*3.0).rgb*.0540540541;
+ c+=texture2D(uSource,uv+o*4.0).rgb*.0162162162;
+ c+=texture2D(uSource,uv-o*4.0).rgb*.0162162162;
+ return c;
+}
+void main(){
+ if(uPass==0){
+  vec2 o=uTexel*.5;
+  vec3 c=(texture2D(uSource,vUv+vec2(-o.x,-o.y)).rgb+texture2D(uSource,vUv+vec2(o.x,-o.y)).rgb+texture2D(uSource,vUv+vec2(-o.x,o.y)).rgb+texture2D(uSource,vUv+vec2(o.x,o.y)).rgb)*.25;
+  gl_FragColor=vec4(c*smoothstep(uThreshold,uThreshold+.30,luma(c)),1.);
+ }else if(uPass==1){
+  gl_FragColor=vec4(blurH(vUv),1.);
+ }else{
+  gl_FragColor=vec4(blurV(vUv),1.);
+ }
+}`;
+// Impact palette: the first hex is the hot spark/light colour, the second is
+// the slow dust plume tint. Keys match world block materials and terrain themes.
+const IMPACT_PALETTE={concrete:[0xffcf82,0xb9b3a4],gravel:[0xffcf82,0xa8a394],dirt:[0xffc878,0xbfab7f],forest:[0x9ddf63,0x738b57],foliage:[0x9ddf63,0x738b57],brick:[0xe99b62,0xa57b64],planks:[0xffbf78,0x9b6b3f],metal:[0xfff1c6,0x8a8e93],rock:[0xffc890,0xa5a293],container:[0xa7d7df,0x778b8f],crate:[0xe4cf9b,0x9c8459],hazard:[0xffd75a,0xbfae7f],tiles:[0xcbd3d8,0x9a9d98],asphalt:[0xffc98d,0x8e8b8a]};
+// Hostile tracer tints per machine class. Scout bolts stay warm amber so the
+// eye reads gunfire on the road; heavier classes push toward red.
+const ENEMY_SHOT_COLORS={scout:0xffb24a,hunter:0xff6b3a,heavy:0xff5138,flyer:0x9ce8ff,overlord:0xff7a45};
+const HOT_TRACE=new THREE.Color(0xfff1cf);
+const BEAM_UP=new THREE.Vector3(0,1,0);
+// Scratch vectors for the screen-constant hostile tracer ribbon.
+const ENEMY_RIB_TAIL=new THREE.Vector3(),ENEMY_RIB_HEAD=new THREE.Vector3(),ENEMY_RIB_DIR=new THREE.Vector3(),
+ ENEMY_RIB_MID=new THREE.Vector3(),ENEMY_RIB_EYE=new THREE.Vector3(),ENEMY_RIB_VIEW=new THREE.Vector3(),ENEMY_RIB_SIDE=new THREE.Vector3();
+// Authoritative recoil amplitude per weapon class; presenting the same kick to
+// the gun and camera keeps heavy weapons distinct without touching ballistics.
+const RECOIL_KICK={ar:.095,smg:.06,shotgun:.18,sniper:.16,pistol:.08,lmg:.13};
+// First-person view-model home pose. The held overlay omits the buttstock (it
+// would sit ~0.18 m from the eye and fill the lower-right edge as a flat slab),
+// so the scan stops at the receiver. The pose is settled low and slightly right
+// to keep the receiver in the bottom-right corner and the optic readable at both
+// 1024x720 and 844x390.
+const VIEW_HIP={x:.2,y:-.155,z:-.46},VIEW_SCALE=.65;
+// Authored first-person muzzle silhouettes per weapon family. Each profile is
+// painted once when the weapon is equipped; the draw path adds no objects.
+const FLASH_PROFILES={
+ rifle:{spikes:4,core:44,tint:0xffe6b0,scale:.048,line:4},
+ smg:{spikes:6,core:37,tint:0xffd898,scale:.04,line:3},
+ shotgun:{spikes:8,core:57,tint:0xffcf76,scale:.085,line:9},
+ sniper:{spikes:2,core:31,tint:0xfff0ca,scale:.062,line:4},
+ pistol:{spikes:5,core:39,tint:0xffdc98,scale:.036,line:5},
+ heavy:{spikes:10,core:51,tint:0xffc160,scale:.08,line:6}
+};
+function muzzleFlashTexture(profile){
+ const p=FLASH_PROFILES[profile]||FLASH_PROFILES.rifle,size=128,center=64;
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+ const context=canvas.getContext('2d');
+ const core=context.createRadialGradient(center,center,0,center,center,p.core);
+ core.addColorStop(0,'rgba(255,255,255,1)');core.addColorStop(.42,'rgba(255,240,200,.95)');core.addColorStop(.72,'rgba(255,176,78,.72)');core.addColorStop(1,'rgba(255,140,32,0)');
+ context.fillStyle=core;context.fillRect(0,0,size,size);
+ context.globalCompositeOperation='lighter';context.lineCap='round';
+ for(let i=0;i<p.spikes;i++){
+  const angle=i*Math.PI*2/p.spikes+(profile==='sniper'?.07:0),reach=(center*.58+(i%2?center*.3:0))*1.18;
+  const x=center+Math.cos(angle)*reach,y=center+Math.sin(angle)*reach;
+  const gradient=context.createLinearGradient(center,center,x,y);
+  gradient.addColorStop(0,'rgba(255,248,222,.9)');gradient.addColorStop(.6,'rgba(255,168,70,.58)');gradient.addColorStop(1,'rgba(255,130,28,0)');
+  context.strokeStyle=gradient;context.lineWidth=p.line;context.beginPath();context.moveTo(center,center);context.lineTo(x,y);context.stroke();
+ }
+ const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+ return texture;
+}
+// Rain drops are authored as camera-local offsets (ox/oz around the operator,
+// y in world space), so a small streak field fills the near view instead of
+// scattering a handful of drops over the whole 1,440 m sector.
+function writeRain(arr,i,d,ax,az){const k=i*6,x=ax+d.ox,y=d.y,z=az+d.oz;arr[k]=x;arr[k+1]=y;arr[k+2]=z;arr[k+3]=x+d.len*.28;arr[k+4]=y-d.len;arr[k+5]=z}
+// Ground-impact ripple for an active rain front. One soft ring texture paints
+// every splash; the instanced quad is laid flat and only its matrix and tint
+// change per frame, so the effect never allocates on the render path. This is
+// presentation-only and does not read or write any snapshot field.
+let RAIN_RIPPLE_TEXTURE=null;
+function rainRippleTexture(){
+ if(RAIN_RIPPLE_TEXTURE)return RAIN_RIPPLE_TEXTURE;
+ const size=64,center=size/2;
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+ const context=canvas.getContext('2d');
+ const gradient=context.createRadialGradient(center,center,0,center,center,center);
+ // Transparent core so the ripple reads as a ring rather than a filled patch,
+ // a faint inner wash for the splash lip, and a bright crest that fades out.
+ gradient.addColorStop(0,'rgba(255,255,255,0)');
+ gradient.addColorStop(.5,'rgba(255,255,255,.08)');
+ gradient.addColorStop(.78,'rgba(255,255,255,.82)');
+ gradient.addColorStop(1,'rgba(255,255,255,0)');
+ context.fillStyle=gradient;context.fillRect(0,0,size,size);
+ RAIN_RIPPLE_TEXTURE=new THREE.CanvasTexture(canvas);RAIN_RIPPLE_TEXTURE.colorSpace=THREE.SRGBColorSpace;
+ return RAIN_RIPPLE_TEXTURE;
+}
+const SPLASH_FLAT_QUAT=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-Math.PI/2);
+const SPLASH_MATRIX=new THREE.Matrix4(),SPLASH_POSITION=new THREE.Vector3(),SPLASH_SCALE=new THREE.Vector3(),SPLASH_TINT=new THREE.Color();
+const STEP_POSITION=new THREE.Vector3();
+function lootAccent(data){
+ // The brightest authoritative item rarity in the pile picks the pickup accent.
+ // Presentation only: items, ownership and values are untouched.
+ let rarity=0;
+ for(const item of data.items||[])rarity=Math.max(rarity,Math.max(0,Math.min(5,Math.trunc(Number(item.rarity)||0))));
+ return lootTierColor(rarity);
+}
+// Pure presentation: pick the readable asset for a pile from its authoritative
+// contents. Nothing is added to or removed from the loot item list.
+const lootWeapon=data=>(data.items||[]).find(item=>item.kind==='weapon')?.weapon||null;
+function lootVisual(data){
+ if(lootWeapon(data))return 'gun';
+ const kinds=new Set((data.items||[]).map(item=>item.kind));
+ if(kinds.has('material'))return 'material';
+ if(kinds.has('med'))return 'med';
+ if(kinds.has('ammo'))return 'ammo';
+ if(kinds.has('valuable')||kinds.has('armor'))return 'chest';
+ if(kinds.has('mod')||kinds.has('contract'))return 'chest';
+ return 'crate';
+}
+const lootOptions=data=>({visual:lootVisual(data),weapon:lootWeapon(data)});
 export class RaidView {
  constructor(canvas){
-  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.15;
-  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';
+  this.canvas=canvas;
+  // A retinal iPad at 2× used to render four times the pixels of a 1× phone;
+  // the scene is fog-dominated and soft-shadowed, so the extra samples bought
+  // almost no readable detail at query time. Keep the desktop cap high, cap
+  // touch to 1× so the GPU bottleneck stays geometry, not fill.
+  this.touch=(typeof matchMedia==='function')&&matchMedia('(pointer:coarse)').matches;
+  this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.touch?1:1.25));this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.22;
+  // Count every pass of a presented frame (world, bloom composite, held gun)
+  // instead of only the last render. The dev perf readout and the browser
+  // graders both need the true total, so frame() resets this at its start.
+  this.renderer.info.autoReset=false;
+  this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.postTarget=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;this.windMaterials=[];this.motes=this.motesState=this.motesAnchor=null;this.glowPoints=this.glowPools=this.wetReflections=null;this.splashes=this.splashesState=this.splashesAnchor=null;
+
+  this.renderer.autoClear=false;this.audio=new RaidAudio();this.actors=new Map();this.effects=new Map();this.utilityEffects=new Map();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.shotCursor=0;this.blastCursor=0;this.coreBurstCursor=0;this.wreckCursor=0;this.enemyShotCursor=0;this.enemyShotSeen=new Map();this.enemyShotLight=null;this.enemyShotLightAt=-1e9;this.lastTime=0;this.lastWeapon=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;this.snapAt=performance.now();this.viewMode='third';this.chase=null;this.cameraName='';this.fireYaw=0;this.firePitch=0;
+ // Fixed pool of landings dust for articulated machines. Each puff is placed
+ // in world space when a diagonal foot pair plants, so it settles where the
+ // pad hit the ground instead of travelling with the swinging leg.
+ this.footDust=[];this.footDustCursor=0;
+ // Presentation-only view-model feel: damped look sway, locomotion bob and a
+ // transient additive muzzle glow. None of these feed snapshot, ballistics or
+ // prediction.
+ this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;
+ this.feel=freshFeel();
+ // First-person firing particulate: a fixed recycled casing pool and one
+ // short-lived muzzle-smoke puff. Both live on the weapon root so they inherit
+ // sway, bob and recoil, and neither touches snapshot or ballistics state.
+ this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
+ // Barrel heat is presentation-only: it rises with accepted shots, stays out
+ // of all authoritative state, warms the muzzle bloom between flashes, and
+ // cools in place.
+ this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
+ // Reload handling: a physical magazine prop and a brief dip/tilt envelope.
+ // Triggered only by an accepted reload and driven by presentation time.
+ this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
  }
  applySettings(settings){this.settings=settings;this.audio.volume=settings.sfxVolume;if(settings.viewMode)this.viewMode=settings.viewMode;if(this.selfActor)this.selfActor.visible=this.viewMode!=='first';if(this.camera){this.camera.fov=settings.fov;this.camera.updateProjectionMatrix()}if(this.renderCamera)this.renderCamera.fov=settings.fov;if(this.weather)this.weather.visible=this.snapshot?.conditions?.weather!=='clear'&&!settings.reduced}
+ // The main game ships photographed surfaces and MakeHuman bodies (assets.js /
+ // humans.js). A raid boots before they arrive, so the environment is built from
+ // the procedural 128 px textures and boxy operators. Once the shipped art has
+ // loaded, this re-points the terrain's private texture clones and swaps every
+ // operator for a real MakeHuman body without touching gameplay or the server
+ // footprint.
+ refreshArt(){
+  if(!this.scene)return;
+  // Swap the procedural gradient sheet for the photographed CC0 sky as soon as
+  // it decodes, and keep its real-photo PMREM alongside for material reflections.
+  this.refreshSky();
+  // The held gun is built during the first sync, before the scanned GLBs land.
+  // Rebuild it here so the first frame shows a real weapon, not box geometry.
+  if(HQP.guns&&this.gunRoot&&this.snapshot?.self){
+   const self=this.snapshot.self;
+   const item=[...self.equipment,...self.pack].find(it=>it.id===self.weaponId&&it.kind==='weapon');
+   if(item){
+    for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}
+    // Build the real MakeHuman gloved arms now that both the human tiers and the
+    // scanned rifle GLBs are decoded; the same rig supplies the world operators.
+    this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.gunAimFade=[];
+    this.gun.traverse(node=>{const material=node.material;if(!node.isMesh||!material||!['stock','sleeve'].includes(material.name))return;
+     material.transparent=true;material.depthWrite=false;material.opacity=1;this.gunAimFade.push(material)});
+   }
+  }
+  applyPhotoLook(this.environmentRoot);
+  this.refreshSpawnDressing();
+  this.refreshStreetProps();
+  this.refreshWindows();
+  // refreshWindows may clone the scanned glass with per-colour emissive; adopt
+  // the updated list so the night curve drives the real glazing too.
+  this.windowMaterials=this.environmentRoot?.userData?.raidWindowMaterials||this.windowMaterials||[];
+  this.refreshFacades();
+  this.refreshFacadeVariety();
+  this.refreshFacadeAccents();
+  if(this.terrainMaterial){
+   const theme=this.world?.theme,key=theme==='wilderness'?'forest':theme==='settlement'?'dirt':'gravel';
+   const live=getTex(key),liveNormal=normalTex(key,1.6);
+   const mat=this.terrainMaterial;
+   // Texture.clone() shares its source, so the photo swap lands here too; the
+   // clones just need an upload flag of their own. (The live texture only marks
+   // the materials that reference it directly.)
+   if(live?.image&&mat.map)mat.map.needsUpdate=true;
+   if(liveNormal?.image&&mat.normalMap)mat.normalMap.needsUpdate=true;
+   mat.needsUpdate=true;
+  }
+  this.refreshGround();
+  this.refreshCourtyardGround();
+  this.refreshFoliage();
+  // Loot actors are created during the deploy snapshot, before the shipped
+  // props arrive. Rebuild them once the photo crate and scanned guns exist, so
+  // the first piles a player kneels beside read as objects, not geometry blanks.
+  for(const entry of this.actors.values()){
+   if(entry.type!=='loot')continue;
+   const next=propModel('loot',lootAccent(entry.data||{}),lootOptions(entry.data||{}));
+   next.position.copy(entry.model.position);next.rotation.copy(entry.model.rotation);
+   this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
+  }
+  // Machines boot as worn procedural chassis while the MakeHuman bodies decode.
+  // Swap each live machine in place so an already-deployed raid sees the real
+  // armoured operator without restarting. The authoritative actor identity
+  // (kind, id, snapshot transform) is kept; only the visual model changes.
+  if(HUM.ready&&!this.machineArtSwapped){
+   this.machineArtSwapped=true;
+   for(const entry of this.actors.values()){
+    if(entry.type!=='machine')continue;
+    const next=machineModel(entry.data?.kind||'scout');
+    next.userData.motionReduced=entry.model.userData.motionReduced;
+    next.position.copy(entry.model.position);next.rotation.copy(entry.model.rotation);
+    next.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
+    this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
+   }
+  }
+  // The world is now fully dressed, so collapse its map-wide static batches
+  // into view-frustum-sized pieces (see packStaticBatches).
+  this.packStaticBatches();
+  if(!HUM.ready)return;
+  const self=this.snapshot?.self;
+  if(this.selfActor&&self){
+   const item=[...self.equipment,...self.pack].find(it=>it.id===self.weaponId&&it.kind==='weapon');
+   const next=humanModel(self.name||'Operator','raid_local_operator',true,item?.weapon??null);
+   if(next.userData.tag)next.userData.tag.visible=false;
+   next.position.copy(this.selfActor.position);next.rotation.copy(this.selfActor.rotation);
+   next.visible=this.selfActor.visible;
+   this.scene.add(next);this.scene.remove(this.selfActor);disposeOwned(this.selfActor);this.selfActor=next;
+  }
+  const friendlyTeam=self?.team;
+  for(const entry of this.actors.values()){
+   if(entry.type!=='human')continue;
+   const data=entry.data||{};
+   const next=humanModel(data.name||'Operator',data.id||'raid_human',data.rival?false:data.team===friendlyTeam,data.weapon??null);
+   if(next.userData.tag&&!(data.rival?false:data.team===friendlyTeam))next.userData.tag.visible=false;
+   next.position.copy(entry.model.position);next.rotation.copy(entry.model.rotation);
+   next.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true}});
+   this.scene.add(next);this.scene.remove(entry.model);disposeOwned(entry.model);entry.model=next;
+  }
+ }
+ // The photographed district is authored as a handful of map-wide batches. Each
+ // InstancedMesh bounds the whole 1.44 km sector, so Three's frustum test can
+ // never reject one: every frame and every shadow pass submits all of its
+ // instances no matter where the player looks. Re-emit the heavier static
+ // batches as spatial chunks that keep the exact geometry, material, local
+ // transforms and per-instance colours. Culling then drops only chunks whose
+ // bounds lie outside the camera or shadow frustum, which is mathematically
+ // invisible even though it removes most of the submitted triangles.
+ packStaticBatches(cell=256,minTriangles=100000){
+  const root=this.environmentRoot;
+  if(!root?.isObject3D||root.userData.raidBatchesPacked)return;
+  // Only reshape the map after the photographed dressing has replaced the
+  // procedural placeholders; otherwise cores rebuilt by refreshArt would lose
+  // their scanned cover and variety.
+  if(!HQP.ready||!this.scene)return;
+  this.scene.updateMatrixWorld(true);
+  const batches=[];
+  root.traverse(node=>{if(node.isInstancedMesh&&node.visible&&node.count>1)batches.push(node)});
+  if(!batches.length)return;
+  // Window trim and planter details sit flush in façades and cast no readable
+  // shadow anywhere a player stands; they only inflated the shadow pass.
+  const trimShadows=new Set(['framing','windowShutter','windowSill','flowerBox','shopSignStuds','shopSignStraps']);
+  // Merge batches sharing a draw state so the per-facade kit collapses into one
+  // draw per cell instead of one per module part.
+  const combos=new Map(),consumed=[];
+  for(const mesh of batches){
+   if(mesh.instanceMatrix.usage===THREE.DynamicDrawUsage)continue;
+   const geometry=mesh.geometry,material=mesh.material,position=geometry?.attributes?.position;
+   if(!geometry||!material||Array.isArray(material)||!position)continue;
+   const triangles=Math.round((geometry.index?geometry.index.count:position.count)/3);
+   if(triangles*mesh.count<minTriangles)continue;
+   const trim=trimShadows.has(mesh.userData.raidStructure)||trimShadows.has(mesh.userData.raidFacadePart);
+   const castShadow=mesh.castShadow&&!trim;
+   const key=geometry.uuid+'|'+material.uuid+'|'+Number(castShadow)+Number(mesh.receiveShadow)+Number(!!mesh.instanceColor)+'|'+mesh.renderOrder;
+   let combo=combos.get(key);
+   if(!combo){combo={geometry,material,castShadow,receiveShadow:mesh.receiveShadow,color:!!mesh.instanceColor,order:mesh.renderOrder,cells:new Map()};combos.set(key,combo)}
+   const matrix=mesh.instanceMatrix.array,color=mesh.instanceColor?.array;
+   for(let i=0;i<mesh.count;i++){
+    const o=i*16;
+    // refreshWindows blanks openings it replaced with an all-zero matrix; those
+    // instances draw no triangle at all and would otherwise pull a distant
+    // chunk's bounds open.
+    if(!matrix[o]&&!matrix[o+1]&&!matrix[o+2]&&!matrix[o+4]&&!matrix[o+5]&&!matrix[o+6]&&!matrix[o+8]&&!matrix[o+9]&&!matrix[o+10])continue;
+    const cx=Math.floor(matrix[o+12]/cell),cz=Math.floor(matrix[o+14]/cell),at=cx+','+cz;
+    let bucket=combo.cells.get(at);
+    if(!bucket){bucket={m:[],c:[]};combo.cells.set(at,bucket)}
+    for(let k=0;k<16;k++)bucket.m.push(matrix[o+k]);
+    if(color)for(let k=0;k<3;k++)bucket.c.push(color[i*3+k]);
+   }
+   consumed.push(mesh);
+  }
+  if(!consumed.length)return;
+  const chunkRoot=new THREE.Group();chunkRoot.name='raidInstanceChunks';this.scene.add(chunkRoot);
+  const capture=new THREE.Matrix4(),tint=new THREE.Color(),chunkList=[];
+  for(const combo of combos.values())for(const bucket of combo.cells.values()){
+   const count=bucket.m.length/16;
+   if(!count)continue;
+   const chunk=new THREE.InstancedMesh(combo.geometry,combo.material,count);
+   for(let i=0;i<count;i++)chunk.setMatrixAt(i,capture.fromArray(bucket.m,i*16));
+   if(combo.color)for(let i=0;i<count;i++)chunk.setColorAt(i,tint.setRGB(bucket.c[i*3],bucket.c[i*3+1],bucket.c[i*3+2]));
+   chunk.instanceMatrix.needsUpdate=true;if(chunk.instanceColor)chunk.instanceColor.needsUpdate=true;
+   chunk.castShadow=combo.castShadow;chunk.receiveShadow=combo.receiveShadow;chunk.renderOrder=combo.order;
+   // InstancedMesh computes over its own instance matrices, so a chunk's sphere
+   // is the real local bound and the frustum test is exact.
+   chunk.frustumCulled=true;chunk.computeBoundingSphere();
+   // Chunks own a GPU instance buffer even though they share the source
+   // geometry; tag them so the scene teardown next to it releases both.
+   chunk.userData.raidChunk=true;chunkList.push(chunk);
+   chunkRoot.add(chunk);
+  }
+  for(const mesh of consumed)mesh.visible=false;
+  this.chunkList=chunkList;
+  root.userData.raidBatchesPacked=true;
+ }
+ // The sector fog paints every fragment past its far plane in one flat colour,
+ // so a chunk whose nearest surface already sits past the fog far can never show
+ // a readable pixel. Retire those every frame before the renderer walks them;
+ // this is exact distance culling against the same Fog the composite uses.
+ cullChunks(camera){
+  const list=this.chunkList;
+  if(!list||!list.length||!camera)return;
+  const fog=this.scene?.fog,far=fog?fog.far:1e9,ox=camera.position.x,oy=camera.position.y,oz=camera.position.z;
+  for(const chunk of list){
+   const sphere=chunk.boundingSphere;
+   if(!sphere){chunk.visible=true;continue}
+   const dx=sphere.center.x-ox,dy=sphere.center.y-oy,dz=sphere.center.z-oz;
+   chunk.visible=Math.sqrt(dx*dx+dy*dy+dz*dz)-sphere.radius<far;
+  }
+ }
+ // Real photographic sky dome. The procedural sheet stays on the scene as the
+ // night/storm fallback; this copy becomes visible only on clear/mist daylight
+ // (tinted by the same conditions curve) and gets an honest photogrammetry IBL.
+ refreshSky(){
+  if(!this.scene||!HQP.sky||this.skyPhoto)return;
+  const material=new THREE.MeshBasicMaterial({map:HQP.sky,side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,toneMapped:true});
+  material.userData.raidOwned=true;
+  const geometry=new THREE.SphereGeometry(195*this.viewScale,48,24);geometry.userData.raidOwned=true;
+  const dome=new THREE.Mesh(geometry,material);
+  dome.renderOrder=-11;dome.frustumCulled=false;dome.visible=false;
+  this.skyPhoto=dome;this.scene.add(dome);
+  if(!this.photoEnvRT){
+   const pmrem=new THREE.PMREMGenerator(this.renderer);
+   try{this.photoEnvRT=pmrem.fromEquirectangular(HQP.sky)}catch(error){console.warn('sky env',error&&error.message);this.photoEnvRT=null}
+   pmrem.dispose();
+  }
+  if(this.environmentTarget)this.updateEnvironment(1);
+ }
+ // Swap the flat palette surfaces the player stands on for photographed PBR.
+ // Road, sidewalk and embankment materials keep their authored instancing and
+ // collision; only the map/normal/roughness channels change. The terrain gets
+ // its own clones so its metres-wide tiling and photo grain stay sharp while
+ // asphalt slabs keep a 3.5 m tile.
+ refreshGround(){
+  const root=this.environmentRoot,ground=HQP.ground;
+  if(!root||!ground||!Object.keys(ground).length)return;
+  // The authored floor/plaza 'tiles' scan is a bathroom-tile atlas that reads
+  // as an outdoor checkerboard the moment the player looks through a courtyard
+  // doorway. Retire it in favour of the same photographed CC0 pavement used by
+  // the street slabs, so every room floor and open plaza reads as weathered
+  // paving; the per-instance UV tiling hook already in raid-environment keeps
+  // the pavers at a believable size on each individual slab.
+  const surfaces={asphalt:'asphalt',concrete:'concrete',gravel:'gravelFloor',tiles:'asphalt'};
+  // Roof slabs are read edge-on through courtyard doorways at eye level; the
+  // slate-metal skin there was the near-black band the director flagged. Swap
+  // only the roof groups (identifiable by the palette roof tint they keep in
+  // userData after the photo-look pass) to the shipped photographed pavement
+  // set, so the roof edge reads as a pale weathered concrete fascia instead of
+  // an unlit stripe. Rooftops seen from the hill keep their slab silhouette.
+  const roofTints=new Set([0x44565f,0x4c6662,0x5c5f6a]);
+  for(const material of root.userData.materials?.values()||[]){
+   if(material.userData.raidSurface!=='metal'||!roofTints.has(material.userData.raidAuthoredColor)||material.userData.raidRoofSkin)continue;
+   if(!ground.concrete)break;
+   material.userData.raidRoofSkin=true;
+   material.map=ground.concrete.map;
+   material.normalMap=ground.concrete.normalMap;
+   material.roughnessMap=ground.concrete.roughnessMap;
+   material.roughness=1;material.metalness=0;
+   material.normalScale.set(1,1);
+   material.color.setHex(0xffffff);
+   if(material.userData.raidDry){material.userData.raidDry.roughness=1;material.userData.raidDry.normalScale=1}
+   material.needsUpdate=true;
+  }
+  for(const material of root.userData.materials?.values()||[]){
+   const key=surfaces[material.userData.raidSurface];
+   if(!key||!ground[key]||material.userData.raidStructure)continue;
+   if(material.userData.raidGroundSkin===key)continue;
+   material.userData.raidGroundSkin=key;
+   material.map=ground[key].map;
+   material.normalMap=ground[key].normalMap;
+   material.roughnessMap=ground[key].roughnessMap;
+   material.roughness=1;
+   material.normalScale=new THREE.Vector2(1,1);
+   if(material.userData.raidDry){material.userData.raidDry.roughness=1;material.userData.raidDry.normalScale=1}
+   material.needsUpdate=true;
+  }
+  const mat=this.terrainMaterial,soil=ground.dirt||ground.gravel;
+  if(mat&&soil&&mat.userData.raidGroundSkin!=='terrain-dirt'){
+   const reps=Math.max(120,Math.round((this.world?.size||1440)/2.4));
+   const map=soil.map.clone(),normal=soil.normalMap.clone(),rough=soil.roughnessMap.clone();
+   for(const t of [map,normal,rough]){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(reps,reps);t.anisotropy=16;t.needsUpdate=true}
+   mat.userData.raidGroundSkin='terrain-dirt';
+   mat.map=map;mat.normalMap=normal;mat.roughnessMap=rough;mat.roughness=1;mat.metalness=0;
+   mat.normalScale.set(1.35,1.35);
+   if(mat.userData.raidDry){mat.userData.raidDry.roughness=1;mat.userData.raidDry.normalScale=1.35}
+   // The cut-and-fill bank is the largest bare polygon in the opening view, and
+   // a plain brown dirt tile flattens it to one orange wedge. Blend in the
+   // photographed Brown Mud Leaves scan with leaf-litter and moss on any
+   // non-level ground, leaving flat pavement and the courtyard walk untouched.
+   const bankMap=HQP.decal?.moss?.map;
+   if(bankMap&&!mat.userData.raidBankLeaf){
+    mat.userData.raidBankLeaf=true;
+    const leafMap=bankMap.clone();
+    leafMap.wrapS=leafMap.wrapT=THREE.RepeatWrapping;
+    leafMap.anisotropy=8;leafMap.needsUpdate=true;
+    mat.onBeforeCompile=shader=>{
+     shader.uniforms.uBankLeaf={value:leafMap};
+     shader.vertexShader='varying float vBankMix;\n'+shader.vertexShader.replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nvBankMix=clamp((1.0-objectNormal.y)*24.0,0.0,1.0);');
+     shader.fragmentShader='uniform sampler2D uBankLeaf;\nvarying float vBankMix;\n'+shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nvec3 bankLeafCol=texture2D(uBankLeaf,vMapUv*.28).rgb*vec3(0.55,1.4,0.5)*1.25;\ndiffuseColor.rgb=mix(diffuseColor.rgb,bankLeafCol,clamp(vBankMix*.9,0.0,1.0));');
+    };
+    mat.customProgramCacheKey=()=>'raid-terrain-bank';
+   }
+   mat.needsUpdate=true;
+  }
+ }
+ // Photographed pavement plates that break the blank apron in front of the
+ // spawn point. The plates are cut from real CC0 road, pavement, mud, moss and
+ // gravel scans, seated just above the drawn slabs, and anchored in metres from
+ // the first deployment point so the same worn courtyard follows every respawn.
+ // The near plates are deliberately large: the sun-bleached asphalt underfoot is
+ // the first thing the player sees, so it carries the cracks, oil-dark damage
+ // and tyre mud at full scale, while the plates up the lane dress the concrete
+ // walk toward the sector. Presentation only: no collision, traversal or rule
+ // data is touched.
+ refreshCourtyardGround(){
+  const root=this.environmentRoot,decal=HQP.decal,spawn=this.world?.spawns?.[0];
+  if(!root||!decal||!decal.damage||!decal.crack||!decal.tracks||!decal.moss||!decal.rubble||!decal.wear||!spawn||root.userData.raidCourtyardGround)return;
+  root.userData.raidCourtyardGround=true;
+  // [kind, dx, dz, w, d, spin, tint]; positive dx sits toward the pavement on
+  // the player's left, positive dz runs down the lane toward the sector.
+  const plates=[
+   // foreground asphalt apron (dz 6.4-7.7) the player stands on at spawn:
+   // greyscale cracks at full scale plus a dark oil-dark damaged patch and mud
+   ['crack',.35,6.7,3.8,1.7,.07,0xf4f1e9],
+   ['crack',1.3,7.35,2.0,1.2,-.62,0xe9e2d2],
+   ['crack',2.5,6.9,2.0,1.1,.55,0xd9d4c6],
+   ['crack',2.6,6.45,1.7,1.0,.3,0xdedad0],
+   ['damage',-1.15,6.6,1.6,1.0,-.2,0x50524d],
+   ['damage',2.75,6.95,1.3,.9,.4,0x3d3e39],
+   ['tracks',.6,6.45,2.4,.9,.1,0x8a7a64],
+   ['rubble',1.75,6.6,1.1,.8,.3,0xd8ccb8],
+   // concrete walk toward the sector: worn pale pitting, tyre mud and grime
+   ['wear',-.3,9.6,3.4,2.0,.25,0xd2c8b6],
+   ['wear',-2.2,8.4,2.2,1.3,-.4,0xe0d8c6],
+   ['wear',.7,11.6,2.0,1.2,.6,0xced4c0],
+   ['tracks',-2.0,10.3,3.0,1.2,.05,0xd6c39f],
+   ['tracks',-.9,9.3,3.2,1.0,.25,0xf7f1e8],
+   ['tracks',-2.3,9.2,2.0,.9,.9,0xfaf4e6],
+   ['tracks',.3,8.6,3.2,1.2,-.35,0xe8dfcd],
+   ['tracks',-1.0,12.0,2.6,1.0,.15,0xcbb894],
+   ['damage',-1.6,10.6,1.4,.9,.5,0x6d6a63],
+   ['damage',-2.4,11.4,1.6,1.0,1.2,0x9d968a],
+   ['moss',-2.6,8.9,1.3,.9,-.5,0x9aa87c],
+   ['rubble',-2.8,9.8,1.4,1.0,.8,0xcabda4],
+   // left road edge and barricade line
+   ['crack',3.4,10.2,2.4,1.5,-.7,0xece5d5],
+   ['crack',2.0,12.6,2.2,1.4,.4,0xddd5c2],
+   ['damage',1.9,9.2,1.5,1.0,-.4,0x7d786e],
+   ['moss',-4.6,14.4,1.5,1.0,.4,0x87956c],
+   ['rubble',3.9,13.4,1.5,1.0,-.6,0xc0b29b],
+   ['wear',-3.0,13.4,1.7,1.1,.3,0xd9d3c4]
+  ];
+  // The paving retires the checkerboard pattern, but bare square slabs still
+  // read as newly poured ground through a doorway. Dress the nearest ground-level
+  // room and plaza floors with the same photographed wear, cracks, oil-dark
+  // damage and moss as the spawn apron; the plates follow each slab's footprint
+  // instead of hanging in mid-air from the deployment point.
+  const decalRnd=n=>{const s=Math.sin(n*127.1+37.73)*43758.5453;return s-Math.floor(s)};
+  const spawnX=spawn[0],spawnZ=spawn[1];
+  let floorSeed=0;
+  for(const prop of this.world.props||[]){
+   if(prop.kind!=='floor'&&prop.kind!=='plaza')continue;
+   if((prop.w||0)<4||(prop.d||0)<4||(prop.y??0)>1)continue;
+   const dx=prop.x-spawnX,dz=prop.z-spawnZ,dist=Math.hypot(dx,dz);
+   if(dist<6||dist>72)continue;
+   const seed=++floorSeed,r=n=>decalRnd(seed*11.7+n);
+   // Keep the plates small and close to the paving tone: a 3 m slab-sized
+   // light patch reads as a giant beige smear underfoot. These read as worn
+   // paving edges, oil spot and moss rather than floating decals.
+   const dress=[['wear',1.7,.68,0xa9a49b],['crack',1.4,.58,0xbcb6a8],['damage',1.05,.62,0x5b5850],['moss',1.05,.58,0x84906a]];
+   for(let i=0;i<dress.length;i++){
+    const ox=(r(i*3.1+seed)-.5)*(prop.w*.3),oz=(r(i*4.7+1.3)-.5)*(prop.d*.3);
+    const w=Math.min(dress[i][1],prop.w*.22)*(.85+r(i*2.3)*.3);
+    const d=Math.min(dress[i][2],prop.d*.17)*(.85+r(i*5.9)*.3);
+    plates.push([dress[i][0],dx+ox,dz+oz,Math.max(.6,w),Math.max(.5,d),(r(i*7.1)-.5)*2.2,dress[i][3]]);
+   }
+  }
+  const puddles=[['puddle',2.4,8.2,1.1,.8,.1],['puddle',-2.9,11.2,1.2,.85,1.3]];
+  const base={
+   transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,
+   polygonOffsetUnits:-1,roughness:1,metalness:0,envMapIntensity:.35,color:0xffffff
+  };
+  const opacity={damage:.8,crack:.92,tracks:.62,moss:.8,rubble:.8,wear:.85};
+  const materials={};
+  for(const kind of ['crack','wear','damage','tracks','moss','rubble']){
+   materials[kind]=new THREE.MeshStandardMaterial(Object.assign({},base,{
+    map:decal[kind].map,alphaMap:decal[kind].mask,opacity:opacity[kind]
+   }));
+   materials[kind].userData.raidDecal=kind;
+  }
+  const puddle=new THREE.MeshStandardMaterial(Object.assign({},base,{
+   alphaMap:decal.damage.mask,opacity:.55,color:0x2f3537,roughness:.22,
+   metalness:.35,envMapIntensity:1.3
+  }));
+  puddle.userData.raidDecal='puddle';
+  // Explicit blending order keeps the pale worn slabs underneath the dark
+  // cracks, oil-dark damage, tyre mud and litter that must stay readable.
+  const order={wear:1,crack:2,damage:3,moss:4,tracks:5,rubble:6,puddle:7};
+  const geo=new THREE.PlaneGeometry(1,1),dummy=new THREE.Object3D();
+  const ground=(x,z)=>Math.max(.046,terrainHeightAt(this.world,x,z)+.04);
+  const [sx,sz]=spawn;
+  const build=(kind,list,mesh)=>{
+   list.forEach(([,dx,dz,w,d,ry,color],index)=>{
+    const x=sx+dx,z=sz+dz;
+    dummy.position.set(x,ground(x,z),z);
+    dummy.rotation.set(-Math.PI/2,0,ry||0);
+    dummy.scale.set(w,d,1);
+    dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+    mesh.setColorAt(index,new THREE.Color(color||0xffffff));
+   });
+   mesh.instanceMatrix.needsUpdate=true;
+   if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+   mesh.receiveShadow=true;mesh.frustumCulled=false;
+   // These plates are painted onto the slab, not furniture: keep them out of
+   // gameplay/ground-probe raycasts so hits still resolve to the real surface.
+   mesh.raycast=()=>{};
+   mesh.renderOrder=order[kind]||0;
+   mesh.userData.raidGroundDecal=kind;
+   root.add(mesh);
+  };
+  for(const kind of ['crack','wear','damage','tracks','moss','rubble']){
+   const list=plates.filter(p=>p[0]===kind);
+   if(!list.length)continue;
+   build(kind,list,new THREE.InstancedMesh(geo,materials[kind],list.length));
+  }
+  build('puddle',puddles,new THREE.InstancedMesh(geo,puddle,puddles.length));
+ }
+ // Replace the near-spawn procedural undergrowth (paper tufts, cone canopies,
+ // spherical bushes) with real scanned Poly Haven instancing. The fallback
+ // groups are tagged by buildEnvironment and hidden whole once the GLBs decode,
+ // so an assetless/Low-quality boot keeps its swaying planes instead of going
+ // bare. Base heights are baked in the loader; every instance derives its
+ // position from frozen authored props and sampled terrain only.
+ // The terrain mesh and the shared terrainHeightAt sampler share corner
+ // samples but interpolate differently, so seating on the sampler alone
+ // leaves props hovering above bank crests. Read the drawn mesh's own
+ // triangle plane so stamped visuals meet the grass the player sees.
+ terrainMeshY(x,z){
+  const terrain=this.environmentRoot?.children.find(n=>n.isMesh&&n.material===this.terrainMaterial&&n.geometry?.attributes?.position?.count>1000);
+  if(!terrain)return null;
+  const geo=terrain.geometry,pos=geo.attributes.position.array,size=this.world?.size||1440,segments=160;
+  const step=size/segments,half=size/2,vertices=segments+1;
+  const fx=(x+half)/step,fz=(z+half)/step,i=Math.floor(fx),j=Math.floor(fz);
+  if(i<0||j<0||i>=segments||j>=segments)return null;
+  const tx=fx-i,tz=fz-j,at=(ii,jj)=>(jj*vertices+ii)*3+1;
+  const ha=pos[at(i,j)],hc=pos[at(i+1,j)],hb=pos[at(i,j+1)],he=pos[at(i+1,j+1)];
+  if(tx+tz<=1)return ha*(1-tx-tz)+hc*tx+hb*tz;
+  return hc*(1-tz)+hb*(1-tx)+he*(tx+tz-1);
+ }
+ refreshFoliage(){
+  const root=this.environmentRoot,assets=HQP.nature||{},sites=root?.userData?.raidNatureSites;
+  if(!root||!this.scene||!sites?.length)return;
+  const keys=Object.keys(assets).filter(k=>assets[k]?.parts?.length);
+  if(!keys.length)return;
+  root.traverse(node=>{if(node.isInstancedMesh&&node.userData.raidStructure==='natureProcFallback')node.visible=false});
+  if(this.natureRoot&&this.natureRoot.userData.raidEnvironment===root)return;
+  if(this.natureRoot&&this.natureRoot.parent){this.natureRoot.parent.remove(this.natureRoot)}
+  this.natureRoot=null;
+  const groups=new Map();
+  for(const site of sites){
+   const key=site.kind==='bush'?'shrub':site.kind==='moss'?'grass':site.kind;
+   if(!assets[key])continue;
+   let list=groups.get(key);if(!list)groups.set(key,list=[]);list.push(site);
+  }
+  if(!groups.size)return;
+  const meshY=this.terrainMeshY.bind(this);
+  const group=new THREE.Group();group.name='raidNature';group.userData.raidEnvironment=root;
+  const dummy=new THREE.Object3D(),windSet=new Set();
+  const spin=(x,z)=>((x*2.31+z*.87)%6.283+6.283)%6.283;
+  // The insertion eye and the berm are within the first frame of every deploy,
+  // so near-camera plants must never read taller than the held rifle. Resolve
+  // each site's shortest authoring distance once, then cap its final world
+  // height per stride: ankle-high within six metres, waist-high at the berm,
+  // full height only on the horizon. Ferns close enough to touch the muzzle
+  // are dropped outright rather than scaled to nothing.
+  const spawns=this.world?.spawns||[];
+  const spawnDistance=(x,z)=>{
+   let near=Infinity;
+   for(const [px,pz] of spawns)near=Math.min(near,Math.hypot(x-px,z-pz));
+   return near;
+  };
+  for(const [kind,list0] of groups){
+   const asset=assets[kind];
+   const list=kind==='fern'?list0.filter(site=>spawnDistance(site.x,site.z)>=1.6):list0;
+   if(!list.length)continue;
+   // Scaned plants keep their real proportions; grass is grown only to knee
+   // height so the meadow reads at 20-40 m instead of becoming paper dust.
+   const grow=kind==='grass'?1.15:kind==='fern'?1.05:1;
+   for(const part of asset.parts){
+    const mat=part.mat;
+    if(!mat)continue;
+    // Dry-scan grass reads pale straw under noon sun; a deep olive-green tint
+    // (authored in sRGB; three r160 treats bare setRGB as linear) pulls the
+    // pale straw blades down into dark green tips that sit against the dirt
+    // instead of glowing like dry hay (director note 2).
+    if(kind==='grass'&&!mat.userData.raidBankTint){mat.color.setRGB(.24,.43,.22,THREE.SRGBColorSpace);mat.userData.raidBankTint=true;mat.needsUpdate=true}
+    // The scanned boulder albedo is a saturated red-brown that reads as raw
+    // meat next to pale pavement. Keep the photographed surface detail but
+    // flatten the hue toward luminance with a cool lift, so map rubble reads as
+    // weathered stone instead of a butcher's offcut. Presentation-only.
+    if(kind==='rock'&&!mat.userData.raidRockCool){
+     const base=mat.onBeforeCompile;
+     mat.onBeforeCompile=shader=>{
+      if(base)base(shader);
+      shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n float rockLum=dot(diffuseColor.rgb,vec3(0.2126,0.7152,0.0722));\n diffuseColor.rgb=mix(vec3(rockLum),diffuseColor.rgb,0.035)*vec3(0.96,0.99,1.02);');
+     };
+     mat.customProgramCacheKey=()=>'raidRockCool';
+     mat.userData.raidRockCool=true;mat.needsUpdate=true;
+    }
+    // Director note 2: the scanned sapling bark read pale and flat under noon
+    // sun, like smooth planks either side of the player. Warm the albedo toward
+    // weathered grey-brown, keep the photographed grain, and damp the sky
+    // reflection that washed the trunks out. The leaf atlas slips its
+    // alpha cutout a little so edge texels join the crown instead of punching
+    // sky holes through it. Presentation-only: no gameplay state changes.
+    if(kind==='tree'&&!mat.userData.raidTreeTint){
+     const ident=(mat.name||'').toLowerCase();
+     if(ident.includes('leaves')){mat.alphaTest=.3;mat.roughness=1;mat.envMapIntensity=.55}
+     else if(ident.includes('branch')||ident.includes('trunk')||ident.includes('bark')){
+      mat.color.setRGB(.52,.43,.35,THREE.SRGBColorSpace);
+      mat.roughness=1;mat.envMapIntensity=.35;
+      if(mat.normalMap&&mat.normalScale)mat.normalScale.set(1.6,1.6);
+     }
+     mat.userData.raidTreeTint=true;mat.needsUpdate=true;
+    }
+    if(!windSet.has(mat)&&kind!=='rock'&&kind!=='stump'){
+     windSet.add(mat);mat.userData.raidFoliage=true;mat.userData.raidWind=true;
+     mat.onBeforeCompile=shader=>{
+      // The nature GLBs already carry real albedo/normal/roughness maps; this
+      // only adds the shared deterministic sway clock and per-instance phase.
+      shader.uniforms.uWindTime={value:0};
+      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nuniform float uWindTime;').replace('#include <begin_vertex>','#include <begin_vertex>'+WIND_VERTEX);
+      mat.userData.raidShader=shader;
+     };
+     mat.customProgramCacheKey=()=>'raidNature-'+kind;
+    }
+    const mesh=new THREE.InstancedMesh(part.geo,mat,list.length);
+    mesh.castShadow=kind==='tree'||kind==='stump';
+    mesh.receiveShadow=true;
+    mesh.userData.raidNature=kind;
+    for(let i=0;i<list.length;i++){
+     const site=list[i],s=(site.s||1),near=spawnDistance(site.x,site.z);
+     let sy=s*grow;
+     let sx=kind==='shrub'?s*.62:kind==='fern'?s*.74*grow:s*grow;
+     if(kind==='grass'||kind==='fern'){
+      const maxH=kind==='grass'
+       ?(near<6?.34:near<14?.58:.9)
+       :(near<10?.44:near<22?.68:1);
+      const cap=maxH/asset.height;
+      if(sy>cap){const shrink=cap/sy;sy=cap;sx*=shrink}
+     }
+     const sz=sx,ground=meshY(site.x,site.z);
+     dummy.position.set(site.x,ground==null?site.y:ground,site.z);
+     dummy.rotation.set(0,(site.ry||0)+spin(site.x,site.z),0);
+     dummy.scale.set(sx,sy,sz);
+     dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate=true;
+    group.add(mesh);
+   }
+   // Director note 2: the sapling scan's crown is sparse at gameplay scale and
+   // leaves the sky straight through it. Lay a second, yaw-swung shell of the
+   // scanned leaf cards over the trees that frame the insertion area, so the
+   // canopies read as overlapping foliage instead of a bare twig net. The same
+   // material keeps it a wind-lit instanced draw and adds no new textures;
+   // presentation-only, no collision or gameplay data.
+   if(kind==='tree'){
+    const anchor=this.snapshot?.self||{x:spawns[0]?.[0]??0,z:spawns[0]?.[1]??0};
+    const crowns=list.filter(site=>Math.hypot(site.x-anchor.x,site.z-anchor.z)<=30);
+    if(crowns.length)for(const part of asset.parts){
+     const ident=((part.mat&&part.mat.name)||'').toLowerCase();
+     if(!ident.includes('leaves'))continue;
+     // Two extra shells, yaw-swung against each other and the trunk layer. A
+     // single thin card shell barely closes the gaps, but three crossed layers
+     // read as one dense crown at arm's length.
+     for(const alt of [{rot:1.94,scale:.96,dy:.14},{rot:3.88,scale:1.02,dy:-.16}]){
+      const shell=new THREE.InstancedMesh(part.geo,part.mat,crowns.length);
+      shell.castShadow=false;shell.receiveShadow=true;shell.frustumCulled=false;
+      shell.userData.raidNature='tree';shell.userData.raidCrownShell=true;
+      for(let i=0;i<crowns.length;i++){
+       const site=crowns[i],s=site.s||1,ground=meshY(site.x,site.z);
+       const base=ground==null?site.y:ground,a=(site.ry||0)+spin(site.x,site.z);
+       dummy.position.set(site.x+Math.cos(a)*.22*s,base+s*alt.dy,site.z-Math.sin(a)*.22*s);
+       dummy.rotation.set(0,a+alt.rot,0);
+       dummy.scale.set(s*alt.scale,s*alt.scale,s*alt.scale);
+       dummy.updateMatrix();shell.setMatrixAt(i,dummy.matrix);
+      }
+      shell.instanceMatrix.needsUpdate=true;
+      group.add(shell);
+     }
+    }
+   }
+  }
+  root.add(group);this.natureRoot=group;
+  for(const mat of windSet)if(!this.windMaterials.includes(mat))this.windMaterials.push(mat);
+ }
+ // The insertion apron's drums and crate are built with stack-only fallbacks
+ // before the scanned CC0 props decode. Replace them with instanced
+ // photogrammetry meshes once the assets land so the first frame's street props
+ // are real objects instead of lathe/box stand-ins. Presentation-only: decor
+ // colliders still come from the shared spawn dressing list.
+ // Street barrels and crates are built from instanced lathes and boxes before the
+ // CC0 photogrammetry decodes. Once it lands, hide those groups and drop in a
+ // single instanced scanned mesh per kind, preserving every authored placement.
+ // Collision stays with the shared world props, so visuals and blockage agree.
+ refreshStreetProps(){
+  const root=this.environmentRoot,sites=root?.userData?.raidStreetProps;
+  if(!sites?.length||!HQP.ready||root.userData.raidStreetPropsScanned)return;
+  const barrel=HQP.models.barrel,crate=HQP.models.crate;
+  if(!barrel||!crate)return;
+  root.traverse(node=>{if(node.isInstancedMesh&&(node.userData.raidStructure==='streetBarrel'||node.userData.raidStructure==='streetCrate'))node.visible=false});
+  const dummy=new THREE.Object3D(),spin=(x,z)=>((x*.37+z*1.13)%6.283+6.283)%6.283;
+  const barrels=sites.filter(item=>item.kind==='barrel'),crates=sites.filter(item=>item.kind==='crate');
+  if(barrels.length){
+   const mesh=new THREE.InstancedMesh(barrel.geo,barrel.mat,barrels.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   barrels.forEach((item,index)=>{
+    const scale=(item.scale||1)*1.3/Math.max(.001,barrel.size.y);
+    const ground=this.terrainMeshY(item.x,item.z);
+    dummy.position.set(item.x,ground==null?(item.y||0):ground,item.z);dummy.rotation.set(0,spin(item.x,item.z),0);dummy.scale.setScalar(scale);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+  }
+  if(crates.length){
+   const mesh=new THREE.InstancedMesh(crate.geo,crate.mat,crates.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   crates.forEach((item,index)=>{
+    // The military crate scan is long and low, so fit its longest horizontal
+    // side to the authored footprint instead of stretching it to the old box
+    // height. A uniform scale keeps the planks, latches and weathering honest.
+    const footprint=Math.max(item.w||1.15,item.d||1.15);
+    const s=footprint/Math.max(Math.max(crate.size.x,crate.size.z),.001);
+    const ground=this.terrainMeshY(item.x,item.z);
+    dummy.position.set(item.x,ground==null?(item.y||0):ground,item.z);dummy.rotation.set(0,spin(item.x,item.z)+.3,0);dummy.scale.setScalar(s);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;root.add(mesh);
+  }
+  root.userData.raidStreetPropsScanned=true;
+ }
+ // Replaces the procedural dark-glazing panes on nearby facades with the scanned
+ // CC0 timber sash window once it decodes. The opening record carries only the
+ // frozen prop and façade normal, so placement never touches gameplay state.
+ refreshWindows(){
+  const root=this.environmentRoot,sites=root?.userData?.raidWindowOpenings,asset=HQP.windows?.urban;
+  if(!root||!sites?.length||!asset?.parts?.length||root.userData.raidWindowsScanned)return;
+  const self=this.snapshot?.self;if(!self)return;
+  const reach=90,reach2=reach*reach;
+  let near=sites.filter(s=>{const dx=s.x-self.x,dz=s.z-self.z;return dx*dx+dz*dz<reach2});
+  // The corrugated loading-bay walls are industrial shutter bays, not glazed
+  // shopfronts. A scanned sash seated on those ground-floor openings hangs over
+  // the graffiti roller door as a dark mid-air frame at crosshair height; keep
+  // only the steel roller bays there and leave the sash pass to the shop row.
+  const shedBlocks=root.userData.raidFacadeBlocks||[];
+  near=near.filter(s=>!closedShedBay(shedBlocks,s));
+  if(!near.length)return;
+  root.userData.raidWindowsScanned=true;
+  // Silence the procedural reveal/stall/plant boxes only at openings this pass
+  // actually glazes. Shed bays are filtered out above, so their pane would keep a
+  // flat pure-black look once the trim is hidden; leave their sill, lintel and
+  // jambs seated so the industrial windows read as real framed openings instead.
+  const hideTags=new Set(['framing','windowShutter','windowSill','flowerBox']);
+  root.traverse(node=>{
+   if(!node.isInstancedMesh||!node.userData.raidStructure||!hideTags.has(node.userData.raidStructure))return;
+   const arr=node.instanceMatrix.array;let changed=false;
+   for(let i=0;i<node.count;i++){
+    const x=arr[i*16+12],y=arr[i*16+13],z=arr[i*16+14];
+    for(const s of near){
+     const dx=x-s.x,dz=z-s.z;
+     if(dx*dx+dz*dz>1.8)continue;
+     if(Math.abs(y-(s.y+s.h/2))>s.h*.95+.35)continue;
+     arr.fill(0,i*16,i*16+16);changed=true;break;
+    }
+   }
+   if(changed)node.instanceMatrix.needsUpdate=true;
+  });
+  // The old pane is only an interior backing now. Dimming the pane instances at
+  // upgraded openings keeps its bright painted rim from peeking around the real
+  // frame and reads as unlit rooms behind the scanned glass.
+  const white=new THREE.Color(0xffffff),dim=new THREE.Color(0x4a555b),paneMeshes=[];
+  root.traverse(node=>{if(node.isInstancedMesh&&node.material?.userData?.raidSurface==='window')paneMeshes.push(node)});
+  for(const node of paneMeshes){
+   const arr=node.instanceMatrix.array;
+   for(let i=0;i<node.count;i++){
+    node.setColorAt(i,white);
+    const x=arr[i*16+12],z=arr[i*16+14];
+    for(const s of near){
+     if((x-s.x)*(x-s.x)+(z-s.z)*(z-s.z)>1.8)continue;
+     node.setColorAt(i,dim);break;
+    }
+   }
+   if(node.instanceColor)node.instanceColor.needsUpdate=true;
+  }
+  // The scanned module is deeper than the flat pane: a small outward seat puts
+  // its recessed glass just proud of the old pane so the dark interior still
+  // backs the glazing instead of the wall showing through.
+  const dummy=new THREE.Object3D(),seat=.14;
+  // One placement matrix drives both the timber frame and its glazing; keeping
+  // the glass deliberately recessed behind the frame is what confines the warm
+  // light to the opening. No sprite or ground glint is contributed here.
+  const place=(mesh,s,index)=>{
+    // A small overlap past the frozen opening hides the exposed edge of the old
+    // pane while still reading as a surface-mounted timber reveal.
+    const frameW=s.wide*1.12,frameH=s.h*1.03,sx=frameW/asset.width,sy=frameH/asset.height,sz=sx;
+    // Openings set back in a courtyard miss the block-edge test; their parent
+    // wall still faces the insertion side, so seat that front toward the player
+    // instead of leaving a flat pane square.
+    let outward=s.outward;
+    if(!outward)outward=((s.onZ?self.z-s.z:self.x-s.x)>=0?1:-1);
+    const yaw=s.onZ?(outward>0?0:Math.PI):(outward>0?Math.PI/2:-Math.PI/2);
+    dummy.position.set(s.x+(s.onZ?0:outward*seat),s.y,s.z+(s.onZ?outward*seat:0));
+    dummy.rotation.set(0,yaw,0);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();
+    mesh.setMatrixAt(index,dummy.matrix);
+  };
+  const addScanned=(part,sites,material=part.mat)=>{
+    if(!sites.length)return null;
+    const mesh=new THREE.InstancedMesh(part.geo,material,sites.length);
+    mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+    sites.forEach((s,index)=>place(mesh,s,index));
+    mesh.instanceMatrix.needsUpdate=true;root.add(mesh);return mesh;
+  };
+  // The scanned module carries its glass as a separately named primitive. The
+  // timber frame is shared by every opening; only the glass varies, because a
+  // lit window needs its authored lamp colour as flat emissive glazing.
+  const glassPart=asset.parts.find(part=>/glass/i.test(part.mat?.name||''));
+  // The lit-glass clones join the environment's published window-material list
+  // so the night curve drives them alongside the procedural panes.
+  const windowMaterials=root.userData.raidWindowMaterials||this.windowMaterials||[];
+  for(const part of asset.parts)if(part!==glassPart)addScanned(part,near);
+  const litByColor=new Map();
+  if(glassPart){
+    addScanned(glassPart,near.filter(s=>!s.lit));
+    for(const s of near){
+      if(!s.lit)continue;
+      const color=(s.color||0xffd79a)&0xffffff;
+      if(!litByColor.has(color))litByColor.set(color,[]);
+      litByColor.get(color).push(s);
+    }
+    for(const [color,sites] of litByColor){
+      const material=glassPart.mat.clone();
+      material.emissive=new THREE.Color(color);
+      material.emissiveIntensity=.15;
+      if(glassPart.mat.map)material.emissiveMap=glassPart.mat.map;
+      material.needsUpdate=true;
+      material.userData.raidOwned=true;
+      material.userData.raidWindowGlass=true;
+      material.userData.raidWindowScan=true;
+      material.userData.raidWindowGlowColor=color;
+      windowMaterials.push(material);
+      addScanned(glassPart,sites,material);
+    }
+  }
+  root.userData.raidRealWindows=near.length;
+  root.userData.raidRealWindowsLit=[...litByColor.values()].reduce((sum,sites)=>sum+sites.length,0);
+ }
+ // Rebuilds every street façade from the scanned modular architecture kit. The
+ // old block faces stay as the solid visual core but the surfaces the player
+ // actually sees are dressed with a real plaster module wall, a projecting base
+ // plinth, a roofline cornice and, in every authored street doorway, a scanned
+ // timber door leaf. Freezing block tuples, collision, doors and loot records
+ // untouched; this method only writes presentation instances.
+ refreshFacades(){
+  const root=this.environmentRoot,blocks=root?.userData?.raidFacadeBlocks,kit=HQP.buildings?.facade?.modules;
+  if(!root||!blocks?.length||!kit||root.userData.raidFacadeSkin)return;
+  const wall=kit.wall_standard_standard_01,door=kit.door_centered_large_01,base=kit.base_standard_01,cornice=kit.cornice_standard_standard_01,pier=kit.wall_pier_standard_01,crown=kit.crown_standard_standard_01;
+  if(!wall?.parts?.length||!door?.parts?.length||!base?.parts?.length||!cornice?.parts?.length||!pier?.parts?.length)return;
+  const self=this.snapshot?.self;if(!self)return;
+  root.userData.raidFacadeSkin=true;
+  // Hide the textured fallback boxes once the photographed modular surface is
+  // authoritative. They remain in assetless/low-quality builds.
+  root.traverse(n=>{if(n.isInstancedMesh&&n.userData.raidFacadeFallback)n.visible=false});
+  // The legacy plank door leaf, its hardware and the flat extruded plinth and
+  // cornice are deleted in raid-environment; there is nothing left here to hide.
+  const dummy=new THREE.Object3D(),planeGeo=new THREE.PlaneGeometry(1,1),reach=90,reach2=reach*reach;
+  const wallMat=wall.parts[0].mat,baseMat=base.parts[0].mat,pierMat=pier.parts[0].mat;
+  // Two flanking courtyard volumes must not read as the same plaster box. Keep
+  // the photographed kit for most blocks, but give timber-planked blocks the
+  // real photographed red-brick surface and galvanised/shed blocks a pale
+  // weathered concrete surface. These are the same CC0 photo-PBR maps the main
+  // game already ships (assets/tex/brick_*.jpg, concrete_*.jpg); no procedural
+  // painting and no extra downloads. Instance tints stay per-block so each
+  // building keeps its authored colour range.
+  const surfaceMat=(tex,ns,rough,tint)=>{
+   const m=wall.parts[0].mat.clone();
+   m.map=getTex(tex);m.normalMap=normalTex(tex,ns);
+   m.normalScale=new THREE.Vector2(1,1);
+   m.roughness=rough;m.metalness=0;m.roughnessMap=null;m.metalnessMap=null;m.aoMap=null;
+   m.color=new THREE.Color(tint);m.envMapIntensity=.75;m.needsUpdate=true;
+   return m;
+  };
+  // The brown block shares one photographed brick scan across its bays, so the
+  // bond lines line up like wallpaper on a three-storey wall. Shift the map by
+  // an amount derived from each module's world position: mortar joints stagger
+  // bay-by-bay with no extra texture, and a damp wash rising from the pavement
+  // gives the wall a lived-in base instead of a flat red sheet.
+  const brickWallMat=(()=>{
+   const m=surfaceMat('brick',2.4,.9,0xffffff);
+   if(m.map){m.map.wrapS=m.map.wrapT=THREE.RepeatWrapping}
+   if(m.normalMap){m.normalMap.wrapS=m.normalMap.wrapT=THREE.RepeatWrapping}
+   m.onBeforeCompile=shader=>{
+    shader.vertexShader='varying float vBrickY;\n'+shader.vertexShader.replace('#include <uv_vertex>',`#include <uv_vertex>
+#ifdef USE_INSTANCING
+ float brickOffX=instanceMatrix[3][0]*.37+instanceMatrix[3][2]*.11;
+ float brickOffZ=instanceMatrix[3][2]*.29-instanceMatrix[3][0]*.07;
+ #ifdef USE_MAP
+  vMapUv+=vec2(brickOffX,brickOffZ);
+ #endif
+ #ifdef USE_NORMALMAP
+  vNormalMapUv+=vec2(brickOffX,brickOffZ);
+ #endif
+ vBrickY=(instanceMatrix*vec4(position,1.0)).y;
+#else
+ vBrickY=position.y;
+#endif`);
+    shader.fragmentShader='varying float vBrickY;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+ float brickFoot=1.0-smoothstep(0.15,3.1,vBrickY);
+ float brickStreak=0.5+0.5*sin(vMapUv.x*9.0+vMapUv.y*2.2);
+ float brickDamp=clamp(brickFoot*(0.22+0.34*brickStreak),0.0,0.5);
+ diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(0.70,0.64,0.56),brickDamp);
+`);
+   };
+   m.customProgramCacheKey=()=>'raidFacadeBrickStaggered';
+   m.needsUpdate=true;
+   return m;
+  })();
+  // The loading-bay warehouse is painted corrugated sheet, so the small stamped
+  // block pattern of the concrete_panels scan no longer fits: it read as bathroom
+  // tile at 3 m. This real Poly Haven CC0 plaster scan (relief included) is a
+  // clean, wetted sheet under a per-instance UV jitter; a procedural rib/shadow
+  // pass supplies the vertical corrugation while world-space mottle and rain
+  // streaks age it. Tints stay pale-grey so it still reads as the white warehouse
+  // beside the warm brick shop row.
+  const corrugatedWallMat=(()=>{
+   const m=wall.parts[0].mat.clone();
+   m.map=getTex('plaster');m.normalMap=normalTex('plaster',1.8);
+   m.normalScale=new THREE.Vector2(.45,.45);
+   m.roughness=.9;m.metalness=0;m.roughnessMap=null;m.metalnessMap=null;m.aoMap=null;
+   m.color=new THREE.Color(0xf1f3ec);m.envMapIntensity=.7;m.needsUpdate=true;
+   const map=m.map.clone();map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(1,1);map.needsUpdate=true;
+   const nrm=m.normalMap.clone();nrm.wrapS=nrm.wrapT=THREE.RepeatWrapping;nrm.repeat.set(1,1);nrm.needsUpdate=true;
+   m.map=map;m.normalMap=nrm;
+   m.onBeforeCompile=shader=>{
+    shader.vertexShader='varying vec3 vCorrWorld;\n'+shader.vertexShader.replace('#include <uv_vertex>',`#include <uv_vertex>
+ vCorrWorld=position;
+#ifdef USE_INSTANCING
+ vec3 corrScale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
+ vec3 corrPos=instanceMatrix[3].xyz;
+ float corrHash=fract(sin(dot(corrPos.xz,vec2(127.1,311.7)))*43758.5453);
+ float corrHash2=fract(sin(dot(corrPos.xy,vec2(269.5,183.3)))*24634.6345);
+ // Every bay samples a different part of the plaster scan: varying the tile
+ // period and phase per bay keeps the wet-dirt wash from lining up into a
+ // single grid across the 20 m wall.
+ vec2 corrRep=max(vec2(1.0),vec2(1.1+corrHash*.35,1.05+corrHash2*.3)*corrScale.xy);
+ vec2 corrOff=vec2(corrHash,corrHash2)*vec2(2.3,1.7);
+ #ifdef USE_MAP
+  vMapUv=vMapUv*corrRep+corrOff;
+ #endif
+ #ifdef USE_NORMALMAP
+  vNormalMapUv=vNormalMapUv*corrRep+corrOff;
+ #endif
+ vCorrWorld=(instanceMatrix*vec4(position,1.0)).xyz;
+#endif`);
+    shader.fragmentShader='varying vec3 vCorrWorld;\n'+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+ float shedLum=dot(diffuseColor.rgb,vec3(0.2126,0.7152,0.0722));
+ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(shedLum),0.8)*vec3(0.94,1.0,1.05);
+ // White painted sheet cladding: vertical rib shading and a dark seam every
+ // sheet keep the smooth plaster scan from reading as a blank flat slab, and
+ // tie the wall to the corrugated roller doors below.
+ float shedU=vCorrWorld.x+vCorrWorld.z;
+ float shedRib=0.5+0.5*sin(shedU*15.0+vCorrWorld.y*.35);
+ float shedSeam=1.0-smoothstep(0.0,0.055,abs(fract(shedU/1.7+0.5)-0.5));
+ diffuseColor.rgb*=(0.89+0.13*shedRib)*(1.0-shedSeam*0.3);
+ // Weather the pale sheet with broad non-tiled mottle plus narrow vertical
+ // dirt streaks. The frequencies are deliberately incommensurate so the wash
+ // never lines up bay-to-bay.
+ float shedMottle=0.5+0.5*sin(vCorrWorld.x*0.83+vCorrWorld.z*0.46+vCorrWorld.y*0.31)
+                  *sin(vCorrWorld.z*0.57-vCorrWorld.x*0.22+1.9);
+ float shedStreak=smoothstep(0.64,0.97,0.5+0.5*sin((vCorrWorld.x+vCorrWorld.z)*1.6+vCorrWorld.y*0.13));
+ float shedWeather=shedMottle*0.09+shedStreak*0.10;
+ diffuseColor.rgb*=1.0-shedWeather;
+ diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(0.84,0.86,0.80),shedStreak*0.22);
+ diffuseColor.rgb=clamp(diffuseColor.rgb,0.0,0.96);
+`);
+   };
+   m.customProgramCacheKey=()=>'raidFacadeCorrugatedTiled';
+   return m;
+  })();
+  // 3 m bay; stretching one copy across a 12 m face crushed its photographed
+  // relief into a flat brown slab at 2-3 m. Per-instance UV tiling (same hook
+  // the street props use) keeps the scan's aggregate and mortar grain visible
+  // at every bay width. The map clone keeps the shared scan repeat untouched.
+  const stoneWallMat=(()=>{
+   const m=surfaceMat('concrete',2.2,.94,0xffffff);
+   const map=m.map.clone();map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(1,1);map.needsUpdate=true;
+   const nrm=m.normalMap.clone();nrm.wrapS=nrm.wrapT=THREE.RepeatWrapping;nrm.repeat.set(1,1);nrm.needsUpdate=true;
+   m.map=map;m.normalMap=nrm;m.normalScale=new THREE.Vector2(1.7,1.7);
+   m.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\n')
+     .replace('#include <uv_vertex>',`#include <uv_vertex>
+#ifdef USE_INSTANCING
+ vec3 stoneScale=vec3(length(instanceMatrix[0].xyz),length(instanceMatrix[1].xyz),length(instanceMatrix[2].xyz));
+ vec2 stoneRep;
+ if(abs(normal.x)>.5)stoneRep=vec2(stoneScale.z,stoneScale.y);
+ else if(abs(normal.y)>.5)stoneRep=vec2(stoneScale.x,stoneScale.z);
+ else stoneRep=vec2(stoneScale.x,stoneScale.y);
+ stoneRep=max(vec2(1.0),stoneRep/3.0);
+ #ifdef USE_MAP
+  vMapUv*=stoneRep;
+ #endif
+ #ifdef USE_NORMALMAP
+  vNormalMapUv*=stoneRep;
+ #endif
+#endif`);
+   };
+   m.customProgramCacheKey=()=>'raidFacadeStoneTiled';
+   return m;
+  })();
+  const brickTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xece0d2),.82).multiplyScalar(.92)};
+  const shedTint=b=>{const c=new THREE.Color(b.color);return c.lerp(new THREE.Color(0xfbfdf8),.9)};
+  const nearCells=[],planeCells=[],baseCells=[],corniceCells=[],crownCells=[],capCells=[],pierCells=[],sillCells=[],doorHoodCells=[];
+  const tintFor=b=>{
+   const c=new THREE.Color(b.color);
+   if(b.kind==='metal'){
+    // Galvanised sheds read cold and weathered instead of sharing the warm
+    // brick-plaster tint of every timber/residential block.
+    c.lerp(new THREE.Color(0x93a6ad),.58).multiplyScalar(.88);
+    return c;
+   }
+   // The photographed plaster carries its own warm ochre colour. Mixing the
+   // block's palette tint toward white keeps buildings distinct without the
+   // over-bright normalisation that turned every façade neon orange.
+   c.lerp(new THREE.Color(0xffffff),.56);
+   return c;
+  };
+  const stoneFor=t=>t.clone().lerp(new THREE.Color(0x8d8578),.34);
+  const bayShade=v=>{const s=Math.sin(v*127.1+37.73)*43758.5453;return s-Math.floor(s)};
+  for(const b of blocks){
+   const dx=b.x-self.x,dz=b.z-self.z,near=dx*dx+dz*dz<reach2;
+   const tint=tintFor(b),stone=b.kind==='metal'?tint.clone().lerp(new THREE.Color(0xbfc6c4),.78):stoneFor(tint);
+   const wallTint=b.kind==='planks'?brickTint(b):b.kind==='metal'?shedTint(b):tint;
+   // Thin boundary walls only skinned their two long faces, leaving the
+   // winger/end posts bare salmon plaster on the source-lot side. Complete
+   // the perimeter with the same masonry so every visible face reads as the
+   // same poured stone, not a bright cut edge.
+   const faces=b.wall
+    ? (b.w>=b.d
+      ? [{len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
+         {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true},
+         {len:b.d,cx:b.x+b.w/2,cz:b.z,nx:1,nz:0,ry:Math.PI/2,onZ:false},
+         {len:b.d,cx:b.x-b.w/2,cz:b.z,nx:-1,nz:0,ry:-Math.PI/2,onZ:false}]
+      : [{len:b.d,cx:b.x+b.w/2,cz:b.z,nx:1,nz:0,ry:Math.PI/2,onZ:false},
+         {len:b.d,cx:b.x-b.w/2,cz:b.z,nx:-1,nz:0,ry:-Math.PI/2,onZ:false},
+         {len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
+         {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true}])
+    : [{len:b.w,cx:b.x,cz:b.z+b.d/2,nx:0,nz:1,ry:0,onZ:true},
+       {len:b.w,cx:b.x,cz:b.z-b.d/2,nx:0,nz:-1,ry:Math.PI,onZ:true},
+       {len:b.d,cx:b.x+b.w/2,cz:b.z,nx:1,nz:0,ry:Math.PI/2,onZ:false},
+       {len:b.d,cx:b.x-b.w/2,cz:b.z,nx:-1,nz:0,ry:-Math.PI/2,onZ:false}];
+   const rows=Math.max(1,Math.round(b.h/3)),ch=b.h/rows;
+   for(const f of faces){
+    // Real 3 m bays, rounded to the face so the plaster never stretches between
+    // storeys. Near bays keep the sculpted kit panel; distant bays use an
+    // instanced plane carrying the same photographed plaster map and normal.
+    const cols=Math.max(1,Math.round(f.len/3)),cw=f.len/cols;
+    if(near){
+     // Real 3 m bays, rounded to the face so the plaster never stretches between
+     // storeys. Only this near ring pays for the sculpted panel; the rest of the
+     // map uses the same photographed plaster/normal on a single low-cost face.
+     for(let r=0;r<rows;r++)for(let col=0;col<cols;col++){
+      const px=(f.onZ?f.cx+(col+.5-cols/2)*cw:f.cx)+f.nx*.006;
+      const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
+      dummy.position.set(px,b.y+r*ch,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,ch/3,1);
+      dummy.updateMatrix();
+      // Boundary and retaining walls are poured concrete, not residential
+      // plaster: their 19 m faces read as a flat salmon slab from the loot
+      // yard. Instance them with the photographed stone scan (aggregate and
+      // formwork grain) under a pale grey tint while residential volumes keep
+      // the plaster kit.
+      const stoneFace=b.wall&&b.kind==='concrete';
+      const cellKind=stoneFace?'stone':b.kind;
+      const cellTint=b.kind==='metal'
+       ?wallTint.clone().multiplyScalar(.965+bayShade(px*1.7+pz*2.9)*.06)
+       :b.kind==='planks'?wallTint.clone().multiplyScalar(.93+bayShade(px*1.31+pz*2.17)*.11)
+       :stoneFace?wallTint.clone().lerp(new THREE.Color(0xd6d4c8),.7).multiplyScalar(.93)
+       :wallTint;
+      nearCells.push({matrix:dummy.matrix.clone(),color:cellTint,kind:cellKind});
+     }
+     // One photographed-stone base per 3 m bay (not an atlas strip stretched
+     // across the whole face) so the aggregate, mortar grain and moulding stay
+     // readable from 2-3 m. Adjacent bays get a deterministic tonal shift, which
+     // reads as real stone courses without adding a texture or collision change.
+     for(let col=0;col<cols;col++){
+      const along=(col+.5-cols/2)*cw;
+      dummy.position.set(f.onZ?f.cx+along+f.nx*.036:f.cx+f.nx*.036,b.y,f.onZ?f.cz+f.nz*.036:f.cz+along+f.nz*.036);
+      dummy.rotation.set(0,f.ry,0);
+      // Warehouse cladding sits on a shallow concrete curb, not the deep brown
+      // mossy slab that swallowed the shop front; brick blocks get a lighter,
+      // thinner band too so the ground floor stays readable.
+      const metal=b.kind==='metal';
+      dummy.scale.set(cw/3,metal?.58:.74,metal?1.0:1.25);dummy.updateMatrix();
+      baseCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.9+bayShade(f.cx+f.cz+col*.73)*.18)});
+      dummy.position.set(f.onZ?f.cx+along+f.nx*.04:f.cx+f.nx*.04,b.y+b.h,f.onZ?f.cz+f.nz*.04:f.cz+along+f.nz*.04);
+      dummy.scale.set(cw/3,metal?.58:.78,metal?1.2:1.6);dummy.updateMatrix();
+      corniceCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.97+bayShade(f.cx+f.cz+col*1.17)*.14)});
+     }
+     // room() splits every undrilled storey wall into a 1.1 m sill and an upper
+     // slab that starts at 2.2 m, leaving a one-metre air band in between. Seen
+     // at eye level that slot read as a hollow stripe with daylight/sky through
+     // the building, and every storey cornice floated over it as a loose slab.
+     // Fill the band with the same skin the wall above uses so the ground storey
+     // is solid cladding with openings only where roller bays and windows sit.
+     const bandTop=2.2;
+     const bandFill=b.wall&&b.y<.35&&b.h>0.9&&b.h<1.19&&b.h<bandTop;
+     if(bandFill){
+      const fillH=bandTop-b.y-b.h;
+      for(let col=0;col<cols;col++){
+       const px=(f.onZ?f.cx+(col+.5-cols/2)*cw:f.cx)+f.nx*.006;
+       const pz=(f.onZ?f.cz:f.cz+(col+.5-cols/2)*cw)+f.nz*.006;
+       dummy.position.set(px,b.y+b.h,pz);dummy.rotation.set(0,f.ry,0);dummy.scale.set(cw/3,fillH/3,1);dummy.updateMatrix();
+       const stoneFace=b.wall&&b.kind==='concrete';
+       const fillTint=b.kind==='metal'
+        ?wallTint.clone().multiplyScalar(.965+bayShade(px*1.7+pz*2.9)*.06)
+        :b.kind==='planks'?wallTint.clone().multiplyScalar(.93+bayShade(px*1.31+pz*2.17)*.11)
+        :stoneFace?wallTint.clone().lerp(new THREE.Color(0xd6d4c8),.7).multiplyScalar(.93)
+        :wallTint;
+       nearCells.push({matrix:dummy.matrix.clone(),color:fillTint,kind:stoneFace?'stone':b.kind});
+      }
+     }
+     // Solid volumes also receive the kit's tile parapet, scaled low and warm so
+     // it caps the roofline without the heavy black edge of the old box.
+     if(!b.wall&&b.h>=3.4&&crown){
+      dummy.position.set(f.cx+f.nx*.05,b.y+b.h-.15,f.cz+f.nz*.05);dummy.rotation.set(0,f.ry,0);
+      dummy.scale.set(f.len/3,.74,1.15);dummy.updateMatrix();
+      crownCells.push({matrix:dummy.matrix.clone(),color:stone.clone().multiplyScalar(.9)});
+     }
+     // Two sculpted plaster piers bracket the bay grid and catch a vertical
+     // highlight, giving the flat photograph a readable three-dimensional rhythm.
+     // Sheet cladding and poured boundary walls carry no plaster pilasters; the
+     // concrete scan already gives the latter their own corner relief.
+     if(b.kind==='metal'||(b.wall&&b.kind==='concrete'))continue;
+     for(let col=0;col<=cols;col+=cols){
+      const a=col-cols/2;
+      const px=(f.onZ?f.cx+a*cw:f.cx)+f.nx*.055;
+      const pz=(f.onZ?f.cz:f.cz+a*cw)+f.nz*.055;
+      dummy.position.set(px,b.y,pz);dummy.rotation.set(0,f.ry,0);
+      dummy.scale.set(1.35,b.h/3,2.3);dummy.updateMatrix();
+      pierCells.push({matrix:dummy.matrix.clone(),color:tint.clone().multiplyScalar(.86)});
+     }
+    }else{
+     dummy.position.set(f.cx+f.nx*.006,b.y+b.h/2,f.cz+f.nz*.006);dummy.rotation.set(0,f.ry,0);
+     dummy.scale.set(f.len,b.h,1);dummy.updateMatrix();
+     planeCells.push({matrix:dummy.matrix.clone(),color:tint});
+     // Same solid ground-storey fill for the low-cost distant pass, so the
+     // sill/2.2 m air band never opens a sky slot on far façades either.
+     if(b.wall&&b.y<.35&&b.h>0.9&&b.h<1.19){
+      const fillH=2.2-b.y-b.h;
+      dummy.position.set(f.cx+f.nx*.006,b.y+b.h+fillH/2,f.cz+f.nz*.006);dummy.rotation.set(0,f.ry,0);
+      dummy.scale.set(f.len,fillH,1);dummy.updateMatrix();
+      planeCells.push({matrix:dummy.matrix.clone(),color:tint});
+     }
+    }
+   }
+  }
+  // Thin poured boundary walls get a low, slightly proud coping course so the
+  // rooftop edge catches a shadow line instead of ending in a flat frayed cap.
+  for(const b of blocks){
+   if(!(b.wall&&b.kind==='concrete'&&b.h>=3.4))continue;
+   const capTint=new THREE.Color(b.color).lerp(new THREE.Color(0xd2d0c4),.65).multiplyScalar(.88);
+   dummy.position.set(b.x,b.y+b.h,b.z);dummy.rotation.set(0,0,0);
+   dummy.scale.set(b.w+.16,.18,b.d+.16);dummy.updateMatrix();
+   capCells.push({matrix:dummy.matrix.clone(),color:capTint});
+  }
+  // A real stone sill under every nearby scanned window; hidden fallback trim
+  // is still suppressed by refreshWindows.
+  const windows=root.userData.raidWindowOpenings||[],sillReach2=100*100;
+  for(const s of windows){
+   const dx=s.x-self.x,dz=s.z-self.z;if(dx*dx+dz*dz>sillReach2)continue;
+   if(closedShedBay(blocks,s))continue;
+
+   const outward=s.outward||(s.onZ?Math.sign(self.z-s.z):Math.sign(self.x-s.x));
+   if(!outward)continue;
+   const yaw=s.onZ?(outward>0?0:Math.PI):(outward>0?Math.PI/2:-Math.PI/2);
+   dummy.position.set(s.x+(s.onZ?0:outward*.10),s.y-.05,s.z+(s.onZ?outward*.10:0));
+   dummy.rotation.set(0,yaw,0);dummy.scale.set(s.wide*1.42/3,.16/.75,1.4);dummy.updateMatrix();
+   sillCells.push({matrix:dummy.matrix.clone(),color:stoneFor(new THREE.Color(0xefe4d4))});
+  }
+  const instanced=(geo,mat,entries,shadow=true,tag='',structTag='')=>{
+   if(!entries.length)return;
+   const mesh=new THREE.InstancedMesh(geo,mat,entries.length);
+   entries.forEach((e,i)=>{mesh.setMatrixAt(i,e.matrix);mesh.setColorAt(i,e.color)});
+   mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+   mesh.castShadow=shadow;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   if(tag)mesh.userData.raidFacadePart=tag;
+   if(structTag)mesh.userData.raidStructure=structTag;
+   root.add(mesh);
+  };
+  instanced(wall.parts[0].geo,wallMat,nearCells.filter(c=>c.kind!=='planks'&&c.kind!=='metal'&&c.kind!=='stone'),true,'wallsNear');
+  instanced(wall.parts[0].geo,brickWallMat,nearCells.filter(c=>c.kind==='planks'),true,'wallsNear','brickWall');
+  instanced(wall.parts[0].geo,corrugatedWallMat,nearCells.filter(c=>c.kind==='metal'),true,'wallsNear','shedWall');
+  instanced(wall.parts[0].geo,stoneWallMat,nearCells.filter(c=>c.kind==='stone'),true,'wallsNear','stoneWall');
+  instanced(new THREE.BoxGeometry(1,1,1),stoneWallMat,capCells,true,'rooflineCap','rooflineCap');
+  instanced(planeGeo,wallMat,planeCells,false,'wallsFar');
+  instanced(base.parts[0].geo,stoneWallMat,baseCells,true,'plinth','plinth');
+  instanced(cornice.parts[0].geo,stoneWallMat,corniceCells,true,'cornice','cornice');
+  instanced(pier.parts[0].geo,pierMat,pierCells,true,'piers');
+  instanced(base.parts[0].geo,baseMat,sillCells,false,'sills');
+  if(crown)instanced(crown.parts[0].geo,crown.parts[0].mat,crownCells,true,'parapet');
+  const doorways=root.userData.raidDoorways||[],doorMats=[];
+  for(const d of doorways){
+   const yaw=Math.atan2(d.outX,d.outZ),sx=d.w/door.width,sy=d.h/door.height;
+   dummy.position.set(d.x+d.outX*.10,d.y,d.z+d.outZ*.10);
+   dummy.rotation.set(0,yaw,0);dummy.scale.set(sx,sy,sx);dummy.updateMatrix();
+   doorMats.push(dummy.matrix.clone());
+   dummy.position.set(d.x+d.outX*.20,d.y+d.h+.11,d.z+d.outZ*.20);
+   dummy.rotation.set(0,yaw,0);dummy.scale.set(d.w*1.9/3,.2/.2,3.2);dummy.updateMatrix();
+   doorHoodCells.push({matrix:dummy.matrix.clone(),color:stoneFor(new THREE.Color(0x8d8274))});
+  }
+  if(doorHoodCells.length)instanced(cornice.parts[0].geo,wallMat,doorHoodCells,true,'doorHoods','doorRail');
+  if(doorMats.length){
+   door.parts.forEach((p,pi)=>{
+    const mesh=new THREE.InstancedMesh(p.geo,p.mat,doorMats.length);
+    doorMats.forEach((m,i)=>mesh.setMatrixAt(i,m));
+    mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+    mesh.userData.raidFacadePart='doors';mesh.userData.raidStructure=pi?'doorIron':'doorBoard';root.add(mesh);
+   });
+  }
+  root.userData.raidFacadeModules=nearCells.length+planeCells.length+baseCells.length+corniceCells.length+crownCells.length+pierCells.length+sillCells.length+doorHoodCells.length+doorMats.length;
+  root.userData.raidRealDoors=doorMats.length;
+ }
+
+ // The two volumes that bracket the spawn courtyard used to be the same plaster
+ // box with one repeated sash window. Dress each one with real scanned hardware
+ // so they read as different places: a boarded row of shop shutters with air
+ // conditioners and a downpipe on one side, an active loading bay of corrugated
+ // roller doors with condensers and a downpipe on the other. Roof-mounted
+ // condensers break both rooflines into silhouette. All assets are Poly Haven
+ // CC0 scans, instanced in a handful of draws; no collision or gameplay change.
+ refreshFacadeVariety(){
+  const root=this.environmentRoot,kit=HQP.buildings;
+  if(!root||root.userData.raidFacadeVariety||!kit?.aircon?.modules||!kit?.rollerDoor?.modules||!kit?.rollerWindow?.modules||!kit?.gutter?.modules)return;
+  const self=this.snapshot?.self,blocks=root.userData.raidFacadeBlocks;
+  if(!self||!blocks?.length)return;
+  // Guard reinstatement/refresh calls so the hardware instances are never
+  // appended twice (which would double the draws and z-fight the shutters).
+  root.userData.raidFacadeVariety=true;
+  const acMods=[kit.aircon.modules['exterior_aircon_unit'],kit.aircon.modules['exterior_aircon_unit_rusted']].filter(m=>m?.parts?.length);
+  const doors=kit.rollerDoor.modules['rollershutter_door'],shops=kit.rollerWindow.modules['rollershutter_window_01'];
+  const shopGraffiti=kit.rollerWindow.modules['rollershutter_window_01_graffiti'];
+  const graffiti=kit.rollerDoor.modules['rollershutter_door_graffiti'];
+  const pipe=kit.gutter.modules['modular_metal_gutter_section'],coupler=kit.gutter.modules['modular_metal_gutter_gutter_coupler'];
+  if(!acMods.length||!doors?.parts?.length||!shops?.parts?.length||!pipe?.parts?.length)return;
+  // The scanned condenser's fan-cover primitive (_02) declares alpha blending
+  // but ships no usable alpha channel, so sampled raw it paints bright black/
+  // white speckles over the unit. Replace that cover with an opaque perforated
+  // galvanised plate texture -- a real fan grille reads dark and recessed. The
+  // cached clone keeps the scanned cabinet body untouched and shares one material
+  // between the wall and roof instances (two variants: plain and rusted).
+  const airconVents=new Map();
+  const airconGrilleMat=mat=>{
+   if(!/_02$/i.test(mat?.name||''))return mat;
+   const cached=airconVents.get(mat.uuid);if(cached)return cached;
+   const rust=/rusted/i.test(mat.name||'');
+   const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
+   const bg=g.createLinearGradient(0,0,0,256);
+   bg.addColorStop(0,rust?'#5c4234':'#6e7b78');
+   bg.addColorStop(.5,rust?'#402d22':'#4b5754');
+   bg.addColorStop(1,rust?'#24190f':'#1f2725');
+   g.fillStyle=bg;g.fillRect(0,0,256,256);
+   // recessed frame around the perforated plate
+   g.fillStyle='rgba(6,8,8,.7)';g.fillRect(0,0,256,12);g.fillRect(0,244,256,12);g.fillRect(0,0,12,256);g.fillRect(244,0,12,256);
+   g.fillStyle=rust?'rgba(150,105,78,.4)':'rgba(168,186,180,.4)';g.fillRect(12,7,232,3);g.fillRect(7,12,3,232);
+   g.fillStyle='rgba(0,0,0,.55)';g.fillRect(12,244,232,3);g.fillRect(244,12,3,232);
+   // punched fan-cover holes: dark pit plus a lit lower rim, offset per row
+   for(let y=26;y<236;y+=14){
+    for(let x=20+((y/14)%2)*7;x<240;x+=14){
+     const r=4.2;
+     g.fillStyle='rgba(4,6,6,.92)';g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();
+     g.fillStyle=rust?'rgba(130,92,64,.55)':'rgba(140,157,151,.55)';
+     g.beginPath();g.arc(x+1.1,y-1.1,3.1,0.15*Math.PI,0.85*Math.PI);g.fill();
+    }
+   }
+   // vertical scuffs and dirt drips wash the plate down
+   for(let i=0;i<20;i++){
+    const x=15+(i*41)%224;
+    g.fillStyle=rust?'rgba(48,27,18,.16)':'rgba(22,27,25,.15)';
+    g.fillRect(x,12,1+(i%3),214);
+   }
+   if(rust)for(let i=0;i<30;i++){
+    g.fillStyle='rgba('+(112+(i*13)%46)+','+(58+(i*7)%30)+','+(32+(i*5)%18)+','+(0.10+0.02*(i%6)).toFixed(2)+')';
+    g.beginPath();g.ellipse(15+(i*97)%226,20+(i*53)%216,2+((i*17)%7),1.5+((i*29)%5),i*0.73,0,Math.PI*2);g.fill();
+   }
+   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;
+   tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.needsUpdate=true;
+   const m=mat.clone();
+   m.map=tex;m.normalMap=null;m.roughnessMap=null;m.metalnessMap=null;m.alphaMap=null;
+   m.transparent=false;m.depthWrite=true;m.opacity=1;m.alphaTest=0;m.side=THREE.DoubleSide;
+   m.color=new THREE.Color(0xc3cecc);m.roughness=.82;m.metalness=.16;m.envMapIntensity=.45;
+   m.userData.raidOwned=true;m.needsUpdate=true;
+   airconVents.set(mat.uuid,m);return m;
+  };
+  const dummy=new THREE.Object3D(),placed={doors:0,shops:0,aircon:0,roof:0,pipe:0},glaze=HQP.windows?.urban;
+  // Courtyard-front thin walls are the broad (along-x) strips closest to spawn;
+  // keeping this tied to the frozen facadeBlocks avoids guessing at coordinates.
+  const front={};
+  for(const b of blocks){
+   if(!b.wall||b.w<b.d||b.w<6||(b.kind!=='planks'&&b.kind!=='metal'))continue;
+   const dist=Math.hypot(b.x-self.x,b.z-self.z);
+   if(!front[b.kind]||dist<front[b.kind].dist)front[b.kind]={block:b,dist};
+  }
+  const emit=(mod,list,tag,struct,dress,jitter)=>{
+   if(!mod?.parts?.length||!list.length)return;
+   for(const part of mod.parts){
+    const mat=dress?dress(part.mat):part.mat;
+    const mesh=new THREE.InstancedMesh(part.geo,mat,list.length);
+    list.forEach((it,i)=>{dummy.position.set(it.x,it.y,it.z);dummy.rotation.set(0,it.yaw??Math.PI,0);dummy.scale.set(it.sx??1,it.sy??1,it.sz??1);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
+     if(jitter)mesh.setColorAt(i,jitter(i,it))});
+    mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+    mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+    mesh.userData.raidFacadePart=tag;if(struct)mesh.userData.raidStructure=struct;root.add(mesh);
+   }
+  };
+  // Roller shutters ship as pale galvanised sheets that read as lavender plastic
+  // in frontal noon sun. A neutral steel tint, stronger corrugation relief, a
+  // clean metal response and a dirt wash where the panel meets the ground turn
+  // them into weathered loading-bay steel without touching the scanned graffiti.
+  const rollerSteelMat=(base,height)=>{
+   const m=base.clone(),h=Math.max(1,height||2.4).toFixed(3);
+   // Art direction: shutter housings read as pale lavender plastic instead of
+   // galvanised steel because the scan's rib shading is washed out by the tint.
+   // One slat count scaled to the panel's real height, then a lit crest and a
+   // shaded trough in the diffuse pass, gives the housings a readable metal
+   // corrugation at gameplay range without any new texture or draw call.
+   const ribs=Math.max(6,Math.round((height||2.4)*9));
+   m.color=new THREE.Color(0x869296);
+   m.roughness=.48;m.metalness=.44;m.envMapIntensity=1.22;
+   if(m.normalMap)m.normalScale.set(2.4,2.4);
+   m.onBeforeCompile=shader=>{
+    shader.vertexShader='varying float vShutterY;\n'+shader.vertexShader
+     .replace('#include <uv_vertex>','#include <uv_vertex>\n vShutterY=clamp(position.y/'+h+',0.0,1.0);');
+    shader.fragmentShader='varying float vShutterY;\n'+shader.fragmentShader
+     .replace('#include <map_fragment>',`#include <map_fragment>
+ float shutterDirt=(1.0-smoothstep(0.0,0.26,vShutterY))*0.88;
+ float shutterStreak=0.5+0.5*sin(vMapUv.x*23.0+vMapUv.y*3.0);
+ // Horizontal slat ridges: ±6% luminance plus a cool galvanised crest, so the
+ // pale roller sheets read ribbed sheet metal rather than flat painted panels.
+ float slatWave=abs(sin(vShutterY*${ribs.toFixed(1)}*3.14159265));
+ float slatShade=0.94+0.12*slatWave;
+ diffuseColor.rgb*=slatShade*vec3(0.985,0.995,1.0);
+ diffuseColor.rgb+=slatWave*slatWave*vec3(0.035,0.042,0.046);
+ diffuseColor.rgb*=mix(1.0,0.58,shutterDirt);
+ diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(0.80,0.77,0.70),shutterDirt*shutterStreak);
+ // Weathered seam bands at third-height intervals keep the housings from
+ // reading as one smooth stamped sheet.
+ float seamBand=mod(vShutterY*3.0,1.0);
+ diffuseColor.rgb*=0.93+0.07*smoothstep(0.0,0.12,seamBand);
+ diffuseColor.rgb=clamp(diffuseColor.rgb,0.0,0.96);
+`);
+   };
+   m.customProgramCacheKey=()=>'raidShutterSteel'+h;
+   m.needsUpdate=true;
+   return m;
+  };
+  // Per-instance tonal jitter keeps the six roller bays from reading as the
+  // same stamped rectangle repeated down the wall.
+  const steelShade=(i,it)=>{const v=Math.sin((i+1)*37.1+(it.x||0)*.31+(it.z||0)*.17)*43758.5453;const k=.93+((v%1+1)%1)*.12;return new THREE.Color(k,k,k)};
+  const doorItems=[],graffitiItems=[],shopItems=[],shopGraffitiItems=[],metalShopItems=[],metalShopGraffitiItems=[],factoryGlaze=[],plainAC=[],rustedAC=[],roofPlain=[],roofRusted=[],pipeItems=[],jointItems=[];
+  // Every stacked plaster strip shares one outer plane, so a single proud offset
+  // clears the skin on both buildings and prevents z-fighting with the windows.
+  const faceZ=w=>w.z-w.d/2-.155;
+  const roofOf=kind=>{
+   let best=null;
+   for(const b of blocks){
+    if(b.wall||b.kind!==kind)continue;
+    const area=b.w*b.d,dist=Math.hypot(b.x-self.x,b.z-self.z);
+    if(area<20||dist>45)continue;
+    if(!best||area>best.area)best={block:b,area};
+   }
+   return best;
+  };
+  const addRoof=(kind,offs,plain,rusted)=>{
+   const roof=roofOf(kind);if(!roof)return;
+   const b=roof.block,z=b.z-b.d/2+0.42,y=b.y+b.h+0.012;
+   offs.forEach((off,i)=>(i%2?rusted:plain).push({x:b.x+off,y,z,yaw:Math.PI}));
+  };
+  if(front.planks){
+   const b=front.planks.block,cx=b.x,fz=faceZ(b);
+   // A closed row of shuttered shop windows; roller maps are opaque so the
+   // old sash openings read as boarded units instead of another apartment block.
+   for(const off of [-4.6,-1.2,2.2]){
+    const bay={x:cx+off,y:.03,z:fz,yaw:Math.PI};
+    if(off===-1.2&&shopGraffiti?.parts?.length)shopGraffitiItems.push(bay);else shopItems.push(bay);
+   }
+   // One corrugated roller-shutter entrance ends the shuttered row: a real
+   // Poly Haven scan at shop-door scale, so the block reads as a boarded shop
+   // street with a doorway rather than a wall of identical window bays.
+   if(graffiti?.parts?.length)graffitiItems.push({x:cx+5.2,y:.03,z:fz-.19,yaw:Math.PI,sx:.96});
+   // Wall condensers sit high on the plaster band above the ground-floor openings.
+   plainAC.push({x:cx-4.4,y:4.02,z:fz,yaw:Math.PI});
+   rustedAC.push({x:cx-1.0,y:4.02,z:fz,yaw:Math.PI});
+   plainAC.push({x:cx+2.6,y:4.02,z:fz,yaw:Math.PI});
+   // Stacked real gutter pipe at the courtyard corner of the shop row.
+   for(let i=0;i<5;i++)pipeItems.push({x:cx-5.9,y:i,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+   for(let i=1;i<5;i++)jointItems.push({x:cx-5.9,y:i-.015,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+   // The camera meets this block's west face, not the signed shop front: give
+   // the courtyard-facing brick wall a real galvanised downpipe just clear of
+   // the doorway, both to break the flat sheet and to seat the wall on the lane.
+   for(let i=0;i<5;i++)pipeItems.push({x:cx-b.w/2-.33,y:i,z:-576.35,yaw:0,sx:1.8,sz:1.8});
+   for(let i=1;i<5;i++)jointItems.push({x:cx-b.w/2-.33,y:i-.015,z:-576.35,yaw:0,sx:1.8,sz:1.8});
+  }
+  if(front.metal){
+   const b=front.metal.block,cx=b.x,fz=faceZ(b);
+   // A loading bay: three real corrugated roller doors stretched to commercial
+   // bay width replace the paired sash windows on the ground floor -- the clear
+   // industrial difference from the row of shopfront shutters next door. The
+   // doors sit proud of the sash reveals so the closed steel, not a timber
+   // window, is what reads on the front face.
+   const doorFz=fz-.19;
+   for(const off of [-4.0,0,4.0]){
+    const bay={x:cx+off,y:.03,z:doorFz,yaw:Math.PI,sx:2.9};
+    // One tagged-up doorway keeps the loading bay from reading as three
+    // identical stamped steel rectangles.
+    if(off===0&&graffiti?.parts?.length)graffitiItems.push(bay);else doorItems.push(bay);
+   }
+   plainAC.push({x:cx-4.2,y:2.76,z:fz,yaw:Math.PI});
+   rustedAC.push({x:cx+0.2,y:2.76,z:fz,yaw:Math.PI});
+   plainAC.push({x:cx+4.6,y:2.76,z:fz,yaw:Math.PI});
+   for(let i=0;i<4;i++)pipeItems.push({x:cx+9.1,y:i,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+   for(let i=1;i<4;i++)jointItems.push({x:cx+9.1,y:i-.015,z:fz-.06,yaw:0,sx:1.8,sz:1.8});
+   // Close the factory windows on this façade only: corrugated roller panels
+   // replace the timber sashes that cover the shop row across the courtyard.
+   const wallZ=b.z-b.d/2;
+   (root.userData.raidWindowOpenings||[]).forEach((s,i)=>{
+    if(!s.onZ||Math.abs(s.z-wallZ)>.9||s.x<cx-b.w/2||s.x>cx+b.w/2||s.y<2.8)return;
+    const sx=(s.wide+.16)/shops.width,sy=(s.h+.16)/shops.height;
+    const item={x:s.x,y:s.y-.06,z:fz-.02,yaw:Math.PI,sx,sy,sz:sx};
+    if(i%2&&shopGraffiti?.parts?.length)metalShopGraffitiItems.push(item);else metalShopItems.push(item);
+    // The pale roller blinds are shop hardware, not factory glazing. Seat the
+    // scanned timber sash a few centimetres proud of the roller housing so the
+    // recessed glass and casing are what read from 2 m and at spawn; the roller
+    // scan stays as the boarded backing behind it.
+    if(glaze?.parts?.length)factoryGlaze.push({x:s.x,y:s.y,z:fz-.075,yaw:Math.PI,sx:(s.wide*1.12)/glaze.width,sy:(s.h*1.03)/glaze.height,sz:(s.wide*1.12)/glaze.width});
+   });
+  }
+  // Roofline clutter: real exterior condensers standing on both volumes break the
+  // identical box parapet into two different silhouettes.
+  addRoof('planks',[-4.0,-0.2,3.6],roofPlain,roofRusted);
+  addRoof('metal',[-5.6,-1.3,3.1],roofPlain,roofRusted);
+  // Stacked scanned gutter sections with couplers make rooftop flues above the
+  // parapet. The shop row gets a tall thick stack plus a short one; the loading
+  // bay gets a single squat stack, so the two rooflines differ in height as
+  // well as material, not just in the windows punched into their walls.
+  const addVentStack=(kind,off,sections,sx,sy)=>{
+   const roof=roofOf(kind);if(!roof)return;
+   const b=roof.block,z=b.z-b.d/2+0.62,base=b.y+b.h+0.02;
+   for(let i=0;i<sections;i++)pipeItems.push({x:b.x+off,y:base+i,z,yaw:Math.PI/2,sx,sy,sz:sx});
+   for(let i=1;i<sections;i++)jointItems.push({x:b.x+off,y:base+i-.015,z,yaw:Math.PI/2,sx,sz:sx});
+  };
+  addVentStack('planks',5.6,3,2.6,1.25);
+  addVentStack('planks',-6.4,1,2.0,1.0);
+  addVentStack('metal',5.9,2,2.4,1.5);
+  const doorSteel=mat=>rollerSteelMat(mat,doors.height),shopSteel=mat=>rollerSteelMat(mat,shops.height);
+  emit(doors,doorItems,'rollers','rollerBay',doorSteel,steelShade);
+  emit(graffiti,graffitiItems,'rollersGraffiti','rollerBay',doorSteel,steelShade);
+  emit(shops,shopItems,'shutters',null,shopSteel,steelShade);
+  emit(shopGraffiti,shopGraffitiItems,'shuttersGraffiti',null,shopSteel,steelShade);
+  emit(shops,metalShopItems,'shuttersMetal','shutterWindow',shopSteel,steelShade);
+  emit(shopGraffiti,metalShopGraffitiItems,'shuttersMetalGraffiti','shutterWindow',shopSteel,steelShade);
+  // Glazed factory sashes proud of the roller blinds: real scanned frame plus
+  // recessed glass, so the warehouse windows read dimensional rather than as
+  // flat pale rectangles. Presentation only; no state or collision change.
+  if(factoryGlaze.length&&glaze?.parts?.length)for(const part of glaze.parts){
+   const mesh=new THREE.InstancedMesh(part.geo,part.mat,factoryGlaze.length);
+   factoryGlaze.forEach((it,i)=>{dummy.position.set(it.x,it.y,it.z);dummy.rotation.set(0,it.yaw,0);dummy.scale.set(it.sx,it.sy,it.sz);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix)});
+   mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
+   mesh.userData.raidFacadePart='factoryWindows';root.add(mesh);
+  }
+  emit(acMods[0],plainAC,'condensers',null,airconGrilleMat);
+  if(acMods[1])emit(acMods[1],rustedAC,'condensersRusted',null,airconGrilleMat);
+  emit(acMods[0],roofPlain,'roofCondensers',null,airconGrilleMat);
+  if(acMods[1])emit(acMods[1],roofRusted,'roofCondensers',null,airconGrilleMat);
+  emit(pipe,pipeItems,'downpipes','gutter');
+  emit(coupler,jointItems,'downpipeJoints','gutter');
+  placed.doors=doorItems.length+graffitiItems.length;placed.shops=shopItems.length;
+  placed.aircon=plainAC.length+rustedAC.length;placed.roof=roofPlain.length+roofRusted.length;
+  placed.pipe=pipeItems.length;
+  placed.metalShutters=metalShopItems.length+metalShopGraffitiItems.length;
+  root.userData.raidFacadeVarietyCount=placed;
+ }
+
+ // The modular façade skin deliberately stops at the masonry. This pass adds the
+ // street-level wear and one readable shop sign the courtyard needs to feel lived
+ // in, plus a real Poly Haven fire escape and a stepped parapet so the two
+ // volumes stop sharing a silhouette. Every piece is either the photographed
+ // rock/concrete/plaster maps already in the repo or the CC0 fire-escape scan;
+ // nothing here writes collision, doors, props or server state.
+ refreshFacadeAccents(){
+  const root=this.environmentRoot,kit=HQP.buildings,blocks=root?.userData?.raidFacadeBlocks,self=this.snapshot?.self;
+  if(!root||!blocks?.length||!self||!HQP.ready)return;
+  const front={};
+  for(const b of blocks){
+   if(!b.wall||b.w<b.d||b.w<6||(b.kind!=='planks'&&b.kind!=='metal'))continue;
+   const dist=Math.hypot(b.x-self.x,b.z-self.z);
+   if(!front[b.kind]||dist<front[b.kind].dist)front[b.kind]={block:b,dist};
+  }
+  if(!front.planks||!front.metal)return;
+  const brick=front.planks.block,bay=front.metal.block;
+  const brickZ=brick.z-brick.d/2,bayZ=bay.z-bay.d/2;
+  const DUMMY=new THREE.Object3D();
+  // Damp foundation dirt: soft-edged photographed pavement stains, tinted warm
+  // brown-grey and held low on the wall so they darken the ground band rather
+  // than painting solid black rectangles over the shutter graffiti. The alpha
+  // matte is the shipped ground-decal mask; opacity stays low and the plates are
+  // kept apart so overlaps cannot stack into soot-black patches.
+  if(!root.userData.raidFoundationGrime){
+  const decal=HQP.decal?.wear||HQP.decal?.damage||HQP.decal?.crack;
+  let grimeMask=decal?.mask||null;
+  if(!grimeMask){
+   const g=document.createElement('canvas');g.width=g.height=128;const gx=g.getContext('2d');
+   const rg=gx.createRadialGradient(64,64,4,64,64,64);rg.addColorStop(0,'#fff');rg.addColorStop(.55,'rgba(255,255,255,.72)');rg.addColorStop(1,'rgba(255,255,255,0)');
+   gx.fillStyle=rg;gx.fillRect(0,0,128,128);grimeMask=new THREE.CanvasTexture(g);
+  }
+  const grimeMap=(decal?.map||getTex('rock')).clone();
+  grimeMap.wrapS=grimeMap.wrapT=THREE.RepeatWrapping;grimeMap.repeat.set(1.4,.55);grimeMap.needsUpdate=true;
+  const grimeNormal=normalTex('rock',1.5).clone();
+  grimeNormal.wrapS=grimeNormal.wrapT=THREE.RepeatWrapping;grimeNormal.repeat.set(1.4,.55);grimeNormal.needsUpdate=true;
+  const grimeMat=new THREE.MeshStandardMaterial({map:grimeMap,normalMap:grimeNormal,alphaMap:grimeMask,alphaTest:.02,
+   color:0xffffff,roughness:.98,metalness:0,envMapIntensity:.35,transparent:true,opacity:.34,depthWrite:false,side:THREE.DoubleSide});
+  grimeMat.userData.raidOwned=true;
+  const sides=[
+   {px:brick.x,pz:brickZ,nx:0,nz:-1,len:brick.w,along:'x'},
+   {px:brick.x-brick.w/2-.225,pz:-572.6,nx:-1,nz:0,len:14.6,along:'z'},
+   {px:bay.x,pz:bayZ,nx:0,nz:-1,len:bay.w,along:'x'},
+   {px:bay.x+bay.w/2+.225,pz:-566.6,nx:1,nz:0,len:15.6,along:'z'}
+  ];
+  const rnd=n=>{const s=Math.sin(n*127.1+37.73)*43758.5453;return s-Math.floor(s)};
+  const stains=[];
+  for(const f of sides){
+   const out=0.19;
+   for(let i=0;i<7;i++){
+    const span=f.len;
+    if(i===0){
+     // The continuous damp seam where wall meets pavement.
+     stains.push({px:f.px+(f.nx?f.nx*out:0)+(f.along==='x'?(rnd(f.len*.31)-.5)*span*.2:0),
+      py:.02,pz:f.pz+(f.nz?f.nz*out:0)+(f.along==='z'?(rnd(f.len*.31)-.5)*span*.2:0),
+      yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,sw:span*(.42+rnd(f.len*.7)*.2),sh:.16,c:0x8a806c});
+     continue;
+    }
+    if(i===5||i===6){
+     // Two thin rising damp streaks, not opaque pillars.
+     const along=(rnd(i*7.1+f.len*.31)-.5)*span*.9;
+     const h=.24+rnd(i*3.3)*.26;
+     stains.push({px:f.px+(f.nx?f.nx*(out+i*.003):0)+(f.along==='x'?along:0),
+      py:.06,pz:f.pz+(f.nz?f.nz*(out+i*.003):0)+(f.along==='z'?along:0),
+      yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,sw:.10+rnd(i*4.31)*.13,sh:h,c:0x7d7361});
+     continue;
+    }
+    const along=(rnd(i*3.17+f.len*.31)-.5)*span*.84;
+    const w=.55+rnd(i*5.71)*.9;
+    const h=.14+rnd(i*7.13+1.1)*.27;
+    const y=.05+rnd(i*2.63)*.14;
+    stains.push({px:f.px+(f.nx?f.nx*(out+i*.004):0)+(f.along==='x'?along:0),
+     py:y,pz:f.pz+(f.nz?f.nz*(out+i*.004):0)+(f.along==='z'?along:0),
+     yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
+     sw:w,sh:h,c:i%2?0x877c69:0x93876f});
+   }
+  }
+  // Damp streaks climb the ground storey of the brown brick front in irregular
+  // widths and heights, tinted wet mortar grey-brown rather than black. They
+  // stay clear of the courtyard doorway on the west face (z -574.3..-570.9) so
+  // no translucent plate ever floats across the opening.
+  for(const f of sides.slice(0,2)){
+   for(let i=0;i<6;i++){
+    const span=f.len,along=(rnd(i*9.37+f.len*.77)-.5)*span*.88;
+    if(f.along==='z'&&Math.abs((f.pz??-572.6)+along+572.6)<2.4)continue;
+    const h=1.2+rnd(i*6.7+3.1)*2.1;
+    stains.push({px:f.px+f.nx*(.025+i*.003)+(f.along==='x'?along:0),
+     py:.08+rnd(i*5.1)*.14,pz:f.pz+f.nz*(.025+i*.003)+(f.along==='z'?along:0),
+     yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
+     sw:.24+rnd(i*2.9)*.34,sh:h,c:i%2?0x4a4239:0x554c40});
+   }
+  }
+  // The pale sheet-clad loading bay wears a heavier foot of dirt than the brick
+  // shop row: splash-back, road grit and grass contact leave a soft damp band
+  // where the cladding meets the yard. Still oil-free dirt, never black blocks.
+  for(const f of sides.slice(2)){
+   const span=f.len;
+   for(let i=0;i<5;i++){
+    const along=(rnd(i*17.3+f.len*.47)-.5)*span*.92;
+    stains.push({px:f.px+(f.nx?f.nx*(.2+i*.004):0)+(f.along==='x'?along:0),
+     py:.02,pz:f.pz+(f.nz?f.nz*(.2+i*.004):0)+(f.along==='z'?along:0),
+     yaw:f.nx?f.nx>0?Math.PI/2:-Math.PI/2:Math.PI,
+     sw:.7+rnd(i*4.9)*1.1,sh:.18+rnd(i*6.1)*.34,c:i%2?0x6e6759:0x5d584c});
+   }
+  }
+  const stainGeo=new THREE.PlaneGeometry(1,1);
+  const stainMesh=new THREE.InstancedMesh(stainGeo,grimeMat,stains.length);
+  stains.forEach((st,i)=>{
+   DUMMY.position.set(st.px,st.py+st.sh/2,st.pz);DUMMY.rotation.set(0,st.yaw,0);DUMMY.scale.set(st.sw,st.sh,1);DUMMY.updateMatrix();
+   stainMesh.setMatrixAt(i,DUMMY.matrix);
+   stainMesh.setColorAt(i,new THREE.Color(st.c).multiplyScalar(.88+rnd(i*9.1)*.2));
+  });
+  stainMesh.instanceMatrix.needsUpdate=true;if(stainMesh.instanceColor)stainMesh.instanceColor.needsUpdate=true;
+  stainMesh.receiveShadow=true;stainMesh.castShadow=false;stainMesh.frustumCulled=false;
+  stainMesh.userData.raidFacadePart='foundationGrime';
+  if(stainGeo)stainGeo.userData.raidOwned=true;
+  root.add(stainMesh);
+  root.userData.raidFoundationGrime={count:stains.length};
+  }
+
+  // A single painted fascia above the shop row's shutter bays. The substrate is
+  // the photographed metal plate scan already shipped in assets/tex; the sign
+  // lettering is painted into that photo in a canvas, which keeps the wall from
+  // reading as a blank brick plane at the exact moment the player walks in.
+  if(!root.userData.raidShopSign){
+  const signCan=document.createElement('canvas');signCan.width=1024;signCan.height=288;
+  const sx=signCan.getContext('2d');
+  if(sx){
+   const photo=getTex('metal').image;
+   if(photo&&photo.width&&photo.height){
+    const k=Math.max(1024/photo.width,288/photo.height);
+    sx.drawImage(photo,(1024-photo.width*k)/2,(288-photo.height*k)/2,photo.width*k,photo.height*k);
+    sx.globalCompositeOperation='multiply';sx.fillStyle='#4d5851';sx.fillRect(0,0,1024,288);sx.globalCompositeOperation='source-over';
+   }else{sx.fillStyle='#4b534d';sx.fillRect(0,0,1024,288)}
+   const veil=sx.createLinearGradient(0,0,0,288);
+   veil.addColorStop(0,'rgba(18,20,16,.34)');veil.addColorStop(.45,'rgba(18,20,16,.02)');veil.addColorStop(1,'rgba(18,20,16,.34)');
+   sx.fillStyle=veil;sx.fillRect(0,0,1024,288);
+   let seed=4177;const wr=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff};
+   for(let i=0;i<58;i++){
+    const rx=wr()*1024,ry=wr()*288,rad=8+wr()*22;
+    const rg=sx.createRadialGradient(rx,ry,0,rx,ry,rad);
+    rg.addColorStop(0,`rgba(112,62,34,${.10+wr()*.20})`);rg.addColorStop(1,'rgba(70,42,25,0)');
+    sx.fillStyle=rg;sx.beginPath();sx.arc(rx,ry,rad,0,Math.PI*2);sx.fill();
+   }
+   sx.strokeStyle='#242b26';sx.lineWidth=16;sx.strokeRect(8,8,1008,272);
+   sx.strokeStyle='#e5d7b3';sx.lineWidth=3;sx.strokeRect(24,24,976,240);
+   for(const px of [28,996])for(const py of [28,260]){
+    sx.fillStyle='#cbbd98';sx.beginPath();sx.arc(px,py,7,0,Math.PI*2);sx.fill();
+    sx.fillStyle='#363d36';sx.beginPath();sx.arc(px,py,3,0,Math.PI*2);sx.fill();
+   }
+   let font=176;
+   sx.textAlign='center';sx.textBaseline='middle';
+   sx.font=`900 ${font}px "Arial Black","Helvetica Neue",Impact,sans-serif`;
+   while(sx.measureText('HARDWARE').width>880&&font>84){font-=4;sx.font=`900 ${font}px "Arial Black","Helvetica Neue",Impact,sans-serif`}
+   sx.fillStyle='rgba(8,11,8,.58)';sx.fillText('HARDWARE',516,120);
+   sx.fillStyle='#eadfb9';sx.fillText('HARDWARE',512,114);
+   sx.fillStyle='rgba(255,250,226,.42)';sx.font=`600 ${font*.14|0}px "Arial Narrow",Arial,sans-serif`;sx.fillText('SALVAGE & SUPPLY',512,204);
+  }
+  const signTex=new THREE.CanvasTexture(signCan);
+  signTex.colorSpace=THREE.SRGBColorSpace;signTex.anisotropy=8;signTex.needsUpdate=true;
+  const signMat=new THREE.MeshStandardMaterial({map:signTex,roughness:.74,metalness:.18,envMapIntensity:.7});
+  signMat.userData.raidOwned=true;signMat.userData.raidOwnTexture=true;
+  const frameMat=new THREE.MeshStandardMaterial({map:getTex('metal'),normalMap:normalTex('metal',2.2),color:0x6d6455,roughness:.78,metalness:.42,envMapIntensity:.7});
+  frameMat.userData.raidOwned=true;
+  const signPlane=new THREE.PlaneGeometry(1,1);
+  const signW=5.0,signH=1.42,signY=3.14,signX=brick.x-1.2,signZ=brickZ-.175;
+  const frame=new THREE.Mesh(signPlane,frameMat);
+  frame.position.set(signX,signY,signZ+.012);frame.rotation.y=Math.PI;frame.scale.set(signW+.16,signH+.14,1);frame.receiveShadow=true;frame.castShadow=false;
+  frame.userData.raidFacadePart='shopSignFrame';
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(1,1),signMat);
+  face.position.set(signX,signY,signZ);face.rotation.y=Math.PI;face.scale.set(signW,signH,1);face.receiveShadow=true;face.castShadow=false;
+  face.userData.raidFacadePart='shopSign';
+  face.geometry.userData.raidOwned=true;
+  // Give the painted fascia a real metal body and two projecting side straps so
+  // it reads as bolted shop hardware rather than a decal glued to the brick:
+  // the plaque gains visible plate thickness, corner studs and two straps that
+  // carry load back into the wall. Presentation-only, no collision or state.
+  const body=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),frameMat);
+  body.scale.set(signW+.34,signH+.28,.26);
+  body.position.set(signX,signY,signZ+.16);
+  body.castShadow=true;body.receiveShadow=true;body.userData.raidFacadePart='shopSignBody';
+  const straps=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),frameMat,2);
+  const sd=new THREE.Object3D();
+  [-signW/2-.20,signW/2+.20].forEach((dx,i)=>{
+   sd.position.set(signX+dx,signY,signZ+.02);
+   sd.rotation.set(0,0,0);sd.scale.set(.14,signH+.30,.40);sd.updateMatrix();straps.setMatrixAt(i,sd.matrix);
+  });
+  straps.instanceMatrix.needsUpdate=true;straps.castShadow=true;straps.receiveShadow=true;straps.userData.raidFacadePart='shopSignStraps';
+  const studs=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({map:getTex('metal'),color:0xcfd3c8,roughness:.5,metalness:.55,envMapIntensity:.85}),10);
+  let si=0;
+  // Corner bolts in front of the painted plate, plus six cheek bolts where the
+  // straps meet the cladding.
+  for(const dx of [-signW/2+.10,signW/2-.10])for(const dy of [-signH/2+.10,signH/2-.10]){
+   sd.position.set(signX+dx,signY+dy,signZ-.012);sd.rotation.set(0,0,0);sd.scale.set(.15,.15,.06);sd.updateMatrix();studs.setMatrixAt(si++,sd.matrix);
+  }
+  for(const dx of [-signW/2-.20,signW/2+.20])for(const dy of [-signH/2+.06,0,signH/2-.06]){
+   sd.position.set(signX+dx,signY+dy,signZ-.13);sd.rotation.set(0,0,0);sd.scale.set(.11,.11,.14);sd.updateMatrix();studs.setMatrixAt(si++,sd.matrix);
+  }
+  studs.count=si;studs.instanceMatrix.needsUpdate=true;studs.userData.raidFacadePart='shopSignStuds';studs.castShadow=false;studs.receiveShadow=false;
+  root.add(body);root.add(straps);root.add(studs);root.add(frame);root.add(face);
+  root.userData.raidShopSign={x:signX,y:signY,z:signZ,w:signW,h:signH};
+  }
+
+  // Real scanned fire escape on the brick building's west side, the tall face
+  // the spawn camera sees at the corner. It spans the full storey height and
+  // projects its landings west, replacing the old flat spinning hooks with a
+  // recognisable iron structure. Poly Haven modular_fire_escape, CC0.
+  const esc=kit?.fireEscape;
+  const feReady=!!(esc?.parts?.length&&esc?.width&&esc?.depth);
+  if(!root.userData.raidRealFireEscape&&feReady){
+   let brickCore=null;
+   for(const c of blocks){
+    if(c.wall||c.kind!=='planks'||c.w*c.d<120||Math.abs(c.x-brick.x)>3)continue;
+    const d=Math.hypot(c.x-self.x,c.z-self.z);
+    if(!brickCore||d<brickCore.d)brickCore={block:c,d};
+   }
+   const core=brickCore?.block||brick;
+   const wallWest=core.x-core.w/2-.425;
+   const s=8.35/9.756; // model is 9.756 m tall; roof skin is 8.6 m on this block.
+   const g=new THREE.Group();
+   esc.parts.forEach(p=>{
+    const m=new THREE.Mesh(p.geo,p.mat);
+    m.scale.setScalar(s);m.castShadow=true;m.receiveShadow=true;m.frustumCulled=false;
+    g.add(m);
+   });
+   g.rotation.y=-Math.PI/2;
+   // Flush against the west wall and set back from the front corner: the iron
+   // staircase now starts at the street and climbs the face the spawn camera sees.
+   g.userData.raidFacadePart='fireEscapeScan';
+   const halfDepth=esc.depth*s/2,halfWidth=esc.width*s/2;
+   g.position.set(wallWest-halfDepth-.02,0.10,brick.z-brick.d/2+halfWidth+.12);
+   root.add(g);
+   root.userData.raidRealFireEscape={parts:esc.parts.length,width:esc.width,height:esc.height,depth:esc.depth,x:g.position.x,z:g.position.z};
+  }
+
+  // One roof now steps up by a storey-and-a-half of photographed plaster with a
+  // real tile coping; the other stays flat. Presentation only, and the unit sits
+  // on the loading bay's roof plane rather than intersecting the street blocks.
+  let bayCore=null;
+  for(const c of blocks){
+   if(c.wall||c.kind!=='metal'||c.w*c.d<120||Math.abs(c.x-bay.x)>3)continue;
+   const d=Math.hypot(c.x-self.x,c.z-self.z);
+   if(!bayCore||d<bayCore.d)bayCore={block:c,d};
+  }
+  const facade=kit?.facade?.modules;
+  if(!root.userData.raidParapetStep&&bayCore&&facade?.wall_standard_standard_01?.parts?.length){
+   const b=bayCore.block,y0=b.y+b.h,z0=b.z-b.d/2;
+   const cap=6.0,ph=1.35;
+   const wallGeo=facade.wall_standard_standard_01.parts[0].geo,wallMat=facade.wall_standard_standard_01.parts[0].mat;
+   const parapet=new THREE.InstancedMesh(wallGeo,wallMat,1);
+   DUMMY.position.set(b.x+4.4,y0,z0-.06);DUMMY.rotation.set(0,Math.PI,0);DUMMY.scale.set(cap/3,ph/3,1);DUMMY.updateMatrix();
+   parapet.setMatrixAt(0,DUMMY.matrix);parapet.setColorAt(0,new THREE.Color(0xcfd2c5));
+   parapet.instanceMatrix.needsUpdate=true;parapet.userData.raidFacadePart='parapetStep';
+   parapet.castShadow=true;parapet.receiveShadow=true;parapet.frustumCulled=false;root.add(parapet);
+   const cp=facade.crown_standard_standard_01;
+   if(cp?.parts?.length){
+    const coping=new THREE.InstancedMesh(cp.parts[0].geo,cp.parts[0].mat,1);
+    DUMMY.position.set(b.x+4.4,y0+ph-.02,z0-.22);DUMMY.rotation.set(0,Math.PI,0);DUMMY.scale.set(cap/3,.22/.75,1.5);DUMMY.updateMatrix();
+    coping.setMatrixAt(0,DUMMY.matrix);coping.setColorAt(0,new THREE.Color(0xa7a58f));
+    coping.instanceMatrix.needsUpdate=true;coping.userData.raidFacadePart='parapetCap';
+    coping.castShadow=true;coping.receiveShadow=true;coping.frustumCulled=false;root.add(coping);
+   }
+   root.userData.raidParapetStep={x:b.x+4.4,y:y0,z:z0,h:ph,cap};
+  }
+ }
+
+ refreshSpawnDressing(){
+  const dressing=this.environmentRoot?.userData?.raidSpawnDressing;
+  if(!dressing || dressing.group.userData.raidScanned || !HQP.ready)return;
+  const barrel=HQP.models.barrel,crate=HQP.models.crate;
+  // Only swap when both lobby scans are available; removing the fallbacks while
+  // one model is missing would leave street props absent entirely.
+  if(!barrel||!crate)return;
+  const {group,items}=dressing;
+  for(const child of [...group.children]){group.remove(child);disposeOwned(child)}
+  const dummy=new THREE.Object3D(),spin=item=>((item.x*.37+item.z*1.13)%6.283+6.283)%6.283;
+  const drums=items.filter(item=>item.kind==='drum');
+  const crates=items.filter(item=>item.kind==='crate');
+  if(drums.length){
+   const mesh=new THREE.InstancedMesh(barrel.geo,barrel.mat,drums.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;
+   drums.forEach((item,index)=>{
+    const height=item.height||1.3,scale=height/Math.max(.001,barrel.size.y);
+    dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item),0);
+    dummy.scale.setScalar(scale);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
+  }
+  if(crates.length){
+   const mesh=new THREE.InstancedMesh(crate.geo,crate.mat,crates.length);
+   mesh.castShadow=true;mesh.receiveShadow=true;
+   crates.forEach((item,index)=>{
+    dummy.position.set(item.x,item.y||0,item.z);dummy.rotation.set(0,spin(item)+.3,0);
+    dummy.scale.set((item.w||1.05)/Math.max(.001,crate.size.x),(item.h||1.1)/Math.max(.001,crate.size.y),(item.d||1.05)/Math.max(.001,crate.size.z));
+    dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+   });
+   mesh.instanceMatrix.needsUpdate=true;group.add(mesh);
+  }
+  // Scanned courtyard cover: one instanced draw per material/part shared by every
+  // spawn, with each item's authored footprint seated on sampled terrain.
+  const coverKinds={barrier:'barrier',cratepile:'crate',bin:'bin',wreck:'wreck',log:'log',tyre:'tyre',bag:'bag'};
+  const [worldSx,worldSz]=this.world?.spawns?.[0]||[0,0];
+  const tyreList=items.filter(item=>item.kind==='tyre');
+  let tyreStack=-1,tyreBest=Infinity;
+  tyreList.forEach((item,index)=>{
+   const dx=item.x-worldSx,dz=item.z-worldSz,d=dx*dx+dz*dz;
+   if(d<tyreBest){tyreBest=d;tyreStack=index}
+  });
+  for(const kind of Object.keys(coverKinds)){
+   const asset=HQP.cover?.[coverKinds[kind]];
+   const list=items.filter(item=>item.kind===kind);
+   if(!asset||!list.length)continue;
+   const count=kind==='tyre'&&tyreStack>=0?list.length+1:list.length;
+   for(const part of asset.parts){
+    const mesh=new THREE.InstancedMesh(part.geo,part.mat,count);
+    mesh.castShadow=true;mesh.receiveShadow=true;
+    list.forEach((item,index)=>{
+     let y=(item.y||0),rx=0,ry=item.ry||0,rz=0;
+     if(kind==='tyre'){
+      // Forecourt tyres were left floating flat on tarmac. Sit them a little way
+      // into the slab and lean each one by a few degrees so the rubber reads as
+      // dropped debris rather than decals.
+      const k=index*7+3;
+      y-=.026+(k%3)*.007;
+      rx=((k%9)-4)*.016;
+      rz=(((k*5)|0)%9-4)*.016;
+     }
+     dummy.position.set(item.x,y,item.z);
+     dummy.rotation.set(rx,ry,rz);
+     dummy.scale.setScalar(item.s||1);dummy.updateMatrix();mesh.setMatrixAt(index,dummy.matrix);
+    });
+    if(kind==='tyre'&&tyreStack>=0){
+     // Stack one tyre on the nearest ring so the pile has height and a second
+     // silhouette for the camera to register at spawn.
+     const base=list[tyreStack];
+     dummy.position.set(base.x+.02,(base.y||0)+(base.h||.165)*.92-.024,base.z-.015);
+     dummy.rotation.set(.03,(base.ry||0)+.55,.02);
+     dummy.scale.setScalar(base.s||1);dummy.updateMatrix();mesh.setMatrixAt(list.length,dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate=true;
+    // Dumpster and bag pile currently share the pale barrier's tonal band under
+    // noon sun; tint the scans into a muted olive steel and warm rubbish grey
+    // so the three cover kinds separate while the bin keeps its panel detail.
+    if(kind==='bin'||kind==='bag'){
+     const color=kind==='bin'?new THREE.Color(0xb5c2ab):new THREE.Color(0x777268);
+     list.forEach((_,index)=>mesh.setColorAt(index,color));
+     if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
+    }
+    mesh.userData.raidSpawnCover=kind;
+    group.add(mesh);
+   }
+  }
+  group.userData.raidScanned=true;
+ }
  clear(){
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.lastWeapon=null;this.lastTime=0;
+  if(this.envMapRT)this.envMapRT.dispose();
+  if(this.photoEnvRT)this.photoEnvRT.dispose();
+  if(this.postTarget)this.postTarget.dispose();
+  this.postTarget=null;
+  for(const target of this.bloomTargets||[])target.dispose();
+  this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
+  // Directional shadow targets are not reachable from scene disposal, so release
+  // the sun's map explicitly or each restart leaves one texture on the GPU.
+  if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.lastTime=0;this.footDust=[];this.footDustCursor=0;if(this.enemyShotLight){this.enemyShotLight.visible=false;this.enemyShotLight.intensity=0}this.enemyShotLight=null;this.enemyShotLightAt=-1e9;
   this.audio.reset();const context=this.audio.context;if(context&&context.state!=='closed')context.close().catch(()=>{});this.audio=new RaidAudio();this.audio.volume=this.settings?.sfxVolume??.7;
-  for(const name of ['scene','overlay','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','sunOrb','moonOrb','stars','environmentTarget'])this[name]=null;this.chase=null;
+  for(const name of ['scene','overlay','environmentRoot','terrainMaterial','wetMaterials','windMaterials','windowMaterials','snapshot','world','camera','renderCamera','selfActor','weaponCamera','gunRoot','gun','visualSelf','hemi','sun','weather','weatherKind','weatherState','skyDome','skyPhoto','envMapRT','photoEnvRT','postTarget','postScene','postCamera','postMesh','postMaterial','bloomTargets','bloomScene','bloomCamera','bloomMesh','bloomMaterial','sunOrb','moonOrb','stars','motes','motesState','motesAnchor','glowPoints','glowPools','wetReflections','splashes','splashesState','splashesAnchor','environmentTarget','horizonDepth','natureRoot','chunkList'])this[name]=null;this.chase=null;this.wetness=0;
+  this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
+ this.feel=freshFeel();
+  this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
+  this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
+  this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
   this.renderer.renderLists.dispose();this.renderer.clear();this.renderer.info.reset();
  }
  start(snapshot){
-  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.lastWeapon=null;this.audio.reset();
-  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.scene.add(buildEnvironment(this.world));this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
+  if(this.envMapRT){this.envMapRT.dispose();this.envMapRT=null}
+  if(this.photoEnvRT){this.photoEnvRT.dispose();this.photoEnvRT=null}
+  if(this.postTarget){this.postTarget.dispose();this.postTarget=null}
+  for(const target of this.bloomTargets||[])target.dispose();
+  this.bloomTargets=null;this.bloomWidth=0;this.bloomHeight=0;
+  if(this.sun?.shadow?.map){this.sun.shadow.map.dispose();this.sun.shadow.map=null}
+  if(this.scene)disposeOwned(this.scene);if(this.overlay)disposeOwned(this.overlay);if(this.postScene)disposeOwned(this.postScene);if(this.bloomScene)disposeOwned(this.bloomScene);this.postScene=this.postCamera=this.postMesh=this.postMaterial=null;this.bloomScene=this.bloomMesh=this.bloomMaterial=null;this.actors.clear();this.effects.clear();this.utilityEffects.clear();this.shotEffects=[];this.blastEffects=[];this.coreBurstEffects=[];this.machineWreckEffects=[];this.enemyShotEffects=[];this.enemyShotCursor=0;this.enemyShotSeen.clear();this.lastWeapon=null;this.footDust=[];this.footDustCursor=0;this.enemyShotLight=null;this.enemyShotLightAt=-1e9;this.weather=null;this.weatherKind=null;this.weatherState=null;this.splashes=null;this.splashesState=null;this.splashesAnchor=null;this.chunkList=null;this.audio.reset();
+  this.vmYaw=0;this.vmPitch=0;this.vmLastYaw=null;this.vmLastPitch=null;this.vmStep=0;this.vmEquipAt=0;this.vmAim=0;this.muzzleFlashAt=-1e9;this.muzzleFlash=null;this.muzzleLight=null;this.muzzleLocal=null;this.recoil=0;this.recoilSide=1;this.shotMuzzleLight=null;this.shotMuzzleLightAt=-1e9;
+ this.feel=freshFeel();
+  this.caseFx=null;this.caseCursor=0;this.muzzleSmoke=null;this.muzzleSmokeAt=-1e9;
+  this.heat=0;this.heatPeak=0;this.flashProfile=null;this.flashSpikes=0;this.muzzleBaseScale=.034;this.gunHeatMaterials=[];
+  this.reloadStartedAt=0;this.reloadDuration=0;this.reloadMag=null;this.reloadMagBase=null;
+  this.world=getWorld(snapshot.map,snapshot.mapVersion===undefined?1:snapshot.mapVersion);this.viewScale=this.world.size/160;this.scene=new THREE.Scene();this.environmentRoot=buildEnvironment(this.world);this.scene.add(this.environmentRoot);this.buildMachineStepDust();this.glowPoints=this.environmentRoot.userData.raidGlowPoints||null;this.glowPools=this.environmentRoot.userData.raidGlowPools||null;this.wetReflections=this.environmentRoot.userData.raidWetReflections||null;this.terrainMaterial=this.environmentRoot.userData.raidTerrainMaterial||null;this.wetMaterials=[];this.windMaterials=this.environmentRoot.userData.raidWindMaterials||[];this.windowMaterials=this.environmentRoot.userData.raidWindowMaterials||[];if(this.terrainMaterial)this.wetMaterials.push(this.terrainMaterial);for(const material of this.environmentRoot.userData.materials?.values()||[])if(material.userData.raidDry&&material.userData.raidWet>0)this.wetMaterials.push(material);const initialWeather=snapshot.conditions?.weather||'clear';this.wetness=initialWeather==='rain'?1:initialWeather==='mist'?.35:0;this.applyWetness();this.camera=new THREE.PerspectiveCamera(75,1,.08,Math.max(230,this.world.size*1.5));this.camera.rotation.order='YXZ';this.renderCamera=new THREE.PerspectiveCamera(75,1,.12,Math.max(230,this.world.size*1.5));this.renderCamera.rotation.order='YXZ';
   const selfWeapon=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId&&it.kind==='weapon')?.weapon??null;
   this.selfActor=humanModel(snapshot.self.name||'Operator','raid_local_operator',true,selfWeapon);if(this.selfActor.userData.tag)this.selfActor.userData.tag.visible=false;this.selfActor.visible=this.viewMode!=='first';this.scene.add(this.selfActor);
-  this.hemi=new THREE.HemisphereLight(0xe5f2ed,0x414d49,1.8);this.sun=new THREE.DirectionalLight(0xffd6a0,2);this.sun.position.set(-30,65,35);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.sun,this.sun.target);this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
-  this.environmentTarget=null;this.buildSky();
-  this.overlay=new THREE.Scene();this.weaponCamera=new THREE.PerspectiveCamera(58,1,.02,8);this.overlay.add(new THREE.HemisphereLight(0xe5f2ff,0x425059,2));const light=new THREE.DirectionalLight(0xffd4a4,2);light.position.set(2,3,4);this.overlay.add(light);
-  this.gunRoot=new THREE.Group();this.gunRoot.position.set(.2,-.22,-.5);this.gunRoot.scale.setScalar(.65);this.overlay.add(this.gunRoot);
-  const geometry=new THREE.BufferGeometry(),positions=new Float32Array(450*3);for(let i=0;i<positions.length;i+=3){positions[i]=(Math.random()-.5)*this.world.size;positions[i+1]=Math.random()*35;positions[i+2]=(Math.random()-.5)*this.world.size}geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));geometry.userData.raidOwned=true;
-  const material=new THREE.PointsMaterial({color:0xd2e1e8,size:.07,transparent:true,opacity:.5});material.userData.raidOwned=true;this.weather=new THREE.Points(geometry,material);this.scene.add(this.weather);
-  this.visualSelf=new THREE.Vector3(snapshot.self.x,(snapshot.self.y||0),snapshot.self.z);this.audio.resume();this.sync(snapshot);
+  this.hemi=new THREE.HemisphereLight(0xbfd6ee,0x4a4234,1.8);this.ambientFill=new THREE.AmbientLight(0xc8d2c8,0);this.sun=new THREE.DirectionalLight(0xffe9c6,2);
+  // Daylight sky bounce: a shadow-free overhead fill stands in for the bright
+  // dome that a low sun leaves out. It lands mostly on roads, pavement, rubble
+  // and rooftops (near-horizontal normals), so vertical façades keep their sun
+  // direction and the ground does not collapse into a black wedge at spawn.
+  this.skyBounce=new THREE.DirectionalLight(0xffe4c4,0);this.skyBounce.castShadow=false;this.skyBounce.position.set(12,72,18);this.scene.add(this.skyBounce);this.sun.position.set(-30,65,35);this.sun.castShadow=true;const shadowSize=this.touch?1024:2048;this.sun.shadow.mapSize.set(shadowSize,shadowSize);this.sun.shadow.camera.left=-80;this.sun.shadow.camera.right=80;this.sun.shadow.camera.top=80;this.sun.shadow.camera.bottom=-80;this.sun.shadow.camera.near=1;this.sun.shadow.camera.far=220;this.sun.shadow.bias=-.0004;this.sun.shadow.normalBias=.35;this.sunDirection=new THREE.Vector3(-30,65,35).normalize();this.sunAnchor=new THREE.Vector3();this.scene.add(this.hemi,this.ambientFill,this.sun,this.sun.target);this.hemiNeutral=new THREE.Color(0xe5f2ed);this.flashColor=new THREE.Color(0xcfe4ff);this.sunBase=null;this.hemiBase=null;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.shadowMap.enabled=true;
+  this.environmentTarget=null;this.buildSky(snapshot);
+  this.overlay=new THREE.Scene();this.weaponCamera=new THREE.PerspectiveCamera(58,1,.02,8);
+  // Three-point first-person lighting: a warm key (sun through the scene), a
+  // cool rim from behind the shoulder, and a sky/ground hemisphere fill. The
+  // weapon is near the camera and gets no shadow map; these lights read the
+  // metal highlights without touching the world pass.
+  this.overlayFill=new THREE.HemisphereLight(0xe6e4dc,0x2c241d,.9);
+  this.overlayKey=new THREE.DirectionalLight(0xffe8cc,2.6);this.overlayKey.position.set(2.4,2.8,4.2);
+  // Neutral rim so the scanned rifle's dark metal highlights stay charcoal
+  // instead of picking up a steel-blue cast from a cool fill.
+  this.overlayRim=new THREE.DirectionalLight(0xd2c8b8,1.0);this.overlayRim.position.set(-2.8,1.4,2.4);
+  // A frontal fill catches the sleeve folds and glove knuckles that otherwise
+  // sit in the shadow between the key and rim; it is what makes the forearms
+  // read as fabric and the closed fingers readable instead of black blobs.
+  this.overlayFront=new THREE.DirectionalLight(0xf2ebe2,.8);this.overlayFront.position.set(.3,.7,2.2);
+  this.overlay.add(this.overlayFill,this.overlayKey,this.overlayRim,this.overlayFront);
+  this.gunRoot=new THREE.Group();this.gunHip={x:VIEW_HIP.x,y:VIEW_HIP.y,z:VIEW_HIP.z};this.gunRoot.position.set(VIEW_HIP.x,VIEW_HIP.y,VIEW_HIP.z);this.gunRoot.scale.setScalar(VIEW_SCALE);this.overlay.add(this.gunRoot);
+  this.buildCombatEffects();
+  this.buildComposite();
+  this.visualSelf=new THREE.Vector3(snapshot.self.x,(snapshot.self.y||0),snapshot.self.z);
+  this.fireOrigin=new THREE.Vector3(snapshot.self.x,(snapshot.self.y||0)+1.55,snapshot.self.z);this.fireYaw=snapshot.self.yaw||0;this.firePitch=snapshot.self.pitch||0;
+  this.audio.resume();this.sync(snapshot);
+  // Assets may already be decoded on a resume/redeploy; apply the photo pass
+  // now so a rebuilt environment is never left with missing modular facades.
+  this.refreshArt();
  }
  sync(snapshot){
   this.snapshot=snapshot;this.audio.observe(snapshot);this.snapAt=performance.now();const live=new Set();
   const put=(key,type,data)=>{
    live.add(key);let entry=this.actors.get(key);
    if(!entry){
-    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):propModel(type,data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
+    const props=type==='cache'?propModel('cache',0xd8b062,{tier:(Number(data.tier)||0)+(data.vault?1:0)}):type==='loot'?propModel('loot',lootAccent(data),lootOptions(data)):propModel(type,type==='door'?(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b):data.weaponCache?0xbd7ad7:data.vault?0xc78bdb:data.open?0x87b89a:data.ground?0x9fd27c:0xd8b062);
+    const model=type==='machine'?machineModel(data.kind):type==='human'?humanModel(data.name||'Operator',data.id,data.rival?false:data.team===snapshot.self.team,data.weapon??null):props;
     // Armories carry purple beams; extraction beacons stay cyan/green. This
     // gives both objectives a silhouette above the dense district roofs.
     if(type==='cache'&&data.weaponCache){model.userData.beacon=beaconModel(0xe07adf,18);model.add(model.userData.beacon)}
@@ -54,13 +2103,25 @@ export class RaidView {
    entry.data=data;if(type==='human'&&entry.model.userData.heldWeapon!==(data.weapon??null))setHumanWeapon(entry.model,data.weapon??null);if(type==='cache')entry.model.userData.lid?.material.color.setHex(data.open?0x87b89a:data.vault?0xc78bdb:0xd8b062);
   };
   for(const p of snapshot.players)if(p.id!==snapshot.camera?.follow)put(p.id,'human',p);
-  for(const m of snapshot.machines)put(m.id,'machine',m);
+  const machineIds=new Set();
+  for(const m of snapshot.machines){put(m.id,'machine',m);machineIds.add(m.id);
+   // Resolve hostile fire exactly once per authoritative shot token. The token
+   // persists for a short server window, so repeated polls of the same shot
+   // must remain a single visual event.
+   if(m.shot&&Number.isFinite(m.shot.at)&&this.enemyShotSeen.get(m.id)!==m.shot.at){this.enemyShotSeen.set(m.id,m.shot.at);this.spawnEnemyShot(m.shot,m.kind||'scout')}
+  }
+  for(const id of this.enemyShotSeen.keys())if(!machineIds.has(id))this.enemyShotSeen.delete(id);
   for(const r of snapshot.rivals||[])put(r.id,'human',r);
   for(const c of snapshot.caches)put(c.id,'cache',c);
   for(const l of snapshot.loot||[])put(l.id,'loot',l);
   for(const b of snapshot.bags)put(b.id,'bag',b);
   for(const p of snapshot.pings||[])put('ping_'+p.id,'ping',p);
   for(const e of snapshot.exits)put(e.id,'exit',e);
+  for(const door of snapshot.doors||[])put('door_'+door.id,'door',door);
+  // Rebuild the collision overlay per snapshot. The frozen shared world is
+  // never mutated; the camera, projectile traces and prediction all read this
+  // authoritative door state instead.
+  this.activeWorld={...this.world,doors:(snapshot.doors||[]).map(door=>({...door,closed:!!door.closed,locked:!!door.locked}))};
   for(const [key,entry]of this.actors)if(!live.has(key)){this.scene.remove(entry.model);disposeOwned(entry.model);this.actors.delete(key)}
   const effects=new Set();
   for(const warning of [...(snapshot.telegraphs||[]),...(snapshot.hazards||[]).filter(h=>h.active||h.warning)]){
@@ -72,16 +2133,130 @@ export class RaidView {
   this.syncUtilities(snapshot);
   const observer=snapshot.camera||snapshot.self,eye={x:observer.x,y:(observer.y||0)+1.6,z:observer.z},insideSmoke=!smokeClear(snapshot.utilities,eye,eye,snapshot.serverTime);
   const conditions=insideSmoke?{...(snapshot.conditions||mapConditions(this.world)),fog:0x9aa6a1,visibility:.07}:snapshot.conditions||mapConditions(this.world);this.environmentTarget={sky:new THREE.Color(conditions.sky),fog:new THREE.Color(conditions.fog),visibility:conditions.visibility,light:conditions.light,ambient:conditions.ambient??1.8,daylight:conditions.daylight??1,sun:new THREE.Vector3((conditions.sun?.x??-30)*this.viewScale,(conditions.sun?.y??65)*this.viewScale,(conditions.sun?.z??35)*this.viewScale)};
-  if(!this.scene.background){this.scene.background=this.environmentTarget.sky.clone();this.scene.fog=new THREE.Fog(conditions.fog,24*this.viewScale*conditions.visibility,125*this.viewScale*conditions.visibility);this.updateEnvironment(1)}this.weather.visible=conditions.weather!=='clear'&&!this.settings?.reduced;this.weather.material.color.setHex(conditions.weather==='ash'?0xd6a17b:conditions.weather==='mist'?0xc3d0c8:0xaecade);
+  if(!this.scene.background){this.scene.background=this.environmentTarget.sky.clone();this.scene.fog=new THREE.Fog(conditions.fog,24*this.viewScale*conditions.visibility,125*this.viewScale*conditions.visibility);this.updateEnvironment(1);
+   // Build the IBL once from the deployment sky. Materials then reflect the
+   // same horizon and sun the camera sees, and the render target is released by
+   // clear()/start() so repeated deployments do not accumulate GPU memory.
+   if(!this.envMapRT){this.envMapRT=this.createEnvironmentMap(this.environmentTarget);this.scene.environment=this.envMapRT.texture}}
+  // The held pass stays out of the sky reflection probe: at noon the full
+  // daylight PMREM washes the scanned receiver to light blue-grey plastic.
+  // The three-point overlay lights below carry the dark gunmetal wear instead.
+  if(this.overlay&&this.overlay.environment!==null)this.overlay.environment=null;
+  const weather=conditions.weather||'clear';
+  if(weather==='clear'){if(this.weather)this.weather.visible=false}
+  else{if(!this.weather||this.weatherKind!==weather)this.buildWeather(weather);this.weather.visible=!this.settings?.reduced;this.weather.material.color.setHex(weather==='ash'?0xd6a17b:weather==='mist'?0xc3d0c8:0xaecade)}
   const item=[...snapshot.self.equipment,...snapshot.self.pack].find(it=>it.id===snapshot.self.weaponId);
   this.gunRoot.visible=!!item&&this.viewMode==='first';
   if(this.selfActor&&this.selfActor.userData.heldWeapon!==(item?.weapon??null))setHumanWeapon(this.selfActor,item?.weapon??null);
-  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun)}
+  if(item&&this.lastWeapon!==item.id){this.lastWeapon=item.id;for(const child of [...this.gunRoot.children]){this.gunRoot.remove(child);disposeOwned(child)}this.gun=weaponModel(item.weapon,true);this.gunRoot.add(this.gun);this.attachMuzzleFlash(item);this.vmEquipAt=performance.now();
+   // Rear furniture and forearms would otherwise jam into the sight picture:
+   // fade them out as the optic comes up, like a real shoulder-weld.
+   this.gunAimFade=[];
+   this.gun.traverse(node=>{const material=node.material;if(!node.isMesh||!material||!['stock','sleeve'].includes(material.name))return;
+    material.transparent=true;material.depthWrite=false;material.opacity=1;this.gunAimFade.push(material)});
+  }
+ }
+ // The muzzle glow is rebuilt with each held weapon and rides the recoiling
+ // gunRoot. It is presentation-only and disposed with the overlay.
+ attachMuzzleFlash(item=null){
+  if(!this.gun)return;
+  const muzzle=this.gun.userData.info?.muzzle||[0,.05,-.35];
+  this.muzzleLocal=new THREE.Vector3(muzzle[0],muzzle[1],muzzle[2]);
+  // Pick the authored silhouette from the equipped weapon rather than one
+  // generic radial blob: shotguns throw a broad fan, snipers a lance, pistols a
+  // compact cross, and so on.
+  const stats=item?weaponStats(item):null;
+  const family=stats?.class||'rifle';
+  const profile=(stats?.pellets||0)>1?'shotgun':family==='sniper'?'sniper':family==='smg'?'smg':family==='lmg'?'heavy':family==='pistol'?'pistol':'rifle';
+  const shape=FLASH_PROFILES[profile]||FLASH_PROFILES.rifle;
+  this.flashProfile=profile;this.flashSpikes=shape.spikes;this.muzzleBaseScale=shape.scale;
+  const texture=muzzleFlashTexture(profile);
+  const material=new THREE.SpriteMaterial({map:texture,color:FLASH_PROFILES[profile].tint,transparent:true,opacity:0,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending});material.userData.raidOwned=true;material.userData.raidOwnTexture=true;
+  const sprite=new THREE.Sprite(material);sprite.position.copy(this.muzzleLocal);sprite.scale.setScalar(0);sprite.visible=false;
+  this.muzzleFlash=sprite;this.gunRoot.add(sprite);
+  // The additive sprite reads as a bloom, but a real pooled point light is what
+  // warms the hands and receiver around the muzzle. It shares the flash window,
+  // carries no geometry/texture, and is rebuilt only when the weapon changes.
+  const light=new THREE.PointLight(0xffd49a,0,3.5,2);light.position.copy(this.muzzleLocal);light.visible=false;light.castShadow=false;this.muzzleLight=light;this.gunRoot.add(light);
+  // Track the held weapon's PBR materials so barrel heat can tint them. This
+  // does not allocate or clone anything; the materials are already owned by
+  // the weapon and disposed with it.
+  this.heat=0;this.heatPeak=0;this.gunHeatMaterials=[];
+  const seen=new Set();this.gun.traverse(node=>{const material=node.material;if(node.isMesh&&material?.isMeshStandardMaterial&&!seen.has(material)){seen.add(material);
+   // The optic reticle carries its own emissive glow; barrel heat must not
+   // extinguish it or tint the glass.
+   if(material.name==='ret'||material.name==='glass')return;
+   material.emissive.setRGB(0,0,0);this.gunHeatMaterials.push(material)}});
+  // Muzzle smoke: a cool grey puff that trails the flash and dissipates.
+  const smokeCanvas=document.createElement('canvas');smokeCanvas.width=smokeCanvas.height=64;
+  const smokeContext=smokeCanvas.getContext('2d'),smokeGradient=smokeContext.createRadialGradient(32,32,0,32,32,32);
+  smokeGradient.addColorStop(0,'rgba(255,255,255,.8)');smokeGradient.addColorStop(.45,'rgba(205,216,220,.52)');smokeGradient.addColorStop(1,'rgba(160,175,181,0)');
+  smokeContext.fillStyle=smokeGradient;smokeContext.fillRect(0,0,64,64);
+  const smokeTexture=new THREE.CanvasTexture(smokeCanvas);smokeTexture.colorSpace=THREE.SRGBColorSpace;
+  const smoke=new THREE.SpriteMaterial({map:smokeTexture,color:0xc7d3d7,transparent:true,opacity:0,depthTest:false,depthWrite:false});smoke.userData.raidOwned=true;smoke.userData.raidOwnTexture=true;
+  this.muzzleSmoke=new THREE.Sprite(smoke);this.muzzleSmoke.position.copy(this.muzzleLocal);this.muzzleSmoke.scale.setScalar(0);this.muzzleSmoke.visible=false;this.gunRoot.add(this.muzzleSmoke);
+  // A fixed brass-casing pool: one shared small-canvas texture, eight recycled
+  // sprites, no allocation on the firing path.
+  const caseCanvas=document.createElement('canvas');caseCanvas.width=caseCanvas.height=32;
+  const caseContext=caseCanvas.getContext('2d');caseContext.fillStyle='#f1cf76';caseContext.fillRect(12,6,8,21);caseContext.fillStyle='#fff0be';caseContext.fillRect(12,6,3,21);caseContext.fillStyle='#957337';caseContext.fillRect(12,25,8,3);caseContext.fillStyle='#b59a55';caseContext.fillRect(16,8,2,17);
+  const caseTexture=new THREE.CanvasTexture(caseCanvas);caseTexture.colorSpace=THREE.SRGBColorSpace;
+  this.caseFx=this.caseFx?.filter(sprite=>sprite.parent===this.gunRoot)||[];
+  if(this.caseFx.length){for(const sprite of this.caseFx)for(const entry of [sprite.material])if(entry){if(entry.map&&entry.map!==caseTexture)entry.map.dispose();entry.map=caseTexture;entry.needsUpdate=true}}
+  else{
+   for(let i=0;i<8;i++){
+    const material=new THREE.SpriteMaterial({map:caseTexture,color:0xfff2c8,transparent:true,opacity:0,depthTest:false,depthWrite:false});
+    material.userData.raidOwned=true;if(i===0)material.userData.raidOwnTexture=true;
+    const casing=new THREE.Sprite(material);casing.scale.setScalar(.024);casing.visible=false;casing.userData={life:0,max:1,vx:0,vy:0,vz:0};
+    this.gunRoot.add(casing);this.caseFx.push(casing);
+   }
+  }
+  // Reload handling prop: one fixed, owned PBR magazine that only moves during
+  // an accepted reload. It shares the overlay environment but allocates nothing
+  // per reload and is disposed with the weapon root.
+  const pivot=this.gun.userData.info?.piv?.mag||[0,-.055,-.02];
+  this.reloadMagBase=new THREE.Vector3(pivot[0],pivot[1],pivot[2]);
+  const bodyGeometry=new THREE.BoxGeometry(.055,.18,.035);bodyGeometry.userData.raidOwned=true;
+  const bodyMaterial=new THREE.MeshStandardMaterial({color:0x3f474a,metalness:.68,roughness:.36,envMapIntensity:1.25});bodyMaterial.userData.raidOwned=true;
+  const bodyMesh=new THREE.Mesh(bodyGeometry,bodyMaterial);bodyMesh.position.y=-.09;
+  const lipGeometry=new THREE.BoxGeometry(.055,.022,.038);lipGeometry.userData.raidOwned=true;
+  const lipMaterial=new THREE.MeshStandardMaterial({color:0xc9a95a,metalness:.74,roughness:.28,envMapIntensity:1.4});lipMaterial.userData.raidOwned=true;
+  const lipMesh=new THREE.Mesh(lipGeometry,lipMaterial);lipMesh.position.y=.012;
+  this.reloadMag=new THREE.Group();this.reloadMag.add(bodyMesh,lipMesh);this.reloadMag.position.copy(this.reloadMagBase);this.reloadMag.visible=false;this.gunRoot.add(this.reloadMag);
+  this.reloadStartedAt=0;this.reloadDuration=0;
+ }
+ // Start a physical reload handling beat after an accepted reload. Defaults to
+ // the held weapon's authoritative reload time and stays entirely presentational.
+ beginReload(durationMs){
+  if(this.settings?.reduced||this.viewMode!=='first'||!this.gun||!this.gunRoot?.visible)return false;
+  const s=this.snapshot?.self,item=s&&[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);
+  const seconds=item?weaponStats(item).reload:1.2;
+  const ms=Math.max(350,Math.min(4000,Number(durationMs)||seconds*1000));
+  this.reloadStartedAt=performance.now();this.reloadDuration=ms;
+  if(this.reloadMag){this.reloadMag.visible=true;this.reloadMag.position.copy(this.reloadMagBase);this.reloadMag.rotation.set(0,0,0)}
+  return true;
+ }
+ // Presentation-only per-shot particulate. It reads the same fields as the
+ // visual kick but never mutates aim, ballistics or snapshot state.
+ spawnViewModelEffects(){
+  if(this.settings?.reduced||this.viewMode!=='first'||!this.gun||!this.gunRoot.visible)return;
+  // Sustained fire accumulates barrel heat. Heavy/shotgun report a stronger
+  // per-shot temperature jump than a rifle or SMG, but the value is bounded.
+  const profile=this.flashProfile||'rifle',gain=profile==='shotgun'||profile==='heavy'?.3:profile==='sniper'?.34:.2;
+  this.heat=Math.min(1,(this.heat||0)+gain);this.heatPeak=Math.max(this.heatPeak||0,this.heat);
+  const info=this.gun.userData.info||{},eject=info.eject||[-.08,.03,-.3];
+  if(this.caseFx?.length){
+   const casing=this.caseFx[this.caseCursor++%this.caseFx.length];
+   casing.position.set(eject[0],eject[1],eject[2]);
+   const vy=info.ejDown?-.05:info.ejUp?(.8+Math.random()*.2):(.85+Math.random()*.35);
+   casing.userData={age:0,max:.3+Math.random()*.09,vx:(eject[0]>=0?1:-1)*(.55+Math.random()*.32),vy,vz:.05+Math.random()*.14,spin:Math.random()*Math.PI*2};
+   casing.material.rotation=casing.userData.spin;casing.material.opacity=.95;casing.visible=true;
+  }
+  if(this.muzzleSmoke){this.muzzleSmokeAt=performance.now();this.muzzleSmoke.position.copy(this.muzzleLocal);this.muzzleSmoke.visible=true}
  }
  smokeModel(){
   const canvas=document.createElement('canvas');canvas.width=canvas.height=64;const context=canvas.getContext('2d'),gradient=context.createRadialGradient(32,32,0,32,32,32);gradient.addColorStop(0,'rgba(255,255,255,1)');gradient.addColorStop(.45,'rgba(255,255,255,.85)');gradient.addColorStop(1,'rgba(255,255,255,0)');context.fillStyle=gradient;context.fillRect(0,0,64,64);
   const texture=new THREE.CanvasTexture(canvas),root=new THREE.Group();
-  for(let i=0;i<9;i++){const material=new THREE.SpriteMaterial({map:texture,color:0x9aa6a1,transparent:true,opacity:.65,depthWrite:false});material.userData.raidOwned=true;material.userData.raidOwnTexture=i===0;const puff=new THREE.Sprite(material),angle=i*2.399963;puff.position.set(i?Math.cos(angle)*.38:0,i?Math.sin(angle*2)*.2:0,i?Math.sin(angle)*.38:0);puff.scale.setScalar(i?1.2:1.6);root.add(puff)}return root;
+  for(let i=0;i<9;i++){const material=new THREE.SpriteMaterial({map:texture,color:0x9aa6a1,transparent:true,opacity:.65,depthWrite:false});material.userData.raidOwned=true;material.userData.raidOwnTexture=i===0;const puff=new THREE.Sprite(material),angle=i*2.399963;puff.position.set(i?Math.cos(angle)*.38:0,i?Math.sin(angle*2)*.2:0,i?Math.sin(angle)*.38:0);puff.userData.baseX=puff.position.x;puff.userData.baseY=puff.position.y;puff.scale.setScalar(i?1.2:1.6);root.add(puff)}return root;
  }
  syncUtilities(snapshot){
   const live=new Set();for(const e of snapshot.utilities||[]){
@@ -91,50 +2266,1164 @@ export class RaidView {
     else{const geometry=new THREE.TorusGeometry(e.kind==='frag'?e.radius:.6,.07,4,36),material=new THREE.MeshBasicMaterial({color:e.kind==='frag'?0xffa360:0x78d6e0,transparent:true,opacity:.85,depthWrite:false,side:THREE.DoubleSide});geometry.userData.raidOwned=material.userData.raidOwned=true;mesh=new THREE.Mesh(geometry,material);mesh.rotation.x=Math.PI/2}
     mesh.userData.kind=e.kind;this.scene.add(mesh);this.utilityEffects.set(e.id,mesh);
    }
-   const active=snapshot.serverTime>=e.activeAt;mesh.position.set(e.x,e.y+(e.kind==='smoke'?1.5:.15),e.z);if(e.kind==='smoke')mesh.scale.setScalar(active?e.radius:.15);else if(e.kind==='frag')mesh.material.color.setHex(e.detonated?0xff3825:0xffa360);
+   const active=snapshot.serverTime>=e.activeAt;mesh.position.set(e.x,e.y+(e.kind==='smoke'?1.5:.15),e.z);mesh.userData.active=active;mesh.userData.radius=e.radius;
+   if(e.kind==='smoke'){if(!active)mesh.scale.setScalar(.15)}
+   else if(e.kind==='frag'){
+    mesh.material.color.setHex(e.detonated?0xff3825:0xffa360);
+    // A frag crossing into detonation spawns one pooled blast; the transition
+    // is tracked per mesh so network snapshots that repeat cannot multiply it.
+    if(active&&e.detonated&&mesh.userData.detonated!==true){mesh.userData.detonated=true;this.spawnBlast(e.x,e.y||0,e.z,e.radius)}
+   }
   }
   for(const [id,mesh]of this.utilityEffects)if(!live.has(id)){this.scene.remove(mesh);disposeOwned(mesh);this.utilityEffects.delete(id)}
  }
- buildSky(){
-  const orb=(radius,color)=>{const geometry=new THREE.SphereGeometry(radius,12,8),material=new THREE.MeshBasicMaterial({color,fog:false,depthWrite:false});geometry.userData.raidOwned=material.userData.raidOwned=true;const mesh=new THREE.Mesh(geometry,material);this.scene.add(mesh);return mesh};
-  this.sunOrb=orb(3.4*this.viewScale,0xffd7a5);this.moonOrb=orb(2.2*this.viewScale,0xd6e6f6);
+ buildSky(snapshot=null){
+  const skyMaterial=new THREE.ShaderMaterial({vertexShader:SKY_VERT,fragmentShader:SKY_FRAG,side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
+   uniforms:{top:{value:new THREE.Color(0x16233d)},mid:{value:new THREE.Color(0x2c3a4e)},bot:{value:new THREE.Color(0x7a766b)},sunDir:{value:new THREE.Vector3(0,1,0)},sunCol:{value:new THREE.Color(0xffd7a5)},sunI:{value:1},uScatter:{value:0},cloudCol:{value:new THREE.Color(0x8b8b86)},uCloud:{value:0},cloudTime:{value:0},flashCol:{value:new THREE.Color(0xcfe4ff)},uFlash:{value:0}}});
+  skyMaterial.userData.raidOwned=true;
+  const skyGeometry=new THREE.SphereGeometry(195*this.viewScale,32,16);skyGeometry.userData.raidOwned=true;
+  this.skyDome=new THREE.Mesh(skyGeometry,skyMaterial);this.skyDome.renderOrder=-11;this.skyDome.frustumCulled=false;this.scene.add(this.skyDome);
+  // Sun and moon are soft additive glows rather than hard opaque spheres: the
+  // old flat discs sat at fixed world coordinates and could drift into view as
+  // a pale smudge while the player moved. Each frame follows the camera along
+  // the conditions sun direction so it always reads as a distant glint.
+  const orb=(radius,color,opacity)=>{const material=new THREE.SpriteMaterial({map:TX.soft,color,transparent:true,opacity,depthWrite:false,blending:THREE.AdditiveBlending,fog:false});material.userData.raidOwned=true;const sprite=new THREE.Sprite(material);sprite.scale.setScalar(radius*2.6);this.scene.add(sprite);return sprite};
+  this.sunOrb=orb(3.4*this.viewScale,0xffe4b8,.85);this.moonOrb=orb(2.2*this.viewScale,0xd6e6f6,.72);
   const positions=[],radius=185*this.viewScale;for(let i=0;i<220;i++){const y=.08+.88*(i+.5)/220,angle=i*2.399963,ring=Math.sqrt(1-y*y);positions.push(Math.cos(angle)*ring*radius,y*radius,Math.sin(angle)*ring*radius)}
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.userData.raidOwned=true;const material=new THREE.PointsMaterial({color:0xdfebff,size:.4*this.viewScale,transparent:true,opacity:0,fog:false,depthWrite:false});material.userData.raidOwned=true;this.stars=new THREE.Points(geometry,material);this.scene.add(this.stars);
+  // Behind the playable sector, two layered ruined-district silhouettes fade
+  // toward the sector fog tint; dust columns rise from selected broken roofs.
+  // The group is centred on the live camera each frame so it always occupies the
+  // horizon ring, and its materials are fog-painted, deterministic and static.
+  // Match the skyline tint to the deployment's own atmospheric haze (weather,
+  // timeline and sector theme) instead of a fixed sector default, so distant
+  // ruins dissolve into the exact fog colour the camera sees.
+  const horizonConditions=snapshot?.conditions||mapConditions(this.world),horizonFog=horizonConditions.fog??0x9aa9b4;
+  const horizonBase={industrial:0x354951,wilderness:0x455f5b,settlement:0x50505b}[this.world.theme]||0x354951;
+  this.horizonDepth=makeRaidHorizon(this.world.id,horizonFog,{radius:110*this.viewScale,scale:Math.max(1,this.viewScale*.3),base:horizonBase});
+  this.scene.add(this.horizonDepth);
+  this.buildAtmosphere();
+ }
+ buildAtmosphere(){
+  // Floating dust motes were retired by the art direction pass: additive points
+  // read as white specks over facades and the sky rather than atmosphere. The
+  // surviving atmosphere is the sky/cloud/scattering shader plus fog, so no
+  // point field is created and nothing dithers the air in front of buildings.
+  this.motes=null;this.motesState=null;this.motesAnchor=null;
+ }
+ buildRainSplashes(){
+  // 48 flat additive rings cycle through a 1.7 s impact rhythm inside a 12 m
+  // disc around the operator. Phases and offsets are authored once and never
+  // randomised, so a replay at the same scene time paints the same field.
+  if(this.splashes){this.scene.remove(this.splashes);disposeOwned(this.splashes)}
+  const count=48;
+  const geometry=new THREE.PlaneGeometry(1,1);geometry.userData.raidOwned=true;
+  const material=new THREE.MeshBasicMaterial({map:rainRippleTexture(),color:0xffffff,transparent:true,opacity:.6,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:true});
+  material.userData.raidOwned=true;
+  const mesh=new THREE.InstancedMesh(geometry,material,count);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const offsets=new Float32Array(count*2),phases=new Float32Array(count);
+  for(let i=0;i<count;i++){
+   const angle=i*2.399963;const radius=Math.sqrt(((i*.6180339)+.11)%1)*12;
+   offsets[i*2]=Math.cos(angle)*radius;offsets[i*2+1]=Math.sin(angle)*radius;
+   phases[i]=(i*.371)%1;
+  }
+  for(let i=0;i<count;i++)mesh.setColorAt(i,SPLASH_TINT.setRGB(0,0,0));
+  mesh.instanceColor.needsUpdate=true;
+  mesh.visible=false;mesh.frustumCulled=false;mesh.renderOrder=2;
+  mesh.userData.raidRainSplashes=true;
+  this.scene.add(mesh);
+  this.splashes=mesh;this.splashesState={offsets,phases,count,period:1.7,radius:12,baseScale:.18,growReach:1.45};
+  this.splashesAnchor=new THREE.Vector3();
+ }
+ // Rain renders as additive motion streaks, snow/ash/mist as soft particles. The
+ // mesh is rebuilt when the front changes so the flat Points cloud of the old
+ // renderer does not hide the weather the snapshot announces.
+ buildWeather(kind){
+  if(this.splashes&&kind!=='rain'){this.scene.remove(this.splashes);disposeOwned(this.splashes);this.splashes=null;this.splashesState=null;this.splashesAnchor=null}
+  if(this.weather){this.scene.remove(this.weather);disposeOwned(this.weather);this.weather=null}
+  const size=this.world?.size||1440;
+  let geometry,material,state;
+  if(kind==='rain'){
+   const count=620,arr=new Float32Array(count*6),colors=new Float32Array(count*6);
+   // The volume is a 46 m wide, 32 m tall local box: dense enough that a phone
+   // screen sees streaks at first-person range, sparse enough to stay one draw
+   // call and one small buffer. Drops drift with the wind so the authored slant
+   // stays coherent as they fall.
+   state={mode:'rain',drops:[],radius:23,ceiling:32,wind:.9};
+   for(let i=0;i<count;i++){const d={ox:(Math.random()-.5)*state.radius*2,oz:(Math.random()-.5)*state.radius*2,y:Math.random()*state.ceiling,len:1.15+Math.random()*2,speed:16+Math.random()*10,drift:.55+Math.random()*.75};
+    state.drops.push(d);writeRain(arr,i,d,0,0);
+    colors[i*6]=.55;colors[i*6+1]=.7;colors[i*6+2]=.86;colors[i*6+3]=.06;colors[i*6+4]=.1;colors[i*6+5]=.16}
+   geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(arr,3));geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+   material=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false,fog:true});
+   this.weather=new THREE.LineSegments(geometry,material);
+  }else{
+   const count=kind==='mist'?110:460,arr=new Float32Array(count*3);
+   state={mode:kind,points:[],ceiling:kind==='mist'?16:kind==='ash'?30:34};
+   for(let i=0;i<count;i++){const p={x:(Math.random()-.5)*size,z:(Math.random()-.5)*size,y:kind==='mist'?1+Math.random()*14:Math.random()*state.ceiling,speed:kind==='mist'?.12:kind==='ash'?.5:.9};state.points.push(p);arr[i*3]=p.x;arr[i*3+1]=p.y;arr[i*3+2]=p.z}
+   geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(arr,3));
+   material=new THREE.PointsMaterial({map:TX.soft,color:0xffffff,size:kind==='mist'?2.4:kind==='ash'?.10:.13,transparent:true,opacity:kind==='mist'?.26:.72,depthWrite:false,blending:kind==='mist'?THREE.NormalBlending:THREE.AdditiveBlending,sizeAttenuation:true,fog:true});
+   this.weather=new THREE.Points(geometry,material);
+  }
+  geometry.userData.raidOwned=true;material.userData.raidOwned=true;
+  this.weather.renderOrder=3;this.weather.frustumCulled=false;this.scene.add(this.weather);
+  if(kind==='rain')this.buildRainSplashes();
+  this.weatherKind=kind;this.weatherState=state;
+ }
+ createEnvironmentMap(target){
+  const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;const context=canvas.getContext('2d');
+  const css=color=>'#'+color.getHexString();
+  const top=target.sky.clone(),mid=top.clone().lerp(target.fog,.5),ground=target.fog.clone().multiplyScalar(.55);
+  const gradient=context.createLinearGradient(0,0,0,128);gradient.addColorStop(0,css(top));gradient.addColorStop(.45,css(mid));gradient.addColorStop(.55,css(mid));gradient.addColorStop(1,css(ground));
+  context.fillStyle=gradient;context.fillRect(0,0,256,128);
+  if(target.sun.y>0){const dir=target.sun.clone().normalize(),u=((Math.atan2(dir.z,dir.x)/(Math.PI*2))+.5)%1,v=.5-Math.asin(Math.max(-1,Math.min(1,dir.y)))/Math.PI,sx=u*256,sy=v*128,glow=context.createRadialGradient(sx,sy,0,sx,sy,20);
+   glow.addColorStop(0,'rgba(255,252,238,1)');glow.addColorStop(.35,'rgba(255,230,180,.9)');glow.addColorStop(1,'rgba(255,210,150,0)');context.fillStyle=glow;context.beginPath();context.arc(sx,sy,20,0,7);context.fill()}
+  const texture=new THREE.CanvasTexture(canvas);texture.mapping=THREE.EquirectangularReflectionMapping;texture.colorSpace=THREE.SRGBColorSpace;
+  const pmrem=new THREE.PMREMGenerator(this.renderer),renderTarget=pmrem.fromEquirectangular(texture);
+  texture.dispose();pmrem.dispose();return renderTarget;
  }
  updateEnvironment(blend){
-  const target=this.environmentTarget;if(!target)return;this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(24*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(125*this.viewScale*target.visibility-this.scene.fog.far)*blend;this.sun.intensity+=(target.light-this.sun.intensity)*blend;this.hemi.intensity+=(target.ambient-this.hemi.intensity)*blend;
-  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun);this.moonOrb.position.copy(target.sun).multiplyScalar(-1);this.sunOrb.visible=target.sun.y>0;this.moonOrb.visible=target.sun.y<0;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01;
+  const target=this.environmentTarget;if(!target)return;const weather=this.snapshot?.conditions?.weather||'clear';this.scene.background.lerp(target.sky,blend);this.scene.fog.color.lerp(target.fog,blend);this.scene.fog.near+=(24*this.viewScale*target.visibility-this.scene.fog.near)*blend;this.scene.fog.far+=(125*this.viewScale*target.visibility-this.scene.fog.far)*blend;
+  // Keep the smoothed ambient baselines separate from the transient lightning
+  // boost applied in updateAtmosphere, so a storm flash never warps the weather
+  // blend itself.
+  this.sunBase=this.sunBase==null?target.light:this.sunBase+(target.light-this.sunBase)*blend;
+  this.hemiBase=this.hemiBase==null?target.ambient:this.hemiBase+(target.ambient-this.hemiBase)*blend;
+  // Sunlight carries the shapes and cast shadows; the cool sky fill keeps
+  // shadowed asphalt, gravel and building undersides readable instead of
+  // pitch black at midday. The fill tightens at night so practicals dominate.
+  const daylight=Math.max(0,Math.min(1,target.daylight||0));
+  this.sunGain=1.45+.55*daylight;this.hemiGain=1.25+.09*(1-daylight);
+  this.sun.intensity=this.sunBase*this.sunGain;this.hemi.intensity=this.hemiBase*this.hemiGain;this.ambientFill.intensity=.85*daylight*(weather==='rain'?.8:weather==='ash'?.85:1);
+  this.skyBounce.intensity=.62*daylight*(weather==='rain'?.72:weather==='ash'?.8:1);
+  // A real photographed sky replaces the gradient sheet on clear/mist daylight.
+  // It is tinted by the same daylight curve the procedural deck used, so dusk
+  // slides into the night gradient instead of a bright photo popping in, and it
+  // swaps the IBL so metal reflects the photographed clouds rather than a
+  // painted gradient. Rain/ash fronts keep the procedural storm deck.
+  const photoActive=!!this.skyPhoto&&daylight>.45&&(weather==='clear'||weather==='mist');
+  if(photoActive){
+   // Matched sunlight: the photographed sun sits 32° above its horizon, so the
+   // shadow-casting light is lowered to the same elevation instead of the
+   // steeper authored noon angle. Facades, barrels and the pavement then show
+   // the lit/shaded split and the long soft shadows the photograph implies.
+   // Keep the sun/hemi factors in the gain terms: updateAtmosphere rebuilds
+   // those intensities from base*gain every frame, so scaling the live values
+   // here would be discarded one frame later (and only the flash terms read as
+   // if the photo fill existed).
+   this.sunGain*=1.15;this.hemiGain*=.72;
+   this.sun.intensity=this.sunBase*this.sunGain;this.hemi.intensity=this.hemiBase*this.hemiGain;
+   this.ambientFill.intensity*=.55;this.skyBounce.intensity*=.45;
+   PHOTO_DIR.set(Math.cos(PHOTO_SUN_EL)*Math.cos(Math.atan2(target.sun.z,target.sun.x)),Math.sin(PHOTO_SUN_EL),Math.cos(PHOTO_SUN_EL)*Math.sin(Math.atan2(target.sun.z,target.sun.x)));
+  }
+  if(this.skyPhoto){
+   this.skyPhoto.visible=photoActive;
+   if(this.skyDome)this.skyDome.visible=!photoActive;
+   if(photoActive){
+    PHOTO_TINT.copy(PHOTO_NIGHT).lerp(PHOTO_WHITE,Math.min(1,daylight));
+    if(weather==='mist')PHOTO_TINT.lerp(target.fog,.32);
+    this.skyPhoto.material.color.copy(PHOTO_TINT);
+    const sunDir=target.sun.clone().normalize();
+    // Spin the dome so the photograph's sun shares the authoritative sun's
+    // azimuth; the disc, cloud shading and cast shadows then agree.
+    this.skyPhoto.rotation.y=PHOTO_SKY_AZ-Math.atan2(sunDir.z,sunDir.x);
+   }
+  }
+  const environment=photoActive&&this.photoEnvRT?this.photoEnvRT.texture:this.envMapRT?.texture||null;
+  if(this.scene.environment!==environment)this.scene.environment=environment;
+  const lightPosition=target.sun.y>=0?target.sun:target.sun.clone().multiplyScalar(-1);this.sunDirection.lerp(photoActive?PHOTO_DIR:lightPosition.clone().normalize(),blend).normalize();this.sunOrb.position.copy(target.sun).normalize().multiplyScalar(150*this.viewScale).add(this.camera.position);this.moonOrb.position.copy(target.sun).normalize().multiplyScalar(-150*this.viewScale).add(this.camera.position);this.sunOrb.visible=target.sun.y>0&&!photoActive;this.moonOrb.visible=target.sun.y<0&&!photoActive;this.stars.material.opacity+=(1-target.daylight-this.stars.material.opacity)*blend;this.stars.visible=target.daylight<.85&&this.stars.material.opacity>.01&&!photoActive;
+  if(this.skyDome){const u=this.skyDome.material.uniforms,weather=this.snapshot?.conditions?.weather||'clear',damp=weather==='rain'?.55:weather==='ash'?.7:1;SKY_TOP.copy(target.sky).offsetHSL(0,.08,-.17);u.top.value.lerp(SKY_TOP,blend);u.mid.value.lerp(SKY_MID.copy(target.sky).lerp(target.fog,.42),blend);u.bot.value.lerp(target.fog,blend);u.sunDir.value.copy(target.sun).normalize();u.sunI.value+=(target.daylight-u.sunI.value)*blend;u.uScatter.value+=(Math.max(0,Math.min(1,target.daylight))*damp-u.uScatter.value)*blend;
+   // Cloud deck follows the weather: thin haze by day, heavy low ceiling under
+   // rain, dust-laden ash, and dark night cover whose tint comes from the same
+   // authored fog/sky so every front stays cohesive with the horizon haze.
+   const cloudTarget=weather==='rain'?.92:weather==='ash'?.8:weather==='mist'?.55:.3;
+   u.uCloud.value+=(cloudTarget-u.uCloud.value)*blend;
+   // Lift the fog/sky tint toward white in daylight so the deck reads across
+   // clear, mist and rain fronts, then darken it with the daylight envelope so
+   // night cover stays deep instead of glowing grey.
+   const daylight=Math.max(0,Math.min(1,target.daylight||0));
+   CLOUD_MIX.copy(target.fog).lerp(target.sky,.3).lerp(CLOUD_WHITE,.34).multiplyScalar(.58+.5*daylight);
+   u.cloudCol.value.lerp(CLOUD_MIX,blend);
+  }
+ // Authored practicals ignite as daylight falls: lamp heads, floodlights and
+ // campfires bloom through the additive field. The static halos use the same
+ // damped weather response as the sky scattering, so storms stay diffuse.
+ if(this.glowPoints){const night=Math.pow(Math.max(0,Math.min(1,1-(target.daylight||0))),1.35),damp=weather==='rain'?.55:weather==='ash'?.7:1,targetOpacity=Math.min(.9,night*.85*damp);this.glowPoints.material.opacity+=(targetOpacity-this.glowPoints.material.opacity)*blend;this.glowPoints.visible=this.glowPoints.material.opacity>.008}
+ if(this.glowPools){const night=Math.pow(Math.max(0,Math.min(1,1-(target.daylight||0))),1.2),damp=weather==='rain'?.55:weather==='ash'?.7:1,targetOpacity=Math.min(.6,night*.65*damp);this.glowPools.material.opacity+=(targetOpacity-this.glowPools.material.opacity)*blend;this.glowPools.visible=this.glowPools.material.opacity>.008}
+ // Daylight burns the lamplight out of every glazed pane, leaving dark glass and
+ // sky reflection; after sundown the authored warm colour returns as flat
+ // emissive glazing bounded by the scanned timber frame. Windows contribute no
+ // additive halo: their warm light is the pane itself, not a sprite in front.
+ if(this.windowMaterials?.length){
+  const windowNight=Math.pow(Math.max(0,Math.min(1,1-daylight)),1.15)*(weather==='rain'?.72:weather==='ash'?.82:1),targetIntensity=windowNight*1.55;
+  for(const material of this.windowMaterials)material.emissiveIntensity+=(targetIntensity-material.emissiveIntensity)*blend;
  }
- fire(){this.recoil=this.settings?.reduced?0:.07;const s=this.snapshot?.self,item=s&&[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);this.audio.play(item?'shot:'+item.weapon:'shot')}
+ this.updateWetReflections();
+ }
+ updateAtmosphere(seconds){
+  const reduced=!!this.settings?.reduced,weather=this.snapshot?.conditions?.weather||'clear';
+  // The cloud deck drifts with scene time but is frozen for reduced motion, so
+  // the sky shares the same stillness guarantee as the dust field.
+  if(this.skyDome){
+   const uniforms=this.skyDome.material.uniforms;
+   uniforms.cloudTime.value=reduced?0:seconds;
+   // Rain-front lightning is a deterministic presentation pulse: it lifts the
+   // sky sheet and briefly brightens the existing sun/hemisphere lights, so no
+   // extra scene light is allocated and clear weather stays unchanged.
+   const flash=reduced?0:lightningPulse(seconds,weather);
+   uniforms.uFlash.value=flash;
+   if(this.sun)this.sun.intensity=(this.sunBase??this.environmentTarget?.light??0)*(this.sunGain??1)+flash*2.6;
+   if(this.hemi)this.hemi.intensity=(this.hemiBase??this.environmentTarget?.ambient??0)*(this.hemiGain??1)+flash*1.4;
+   if(this.hemi&&this.hemiNeutral&&this.flashColor)this.hemi.color.copy(this.hemiNeutral).lerp(this.flashColor,flash*.6);
+   // A storm sheet also lifts the horizon haze, so distant silhouettes flash
+   // with the sky instead of staying a flat fog band beneath it.
+   if(this.scene?.fog&&this.flashColor)this.scene.fog.color.lerp(this.flashColor,flash*.3);
+  }
+ }
+ updateRainSplashes(seconds,pose){
+  const mesh=this.splashes;if(!mesh||!pose)return;
+  // Splashes exist only for a live rain front and vanish under reduced motion,
+  // matching the streak field's own visibility rule.
+  const reduced=!!this.settings?.reduced;
+  const visible=!reduced&&this.snapshot?.conditions?.weather==='rain'&&this.weather?.visible!==false;
+  mesh.visible=visible;
+  if(!visible)return;
+  const state=this.splashesState,offsets=state.offsets,phases=state.phases;
+  this.splashesAnchor.set(pose.x||0,pose.y||0,pose.z||0);
+  const anchor=this.splashesAnchor;
+  for(let i=0;i<state.count;i++){
+   // Local splash cycle: each ring starts small and bright, expands, and fades
+   // to nothing before its next impact. No runtime randomness is consumed.
+   const local=((seconds/state.period)+phases[i])%1;
+   const x=anchor.x+offsets[i*2],z=anchor.z+offsets[i*2+1];
+   const y=terrainHeightAt(this.world,x,z)+.03;
+   const grow=state.baseScale+state.growReach*local;
+   const fade=(1-local)*(1-local);
+   SPLASH_POSITION.set(x,y,z);
+   SPLASH_SCALE.set(grow,grow,1);
+   SPLASH_MATRIX.compose(SPLASH_POSITION,SPLASH_FLAT_QUAT,SPLASH_SCALE);
+   mesh.setMatrixAt(i,SPLASH_MATRIX);
+   SPLASH_TINT.setRGB(.46*fade,.64*fade,.82*fade);
+   mesh.setColorAt(i,SPLASH_TINT);
+  }
+  mesh.instanceMatrix.needsUpdate=true;
+  mesh.instanceColor.needsUpdate=true;
+ }
+ // Weather-responsive PBR: a passing rain front wets roofs, roads and terrain
+ // toward a lower roughness / higher environmental sheen; every material keeps
+ // a captured dry baseline so clear weather restores the authored values exactly.
+ updateWetness(dt){
+  const weather=this.snapshot?.conditions?.weather||'clear',target=weather==='rain'?1:weather==='mist'?.35:0;
+  this.wetness=this.settings?.reduced?target:this.wetness+(target-this.wetness)*(1-Math.exp(-dt*1.6));
+  if(Math.abs(this.wetness-target)<.001)this.wetness=target;
+  this.applyWetness();this.updateWetReflections();
+ }
+ // The wet glint field is derived only from authored practicals/windows and
+ // brightens as the same smoothed wetness state reaches the streets. It stays
+ // under the practical day/night envelope so wet roads reflect their warm lamp
+ // and window sources rather than inventing daylight reflections.
+ updateWetReflections(){
+  const mesh=this.wetReflections;if(!mesh)return;
+  const daylight=this.environmentTarget?.daylight??1;
+  const night=Math.pow(Math.max(0,Math.min(1,1-daylight)),1.1);
+  mesh.material.opacity=Math.min(.55,Math.max(0,this.wetness||0)*night);
+  mesh.visible=mesh.material.opacity>.004;
+  // Feed the head-on drawing-buffer height into the instanced glint shader so
+  // sub-pixel distant streaks fade before they alias. The shader is compiled
+  // on first render; until then the default resolution leaves near streaks
+  // unaffected, and each subsequent frame refreshes the uniform.
+  const shader=mesh.material.userData.raidGlintShader;
+  if(shader?.uniforms.uGlintResolution){
+   const size=shader.uniforms.uGlintResolution.value;
+   const width=this.canvas.width|0,height=this.canvas.height|0;
+   if(size.x!==width||size.y!==height)size.set(width,height);
+  }
+ }
+ applyWetness(){
+  for(const material of this.wetMaterials||[]){
+   const dry=material.userData.raidDry;if(!dry)continue;
+   const amount=(this.wetness||0)*(material.userData.raidWet||0);
+   material.roughness=dry.roughness*(1-.58*amount);
+   material.metalness=dry.metalness+(.34-dry.metalness)*amount;
+   material.envMapIntensity=dry.envMapIntensity+(1.35-dry.envMapIntensity)*amount;
+   if(dry.normalScale!=null&&material.normalScale)material.normalScale.setScalar(dry.normalScale*(1+amount*.5));
+  }
+ }
+ // Combat presentation reuses a bounded pool of meshes so sustained fire never
+ // allocates geometry/material objects. Every pool owner is tagged for the
+ // scene disposal contract used by clear()/start().
+ buildCombatEffects(){
+  if(!this.scene||this.shotEffects.length)return;
+  const shockCanvas=document.createElement('canvas');shockCanvas.width=shockCanvas.height=64;
+  const shockContext=shockCanvas.getContext('2d'),shockGradient=shockContext.createRadialGradient(32,32,3,32,32,31);
+  shockGradient.addColorStop(0,'rgba(12,8,5,.95)');shockGradient.addColorStop(.55,'rgba(24,14,8,.62)');shockGradient.addColorStop(1,'rgba(40,24,14,0)');
+  shockContext.fillStyle=shockGradient;shockContext.fillRect(0,0,64,64);
+  for(let i=0;i<11;i++){const r=3+Math.random()*5;shockContext.fillStyle='rgba(8,5,3,'+(.25+Math.random()*.35)+')';shockContext.beginPath();shockContext.arc(8+Math.random()*48,8+Math.random()*48,r,0,7);shockContext.fill()}
+  const shockTexture=new THREE.CanvasTexture(shockCanvas);shockTexture.colorSpace=THREE.SRGBColorSpace;
+  const chipCanvas=document.createElement('canvas');chipCanvas.width=chipCanvas.height=16;
+  const chipContext=chipCanvas.getContext('2d');chipContext.fillStyle='#fff';chipContext.beginPath();chipContext.moveTo(8,1);chipContext.lineTo(15,6);chipContext.lineTo(12,15);chipContext.lineTo(4,13);chipContext.lineTo(1,5);chipContext.closePath();chipContext.fill();
+  const chipTexture=new THREE.CanvasTexture(chipCanvas);
+  const sparkCount=14,emberCount=18,chipCount=8,shotDuration=260,blastDuration=900,scorchDuration=1800;
+  for(let i=0;i<16;i++){
+   const muzzleMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xffdc93,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   muzzleMaterial.userData.raidOwned=true;
+   const muzzle=new THREE.Sprite(muzzleMaterial);muzzle.visible=false;muzzle.renderOrder=4;this.scene.add(muzzle);
+   const tracerGeometry=new THREE.BufferGeometry();tracerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(6),3));
+   const tracerMaterial=new THREE.LineBasicMaterial({color:0xfff4d6,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:true});
+   tracerGeometry.userData.raidOwned=tracerMaterial.userData.raidOwned=true;
+   const tracer=new THREE.Line(tracerGeometry,tracerMaterial);tracer.visible=false;tracer.frustumCulled=false;tracer.renderOrder=3;this.scene.add(tracer);
+   // A one-pixel GL line is invisible on a phone at 844x390, so each shot also
+   // carries a real 3D beam: a thin cylinder that tapers from a hot, wide
+   // muzzle end to a faint point at the impact. Vertex colours fade it along
+   // the length, so the far segment sinks into the world instead of drawing a
+   // flat white pipe to the horizon. Fixed pool, no per-shot allocation.
+   const beamGeometry=new THREE.CylinderGeometry(.011,.0022,1,10,1,true);
+   beamGeometry.translate(0,-.5,0);
+   const beamPosition=beamGeometry.attributes.position,beamColours=new Float32Array(beamPosition.count*3);
+   for(let i=0;i<beamPosition.count;i++){
+    const t=Math.min(1,Math.max(0,-beamPosition.getY(i))),k=i*3;
+    beamColours[k]=1-.05*t;beamColours[k+1]=.95-.30*t;beamColours[k+2]=.82-.50*t;
+   }
+   beamGeometry.setAttribute('color',new THREE.Float32BufferAttribute(beamColours,3));
+   beamGeometry.userData.raidOwned=true;
+   const beamMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false});
+   beamMaterial.userData.raidOwned=true;
+   const beam=new THREE.Mesh(beamGeometry,beamMaterial);beam.visible=false;beam.frustumCulled=false;beam.renderOrder=3;this.scene.add(beam);
+   const sparkGeometry=new THREE.BufferGeometry();sparkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(sparkCount*3),3));
+   const sparkMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xffc978,size:.12,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+   sparkGeometry.userData.raidOwned=sparkMaterial.userData.raidOwned=true;
+   const sparks=new THREE.Points(sparkGeometry,sparkMaterial);sparks.visible=false;sparks.frustumCulled=false;sparks.renderOrder=4;this.scene.add(sparks);
+   const dustMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xb9b3a4,transparent:true,opacity:0,depthWrite:false,blending:THREE.NormalBlending});
+   dustMaterial.userData.raidOwned=true;
+   const dust=new THREE.Sprite(dustMaterial);dust.visible=false;dust.renderOrder=3;this.scene.add(dust);
+   // Angular chips read as dislodged masonry and shrapnel instead of the round
+   // soft motes used for dust; gravity and surface hue link them to the hit.
+   const debrisGeometry=new THREE.BufferGeometry();debrisGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(chipCount*3),3));
+   const debrisMaterial=new THREE.PointsMaterial({map:chipTexture,color:0xa8a394,size:.1,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true,alphaTest:.15});
+   debrisGeometry.userData.raidOwned=debrisMaterial.userData.raidOwned=true;debrisMaterial.userData.raidOwnTexture=true;chipTexture.userData.raidOwned=true;
+   const debris=new THREE.Points(debrisGeometry,debrisMaterial);debris.visible=false;debris.frustumCulled=false;debris.renderOrder=4;this.scene.add(debris);
+   const trailMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xffd18b,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   trailMaterial.userData.raidOwned=true;
+   const trailRoot=new THREE.Group();trailRoot.visible=false;this.scene.add(trailRoot);
+   const trailSprites=[];for(let j=0;j<8;j++){const sprite=new THREE.Sprite(trailMaterial);trailRoot.add(sprite);trailSprites.push(sprite)}
+   this.shotEffects.push({muzzle,tracer,beam,sparks,dust,debris,trailRoot,trailSprites,trailMaterial,dustMaterial,debrisMaterial,started:null,origin:new THREE.Vector3(),dir:new THREE.Vector3(),end:new THREE.Vector3(),velocities:new Float32Array(sparkCount*3),debrisVelocities:new Float32Array(chipCount*3),sparkCount,chipCount,shotDuration,surface:'concrete',beamDistance:1});
+  }
+  // One pooled warm light travels with the most recent accepted shot. The
+  // additive muzzle billboard is deliberately tiny; this light is what lets
+  // nearby cover and terrain catch the brief flash. It is hidden at rest and
+  // under reduced motion, and reused in place so sustained fire allocates
+  // neither lights nor shadows.
+  const shotLight=new THREE.PointLight(0xffc46a,0,7.5,2);
+  shotLight.visible=false;shotLight.castShadow=false;
+  shotLight.userData.raidCombatLight=true;
+  this.scene.add(shotLight);
+  this.shotMuzzleLight=shotLight;
+  for(let i=0;i<6;i++){
+   const ringGeometry=new THREE.TorusGeometry(1,.055,5,48);
+   const ringMaterial=new THREE.MeshBasicMaterial({color:0xffa860,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+   ringGeometry.userData.raidOwned=ringMaterial.userData.raidOwned=true;
+   const ring=new THREE.Mesh(ringGeometry,ringMaterial);ring.rotation.x=Math.PI/2;ring.visible=false;ring.frustumCulled=false;ring.renderOrder=3;this.scene.add(ring);
+   const flashMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xfff3d2,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   flashMaterial.userData.raidOwned=true;
+   const flash=new THREE.Sprite(flashMaterial);flash.visible=false;flash.renderOrder=4;this.scene.add(flash);
+   const emberGeometry=new THREE.BufferGeometry();emberGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(emberCount*3),3));
+   const emberMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xffb25e,size:.16,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+   emberGeometry.userData.raidOwned=emberMaterial.userData.raidOwned=true;
+   const embers=new THREE.Points(emberGeometry,emberMaterial);embers.visible=false;embers.frustumCulled=false;embers.renderOrder=4;this.scene.add(embers);
+   // A second point field per detonation reads as rolling powder smoke: matte
+   // normal-blended puffs that rise, redden near the core and widen outward.
+   // It shares the authored smoke canvas with the utility smoke meshes, so no
+   // new texture is allocated and the shared canvas is never owned/disposed.
+   const plumeCount=18;
+   const plumeShades=new Float32Array(plumeCount*3);
+   for(let i=0;i<plumeCount;i++){const shade=.36+((i*7)%11)/11*.28;plumeShades[i*3]=shade*.94;plumeShades[i*3+1]=shade*.9;plumeShades[i*3+2]=shade*.82}
+   const plumeGeometry=new THREE.BufferGeometry();plumeGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(plumeCount*3),3));plumeGeometry.setAttribute('color',new THREE.Float32BufferAttribute(plumeShades,3));
+   const plumeMaterial=new THREE.PointsMaterial({map:TX.smoke,color:0xb9b9ad,size:.2,transparent:true,opacity:0,vertexColors:true,depthWrite:false,depthTest:true,sizeAttenuation:true,blending:THREE.NormalBlending,fog:true});
+   plumeGeometry.userData.raidOwned=plumeMaterial.userData.raidOwned=true;
+   const plume=new THREE.Points(plumeGeometry,plumeMaterial);plume.visible=false;plume.frustumCulled=false;plume.renderOrder=3;this.scene.add(plume);
+   // Angular masonry/metal fragments thrown by the blast. They reuse the shot
+   // pool's chip canvas (so no texture allocation), follow gravity, and die with
+   // the flash; the texture ownership stays with the shot debris owner.
+   const chunkCount=12;
+   const chunkGeometry=new THREE.BufferGeometry();chunkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(chunkCount*3),3));
+   const chunkMaterial=new THREE.PointsMaterial({map:chipTexture,color:0x6f6658,size:.22,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true,alphaTest:.15});
+   chunkGeometry.userData.raidOwned=chunkMaterial.userData.raidOwned=true;
+   const chunks=new THREE.Points(chunkGeometry,chunkMaterial);chunks.visible=false;chunks.frustumCulled=false;chunks.renderOrder=4;this.scene.add(chunks);
+   // Real warm illumination scoped to the detonation window: the light is pooled
+   // with the blast so ruins and terrain are briefly lit from the explosion.
+   // It is hidden between blasts so idle frames pay no extra lighting cost.
+   const light=new THREE.PointLight(0xff8a24,0,40,2);
+   light.visible=false;light.castShadow=false;
+   this.scene.add(light);
+   // The scorch is a flat decal, not a billboard, so it stays fixed to the
+   // ground after the flash and shock ring have cleared.
+   const scorchGeometry=new THREE.PlaneGeometry(1,1);
+   const scorchMaterial=new THREE.MeshBasicMaterial({map:shockTexture,color:0xffffff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});
+   scorchGeometry.userData.raidOwned=scorchMaterial.userData.raidOwned=true;scorchMaterial.userData.raidOwnTexture=true;shockTexture.userData.raidOwned=true;
+   const scorch=new THREE.Mesh(scorchGeometry,scorchMaterial);scorch.rotation.x=-Math.PI/2;scorch.visible=false;scorch.renderOrder=2;this.scene.add(scorch);
+   this.blastEffects.push({ring,flash,embers,plume,chunks,scorch,light,scorchStarted:null,scorchDuration,plumeCount,chunkCount,chunkVelocities:new Float32Array(chunkCount*3),started:null,origin:new THREE.Vector3(),velocities:new Float32Array(emberCount*3),emberCount,blastDuration,radius:3});
+  }
+  // Weak-point core bursts use a small fixed pool so repeated core hits never
+  // allocate. Each burst is a camera-facing additive flash, an expanding cyan
+  // shock ring, a short spark field and one pooled tinted light, anchored to
+  // the authoritative position carried by the hit token.
+  const burstCount=4,burstSparks=14;
+  for(let i=0;i<burstCount;i++){
+   const flashMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xd9fbff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   flashMaterial.userData.raidOwned=true;
+   const flash=new THREE.Sprite(flashMaterial);flash.visible=false;flash.frustumCulled=false;flash.renderOrder=5;this.scene.add(flash);
+   // A thick, saturated cyan tube keeps the ring legible over bright terrain
+   // instead of washing out to a thin white line under additive blending.
+   const ringGeometry=new THREE.TorusGeometry(1,.06,4,40);
+   const ringMaterial=new THREE.MeshBasicMaterial({color:0x46d9ff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+   ringGeometry.userData.raidOwned=ringMaterial.userData.raidOwned=true;
+   const ring=new THREE.Mesh(ringGeometry,ringMaterial);ring.rotation.x=Math.PI/2;ring.visible=false;ring.frustumCulled=false;ring.renderOrder=4;this.scene.add(ring);
+   const sparkGeometry=new THREE.BufferGeometry();sparkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(burstSparks*3),3));
+   const sparkMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xbdf7ff,size:.1,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+   sparkGeometry.userData.raidOwned=sparkMaterial.userData.raidOwned=true;
+   const sparks=new THREE.Points(sparkGeometry,sparkMaterial);sparks.visible=false;sparks.frustumCulled=false;sparks.renderOrder=5;this.scene.add(sparks);
+   // Cyan illumination is scoped to this burst only; it hides at rest and is
+   // reused in place, so sustained core hits neither allocate lights nor leave
+   // the scene brighter between hits.
+   const light=new THREE.PointLight(0x8fe9ff,0,9,2);light.visible=false;light.castShadow=false;light.userData.raidOwned=true;light.userData.raidCoreBurstLight=true;this.scene.add(light);
+   this.coreBurstEffects.push({flash,ring,sparks,light,started:null,origin:new THREE.Vector3(),velocities:new Float32Array(burstSparks*3),burstSparks,duration:520});
+  }
+  // Machine destruction uses its own small pool: a warm hull-break flash, an
+  // expanding ring, a rising smoke plume, embers, angular scrap and one pooled
+  // light. It is anchored to the authoritative machine core coordinate carried
+  // by the kill token, so a destroyed machine leaves a readable wreck instead
+  // of disappearing between snapshots. Presentation-only; no rules changed.
+  const wreckCount=4,wreckEmbers=20,wreckChunks=10,wreckSmoke=18,wreckDuration=1100;
+  for(let i=0;i<wreckCount;i++){
+   const flashMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xfff0d2,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   flashMaterial.userData.raidOwned=true;
+   const flash=new THREE.Sprite(flashMaterial);flash.visible=false;flash.frustumCulled=false;flash.renderOrder=5;this.scene.add(flash);
+   const ringGeometry=new THREE.TorusGeometry(1,.08,5,40);
+   const ringMaterial=new THREE.MeshBasicMaterial({color:0xff8a4a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+   ringGeometry.userData.raidOwned=ringMaterial.userData.raidOwned=true;
+   const ring=new THREE.Mesh(ringGeometry,ringMaterial);ring.rotation.x=Math.PI/2;ring.visible=false;ring.frustumCulled=false;ring.renderOrder=4;this.scene.add(ring);
+   const emberGeometry=new THREE.BufferGeometry();emberGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckEmbers*3),3));
+   const emberMaterial=new THREE.PointsMaterial({map:TX.soft,color:0xffb05e,size:.18,transparent:true,opacity:0,vertexColors:false,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true});
+   emberGeometry.userData.raidOwned=emberMaterial.userData.raidOwned=true;
+   const embers=new THREE.Points(emberGeometry,emberMaterial);embers.visible=false;embers.frustumCulled=false;embers.renderOrder=4;this.scene.add(embers);
+   // Matte powder smoke keeps the wreck readable after the flash: it rises and
+   // widens toward the hull silhouette rather than blooming additively.
+   const smokeGeometry=new THREE.BufferGeometry();smokeGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckSmoke*3),3));
+   const smokeMaterial=new THREE.PointsMaterial({map:TX.smoke,color:0x9a978d,size:.3,transparent:true,opacity:0,depthWrite:false,depthTest:true,sizeAttenuation:true,blending:THREE.NormalBlending,fog:true});
+   smokeGeometry.userData.raidOwned=smokeMaterial.userData.raidOwned=true;
+   const smoke=new THREE.Points(smokeGeometry,smokeMaterial);smoke.visible=false;smoke.frustumCulled=false;smoke.renderOrder=3;this.scene.add(smoke);
+   const chunkGeometry=new THREE.BufferGeometry();chunkGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(wreckChunks*3),3));
+   const chunkMaterial=new THREE.PointsMaterial({map:chipTexture,color:0x6f6658,size:.26,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true,alphaTest:.15});
+   chunkGeometry.userData.raidOwned=chunkMaterial.userData.raidOwned=true;
+   const chunks=new THREE.Points(chunkGeometry,chunkMaterial);chunks.visible=false;chunks.frustumCulled=false;chunks.renderOrder=4;this.scene.add(chunks);
+   const light=new THREE.PointLight(0xff9a3c,0,20,2);light.visible=false;light.castShadow=false;light.userData.raidOwned=true;light.userData.raidWreckLight=true;this.scene.add(light);
+   this.machineWreckEffects.push({flash,ring,embers,smoke,chunks,light,started:null,kind:'scout',scale:1,origin:new THREE.Vector3(),emberVelocities:new Float32Array(wreckEmbers*3),chunkVelocities:new Float32Array(wreckChunks*3),emberCount:wreckEmbers,chunkCount:wreckChunks,smokeCount:wreckSmoke,duration:wreckDuration});
+  }
+  // Hostile fire is its own fixed pool. A shot is presented as one short,
+  // thin, screen-constant ribbon segment that slides from the machine barrel
+  // toward the strike point and dies within ~110 ms. The ribbon is expanded in
+  // world space by a per-frame width derived from the camera distance, so it
+  // stays 2-4 px at 1024x720 at any depth. The head colour stays below the
+  // bloom pass's threshold, so no halo blooms at either end; the damage
+  // vignette is what reports the hit.
+  const enemyShotCount=6;
+  const enemyBeamMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:1,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:true});
+  enemyBeamMaterial.userData.raidOwned=true;
+  for(let i=0;i<enemyShotCount;i++){
+   const flashMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xffb24a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   flashMaterial.userData.raidOwned=true;
+   const flash=new THREE.Sprite(flashMaterial);flash.visible=false;flash.frustumCulled=false;flash.renderOrder=5;this.scene.add(flash);
+   const boltMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xffb24a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   boltMaterial.userData.raidOwned=true;
+   const bolt=new THREE.Sprite(boltMaterial);bolt.visible=false;bolt.frustumCulled=false;bolt.renderOrder=5;this.scene.add(bolt);
+   const beamGeometry=new THREE.BufferGeometry();
+   beamGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(4*3),3));
+   beamGeometry.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(4*3),3));
+   beamGeometry.setIndex([0,1,2,2,1,3]);
+   beamGeometry.userData.raidOwned=true;
+   const beam=new THREE.Mesh(beamGeometry,enemyBeamMaterial);beam.visible=false;beam.frustumCulled=false;beam.renderOrder=4;this.scene.add(beam);
+   const trailMaterial=new THREE.SpriteMaterial({map:TX.soft,color:0xff7a33,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+   trailMaterial.userData.raidOwned=true;
+   const trailRoot=new THREE.Group();trailRoot.visible=false;this.scene.add(trailRoot);
+   const trailSprites=[];for(let j=0;j<5;j++){const sprite=new THREE.Sprite(trailMaterial);trailRoot.add(sprite);trailSprites.push(sprite)}
+   this.enemyShotEffects.push({flash,bolt,beam,trailRoot,trailSprites,trailMaterial,started:null,color:0xffb24a,from:new THREE.Vector3(),to:new THREE.Vector3(),dir:new THREE.Vector3(),end:new THREE.Vector3(),mid:new THREE.Vector3(),tailColor:new THREE.Color(),headColor:new THREE.Color(),duration:110,travel:90,trailSpan:.34,beamPixels:1.6});
+  }
+  const hostileLight=new THREE.PointLight(0xffa04a,0,12,2);hostileLight.visible=false;hostileLight.castShadow=false;hostileLight.userData.raidOwned=true;hostileLight.userData.raidEnemyShotLight=true;this.scene.add(hostileLight);this.enemyShotLight=hostileLight;
+ }
+ shotSurface(x,y,z,terrainHit){
+  if(terrainHit)return this.world?.theme==='wilderness'?'forest':this.world?.theme==='settlement'?'dirt':'gravel';
+  for(const block of this.world?.blocks||[]){
+   const base=block[5]||0;
+   if(Math.abs(x-block[0])<=block[2]/2+.2&&Math.abs(z-block[1])<=block[3]/2+.2&&y>=base-.2&&y<=base+block[4]+.2&&block[6])return block[6];
+  }
+  return 'concrete';
+ }
+ impactStyle(surface){return IMPACT_PALETTE[surface]||IMPACT_PALETTE.concrete}
+ // Screen-space barrel start: the overlay muzzle is projected through the
+ // first-person camera, then rebuilt as a point on the held gun's aim axis.
+ // Because NDC is preserved, the tracer and flash begin exactly where the
+ // player sees the barrel (right and low of the crosshair) instead of at the
+ // screen's lower-left corner from a hand-authored eye offset.
+ shotMuzzleOrigin(depth=.55){
+  if(!this.muzzleLocal||!this.gunRoot||!this.weaponCamera||this.settings?.reduced||this.viewMode!=='first'||this.gunRoot.visible===false)return null;
+  this.weaponCamera.aspect=this.camera.aspect;
+  this.weaponCamera.updateProjectionMatrix();this.weaponCamera.updateMatrixWorld(true);
+  this.gunRoot.updateMatrixWorld(true);
+  const ndc=this.muzzleLocal.clone().applyMatrix4(this.gunRoot.matrixWorld).project(this.weaponCamera);
+  if(!Number.isFinite(ndc.x)||!Number.isFinite(ndc.y))return null;
+  const quat=new THREE.Quaternion().setFromEuler(new THREE.Euler(this.firePitch||0,(this.fireYaw||0)+Math.PI,0,'YXZ'));
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(quat),up=new THREE.Vector3(0,1,0).applyQuaternion(quat),forward=new THREE.Vector3(0,0,-1).applyQuaternion(quat);
+  const halfTan=Math.tan(this.camera.fov*Math.PI/360),origin=this.fireOrigin||this.visualSelf;
+  if(!origin)return null;
+  // Clamp the width so extreme recoil/sway cannot throw the origin outside the
+  // visible screen area; the projected barrel still owns the placement.
+  const dx=Math.max(-.45,Math.min(.45,ndc.x*halfTan*this.camera.aspect*depth));
+  const dy=Math.max(-.32,Math.min(.32,ndc.y*halfTan*depth));
+  return origin.clone().addScaledVector(forward,depth).addScaledVector(right,dx).addScaledVector(up,dy);
+ }
+ // Machine footfall is presentation-only. A fixed dust pool is placed at the
+ // ground contact of each planted diagonal pair (never parented to the swinging
+ // foot) and each plant plays one quiet spatial thud. Snapshot speed and gait
+ // drive it; nothing authoritative is read or written.
+ buildMachineStepDust(){
+  this.footDust=[];this.footDustCursor=0;
+  for(let i=0;i<24;i++){
+   const material=new THREE.SpriteMaterial({map:TX.smoke,color:0xcabaa2,transparent:true,opacity:0,depthWrite:false,blending:THREE.NormalBlending,fog:true});
+   material.userData.raidOwned=true;
+   const puff=new THREE.Sprite(material);
+   puff.visible=false;puff.renderOrder=2;puff.userData.started=-1e9;puff.userData.baseY=0;
+   this.scene.add(puff);this.footDust.push(puff);
+  }
+ }
+ emitMachineSteps(model,data,listener,reduced,time){
+  const previous=model.userData.stepGait,gait=model.userData.gait||0;
+  model.userData.stepGait=gait;
+  if(previous===undefined||reduced||!((model.userData.speed||0)>.15))return;
+  const dx=(data.x||0)-listener.x,dz=(data.z||0)-listener.z,distance=Math.hypot(dx,dz);
+  if(!Number.isFinite(distance))return;
+  let start=Math.floor(previous/Math.PI),end=Math.floor(gait/Math.PI);
+  if(gait<previous)end+=2;
+  const steps=Math.min(2,Math.max(0,end-start));
+  if(!steps)return;
+  // Dust is a near-field read (feet are only legible inside 22 m); the thud still
+  // carries to the shared 55 m spatial-audio horizon so machine movement is
+  // audible before the dust is visible.
+  if(distance<=22){
+   const legs=model.userData.legs||[];
+   for(let i=1;i<=steps;i++){
+    const phase=(start+i)%2===0?0:Math.PI;
+    for(const leg of legs){
+     if(Math.abs(leg.phase-phase)>0.01)continue;
+     const pad=leg.foot;if(!pad)continue;
+     pad.getWorldPosition(STEP_POSITION);
+     const puff=this.footDust[this.footDustCursor++%this.footDust.length];
+     const baseY=(data.y||0)+.035;
+     puff.visible=true;puff.userData.started=time;puff.userData.baseY=baseY;
+     puff.position.set(STEP_POSITION.x,baseY+.03,STEP_POSITION.z);
+     puff.material.opacity=.6;puff.scale.setScalar(.95);
+    }
+   }
+  }
+  const spatial=spatialCue(listener,data);
+  if(spatial)this.audio.play('machineStep',{gain:spatial.gain*.55,pan:spatial.pan});
+ }
+ updateMachineStepDust(time,reduced){
+  for(const puff of this.footDust||[]){
+   if(!puff.visible)continue;
+   if(reduced){puff.visible=false;continue}
+   const age=time-puff.userData.started;
+   if(age>=1200||age<0){puff.visible=false;continue}
+   const k=age/1200;
+   puff.material.opacity=.6*(1-k);
+   puff.scale.setScalar(.95+.85*k);
+   puff.position.y=puff.userData.baseY+.03+.1*k;
+  }
+ }
+ spawnShot(now,weapon){
+  if(!this.shotEffects.length)return;
+  const effect=this.shotEffects[this.shotCursor++%this.shotEffects.length];
+  const origin=this.fireOrigin||this.visualSelf;if(!origin)return;
+  effect.started=now;effect.weapon=weapon||'shot';effect.origin.copy(origin);
+  const pitch=this.firePitch||0,yaw=this.fireYaw||0,cp=Math.cos(pitch);
+  effect.dir.set(Math.sin(yaw)*cp,Math.sin(pitch),Math.cos(yaw)*cp).normalize();
+  // Ballistic rays terminate on the sculpted terrain or district cover so the
+  // tracer communicates impact geometry instead of disappearing into fog.
+  let distance=72,surface='concrete';
+  for(let t=.8;t<=72;t+=.45){
+   const x=origin.x+effect.dir.x*t,y=origin.y+effect.dir.y*t,z=origin.z+effect.dir.z*t;
+   const terrainHit=!!this.world&&y<=terrainHeightAt(this.world,x,z)+.02;
+   if(terrainHit||(this.world&&blocked(this.world,x,z,.06,Math.max(0,y-.12),.24))){distance=t;surface=this.shotSurface(x,y,z,terrainHit);break}
+  }
+  effect.surface=surface;const impact=this.impactStyle(surface);effect.sparks.material.color.setHex(impact[0]);effect.dustMaterial.color.setHex(impact[1]);effect.debrisMaterial.color.setHex(impact[1]);
+  // Debris uses the same surface family but a darker, matte hue so chips read
+  // as displaced material rather than glowing embers.
+  const debrisHue=new THREE.Color(impact[1]).multiplyScalar(.78);effect.debrisMaterial.color.copy(debrisHue);
+  effect.end.copy(origin).addScaledVector(effect.dir,distance);
+  const impactSpatial=this.snapshot?spatialCue({x:this.snapshot.self.x,y:this.snapshot.self.y||0,z:this.snapshot.self.z,yaw:this.snapshot.self.yaw||0},{x:effect.end.x,y:effect.end.y,z:effect.end.z}):null;
+  if(impactSpatial)this.audio?.play('impact:'+surface,impactSpatial);
+  // The flash and tracer start at the weapon muzzle, at the screen point where
+  // the viewmodel barrel is actually painted; fall back to the previous eye
+  // offset when no first-person gun is presented (spectating, reduced motion).
+  const muzzleStart=this.shotMuzzleOrigin(.55);
+  if(muzzleStart)effect.origin.copy(muzzleStart);
+  else effect.origin.set(origin.x+effect.dir.x*.55+Math.cos(yaw)*.16,
+   origin.y+effect.dir.y*.55-.12,
+   origin.z+effect.dir.z*.55-Math.sin(yaw)*.16);
+  effect.muzzle.position.copy(effect.origin);
+  // Muzzle bloom must stay compact near the camera. Authoring it in fixed world
+  // units (instead of scaling with the sector) keeps a close-range shot from
+  // flooding the frame, while the pooled light below carries the flash's read.
+  const scale=.055;
+  effect.muzzle.scale.set(scale,scale,1);
+  effect.muzzle.visible=!this.settings?.reduced;effect.muzzle.material.opacity=0;
+  if(this.shotMuzzleLight){const reduced=!!this.settings?.reduced;this.shotMuzzleLight.position.copy(effect.origin);this.shotMuzzleLight.visible=!reduced;this.shotMuzzleLight.intensity=reduced?0:5.4;this.shotMuzzleLightAt=now}
+  // Place the tapered beam on the same muzzle-to-impact axis as the line. The
+  // cylinder's near ring (radius .011) sits at the muzzle and the far ring
+  // (radius .0022) at the impact; local -Y is mapped onto the shot direction.
+  const beamLength=effect.origin.distanceTo(effect.end);
+  effect.beamDistance=beamLength;
+  effect.beam.position.copy(effect.origin);
+  // Width is authored in metres at the muzzle distance; scaling it by the
+  // sector viewScale (4.5 on a 720 m world) would turn the near ring into a
+  // screen-filling wedge. Length alone follows the trace.
+  effect.beam.scale.set(1,beamLength,1);
+  effect.beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),effect.dir);
+  effect.beam.visible=!this.settings?.reduced;effect.beam.material.opacity=0;
+  effect.tracer.visible=!this.settings?.reduced;effect.tracer.material.opacity=0;
+  const position=effect.tracer.geometry.attributes.position;
+  position.setXYZ(0,effect.origin.x,effect.origin.y,effect.origin.z);
+  position.setXYZ(1,effect.end.x,effect.end.y,effect.end.z);effect.tracer.geometry.attributes.position.needsUpdate=true;
+  effect.sparks.position.copy(effect.end);effect.sparks.visible=true;effect.sparks.material.opacity=0;
+  const positions=effect.sparks.geometry.attributes.position.array;
+  for(let i=0;i<effect.sparkCount;i++){positions[i*3]=0;positions[i*3+1]=.06;positions[i*3+2]=0}
+  effect.sparks.geometry.attributes.position.needsUpdate=true;
+  effect.debris.position.copy(effect.end).y+=.04;effect.debris.visible=!this.settings?.reduced;effect.debris.material.opacity=0;
+  const chips=effect.debris.geometry.attributes.position.array;
+  for(let i=0;i<effect.chipCount;i++){chips[i*3]=0;chips[i*3+1]=0;chips[i*3+2]=0}
+  effect.debris.geometry.attributes.position.needsUpdate=true;
+  const debrisBase=Math.random()*Math.PI*2;
+  for(let i=0;i<effect.chipCount;i++){
+   const angle=debrisBase+i*2.399963,k=i*3;
+   effect.debrisVelocities[k]=Math.cos(angle)*(1.2+Math.random()*1.5);
+   effect.debrisVelocities[k+1]=1.4+Math.random()*2.7;
+   effect.debrisVelocities[k+2]=Math.sin(angle)*(1.2+Math.random()*1.5);
+  }
+  effect.dust.position.copy(effect.end).y+=.14;effect.dust.scale.setScalar(.22*this.viewScale);
+  effect.dust.visible=!this.settings?.reduced;effect.dust.material.opacity=0;
+  effect.trailRoot.visible=!this.settings?.reduced;
+  for(let i=0;i<effect.trailSprites.length;i++){
+   const f=(i+1)/9,sprite=effect.trailSprites[i];
+   sprite.position.set(effect.origin.x+(effect.end.x-effect.origin.x)*f,
+    effect.origin.y+(effect.end.y-effect.origin.y)*f,
+    effect.origin.z+(effect.end.z-effect.origin.z)*f);
+   sprite.scale.setScalar((.09-(.02*f))*this.viewScale);
+  }
+  for(let i=0;i<effect.sparkCount;i++){
+   const k=i*3;effect.velocities[k]=(Math.random()-.5)*4.2;effect.velocities[k+1]=1.2+Math.random()*4.3;effect.velocities[k+2]=(Math.random()-.5)*4.2;
+  }
+  effect.sparkTime=0;
+ }
+ // Present one authoritative hostile shot as a single short ribbon that grows
+ // out of the machine barrel and dies within ~110 ms. There are no sprite
+ // blooms at either end: a fat additive streak would smear across the HUD, so
+ // the hit is reported by the damage vignette instead.
+ spawnEnemyShot(shot,kind='scout'){
+  if(!this.enemyShotEffects.length||!this.scene||!shot?.from||!shot?.to)return false;
+  const effect=this.enemyShotEffects[this.enemyShotCursor++%this.enemyShotEffects.length];
+  const color=ENEMY_SHOT_COLORS[kind]||ENEMY_SHOT_COLORS.scout;
+  effect.color=color;
+  effect.flash.visible=false;effect.bolt.visible=false;effect.trailRoot.visible=false;
+  effect.from.set(Number(shot.from.x)||0,Number(shot.from.y)||0,Number(shot.from.z)||0);
+  effect.to.set(Number(shot.to.x)||0,Number(shot.to.y)||0,Number(shot.to.z)||0);
+  effect.dir.copy(effect.to).sub(effect.from);
+  const length=effect.dir.length();
+  if(!Number.isFinite(length)||length<.6||length>140)return false;
+  effect.dir.divideScalar(length);
+  effect.end.copy(effect.to);
+  // Vertex 0/1 are the barrel tail, 2/3 the bolt head. The tail fades to
+  // almost nothing so the ribbon reads as moving fire rather than a laser.
+  // The head keeps the machine's own amber instead of whitening toward a hot
+  // core: its linear luma stays under the bloom threshold, so the streak cannot
+  // grow a halo over the objective marker or the facade behind it.
+  effect.tailColor.setHex(color).multiplyScalar(.14);
+  effect.headColor.setHex(color).multiplyScalar(.62);
+  effect.beam.visible=false;
+  effect.started=performance.now();
+  if(this.enemyShotLight){this.enemyShotLight.position.copy(effect.from);this.enemyShotLight.color.setHex(color);this.enemyShotLightAt=effect.started}
+  return true;
+ }
+ // Screen-constant tracer ribbon: endpoints slide along the authoritative
+ // muzzle-to-strike line while the quad is expanded perpendicular to the view
+ // by a width computed from camera depth, keeping the stroke 2-4 px wide at any
+ // distance and keeping the near-camera end from ballooning.
+ drawEnemyRibbon(effect,headT,alpha){
+  const tailT=Math.max(0,headT-effect.trailSpan);
+  const span=headT-tailT;
+  if(!(span>.006)||!(alpha>.004)){effect.beam.visible=false;return}
+  const from=effect.from,to=effect.to;
+  ENEMY_RIB_TAIL.lerpVectors(from,to,tailT);
+  ENEMY_RIB_HEAD.lerpVectors(from,to,headT);
+  ENEMY_RIB_DIR.copy(ENEMY_RIB_HEAD).sub(ENEMY_RIB_TAIL);
+  if(ENEMY_RIB_DIR.lengthSq()<1e-9){effect.beam.visible=false;return}
+  ENEMY_RIB_MID.copy(ENEMY_RIB_TAIL).add(ENEMY_RIB_HEAD).multiplyScalar(.5);
+  this.camera.getWorldPosition(ENEMY_RIB_EYE);
+  ENEMY_RIB_VIEW.copy(ENEMY_RIB_EYE).sub(ENEMY_RIB_MID);
+  ENEMY_RIB_SIDE.copy(ENEMY_RIB_DIR).cross(ENEMY_RIB_VIEW);
+  if(ENEMY_RIB_SIDE.lengthSq()<1e-9)ENEMY_RIB_SIDE.setFromMatrixColumn(this.camera.matrixWorld,0);
+  ENEMY_RIB_SIDE.normalize();
+  const height=Math.max(1,this.canvas.height|0);
+  const tanHalf=Math.tan(this.camera.fov*Math.PI/360);
+  const px=effect.beamPixels;
+  const halfTail=Math.max(.0009,px*2*ENEMY_RIB_TAIL.distanceTo(ENEMY_RIB_EYE)*tanHalf/height);
+  const halfHead=Math.max(.0009,px*2*ENEMY_RIB_HEAD.distanceTo(ENEMY_RIB_EYE)*tanHalf/height);
+  const p=effect.beam.geometry.attributes.position.array;
+  p[0]=ENEMY_RIB_TAIL.x+ENEMY_RIB_SIDE.x*halfTail;p[1]=ENEMY_RIB_TAIL.y+ENEMY_RIB_SIDE.y*halfTail;p[2]=ENEMY_RIB_TAIL.z+ENEMY_RIB_SIDE.z*halfTail;
+  p[3]=ENEMY_RIB_TAIL.x-ENEMY_RIB_SIDE.x*halfTail;p[4]=ENEMY_RIB_TAIL.y-ENEMY_RIB_SIDE.y*halfTail;p[5]=ENEMY_RIB_TAIL.z-ENEMY_RIB_SIDE.z*halfTail;
+  p[6]=ENEMY_RIB_HEAD.x+ENEMY_RIB_SIDE.x*halfHead;p[7]=ENEMY_RIB_HEAD.y+ENEMY_RIB_SIDE.y*halfHead;p[8]=ENEMY_RIB_HEAD.z+ENEMY_RIB_SIDE.z*halfHead;
+  p[9]=ENEMY_RIB_HEAD.x-ENEMY_RIB_SIDE.x*halfHead;p[10]=ENEMY_RIB_HEAD.y-ENEMY_RIB_SIDE.y*halfHead;p[11]=ENEMY_RIB_HEAD.z-ENEMY_RIB_SIDE.z*halfHead;
+  effect.beam.geometry.attributes.position.needsUpdate=true;
+  const fade=Math.min(1,Math.max(0,alpha));
+  const colours=effect.beam.geometry.attributes.color.array;
+  const tr=effect.tailColor.r*fade,tg=effect.tailColor.g*fade,tb=effect.tailColor.b*fade;
+  const hr=effect.headColor.r*fade,hg=effect.headColor.g*fade,hb=effect.headColor.b*fade;
+  colours[0]=colours[3]=tr;colours[1]=colours[4]=tg;colours[2]=colours[5]=tb;
+  colours[6]=colours[9]=hr;colours[7]=colours[10]=hg;colours[8]=colours[11]=hb;
+  effect.beam.geometry.attributes.color.needsUpdate=true;
+  effect.beam.visible=true;
+ }
+ buildComposite(){
+  const material=new THREE.ShaderMaterial({vertexShader:POST_VERT,fragmentShader:POST_FRAG,transparent:false,depthTest:false,depthWrite:false,
+   uniforms:{uScene:{value:null},uBloomTex:{value:null},uResolution:{value:new THREE.Vector2(1,1)},uTime:{value:0},uVignette:{value:.42},uGrain:{value:.034},uBloom:{value:.3}}});
+  material.userData.raidOwned=true;
+  const geometry=new THREE.PlaneGeometry(2,2);geometry.userData.raidOwned=true;
+  this.postMaterial=material;this.postCamera=new THREE.OrthographicCamera(-1,1,1,-1,0,1);this.postScene=new THREE.Scene();
+  this.postMesh=new THREE.Mesh(geometry,material);this.postMesh.userData.raidOwned=true;this.postMesh.frustumCulled=false;this.postMesh.renderOrder=1000;
+  this.postScene.add(this.postMesh);
+  const bloomMaterial=new THREE.ShaderMaterial({vertexShader:POST_VERT,fragmentShader:BLOOM_FRAG,transparent:false,depthTest:false,depthWrite:false,
+   uniforms:{uSource:{value:null},uTexel:{value:new THREE.Vector2(1,1)},uThreshold:{value:.58},uBlurScale:{value:2.2},uPass:{value:0}}});
+  bloomMaterial.userData.raidOwned=true;
+  const bloomGeometry=new THREE.PlaneGeometry(2,2);bloomGeometry.userData.raidOwned=true;
+  this.bloomMaterial=bloomMaterial;this.bloomScene=new THREE.Scene();
+  this.bloomMesh=new THREE.Mesh(bloomGeometry,bloomMaterial);this.bloomMesh.userData.raidOwned=true;this.bloomMesh.frustumCulled=false;this.bloomMesh.renderOrder=1001;
+  this.bloomScene.add(this.bloomMesh);
+ }
+ ensurePostTarget(){
+  const width=Math.max(1,this.canvas.width|0),height=Math.max(1,this.canvas.height|0);
+  if(!this.postTarget||this.postTarget.width!==width||this.postTarget.height!==height){
+   if(this.postTarget)this.postTarget.dispose();
+   this.postTarget=new THREE.WebGLRenderTarget(width,height,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:true,stencilBuffer:false});
+  }
+  return this.postTarget;
+ }
+ ensureBloomTargets(width,height){
+  const w=Math.max(1,(width|0)>>1),h=Math.max(1,(height|0)>>1);
+  if(!this.bloomTargets||this.bloomWidth!==w||this.bloomHeight!==h){
+   for(const target of this.bloomTargets||[])target.dispose();
+   const options={minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,depthBuffer:false,stencilBuffer:false};
+   this.bloomTargets=[new THREE.WebGLRenderTarget(w,h,options),new THREE.WebGLRenderTarget(w,h,options)];
+   this.bloomWidth=w;this.bloomHeight=h;
+  }
+  return this.bloomTargets;
+ }
+ renderBloomChain(source,width,height){
+  const [first,second]=this.ensureBloomTargets(width,height),u=this.bloomMaterial.uniforms,renderer=this.renderer;
+  u.uSource.value=source;
+  u.uTexel.value.set(1/Math.max(1,width),1/Math.max(1,height));
+  u.uPass.value=0;
+  renderer.setRenderTarget(first);renderer.clear();renderer.render(this.bloomScene,this.postCamera);
+  u.uSource.value=first.texture;u.uTexel.value.set(1/first.width,1/first.height);u.uPass.value=1;
+  renderer.setRenderTarget(second);renderer.clear();renderer.render(this.bloomScene,this.postCamera);
+  u.uSource.value=second.texture;u.uPass.value=2;
+  renderer.setRenderTarget(first);renderer.clear();renderer.render(this.bloomScene,this.postCamera);
+  return first.texture;
+ }
+ updateCombatEffects(now){
+  const reduced=!!this.settings?.reduced,viewScale=this.viewScale||1;
+  for(const effect of this.shotEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started,fade=Math.max(0,1-age/effect.shotDuration);
+   if(age>=effect.shotDuration||reduced&&age>320){effect.started=null;effect.muzzle.visible=false;effect.tracer.visible=false;effect.beam.visible=false;effect.sparks.visible=false;effect.trailRoot.visible=false;effect.dust.visible=false;effect.debris.visible=false;continue}
+   const flash=Math.max(0,1-age/85);
+   effect.muzzle.visible=!reduced&&flash>0;
+   effect.muzzle.material.opacity=reduced?0:flash*.9;
+   effect.muzzle.scale.setScalar(.07+.035*(1-flash));
+   effect.tracer.visible=!reduced&&age<190;
+   effect.tracer.material.opacity=reduced?.18:Math.min(1,fade*1.8)*1;
+   // Tapered beam: full width for the first ~80 ms (the frame the eye registers)
+   // then thins and dims so it never sticks to the world like a laser sight.
+   const beamFade=Math.max(0,1-age/185);
+   effect.beam.visible=!reduced&&beamFade>0;
+   effect.beam.material.opacity=reduced?0:Math.min(1,beamFade*2.4)*.72;
+   effect.trailRoot.visible=!reduced&&age<200;
+   effect.trailMaterial.opacity=Math.min(1,fade*1.7)*.34;
+   effect.dust.visible=!reduced&&age<240;
+   const dustAge=Math.min(1,age/240);effect.dust.material.opacity=reduced?0:.52*(1-dustAge);
+   effect.dust.scale.setScalar((.22+.28*dustAge)*viewScale);
+   effect.debris.visible=!reduced&&age<250;
+   const debrisAge=Math.min(1,age/250),debrisSeconds=age/1000,chips=effect.debris.geometry.attributes.position.array;
+   effect.debris.material.opacity=reduced?0:Math.min(1,(1-debrisAge)*1.4);
+   effect.debris.material.size=(.14-.05*debrisAge)*viewScale;
+   for(let i=0;i<effect.chipCount;i++){
+    const k=i*3;
+    chips[k]=effect.debrisVelocities[k]*debrisSeconds;
+    chips[k+1]=Math.max(-.02,effect.debrisVelocities[k+1]*debrisSeconds-4.9*debrisSeconds*debrisSeconds);
+    chips[k+2]=effect.debrisVelocities[k+2]*debrisSeconds;
+   }
+   effect.debris.geometry.attributes.position.needsUpdate=true;
+   effect.sparks.visible=true;effect.sparks.material.opacity=reduced?.22:Math.min(1,fade*1.6)*.9;
+   effect.sparks.material.size=(.12+.05*fade)*viewScale;
+   const seconds=age/1000,array=effect.sparks.geometry.attributes.position.array;
+   for(let i=0;i<effect.sparkCount;i++){
+    const k=i*3;
+    array[k]=effect.velocities[k]*seconds;
+    array[k+1]=Math.max(.02,effect.velocities[k+1]*seconds-4.9*seconds*seconds);
+    array[k+2]=effect.velocities[k+2]*seconds;
+   }
+   effect.sparks.geometry.attributes.position.needsUpdate=true;
+  }
+  // The pooled shot light rides the last accepted muzzle for 120 ms so foliage,
+  // terrain and cover read the discharge; it is dark between shots and quiet in
+  // reduced motion.
+  if(this.shotMuzzleLight){
+   const lightAge=now-this.shotMuzzleLightAt,lightActive=!reduced&&lightAge>=0&&lightAge<120;
+   this.shotMuzzleLight.visible=lightActive;
+   this.shotMuzzleLight.intensity=lightActive?(1-lightAge/120)*5.4:0;
+  }
+  // Hostile fire: one thin ribbon grows from the machine barrel to the strike
+  // point over the shot's travel window, trailing a fading tail. Nothing is
+  // painted at the operator end, so the streak never blooms over the marker or
+  // the HUD. Reduced motion shows a static full-length beat instead.
+  for(const effect of this.enemyShotEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started;
+   if(age>=effect.duration){effect.started=null;effect.beam.visible=false;effect.flash.visible=false;effect.bolt.visible=false;effect.trailRoot.visible=false;continue}
+   const flight=Math.min(1,Math.max(0,age/effect.travel));
+   const fade=Math.min(1,age/20)*Math.max(0,1-Math.max(0,age-85)/25);
+   this.drawEnemyRibbon(effect,reduced?1:flight,reduced?.55:fade);
+  }
+  if(this.enemyShotLight){
+   const hostileAge=now-this.enemyShotLightAt,hostileActive=!reduced&&hostileAge>=0&&hostileAge<120;
+   this.enemyShotLight.visible=hostileActive;
+   this.enemyShotLight.intensity=hostileActive?(1-hostileAge/120)*3.6:0;
+  }
+  // Weak-point bursts follow the authoritative core coordinate from the hit
+  // token. Reduced motion keeps a readable static flash and ring while the
+  // spark field and tinted light wash are suppressed.
+  for(const effect of this.coreBurstEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started,fade=Math.max(0,1-age/effect.duration);
+   if(age>=effect.duration){effect.started=null;effect.flash.visible=false;effect.ring.visible=false;effect.sparks.visible=false;effect.light.visible=false;effect.light.intensity=0;continue}
+   const expand=Math.min(1,age/260),flare=Math.max(0,1-age/140),seconds=age/1000;
+   effect.flash.visible=true;effect.flash.position.copy(effect.origin);
+   effect.flash.material.opacity=reduced?.55:flare*.9;
+   effect.flash.scale.setScalar(reduced?1.02:.42+.34*expand);
+   effect.ring.visible=true;effect.ring.position.copy(effect.origin);
+   // Billboard the shock ring toward the camera. A fixed horizontal torus is
+   // seen edge-on from the first-person eye line and reads as a stray line, not
+   // as an expanding burst around the core.
+   effect.ring.quaternion.copy(this.camera.quaternion);
+   effect.ring.scale.setScalar(reduced?.78:1.35*(.32+1.05*expand));
+   effect.ring.material.opacity=reduced?.72:Math.min(1,fade*1.45)*.8;
+   effect.ring.position.y+=.02;
+   effect.sparks.visible=!reduced;effect.sparks.position.copy(effect.origin);
+   effect.sparks.material.opacity=reduced?0:Math.min(1,fade*1.6)*.95;
+   effect.sparks.material.size=reduced?0:.1+.05*fade;
+   const sparks=effect.sparks.geometry.attributes.position.array;
+   for(let i=0;i<effect.burstSparks;i++){
+    const k=i*3;
+    sparks[k]=effect.velocities[k]*seconds;
+    sparks[k+1]=Math.max(-.02,effect.velocities[k+1]*seconds-4.9*seconds*seconds);
+    sparks[k+2]=effect.velocities[k+2]*seconds;
+   }
+   effect.sparks.geometry.attributes.position.needsUpdate=true;
+   effect.light.visible=!reduced&&flare>0;effect.light.position.copy(effect.origin);
+   effect.light.intensity=reduced?0:flare*2.6;
+  }
+  // Machine wreck bursts: warm flash and expanding ring up front, then embers,
+  // smoke, scrap and a short light wash. Reduced motion freezes the flash, ring
+  // and smoke in place, hides the animated spark fields and turns the light off.
+  for(const effect of this.machineWreckEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started;
+   if(age>=effect.duration){
+    effect.started=null;effect.flash.visible=false;effect.ring.visible=false;effect.embers.visible=false;effect.smoke.visible=false;effect.chunks.visible=false;effect.light.visible=false;effect.light.intensity=0;continue;
+   }
+   const expand=Math.min(1,age/460),flare=Math.max(0,1-age/280),fade=Math.max(0,1-age/effect.duration),seconds=age/1000,scale=effect.scale;
+   effect.flash.visible=!reduced?flare>0:true;effect.flash.position.copy(effect.origin);
+   effect.flash.material.opacity=reduced?.5:flare*.95;
+   effect.flash.scale.setScalar((reduced?1.35:.8+1.1*expand)*scale);
+   effect.ring.visible=true;effect.ring.position.copy(effect.origin);
+   effect.ring.quaternion.copy(this.camera.quaternion);
+   effect.ring.scale.setScalar((reduced?.85:1.15*(.3+1.1*expand))*scale);
+   effect.ring.material.opacity=reduced?.68:Math.min(1,fade*1.5)*.72;
+   effect.embers.visible=!reduced;effect.embers.position.copy(effect.origin);
+   effect.embers.material.opacity=reduced?0:Math.min(1,fade*1.6)*.92;
+   effect.embers.material.size=(.18+.08*fade)*Math.max(.6,Math.min(1.6,scale));
+   const embers=effect.embers.geometry.attributes.position.array;
+   for(let i=0;i<effect.emberCount;i++){
+    const k=i*3;
+    embers[k]=effect.emberVelocities[k]*seconds;
+    embers[k+1]=Math.max(-.1,effect.emberVelocities[k+1]*seconds-4.9*seconds*seconds);
+    embers[k+2]=effect.emberVelocities[k+2]*seconds;
+   }
+   effect.embers.geometry.attributes.position.needsUpdate=true;
+   effect.smoke.visible=true;effect.smoke.position.copy(effect.origin);effect.smoke.position.y+=.35*scale;
+   effect.smoke.material.opacity=reduced?.3:Math.min(1,fade*1.35)*.34;
+   effect.smoke.material.size=(reduced?.28:(.16+.24*expand))*scale;
+   const smoke=effect.smoke.geometry.attributes.position.array;
+   for(let i=0;i<effect.smokeCount;i++){
+    const k=i*3,angle=i*2.399963;
+    if(reduced){smoke[k]=Math.cos(angle)*.85*scale;smoke[k+1]=(.2+(i%5)*.24)*scale;smoke[k+2]=Math.sin(angle)*.85*scale}
+    else{
+     const spread=.55*scale+expand*.9*scale*(.35+((i%4)/3)*.65);
+     smoke[k]=Math.cos(angle)*spread+Math.sin(seconds*.9+i)*.16*scale;
+     smoke[k+1]=(.18+expand*(.4+((i%5)/4)*1.15))*scale;
+     smoke[k+2]=Math.sin(angle)*spread+Math.cos(seconds*.75+i)*.16*scale;
+    }
+   }
+   effect.smoke.geometry.attributes.position.needsUpdate=true;
+   effect.chunks.visible=!reduced;effect.chunks.position.copy(effect.origin);effect.chunks.position.y+=.15*scale;
+   effect.chunks.material.opacity=reduced?0:Math.min(1,(1-age/effect.duration)*1.7)*.88;
+   effect.chunks.material.size=(.26-.08*Math.min(1,age/effect.duration))*Math.max(.6,Math.min(1.6,scale));
+   const chunks=effect.chunks.geometry.attributes.position.array;
+   for(let i=0;i<effect.chunkCount;i++){
+    const k=i*3;
+    chunks[k]=effect.chunkVelocities[k]*seconds;
+    chunks[k+1]=Math.max(-.1,effect.chunkVelocities[k+1]*seconds-4.9*seconds*seconds);
+    chunks[k+2]=effect.chunkVelocities[k+2]*seconds;
+   }
+   effect.chunks.geometry.attributes.position.needsUpdate=true;
+   effect.light.visible=!reduced&&flare>0;effect.light.position.copy(effect.origin);effect.light.position.y+=.5*scale;
+   effect.light.intensity=reduced?0:flare*90*scale;
+  }
+  for(const effect of this.blastEffects){
+   if(effect.started===null)continue;
+   const age=now-effect.started,fade=Math.max(0,1-age/effect.blastDuration);
+   if(age>=effect.blastDuration){effect.started=null;effect.ring.visible=false;effect.flash.visible=false;effect.embers.visible=false;effect.plume.visible=false;effect.chunks.visible=false;effect.light.visible=false;effect.light.intensity=0;continue}
+   const expand=Math.min(1,age/520),flare=Math.max(0,1-age/190);
+   effect.ring.visible=true;effect.ring.position.copy(effect.origin);effect.ring.position.y+=.12;
+   effect.ring.scale.setScalar(reduced?effect.radius:Math.max(.22,effect.radius*(.16+.84*expand)));
+   effect.ring.material.opacity=reduced?.72:Math.min(1,fade*1.4)*.62;
+   effect.flash.visible=!reduced&&flare>0;effect.flash.position.copy(effect.origin);effect.flash.position.y+=.9;
+   effect.flash.material.opacity=reduced?0:flare*.9;effect.flash.scale.setScalar((1.4+1.8*expand)*this.viewScale);
+   effect.light.visible=!reduced&&flare>0;effect.light.position.copy(effect.origin);effect.light.position.y+=1.15;
+   effect.light.intensity=reduced?0:flare*250;
+   effect.embers.visible=true;effect.embers.position.copy(effect.origin);effect.embers.material.opacity=reduced?.18:Math.min(1,fade*1.5)*.8;
+   const seconds=age/1000,array=effect.embers.geometry.attributes.position.array,ring=effect.radius;
+   for(let i=0;i<effect.emberCount;i++){
+    const k=i*3,angle=i*2.399963;
+    array[k]=Math.cos(angle)*ring*.55*expand+(Math.random()-.5)*.08;
+    array[k+1]=.2+(.9+Math.random()*2.2)*seconds-4.9*seconds*seconds;
+    array[k+2]=Math.sin(angle)*ring*.55*expand+(Math.random()-.5)*.08;
+   }
+   effect.embers.geometry.attributes.position.needsUpdate=true;
+   effect.plume.visible=true;effect.plume.position.copy(effect.origin);effect.plume.position.y+=.24;
+   effect.plume.material.opacity=reduced?.24:Math.min(1,fade*1.15)*.36;
+   effect.plume.material.size=(reduced?.18:(.07+.14*expand))*this.viewScale;
+   const plume=effect.plume.geometry.attributes.position.array;
+   for(let i=0;i<effect.plumeCount;i++){
+    const k=i*3,angle=i*2.399963;
+    if(reduced){plume[k]=Math.cos(angle)*ring*.48;plume[k+1]=.16+(i%4)*.2;plume[k+2]=Math.sin(angle)*ring*.48}
+    else{
+     const spread=ring*(.12+.55*expand)*(.42+((i%4)/3)*.58);
+     plume[k]=Math.cos(angle)*spread+Math.sin(seconds*.85+i)*.1;
+     plume[k+1]=Math.min(ring*.85,.16+expand*(.55+((i%5)/4)*2.05))*(.78+(i%3)*.11);
+     plume[k+2]=Math.sin(angle)*spread+Math.cos(seconds*.7+i)*.1;
+    }
+   }
+   effect.plume.geometry.attributes.position.needsUpdate=true;
+   effect.chunks.visible=!reduced;
+   effect.chunks.position.copy(effect.origin);effect.chunks.position.y+=.12;
+   effect.chunks.material.opacity=reduced?0:Math.min(1,(1-age/effect.blastDuration)*1.7)*.86;
+   effect.chunks.material.size=(.22-.04*Math.min(1,age/effect.blastDuration))*this.viewScale;
+   const chunkPos=effect.chunks.geometry.attributes.position.array;
+   for(let i=0;i<effect.chunkCount;i++){
+    const k=i*3;
+    chunkPos[k]=effect.chunkVelocities[k]*seconds;
+    chunkPos[k+1]=Math.max(-.04,.02+effect.chunkVelocities[k+1]*seconds-4.9*seconds*seconds);
+    chunkPos[k+2]=effect.chunkVelocities[k+2]*seconds;
+   }
+   effect.chunks.geometry.attributes.position.needsUpdate=true;
+  }
+  for(const effect of this.blastEffects){
+   if(effect.scorchStarted===null)continue;
+   const age=now-effect.scorchStarted;
+   if(age>=effect.scorchDuration){effect.scorchStarted=null;effect.scorch.visible=false;continue}
+   const fade=Math.max(0,1-age/effect.scorchDuration),expand=Math.min(1,age/700);
+   effect.scorch.visible=true;effect.scorch.position.copy(effect.origin);effect.scorch.position.y+=.025;
+   const size=reduced?effect.radius*.95+1.1:(1.15+effect.radius*1.3*expand);
+   effect.scorch.scale.setScalar(size*viewScale);
+   effect.scorch.material.opacity=(reduced?.5:.72)*Math.min(1,fade*1.55);
+  }
+  for(const mesh of this.utilityEffects.values()){
+   if(mesh.userData.kind!=='smoke')continue;
+   const base=mesh.userData.radius||3,active=mesh.userData.active!==false;
+   if(!active||reduced){mesh.scale.setScalar(active?base:.15);mesh.userData.growFrom=undefined}
+   else{
+    if(mesh.userData.growFrom===undefined){mesh.userData.growFrom=performance.now();mesh.userData.growStart=mesh.scale.x||.15}
+    const t=Math.min(1,(now-mesh.userData.growFrom)/420),smooth=t*t*(3-2*t);
+    mesh.scale.setScalar(mesh.userData.growStart+(base-mesh.userData.growStart)*smooth);
+   }
+   const phase=now*.001;
+   mesh.children.forEach((puff,i)=>{
+    puff.position.y=puff.userData.baseY+Math.sin(phase*1.1+i*.9)*.14;
+    puff.position.x=puff.userData.baseX+Math.cos(phase*.8+i)*.08;
+    puff.material.opacity=reduced?.55:.45+.12*Math.sin(phase*.9+i);
+   });
+  }
+ }
+ spawnBlast(x,y,z,radius){
+  if(!this.blastEffects.length)return;
+  const effect=this.blastEffects[this.blastCursor++%this.blastEffects.length];
+  effect.started=performance.now();effect.origin.set(x,y||0,z);effect.radius=Math.max(1.6,radius||3);
+  for(let i=0;i<effect.emberCount;i++){const k=i*3;effect.velocities[k]=0;effect.velocities[k+1]=1;effect.velocities[k+2]=0}
+  effect.ring.visible=true;effect.flash.visible=false;effect.embers.visible=false;effect.plume.visible=false;effect.plume.material.opacity=0;effect.chunks.visible=false;effect.chunks.material.opacity=0;effect.light.visible=false;effect.light.intensity=0;effect.light.position.set(x,(y||0)+1.15,z);
+  for(let i=0;i<effect.chunkCount;i++){
+   const angle=i*2.399963,k=i*3;
+   effect.chunkVelocities[k]=Math.cos(angle)*(2.2+((i*7)%5)*.42);
+   effect.chunkVelocities[k+1]=2.9+((i*11)%6)*.5;
+   effect.chunkVelocities[k+2]=Math.sin(angle)*(2.2+((i*13)%5)*.42);
+  }
+  // The ground scorch outlives the flash so the attack leaves readable damage.
+  effect.scorchStarted=effect.started;effect.scorch.position.set(x,(y||0)+.025,z);effect.scorch.visible=true;
+ }
+ // Visual scale per machine class. A scout's hull break stays compact while the
+ // Warden's going down fills a block; the authoritative kind comes from the hit
+ // token, never from a client raycast.
+ wreckScale(kind){return {scout:1,hunter:1.3,heavy:1.75,flyer:1.35,overlord:2.7}[kind]||1}
+ spawnMachineWreck(x,y,z,{kind='scout',now=performance.now()}={}){
+  if(!this.scene||!this.machineWreckEffects?.length||![x,y,z].every(Number.isFinite))return null;
+  const effect=this.machineWreckEffects[this.wreckCursor++%this.machineWreckEffects.length];
+  const scale=this.wreckScale(kind);
+  effect.started=now;effect.kind=kind;effect.scale=scale;effect.origin.set(x,y,z);
+  effect.flash.visible=false;effect.ring.visible=false;effect.embers.visible=false;effect.smoke.visible=false;effect.chunks.visible=false;effect.light.visible=false;effect.light.intensity=0;
+  effect.flash.position.copy(effect.origin);effect.ring.position.copy(effect.origin);effect.embers.position.copy(effect.origin);effect.smoke.position.copy(effect.origin);effect.chunks.position.copy(effect.origin);effect.light.position.copy(effect.origin);
+  // Deterministic radial jets with a mild upward drift read as escaping coolant,
+  // sparks and scrap rather than a generic fireball.
+  for(let i=0;i<effect.emberCount;i++){
+   const k=i*3,angle=i*2.399963;
+   effect.emberVelocities[k]=Math.cos(angle)*(1.3+((i*7)%6)*.22)*scale;
+   effect.emberVelocities[k+1]=(.9+((i*11)%5)*.36)*scale;
+   effect.emberVelocities[k+2]=Math.sin(angle)*(1.3+((i*13)%6)*.22)*scale;
+  }
+  for(let i=0;i<effect.chunkCount;i++){
+   const k=i*3,angle=i*2.399963;
+   effect.chunkVelocities[k]=Math.cos(angle)*(1.8+((i*5)%5)*.34)*scale;
+   effect.chunkVelocities[k+1]=(2.2+((i*9)%6)*.42)*scale;
+   effect.chunkVelocities[k+2]=Math.sin(angle)*(1.8+((i*7)%5)*.34)*scale;
+  }
+  return effect;
+ }
+ spawnCoreBurst(x,y,z,now=performance.now()){
+  if(!this.scene||!this.coreBurstEffects?.length||![x,y,z].every(Number.isFinite))return null;
+  const effect=this.coreBurstEffects[this.coreBurstCursor++%this.coreBurstEffects.length];
+  effect.started=now;effect.origin.set(x,y,z);
+  effect.flash.visible=false;effect.ring.visible=false;effect.sparks.visible=false;effect.light.visible=false;effect.light.intensity=0;
+  effect.flash.position.copy(effect.origin);effect.ring.position.copy(effect.origin);effect.sparks.position.copy(effect.origin);effect.light.position.copy(effect.origin);
+  // Deterministic radial jets with a small upward bias read as energy escaping
+  // the exposed core rather than a generic omni-directional explosion.
+  for(let i=0;i<effect.burstSparks;i++){
+   const k=i*3,angle=i*2.399963;
+   effect.velocities[k]=Math.cos(angle)*(1+((i*7)%6)*.18);
+   effect.velocities[k+1]=.55+((i*11)%5)*.4;
+   effect.velocities[k+2]=Math.sin(angle)*(1+((i*13)%6)*.18);
+  }
+  return effect;
+ }
+ fire(){const s=this.snapshot?.self,item=s&&[...s.equipment,...s.pack].find(it=>it.id===s.weaponId);this.recoilSide=-this.recoilSide;this.recoil=this.settings?.reduced?0:RECOIL_KICK[item?.weapon]??.07;this.muzzleFlashAt=performance.now();this.audio.play(item?'shot:'+item.weapon:'shot');this.spawnShot(performance.now(),item?item.weapon:'shot');this.spawnViewModelEffects()}
+ // Presentation-only jolt when the predicted operator is stopped by cover.
+ bump(){if(this.settings?.reduced)return;const feel=this.feel||(this.feel=freshFeel());feel.bump=Math.max(feel.bump,.55)}
  clearChase(eye,desired){
   if(!this.world)return desired;
   const delta=desired.clone().sub(eye);let last=eye.clone();
   for(let i=1;i<=18;i++){
    const p=eye.clone().addScaledVector(delta,i/18);
-   if(blocked(this.world,p.x,p.z,.24,p.y-.16,.32))break;
+   if(blocked(this.activeWorld||this.world,p.x,p.z,.24,p.y-.16,.32))break;
    if(p.y<terrainHeightAt(this.world,p.x,p.z)+.36)break;
    last=p;
   }
   return last;
  }
  frame(time,yaw,pitch,predicted,aiming=false){
-  if(!this.snapshot)return;const dt=Math.min(.05,(time-this.lastTime)/1000||.016);this.lastTime=time;const seconds=time/1000,s=this.snapshot.self;this.updateEnvironment(1-Math.exp(-dt*3));
+  if(!this.snapshot)return;const dt=Math.min(.05,Math.max(0,(time-this.lastTime)/1000)||.016);this.lastTime=time;const seconds=time/1000,s=this.snapshot.self;this.updateEnvironment(this.settings?.reduced?1:1-Math.exp(-dt*3));this.updateWetness(dt);this.updateAtmosphere(seconds);
+  // Foliage sway is deterministic presentation-only motion; reduced motion
+  // freezes the shared shader clock so that view is entirely static.
+  for(const material of this.windMaterials||[]){const shader=material.userData.raidShader;if(shader)shader.uniforms.uWindTime.value=this.settings?.reduced?0:seconds}
   const pose=s.alive&&predicted?predicted:s,target=new THREE.Vector3(pose.x,(pose.y||0)+(s.downed?.65:s.ballisticsVersion===1?SHOT_EYE_HEIGHT:1.65),pose.z);
   if(!s.alive&&this.snapshot.camera)target.set(this.snapshot.camera.x,(this.snapshot.camera.y||0)+2,this.snapshot.camera.z);
+  // Grounded stride, sprint FOV, slide crouch and landing compression are
+  // presentation-only. The authoritative pose, fire origin and ballistics never
+  // read these offsets.
+  const reduced=!!this.settings?.reduced,moveSpeed=Math.min(1,Math.hypot(s.move?.x||0,s.move?.z||0));
+  const sliding=s.sliding===true||((predicted?.slideUntil||0)>seconds);
+  const grounded=s.alive&&!s.downed&&s.grounded!==false&&!s.vaulting;
+  const feel=this.feel||(this.feel=freshFeel());
+  if(!reduced&&grounded&&moveSpeed>.05&&!sliding){
+   const before=Math.floor(feel.step/Math.PI);
+   feel.step+=dt*((s.sprint?7.4:5.2)+moveSpeed*2.2);
+   // One footfall per stride, alternating the pan so a sustained run reads as
+   // left-right steps instead of a single centred metronome.
+   if(Math.floor(feel.step/Math.PI)!==before){feel.footSide=feel.footSide?0:1;this.audio.play('footstep',{gain:s.sprint?.95:.6,pan:feel.footSide?.16:-.16})}
+  }
+  const rush=!reduced&&s.alive&&!s.downed&&!aiming&&!s.vaulting&&grounded&&moveSpeed>.05?(sliding?4:s.sprint?6:0):0;
+  feel.sprintFov+=(rush-feel.sprintFov)*(reduced?1:1-Math.exp(-dt*(rush?5:9)));
+  if(feel.grounded===null)feel.grounded=grounded;
+  if(!reduced&&feel.grounded===false&&grounded){
+   // Height above the landing surface sets the impact, so a step off a kerb
+   // barely moves the camera while a rooftop fall compresses it fully.
+   const fall=Math.max(0,(s.fallPeak??(s.y||0))-(s.y||0));
+   feel.dipVel=Math.min(2.6,1.1+fall*.24);
+  }
+  feel.grounded=grounded;
+  if(!reduced&&(feel.dip!==0||feel.dipVel!==0)){feel.dipVel+=(-150*feel.dip-13*feel.dipVel)*dt;feel.dip+=feel.dipVel*dt;if(feel.dip>.26)feel.dip=.26;if(feel.dip<0){feel.dip=0;if(feel.dipVel<0)feel.dipVel=0}if(Math.abs(feel.dip)<.0006&&Math.abs(feel.dipVel)<.008)feel.dip=feel.dipVel=0}
+  const bobTarget=reduced||!grounded||aiming||sliding||moveSpeed<=.05?0:Math.abs(Math.sin(feel.step))*.032*moveSpeed*(s.sprint?1.35:1);
+  feel.bob+=(bobTarget-feel.bob)*(reduced?1:1-Math.exp(-dt*14));
+  // A stopped-against-cover bump is a quick downward jolt, not a camera system.
+  if(!reduced&&feel.bump>0){feel.bump*=Math.exp(-dt*17);if(feel.bump<.01)feel.bump=0}
+  const slideTarget=!reduced&&sliding?.18:0;feel.slide+=(slideTarget-feel.slide)*(reduced?1:1-Math.exp(-dt*(sliding?18:22)));
   if(this.visualSelf.distanceTo(target)>5)this.visualSelf.copy(target);else this.visualSelf.lerp(target,Math.min(1,dt*16));this.camera.position.copy(this.visualSelf);
+  if(!reduced)this.camera.position.y+=feel.bob-feel.dip-feel.slide-feel.bump*.035;
+  if(this.horizonDepth){this.horizonDepth.position.copy(this.camera.position);if(this.horizonDepth.userData.raidHorizonTick)this.horizonDepth.userData.raidHorizonTick(seconds,!!this.settings?.reduced)}
+  // The photographic sky is a lit dome, not a direction-only shader, so it has
+  // to stay centred on the eye. Left at the map origin the sphere's equator
+  // cuts a visible pale cap across the view (the HDRI's below-horizon haze).
+  if(this.skyPhoto)this.skyPhoto.position.copy(this.camera.position);
   // Keep the 2048 shadow frustum centred on the player instead of the fixed
   // map origin; without this, shadows disappear once the operator walks more
   // than 80 m from centre. The light direction itself is kept at 90 m.
   const anchor=s.alive?pose:this.snapshot.camera||pose;this.sunAnchor.set(anchor.x,(anchor.y||0),anchor.z);
-  this.sun.target.position.copy(this.sunAnchor);this.sun.position.copy(this.sunAnchor).addScaledVector(this.sunDirection,90);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),targetFov=aiming&&held?aimFieldOfView(this.settings?.fov||75,weaponStats(held)):this.settings?.fov||75;this.camera.fov+=(targetFov-this.camera.fov)*(this.settings?.reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
+  this.sun.target.position.copy(this.sunAnchor);this.sun.position.copy(this.sunAnchor).addScaledVector(this.sunDirection,90);const held=[...s.equipment,...s.pack].find(it=>it.id===s.weaponId),baseFov=this.settings?.fov||75,targetFov=aiming&&held?aimFieldOfView(baseFov,weaponStats(held)):baseFov+(reduced?0:feel.sprintFov);this.camera.fov+=(targetFov-this.camera.fov)*(reduced?1:1-Math.exp(-dt*16));this.camera.rotation.set(!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch,(!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw)+Math.PI,0,'YXZ');
+  // Presentation-only muzzle rise; authoritative ballistics still use the snapshot pose.
+  // The stronger pitch/roll split makes each discharge visibly punch the camera
+  // before the impulse recovers, without touching the aim or the shot ray.
+  if(!reduced){this.camera.rotation.x+=this.recoil*.52;this.camera.rotation.z+=this.recoil*this.recoilSide*.46;this.camera.rotation.x-=feel.dip*.7+feel.bump*.028}
   // The aim camera above stays at eye height for authoritative ballistics and
   // network graders; the chase camera is the presentational third-person view.
   const viewYaw=!s.alive&&this.snapshot.camera?this.snapshot.camera.yaw:yaw,viewPitch=!s.alive&&this.snapshot.camera?this.snapshot.camera.pitch:pitch;
-  const sliding=s.sliding===true||((predicted?.slideUntil||0)>seconds),eyeHeight=1.55+(s.downed?-.9:0);
+  // Damped look sway: the held weapon lags the aim by a small, bounded angle.
+  // Reduced motion zeroes it; aiming halves the travel so heads-up shots stay
+  // steady. Values are presentation-only and reset on each deployment.
+  if(this.vmLastYaw===null||this.vmLastPitch===null){this.vmLastYaw=viewYaw;this.vmLastPitch=viewPitch}
+  if(!this.settings?.reduced){
+   let dy=viewYaw-this.vmLastYaw;while(dy>Math.PI)dy-=Math.PI*2;while(dy<-Math.PI)dy+=Math.PI*2;
+   const dp=viewPitch-this.vmLastPitch,aimK=aiming?.35:1,swayBoundX=aiming?.02:.09,swayBoundY=aiming?.02:.07;
+   const targetX=Math.max(-swayBoundX,Math.min(swayBoundX,dy*.6*aimK)),targetY=Math.max(-swayBoundY,Math.min(swayBoundY,-dp*.55*aimK)),follow=1-Math.exp(-dt*9);
+   this.vmYaw+=(targetX-this.vmYaw)*follow;this.vmPitch+=(targetY-this.vmPitch)*follow;
+  }else{this.vmYaw=0;this.vmPitch=0}
+  this.vmLastYaw=viewYaw;this.vmLastPitch=viewPitch;
+  // Locomotion bob: a small two-beat rise/fall tied to the server-reported
+  // movement vector. It is bounded and suspended while stopped, downed or aiming.
+  let bobX=0,bobY=0;
+  if(!reduced&&s.alive&&!s.downed&&!aiming&&moveSpeed>.05){
+   this.vmStep+=dt*(5.4+moveSpeed*5);const reach=bobReach(moveSpeed);
+   bobX=Math.cos(this.vmStep)*reach*.85;bobY=Math.abs(Math.sin(this.vmStep))*reach*1.1;
+  }
+  const eyeHeight=1.55+(s.downed?-.9:0);
+  this.fireOrigin.set(pose.x,(pose.y||0)+eyeHeight,pose.z);this.fireYaw=viewYaw;this.firePitch=viewPitch;
   if(this.selfActor&&this.selfActor.userData.actor==='human'){
    const show=this.viewMode!=='first'&&!!s.alive;
    this.selfActor.visible=show;
-   if(show)updateActor(this.selfActor,{x:pose.x,y:pose.y||0,z:pose.z,yaw:viewYaw,pitch:viewPitch,downed:!!(s.downed||s.down),air:pose.grounded===false,sliding},dt,seconds);
+   if(show)updateActor(this.selfActor,{x:pose.x,y:pose.y||0,z:pose.z,yaw:viewYaw,pitch:viewPitch,downed:!!(s.downed||s.down),air:pose.grounded===false,sliding,hp:s.hp,reduced:!!this.settings?.reduced},dt,seconds);
    if(this.selfActor.userData.tag)this.selfActor.userData.tag.visible=false;
   }
   if(this.renderCamera){
@@ -148,32 +3437,192 @@ export class RaidView {
      const candidate=this.chase.clone().lerp(safe,follow);
      // Smoothing must not cut a wall corner or settle below the terrain; if the
      // interpolated point is invalid, snap straight to the sampled safe point.
-     const clear=candidate.y>=terrainHeightAt(this.world,candidate.x,candidate.z)+.36&&!blocked(this.world,candidate.x,candidate.z,.24,candidate.y-.16,.32);
+     const clear=candidate.y>=terrainHeightAt(this.world,candidate.x,candidate.z)+.36&&!blocked(this.activeWorld||this.world,candidate.x,candidate.z,.24,candidate.y-.16,.32);
      this.chase.copy(clear?candidate:safe);
     }
     if(!this.settings?.reduced)this.chase.y+=Math.sin(seconds*6.4)*.015*Math.min(1,(this.selfActor?.userData.speed||0)/6);
-    this.renderCamera.position.copy(this.chase);this.renderCamera.lookAt(look);this.renderCamera.fov=this.camera.fov;
+    this.renderCamera.position.copy(this.chase);this.renderCamera.lookAt(look);if(!this.settings?.reduced){this.renderCamera.rotation.x+=this.recoil*.34;this.renderCamera.rotation.z+=this.recoil*this.recoilSide*.38}this.renderCamera.fov=this.camera.fov;
    }else{this.renderCamera.position.copy(this.camera.position);this.renderCamera.rotation.copy(this.camera.rotation);this.renderCamera.fov=this.camera.fov}
   }
+  const stepListener={x:pose.x,y:pose.y||0,z:pose.z,yaw:viewYaw};
   for(const {model,data,type}of this.actors.values()){
    if(type==='machine')model.userData.motionReduced=!!this.settings?.reduced;
-   if(type==='human'||type==='machine')updateActor(model,data,dt,seconds);
-   else{model.position.set(data.x,data.y||0,data.z);if(type==='exit')model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}
+   if(type==='human'||type==='machine'){
+    updateActor(model,{...data,reduced:!!this.settings?.reduced},dt,seconds);
+    if(type==='machine')this.emitMachineSteps(model,data,stepListener,reduced,time);
+   }
+   else{model.position.set(data.x,data.y||0,data.z);
+    if(type==='door'){
+     const w=data.w||3.4,h=Math.min(data.h||2.8,2.8),d=data.d||.32,leaf=model.userData.doorLeaf,sill=model.userData.doorSill;
+     if(leaf){leaf.visible=data.closed!==false;leaf.scale.set(w,h,d);leaf.position.set(0,h/2,0);leaf.material.color.setHex(data.locked?0xc86a55:data.closed?0xd8b062:0x8dbb9b)}
+     if(sill){sill.scale.set(w,.1,d);sill.position.set(0,.05,0);sill.material.color.setHex(data.locked?0xe07a5b:data.closed?0xd8b062:0x9fe0ad)}
+    }else if(type==='loot'){const beacon=model.userData.lootBeacon;
+     // Presentation-only pickup glint: a small additive sparkle above the real
+     // item that gently breathes. It never hovers away from the object, and
+     // reduced motion freezes a still, readable pose. Loot state is authoritative
+     // and never touched here.
+     if(beacon?.glint){const phase=(data.x||0)*.21+(data.z||0)*.13;
+      if(this.settings?.reduced){
+       beacon.glint.material.opacity=.3;beacon.glint.scale.set(.32,.32,1);
+      }else{
+       const pulse=.5+.5*Math.sin(seconds*1.9+phase),scale=.30+.07*pulse;
+       beacon.glint.material.opacity=.22+.16*pulse;beacon.glint.scale.set(scale,scale,1);
+      }
+     }
+    }else{
+     if(type==='exit'){model.userData.exitRing?.material.color.setHex(exitColor(data,this.snapshot.serverTime));if(model.userData.exitSignal)updateExitSignal(model.userData.exitSignal,data,this.snapshot.serverTime,seconds,!!this.settings?.reduced);const beacon=model.userData.beacon;if(beacon){const shaft=beacon.userData.beaconShaft;shaft.material.opacity=.22+.14*Math.sin(seconds*2.2+(data.x||0)*.01);beacon.userData.beaconRing.rotation.z=seconds*.35;beacon.visible=!this.settings?.reduced}}}
+    }
   }
-  if(this.weather.visible){const positions=this.weather.geometry.attributes.position;for(let i=0;i<positions.count;i++){const speed=this.snapshot.conditions?.weather==='rain'?18:2;let y=positions.getY(i)-dt*speed;if(y<0)y=35;positions.setY(i,y)}positions.needsUpdate=true}
+  if(this.weather?.visible&&this.weatherState){
+   const state=this.weatherState,size=this.world?.size||1440,attr=this.weather.geometry.attributes.position,arr=attr.array;
+   if(state.mode==='rain'){
+    const ax=pose.x,az=pose.z,reach=state.radius*2;
+    for(let i=0;i<state.drops.length;i++){const d=state.drops[i];d.y-=d.speed*dt;
+     // Keep the field centred on the operator: horizontal offsets wrap at the
+     // volume edge, which is invisible because every drop is interchangeable.
+     d.ox+=d.drift*dt;if(d.ox>state.radius)d.ox-=reach;else if(d.ox<-state.radius)d.ox+=reach;
+     if(d.y<-1){
+      d.y=state.ceiling;
+      d.ox=(Math.random()-.5)*reach;d.oz=(Math.random()-.5)*reach;
+     }
+     writeRain(arr,i,d,ax,az)}
+   }else{
+    for(let i=0;i<state.points.length;i++){const p=state.points[i];p.y-=p.speed*dt;
+     if(p.y<-1){p.y=state.ceiling;p.x=(Math.random()-.5)*size;p.z=(Math.random()-.5)*size}
+     p.x+=Math.sin(seconds*.4+i)*.15*dt;p.z+=Math.cos(seconds*.33+i*.7)*.12*dt;
+     arr[i*3]=p.x;arr[i*3+1]=p.y;arr[i*3+2]=p.z}
+   }
+   attr.needsUpdate=true;
+  }
+  this.updateRainSplashes(seconds,pose);this.updateMachineStepDust(time,reduced);
   for(const ring of this.effects.values())ring.material.opacity=this.settings?.reduced?.85:.6+.2*Math.sin(seconds*8);
-  this.recoil=Math.max(0,this.recoil-dt*.5);this.gunRoot.position.set((aiming?0:.2)+(this.settings?.reduced||aiming?0:Math.sin(seconds*1.7)*.004),(aiming?-.17:-.22)+(this.settings?.reduced||aiming?0:Math.sin(seconds*2.1)*.004),-.5+this.recoil);this.gunRoot.rotation.x=-this.recoil;
+  this.updateCombatEffects(time);
+  // Fast exponential settle rather than a linear fade: the kick lands in one
+  // frame and is gone before the next aimed shot, while sustained fire sets a
+  // visible bounded climb instead of compounding forever.
+  this.recoil=Math.min(.2,this.recoil*Math.exp(-dt*13));
+  const motionReduced=!!this.settings?.reduced,swayX=motionReduced?0:this.vmYaw+bobX,swayY=motionReduced?0:this.vmPitch-bobY;
+  // Aim-down-sights presentation: ease toward a sight-aligned pose instead of
+  // snapping. The rear optic's authored local position is projected through the
+  // 0.65 weapon scale so the sight picture is genuinely centered, not merely the
+  // weapon root. Reduced motion snaps to the target with no interpolation.
+  const aimTarget=aiming?1:0;
+  if(motionReduced)this.vmAim=aimTarget;
+  else{
+   this.vmAim+=(aimTarget-this.vmAim)*Math.min(1,dt*18);
+   if(Math.abs(this.vmAim-aimTarget)<.001)this.vmAim=aimTarget;
+  }
+  const sight=this.gun?.userData.info?.sight||[0,.06,.15],gunScale=this.gunRoot.scale.x||VIEW_SCALE;
+  const hip=this.gunHip||VIEW_HIP,hipX=hip.x,hipY=hip.y,hipZ=hip.z,aimX=-(sight[0]||0)*gunScale,aimY=-(sight[1]||0)*gunScale;
+  const aimBlend=this.vmAim;
+  if(this.gunAimFade)for(const material of this.gunAimFade){
+   // Arms clear early; the stock fades in the back half of the transition so the
+   // optic leads the eye up from the shoulder weld.
+   material.opacity=material.name==='sleeve'?Math.max(0,1-aimBlend*1.8):Math.max(0,1-Math.max(0,aimBlend-.3)*1.6);
+  }
+  const equipAge=this.vmEquipAt?time-this.vmEquipAt:1e9,equipDrop=motionReduced||equipAge>=260?0:-.1*Math.pow(1-Math.max(0,equipAge)/260,2);
+  const breathX=motionReduced||aiming?0:Math.sin(seconds*1.7)*.004,breathY=motionReduced||aiming?0:Math.sin(seconds*2.1)*.004;
+  // Accepted reload handling: the weapon dips and leans while one magazine
+  // leaves and a replacement seats. Both envelopes collapse to exactly zero at
+  // the end of the window, so the base pose is restored deterministically.
+  let reloadHold=0;const reloadAge=this.reloadStartedAt?time-this.reloadStartedAt:1e9;
+  if(this.reloadStartedAt>0&&(motionReduced||reloadAge>=this.reloadDuration)){
+   this.reloadStartedAt=0;this.reloadDuration=0;if(this.reloadMag)this.reloadMag.visible=false;
+  }else if(this.reloadStartedAt>0&&reloadAge>=0&&this.reloadMag){
+   const p=Math.min(1,reloadAge/this.reloadDuration);
+   if(p<.12){const u=p/.12;reloadHold=u*u*(3-2*u)}
+   else if(p>.78){const u=(1-p)/.22;reloadHold=u*u*(3-2*u)}
+   else reloadHold=1;
+   if(p<.30){const u=p/.30,k=u*u*(3-2*u);this.reloadMag.visible=true;this.reloadMag.position.set(this.reloadMagBase.x+.045*k,this.reloadMagBase.y-.20*k,this.reloadMagBase.z-.02*k);this.reloadMag.rotation.z=.9*k}
+   else if(p<.52)this.reloadMag.visible=false;
+   else if(p<.92){const u=(p-.52)/.40,k=u*u*(3-2*u);this.reloadMag.visible=true;this.reloadMag.position.set(this.reloadMagBase.x+.06*(1-k),this.reloadMagBase.y-.19*(1-k),this.reloadMagBase.z+.02*(1-k));this.reloadMag.rotation.z=-.7*(1-k)}
+   else this.reloadMag.visible=false;
+  }
+  this.gunRoot.position.set(hipX+(aimX-hipX)*aimBlend+swayX+breathX*(1-aimBlend)-.035*reloadHold,hipY+(aimY-hipY)*aimBlend+swayY+equipDrop+breathY*(1-aimBlend)-.105*reloadHold,hipZ+this.recoil+.025*reloadHold+.065*aimBlend);
+  this.gunRoot.rotation.set(-this.recoil+.14*reloadHold,swayX*.55,swayY*.4+.22*reloadHold);
+  // Additive muzzle bloom that rides the recoil; short-lived, bounded, and
+  // suppressed under reduced motion like the world muzzle effects. Barrel heat
+  // decays in place and leaves a faint residual glow and warm emissive tint
+  // after sustained fire, so a burst reads as a hot weapon rather than a
+  // sequence of disconnected flashes.
+  const heat=motionReduced?0:Math.max(0,(this.heat||0)-dt*.55);
+  this.heat=heat;
+  const heatGlow=Math.max(0,(heat-.12)/.88);
+  if(this.muzzleFlash){
+   const flashAge=time-this.muzzleFlashAt,flashActive=!motionReduced&&!!this.gunRoot?.visible&&flashAge>=0&&flashAge<120;
+   const barrelGlow=!motionReduced&&!!this.gunRoot?.visible&&heatGlow>0;
+   this.muzzleFlash.visible=flashActive||barrelGlow;
+   if(flashActive){const fade=1-flashAge/120;this.muzzleFlash.material.opacity=Math.min(1,fade*.95+heatGlow*.22);this.muzzleFlash.scale.setScalar(this.muzzleBaseScale*(.9+.35*(1-fade)))}
+   else if(barrelGlow){this.muzzleFlash.material.opacity=heatGlow*.3;this.muzzleFlash.scale.setScalar(this.muzzleBaseScale*.72)}
+   else this.muzzleFlash.material.opacity=0;
+   if(this.muzzleLight){this.muzzleLight.visible=flashActive||barrelGlow;this.muzzleLight.intensity=flashActive?(1-flashAge/120)*6:barrelGlow?heatGlow*1.3:0}
+   for(const material of this.gunHeatMaterials||[]){if(material.emissive)material.emissive.setRGB(heatGlow*.26,heatGlow*.094,heatGlow*.023)}
+  }
+  // Recycled brass casings: brief ballistic arcs that leave from the ejection
+  // port and hide themselves. Reduced motion clears the pool in place.
+  if(this.caseFx?.length){
+   for(const casing of this.caseFx){
+    if(!casing.visible)continue;
+    const data=casing.userData;data.age+=dt;
+    if(motionReduced||data.age>=data.max){casing.visible=false;casing.material.opacity=0;continue}
+    data.vy-=6.5*dt;
+    casing.position.x+=data.vx*dt;casing.position.y+=data.vy*dt;casing.position.z+=data.vz*dt;
+    casing.material.rotation+=dt*7;casing.material.opacity=(1-data.age/data.max)*.95;
+   }
+  }
+  // Translucent muzzle smoke: expands and fades over 300 ms at the muzzle.
+  if(this.muzzleSmoke){
+   const smokeAge=time-this.muzzleSmokeAt,smokeActive=!motionReduced&&smokeAge>=0&&smokeAge<300;
+   this.muzzleSmoke.visible=smokeActive;
+   if(smokeActive){const t=smokeAge/300,ease=t*(2-t);this.muzzleSmoke.scale.setScalar(.055+.16*ease);this.muzzleSmoke.material.opacity=(1-t)*.62;this.muzzleSmoke.material.rotation=t*.6}
+  }
   const width=innerWidth,height=innerHeight;if(this.canvas.width!==Math.round(width*this.renderer.getPixelRatio())||this.canvas.height!==Math.round(height*this.renderer.getPixelRatio()))this.renderer.setSize(width,height,false);
   this.camera.aspect=width/height;this.camera.updateProjectionMatrix();this.renderCamera.aspect=width/height;this.renderCamera.updateProjectionMatrix();this.weaponCamera.aspect=width/height;this.weaponCamera.updateProjectionMatrix();
   const third=this.viewMode==='third'&&s.alive&&!this.snapshot.camera;
-  this.renderer.clear();this.renderer.render(this.scene,third?this.renderCamera:this.camera);this.gunRoot.visible=!!held&&!third;if(!third&&s.alive&&!s.downed){this.renderer.clearDepth();this.renderer.render(this.overlay,this.weaponCamera)}
+  // Cinematic frame finish: the deterministic bloom chain, vignette and film
+  // grain are presentation-only and never feed back into actor, ballistics or
+  // HUD state. The world renders into an offscreen colour target; the brush
+  // chain extracts highlights at half resolution, blurs them horizontally and
+  // vertically, then the composite pass upsamples the bloom over the scene.
+  // Reduced motion freezes grain and keeps the bloom field static; all targets
+  // are rebuilt only on size changes and released by clear()/start().
+  const composite=!!(this.postScene&&this.postMaterial&&this.postMesh&&this.postMesh.visible),postTarget=composite?this.ensurePostTarget():null,camera=third?this.renderCamera:this.camera;
+  this.renderer.info.reset();
+  this.cullChunks(camera);
+  this.renderer.setRenderTarget(postTarget);this.renderer.clear();this.renderer.render(this.scene,camera);
+  this.gunRoot.visible=!!held&&!third;
+  if(composite){
+   const bloomTexture=this.renderBloomChain(postTarget.texture,postTarget.width,postTarget.height);
+   this.renderer.setRenderTarget(null);
+   const reduced=!!this.settings?.reduced,u=this.postMaterial.uniforms;
+   u.uScene.value=postTarget.texture;
+   u.uBloomTex.value=bloomTexture;
+   u.uResolution.value.set(this.canvas.width,this.canvas.height);
+   u.uTime.value=reduced?0:seconds;
+   u.uGrain.value=reduced?0:.034;
+   this.renderer.render(this.postScene,this.postCamera);
+  }
+  if(!third&&s.alive&&!s.downed){this.renderer.clearDepth();this.renderer.render(this.overlay,this.weaponCamera)}
  }
 }
 export class BasePreview {
  constructor(canvas){
-  this.canvas=canvas;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.scene=new THREE.Scene();this.scene.background=new THREE.Color(0x1b303b);
-  this.scene.add(new THREE.HemisphereLight(0xe8e9d7,0x344651,2.5));const light=new THREE.DirectionalLight(0xffcf93,3);light.position.set(3,5,4);this.scene.add(light);this.camera=new THREE.PerspectiveCamera(38,2,.1,40);this.camera.position.set(2,1.8,3);this.camera.lookAt(0,1,0);
-  this.hero=humanModel('','base_operator',true,null);this.hero.rotation.y=.5;this.scene.add(this.hero);const stage=new THREE.Group();part(stage,'cylinder',0x435963,0,-.12,0,1.3,.2,1.3);for(const x of [-2.2,2.2]){part(stage,'box',0x485c61,x,.5,-1.1,1.4,1,1);part(stage,'box',0xbea572,x,1.05,-1.1,1.55,.12,1.1)}this.scene.add(stage);this.last=0;
+  this.canvas=canvas;this.touch=(typeof matchMedia==='function')&&matchMedia('(pointer:coarse)').matches;this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.touch?1:1.25));this.scene=new THREE.Scene();
+  // Deploy-screen studio rather than a flat teal slab: a cool overhead gradient
+  // falls to a warm pool at the platform, so the operator and gear sit inside a
+  // dim hangar volume instead of floating on a blank field.
+  const bg=document.createElement('canvas');bg.width=64;bg.height=64;const bgc=bg.getContext('2d');
+  const grad=bgc.createLinearGradient(0,0,0,64);grad.addColorStop(0,'#2b4651');grad.addColorStop(.55,'#17262c');grad.addColorStop(1,'#0a1114');bgc.fillStyle=grad;bgc.fillRect(0,0,64,64);
+  const halo=bgc.createRadialGradient(32,52,0,32,52,38);halo.addColorStop(0,'rgba(208,166,101,.38)');halo.addColorStop(.55,'rgba(92,103,94,.12)');halo.addColorStop(1,'rgba(0,0,0,0)');bgc.fillStyle=halo;bgc.fillRect(0,0,64,64);
+  this.backgroundTexture=new THREE.CanvasTexture(bg);this.backgroundTexture.colorSpace=THREE.SRGBColorSpace;this.scene.background=this.backgroundTexture;
+  this.scene.add(new THREE.HemisphereLight(0xb9cfd8,0x24302c,1.5));
+  const key=new THREE.DirectionalLight(0xffd49b,3.0);key.position.set(3,4.2,3.4);this.scene.add(key);
+  const rim=new THREE.DirectionalLight(0x6db8db,2.2);rim.position.set(-3.2,2.8,-2.4);this.scene.add(rim);
+  this.camera=new THREE.PerspectiveCamera(36,1.6,.1,40);this.camera.position.set(1.65,1.55,2.55);this.camera.lookAt(0,1.02,0);
+  this.hero=humanModel('','base_operator',true,null);this.hero.rotation.y=.5;this.scene.add(this.hero);
+  const stage=new THREE.Group();part(stage,'cylinder',0x3d5158,0,-.12,0,1.3,.2,1.3);part(stage,'ring',0x9c7b4a,0,.002,0,.74,.74,.74,[Math.PI/2,0,0]);for(const x of [-2.2,2.2]){part(stage,'box',0x45585e,x,.5,-1.1,1.4,1,1);part(stage,'box',0xb69b68,x,1.05,-1.1,1.55,.12,1.1)}this.scene.add(stage);
+  const shadow=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.8),new THREE.MeshBasicMaterial({map:TX.soft,color:0x05090c,transparent:true,opacity:.68,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.016;shadow.renderOrder=1;this.scene.add(shadow);
+  this.last=0;
  }
  setLoadout(loadout){
   const key=JSON.stringify([loadout.primary,loadout.secondary,loadout.armor,loadout.recovery]);this.loadout=loadout;if(key===this.loadoutKey)return;this.loadoutKey=key;
@@ -191,5 +3640,16 @@ export class BasePreview {
  clear(){this.setLoadout({primary:null,secondary:null,armor:null,recovery:false});this.renderer.clear()}
  turn(){this.angle=(this.angle??.5)+Math.PI/2}
  applySettings(settings){this.settings=settings}
+ // Rebuild the deploy-screen operator with the shipped MakeHuman body once
+ // humans.js has loaded, keeping the current stance and loadout attachments.
+ refreshArt(){
+  if(!HUM.ready||!this.hero||!this.scene)return;
+  const old=this.hero;
+  this.hero=humanModel('','base_operator',true,null);
+  this.hero.rotation.y=old.rotation.y;
+  this.scene.add(this.hero);this.scene.remove(old);disposeOwned(old);
+  this.secondaryRoot=null;this.armorRoot=null;this.loadoutKey=null;
+  if(this.loadout)this.setLoadout(this.loadout);
+ }
  frame(time,visible){if(!visible)return;const dt=Math.min(.05,(time-this.last)/1000||.016);this.last=time;updateActor(this.hero,{x:0,y:0,z:0,yaw:(this.angle??.5)+(this.settings?.reduced?0:Math.sin(time*.0003)*.12)},this.settings?.reduced?0:dt,this.settings?.reduced?0:time/1000);const w=this.canvas.clientWidth,h=this.canvas.clientHeight;if(w&&h){this.renderer.setSize(w,h,false);this.camera.aspect=w/h;this.camera.updateProjectionMatrix();this.renderer.render(this.scene,this.camera)}}
 }

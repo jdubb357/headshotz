@@ -1,5 +1,5 @@
 import {item} from './rules.mjs';
-import {randomBytes} from 'node:crypto';
+import {randomBytes,toHex} from '../shared/raid-crypto.mjs';
 import {SECTORS,ARTIFACTS} from '../shared/raid-sectors.mjs';
 import {WEAPONS,MODS} from '../shared/raid-catalog.mjs';
 import {safePoint,findPath} from '../shared/raid-navigation.mjs';
@@ -22,16 +22,24 @@ export function createSectorGroundLoot(world,seed){
  };
  world.spawns.forEach(([sx,sz],index)=>{
   const dx=-sx,dz=-sz,len=Math.hypot(dx,dz)||1,ux=dx/len,uz=dz/len,sideX=-uz,sideZ=ux;
+  // Slot 0 faces the deployment direction rather than the map centre: the
+  // server inserts every operator at yaw 0 (world +z), so an opening drop on
+  // that line is on screen at spawn and passes through the 3 m pickup radius
+  // as the player walks forward. Keep it just off the walking line so the
+  // operator model never hides the object itself.
   const slots=[
-   {distance:5,side:0,label:'Dropped weapon',weapons:1,supplies:['ammo']},
+   {distance:5,side:-1.8,label:'Dropped weapon',weapons:1,supplies:['ammo'],forward:true},
    {distance:17,side:2.5,label:'Field supply',weapons:0,supplies:['ammo','med','material']},
    {distance:32,side:-4,label:"Fallen operator's kit",weapons:1,supplies:['ammo','mod']},
    {distance:38,side:7,label:'Overrun outpost',weapons:0,supplies:['mod','armor','valuable']}
   ];
   for(const [slot,spec]of slots.entries()){
-   const candidates=[[spec.distance,spec.side],[spec.distance,spec.side+5],[spec.distance,spec.side-5],[Math.max(4,spec.distance-5),spec.side],[Math.min(42,spec.distance+5),spec.side]];
+   const baseX=spec.forward?0:ux,baseZ=spec.forward?1:uz,latX=spec.forward?-1:sideX,latZ=spec.forward?0:sideZ;
+   const candidates=spec.forward
+    ?[[spec.distance,spec.side],[6,spec.side-0.4],[4,spec.side-0.4],[5,spec.side-.8],[7,spec.side]]
+    :[[spec.distance,spec.side],[spec.distance,spec.side+5],[spec.distance,spec.side-5],[Math.max(4,spec.distance-5),spec.side],[Math.min(42,spec.distance+5),spec.side]];
    for(const [distance,side]of candidates){
-    const desiredX=sx+ux*distance+sideX*side,desiredZ=sz+uz*distance+sideZ*side;
+    const desiredX=sx+baseX*distance+latX*side,desiredZ=sz+baseZ*distance+latZ*side;
     const p=safePoint(world,desiredX,desiredZ,{radius:.5,y:0,height:1.2});
     if(!clear(sx,sz,p))continue;
     seen.add(p.x.toFixed(2)+':'+p.z.toFixed(2));
@@ -54,6 +62,34 @@ export function createSectorGroundLoot(world,seed){
     break;
    }
   }
+ });
+ return loot;
+}
+// The walk out is the game: drop small, readable pickups at a fixed cadence
+// along the insertion-to-exit path so the first three minutes have something to
+// walk toward, not an empty street. Positions are chosen by the raid service
+// from the walkable route; this function only authors the contents.
+export const ROUTE_LOOT_MARKS=[55,95,140,185];
+export function createRouteLoot(world,seed,spawnIndex,points){
+ const sector=SECTORS[world.id],loot=[];
+ const random=generator(seed+':'+world.id+':route:'+spawnIndex);
+ points.forEach((point,slot)=>{
+  const items=[];
+  if(slot%3===0){
+   const weapon=weighted(sector.weapons,random),def=WEAPONS[weapon],ammo=def.ammo;
+   items.push(item('weapon',{weapon,condition:55+Math.floor(random()*46),rarity:1+Math.floor(random()*2),loaded:Math.max(1,Math.round(def.mag*(.35+random()*.65)))}));
+   items.push(item('ammo',{ammo,quantity:Math.max(8,Math.round(AMMO_ROUNDS[ammo]*(.5+random()*.8)))}));
+  }else if(slot%3===1){
+   const ammo=weighted(sector.ammunition,random);
+   items.push(item('ammo',{ammo,quantity:Math.max(8,Math.round(AMMO_ROUNDS[ammo]*(.5+random()*.8)))}));
+   items.push(item('med',{medical:random()>.5?'bandage':'trauma'}));
+   items.push(item('material',{material:weighted(sector.materials,random),quantity:1+Math.floor(random()*3)}));
+  }else{
+   items.push(item('mod',{mod:Object.keys(MODS)[Math.floor(random()*3)],rarity:1+Math.floor(random()*2)}));
+   items.push(item('valuable',{label:sector.valuable,value:18+Math.floor(random()*32),rarity:2}));
+  }
+  const weapon=items.find(it=>it.kind==='weapon'),label=weapon?'Dropped weapon · '+WEAPONS[weapon.weapon].name:slot%3===1?'Field supply':'Route salvage';
+  loot.push({id:'route_'+spawnIndex+'_'+slot,x:point.x,y:point.y||0,z:point.z,label,spawn:spawnIndex,slot:10+slot,ground:true,items});
  });
  return loot;
 }
@@ -90,7 +126,7 @@ export function createWeaponCaches(world,seed){
   return {id:'armory_'+index,x,z,y:0,open:false,vault:false,label:names[index]+' · '+arch.tag,tier:3,weaponCache:true,archetype:arch.tag,searchSeconds:arch.search,searcher:null,searchUntil:0,items};
  });
 }
-export function createSectorCaches(world,raidId,seed=randomBytes(16).toString('hex')){
+export function createSectorCaches(world,raidId,seed=toHex(randomBytes(16))){
  const sector=SECTORS[world.id];return world.caches.map(([x,z,y=0],index)=>{
   const meta=world.cacheMeta?.[index]||{},tier=meta.tier||0,random=generator(seed+':'+world.id+':'+index),ammo=weighted(sector.ammunition,random),material=index===7?'fuel':weighted(sector.materials,random),rarity=Math.min(4,tier+(meta.vault?1:0));
   const items=[index===0?item('key'):item('valuable',{label:sector.valuable,value:12+tier*18+Math.floor(random()*12),rarity}),item('material',{material,quantity:2+Math.floor(random()*(tier+1)),rarity:Math.min(2,tier)}),item('ammo',{ammo,quantity:ammo==='heavy'?10:ammo==='shell'?12:30})];

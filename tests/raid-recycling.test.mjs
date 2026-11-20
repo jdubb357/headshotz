@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {RaidStore,item} from '../server/store.mjs';
-import {recyclingQuote} from '../shared/raid-inventory.mjs';
+import {equipmentSalvage,recyclingQuote} from '../shared/raid-inventory.mjs';
 import {auditEconomy} from '../scripts/economy-audit.mjs';
 function setup(t){const store=new RaidStore(),id=store.register('recycling_owner','a long recycling password').id;t.after(()=>store.close());return {store,id}}
 function fixture(store,id,items){store.transaction(()=>{const state=store.state(id);state.items.push(...items);store.save(id,state)})}
@@ -17,6 +17,12 @@ test('a full stash rejects leftover-plus-salvage creation atomically but allows 
  const {store,id}=setup(t),ammo=item('ammo',{ammo:'medium',quantity:31});fixture(store,id,[ammo,...Array.from({length:15},()=>item('med'))]);const before=store.profile(id);assert.equal(before.items.length,20);assert.throws(()=>store.trade(id,{type:'recycle',itemId:ammo.id}),/Stash full/);assert.deepEqual(store.profile(id),before);assert.equal(store.db.prepare("SELECT count(*) n FROM audit WHERE event='item_recycled'").get().n,0);
  store.trade(id,{type:'sell',itemId:before.items.find(it=>it.kind==='med').id});store.trade(id,{type:'recycle',itemId:ammo.id});assert.equal(store.profile(id).items.length,20);assert.equal(store.profile(id).items.find(it=>it.id===ammo.id).quantity,1);
  const whole=store.profile(id).items.find(it=>it.kind==='med');store.trade(id,{type:'recycle',itemId:whole.id});assert.equal(store.profile(id).items.length,20);
+});
+test('worn equipment dismantles into condition-scaled steel and audits the condition',t=>{
+ const thresholds=[100,75,74,50,49,1,0];assert.deepEqual(thresholds.map(equipmentSalvage),[3,3,2,2,1,1,1]);assert.equal(equipmentSalvage(undefined),3);
+ const {store,id}=setup(t),pristine=item('weapon',{weapon:'ar',condition:100}),worn=item('weapon',{weapon:'smg',condition:60}),broken=item('armor',{armor:'light',condition:10});fixture(store,id,[pristine,worn,broken]);
+ assert.equal(recyclingQuote(pristine).quantity,3);assert.equal(recyclingQuote(worn).quantity,2);assert.equal(recyclingQuote(broken).quantity,1);
+ store.trade(id,{type:'recycle',itemId:worn.id});const after=store.profile(id);assert.equal(after.items.some(it=>it.id===worn.id),false);const steel=after.items.find(it=>it.kind==='material');assert.equal(steel.quantity,2);assert.equal(steel.material,'steel');const audit=JSON.parse(store.db.prepare("SELECT data FROM audit WHERE event='item_recycled' ORDER BY id DESC LIMIT 1").get().data);assert.equal(audit.condition,60);assert.equal(audit.quantity,2);
 });
 test('medical and utility stack yields do not depend on first splitting into individual items',t=>{
  const {store,id}=setup(t),med=item('med',{quantity:5}),utility=item('utility',{utility:'smoke',quantity:3});fixture(store,id,[med,utility]);store.trade(id,{type:'recycle',itemId:med.id});store.trade(id,{type:'recycle',itemId:utility.id});const state=store.profile(id);assert.equal(state.items.find(it=>it.material==='chem').quantity,5);assert.equal(state.items.find(it=>it.material==='steel').quantity,3);assert.equal(recyclingQuote({...med,quantity:2}).quantity+recyclingQuote({...med,quantity:3}).quantity,5);

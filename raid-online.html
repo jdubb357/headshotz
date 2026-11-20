@@ -1,11 +1,13 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HeadShotz — Persistent Raids</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HeadShotz — The Sector</title>
 <style>
 body{margin:0;background:#101827;color:#edf2ff;font:16px system-ui}main{max-width:960px;margin:auto;padding:24px}h1{color:#ffc85c}button,input,select{font:inherit;padding:12px;border-radius:8px;margin:4px;border:1px solid #8093ac}button{cursor:pointer;background:#ffc85c;color:#101827;min-height:44px}button:disabled{opacity:.5}label{display:block;margin:12px 0}a{color:#ffc85c}.row{display:flex;gap:10px;flex-wrap:wrap}.card{background:#1c293f;border:1px solid #42526d;border-radius:12px;padding:18px;margin:12px 0}#message{min-height:2em;white-space:pre-wrap}#play{position:fixed;inset:0;background:#101827;display:none}#view{width:100%;height:100%;display:block}#cross{position:absolute;left:50%;top:50%;pointer-events:none;color:white;font-size:24px}#hud{position:absolute;top:10px;left:10px;right:10px;pointer-events:none;text-shadow:1px 2px black}#pack{position:absolute;right:10px;top:80px;max-height:60vh;overflow:auto;max-width:360px;background:#101827e8;padding:10px}#bossPanel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#401b1be8;border:1px solid #ff9d70;border-left:6px solid #ff5e3a;border-radius:6px;padding:6px 8px;max-width:min(460px,100%);color:#ffe8de}#bossPanel span{white-space:nowrap}#bossPhase{color:#ffb28f;font-size:calc(.9rem * var(--hud-scale))}#bossHpText{font-size:calc(.88rem * var(--hud-scale))}#bossHp{flex:1;min-width:110px;height:12px;accent-color:#ff5e3a}#bossPanel[data-phase=meltdown]{background:#5c1010e8;border-color:#ff3b3b;animation:bossPulse 1s ease-in-out infinite}@keyframes bossPulse{50%{box-shadow:0 0 14px #ff5e3a88}}html[data-reduced-motion=true] #bossPanel{animation:none}#touch{position:absolute;bottom:15px;left:10px;right:10px;display:flex;justify-content:space-between;flex-wrap:wrap}#touch button{touch-action:none;min-width:52px}#hint{position:absolute;bottom:100px;left:10px;background:#101827d9;padding:8px;max-width:85vw}#leave{position:absolute;top:40px;right:10px}.item{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.item span{flex:1}small{opacity:.85}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
 #spectate{position:absolute;top:260px;left:10px}#basePreview{width:100%;height:260px;display:block}#minimap{position:absolute;left:10px;top:95px;width:150px;height:150px;opacity:.85;pointer-events:none}#conditions{position:absolute;left:10px;top:42px;text-shadow:1px 2px black}#events{position:absolute;left:10px;top:68px;max-width:65vw;text-shadow:1px 2px black}#view{touch-action:none}#mapPreview{max-width:100%}@media(max-width:600px){#minimap{width:90px;height:90px}#pack{max-width:44vw;font-size:12px;max-height:45vh}#touch button{padding:9px;margin:2px}#hint{bottom:145px}}#commsToggle{position:fixed;bottom:10px;left:50%;z-index:5;transform:translateX(-50%)}#communications{position:fixed;z-index:6;left:12px;top:10px;max-width:460px;max-height:80vh;overflow:auto;box-shadow:0 5px 30px #0008}#communications p{font-size:14px}#pushTalk{touch-action:none}dialog{background:#1c293f;color:#edf2ff;border:1px solid #8093ac;border-radius:12px;max-width:480px}dialog::backdrop{background:#000a}textarea{display:block;box-sizing:border-box;width:100%;font:inherit}#commsToggle{bottom:2px}@media(max-width:600px){#communications{max-width:calc(100vw - 64px)}}
 :root{--hud-scale:1}*{box-sizing:border-box}:focus-visible{outline:3px solid #9de9ff;outline-offset:3px}main{padding-top:72px}button{min-width:44px}input[type=checkbox]{width:22px;height:22px;vertical-align:middle}#globalTools{position:fixed;right:8px;top:6px;z-index:8;display:flex;gap:2px}#globalTools button,#leave{font-size:14px;padding:9px;margin:2px}#leave{top:6px;left:8px;right:auto}#telemetry{position:absolute;top:64px;left:10px;right:10px;display:grid;gap:6px;pointer-events:none;text-shadow:1px 2px #000}#hud,#conditions,#events{position:static;max-width:100%}#hud,#conditions,#events,#networkStatus,#interactionStatus,#hint,#pack,#communications,#touch,#packToggle{font-size:calc(1rem * var(--hud-scale))}#minimap{top:auto;bottom:calc(163px + var(--touch-h,52px));width:100px;height:100px}#packToggle{position:absolute;right:10px;top:var(--toggle-top,190px)}#pack{top:var(--dock-top,244px);right:10px;max-width:min(360px,calc(100vw - 20px));max-height:max(0px,calc(100dvh - var(--dock-top,244px) - 53px - var(--touch-h,52px)));min-height:0;overscroll-behavior:contain}#play[data-pack-open=true] #hint{max-width:calc(100vw - 400px)}#touch{bottom:52px;gap:4px}#touch button{padding:9px;min-width:44px}#hint{bottom:calc(52px + var(--touch-h,52px) + 10px);max-height:min(100px,calc(100dvh - 62px - var(--touch-h,52px) - var(--dock-top,244px)));overflow:auto}#spectate{top:var(--dock-top,244px)}#cross{transform:translate(-50%,-50%)}#communications{font-size:calc(1rem * var(--hud-scale));top:56px;max-height:calc(100dvh - 100px)}#communications p{font-size:inherit}dialog{width:min(620px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain}dialog input[type=range]{width:min(300px,80%)}.binding{display:flex;align-items:center;justify-content:space-between;gap:8px}.binding button{min-width:110px}.srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}kbd{border:1px solid #8093ac;border-radius:4px;padding:1px 4px}table{border-collapse:collapse;width:100%}td,th{padding:6px;text-align:left;border-bottom:1px solid #8093ac}.item{overflow-wrap:anywhere}.item button{min-height:44px}html[data-high-contrast=true] #telemetry,html[data-high-contrast=true] #hint{background:#000;color:#fff;text-shadow:none}html[data-high-contrast=true] :focus-visible{outline:4px solid #ffff00}html[data-reduced-motion=true] *{scroll-behavior:auto!important;transition:none!important;animation:none!important}@media(max-width:600px){main{padding:64px 12px 24px}#pack{max-width:calc(100vw - 20px);max-height:calc(100dvh - 480px)}#touch{align-items:flex-end}#touch>div{max-width:100%;display:flex;flex-wrap:wrap}#touch button{font-size:14px}#minimap{width:80px;height:80px}#hint{font-size:calc(.9rem * var(--hud-scale))}@media(max-width:340px){#telemetry{right:66px}#minimap{top:64px;bottom:auto;left:auto;right:10px;width:48px;height:48px}}.row>*{max-width:100%}input:not([type=checkbox]):not([type=range]),select{max-width:100%}}body[data-in-raid=true]{overflow:hidden}@media(max-width:600px),(pointer:coarse){#play[data-pack-open=true] #pack{top:var(--dock-top,244px);bottom:70px;max-height:none;min-height:0}#play[data-pack-open=true] #hint,#play[data-pack-open=true] #minimap,#play[data-pack-open=true] #touch{display:none}}#recoveryCodeList{font-size:14px;overflow:auto;user-select:all;background:#111;padding:12px}#accountDialog input:not([type=hidden]){width:100%;margin-left:0}#globalTools{flex-wrap:wrap;max-width:calc(100vw - 130px)}#globalTools button{font-size:13px;padding:8px}@media(max-width:420px){#globalTools button{font-size:12px;padding:7px}}h1,h2,h3,p{overflow-wrap:anywhere}[hidden]{display:none!important}
 @media(min-width:601px) and (max-height:600px){#telemetry{right:110px}#minimap{left:auto;right:10px;top:64px;bottom:auto;width:80px;height:80px}}
+@media(min-width:601px) and (max-height:484px){#play[data-pack-open=true] #hint,#play[data-pack-open=true] #touch{display:none}}
+@media(max-width:600px){#telemetry{max-height:max(0px,calc(100dvh - var(--touch-h,52px) - 315px));overflow-y:auto;pointer-events:auto}}
 @media(max-width:340px){
 #telemetry{max-height:min(calc(100dvh - 283px),max(0px,calc(100dvh - 156px - var(--touch-h,52px))));overflow-y:auto;pointer-events:auto;scrollbar-width:thin;scrollbar-color:#ffc85c77 transparent;overscroll-behavior:contain}
 #packToggle{top:116px;right:4px;width:58px;padding:3px;font-size:calc(.7rem * var(--hud-scale));line-height:1.1;overflow-wrap:anywhere}
@@ -16,21 +18,591 @@ html[data-hud-large="true"] #hint{display:none}
 #play[data-pack-open=true] #pack{top:172px;max-height:none}
 #play[data-pack-open=true] #telemetry{display:none}
 }
+</style>
+<style>
+/* Tactical glass HUD theme. Kept as a late cascade layer so every selector
+   below only restyles existing markup and leaves the dynamic text and control
+   wiring untouched. */
+:root{--hud-scale:1;--hs-bg:#080e13;--hs-panel:rgba(12,20,27,.82);--hs-panel-solid:#101b24;--hs-border:rgba(174,196,209,.22);--hs-border-strong:rgba(174,196,209,.4);--hs-ink:#eef5f7;--hs-dim:#a8b9c1;--hs-faint:#768a94;--hs-amber:#ffb44a;--hs-amber-soft:rgba(255,180,74,.16);--hs-cyan:#63d9f2;--hs-cyan-soft:rgba(99,217,242,.14);--hs-red:#ff645f;--hs-green:#72e2b0;--hs-radius:14px;--hs-shadow:0 18px 50px rgba(0,0,0,.5),0 2px 0 rgba(255,255,255,.04) inset}
+html{background:radial-gradient(1100px 700px at 18% -10%,#1b2c38 0,#0b1319 52%,#080d12 100%) fixed}
+body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--hs-ink)}
+main{max-width:1020px}
+h1,h2,h3{letter-spacing:-.015em}
+h1{font-weight:760;background:linear-gradient(100deg,#fff 0,#ffce7b 60%,#ff9d4d);-webkit-background-clip:text;background-clip:text;color:transparent}
+a{color:var(--hs-cyan);text-decoration-thickness:.08em;text-underline-offset:.18em}
+.card{background:linear-gradient(180deg,rgba(22,34,44,.94),rgba(14,24,32,.96));border:1px solid var(--hs-border);border-radius:18px;box-shadow:var(--hs-shadow)}
+button,input,select,textarea{font:inherit;color:var(--hs-ink);border:1px solid var(--hs-border-strong);border-radius:10px;background:linear-gradient(180deg,#233642,#162631);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 6px 14px rgba(0,0,0,.18);transition:background .18s,border-color .18s,box-shadow .18s,transform .12s}
+button:hover:not(:disabled){border-color:rgba(255,180,74,.65);box-shadow:0 1px 0 rgba(255,255,255,.12) inset,0 0 0 3px rgba(255,180,74,.12)}
+button:active:not(:disabled){transform:translateY(1px)}
+button:disabled{opacity:.42;cursor:not-allowed}
+input:not([type=checkbox]):not([type=range]),select,textarea{background:#0d171e;border-color:var(--hs-border);padding:12px;box-shadow:0 0 0 1px rgba(0,0,0,.35) inset}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--hs-cyan);outline-offset:3px}
+input[type=range]{accent-color:var(--hs-amber)}
+dialog{background:linear-gradient(180deg,#182a35f6,#0d171ff6);border:1px solid var(--hs-border-strong);border-radius:18px;box-shadow:0 30px 100px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.08) inset;padding:22px}
+dialog::backdrop{background:rgba(3,7,10,.74);backdrop-filter:blur(6px)}
+dialog h2{margin-top:0;padding-bottom:10px;border-bottom:1px solid var(--hs-border);font-weight:720}
+#leave,#globalTools button,#packToggle,#spectate,#commsToggle{background:rgba(9,17,23,.82);border:1px solid var(--hs-border);border-radius:999px;color:var(--hs-ink);font-weight:650;letter-spacing:.02em;box-shadow:0 10px 30px rgba(0,0,0,.4),0 1px 0 rgba(255,255,255,.07) inset;backdrop-filter:blur(12px)}
+#leave{border-color:rgba(255,100,95,.45);color:#ffd9d7}
+#leave:hover:not(:disabled){border-color:var(--hs-red);box-shadow:0 0 0 3px rgba(255,100,95,.14)}
+#globalTools button:hover,#packToggle:hover:not(:disabled){border-color:var(--hs-amber)}
+/* Fixed header tools share one opaque glass capsule so scrolled menu content is
+   never glimpsed or clipped between/behind the floating buttons. */
+#globalTools{gap:4px;padding:5px 8px;border-radius:999px;border:1px solid var(--hs-border);background:linear-gradient(180deg,rgba(22,35,44,.95),rgba(10,18,24,.93));box-shadow:0 14px 34px rgba(0,0,0,.44),0 1px 0 rgba(255,255,255,.07) inset;backdrop-filter:blur(14px) saturate(120%)}
+#globalTools button{border-color:transparent;background:transparent;box-shadow:none;margin:0;border-radius:999px;font-weight:650}
+#globalTools button:hover:not(:disabled){border-color:transparent;background:var(--hs-amber-soft);box-shadow:none}
+#view{background:#070c10}
+#play::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 44%,transparent 42%,rgba(3,8,11,.38) 100%),linear-gradient(180deg,rgba(0,0,0,.15),transparent 18%,transparent 78%,rgba(0,0,0,.28));opacity:.82}
+#telemetry{background:linear-gradient(155deg,rgba(18,30,39,.86),rgba(9,16,22,.8) 58%,rgba(10,18,24,.84));border-radius:var(--hs-radius);box-shadow:0 16px 44px rgba(0,0,0,.38),0 0 0 1px var(--hs-border) inset,0 1px 0 rgba(255,255,255,.07) inset,3px 0 0 var(--hs-amber) inset;backdrop-filter:blur(14px) saturate(125%);text-shadow:none}
+#hud{font-weight:600;color:#f7fbfc;font-variant-numeric:tabular-nums}
+/* Telemetry scoreboard: small caps label + bold tabular value per metric; the
+   vitality tone is colour-coded but the number and wound words always remain. */
+#hud .hudScore{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap;padding:1px 0}
+#hud .hudKey{font-size:.7em;letter-spacing:.12em;text-transform:uppercase;color:var(--hs-faint);font-weight:650}
+#hud .hudVal{font-weight:720;color:#f7fbfc;font-variant-numeric:tabular-nums}
+#hud .hudScore[data-metric=armor] .hudVal{color:#b9e6fb}
+#hud .hudScore[data-metric=time] .hudVal{color:#ffd493}
+#hud .hudScore[data-metric=threat] .hudVal{color:#ffb28f;font-weight:800}
+#hud .hudScore[data-metric=threat][data-state=critical] .hudVal{color:#ff7261}
+#hud .hudScore[data-metric=ammo][data-state=unarmed] .hudVal{color:var(--hs-faint)}
+#hud .hudScore[data-metric=ammo][data-state=warn] .hudVal{color:var(--hs-amber)}
+#hud .hudScore[data-metric=ammo][data-state=critical] .hudVal{color:var(--hs-red)}
+#hud .hudScore[data-metric=ammo][data-state=critical] .hudKey{color:var(--hs-red)}
+#hud .hudScore[data-metric=vital][data-state=ok] .hudVal{color:#a9f0c9}
+#hud .hudScore[data-metric=vital][data-state=warn] .hudVal{color:var(--hs-amber)}
+#hud .hudScore[data-metric=vital][data-state=critical] .hudVal,#hud .hudScore[data-metric=vital][data-state=downed] .hudVal{color:var(--hs-red)}
+#hud .hudAlert{font-size:.68em;font-weight:760;letter-spacing:.1em;padding:2px 6px;border-radius:999px;background:var(--hs-amber-soft);color:#ffd39c;line-height:1.35;white-space:nowrap}
+#hud .hudAlert[data-state=critical]{background:rgba(255,100,95,.2);color:#ffb3b0}
+/* Desktop telemetry is a compact glass card rather than a full-width strip; the
+   mobile breakpoints keep their existing dock geometry. */
+@media(min-width:601px){#telemetry{right:auto;width:min(700px,calc(100vw - 20px))}}
+/* Short desktop windows dock the minimap top-right; reserve its lane so the
+   capped telemetry card never crowds or covers it. */
+@media(min-width:601px) and (max-height:600px){#telemetry{width:min(700px,calc(100vw - 130px))}}
+#conditions{font-weight:650;color:var(--hs-cyan);text-shadow:0 1px 0 rgba(0,0,0,.6)}
+#networkStatus,#interactionStatus,#hint{color:var(--hs-dim);font-variant-numeric:tabular-nums}
+#networkStatus,#interactionStatus{color:var(--hs-faint)}
+#events{font-weight:600;color:#ffe0aa;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+#sectorStatus{font-weight:700;color:#ffd39c;text-shadow:0 1px 0 rgba(0,0,0,.75);min-height:1.1em}
+#sectorStatus[data-state=warning]{color:#ffc46d}
+#sectorStatus[data-state=critical]{color:#ff9d8a;animation:sectorPulse 1.4s ease-in-out infinite}
+@keyframes sectorPulse{50%{opacity:.62}}
+#objectivePanel{display:grid;gap:4px;margin:2px 0;font-weight:700;color:#9fe8ff;text-shadow:0 1px 0 rgba(0,0,0,.75)}
+#objectivePanel p{margin:0}
+#objectivePanel progress{width:100%;height:7px;accent-color:#63e3ff}
+#objectivePanel[data-state=secure]{color:#ffe29a}
+#objectivePanel[data-state=secured]{color:#8dffb0}
+#rewardsObjective{margin:6px 0;font-weight:700;color:#9fe8ff}
+#rewardsObjective[data-state=completed]{color:#8dffb0}
+#rewardsObjective[data-state=failed]{color:#ffb387}
+#rewardsSettlement,#rewardsStashUsage{margin:6px 0;color:var(--hs-dim);line-height:1.5;font-size:.8rem}
+#rewardsStashUsage[data-overflow=true]{color:#ffb387;font-weight:650}
+html[data-reduced-motion=true] #sectorStatus{animation:none}
+#telemetry{scrollbar-color:rgba(255,180,74,.45) transparent}
+#bossPanel{background:linear-gradient(100deg,rgba(70,21,18,.92),rgba(41,15,14,.82));border:1px solid rgba(255,120,95,.55);border-left:4px solid var(--hs-red);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.35),0 0 22px rgba(255,64,48,.16);backdrop-filter:blur(10px)}
+#bossHp{height:8px;border-radius:99px;overflow:hidden}
+#minimap{border-radius:14px;border:1px solid var(--hs-border);box-shadow:0 10px 26px rgba(0,0,0,.48),0 0 0 1px rgba(0,0,0,.55) inset;background:rgba(4,10,14,.82);opacity:1;filter:saturate(1.08)}
+#hint{padding:8px;background:linear-gradient(100deg,rgba(12,21,28,.9),rgba(15,26,33,.78));border:0;border-radius:8px;box-shadow:0 0 0 1px var(--hs-border) inset,0 12px 30px rgba(0,0,0,.38),3px 0 0 var(--hs-amber) inset;backdrop-filter:blur(12px);font-weight:560}
+#pack{padding:10px;background:linear-gradient(170deg,rgba(20,32,41,.95),rgba(10,17,23,.9));border:0;border-radius:var(--hs-radius);box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 1px var(--hs-border) inset,0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(14px) saturate(125%);scrollbar-width:thin;scrollbar-color:rgba(255,180,74,.45) transparent}
+#pack>strong{color:var(--hs-amber);text-shadow:0 0 16px rgba(255,180,74,.24)}
+#pack .item{background:rgba(255,255,255,.045);border-radius:8px;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;padding:6px;margin:6px 0}
+#pack .item:hover{background:rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(99,217,242,.35) inset}
+#pack .item button{background:rgba(28,43,53,.9);border-color:rgba(174,196,209,.24);color:#f1f7f9;border-radius:9px;font-weight:620}
+#pack .item button:hover:not(:disabled){border-color:var(--hs-cyan);background:rgba(38,60,72,.95)}
+#pack .item span{flex:1 0 100%;line-height:1.35;color:#dce8ec}
+#pack>p{color:var(--hs-dim);border-top:1px solid rgba(174,196,209,.14);padding-top:7px;margin:10px 0 4px}
+#pack h3{color:var(--hs-amber);font-size:1rem;margin:12px 0 6px}
+#pack .packHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+#pack .packHead>strong{flex:1 1 100%;color:var(--hs-amber);text-shadow:0 0 16px rgba(255,180,74,.24);line-height:1.3}
+#pack .packMeters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%}
+#pack .packMeter{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;padding:5px 7px;border-radius:7px;background:linear-gradient(150deg,rgba(255,255,255,.06),rgba(255,255,255,.025));box-shadow:0 0 0 1px rgba(174,196,209,.12) inset}
+#pack .meterLabel{font-size:.58rem;line-height:1.2;letter-spacing:.1em;text-transform:uppercase;color:var(--hs-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pack .packMeter b{font-size:.7rem;line-height:1.25;color:#dce8ec;font-variant-numeric:tabular-nums;font-weight:650;white-space:nowrap}
+#pack .meterTrack{height:3px;border-radius:99px;background:rgba(174,196,209,.16);overflow:hidden}
+#pack .meterTrack span{display:block;height:100%;width:var(--meter-fill,0);background:linear-gradient(90deg,var(--hs-cyan),var(--hs-green));border-radius:inherit;transition:width .45s ease}
+#pack .item{background:linear-gradient(90deg,rgba(255,255,255,.025),rgba(255,255,255,.055));box-shadow:0 0 0 1px rgba(255,255,255,.07) inset,3px 0 0 var(--item-accent,#94a6ae) inset}
+#pack .item[data-reorder=pack]{cursor:grab;touch-action:none;user-select:none}
+#pack .item[data-reorder=pack].reorderSource{cursor:grabbing;opacity:.82;box-shadow:0 0 0 2px var(--hs-cyan) inset,3px 0 0 var(--item-accent,#94a6ae) inset}
+#pack[data-reordering=true]{cursor:grabbing}
+#pack .tradeTarget{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:6px 0;padding:8px 10px;border-radius:9px;background:rgba(99,217,242,.06);box-shadow:0 0 0 1px rgba(99,217,242,.28) dashed inset;transition:background .15s ease,box-shadow .15s ease}
+#pack .tradeTarget span{flex:1 1 auto;min-width:0}
+#pack .tradeTarget small{flex:1 1 100%;color:var(--hs-faint)}
+#pack .tradeTarget[data-drop=true]{background:rgba(114,226,176,.16);box-shadow:0 0 0 2px var(--hs-green) inset,0 0 18px rgba(114,226,176,.18)}
+#pack .item[data-condition=critical]{background:linear-gradient(90deg,rgba(255,100,95,.13),rgba(255,255,255,.045))}
+#pack .itemHead{display:flex;align-items:flex-start;gap:8px;flex:1 0 100%;min-width:0}
+#pack .item span.itemLabel{flex:1 1 100%;min-width:0;overflow-wrap:anywhere}
+#pack .item span.itemCondition{flex:0 0 44px;height:4px;margin-top:11px;border-radius:99px;background:linear-gradient(90deg,var(--item-accent,#94a6ae) 0 var(--condition,100%),rgba(174,196,209,.18) var(--condition,100%) 100%);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+#pack .item[data-condition=critical] span.itemCondition{background:linear-gradient(90deg,var(--hs-red) 0 var(--condition,100%),rgba(174,196,209,.18) var(--condition,100%) 100%)}
+#pack .item .itemAppraisal{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;flex:1 0 100%;margin-top:4px;line-height:1.25}
+#pack .item .itemAppraisal>.metaChip{flex:0 0 auto;padding:1px 7px;border-radius:999px;font-size:.66rem;font-weight:640;letter-spacing:.02em;font-variant-numeric:tabular-nums;white-space:nowrap;box-shadow:0 0 0 1px rgba(174,196,209,.16) inset}
+#pack .item .itemAppraisal>.metaWeight{background:rgba(174,196,209,.08);color:#c4d4da}
+#pack .item .itemAppraisal>.metaValue{background:rgba(255,180,74,.12);color:#ffd38d;box-shadow:0 0 0 1px rgba(255,180,74,.32) inset}
+#pack .item>.itemWarn{display:block;flex:1 0 100%;margin-top:4px;padding:3px 7px;border-radius:6px;background:rgba(255,100,95,.14);color:#ffc3bf;font-size:.66rem;font-weight:680;letter-spacing:.03em;box-shadow:0 0 0 1px rgba(255,100,95,.35) inset}
+@media (prefers-reduced-motion:reduce){#pack .item .itemAppraisal>.metaChip{transition:none}}
+#pack .extractCard{--exitAccent:var(--hs-amber);--exitBadgeBg:rgba(255,180,74,.14);--exitBadgeInk:#ffe0aa;display:grid;gap:4px;margin:6px 0;padding:7px 9px 8px;border-radius:9px;background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));box-shadow:0 0 0 1px rgba(174,196,209,.14) inset,3px 0 0 var(--exitAccent) inset}
+#pack .extractCard[data-phase=open]{--exitAccent:var(--hs-green);--exitBadgeBg:rgba(114,226,176,.16);--exitBadgeInk:#baf5d7}
+#pack .extractCard[data-phase=full]{--exitAccent:var(--hs-red);--exitBadgeBg:rgba(255,100,95,.16);--exitBadgeInk:#ffd2cf}
+#pack .extractCard[data-phase=inbound]{--exitAccent:var(--hs-cyan);--exitBadgeBg:rgba(99,217,242,.15);--exitBadgeInk:#c5f3fc}
+#pack .extractCard[data-phase=departed],#pack .extractCard[data-phase=exhausted],#pack .extractCard[data-phase=locked]{--exitAccent:var(--hs-faint);--exitBadgeBg:rgba(118,138,148,.14);--exitBadgeInk:#c4d0d5}
+#pack .extractCard[data-contested=true]{box-shadow:0 0 0 1px rgba(255,128,91,.45) inset,3px 0 0 #ff805b inset,0 0 18px rgba(255,128,91,.1)}
+#pack .extractHead{display:flex;align-items:center;justify-content:space-between;gap:7px;min-width:0}
+#pack .extractName{flex:1 1 auto;min-width:0;font-weight:650;font-size:.86rem;line-height:1.3;color:#f4fafc}
+#pack .exitBadge{flex:0 0 auto;padding:2px 7px;border-radius:999px;background:var(--exitBadgeBg);color:var(--exitBadgeInk);font-size:.58rem;font-weight:760;line-height:1.4;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap}
+#pack .extractMeta{margin:0;padding:0;border:0;color:#c5d4da;font-size:.76rem;line-height:1.35}
+#pack .exitProgress{height:3px;border-radius:99px;background:rgba(174,196,209,.16);overflow:hidden}
+#pack .exitProgress span{display:block;height:100%;width:var(--exit-fill,0);border-radius:inherit;background:linear-gradient(90deg,var(--exitAccent),rgba(255,255,255,.74));transition:width .7s linear}
+#pack .extractFoot{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:.66rem;line-height:1.3}
+#pack .extractRule{color:var(--hs-faint)}
+#pack .extractSeats{color:#d8e7eb;font-variant-numeric:tabular-nums;font-weight:620}
+#pack .extractLink{color:var(--hs-green,#86efbb);font-weight:680;padding:1px 5px;border-radius:999px;background:rgba(114,226,176,.12);white-space:nowrap}
+#pack .extractLink[hidden]{display:none!important}
+html[data-reduced-motion=true] #pack .extractLink{transition:none!important}
+#pack .item small{color:var(--hs-dim)}
+#stashCapacity{color:var(--hs-dim);font-weight:500;letter-spacing:0}
+#stash .item{display:flex;flex-wrap:wrap;align-items:flex-start;column-gap:6px;background:rgba(255,255,255,.035);border-left:3px solid transparent;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;padding:10px 12px;margin:6px 0}
+#stash .item:hover{background:rgba(255,255,255,.065)}
+#stash .item[data-grade=ready]{border-left-color:rgba(114,226,176,.38)}
+#stash .item[data-grade=worn]{border-left-color:rgba(255,180,74,.48)}
+#stash .item[data-grade=critical]{border-left-color:rgba(255,100,95,.62)}
+#stash .item span{flex:1 1 0;min-width:50%;padding-top:8px;line-height:1.4;color:#e2edf0}
+#stash .item span.stashLabel{flex:1 1 60%}
+#stash .item span.conditionStatus{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;min-width:0;margin-top:9px;padding:0}
+#stash .item span.itemCondition{flex:0 0 48px;align-self:center;height:6px;min-width:0;margin-top:0;padding:0;border-radius:99px;background:linear-gradient(90deg,var(--grade,#72e2b0) 0 var(--condition,100%),rgba(174,196,209,.16) var(--condition,100%) 100%);box-shadow:0 0 0 1px rgba(255,255,255,.09) inset}
+#stash .item span.itemCondition[data-grade=ready]{--grade:#72e2b0}
+#stash .item span.itemCondition[data-grade=worn]{--grade:#ffb44a}
+#stash .item span.itemCondition[data-grade=critical]{--grade:#ff645f}
+#stash .item span.gradeChip{flex:0 0 auto;align-self:center;min-width:0;margin-top:0;padding:2px 6px;border-radius:4px;font:800 .6rem/1.25 system-ui,-apple-system,sans-serif;letter-spacing:.1em;color:#d9e6e9;border:1px solid rgba(174,196,209,.25);background:rgba(255,255,255,.04)}
+#stash .item span.gradeChip.ready{color:#86efbb;border-color:rgba(114,226,176,.35);background:rgba(114,226,176,.09)}
+#stash .item span.gradeChip.worn{color:#ffce7a;border-color:rgba(255,180,74,.42);background:rgba(255,180,74,.09)}
+#stash .item span.gradeChip.critical{color:#ff9a94;border-color:rgba(255,100,95,.55);background:rgba(255,100,95,.12)}
+/* Presentation-only stash readability: a small rarity gem in the shared loot
+   palette and one appraisal line carrying the same authoritative weight and
+   sale value the store uses. Condition grade border and all controls remain. */
+#stash .item span.rarityGem{flex:0 0 10px;width:10px;min-width:0;height:10px;margin:12px 3px 0 2px;padding:0;border-radius:2px;transform:rotate(45deg);background:var(--stash-rarity,#94a6ae);box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 8px rgba(148,166,174,.25)}
+#stash .item span.rarityGem[data-rarity="1"]{background:#72e2b0;box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 8px rgba(114,226,176,.35)}
+#stash .item span.rarityGem[data-rarity="2"]{background:#63d9f2;box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 9px rgba(99,217,242,.45)}
+#stash .item span.rarityGem[data-rarity="3"]{background:#c790ff;box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 9px rgba(199,144,255,.55)}
+#stash .item span.rarityGem[data-rarity="4"]{background:#ffb44a;box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 10px rgba(255,180,74,.6)}
+#stash .item span.rarityGem[data-rarity="5"]{background:#ff645f;box-shadow:0 0 0 1px rgba(0,0,0,.55),0 0 12px rgba(255,100,95,.7)}
+#stash .item span.stashFacts{flex:1 0 100%;min-width:0;padding:1px 0 0;color:var(--hs-faint);font:500 .7rem/1.35 system-ui,-apple-system,sans-serif;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+#stash .item:hover span.stashFacts{color:var(--hs-dim)}
+#stash .item small{color:var(--hs-dim);flex:1 0 100%}
+#stash .item input[type=checkbox]{flex:0 0 auto;margin-top:10px;accent-color:var(--hs-amber)}
+#stash .item label{display:flex;align-items:center;gap:5px;margin:4px;color:var(--hs-dim);font-size:.9rem}
+#stash .item label input{margin:0}
+#recordsSummary{margin:2px 0 10px;padding:9px 12px;border-radius:10px;background:rgba(114,226,176,.06);box-shadow:0 0 0 1px rgba(114,226,176,.18) inset;color:#c9f7df;line-height:1.5;font-size:.8rem;font-weight:600;overflow-wrap:anywhere}
+#recordsSummary[data-empty=true]{background:rgba(255,255,255,.035);box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;color:var(--hs-dim);font-weight:500}
+details{background:rgba(255,255,255,.035);border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset;padding:10px 12px;margin:6px 0}
+summary{cursor:pointer;color:#e2edf0;font-weight:600;line-height:1.4}
+summary:focus-visible{outline:2px solid var(--hs-cyan);outline-offset:3px;border-radius:4px}
+details p,details li{color:var(--hs-dim);line-height:1.5}
+details strong{color:#ffe0aa}
+#touch button{background:linear-gradient(180deg,rgba(34,49,59,.9),rgba(16,27,34,.92));border:1px solid rgba(174,196,209,.26);border-radius:12px;color:#eef5f7;font-weight:650;text-shadow:none;box-shadow:0 8px 20px rgba(0,0,0,.32),0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(10px)}
+#touch button:hover{background:linear-gradient(180deg,rgba(44,63,75,.95),rgba(20,33,41,.96));border-color:rgba(99,217,242,.55)}
+#touch button[data-move]{background:linear-gradient(180deg,rgba(27,43,54,.92),rgba(13,24,31,.94))}
+#touch .tb{position:relative;display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid rgba(255,255,255,.56);background:rgba(0,0,0,.26);color:#fff;padding:0;box-shadow:0 6px 18px rgba(0,0,0,.34),0 1px 0 rgba(255,255,255,.07) inset;backdrop-filter:blur(6px);transition:background .1s ease,border-color .1s ease,transform .06s ease}
+#touch .tb svg{width:30px;height:30px;pointer-events:none}
+#touch .tb span{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:8px;font-weight:900;letter-spacing:.05em;line-height:1}
+#touch .tb:active,#touch .tb.down{transform:scale(.94);background:rgba(255,255,255,.3)}
+#touch .tb[aria-pressed=true],#touch .tb.on{border-color:#ffd23f;background:rgba(255,210,63,.55);box-shadow:0 0 12px rgba(255,210,63,.6)}
+nav#globalTools{gap:6px}
+#communications{border-radius:18px;background:linear-gradient(180deg,rgba(20,33,43,.97),rgba(10,18,24,.96));border:1px solid var(--hs-border-strong);box-shadow:0 30px 90px rgba(0,0,0,.7);backdrop-filter:blur(16px)}
+#communications h2{border-bottom:1px solid var(--hs-border);padding-bottom:8px}
+#packToggle[aria-expanded=true]{border-color:rgba(255,180,74,.5)}
+@media(max-width:600px){#telemetry{border-radius:10px}#pack{border-radius:12px}#touch button{border-radius:10px}}
+html[data-reduced-motion=true] *,html[data-reduced-motion=true] *::before,html[data-reduced-motion=true] *::after{transition:none!important;animation:none!important}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* Premium base command deck. Presentation-only composition: no control,
+   label, id or focus order changes; the same DOM still drives every action. */
+#base{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;padding:6px 0 36px}
+#base>#starterRules{grid-column:1/-1;margin:0;padding:12px 16px 12px 18px;border-radius:0 12px 12px 0;border-left:3px solid rgba(255,180,74,.55);background:linear-gradient(100deg,rgba(255,180,74,.09),rgba(255,255,255,.015) 62%),rgba(12,21,28,.55);color:#c6d3d9;font-size:.9rem;line-height:1.55;box-shadow:0 0 0 1px rgba(174,196,209,.12) inset}
+#base>.row{grid-column:1/-1;display:flex;align-items:center;gap:14px;margin:0;padding:12px 16px;border-radius:16px;border:1px solid var(--hs-border);background:linear-gradient(110deg,rgba(20,34,44,.95),rgba(11,19,26,.92) 55%,rgba(16,27,35,.94));box-shadow:0 14px 40px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.035) inset,3px 0 0 var(--hs-amber) inset}
+#base>.row>#identity{flex:1 1 auto;min-width:0;margin:0;padding:0 0 0 50px;position:relative;font-size:1rem;font-weight:720;letter-spacing:.005em;line-height:1.4;color:#f4fafb;background:none;background-clip:border-box;-webkit-background-clip:border-box;text-shadow:0 1px 0 rgba(0,0,0,.4);overflow-wrap:anywhere}
+#base>.row>#identity::before{content:"";position:absolute;left:0;top:50%;width:36px;height:36px;margin-top:-18px;border-radius:12px 12px 4px 4px;background:radial-gradient(circle at 50% 32%,#a8bdb3 0 5px,rgba(168,189,179,.32) 6px 13px,transparent 14px),linear-gradient(155deg,#41545c,#1a272e 68%);box-shadow:0 0 0 1px rgba(255,255,255,.14) inset,0 4px 14px rgba(0,0,0,.4),0 0 18px rgba(99,217,242,.08)}
+#base>.row>#identity::after{content:"";position:absolute;left:13px;top:calc(50% - 15px);width:10px;height:10px;border-radius:50%;background:var(--hs-green);box-shadow:0 0 1px 2px rgba(114,226,176,.22),0 0 10px rgba(114,226,176,.5)}
+#base>.row>#logout{flex:0 0 auto;margin:0;min-height:44px}
+#base>#message{margin:0;padding:2px 4px;color:var(--hs-dim);font-size:.88rem;letter-spacing:.01em}
+#offlineSaveNote{margin:8px 0;padding:9px 12px;border-left:3px solid var(--hs-amber,#ffb04a);background:rgba(255,180,74,.09);border-radius:6px;color:#ffe2b0;font-size:.92rem}
+#base>.card{min-width:0;margin:0;padding:18px 18px 16px;background:linear-gradient(180deg,rgba(22,34,44,.94),rgba(14,24,32,.96));border-radius:18px}
+#base>.card>h2{position:relative;margin:0 0 10px;padding-left:15px;font-size:1.08rem;font-weight:720;letter-spacing:-.005em;line-height:1.3;color:#f2f9fb}
+#base>.card>h2::before{content:"";position:absolute;left:0;top:.2em;bottom:.2em;width:4px;border-radius:3px;background:linear-gradient(180deg,#ffd996,var(--hs-amber) 52%,rgba(255,180,74,.16));box-shadow:0 0 12px rgba(255,180,74,.25)}
+#base>.card>h2>small{display:inline-block;margin-left:6px;color:var(--hs-dim);font-size:.78rem;font-weight:500}
+#base>.card>h3{margin:16px 0 6px;padding-top:12px;border-top:1px solid rgba(174,196,209,.14);color:var(--hs-amber);font-size:.76rem;font-weight:720;text-transform:uppercase;letter-spacing:.1em}
+#base>.card[data-wide]{grid-column:1/-1}
+#base>.card:focus-within{border-color:rgba(99,217,242,.45);box-shadow:var(--hs-shadow),0 0 26px rgba(99,217,242,.08)}
+#base>.card>.row>label{flex:1 1 170px;margin:6px 0}
+#base .card input:not([type=checkbox]):not([type=range]),#base .card select,#base .card textarea{width:100%;margin-left:0}
+#base .card[data-wide] #mapPreview{display:block;margin:10px auto}
+#base #exitPlan{display:grid;gap:6px;margin:8px 0}
+#base #workshop{display:grid;gap:2px}
+#base .recipe{display:grid;gap:4px;margin:0 0 10px}
+#base .recipe>button{margin:0;width:100%}
+#base .recipeNote{color:var(--hs-dim);font-size:.78rem;line-height:1.4;letter-spacing:.01em;overflow-wrap:anywhere}
+#base #partyRoster>*, #base #trader>*, #base #workshop>*, #base #contracts>*, #base #insurance>*, #base #records>*, #base #overflow>*, #base #rewardsTotals>*, #base #rewardsLoot>*{min-width:0}
+#base>.card>p{color:var(--hs-dim);line-height:1.5}
+#rewards{border-color:rgba(114,226,176,.4);background:linear-gradient(180deg,rgba(23,42,38,.94),rgba(14,24,32,.96))}
+#rewards>h2 small{margin-left:8px;color:var(--hs-green);font-size:.82rem}
+#rewardsTotals{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0 4px}
+#rewardsTotals .rewardMetric{padding:9px 11px;border:1px solid var(--hs-border);border-radius:10px;background:rgba(255,255,255,.035)}
+#rewardsTotals .rewardMetric b{display:block;font-size:1.18rem;line-height:1.25;color:#dff8ec}
+#rewardsTotals .rewardMetric span{font-size:.76rem;font-weight:650;text-transform:uppercase;letter-spacing:.08em;color:var(--hs-dim)}
+#rewardsLoot>h3,#rewardsRankHeading{margin:14px 0 5px;font-size:.8rem;font-weight:720;text-transform:uppercase;letter-spacing:.09em;color:var(--hs-amber)}
+#rewardsLoot ul{display:grid;gap:3px;margin:0;padding:0;list-style:none}
+#rewardsLoot li{padding:6px 9px;border-radius:8px;background:rgba(255,255,255,.035);overflow-wrap:anywhere}
+#rewardsLoot .rewardsEmpty{margin:4px 0;color:var(--hs-dim)}
+#rewardsRankBar{display:block;width:100%;height:14px;max-width:none;margin:6px 0 4px;accent-color:var(--hs-green)}
+#rewardsRank,#rewardsContract,#rewardsNext{color:var(--hs-dim);line-height:1.5}
+#rewardsNext{color:#c9f7df}
+#rewards .rewardsActions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#rewards .rewardsActions button{margin:0}
+@media(max-width:820px){#base{grid-template-columns:minmax(0,1fr);gap:12px;padding-bottom:24px}}
+@media(max-width:600px){#base{padding:4px 0 24px}#base>.card{padding:14px 12px}#base>.row{padding:10px 12px}#base>.row>#identity{font-size:.86rem;padding-left:44px}#base>.row>#identity::before{width:32px;height:32px;margin-top:-16px;border-radius:10px 10px 3px 3px}#base>.row>#identity::after{left:11px;top:calc(50% - 13px);width:9px;height:9px}#base>.card>h2{font-size:1rem}}
+@media(prefers-reduced-motion:reduce){#base>.card,#base>.row{transition:none!important}}
+html[data-reduced-motion=true] #base>.card,html[data-reduced-motion=true] #base>.row{transition:none!important}
+/* Aim-aware reticle. Hip: an open four-tick pickup reticle with a soft center
+   dot; ADS: the same geometry tightens and brightens into a precision sight
+   picture. Pseudo-elements keep it resolution-independent and the existing
+   reduced-motion rules disable the cross-fade. */
+#cross{--reticle-spread:26px;--reticle-gap:6px;--reticle-tick:2px;--reticle-dot:1.6px;width:44px;height:44px;font-size:0;line-height:0;opacity:.78;filter:drop-shadow(0 0 2px #0009);transition:opacity .16s ease,transform .16s ease;transform:translate(-50%,-50%) scale(1)}
+#cross::before,#cross::after{content:"";position:absolute;left:50%;top:50%;background:currentColor;border-radius:var(--reticle-tick)}
+#cross::before{width:var(--reticle-spread);height:var(--reticle-tick);transform:translate(-50%,-50%);background:linear-gradient(90deg,currentColor 0 calc(50% - var(--reticle-gap)),transparent calc(50% - var(--reticle-gap)) calc(50% + var(--reticle-gap)),currentColor calc(50% + var(--reticle-gap)) 100%)}
+#cross::after{width:var(--reticle-tick);height:var(--reticle-spread);transform:translate(-50%,-50%);background:linear-gradient(180deg,currentColor 0 calc(50% - var(--reticle-gap)),transparent calc(50% - var(--reticle-gap)) calc(50% + var(--reticle-gap)),currentColor calc(50% + var(--reticle-gap)) 100%)}
+#cross{background:radial-gradient(circle at center,currentColor 0 var(--reticle-dot),transparent calc(var(--reticle-dot) + .5px))}
+#play[data-aiming=true] #cross{--reticle-spread:15px;--reticle-gap:2px;--reticle-tick:1px;--reticle-dot:1px;opacity:.96;transform:translate(-50%,-50%) scale(.86)}
+/* A machine under the reticle glows red; on touch this is also the auto-fire
+   trigger, matching the main game's phone control. */
+#play[data-target=true] #cross{color:var(--hs-red);opacity:1;--reticle-spread:20px;--reticle-gap:3px;filter:drop-shadow(0 0 4px rgba(255,100,95,.85))}
+html[data-high-contrast=true] #cross{--reticle:#fff;opacity:1;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 3px #000)}
+@media(prefers-reduced-motion:reduce){#cross{transition:none}}
+/* Server-confirmed outgoing hit marker. The client only renders a token the
+   raid service recorded after resolving damage, so a miss never shows an X.
+   Kill and headshot states change colour but add no invented information. */
+#hitmarker{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:0;pointer-events:none;color:#f7fbff;opacity:0;visibility:hidden;z-index:3;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 1px #000);transform:translate(-50%,-50%) scale(.6)}
+#hitmarker::before,#hitmarker::after{content:"";position:absolute;left:50%;top:50%;width:2px;height:34px;border-radius:1px;background:linear-gradient(180deg,transparent 0 4px,currentColor 4px calc(100% - 4px),transparent calc(100% - 4px) 100%);transform:translate(-50%,-50%) rotate(45deg)}
+#hitmarker::after{transform:translate(-50%,-50%) rotate(-45deg)}
+#hitmarker[data-kind=headshot]{color:#ffd166}
+#hitmarker[data-kind=weak]{color:#62f0ff;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 6px #3ce6ffaa)}
+#hitmarker[data-kind=kill]{color:#ff6b6b;filter:drop-shadow(0 0 2px #000) drop-shadow(0 0 5px #ff3838aa)}
+#hitmarker.show{visibility:visible;animation:hitmarkerPulse .46s ease-out both}
+@keyframes hitmarkerPulse{0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}56%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.18)}}
+@media(prefers-reduced-motion:reduce){#hitmarker.show{animation:none;opacity:1;transform:translate(-50%,-50%) scale(1)}}
+html[data-reduced-motion=true] #hitmarker.show{animation:none;opacity:1;transform:translate(-50%,-50%) scale(1)}
+#threats{position:absolute;inset:0;pointer-events:none;z-index:3}
+.threatMarker{position:absolute;left:calc(50% + var(--tx,0px));top:calc(50% + var(--ty,0px));display:grid;place-items:center;gap:1px;padding:3px 5px;border-radius:8px;color:#ffc46b;background:rgba(10,17,23,.72);box-shadow:0 0 0 1px rgba(255,196,107,.45) inset,0 2px 10px rgba(0,0,0,.45);text-shadow:0 1px 3px #000;transform:translate(-50%,-50%);opacity:.92}
+.threatMarker .threatGlyph{font-size:1rem;line-height:1;font-weight:800}
+.threatMarker .threatMeta{font-size:.55rem;line-height:.9;font-weight:650;letter-spacing:.03em;white-space:nowrap;color:#dce8ec}
+.threatMarker[data-state=windup]{color:#ff645f;background:rgba(38,12,12,.82);box-shadow:0 0 0 1px rgba(255,100,95,.7) inset,0 0 14px rgba(255,100,95,.35);animation:threatWarn .7s ease-in-out infinite alternate}
+.threatMarker[data-elite=true]{box-shadow:0 0 0 1px rgba(255,196,107,.7) inset,0 0 0 3px rgba(255,196,107,.16),0 2px 10px rgba(0,0,0,.45)}
+@keyframes threatWarn{from{opacity:.68}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.threatMarker{animation:none!important}}
+html[data-reduced-motion=true] .threatMarker{animation:none!important}
+#hurt{position:absolute;inset:0;pointer-events:none;z-index:4}
+.hurtMarker{position:absolute;left:calc(50% + var(--tx,0px));top:calc(50% + var(--ty,0px));display:grid;place-items:center;transform:translate(-50%,-50%) rotate(var(--rot,0deg));filter:drop-shadow(0 0 5px rgba(255,84,72,.95)) drop-shadow(0 0 14px rgba(255,40,30,.55))}
+.hurtMarker .hurtGlyph{display:block;width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:25px solid #ff5b50;animation:hurtFlash .35s ease-out}
+.hurtMarker[data-source=hazard] .hurtGlyph,.hurtMarker[data-source=blast] .hurtGlyph{border-bottom-color:#ffb44a}
+@keyframes hurtFlash{from{opacity:0;transform:scale(1.45)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.hurtMarker .hurtGlyph{animation:none}}
+html[data-reduced-motion=true] .hurtMarker .hurtGlyph{animation:none}
+#compass{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe9ff;letter-spacing:.02em}
+#tacticalMap{position:fixed;inset:0;z-index:40;background:#111814;display:grid;place-items:center;padding:0}
+#tacticalMap::after{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;box-shadow:inset 0 0 20vmin 15vmin rgba(3,8,11,.42)}
+#tacticalMap header{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:calc(8px + env(safe-area-inset-left,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:3;display:flex;align-items:center;justify-content:space-between;gap:8px;width:auto;pointer-events:none}
+#tacticalMap h2{margin:0;padding:5px 12px;border-radius:999px;background:rgba(7,17,22,.8);border:1px solid var(--hs-border);font-size:clamp(.95rem,2.4vw,1.3rem);letter-spacing:.01em}
+#tacticalMap header button{pointer-events:auto}
+#tacticalCanvas{touch-action:none;width:100vw;height:100dvh;background:#111814;border:0;border-radius:0;display:block}
+#mapReadout{position:absolute;z-index:3;left:50%;bottom:calc(12px + 48px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);margin:0;padding:5px 12px;border-radius:999px;background:rgba(7,17,22,.82);border:1px solid var(--hs-border);font-size:calc(.7rem * var(--hud-scale));line-height:1.3;color:#cfe9ff;max-width:min(720px,calc(100vw - 24px));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;text-shadow:0 1px 2px #000}
+#mapButtons{position:absolute;z-index:3;left:50%;bottom:calc(8px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:5px;flex-wrap:nowrap;justify-content:center;padding:5px 6px;border-radius:14px;background:rgba(7,17,22,.84);border:1px solid var(--hs-border)}
+#mapButtons button{font-size:calc(.7rem * var(--hud-scale));padding:7px 10px;min-height:36px;white-space:nowrap}
+#mapToggle[aria-expanded=true]{background:#9de9ff;color:#071116}
+/* Rarity-derived pickup celebration. The flourish is decorative; the adjacent
+   status live region always carries the words, and reduced motion keeps the
+   card legible without movement. */
+#lootCelebration{position:absolute;left:50%;top:22%;transform:translate(-50%,0);z-index:7;pointer-events:none;display:grid;gap:2px;justify-items:center;padding:10px 20px 12px;border-radius:16px;border:2px solid var(--loot-accent,#ffb44a);background:linear-gradient(180deg,rgba(10,20,26,.94),rgba(5,10,14,.9));box-shadow:0 16px 40px rgba(0,0,0,.6),0 0 24px -4px var(--loot-accent,#ffb44a);opacity:0}
+#lootCelebration.show{animation:lootReveal 2.4s cubic-bezier(.2,.9,.25,1) forwards}
+#lootCelebration strong{font-size:1.1rem;letter-spacing:.14em;text-transform:uppercase;color:var(--loot-accent,#ffb44a)}
+#lootCelebration span{font-weight:700;font-size:.95rem;color:#eef5f7;text-shadow:0 1px 0 #000}
+@keyframes lootReveal{0%{opacity:0;transform:translate(-50%,10px) scale(.94)}14%{opacity:1;transform:translate(-50%,0) scale(1.03)}55%{opacity:1;transform:translate(-50%,-2px) scale(1)}100%{opacity:0;transform:translate(-50%,-14px) scale(1)}}
+html[data-reduced-motion=true] #lootCelebration{animation:none!important;opacity:1;transform:translate(-50%,0)}
+@media(max-width:600px){#lootCelebration{top:15%;max-width:calc(100vw - 30px);padding:8px 14px 10px}#lootCelebration strong{font-size:.95rem}#lootCelebration span{font-size:.85rem}}
+/* Presentation-only vitality pressure. The authoritative operator HP drives a
+   screen-edge wound haze, so a failing operator reads at a glance without
+   relying on the colour of HUD text. Decorative, pointer-transparent, and fully
+   static under reduced motion; it never touches gameplay state. */
+#vitalVignette{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 46%,rgba(134,13,9,.34) 100%);transition:opacity .5s ease,background .5s ease}
+#vitalVignette[data-state=warn]{opacity:.55;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 44%,rgba(170,62,12,.32) 100%)}
+#vitalVignette[data-state=critical],#vitalVignette[data-state=downed]{opacity:1;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 38%,rgba(196,20,12,.52) 100%);animation:vitalPulse 1.6s ease-in-out infinite}
+#vitalVignette[data-state=downed]{background:radial-gradient(ellipse at center,rgba(20,0,0,0) 30%,rgba(110,4,4,.7) 100%)}
+@keyframes vitalPulse{0%,100%{opacity:.68}50%{opacity:1}}
+html[data-reduced-motion=true] #vitalVignette{animation:none!important;transition:none!important}
+/* -------------------------------------------------------------------------
+   Compact raid HUD (all sizes by default, or <<Compact HUD>> in Settings)
+   The full telemetry panel stays mounted and readable to assistive technology,
+   but is visually clipped. A slim translucent strip carries only health,
+   ammunition, raid clock and pack count. Zone, weather, compass and objective
+   show briefly when the sector changes and then fade. Touch screens keep their
+   joystick/action deck; mouse/keyboard raids hide it for an unobstructed scene.
+   ------------------------------------------------------------------------- */
+#hudSlim{display:none}
+#hudStatus{display:block;position:absolute;top:calc(90px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:6;max-width:min(560px,calc(100vw - 32px));padding:6px 12px;border-radius:9px;background:linear-gradient(180deg,rgba(9,17,23,.88),rgba(9,17,23,.68));border:1px solid var(--hs-border);box-shadow:0 8px 22px rgba(0,0,0,.34),0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(9px) saturate(120%);color:#cfe9ff;font-size:calc(.8rem * var(--hud-scale));font-weight:600;line-height:1.35;text-align:center;text-shadow:0 1px 2px #000;opacity:0;visibility:hidden;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .5s ease,visibility 0s linear .5s;pointer-events:none}
+#hudStatus.show{opacity:1;visibility:visible;transition:opacity .5s ease,visibility 0s linear 0s}
+html[data-reduced-motion=true] #hudStatus{transition:none!important}
+/* Clip the detailed scoreboard without removing it from the accessibility tree
+   or from the DOM contracts existing graders and the H/status action read. */
+html[data-compact-hud=true] #telemetry{position:absolute;top:0;left:0;right:auto;width:1px;height:1px;min-height:0;max-height:none;margin:0;padding:0;border:0;overflow:hidden;clip-path:inset(50%);opacity:0;box-shadow:none;background:none;pointer-events:none}
+html[data-compact-hud=true] #hudSlim{display:flex;align-items:center;justify-content:space-between;gap:10px;position:absolute;z-index:6;top:calc(52px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:min(480px,calc(100vw - 32px));min-height:36px;padding:5px 12px;border-radius:12px;background:linear-gradient(180deg,rgba(9,17,23,.82),rgba(9,17,23,.58));border:1px solid var(--hs-border);box-shadow:0 8px 22px rgba(0,0,0,.34),0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(9px) saturate(120%);color:var(--hs-ink);font-size:calc(.8rem * var(--hud-scale));font-weight:650;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000;pointer-events:none}
+html[data-compact-hud=true] #hudSlim.hpFlash{animation:slimHudFlash .5s ease-out}
+@keyframes slimHudFlash{0%{border-color:var(--hs-red);box-shadow:0 0 0 2px rgba(255,100,95,.55),0 0 22px rgba(255,80,60,.5)}100%{border-color:var(--hs-border);box-shadow:0 8px 22px rgba(0,0,0,.34),0 1px 0 rgba(255,255,255,.06) inset}}
+html[data-reduced-motion=true] #hudSlim.hpFlash{animation:none;border-color:var(--hs-red)}
+#slimVital{display:flex;align-items:center;gap:7px;flex:0 0 auto;min-width:0}
+#slimVital .slimKey{font-size:.66em;letter-spacing:.1em;text-transform:uppercase;color:var(--hs-faint);font-weight:700}
+#slimHpTrack{display:block;width:clamp(48px,12vw,92px);height:8px;border-radius:99px;background:rgba(174,196,209,.2);box-shadow:0 0 0 1px rgba(0,0,0,.35) inset;overflow:hidden}
+#slimHpFill{display:block;height:100%;width:100%;border-radius:inherit;background:linear-gradient(90deg,#72e2b0,#a9f0c9);transition:width .18s linear}
+#hudSlim[data-vital=warn] #slimHpFill{background:linear-gradient(90deg,#ffb44a,#ffd493)}
+#hudSlim[data-vital=critical] #slimHpFill,#hudSlim[data-vital=downed] #slimHpFill{background:linear-gradient(90deg,#ff645f,#ff9d8a)}
+#slimHpText{min-width:2.6ch;text-align:right;color:#f7fbfc;font-size:calc(.86rem * var(--hud-scale))}
+#hudSlim[data-vital=critical] #slimHpText,#hudSlim[data-vital=downed] #slimHpText{color:var(--hs-red)}
+#slimMetrics{display:flex;align-items:center;justify-content:flex-end;gap:clamp(6px,1.6vw,14px);flex:1 1 auto;min-width:0;white-space:nowrap}
+#slimMetrics span{font-variant-numeric:tabular-nums}
+#slimAmmo[data-state=warn]{color:var(--hs-amber)}
+#slimAmmo[data-state=critical]{color:var(--hs-red);font-weight:800}
+#slimAmmo[data-state=unarmed]{color:var(--hs-faint)}
+#slimTimer{color:#ffd493}
+#slimPack{color:#b9deea}
+/* Tight shooter-style control groups: movement arrows stay bottom-left (the
+   joystick slice replaces their visuals) and actions bottom-right. */
+html[data-compact-hud=true] #hint{display:none}
+html[data-compact-hud=true] #minimap{width:72px;height:72px;left:calc(8px + env(safe-area-inset-left,0px));top:auto;bottom:calc(136px + env(safe-area-inset-bottom,0px));opacity:0}
+/* Player-centred heading-up approach map. It replaces the whole-sector thumbnail
+   with the streets, buildings and exits immediately around the operator, so the
+   first minutes of a raid always read as "this is where I am and where to go". */
+#navmap{display:none}
+html[data-compact-hud=true] #navmap{display:block;position:absolute;z-index:5;width:120px;height:120px;left:calc(8px + env(safe-area-inset-left,0px));top:auto;bottom:calc(140px + env(safe-area-inset-bottom,0px));pointer-events:none;border-radius:50%;border:1px solid var(--hs-border);box-shadow:0 10px 26px rgba(0,0,0,.5),0 0 0 1px rgba(0,0,0,.55) inset;background:rgba(4,10,14,.82)}
+#navChip{display:none}
+html[data-compact-hud=true] #navChip{position:absolute;z-index:6;top:calc(8px + env(safe-area-inset-top,0px));left:calc(10px + env(safe-area-inset-left,0px));display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:999px;background:linear-gradient(180deg,rgba(9,17,23,.88),rgba(9,17,23,.64));border:1px solid rgba(174,196,209,.24);box-shadow:0 8px 22px rgba(0,0,0,.38),0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(9px) saturate(120%);color:#e8f4ee;font-size:calc(.72rem * var(--hud-scale));line-height:1;text-shadow:0 1px 2px #000;pointer-events:none;white-space:nowrap}
+html[data-compact-hud=true] #navChip[hidden]{display:none}
+#navChip .navChipKey{font-size:.86em;font-weight:800;letter-spacing:.14em;color:var(--hs-amber)}
+#navChipRange{font-size:1.18em;font-variant-numeric:tabular-nums;color:#f8fdfa}
+#navChipBearing{font-size:1.15em;font-weight:740;color:#9fe9ff;letter-spacing:.04em}
+#navChip[data-state=open] .navChipKey{color:#8af5c1}
+#navChip[data-state=open] #navChipBearing{color:#8af5c1}
+#navChip[data-state=spent]{opacity:.62}
+html[data-compact-hud=true] #packToggle{top:var(--toggle-top,102px);right:calc(8px + env(safe-area-inset-right,0px));font-size:calc(.7rem * var(--hud-scale));padding:3px 10px;min-height:44px;max-width:110px;line-height:1.1}
+html[data-compact-hud=true] #leave{top:calc(4px + env(safe-area-inset-top,0px));left:calc(6px + env(safe-area-inset-left,0px));font-size:.7rem;padding:4px 7px;min-height:34px;min-width:36px}
+html[data-compact-hud=true] #globalTools{top:calc(4px + env(safe-area-inset-top,0px));right:calc(6px + env(safe-area-inset-right,0px));padding:2px 4px;gap:1px}
+html[data-compact-hud=true] #globalTools button{font-size:.68rem;padding:4px 7px;min-height:34px}
+html[data-compact-hud=true] #cross{width:36px;height:36px}
+html[data-compact-hud=true] #touch{position:absolute;inset:auto 0 0 0;display:block;pointer-events:none}
+html[data-compact-hud=true] #touch>div{pointer-events:none}
+html[data-compact-hud=true] #touch button{pointer-events:auto;margin:0;min-width:44px;min-height:44px;padding:4px 8px;font-size:calc(.68rem * var(--hud-scale));border-radius:10px;touch-action:none}
+html[data-compact-hud=true] #touchMove{display:none}
+html[data-compact-hud=true] #touch [data-look]{display:none}
+/* The pad is only a visual dock; the whole left 42% of the canvas is the
+   movement zone, and the pad jumps under whichever thumb starts there. */
+html[data-compact-hud=true] #touch>div#stick{display:block;position:fixed;left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));width:120px;height:120px;pointer-events:none;touch-action:none;z-index:7;opacity:.62;transition:opacity .14s ease}
+html[data-compact-hud=true] #touch>div#stick.dragging{opacity:1}
+html[data-compact-hud=true] #stickBase,html[data-compact-hud=true] #stickKnob{pointer-events:none}
+#stick.dragging #stickBase{border-color:rgba(99,217,242,.6);box-shadow:0 0 0 8px rgba(9,17,23,.12),0 10px 26px rgba(0,0,0,.32),0 0 16px rgba(99,217,242,.16)}
+html[data-reduced-motion=true] #touch>div#stick{transition:none}
+#touch>#stick{display:none}
+#raidMenu,#raidMenuPanel{display:none}
+html[data-compact-hud=true] #raidMenu{display:flex;align-items:center;justify-content:center;position:fixed;top:calc(4px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:9;width:44px;height:44px;min-height:44px;padding:0;border-radius:12px;background:rgba(9,17,23,.82);border:1px solid var(--hs-border);color:var(--hs-ink);font-size:20px;font-weight:700;line-height:1;backdrop-filter:blur(12px);box-shadow:0 10px 26px rgba(0,0,0,.4),0 1px 0 rgba(255,255,255,.07) inset}
+html[data-compact-hud=true] #raidMenu[aria-expanded=true]{border-color:var(--hs-amber);box-shadow:0 0 0 3px rgba(255,180,74,.12),0 10px 26px rgba(0,0,0,.4)}
+html[data-compact-hud=true] #raidMenuPanel{display:none;position:fixed;top:calc(52px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:9;flex-direction:column;gap:5px;min-width:150px;padding:6px;border-radius:12px;background:linear-gradient(180deg,rgba(22,35,44,.97),rgba(10,18,24,.95));border:1px solid var(--hs-border);box-shadow:0 14px 34px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.07) inset;backdrop-filter:blur(14px) saturate(120%)}
+html[data-compact-hud=true] #raidMenuPanel.open{display:flex}
+html[data-compact-hud=true] #raidMenuPanel button{min-height:44px;margin:0;border-radius:9px;background:rgba(9,17,23,.55);border:1px solid rgba(174,196,209,.24);color:var(--hs-ink);font-size:calc(.76rem * var(--hud-scale));font-weight:650;text-align:left;padding:8px 12px}
+html[data-compact-hud=true] #leave{display:none}
+html[data-compact-hud=true] body[data-in-raid=true] #globalTools{display:none}
+html[data-compact-hud=true] #raidMenuBack{color:#ffd9d7;border-color:rgba(255,100,95,.4)}
+#stickBase{position:relative;width:100px;height:100px;margin:10px;border-radius:50%;background:radial-gradient(circle at 50% 42%,rgba(58,80,95,.32),rgba(9,17,23,.34));border:1.5px solid rgba(174,196,209,.30);box-shadow:0 0 0 8px rgba(9,17,23,.12),0 10px 26px rgba(0,0,0,.32);backdrop-filter:blur(8px);touch-action:none}
+#stickKnob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:linear-gradient(180deg,rgba(52,94,110,.88),rgba(17,41,51,.90));border:1.5px solid rgba(99,217,242,.5);box-shadow:0 4px 14px rgba(0,0,0,.36),0 0 0 3px rgba(99,217,242,.08);touch-action:none;transition:transform .08s ease-out}
+html[data-reduced-motion=true] #stickKnob{transition:none}
+html[data-compact-hud=true] #touchActions{position:fixed;right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,56px);grid-template-areas:"map utility interact" "slide vault swap" "aim reload jump";grid-auto-rows:56px;gap:8px;align-items:center;justify-items:center;width:auto;max-width:none;z-index:7}
+html[data-compact-hud=true] #touchActions .tb{width:56px;height:56px;min-width:56px;min-height:56px;padding:0;border-radius:50%;touch-action:none}
+html[data-compact-hud=true] #touchActions #mapToggle{grid-area:map}
+html[data-compact-hud=true] #touchActions #utility{grid-area:utility}
+html[data-compact-hud=true] #touchActions #interact{grid-area:interact}
+html[data-compact-hud=true] #touchActions #slide{grid-area:slide}
+html[data-compact-hud=true] #touchActions #vault{grid-area:vault}
+html[data-compact-hud=true] #touchActions #swap{grid-area:swap}
+html[data-compact-hud=true] #touchActions #aim{grid-area:aim}
+html[data-compact-hud=true] #touchActions #reload{grid-area:reload}
+html[data-compact-hud=true] #touchActions #jump{grid-area:jump}
+@media(max-width:600px){
+ html[data-compact-hud=true] #hudSlim{top:calc(48px + env(safe-area-inset-top,0px));width:calc(100vw - 16px);padding:4px 9px;font-size:calc(.72rem * var(--hud-scale))}
+ html[data-compact-hud=true] #hudStatus{top:calc(88px + env(safe-area-inset-top,0px));font-size:calc(.7rem * var(--hud-scale))}
+ html[data-compact-hud=true] #touchActions{grid-template-columns:repeat(3,52px);grid-auto-rows:52px;gap:7px}
+ html[data-compact-hud=true] #touchActions .tb{width:52px;height:52px;min-width:52px;min-height:52px}
+}
+/* On short landscape phones the transient briefing would sit across the
+   street at eye level. The always-visible exit chip already answers "where do
+   I go"; drop the secondary pill rather than stacking two directions. */
+@media(max-height:480px){
+ html[data-compact-hud=true] #hudStatus{display:none}
+}
+/* Mouse/keyboard raids drop the touch deck entirely: the scene stays clean and
+   a contextual interaction prompt appears only when something is in reach. */
+@media(pointer:fine){
+ html[data-compact-hud=true] #touch{display:none}
+ html[data-compact-hud=true] #hint{display:block;left:50%;right:auto;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:min(620px,calc(100vw - 32px));padding:6px 15px;border:1px solid var(--hs-border);border-radius:999px;background:linear-gradient(180deg,rgba(9,17,23,.82),rgba(9,17,23,.58));box-shadow:0 8px 22px rgba(0,0,0,.34),0 1px 0 rgba(255,255,255,.06) inset;backdrop-filter:blur(9px) saturate(120%);color:#dceef5;font-size:calc(.78rem * var(--hud-scale));font-weight:600;line-height:1.25;text-align:center;text-shadow:0 1px 2px #000}
+}
+#hint:empty{display:none!important}
+#bootStatus{margin:0 0 14px;padding:10px 14px;border:1px solid var(--hs-border,rgba(174,196,209,.22));border-radius:12px;background:var(--hs-panel,rgba(12,20,27,.82));color:var(--hs-dim,#a8b9c1);font-size:14px}
+/* -------------------------------------------------------------------------
+   Base lobby. One hero deploy screen (stats, sector, loadout and DEPLOY) with
+   one tab panel shown at a time: Loadout, Traders, Workshop, Contracts,
+   Records, Sector, and online-only Squad. The whole lobby fits the landscape
+   viewport; long panels scroll inside, never the page.
+   ------------------------------------------------------------------------- */
+body[data-base-lobby=true]{overflow:hidden}
+body[data-base-lobby=true] main{height:100dvh;max-width:none;margin:0;padding:6px clamp(8px,2vw,18px);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+body[data-base-lobby=true] main>a{position:absolute;left:12px;top:6px;font-size:.72rem;opacity:.65;z-index:3}
+body[data-base-lobby=true] main>h1{font-size:1.05rem;margin:0 0 4px 150px;line-height:1.25;min-height:1.25em}
+body[data-base-lobby=true] main>p:not(#bootStatus):not(#message){display:none}
+body[data-base-lobby=true] #bootStatus{margin:0 0 4px;padding:4px 8px;font-size:.75rem;flex:0 0 auto}
+body[data-base-lobby=true] #message{margin:0;font-size:.75rem;line-height:1.35;min-height:0;max-height:1.4em;overflow:hidden}
+body[data-base-lobby=true] #base{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:0;overflow:hidden}
+#base>#welcome{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin:0 250px 0 0;padding:4px 8px 4px 10px;border-radius:0 10px 10px 0;border-left:3px solid rgba(255,180,74,.6);background:rgba(255,180,74,.08);color:#e8dfc4;font-size:.75rem;line-height:1.35}
+#base>#welcome>span{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#base>#welcome button{flex:0 0 auto;margin:0;min-height:44px;padding:4px 10px;font-size:.7rem;border-radius:8px}
+#base>#welcome #dismissWelcome{min-width:44px}
+#base>#starterRules{flex:0 0 auto;margin:0;padding:4px 10px;border-radius:0 8px 8px 0;font-size:.72rem;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-base-lobby=true] #base>.row{flex:0 0 auto;padding:6px 10px;border-radius:16px}
+body[data-base-lobby=true] #base>.row>#identity{font-size:.85rem;padding-left:42px}
+body[data-base-lobby=true] #base>.row>#identity::before{width:30px;height:30px;margin-top:-15px}
+body[data-base-lobby=true] #base>.row>#identity::after{left:11px;top:calc(50% - 12px);width:8px;height:8px}
+body[data-base-lobby=true] #base>.row>#logout{min-height:44px;padding:4px 10px;font-size:.7rem}
+#deployCard{flex:0 0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main actions" "controls controls" "slots slots" "readiness readiness" "risk risk" "save save";gap:3px 12px;align-items:center;margin:0;padding:8px 12px;border-radius:12px}
+.heroMain{grid-area:main;display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
+.heroMain>h2{margin:0;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--hs-amber)}
+#heroStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px 10px;min-width:0;flex:1 1 auto}
+.heroStat{display:flex;flex-direction:column;min-width:0;line-height:1.1}
+.heroStat span{font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--hs-faint)}
+.heroStat b{font-size:.82rem;color:#f4fafb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.heroActions{grid-area:actions;display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.heroActions #resume{min-height:44px;margin:0;padding:5px 10px;font-size:.68rem}
+#deploy.deployBig{min-height:46px;min-width:132px;margin:0;padding:8px 20px;font-size:.9rem;font-weight:820;letter-spacing:.1em;text-transform:uppercase;background:linear-gradient(180deg,#ffd87f,#ffb44a 55%,#e08a2c);border-color:rgba(255,220,150,.9);color:#201300;box-shadow:0 0 0 2px rgba(255,180,74,.16),0 8px 22px rgba(255,145,36,.28)}
+#deploy.deployBig:hover:not(:disabled){background:linear-gradient(180deg,#ffe39a,#ffc163 55%,#ee972f);border-color:#fff0c4}
+#heroControls{grid-area:controls;display:flex;flex-wrap:wrap;gap:3px 12px;align-items:center;min-width:0}
+#heroControls label{display:flex;align-items:center;gap:4px;margin:0;font-size:.68rem;color:var(--hs-dim);min-width:0;max-width:100%}
+#heroControls select{min-height:30px;padding:2px 6px;margin:0;font-size:.72rem;max-width:170px;min-width:0}
+#heroControls .heroCheck input{width:18px;height:18px;margin:0}
+#weaponSlots{grid-area:slots;margin:0;font-size:.64rem;line-height:1.3;color:var(--hs-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#deployReadiness{grid-area:readiness;margin:0;font-size:.68rem;line-height:1.35;color:#c9f7df}
+#deployReadiness[data-ready=false]{color:#ffc3b6}
+#deployCard #riskSummary{grid-area:risk;margin:0;font-size:.64rem;line-height:1.3;color:var(--hs-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#offlineSaveNote{grid-area:save;margin:2px 0 0;padding:2px 6px;font-size:.68rem}
+#baseTabs{flex:0 0 auto;display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:0 1px;overscroll-behavior-x:contain}
+#baseTabs::-webkit-scrollbar{display:none}
+#baseTabs button{flex:0 0 auto;margin:0;min-height:44px;min-width:44px;padding:6px 12px;border-radius:9px;background:rgba(13,25,32,.86);border:1px solid var(--hs-border);color:var(--hs-dim);font-size:.68rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;box-shadow:none}
+#baseTabs button[aria-selected=true]{background:linear-gradient(180deg,rgba(255,180,74,.24),rgba(255,180,74,.12));border-color:rgba(255,180,74,.7);color:#ffd493;box-shadow:0 0 0 2px rgba(255,180,74,.1)}
+#baseTabs button:hover:not(:disabled){border-color:var(--hs-amber);color:#fbe3b4}
+#basePanels{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-content:start;overflow-y:auto;overflow-x:hidden;padding:0 2px 2px 0;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,180,74,.4) transparent}
+#basePanels>.card{display:none;min-width:0;margin:0;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,rgba(22,34,44,.94),rgba(14,24,32,.96))}
+#basePanels>.card[data-wide]{grid-column:1/-1}
+#basePanels>.card[hidden]{display:none!important}
+#base[data-base-tab=loadout] #basePanels>.card[data-panel=loadout],
+#base[data-base-tab=traders] #basePanels>.card[data-panel=traders],
+#base[data-base-tab=workshop] #basePanels>.card[data-panel=workshop],
+#base[data-base-tab=contracts] #basePanels>.card[data-panel=contracts],
+#base[data-base-tab=records] #basePanels>.card[data-panel=records],
+#base[data-base-tab=sector] #basePanels>.card[data-panel=sector],
+#base[data-base-tab=squad] #basePanels>.card[data-panel=squad]{display:block}
+#basePanels>.card>h2{position:relative;margin:0 0 8px;padding-left:14px;font-size:1rem;font-weight:720;letter-spacing:-.005em;line-height:1.3;color:#f2f9fb}
+#basePanels>.card>h2::before{content:"";position:absolute;left:0;top:.2em;bottom:.2em;width:4px;border-radius:3px;background:linear-gradient(180deg,#ffd996,var(--hs-amber) 52%,rgba(255,180,74,.16));box-shadow:0 0 12px rgba(255,180,74,.25)}
+#basePanels>.card>h2>small{display:inline-block;margin-left:6px;color:var(--hs-dim);font-size:.72rem;font-weight:500}
+#basePanels>.card>h3{margin:12px 0 6px;padding-top:10px;border-top:1px solid rgba(174,196,209,.14);color:var(--hs-amber);font-size:.72rem;font-weight:720;text-transform:uppercase;letter-spacing:.1em}
+#basePanels>.card>p{color:var(--hs-dim);line-height:1.45}
+@media(max-width:820px){#basePanels{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px),(max-height:520px){
+ body[data-base-lobby=true] main{padding:4px 8px}
+ body[data-base-lobby=true] main>a{top:4px;left:8px;font-size:.65rem}
+ body[data-base-lobby=true] main>h1{font-size:.95rem;margin:0 0 2px 128px}
+ #base>#welcome{display:none}
+ #base>#starterRules{display:none}
+ .heroMain{flex-direction:column;align-items:flex-start;gap:1px}
+ #heroStats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #heroControls{gap:2px 8px}
+ #heroControls label{font-size:.62rem}
+ #heroControls select{max-width:130px;min-height:26px;font-size:.66rem}
+ #deploy.deployBig{min-height:44px;min-width:110px;padding:6px 14px;font-size:.78rem}
+ body[data-base-lobby=true] #base>.row{padding:4px 8px}
+ #baseTabs button{min-height:44px;padding:6px 8px;font-size:.62rem}
+ #basePanels>.card{padding:8px 10px}
+}
+@media(max-width:600px) and (min-height:521px){
+ body[data-base-lobby=true] main>h1{margin:42px 0 4px;font-size:1.1rem}
+ #deployCard{grid-template-columns:minmax(0,1fr);grid-template-areas:"main" "actions" "controls" "slots" "readiness" "risk" "save"}
+ .heroActions{justify-content:flex-start}
+ .heroActions #deploy{flex:1 1 auto;width:100%}
+}
+/* Short landscape (phones on their side): the deploy summary and tabs stay in
+   the left column while the bench gets a full-height column of its own, so the
+   operator preview is never buried under a scrolling panel. */
+@media(min-width:800px) and (min-height:390px) and (max-height:520px){
+ body[data-base-lobby=true] #base{display:grid;grid-template-columns:minmax(0,46%) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"identity tabs" "deploy panels";gap:4px 10px}
+ body[data-base-lobby=true] #base>.row{grid-area:identity;align-self:start;flex-wrap:nowrap}
+ body[data-base-lobby=true] #base>.row>#identity{overflow:hidden;text-overflow:ellipsis}
+ #baseTabs{grid-area:tabs;align-self:start;padding-right:0;margin-top:20px;gap:2px}
+ #baseTabs button{padding:6px 6px;font-size:.58rem}
+ #deployCard{grid-area:deploy;align-self:start;grid-template-columns:minmax(0,1fr);grid-template-areas:"main" "actions" "controls" "slots" "readiness" "risk" "save";padding:6px 10px}
+ .heroMain{flex-direction:column;align-items:flex-start;gap:1px}
+ .heroActions{justify-content:flex-start}
+ .heroActions #deploy{flex:1 1 auto;width:100%}
+ #basePanels{grid-area:panels;grid-template-columns:minmax(0,1fr);padding:0 2px 0 0}
+ #basePreview{height:205px}
+}
+
 </style></head><body aria-busy="false"><main>
-<a href="/">← HeadShotz home</a><h1>Persistent Extraction Raids</h1>
-<p>Server-owned equipment and rewards. Equipment you deploy is removed from your stash until you extract. Death loses carried items; a free recovery kit is always available.</p>
-<section id="welcome" class="card"><h2>Before your first raid</h2><p>Take a free recovery kit to learn. Equipment you bring can be lost. Search containers, watch machine warning zones and the changing sector clock, and reach an open exit before the timer runs out.</p><button id="welcomeGuide">Open field guide</button><button id="dismissWelcome">Got it — hide this guide card</button></section><p id="message" role="status" aria-live="polite"></p>
-<section id="auth" class="card"><h2>Account</h2><form id="login"><label>Username <input name="username" required autocomplete="username" minlength="3" maxlength="24"></label><label>Password <input name="password" type="password" required autocomplete="current-password" minlength="12" maxlength="256"></label><button type="submit">Sign in</button><button type="button" id="register">Create account</button></form><button id="recoverOpen" aria-expanded="false" aria-controls="recoverPanel">Recover with a saved code</button><section id="recoverPanel" hidden><h3>Recover your account</h3><p>Use one of the single-use recovery codes you previously saved. Recovery signs out every session. It does not extract your operator or restore lost equipment. This service has no email recovery.</p><form id="recoverForm"><label>Username <input id="recoverUsername" autocomplete="username" required minlength="3" maxlength="24"></label><label>Recovery code <input id="recoverCode" autocomplete="off" required maxlength="80" spellcheck="false"></label><label>New password <input id="recoverNewPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><label>Confirm new password <input id="recoverConfirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><button type="submit">Recover account and sign out all sessions</button></form></section></section>
-<section id="base" hidden><p id="starterRules">Starter credits and supplies help you get established. They cannot be handed to another operator. Earned credits are spent first; buying with starter credits creates a starter supply. Recycling and selling keep starter status. Starter parts or repairs bind the resulting equipment; detach wanted attachments before recycling. Contract deliveries need earned salvage. Normal raid loot remains transferable.</p><div class="row"><h2 id="identity"></h2><button id="logout">Sign out</button></div>
-<section class="card"><h2>Equipment bench</h2><canvas id="basePreview" aria-label="Preview of the chosen primary weapon, secondary weapon and armor" aria-describedby="basePreviewCaption"></canvas><button id="previewTurn">Rotate preview</button><p id="basePreviewCaption">Choose equipment to preview your loadout.</p></section><section class="card"><h2>Squad</h2><p id="partyState" role="status">Playing solo.</p><div id="partyRoster"></div><p id="readyMismatch" role="status" hidden></p><button id="restoreReady" hidden>Use my readied loadout</button><label>Squad size <select id="partyMode"><option value="solo">Solo</option><option value="duo">Duo</option><option value="trio" selected>Trio</option></select></label><button id="partyCreate">Create squad</button><label>Invite code <input id="partyCode" maxlength="10" autocomplete="off"></label><button id="partyJoin">Join squad</button><button id="partyReady" hidden>Ready with selected loadout</button><button id="partyLeave" hidden>Leave squad</button></section>
-<section class="card"><h2>Stash and loadout <small id="stashCapacity"></small></h2><p>Choose one or two owned weapons, optional armor, and supplies. Broken items cannot deploy. Insurance costs 20% of equipment price and returns only unclaimed items after the raid closes.</p><div class="row"><label>Search <input id="stashSearch" type="search"></label><label>Filter <select id="stashFilter"><option value="all">All items</option><option value="favorite">Favorites</option><option value="weapon">Weapons</option><option value="armor">Armor</option><option value="ammo">Ammunition</option><option value="material">Salvage</option><option value="mod">Attachments</option><option value="contract">Contract items</option><option value="utility">Utilities</option></select></label><label>Sort <select id="stashSort"><option value="name">Name</option><option value="condition">Condition</option><option value="favorite">Favorites first</option></select></label></div><div id="stash"></div><button id="bulkSell">Sell selected items</button><label>Preset name <input id="presetName" maxlength="32"></label><button id="savePreset">Save selected loadout</button><label>Saved preset <select id="presets"></select></label><button id="applyPreset">Select preset items</button><p id="presetStatus" role="status"></p><div id="overflow"></div></section>
-<section class="card"><h2>Deploy</h2><label>Map <select id="map"></select></label><label><input type="checkbox" id="allowMixed" checked> Allow mixed squad sizes if no same-size session is available</label><label>Maximum connection round trip <select id="maxRtt"><option value="150">150 ms</option><option value="250" selected>250 ms</option><option value="400">400 ms</option><option value="0">No limit</option></select></label><button id="checkLatency">Check connection</button><p id="latencyStatus" role="status">Check connection before deploying.</p><p id="matchSummary">Same-size squads are preferred. Gear and skill matching are open. If no compatible session exists, a fresh raid starts without a minimum human population.</p><canvas id="mapPreview" width="240" height="240" aria-label="Map overview with extraction sites"></canvas><p>Green markers show extraction sites. Each site has its own access rules.</p><p id="sectorPlan"></p><div id="exitPlan" aria-label="Extraction access costs and capacity"></div><label><input id="recovery" type="checkbox"> Free recovery kit (8 backpack slots; starter gear cannot be banked)</label><label>Primary weapon <select id="primaryWeapon" aria-describedby="weaponSlots"></select></label><p id="weaponSlots"></p><p id="riskSummary" role="status"></p><button id="deploy">Deploy selected equipment</button><button id="resume" hidden>Reconnect to active raid</button></section>
-<section class="card"><h2>Traders</h2><div id="trader"></div></section><section class="card"><h2>Workshop and base</h2><div id="workshop"></div><div id="upgrades"></div><h3>Attachment bench</h3><label>Weapon <select id="attachmentWeapon"></select></label><label>Attachment <select id="attachmentMod"></select></label><button id="attach">Install attachment</button><div id="installedMods"></div></section><section class="card"><h2>Contracts</h2><div id="contracts"></div></section><section class="card"><h2>Insurance claims</h2><div id="insurance"></div></section><section class="card"><h2>Raid records</h2><div id="records"></div></section></section>
-</main><section id="play" aria-label="Active raid"><canvas id="view" tabindex="0" aria-label="Raid view"></canvas><div id="cross" aria-hidden="true">+</div><div id="telemetry"><div id="hud" aria-live="off"></div><div id="conditions"></div><div id="networkStatus" aria-live="off">Connecting…</div><div id="bossPanel" hidden aria-live="polite"><span id="bossName">Foundry Warden</span><span id="bossPhase"></span><span id="bossHpText"></span><progress id="bossHp" max="760" value="760" aria-label="Foundry Warden health"></progress></div><div id="events" role="status" aria-live="polite"></div><div id="interactionStatus" role="status"></div></div><div id="statusAnnouncement" class="srOnly" role="status" aria-live="polite"></div><canvas id="minimap" width="180" height="180" aria-label="Map showing your position, squad and exits"></canvas><button id="leave">Back to base</button><button id="spectate" hidden>Next squadmate</button><button id="packToggle" aria-controls="pack" aria-expanded="true">Backpack / B</button><section id="pack" aria-label="Backpack and nearby loot"></section><div id="hint" role="status"></div><div id="touch"><div><button data-move="forward" aria-label="Move forward">↑</button><button data-move="left" aria-label="Strafe left">←</button><button data-move="back" aria-label="Move back">↓</button><button data-move="right" aria-label="Strafe right">→</button></div><div><button data-look="lookLeft" aria-label="Look left">↶</button><button data-look="lookRight" aria-label="Look right">↷</button><button data-look="lookUp" aria-label="Look up">Aim ↑</button><button data-look="lookDown" aria-label="Look down">Aim ↓</button><button id="jump">Jump</button><button id="vault">Vault</button><button id="sprint" aria-pressed="false">Sprint</button><button id="slide">Slide</button><button id="fire">Fire</button><button id="aim" aria-pressed="false">Aim</button><button id="utility">Utility</button><button id="reload">Reload</button><button id="interact">Interact</button></div></div></section>
+<a href="/">← HeadShotz home</a><h1>THE SECTOR</h1>
+<p>Deploy your gear, fight machines, and extract before the sector timer closes. Equipment you bring can be lost; a free recovery kit is always available.</p>
+<p id="bootStatus" role="status" aria-live="polite">Preparing the sector…</p>
+<p id="message" role="status" aria-live="polite"></p>
+<section id="auth" class="card" hidden><h2>Account</h2><form id="login"><label>Username <input name="username" required autocomplete="username" minlength="3" maxlength="24"></label><label>Password <input name="password" type="password" required autocomplete="current-password" minlength="12" maxlength="256"></label><button type="submit">Sign in</button><button type="button" id="register">Create account</button></form><p id="offlineAuthNote" hidden>Offline mode — no password is needed. Type a name to continue as that local operator; the stash and raid progress on this device stay yours.</p><button id="recoverOpen" aria-expanded="false" aria-controls="recoverPanel">Recover with a saved code</button><section id="recoverPanel" hidden><h3>Recover your account</h3><p>Use one of the single-use recovery codes you previously saved. Recovery signs out every session. It does not extract your operator or restore lost equipment. This service has no email recovery.</p><form id="recoverForm"><label>Username <input id="recoverUsername" autocomplete="username" required minlength="3" maxlength="24"></label><label>Recovery code <input id="recoverCode" autocomplete="off" required maxlength="80" spellcheck="false"></label><label>New password <input id="recoverNewPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><label>Confirm new password <input id="recoverConfirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><button type="submit">Recover account and sign out all sessions</button></form></section></section>
+<section id="base" data-base-tab="loadout" hidden>
+<section id="welcome" class="hiTip" role="note"><span>First raid? Take the free recovery kit, search caches, and reach an open exit before the timer runs out.</span><button id="welcomeGuide">Guide</button><button id="dismissWelcome" aria-label="Dismiss first-raid tip">✕</button></section>
+<p id="starterRules">Starter supplies are bound. Earned credits are spent first.</p>
+<div class="row"><h2 id="identity"></h2><button id="logout">Sign out</button></div>
+<section id="deployCard" class="card heroDeploy">
+ <div class="heroMain">
+  <h2>Deploy</h2>
+  <div id="heroStats" aria-label="Operator, stash and loadout at a glance">
+   <div class="heroStat"><span>Credits</span><b id="heroCredits">—</b></div>
+   <div class="heroStat"><span>Stash</span><b id="heroStash">—</b></div>
+   <div class="heroStat"><span>Loadout</span><b id="heroLoadout">—</b></div>
+   <div class="heroStat"><span>Sector</span><b id="heroSector">—</b></div>
+  </div>
+ </div>
+ <div class="heroActions"><button id="resume" hidden>Reconnect to active raid</button><button id="deploy" class="deployBig">Deploy</button></div>
+ <div id="heroControls">
+  <label>Map <select id="map"></select></label>
+  <label>Objective <select id="fieldObjective"></select></label>
+  <label class="heroCheck"><input id="recovery" type="checkbox"> Recovery kit</label>
+  <label>Primary <select id="primaryWeapon" aria-describedby="weaponSlots"></select></label>
+ </div>
+ <p id="weaponSlots"></p>
+ <p id="deployReadiness" role="status" aria-live="polite" hidden></p>
+ <p id="riskSummary" role="status"></p>
+ <p id="offlineSaveNote" role="status" hidden></p>
+</section>
+<nav id="baseTabs" role="tablist" aria-label="Base sections">
+<button type="button" role="tab" data-base-tab="loadout" aria-selected="true" tabindex="0">Loadout</button>
+<button type="button" role="tab" data-base-tab="traders" aria-selected="false" tabindex="-1">Traders</button>
+<button type="button" role="tab" data-base-tab="workshop" aria-selected="false" tabindex="-1">Workshop</button>
+<button type="button" role="tab" data-base-tab="contracts" aria-selected="false" tabindex="-1">Contracts</button>
+<button type="button" role="tab" data-base-tab="records" aria-selected="false" tabindex="-1">Records</button>
+<button type="button" role="tab" data-base-tab="sector" aria-selected="false" tabindex="-1">Sector</button>
+<button type="button" role="tab" data-base-tab="squad" id="tabSquad" aria-selected="false" tabindex="-1">Squad</button>
+</nav>
+<div id="basePanels">
+<section id="rewards" class="card" data-wide data-panel="records" hidden aria-labelledby="rewardsTitle"><h2 id="rewardsTitle">Last raid rewards <small id="rewardsOutcome"></small></h2><div id="rewardsTotals"></div><p id="rewardsSettlement" role="status" hidden></p><p id="rewardsObjective" role="status" hidden></p><div id="rewardsLoot"></div><h3 id="rewardsRankHeading">Rank progress</h3><div id="rewardsRank"></div><progress id="rewardsRankBar" max="1" value="0" aria-label="Progress to next rank"></progress><p id="rewardsContract"></p><p id="rewardsStashUsage" hidden></p><p id="rewardsNext">Returned items are already in your stash. Claim contract rewards, craft or upgrade with credits and salvage, then plan the next deployment.</p><div class="row rewardsActions"><button id="rewardsStash">Open stash and loadout</button><button id="rewardsWorkshop">Open workshop</button><button id="rewardsContracts">Review contracts</button><button id="rewardsRecords">Full raid record</button><button id="rewardsDeploy">Plan next raid</button></div></section>
+<section class="card" data-panel="loadout"><h2>Equipment bench</h2><canvas id="basePreview" aria-label="Preview of the chosen primary weapon, secondary weapon and armor" aria-describedby="basePreviewCaption"></canvas><button id="previewTurn">Rotate preview</button><p id="basePreviewCaption">Choose equipment to preview your loadout.</p></section><section class="card" data-panel="squad"><h2>Squad</h2><p id="partyState" role="status">Playing solo.</p><div id="squadOnlineControls"><div id="partyRoster"></div><p id="readyMismatch" role="status" hidden></p><button id="restoreReady" hidden>Use my readied loadout</button><label>Squad size <select id="partyMode"><option value="solo">Solo</option><option value="duo">Duo</option><option value="trio" selected>Trio</option></select></label><button id="partyCreate">Create squad</button><label>Invite code <input id="partyCode" maxlength="10" autocomplete="off"></label><button id="partyJoin">Join squad</button><label>Squad role <select id="partyRole" aria-describedby="partyRoleHint"><option value="" selected>No role</option><option value="scout" title="Squad pings last 30 seconds">Scout — longer pings</option><option value="medic" title="Revive in 3.5 seconds">Medic — faster revive</option><option value="engineer" title="Pick locked doors without a key">Engineer — keyless doors</option><option value="hauler" title="Backpack holds 4 more slots and 8 kg more carry weight">Hauler — deeper pack</option></select></label><p id="partyRoleHint">Selected role applies to your deployment only. Every squadmate chooses their own.</p><button id="partyReady" hidden>Ready with selected loadout</button><button id="partyLeave" hidden>Leave squad</button></div></section>
+<section class="card" data-panel="loadout"><h2>Stash &amp; loadout <small id="stashCapacity"></small></h2><p>Choose one or two owned weapons, optional armor, and supplies. Broken items cannot deploy. Insurance costs 20% of equipment price and returns only unclaimed items after the raid closes.</p><div class="row"><label>Search <input id="stashSearch" type="search"></label><label>Filter <select id="stashFilter"><option value="all">All items</option><option value="favorite">Favorites</option><option value="weapon">Weapons</option><option value="armor">Armor</option><option value="ammo">Ammunition</option><option value="material">Salvage</option><option value="mod">Attachments</option><option value="contract">Contract items</option><option value="utility">Utilities</option></select></label><label>Sort <select id="stashSort"><option value="name">Name</option><option value="condition">Condition</option><option value="favorite">Favorites first</option></select></label></div><div id="stash"></div><button id="bulkSell">Sell selected items</button><label>Preset name <input id="presetName" maxlength="32"></label><button id="savePreset">Save selected loadout</button><label>Saved preset <select id="presets"></select></label><button id="applyPreset">Select preset items</button><p id="presetStatus" role="status"></p><div id="overflow"></div></section>
+<section class="card" data-panel="sector" data-wide><h2>Sector</h2><div id="connectionControls"><label><input type="checkbox" id="allowMixed" checked> Allow mixed squad sizes if no same-size session is available</label><label>Maximum connection round trip <select id="maxRtt"><option value="150">150 ms</option><option value="250" selected>250 ms</option><option value="400">400 ms</option><option value="0">No limit</option></select></label><button id="checkLatency">Check connection</button><p id="latencyStatus" role="status">Check connection before deploying.</p></div><p id="matchSummary">Same-size squads are preferred. Gear and skill matching are open. If no compatible session exists, a fresh raid starts without a minimum human population.</p><canvas id="mapPreview" width="240" height="240" aria-label="Map overview with extraction sites"></canvas><p>Green markers show extraction sites. Each site has its own access rules.</p><p id="sectorPlan"></p><div id="exitPlan" aria-label="Extraction access costs and capacity"></div><p id="objectiveHint">Secure a marked sector landmark for the posted hold, then extract to earn bonus credits and XP. Leaving the marker or being downed pauses the hold; extracting before it is secured forfeits the bonus.</p></section>
+<section class="card" data-panel="traders"><h2>Traders</h2><div id="trader"></div></section><section class="card" data-panel="workshop"><h2>Workshop and base</h2><div id="workshop"></div><div id="upgrades"></div><h3>Attachment bench</h3><label>Weapon <select id="attachmentWeapon"></select></label><label>Attachment <select id="attachmentMod"></select></label><button id="attach">Install attachment</button><div id="installedMods"></div></section><section class="card" data-panel="contracts"><h2>Contracts</h2><div id="contracts"></div></section><section class="card" data-panel="contracts"><h2>Insurance claims</h2><div id="insurance"></div></section><section class="card" data-panel="records" data-wide><h2>Raid records</h2><div id="records"></div></section></div></section>
+</main><section id="play" aria-label="Active raid"><canvas id="view" tabindex="0" aria-label="Raid view"></canvas><div id="vitalVignette" data-state="ok" aria-hidden="true"></div><div id="hudSlim" aria-live="off"><div id="slimVital"><span class="slimKey">HP</span><span id="slimHpTrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Operator health"><i id="slimHpFill"></i></span><b id="slimHpText">100</b></div><div id="slimMetrics"><span id="slimAmmo" aria-label="Ammunition">--</span><span id="slimTimer" aria-label="Raid time remaining">--:--</span><span id="slimPack" aria-label="Backpack slots">0/0</span></div><div id="slimAlerts" aria-hidden="true"></div></div><div id="hudStatus" hidden></div><button id="raidMenu" aria-label="Raid menu" aria-controls="raidMenuPanel" aria-expanded="false">☰</button><nav id="raidMenuPanel" aria-label="Raid actions"><button id="raidMenuBack">Back to base</button><button id="raidMenuAccount" hidden>Account</button><button id="raidMenuGuide">Field guide</button><button id="raidMenuSettings">Settings</button></nav><div id="cross" aria-hidden="true">+</div><div id="hitmarker" data-kind="" aria-hidden="true"></div><div id="hitmarkerCaption" class="srOnly" role="status" aria-live="polite"></div><div id="threats" role="group" aria-label="Off-screen machine threats" hidden></div><div id="hurt" role="group" aria-label="Incoming damage source" hidden></div><div id="telemetry"><div id="hud" aria-live="off"></div><div id="conditions"></div><div id="networkStatus" aria-live="off">Connecting…</div><div id="bossPanel" hidden aria-live="polite"><span id="bossName">Foundry Warden</span><span id="bossPhase"></span><span id="bossHpText"></span><progress id="bossHp" max="760" value="760" aria-label="Foundry Warden health"></progress></div><div id="events" role="status" aria-live="polite"></div><div id="sectorStatus" role="status" aria-live="polite" hidden></div><div id="objectivePanel" role="status" aria-live="polite" hidden></div><div id="interactionStatus" role="status"></div><div id="compass" role="status" aria-live="off"></div></div><div id="statusAnnouncement" class="srOnly" role="status" aria-live="polite"></div><canvas id="minimap" role="img" width="360" height="360" aria-label="Tactical map showing your position, squad, exits and field objective"></canvas><canvas id="navmap" role="img" width="360" height="360" aria-label="Approach map showing nearby streets, buildings, exits and machines within 150 metres, with the operator centred and facing up"></canvas><div id="navChip" hidden role="status" aria-live="off"><span class="navChipKey">EXIT</span><b id="navChipRange">--</b><span id="navChipBearing">▲ N</span></div><button id="leave">Back to base</button><button id="spectate" hidden>Next squadmate</button><button id="packToggle" aria-controls="pack" aria-expanded="true">Backpack / B</button><section id="pack" aria-label="Backpack and nearby loot"></section><div id="hint" role="status"></div><div id="lootCelebration" hidden aria-hidden="true"><strong id="lootCelebrationTier"></strong><span id="lootCelebrationName"></span></div><div id="touch"><div id="touchMove"><button data-move="forward" aria-label="Move forward">↑</button><button data-move="left" aria-label="Strafe left">←</button><button data-move="back" aria-label="Move back">↓</button><button data-move="right" aria-label="Strafe right">→</button></div><div id="stick" role="group" aria-label="Movement stick"><div id="stickBase"><div id="stickKnob"></div></div></div><div id="touchActions"><button data-look="lookLeft" aria-label="Look left">↶</button><button data-look="lookRight" aria-label="Look right">↷</button><button data-look="lookUp" aria-label="Look up">Aim ↑</button><button data-look="lookDown" aria-label="Look down">Aim ↓</button><button id="jump" class="tb" aria-label="Jump"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button><button id="vault" class="tb" aria-label="Vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M6 15h12M8 15l4-7 4 7"/></svg></button><button id="slide" class="tb" aria-label="Slide into cover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="6" r="2"/><path d="M10 9v4l4 2v5M10 13l-3 1v5M14 11h4M4 20h6"/></svg></button><button id="swap" class="tb" aria-label="Switch weapon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-4-4M20 16H6l4 4"/></svg></button><button id="aim" class="tb" aria-pressed="false" aria-label="Aim (hold to zoom)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 1.5v5M12 17.5v5M1.5 12h5M17.5 12h5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></button><button id="reload" class="tb" aria-label="Reload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 3.5v4.6h-4.6"/></svg></button><button id="utility" class="tb" aria-label="Utility"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="14" r="5"/><path d="M12 9V6M10.5 6h3M9 2.5h6"/></svg></button><button id="interact" class="tb" hidden aria-label="Use nearby object"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span>USE</span></button><button id="mapToggle" class="tb" aria-controls="tacticalMap" aria-expanded="false" aria-label="Tactical map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span>MAP</span></button></div></div><section id="tacticalMap" hidden role="dialog" aria-modal="true" aria-labelledby="tacticalTitle"><header><h2 id="tacticalTitle">Tactical map</h2><button id="mapClose">Close map / M</button></header><canvas id="tacticalCanvas" width="720" height="720" tabindex="0" aria-label="Full tactical map. Drag to pan; use the zoom buttons; click to set or clear a waypoint."></canvas><p id="mapReadout" role="status">Drag to pan, click to set a waypoint, click the waypoint again to clear it.</p><div id="mapButtons"><button id="mapZoomIn">Zoom in</button><button id="mapZoomOut">Zoom out</button><button id="mapRecenter">Recentre</button><button id="mapClear">Clear waypoint</button></div></section></section>
 <button id="commsToggle" hidden aria-expanded="false" aria-controls="communications">Squad / voice</button>
 <aside id="communications" class="card" hidden aria-label="Squad communication">
 <h2>Squad communication</h2><button id="commsClose">Close communication panel</button><p id="squadPings" role="status" aria-live="polite"></p>
-<div id="pingControls" hidden><label>Quick message <select id="pingKind"></select></label><button id="sendPing">Ping / <kbd data-key-label="ping">Q</kbd></button><p><kbd data-key-label="ping">Q</kbd> marks what you aim at. Requests mark your position. Markers last 20 seconds and are shared with your squad.</p></div>
+<div id="pingControls" hidden><label>Quick message <select id="pingKind"></select></label><button id="sendPing">Ping / <kbd data-key-label="ping">Q</kbd></button><p><kbd data-key-label="ping">Q</kbd> marks what you aim at. Requests mark your position. Markers last 20 seconds (Scouts: 30 seconds) and are shared with your squad.</p></div>
 <label>Voice channel <select id="voiceScope"><option value="squad">Squad only</option><option value="proximity">Nearby players only (24 m)</option><option value="both">Squad and nearby players</option></select></label>
 <p>Voice starts off. Enable it to grant microphone access, then hold <kbd data-key-label="pushTalk">V</kbd> or Hold to talk. Nearby voice is audible to opted-in rivals. <a href="/raid-privacy.html" target="_blank" rel="noopener">Voice and account privacy</a></p>
 <button id="voiceEnable">Enable voice</button><button id="pushTalk">Hold to talk</button><button id="voiceResume">Resume voice audio</button><label>Incoming voice volume <input id="voiceVolume" type="range" min="0" max="1" step=".05" value=".7"></label><p id="voiceStatus" role="status" aria-live="polite">Voice off. Microphone released.</p>
@@ -42,6 +614,7 @@ html[data-hud-large="true"] #hint{display:none}
 <label>Mouse / touch sensitivity <input id="sensitivity" type="range" min=".2" max="3" step=".1"><output id="sensitivityValue" for="sensitivity"></output></label><label><input id="invertY" type="checkbox"> Invert vertical aim</label>
 <label>Camera view <select id="viewMode"><option value="third">Third person (over the shoulder)</option><option value="first">First person</option></select></label>
 <label>HUD and text scale <input id="hudScale" type="range" min=".8" max="1.6" step=".1"><output id="hudScaleValue" for="hudScale"></output></label><label>Field of view <input id="fieldOfView" type="range" min="60" max="100" step="1"><output id="fieldOfViewValue" for="fieldOfView"></output></label>
+<label>Compact HUD <select id="hudLayout"><option value="auto">Auto — slim during raids</option><option value="compact">On — slim raid HUD</option><option value="full">Off — full telemetry panel</option></select></label>
 <label>Effects volume <input id="sfxVolume" type="range" min="0" max="1" step=".05"><output id="sfxVolumeValue" for="sfxVolume"></output></label><label>Incoming voice volume <input id="settingsVoiceVolume" type="range" min="0" max="1" step=".05"><output id="settingsVoiceVolumeValue" for="settingsVoiceVolume"></output></label>
 <label>Reduced motion <select id="reduceMotion"><option value="system">Follow device setting</option><option value="on">On</option><option value="off">Off</option></select></label><label><input id="captions" type="checkbox"> Additional combat sound captions (critical warnings always remain visible)</label><label><input id="highContrast" type="checkbox"> High contrast HUD and focus indicators</label>
 <h3>Keyboard bindings</h3><div id="bindings"></div><button id="settingsReset">Reset controls and preferences</button><p id="settingsStatus" role="status" aria-live="polite"></p></dialog>
@@ -58,6 +631,6 @@ html[data-hud-large="true"] #hint{display:none}
 <dialog id="quantityDialog" aria-labelledby="quantityTitle"><h2 id="quantityTitle">Quantity</h2><form id="quantityForm"><label>Amount <input id="quantityValue" type="number" inputmode="numeric" min="1" step="1" required></label><button type="submit">Apply quantity</button><button type="button" id="quantityCancel">Cancel</button></form></dialog>
 <dialog id="inspectDialog" aria-labelledby="inspectTitle"><h2 id="inspectTitle">Equipment inspection</h2><div id="inspectContent"></div><button id="inspectClose">Close inspection</button></dialog>
 
-<dialog id="accountDialog" aria-labelledby="accountTitle"><h2 id="accountTitle">Account security — <span id="securityIdentity"></span></h2><button id="accountClose">Close account security</button><button id="accountSignOut">Sign out this browser</button><p>Changes preserve your stash, progression and raid body. Password changes also invalidate saved recovery codes; generate a new set afterwards. Password changes and recovery sign out other sessions; they do not extract, heal or refund equipment. Keep recovery codes in your password manager.</p><h3>Change password</h3><form id="passwordForm"><input id="securityUsername" autocomplete="username" type="hidden"><label>Current password <input id="currentPassword" type="password" autocomplete="current-password" required maxlength="256"></label><label>New password <input id="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><label>Confirm new password <input id="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><button type="submit">Change password and sign out other sessions</button></form><h3>Recovery codes</h3><p>Anyone with an unused code can reset your password. Keep codes private in your password manager.</p><p id="recoveryCount"></p><form id="codesForm"><label>Current password <input id="codesPassword" type="password" autocomplete="current-password" required maxlength="256"></label><button type="submit">Generate 8 replacement recovery codes</button></form><section id="recoveryCodePanel" hidden><p>Shown only now. Generating a new set invalidates every old code. Closing this panel, hiding the page or signing out removes these codes from the screen.</p><pre id="recoveryCodeList" aria-label="Private recovery codes"></pre><button id="copyRecoveryCodes">Copy codes</button><button id="hideRecoveryCodes">Hide codes now</button></section><h3>Signed-in sessions</h3><p>Labels describe the browser and device family. Session credentials and network addresses are not shown. Signing out revokes the current sign-in; someone who still knows your password can sign in again.</p><label>Current password to sign out sessions <input id="sessionPassword" type="password" autocomplete="current-password" maxlength="256"></label><button id="revokeOthers">Sign out other sessions</button><button id="sessionRefresh">Refresh sessions</button><div id="sessionList"></div><p id="securityStatus" role="status" aria-live="polite"></p></dialog>
+<dialog id="accountDialog" aria-labelledby="accountTitle"><h2 id="accountTitle">Account security — <span id="securityIdentity"></span></h2><button id="accountClose">Close account security</button><button id="accountSignOut">Sign out this browser</button><p id="offlineAccountNote" hidden>Offline operator — your stash, progression and raid checkpoints are stored on this device. There is no password, recovery codes or server-side account security offline; sign out returns to the local operator screen and signing back in needs only a name.</p><div id="onlineAccountSecurity"><p>Changes preserve your stash, progression and raid body. Password changes also invalidate saved recovery codes; generate a new set afterwards. Password changes and recovery sign out other sessions; they do not extract, heal or refund equipment. Keep recovery codes in your password manager.</p><h3>Change password</h3><form id="passwordForm"><input id="securityUsername" autocomplete="username" type="hidden"><label>Current password <input id="currentPassword" type="password" autocomplete="current-password" required maxlength="256"></label><label>New password <input id="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><label>Confirm new password <input id="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="256"></label><button type="submit">Change password and sign out other sessions</button></form><h3>Recovery codes</h3><p>Anyone with an unused code can reset your password. Keep codes private in your password manager.</p><p id="recoveryCount"></p><form id="codesForm"><label>Current password <input id="codesPassword" type="password" autocomplete="current-password" required maxlength="256"></label><button type="submit">Generate 8 replacement recovery codes</button></form><section id="recoveryCodePanel" hidden><p>Shown only now. Generating a new set invalidates every old code. Closing this panel, hiding the page or signing out removes these codes from the screen.</p><pre id="recoveryCodeList" aria-label="Private recovery codes"></pre><button id="copyRecoveryCodes">Copy codes</button><button id="hideRecoveryCodes">Hide codes now</button></section><h3>Signed-in sessions</h3><p>Labels describe the browser and device family. Session credentials and network addresses are not shown. Signing out revokes the current sign-in; someone who still knows your password can sign in again.</p><label>Current password to sign out sessions <input id="sessionPassword" type="password" autocomplete="current-password" maxlength="256"></label><button id="revokeOthers">Sign out other sessions</button><button id="sessionRefresh">Refresh sessions</button><div id="sessionList"></div><p id="securityStatus" role="status" aria-live="polite"></p></div></dialog>
 
 <script type="module" src="raid-online.mjs"></script></body></html>

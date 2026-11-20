@@ -1,6 +1,6 @@
-export const RAID_PROTOCOL=10;
+export const RAID_PROTOCOL=11;
 export const RECEIPT_LIMIT=64;
-export const ACTION_FIELDS={move:['x','z','yaw','pitch','sprint'],fire:['yaw','pitch'],throw:['itemId','yaw','pitch'],jump:[],vault:['yaw'],slide:['sprint'],reload:[],equip:['itemId'],wear:['itemId'],removeArmor:[],drop:['itemId'],stack:['itemId','targetId'],split:['itemId','quantity'],unsecure:['itemId'],revive:['targetId'],carry:['targetId'],use:['itemId'],search:['sourceId'],take:['sourceId','itemId','quantity'],secure:['itemId'],call:['exitId'],unlock:['exitId'],extract:['exitId'],ping:['kind','exitId']};
+export const ACTION_FIELDS={move:['x','z','yaw','pitch','sprint'],fire:['yaw','pitch'],throw:['itemId','yaw','pitch'],jump:[],vault:['yaw'],slide:['sprint'],reload:[],equip:['itemId'],wear:['itemId'],removeArmor:[],drop:['itemId'],stack:['itemId','targetId'],split:['itemId','quantity'],unsecure:['itemId'],give:['targetId','itemId'],revive:['targetId'],carry:['targetId'],use:['itemId'],search:['sourceId'],take:['sourceId','itemId','quantity'],secure:['itemId'],call:['exitId'],unlock:['exitId'],extract:['exitId'],ping:['kind','exitId'],door:['doorId']};
 const COMMON=['type','seq','protocol','raidId','deploymentId','includeState'];
 export function validateAction(message,{wire=false}={}){
  const reject=text=>{throw new Error(text)};

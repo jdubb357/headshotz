@@ -27,5 +27,12 @@ export function bulletClear(world,origin,point){
  for(const ramp of world.ramps||[]){const t=[0,1],slope=(ramp.to-ramp.from)/(ramp.axis==='x'?ramp.w:ramp.d),level=ramp.from+(ramp.to-ramp.from)*.5+slope*((ramp.axis==='x'?origin.x:origin.z)-(ramp.axis==='x'?ramp.x:ramp.z)),relativeDelta=delta.y-slope*(ramp.axis==='x'?delta.x:delta.z);
   if(clipped(t,origin.x,delta.x,ramp.x-ramp.w/2,ramp.x+ramp.w/2)&&clipped(t,origin.z,delta.z,ramp.z-ramp.d/2,ramp.z+ramp.d/2)&&clipped(t,origin.y-level,relativeDelta,-.12,0)&&t[1]>1e-7&&t[0]<1-1e-7)return false;
  }
+ // Doors are independent authoritative geometry: the ballistics scanner does
+ // not call blocked(), so closed doors must be clipped explicitly as boxes.
+ for(const door of world.doors||[]){
+  if(!door.closed)continue;
+  const t=[0,1],base=door.y||0;
+  if(clipped(t,origin.x,delta.x,door.x-door.w/2,door.x+door.w/2)&&clipped(t,origin.z,delta.z,door.z-door.d/2,door.z+door.d/2)&&clipped(t,origin.y,delta.y,base,base+door.h)&&t[1]>1e-7&&t[0]<1-1e-7)return false;
+ }
  return true;
 }

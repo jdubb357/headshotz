@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {RaidStore,item} from '../server/store.mjs';
 import {RaidService} from '../server/raids.mjs';
 import {RAID_WORLDS} from '../shared/raid-worlds.mjs';
-import {createRaidExits,exitState,exitDescription,exitColor} from '../shared/raid-exits.mjs';
+import {createRaidExits,exitState,exitDescription,exitColor,extractionInteractionTarget} from '../shared/raid-exits.mjs';
 function setup(t,count=2){
  const store=new RaidStore();let now=1000;const service=new RaidService(store,{now:()=>now});t.after(()=>{service.close();store.close()});const ids=[];
  for(let i=0;i<count;i++){const id=store.register('exit_operator_'+i,'a long exit test password').id;ids.push(id);service.deploy(id,{requestId:'exit_deployment_'+i,mapId:'relay',recovery:true})}
@@ -68,4 +68,15 @@ test('boarding reservations and departure limits survive restart; old checkpoint
  service.tick(.05);assert.equal(p.alive,true);service.now=()=>1003;service.tick(.05);assert.equal(p.result.outcome,'extract');assert.equal(e.usedSeats,1);
  const saved=service.serialize();saved[0].exits=[{id:'legacy',kind:'key',x:0,z:0,openAt:0,closeAt:0}];service.restore(saved);assert.equal(service.raids.get(r.id).exits.length,1);assert.equal(service.raids.get(r.id).exits[0].seats,undefined);
  }finally{service.close();store.close();rmSync(root,{recursive:true,force:true})}
+});
+test('an open exit within reach outranks nearer salvage only while its boarding window is open',()=>{
+ const exits=createRaidExits(RAID_WORLDS[0],1000),call=exits.find(e=>e.kind==='call');
+ Object.assign(call,{openAt:999,closeAt:1040,usedSeats:0});
+ assert.equal(extractionInteractionTarget(exits,{x:call.x+2,y:0,z:call.z},1000),call,'open exit at 2 m is the interaction target');
+ assert.equal(extractionInteractionTarget(exits,{x:call.x+3.9,y:0,z:call.z},1000),call,'reach limit stays inside');
+ assert.equal(extractionInteractionTarget(exits,{x:call.x+4.1,y:0,z:call.z},1000),null,'outside the 4 m race radius');
+ assert.equal(extractionInteractionTarget(exits,{x:call.x+1,y:0,z:call.z},1040),null,'window ends at closeAt');
+ assert.equal(extractionInteractionTarget(exits,{x:call.x+1,y:0,z:call.z},998),null,'before activation there is no boarding target');
+ call.usedSeats=call.seats;
+ assert.equal(extractionInteractionTarget(exits,{x:call.x+1,y:0,z:call.z},1000),null,'a full exit does not outrank loot');
 });

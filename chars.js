@@ -191,12 +191,13 @@ const lerp=(a,b,k)=>a+(b-a)*k;
 // st: {speed, air, slide, pitch, crouch, climb, down, dist}
 export function animate(m,st,dt){const u=m.userData;if(u.anim)return u.anim(m,st,dt);if(u.kind==='hum')return animateHuman(m,st,dt);const sp=Math.min(st.speed,10);
  if(st.dist!=null){const on=st.dist<28;if(on!==u.lodOn){u.lodOn=on;for(const o of u.lod)o.visible=on}}
- const k8=Math.min(1,dt*8),k14=Math.min(1,dt*14);
+ const k8=Math.min(1,dt*8),k14=Math.min(1,dt*14),reduced=st.reduced===true;
+ if(reduced)u.flinch=0;
  u.crouch=lerp(u.crouch,st.crouch?1:0,k8);u.climb=lerp(u.climb,st.climb?1:0,k8);u.down=lerp(u.down,st.down?1:0,Math.min(1,dt*5));
  const run=Math.min(1,sp/7),walk=Math.min(1,sp/2.2);u.ph+=dt*(st.climb?7:(1.6+sp*1.15));
  const s=Math.sin(u.ph),c=Math.cos(u.ph);const amp=(.32+.42*run)*walk;
  // base gait
- let rigY=-Math.abs(s)*.035*walk+.012*walk,rigX=-run*.14,rigZ=c*.035*walk,legA=[s*amp,-s*amp],shA=[-Math.max(0,Math.sin(u.ph+1.1))*amp*1.5-.05*walk,-Math.max(0,Math.sin(u.ph+1.1+Math.PI))*amp*1.5-.05*walk],headX=0,aimY=0;
+ let rigY=-Math.abs(s)*.035*walk+.012*walk,rigX=-run*.14,rigZ=c*.035*walk,legA=[s*amp,-s*amp],shA=[-Math.max(0,Math.sin(u.ph+1.1))*amp*1.5-.05*walk,-Math.max(0,Math.sin(u.ph+1.1+Math.PI))*amp*1.5-.05*walk],headX=0,aimY=0,rigBack=0;
  if(u.crouch>.01){const k=u.crouch;rigY=lerp(rigY,-.3,k);legA=legA.map(a=>lerp(a,.95+a*.4,k));shA=shA.map(a=>lerp(a,-1.5+a*.3,k));rigX=lerp(rigX,.18,k)}
  if(st.air&&!st.climb){legA=[.55,-.15];shA=[-1.0,-.35];rigY=0}
  if(u.climb>.01){const k=u.climb,cs=Math.sin(u.ph);legA=legA.map((a,i)=>lerp(a,.6+(i?-cs:cs)*.5,k));shA=shA.map((a,i)=>lerp(a,-1.1+(i?cs:-cs)*.35,k));rigX=lerp(rigX,-.08,k);aimY=k}
@@ -204,14 +205,18 @@ export function animate(m,st,dt){const u=m.userData;if(u.anim)return u.anim(m,st
  if(u.down>.01){const k=u.down,cw=Math.sin(u.ph*.6)*walk;rigY=lerp(rigY,-.26,k);rigX=lerp(rigX,.6,k);legA=legA.map((a,i)=>lerp(a,.18+(i?-cw:cw)*.12,k));shA=shA.map((a,i)=>lerp(a,-2.68+(i?cw:-cw)*.1,k));headX=-.55*k;aimY=Math.max(aimY,.5*k)}// kneeling/crawling on the surface (head ~1.0-1.2 = downed hitbox)
  {const idle=(1-walk)*(1-u.crouch)*(1-u.down)*(st.air||st.slide||st.climb?0:1);if(idle>.01){u.it=(u.it||0)+dt;const w=Math.sin(u.it*.7);rigZ+=w*.03*idle;legA=legA.map((a,i)=>a+(i?(w>0?.08:0):(w<0?.08:0))*idle);shA=shA.map((a,i)=>a-(i?(w>0?.14:0):(w<0?.14:0))*idle);rigY+=-.012*Math.abs(w)*idle}
   if(u.torso){const br=1+Math.sin((u.it||0)*1.7)*.008*(1-run);u.torso.scale.set(1,br,1+ (br-1)*1.5)}}
- u.flinch=Math.max(0,u.flinch-dt*4);
+ u.flinch=Math.max(0,u.flinch-dt*2.4);
+ // The hit impulse now reads as a backward stagger: the whole rig slips back
+ // and the head whips after the torso instead of the operator merely leaning.
+ const reel=reduced?0:Math.min(1,u.flinch);rigBack=reel*.26;
  if(u.dead>0){u.dead+=dt;const k=Math.min(1,u.dead/.55);const e=k*k*(3-2*k);rigX=1.45*e;rigY=-.05*e;rigZ=u.roll*.25*e;legA=[.3*e,.1*e];shA=[-.2,-.3];u.tag.visible=false}
  else u.tag.visible=true;
- if(st.slope!=null&&u.down>.01)rigX+=st.slope*u.down;const r=u.rig;r.position.y+=(rigY-r.position.y)*k14;r.rotation.x+=((rigX+u.flinch*.35)-r.rotation.x)*Math.min(1,dt*(u.dead?8:12));r.rotation.z+=(rigZ-r.rotation.z)*k14;
- // aim: arms follow pitch; head stabilises against body tilt so the gun stays on target
+ if(st.slope!=null&&u.down>.01)rigX+=st.slope*u.down;const r=u.rig;r.position.y+=(rigY-r.position.y)*k14;r.position.z+=(rigBack-r.position.z)*k14;r.rotation.x+=((rigX+reel*.42)-r.rotation.x)*Math.min(1,dt*(u.dead?8:12));r.rotation.z+=(rigZ-r.rotation.z)*k14;
+ // aim: arms follow pitch; head recovers from a brief backward snap a touch
+ // faster than the torso so the silhouette reads as impact, not a pose change.
  const pitch=u.dead?0:st.pitch;u.aim.rotation.x+=(lerp(pitch-r.rotation.x*.85,-.9,aimY*.6)-u.aim.rotation.x)*Math.min(1,dt*15);u.aim.position.y=1.36+(u.climb>.01?.05*u.climb:0);
- u.head.rotation.x+=((pitch*.6-r.rotation.x*.7+headX)-u.head.rotation.x)*k14;u.head.rotation.z=-r.rotation.z*.8;
- if(u.torso){u.torso.rotation.y=lerp(u.torso.rotation.y,s*.06*walk,k14)}
+ u.head.rotation.x+=((pitch*.6-r.rotation.x*.7+headX+reel*.55)-u.head.rotation.x)*Math.min(1,dt*18);u.head.rotation.z=-r.rotation.z*.8;
+ if(u.torso){u.torso.rotation.y=lerp(u.torso.rotation.y,s*.06*walk,k14);u.torso.rotation.x+=(reel*.15-u.torso.rotation.x)*Math.min(1,dt*12)}
  for(let i=0;i<2;i++){const[th,sh]=u.legs[i];th.rotation.x+=(legA[i]-th.rotation.x)*k14;sh.rotation.x+=(shA[i]-sh.rotation.x)*k14}}
 export {rbox};
 
