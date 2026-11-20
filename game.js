@@ -1880,10 +1880,14 @@ const GIFT3={key:'gift_100k_nov8',n:100000,from:[2026,11,8],until:[2026,11,9]};
 const ymdN=a=>a[0]*10000+a[1]*100+a[2];
 function gift3Due(){try{if(localStorage.getItem(GIFT3.key)||(PROG.gifts||[]).includes(GIFT3.key))return false}catch(e){}const t=window.__mockNow!=null?window.__mockNow:Date.now(),n=ymdN(ctYMD(t));return n>=ymdN(GIFT3.from)&&n<ymdN(GIFT3.until)}
 function gift3Check(){if(!gift3Due())return false;try{localStorage.setItem(GIFT3.key,'1')}catch(e){}PROG.gifts=(PROG.gifts||[]).concat(GIFT3.key).slice(-20);PROG.dia=(PROG.dia|0)+GIFT3.n;saveProg();try{window.__dlog&&window.__dlog.push([GIFT3.n,'gift from the devs (100k nov8)'])}catch(e){}giftPopup(GIFT3.n);return true}
-function giftLater(){gift2Check();gift3Check()}
+function turkeyPopup(){const d=document.createElement('div');d.id='thanksPop';d.innerHTML=`<div class="tkCard"><div class="tkBird" aria-hidden="true"><i class="fe a"></i><i class="fe b"></i><i class="fe c"></i><i class="fe d"></i><i class="fe e"></i><b class="bod"></b><b class="wing"></b><b class="head"></b><b class="beak"></b><b class="snood"></b><b class="eye"></b><b class="leg L"></b><b class="leg R"></b></div><h2>Happy Thanksgiving! +200,000 gems</h2><p>A weekend gift from the devs</p><button id="tkOk" class="btnBig yellow">YUM</button></div>`;document.body.appendChild(d);let gone=false;const x=()=>{if(gone)return;gone=true;d.classList.add('out');setTimeout(()=>d.remove(),420)};d.addEventListener('pointerdown',x);setTimeout(x,6500);try{SFX.beep&&SFX.beep(660)}catch(e){}}
+const GIFT4={key:'gift_200k_nov21',n:200000,from:[2026,11,19],until:[2026,11,23]};
+function gift4Due(){try{if(localStorage.getItem(GIFT4.key)||(PROG.gifts||[]).includes(GIFT4.key))return false}catch(e){}const t=window.__mockNow!=null?window.__mockNow:Date.now(),n=ymdN(ctYMD(t));return n>=ymdN(GIFT4.from)&&n<ymdN(GIFT4.until)}
+function gift4Check(){if(!gift4Due())return false;try{localStorage.setItem(GIFT4.key,'1')}catch(e){}PROG.gifts=(PROG.gifts||[]).concat(GIFT4.key).slice(-20);PROG.dia=(PROG.dia|0)+GIFT4.n;saveProg();try{window.__dlog&&window.__dlog.push([GIFT4.n,'thanksgiving 200k'])}catch(e){}turkeyPopup();return true}
+function giftLater(){gift2Check();gift3Check();gift4Check()}
 setTimeout(giftLater,2500);setInterval(giftLater,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(giftLater,300)});addEventListener('pageshow',()=>setTimeout(giftLater,300));
 
-Object.assign(window.__hsz,{aa:AA,giftCheck,gift2Check,gift2Due,GIFT2,gift3Check,gift3Due,GIFT3,giftDue,GIFT,chestFree,CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,endMatchTest:(win)=>{if(!isHost)return false;H.score[win]=WIN_ROUNDS-1;H.phase='play';endRound(win);return true},hostDecide,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
+Object.assign(window.__hsz,{aa:AA,giftCheck,gift2Check,gift2Due,GIFT2,gift3Check,gift3Due,GIFT3,gift4Check,gift4Due,GIFT4,giftDue,GIFT,chestFree,CHEST,chestTier,chestPick,chestGrant,chestBuy,openChests,chestAnim,endMatchTest:(win)=>{if(!isHost)return false;H.score[win]=WIN_ROUNDS-1;H.phase='play';endRound(win);return true},hostDecide,ECON,PROG,isWknd,addDia:(...a)=>addDia(...a)});
 
 // ================= v42 MISSION MODES: Capture the Flag + Extraction (host side) =================
 const MISSION=m=>m==='ctf'||m==='ext';
