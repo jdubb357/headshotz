@@ -104,8 +104,11 @@ No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunde
 ## v96 — Pet batch 3
 No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
 
-## v109 — Thanksgiving gift, small Fizzy, Royale building dress
-No third-party assets. The Thanksgiving turkey is original HTML and CSS. Fizzy is a small original rainbow chameleon in `petmodels4.js` (casque, turret eyes, curled tail, glowing colors). The lick cloak is original code in `petabil3.js` and `sidekicks.js`. Battle Royale building trim, frames, glass, awnings, balconies and roof props are extra non-solid boxes in `br.js`, merged into the existing texture chunks. Nothing here is a copyrighted character.
+## v109 — Fizzy cloak, Sol's mark, Royale building dress
+No third-party assets. Fizzy is a small original rainbow chameleon in `petmodels4.js` (one lofted body, casque, turret eyes, curled tail). The lick cloak is original code in `petabil3.js` and `sidekicks.js`. Sol's tiered wall mark is original code in `petabil3.js`. Battle Royale building trim, frames, glass, awnings, and roof props are extra non-solid boxes in `br.js`, plus a procedural siding texture in `gfx.js`. Nothing here is a copyrighted character.
+
+## v108 — Thanksgiving gem gift
+No third-party assets. The turkey popup is original HTML and CSS in `style.css` and `game.js`. The 200,000 gem grant uses the existing diamond wallet.
 
 ## v107 — Fizzy the Rainbow Chameleon
 No third-party assets. Fizzy is an original in-code chameleon in `petmodels4.js` (rainbow bands, turret eyes, tongue). Riding and the tongue grab are original code in `petabil3.js` and `sidekicks.js`. Nothing here is a copyrighted character.
