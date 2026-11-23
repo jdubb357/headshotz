@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clampZoom, mapSpan, zoomAbout, pinchMap, panBy, mapPoint, stepOpacity, gunHear, shotOpacity, relBearing, groundAngle, segDist, iconPoint, makeRing, ringPush, ringStep } from '../sense.js';
+import * as THREE from '../lib/three.module.min.js';
+import { clampZoom, mapSpan, zoomAbout, pinchMap, panBy, mapPoint, stepOpacity, gunHear, shotOpacity, relBearing, groundAngle, cameraMarkerAngle, senseAngle, segDist, iconPoint, makeRing, ringPush, ringStep } from '../sense.js';
 
 const quiet = { enemy: 1, cloaked: 0, crouch: 0, air: 0 };
 
@@ -45,6 +46,76 @@ test('gunshots use a 60-80 m range, and a shot aimed at you reads louder', () =>
   assert.equal(shotOpacity(90, range, true), 0);
   assert.ok(segDist(0, 0, 10, 0, 5, 1) < 2.4);
   assert.ok(shotOpacity(24, range, false) >= 0.55);
+});
+
+function angErr(a, b) {
+  return Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+}
+
+test('an on-screen enemy follows the projected ray, and off-screen eases onto flat yaw', () => {
+  const camera = new THREE.PerspectiveCamera(75, 390 / 844, 0.03, 300);
+  camera.rotation.order = 'YXZ';
+  camera.position.set(36, 1.62, -8);
+  camera.rotation.set(-0.12, 0.4, 0);
+  camera.updateMatrixWorld(true);
+  const look = new THREE.Vector3();
+  camera.getWorldDirection(look);
+  const fl = Math.hypot(look.x, look.z) || 1;
+  const fx = look.x / fl, fz = look.z / fl, rx = -fz, rz = fx;
+
+  const ndc = new THREE.Vector3(Math.sin(-Math.PI / 3), Math.cos(-Math.PI / 3), 0.45);
+  const enemy = ndc.clone().unproject(camera);
+  const ang = cameraMarkerAngle(camera, enemy.x, enemy.y, enemy.z);
+  const back = enemy.clone().project(camera);
+  const screen = Math.atan2(back.x, back.y);
+  assert.ok(angErr(ang, screen) < Math.PI / 180, `on-screen ${ang} vs ${screen}`);
+  assert.ok(Math.abs(ang + Math.PI / 3) < Math.PI / 180);
+  assert.ok(iconPoint(ang, 200)[0] < 80);
+
+  const left = camera.position.clone().add(new THREE.Vector3(-rx, 0, -rz).multiplyScalar(12));
+  const leftAng = cameraMarkerAngle(camera, left.x, camera.position.y, left.z);
+  const leftFlat = groundAngle(left.x - camera.position.x, left.z - camera.position.z, fx, fz);
+  assert.ok(angErr(leftAng, leftFlat) < Math.PI / 180, `90 left ${leftAng} vs flat ${leftFlat}`);
+  assert.ok(Math.abs(leftAng + Math.PI / 2) < Math.PI / 180);
+  const leftSpot = iconPoint(leftAng, 200);
+  assert.ok(leftSpot[0] < 100);
+  assert.ok(Math.abs(leftSpot[1] - 100) < 2);
+
+  const behind = camera.position.clone().add(new THREE.Vector3(-fx * 6 + rx * 4, 0.2, -fz * 6 + rz * 4));
+  const behindAng = cameraMarkerAngle(camera, behind.x, behind.y, behind.z);
+  const behindFlat = groundAngle(behind.x - camera.position.x, behind.z - camera.position.z, fx, fz);
+  assert.ok(angErr(behindAng, behindFlat) < Math.PI / 180);
+  const mirrored = Math.atan2(behind.clone().project(camera).x, behind.clone().project(camera).y);
+  assert.ok(angErr(behindAng, mirrored) > Math.PI / 6);
+  assert.ok(iconPoint(behindAng, 200)[0] > 120);
+
+  let prev = null, maxStep = 0;
+  for (let x = -0.4; x >= -2.4; x -= 0.04) {
+    const p = new THREE.Vector3(x, 0.15, 0.5).unproject(camera);
+    const a = cameraMarkerAngle(camera, p.x, p.y, p.z);
+    if (prev != null) maxStep = Math.max(maxStep, angErr(a, prev));
+    prev = a;
+  }
+  assert.ok(maxStep < 8 * Math.PI / 180, `slide step ${(maxStep * 180 / Math.PI).toFixed(2)} deg`);
+
+  const edgePt = new THREE.Vector3(-1, 0.2, 0.5).unproject(camera);
+  const edgeAng = cameraMarkerAngle(camera, edgePt.x, edgePt.y, edgePt.z);
+  const edgeScreen = Math.atan2(edgePt.clone().project(camera).x, edgePt.clone().project(camera).y);
+  const edgeFlat = groundAngle(edgePt.x - camera.position.x, edgePt.z - camera.position.z, fx, fz);
+  assert.ok(angErr(edgeAng, edgeScreen) < 12 * Math.PI / 180);
+  const gap = angErr(edgeScreen, edgeFlat);
+  assert.ok(angErr(edgeAng, edgeScreen) <= gap + 1e-6);
+  assert.ok(angErr(edgeAng, edgeFlat) <= gap + 1e-6);
+
+  const off = new THREE.Vector3(-1.9, 0.15, 0.5).unproject(camera);
+  const offAng = cameraMarkerAngle(camera, off.x, off.y, off.z);
+  const offFlat = groundAngle(off.x - camera.position.x, off.z - camera.position.z, fx, fz);
+  assert.ok(angErr(offAng, offFlat) < Math.PI / 180);
+
+  const pure = senseAngle(-0.4, 0.2, 4, -0.4, 4, 0.35, 0.75);
+  assert.ok(angErr(pure, Math.atan2((-0.4 / 4) / 0.35, (0.2 / 4) / 0.75)) < 1e-6);
+  const rear = senseAngle(3, 0, -2, 3, -2, 0.35, 0.75);
+  assert.ok(angErr(rear, Math.atan2(3, -2)) < 1e-6);
 });
 
 test('a target 90 degrees left of the camera sits on the left of the ring', () => {

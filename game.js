@@ -10,7 +10,7 @@ import {TURN} from './ice.js';import {initBiomes,BIOMES} from './biomes.js';impo
 import {rebuildForProps,MAPS,buildMap,HUB_PADS,HUB_ST,HUB_I,padCircles,inPad,PAD_COL,BR_I,BR_INFO,RAID_MAPS,MAP_COUNT,RAID_I,updateCells} from './maps.js';let BC=null;const BRM=m=>m==='br'||m==='brs';const MI=i=>MAPS[i]||RAID_MAPS.find(m=>m.index===i)||BR_INFO;const isQ=p=>!!(p.single||p.q);
 import {W,CLASSES,LIMB,falloff,stats,gunParts,handParts,wristOut} from './weapons.js';
 import {isInfinite,needsReload,startBurn,burnStep} from './throwkit.js';
-import {mapSpan,zoomAbout,pinchMap,panBy,stepOpacity,gunHear,shotOpacity,groundAngle,segDist,makeRing,ringPush,ringStep,paintRing} from './sense.js';
+import {mapSpan,zoomAbout,pinchMap,panBy,stepOpacity,gunHear,shotOpacity,cameraMarkerAngle,segDist,makeRing,ringPush,ringStep,paintRing} from './sense.js';
 import {makeCharacter,animate,LOOKS,HUM} from './chars.js';import {loadHumans} from './humans.js';
 // player classes: cosmetic look + small balanced perk. Host enforces HP/regen/revive; movement perks apply on the owner's client.
 export const PCL={soldier:{n:'Soldier',p:0,ic:'🪖',perk:'No perk — the classic all-rounder.'},scout:{n:'Scout',p:700,ic:'🎯',perk:'Higher jump · slide recharges 2× faster.',jump:9.6,slideCd:.5},engineer:{n:'Engineer',p:800,ic:'🔧',perk:'+1 grenade / utility each life.',util:1},ninja:{n:'Ninja',p:900,ic:'🥷',perk:'+12% move speed · quiet footsteps · full 100 HP.',spd:1.12,quiet:1},medic:{n:'Medic',p:1100,ic:'⛑️',perk:'Revives teammates in 3 s (not 5) · regen 3 HP/s after 4 s unhurt.',rev:3,regen:3},juggernaut:{n:'Juggernaut',p:1500,ic:'🛡️',perk:'140 HP · 12% slower.',spd:.88,hp:140}};
@@ -2459,14 +2459,13 @@ function mapGestures(){const cv=$('brMapCv');if(!cv||cv._zg)return;cv._zg=1;cons
  cv.addEventListener('wheel',e=>{stop(e);mapZoom(e.deltaY>0?0.9:1.12,e.clientX,e.clientY)},{passive:false})}
 function mapFit(cv){const r=cv.getBoundingClientRect();const w=Math.max(480,Math.round(r.width*2)),h=Math.max(480,Math.round(r.height*2));if(w>8&&h>8&&(cv.width!==w||cv.height!==h)){cv.width=w;cv.height=h}}
 function brMap(on){const w=$('brMapWrap');if(!w)return;w.classList.toggle('hidden',!on);if(on){mapCam.z=1;mapCam.cx=0;mapCam.cz=0;const cv=$('brMapCv');mapFit(cv);brDrawMap(cv,true);if(document.pointerLockElement)document.exitPointerLock()}BC.mapOn=on}
-const senseRing=makeRing(12);let senseX=null;const _senseF=new THREE.Vector3();
-function camFlat(){camera.updateMatrixWorld();camera.getWorldDirection(_senseF);const l=Math.hypot(_senseF.x,_senseF.z)||1;return{fx:_senseF.x/l,fz:_senseF.z/l,x:camera.position.x,z:camera.position.z}}
-function senseAim(){const c=camFlat();for(let i=0;i<senseRing.n;i++){const s=senseRing.slots[i];if(!s.on||s.wx==null)continue;s.ang=groundAngle(s.wx-c.x,s.wz-c.z,c.fx,c.fz)}}
-function senseCue(kind,x,z,op,life,id){if(op<=0)return;const c=camFlat();ringPush(senseRing,kind,groundAngle(x-c.x,z-c.z,c.fx,c.fz),op,life,id,x,z)}
-function senseShot(id,a,b,w){if(!inGame||!me.alive||id===me.id)return;const q=C.players[id];if(q&&!isEnemy(q))return;const dist=Math.hypot(a.x-me.pos.x,a.z-me.pos.z);const ww=W[w]||{};const range=gunHear(ww.snd&&ww.snd.v,ww.cls);const aimed=segDist(a.x,a.z,b.x,b.z,me.pos.x,me.pos.z)<2.4;const op=shotOpacity(dist,range,aimed);if(op)senseCue(2,a.x,a.z,op,aimed?1.05:0.8,id||'')}
-function senseBoom(x,z){if(!inGame||!me.alive)return;const dist=Math.hypot(x-me.pos.x,z-me.pos.z);const op=shotOpacity(dist,75,dist<12);if(op)senseCue(3,x,z,op,.7,'boom')}
+const senseRing=makeRing(12);let senseX=null;
+function senseAim(){for(let i=0;i<senseRing.n;i++){const s=senseRing.slots[i];if(!s.on||s.wx==null)continue;s.ang=cameraMarkerAngle(camera,s.wx,s.wy==null?camera.position.y:s.wy,s.wz)}}
+function senseCue(kind,x,y,z,op,life,id){if(op<=0)return;ringPush(senseRing,kind,cameraMarkerAngle(camera,x,y,z),op,life,id,x,z,y)}
+function senseShot(id,a,b,w){if(!inGame||!me.alive||id===me.id)return;const q=C.players[id];if(q&&!isEnemy(q))return;const dist=Math.hypot(a.x-camera.position.x,a.z-camera.position.z);const ww=W[w]||{};const range=gunHear(ww.snd&&ww.snd.v,ww.cls);const aimed=segDist(a.x,a.z,b.x,b.z,camera.position.x,camera.position.z)<2.4;const op=shotOpacity(dist,range,aimed);if(op)senseCue(2,a.x,a.y,a.z,op,aimed?1.05:0.8,id||'')}
+function senseBoom(x,z){if(!inGame||!me.alive)return;const dist=Math.hypot(x-camera.position.x,z-camera.position.z);const op=shotOpacity(dist,75,dist<12);if(op)senseCue(3,x,camera.position.y,z,op,.7,'boom')}
 function senseFrame(dt){const cv=$('senseCv');if(!cv)return;if(!senseX)senseX=cv.getContext('2d');const show=inGame&&me.alive&&C.phase==='play'&&!paused&&!(BC&&BC.mapOn);cv.classList.toggle('off',!show);if(!show){ringStep(senseRing,dt);return}ringStep(senseRing,dt);const now=performance.now();
- for(const id in C.players){const q=C.players[id];if(!q||!q.alive||!q.rp||id===me.id||!isEnemy(q))continue;const dist=Math.hypot(q.rp.x-camera.position.x,q.rp.z-camera.position.z);const op=stepOpacity(dist,q.spd||0,{enemy:1,cloaked:!!(q.cloakUntil&&now<q.cloakUntil),crouch:!!(q.flags&64),air:!!(q.flags&2)});if(op){const c=camFlat();ringPush(senseRing,1,groundAngle(q.rp.x-c.x,q.rp.z-c.z,c.fx,c.fz),op,.7,id,q.rp.x,q.rp.z)}}
+ for(const id in C.players){const q=C.players[id];if(!q||!q.alive||!q.rp||id===me.id||!isEnemy(q))continue;const dist=Math.hypot(q.rp.x-camera.position.x,q.rp.z-camera.position.z);const op=stepOpacity(dist,q.spd||0,{enemy:1,cloaked:!!(q.cloakUntil&&now<q.cloakUntil),crouch:!!(q.flags&64),air:!!(q.flags&2)});if(op)ringPush(senseRing,1,cameraMarkerAngle(camera,q.rp.x,q.rp.y+1.15,q.rp.z),op,.7,id,q.rp.x,q.rp.z,q.rp.y+1.15)}
  senseAim();paintRing(senseX,senseRing,cv.width)}
 // ===== v91 biomes: per-area atmosphere, particles, lightning, name banner (biomes.js) =====
 let BIO=null,bioBanT=0;const _v3b=new THREE.Vector3();

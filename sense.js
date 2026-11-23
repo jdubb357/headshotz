@@ -62,9 +62,8 @@ export function shotOpacity(dist, range, aimed) {
   const b = Math.max(0.55, 1 - dist / range);
   return Math.min(1, aimed ? Math.max(0.55, b * 1.35) : b);
 }
-// Angle of a ground offset in the render camera's frame.
-// fwd is the camera look flattened onto the ground (Three.js looks down local -Z).
-// right = (-fwdZ, fwdX). 0 is screen-up, positive is screen-right.
+// Ground yaw in the camera's horizontal frame. 0 is forward, positive is right.
+// fwd is the look direction flattened onto the ground (Three.js looks down local -Z).
 export function groundAngle(dx, dz, fwdX, fwdZ) {
   const right = dx * -fwdZ + dz * fwdX;
   const fwd = dx * fwdX + dz * fwdZ;
@@ -72,6 +71,49 @@ export function groundAngle(dx, dz, fwdX, fwdZ) {
 }
 export function relBearing(yaw, dx, dz) {
   return groundAngle(dx, dz, -Math.sin(yaw), -Math.cos(yaw));
+}
+// Screen ray matching Vector3.project. right/up/fwd are camera-space offsets
+// (fwd > 0 is in front of the camera plane). tanX/tanY are the half-angles.
+// 0 is screen-up, positive is screen-right. Null when the point is not in front.
+export function markerAngle(right, up, fwd, tanX, tanY) {
+  if (!(fwd > 1e-4) || !(tanX > 0) || !(tanY > 0)) return null;
+  return Math.atan2((right / fwd) / tanX, (up / fwd) / tanY);
+}
+function mixAng(a, b, t) {
+  if (t <= 0) return a;
+  if (t >= 1) return b;
+  return a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
+}
+function smooth01(t) {
+  const x = t < 0 ? 0 : t > 1 ? 1 : t;
+  return x * x * (3 - 2 * x);
+}
+// Inside the picture the icon sits on the ray from the crosshair through the
+// projected point. Past the screen edge it eases onto the flat yaw so a target
+// sliding off-screen or behind the camera does not pop to the other side.
+const EDGE_IN = 0.96;
+const EDGE_OUT = 1.45;
+export function senseAngle(right, up, fwd, flatRight, flatFwd, tanX, tanY) {
+  const flat = Math.atan2(flatRight, flatFwd);
+  const screen = markerAngle(right, up, fwd, tanX, tanY);
+  if (screen == null) return flat;
+  const nx = (right / fwd) / tanX, ny = (up / fwd) / tanY;
+  const edge = Math.max(Math.abs(nx), Math.abs(ny));
+  return mixAng(screen, flat, smooth01((edge - EDGE_IN) / (EDGE_OUT - EDGE_IN)));
+}
+export function cameraMarkerAngle(camera, x, y, z) {
+  camera.updateMatrixWorld();
+  const e = camera.matrixWorld.elements;
+  const dx = x - camera.position.x, dy = y - camera.position.y, dz = z - camera.position.z;
+  const right = dx * e[0] + dy * e[1] + dz * e[2];
+  const up = dx * e[4] + dy * e[5] + dz * e[6];
+  const fwd = dx * -e[8] + dy * -e[9] + dz * -e[10];
+  const fx = -e[8], fz = -e[10], fl = Math.hypot(fx, fz) || 1;
+  const flatFwd = dx * (fx / fl) + dz * (fz / fl);
+  const flatRight = dx * (-fz / fl) + dz * (fx / fl);
+  const tanY = Math.tan(camera.fov * Math.PI / 360);
+  const tanX = tanY * camera.aspect;
+  return senseAngle(right, up, fwd, flatRight, flatFwd, tanX, tanY);
 }
 export function iconPoint(ang, size) {
   const c = size / 2, R = size * RING;
@@ -90,7 +132,7 @@ export function makeRing(n = 12) {
   return { slots, n };
 }
 // kind 1 footprint, 2 gunshot, 3 explosion. One slot per source, so a burst does not scatter.
-export function ringPush(ring, kind, ang, op, life, id, wx, wz) {
+export function ringPush(ring, kind, ang, op, life, id, wx, wz, wy) {
   let slot = null, oldest = ring.slots[0];
   for (let i = 0; i < ring.n; i++) {
     const s = ring.slots[i];
@@ -104,7 +146,7 @@ export function ringPush(ring, kind, ang, op, life, id, wx, wz) {
   slot.on = 1;
   if (!(same && slot.kind > kind)) slot.kind = kind;
   slot.ang = ang; slot.op = same ? Math.max(slot.op, op) : op; slot.life = life; slot.id = id || '';
-  if (wx != null) { slot.wx = wx; slot.wz = wz; }
+  if (wx != null) { slot.wx = wx; slot.wz = wz; if (wy != null) slot.wy = wy; }
   if (!same) slot.age = 0; else if (slot.age > life * 0.45) slot.age = life * 0.2;
   return slot;
 }
@@ -153,7 +195,7 @@ export function paintRing(ctx, ring, size) {
     const s = ring.slots[i];
     if (!s.on) continue;
     const fade = Math.max(0, 1 - s.age / (s.life || 1));
-    const a = Math.max(0, Math.min(1, s.op)) * fade * (0.45 + 0.55 * fade);
+    const a = Math.max(0, Math.min(1, s.op)) * (0.78 + 0.22 * fade);
     if (a < 0.05) continue;
     ctx.save();
     ctx.translate(c + Math.sin(s.ang) * R, c - Math.cos(s.ang) * R);
