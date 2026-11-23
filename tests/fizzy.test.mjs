@@ -100,8 +100,28 @@ test('Fizzy marks enemies with Sol\'s tier timers and leaves the cloak cooldown 
   const abil = read('petabil3.js');
   assert.match(abil, /function hostOmni[\s\S]*hostMark\(X,p,S,H,tr\)/);
   assert.match(pets, /if\(d\.ab==='veil'\)\{hostMark\(X,p,S,H,tr\)/);
-  assert.match(pets, /id="bScan"|getElementById\('bScan'\)/);
-  assert.match(pets, /scanEl\.classList/);
+  assert.match(pets, /k==='omniscan'/);
+  assert.doesNotMatch(pets, /bScan|scanEl/);
+  assert.doesNotMatch(read('index.html'), /id="bScan"/);
+  assert.doesNotMatch(read('style.css'), /#bScan/);
+  const touchPet = read('style.css').match(/#hud\.touch #bPet\{([^}]*)\}/);
+  assert.ok(touchPet, 'touch pet button rule');
+  assert.match(touchPet[1], /right:12px/);
+  assert.match(touchPet[1], /bottom:288px/);
+  const box = (right, bottom, w, h, W, H) => ({ l: W - right - w, t: H - bottom - h, r: W - right, b: H - bottom });
+  const hit = (a, b) => a.l < b.r - 0.5 && a.r > b.l + 0.5 && a.t < b.b - 0.5 && a.b > b.t + 0.5;
+  const others = [
+    ['jump', 22, 112, 88, 88], ['slide', 34, 210, 62, 62], ['nade', 14, 14, 64, 64],
+    ['med', 86, 12, 64, 64], ['zoom', 204, 128, 60, 60], ['swap', 214, 42, 64, 64], ['nl', 156, 8, 52, 52]
+  ];
+  for (const [W, H] of [[390, 844], [375, 667]]) {
+    const pet = box(12, 288, 62, 62, W, H);
+    assert.ok(W - pet.r <= 12, 'pet sits on the right edge');
+    assert.ok(pet.l > W * 0.42, 'pet is in the look half, not the joystick half');
+    for (const [name, right, bottom, w, h] of others) assert.equal(hit(pet, box(right, bottom, w, h, W, H)), false, name + ' overlaps pet at ' + W);
+    const lookX = pet.l - 24, lookY = (pet.t + pet.b) / 2;
+    assert.ok(lookX > W * 0.42 && (lookX < pet.l || lookY < pet.t || lookY > pet.b), 'look drag beside the pet does not start on it');
+  }
   const veil = pets.slice(pets.indexOf("d.ab==='veil'"), pets.indexOf("d.ab==='guard'"));
   assert.doesNotMatch(veil, /hostOmni|tryRebirth|omniHealRate/);
   assert.match(pets, /id!=='phoenix'&&d\.ab!=='omni'/);

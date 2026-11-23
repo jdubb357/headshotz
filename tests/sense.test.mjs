@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from '../lib/three.module.min.js';
-import { clampZoom, mapSpan, zoomAbout, pinchMap, panBy, mapPoint, stepOpacity, gunHear, shotOpacity, relBearing, groundAngle, cameraMarkerAngle, senseAngle, segDist, iconPoint, makeRing, ringPush, ringStep } from '../sense.js';
+import { clampZoom, mapSpan, zoomAbout, pinchMap, panBy, mapPoint, mapWorld, mapGesture, markerHit, edgeClamp, placeMark, clearMark, markVisible, TAP_PX, stepOpacity, gunHear, shotOpacity, relBearing, groundAngle, cameraMarkerAngle, senseAngle, segDist, iconPoint, makeRing, ringPush, ringStep } from '../sense.js';
 
 const quiet = { enemy: 1, cloaked: 0, crouch: 0, air: 0 };
 
@@ -23,6 +23,42 @@ test('the full map zooms from 1x to 4x and keeps the point under the cursor', ()
   assert.equal(pinch.z, 2);
   const held = mapPoint(20, 0, pinch, 100, 100, 100);
   assert.ok(Math.abs(held[0] - 80) < 0.01);
+});
+
+test('a map tap converts back to the same world point at every zoom, and a drag does not count as a tap', () => {
+  assert.equal(mapGesture(0, 0, 1), 'tap');
+  assert.equal(mapGesture(TAP_PX, 0, 1), 'tap');
+  assert.equal(mapGesture(TAP_PX + 1, 2, 1), 'pan');
+  assert.equal(mapGesture(0, 0, 2), 'pinch');
+  for (const z of [1, 2, 4]) {
+    const cam = { z, cx: 30, cz: -12 };
+    const spot = mapWorld(180, 90, cam, 320, 240, 420);
+    const back = mapPoint(spot[0], spot[1], cam, 320, 240, 420);
+    assert.ok(Math.abs(back[0] - 180) < 1e-6, `x zoom ${z}`);
+    assert.ok(Math.abs(back[1] - 90) < 1e-6, `y zoom ${z}`);
+    assert.ok(markerHit(back[0], back[1], spot[0], spot[1], cam, 320, 240, 420, 16));
+  }
+  const wide = mapPoint(40, -20, { z: 1, cx: 0, cz: 0 }, 200, 200, 400);
+  const tight = mapPoint(40, -20, { z: 4, cx: 0, cz: 0 }, 200, 200, 400);
+  assert.ok(Math.hypot(wide[0] - tight[0], wide[1] - tight[1]) > 20);
+  const inside = edgeClamp(110, 100, 100, 100, 40);
+  assert.equal(inside.edge, false);
+  const out = edgeClamp(180, 100, 100, 100, 40);
+  assert.equal(out.edge, true);
+  assert.ok(Math.abs(out.x - 140) < 1e-6);
+  assert.ok(Math.abs(out.y - 100) < 1e-6);
+  let marks = placeMark({}, 'me', 12, -4);
+  marks = placeMark(marks, 'ally', 3, 8);
+  marks = placeMark(marks, 'me', 20, 1);
+  assert.equal(marks.me.x, 20);
+  assert.equal(marks.ally.z, 8);
+  assert.equal(Object.keys(marks).length, 2);
+  marks = clearMark(marks, 'me');
+  assert.equal(marks.me, undefined);
+  assert.equal(marks.ally.x, 3);
+  assert.equal(markVisible('me', 'me', false), true);
+  assert.equal(markVisible('ally', 'me', true), true);
+  assert.equal(markVisible('foe', 'me', false), false);
 });
 
 test('footsteps fade with distance and stay quiet for teammates, crouch, cloak, and standing still', () => {

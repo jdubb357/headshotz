@@ -104,6 +104,9 @@ No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunde
 ## v96 — Pet batch 3
 No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
 
+## v115 — Royale map waypoint
+No third-party assets. A tap on the Battle Royale map drops one original map pin per player. The same mark is drawn on the minimap and as a colored beam in `game.js`. Squadmates see it in the owner's color. Fizzy still scans on her own; the scan chip is not on the HUD. Nothing here is a Fortnite asset.
+
 ## v114 — Sound marks follow the camera picture
 No third-party assets. The direction ring in `sense.js` uses the render camera's projection while a source is on screen, and eases onto the camera's flat yaw once the source leaves the picture or passes behind. Nothing here is a Fortnite asset.
 
