@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { CLOAK, cloakBlocks, hostCloak, tickCloak, veilView } from '../petabil3.js';
+import { CLOAK, cloakBlocks, hostCloak, hostMark, OMNI_MARK, tickCloak, veilView } from '../petabil3.js';
 
 // Fizzy: small Godly rainbow chameleon. A lick cloaks you for 10s. Cooldown is 15s.
 const root = new URL('..', import.meta.url);
@@ -78,4 +78,32 @@ test('a lick cloaks for 10s, blocks every hit, hides you, and waits 15s', () => 
   assert.equal(cloakBlocks(p, 14), false);
   assert.equal(hostCloak(X, p, S, { t: 18 }), true);
   assert.equal(p.cloak, 28);
+});
+
+test('Fizzy marks enemies with Sol\'s tier timers and leaves the cloak cooldown alone', () => {
+  assert.deepEqual(OMNI_MARK.dur, [5, 7, 10]);
+  assert.deepEqual(OMNI_MARK.cd, [18, 14, 10]);
+  const expect = [[1, 5, 18], [2, 7, 14], [3, 10, 10]];
+  for (const [tier, dur, cd] of expect) {
+    const sent = [];
+    const S = { cd: 99 };
+    const p = { id: 'me' };
+    assert.equal(hostMark({ bcast: m => sent.push(m) }, p, S, { t: 2 }, tier), true);
+    assert.equal(sent[0].k, 'omniscan');
+    assert.equal(sent[0].d, dur);
+    assert.equal(sent[0].cd, cd);
+    assert.equal(S.mk, 2 + cd);
+    assert.equal(S.cd, 99);
+    assert.equal(hostMark({ bcast: m => sent.push(m) }, p, S, { t: 2 + cd - 0.05 }, tier), false);
+    assert.equal(sent.length, 1);
+  }
+  const abil = read('petabil3.js');
+  assert.match(abil, /function hostOmni[\s\S]*hostMark\(X,p,S,H,tr\)/);
+  assert.match(pets, /if\(d\.ab==='veil'\)\{hostMark\(X,p,S,H,tr\)/);
+  assert.match(pets, /id="bScan"|getElementById\('bScan'\)/);
+  assert.match(pets, /scanEl\.classList/);
+  const veil = pets.slice(pets.indexOf("d.ab==='veil'"), pets.indexOf("d.ab==='guard'"));
+  assert.doesNotMatch(veil, /hostOmni|tryRebirth|omniHealRate/);
+  assert.match(pets, /id!=='phoenix'&&d\.ab!=='omni'/);
+  assert.match(game, /v\.cloak&&H\.t<v\.cloak/);
 });

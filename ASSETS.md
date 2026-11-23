@@ -104,6 +104,9 @@ No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunde
 ## v96 — Pet batch 3
 No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
 
+## v110 — Fizzy shares Sol's wall mark
+No third-party assets. Fizzy calls the same `hostMark` pulse Sol already uses (`petabil3.js`). The cloak button stays the lick. A separate scan chip on the HUD shows the mark timer. Nothing here is a copyrighted character.
+
 ## v109 — Fizzy cloak, Sol's mark, Royale building dress
 No third-party assets. Fizzy is a small original rainbow chameleon in `petmodels4.js` (one lofted body, casque, turret eyes, curled tail). The lick cloak is original code in `petabil3.js` and `sidekicks.js`. Sol's tiered wall mark is original code in `petabil3.js`. Battle Royale building trim, frames, glass, awnings, and roof props are extra non-solid boxes in `br.js`, plus a procedural siding texture in `gfx.js`. Nothing here is a copyrighted character.
 
