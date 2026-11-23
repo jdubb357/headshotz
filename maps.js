@@ -10,11 +10,12 @@ import {GQ,THREE,G,mergeParts,texMat,glowMat,TX,makeSky,makeHorizon,makeRaidHori
 const _c=new THREE.Color();
 function Builder(){const T={},cols=[],shadows=[],glows=[],ladders=[],hides=[],links=[],nav=[];
  const add=(tex,pt)=>{(T[tex]=T[tex]||[]).push(pt)};
- const dl=[];const B={T,cols,shadows,glows,ladders,hides,links,nav,fxs:[],props:[],dl,
+ const dl=[];const flat=[];const B={T,cols,shadows,glows,ladders,hides,links,nav,fxs:[],props:[],dl,flat,
   // v58b swinging door: x,z = centre of the gap in the wall, y = floor, w = gap width, h = door height, ax = 'x' (wall runs along X) or 'z', out = sign of the outside direction on the other axis
   door(x,z,y,w,h,ax,out){const c=ax==='x'?{x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-.07,z1:z+.07,s:'planks'}:{x0:x-.07,x1:x+.07,y0:y,y1:y+h,z0:z-w/2,z1:z+w/2,s:'planks'};c.door=dl.length;cols.push(c);dl.push({id:dl.length,x,z,y,w,h,ax,out,col:c,o:0,a:0,oy0:c.y0,oy1:c.y1});return B},
   // axis aligned box, y = bottom
   box(x,y,z,w,h,d,c,tex='concrete',o={}){if(!o.novis)add(tex,{g:G('box',w,h,d),p:[x,y+h/2,z],c,uv:o.local?'local':undefined,us:o.us,gy:o.gy??0,ao:o.ao});
+   if(h<0.2&&y<0.3&&(tex==='asphalt'||tex==='dirt'))flat.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,dirt:tex==='dirt'});
    if(o.solid!==false)cols.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2,s:tex});if(o.shadow!==false&&y<.06&&w*d>.2)shadows.push([x,z,w+.55,d+.55]);return B},
   part(tex,pt,solid){add(tex,pt);if(solid)cols.push(solid);return B},
   cyl(x,y,z,r,h,c,tex='metal',o={}){if(!o.novis)add(tex,{g:G('cyl',r,o.r2??r,h,o.seg||10),p:[x,y+h/2,z],c,us:o.us,gy:o.gy??0,ao:o.ao});if(o.solid!==false){const k=r*.85;cols.push({x0:x-k,x1:x+k,y0:y,y1:y+h,z0:z-k,z1:z+k,s:tex})}if(o.shadow!==false&&y<.06)shadows.push([x,z,r*2+.5,r*2+.5]);return B},
@@ -500,7 +501,7 @@ export function buildMap(i){if(cache[i])return cache[i];const d=DEFS[i];const B=
  const lim=[sx/2,sz/2];const fix=l=>l.map(s=>fixSpawn(B.cols,s,lim));
  if(B.props.length){const by={};for(const q of B.props)(by[q.k]=by[q.k]||[]).push(q);const o=new THREE.Object3D(),col=new THREE.Color();for(const k in by){const M=HQP.models[k],L=by[k];const im=new THREE.InstancedMesh(M.geo,M.mat,L.length);
   L.forEach((q,j)=>{o.position.set(q.x,q.y,q.z);o.rotation.set(0,q.ry,0);if(k==='crate')o.scale.set(q.s/M.size.x,q.s/M.size.y,q.s/M.size.z);else o.scale.setScalar(q.s/M.size.y);o.updateMatrix();im.setMatrixAt(j,o.matrix);im.setColorAt(j,col.set(0xffffff).lerp(col.clone().set(q.c),k==='barrel'?.55:.15))});im.castShadow=im.receiveShadow=true;im.userData.hqProp=1;group.add(im)}}
- return cache[i]={lootSpots:B.brLoot||[],chestSpots:B.brChests||[],doors:B.brDoors||[],zones:d.zones||null,hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,doorsL:B.dl,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,groundAt:d.terrainSample,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
+ return cache[i]={lootSpots:B.brLoot||[],chestSpots:B.brChests||[],doors:B.brDoors||[],zones:d.zones||null,hqProps:GQ.level==='low'||HQP.ready,def:d,group,sky,water,waterY:water?-.9:null,grassDefs:d.grass||[],cols:B.cols,roads:B.flat,doorsL:B.dl,ladders:B.ladders,hides:B.hides,links:B.links,nav:B.nav,fx:B.fxs,sunDir,groundAt:d.terrainSample,spawnsA:fix(d.spawnsA),spawnsB:fix(d.spawnsB),spawnsM:fix(d.spawnsM),groundHalf:d.pier?[sx/2,sz/2]:[1e9,1e9],size:d.size}}
 function makeWaterTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#cfe8ff';x.fillRect(0,0,128,128);const r=rng(5);
  for(let i=0;i<90;i++){x.strokeStyle=`rgba(255,255,255,${.25+r()*.4})`;x.lineWidth=1+r()*1.5;x.beginPath();const px=r()*128,py=r()*128;x.moveTo(px,py);x.quadraticCurveTo(px+6,py-3,px+12+r()*8,py);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(40,40);t.colorSpace=THREE.SRGBColorSpace;return t}

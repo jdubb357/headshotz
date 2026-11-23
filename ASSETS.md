@@ -104,6 +104,18 @@ No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunde
 ## v96 — Pet batch 3
 No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
 
+## v114 — Sound marks follow the camera picture
+No third-party assets. The direction ring in `sense.js` uses the render camera's projection while a source is on screen, and eases onto the camera's flat yaw once the source leaves the picture or passes behind. Nothing here is a Fortnite asset.
+
+## v113 — Crisp Royale map and camera-aimed marks
+No third-party assets. The Royale overview is a 2048 canvas drawn in `game.js` from the map's own roads and building volumes. Sound marks in `sense.js` use the render camera's ground axes. Nothing here is a Fortnite asset.
+
+## v112 — Louder sound ring
+No third-party assets. The footprint and gunshot marks in `sense.js` are larger canvas drawings with a dark outline and an orange glow. The bearing matches the camera's look direction. Nothing here is a Fortnite asset.
+
+## v111 — Big Royale map and the sound ring
+No third-party assets. The full Battle Royale map zoom, pinch, and pan live in `sense.js` and `game.js`. Footprint, gunshot, and explosion marks on the center ring are drawn with canvas paths in `sense.js`. Nothing here is a Fortnite asset or a copyrighted character.
+
 ## v110 — Fizzy shares Sol's wall mark
 No third-party assets. Fizzy calls the same `hostMark` pulse Sol already uses (`petabil3.js`). The cloak button stays the lick. A separate scan chip on the HUD shows the mark timer. Nothing here is a copyrighted character.
 
