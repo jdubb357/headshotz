@@ -62,12 +62,16 @@ export function shotOpacity(dist, range, aimed) {
   const b = Math.max(0.55, 1 - dist / range);
   return Math.min(1, aimed ? Math.max(0.55, b * 1.35) : b);
 }
-// 0 is straight ahead (screen up), positive is screen-right.
-// The camera looks along (-sin yaw, -cos yaw), so yaw 0 faces -Z and yaw PI/2 faces -X.
+// Angle of a ground offset in the render camera's frame.
+// fwd is the camera look flattened onto the ground (Three.js looks down local -Z).
+// right = (-fwdZ, fwdX). 0 is screen-up, positive is screen-right.
+export function groundAngle(dx, dz, fwdX, fwdZ) {
+  const right = dx * -fwdZ + dz * fwdX;
+  const fwd = dx * fwdX + dz * fwdZ;
+  return Math.atan2(right, fwd);
+}
 export function relBearing(yaw, dx, dz) {
-  const world = Math.atan2(-dx, -dz);
-  const w = yaw - world;
-  return Math.atan2(Math.sin(w), Math.cos(w));
+  return groundAngle(dx, dz, -Math.sin(yaw), -Math.cos(yaw));
 }
 export function iconPoint(ang, size) {
   const c = size / 2, R = size * RING;
@@ -86,7 +90,7 @@ export function makeRing(n = 12) {
   return { slots, n };
 }
 // kind 1 footprint, 2 gunshot, 3 explosion. One slot per source, so a burst does not scatter.
-export function ringPush(ring, kind, ang, op, life, id) {
+export function ringPush(ring, kind, ang, op, life, id, wx, wz) {
   let slot = null, oldest = ring.slots[0];
   for (let i = 0; i < ring.n; i++) {
     const s = ring.slots[i];
@@ -100,6 +104,7 @@ export function ringPush(ring, kind, ang, op, life, id) {
   slot.on = 1;
   if (!(same && slot.kind > kind)) slot.kind = kind;
   slot.ang = ang; slot.op = same ? Math.max(slot.op, op) : op; slot.life = life; slot.id = id || '';
+  if (wx != null) { slot.wx = wx; slot.wz = wz; }
   if (!same) slot.age = 0; else if (slot.age > life * 0.45) slot.age = life * 0.2;
   return slot;
 }
@@ -111,60 +116,50 @@ export function ringStep(ring, dt) {
     if (s.age >= s.life) s.on = 0;
   }
 }
-function foot(ctx, s) {
-  const u = Math.max(18, s * 0.11);
-  ctx.lineWidth = Math.max(3, u * 0.16);
-  ctx.strokeStyle = '#140c08';
+function foot(ctx, w) {
+  const u = w * 0.34;
+  ctx.lineWidth = Math.max(1.25, w * 0.06);
+  ctx.strokeStyle = '#16110e';
   ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0,0,0,.9)';
-  ctx.shadowBlur = u * 0.28;
-  const blob = (x, y, rot) => { ctx.beginPath(); ctx.ellipse(x, y, u * 0.34, u * 0.58, rot, 0, 6.3); ctx.fill(); ctx.shadowBlur = 0; ctx.stroke(); ctx.shadowBlur = u * 0.28; };
-  blob(-u * 0.42, -u * 0.05, -0.4);
-  blob(u * 0.42, -u * 0.02, 0.4);
+  const blob = (x, y, rot) => { ctx.beginPath(); ctx.ellipse(x, y, u * 0.42, u * 0.62, rot, 0, 6.3); ctx.fill(); ctx.stroke(); };
+  blob(-w * 0.24, 0, -0.35);
+  blob(w * 0.24, w * 0.02, 0.35);
 }
-function gun(ctx, s) {
-  const u = Math.max(16, s * 0.072);
-  ctx.shadowColor = '#ff2a00';
-  ctx.shadowBlur = u * 0.85;
-  ctx.fillStyle = '#ff2d14';
-  ctx.strokeStyle = '#fff4e8';
-  ctx.lineWidth = Math.max(3, u * 0.2);
-  ctx.beginPath(); ctx.arc(0, 0, u, 0, 6.3); ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
-  ctx.shadowColor = '#ff2a00'; ctx.shadowBlur = u * 0.55;
+function gun(ctx, d) {
+  ctx.shadowColor = 'rgba(255,60,20,.85)';
+  ctx.shadowBlur = d * 0.35;
+  ctx.fillStyle = '#ff3a18';
+  ctx.strokeStyle = '#fff3ea';
+  ctx.lineWidth = Math.max(1.25, d * 0.1);
+  ctx.beginPath(); ctx.arc(0, 0, d * 0.34, 0, 6.3); ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(0, -u * 1.15); ctx.lineTo(0, -u * 1.85);
-  ctx.moveTo(-u * 0.75, -u * 0.75); ctx.lineTo(-u * 1.4, -u * 1.4);
-  ctx.moveTo(u * 0.75, -u * 0.75); ctx.lineTo(u * 1.4, -u * 1.4);
+  ctx.moveTo(0, -d * 0.42); ctx.lineTo(0, -d * 0.5);
+  ctx.moveTo(-d * 0.3, -d * 0.3); ctx.lineTo(-d * 0.42, -d * 0.42);
+  ctx.moveTo(d * 0.3, -d * 0.3); ctx.lineTo(d * 0.42, -d * 0.42);
   ctx.stroke();
 }
-function boom(ctx, s) {
-  const u = Math.max(16, s * 0.09);
-  ctx.shadowColor = '#ff5a00';
-  ctx.shadowBlur = u * 0.7;
-  ctx.fillStyle = '#ff6a12';
+function boom(ctx, d) {
+  ctx.fillStyle = '#ff6a18';
   ctx.strokeStyle = '#fff1d8';
-  ctx.lineWidth = Math.max(2, u * 0.14);
+  ctx.lineWidth = Math.max(1.2, d * 0.08);
   ctx.beginPath();
-  for (let i = 0; i < 10; i++) { const a = i / 10 * 6.2832 - Math.PI / 2, r = i % 2 ? u * 0.45 : u; const x = Math.cos(a) * r, y = Math.sin(a) * r; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-  ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
+  for (let i = 0; i < 8; i++) { const a = i / 8 * 6.2832 - Math.PI / 2, r = i % 2 ? d * 0.22 : d * 0.46; const x = Math.cos(a) * r, y = Math.sin(a) * r; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 export function paintRing(ctx, ring, size) {
   const c = size / 2, R = size * RING;
   ctx.clearRect(0, 0, size, size);
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = 'rgba(255,255,255,.72)'; ctx.lineWidth = Math.max(3, size * 0.012);
-  ctx.beginPath(); ctx.arc(c, c, R, 0, 6.2832); ctx.stroke();
   for (let i = 0; i < ring.n; i++) {
     const s = ring.slots[i];
     if (!s.on) continue;
-    const fade = 1 - s.age / (s.life || 1);
-    const a = fade < 0.22 ? Math.max(0, s.op * fade / 0.22) : Math.max(0.55, Math.min(1, s.op));
-    if (a < 0.04) continue;
+    const fade = Math.max(0, 1 - s.age / (s.life || 1));
+    const a = Math.max(0, Math.min(1, s.op)) * fade * (0.45 + 0.55 * fade);
+    if (a < 0.05) continue;
     ctx.save();
     ctx.translate(c + Math.sin(s.ang) * R, c - Math.cos(s.ang) * R);
     ctx.rotate(s.ang);
     ctx.globalAlpha = a;
-    if (s.kind === 1) foot(ctx, size); else if (s.kind === 3) boom(ctx, size); else gun(ctx, size);
+    if (s.kind === 1) foot(ctx, size * 0.092); else if (s.kind === 3) boom(ctx, size * 0.09); else gun(ctx, size * 0.107);
     ctx.restore();
   }
   ctx.globalAlpha = 1;

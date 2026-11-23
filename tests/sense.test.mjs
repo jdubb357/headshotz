@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clampZoom, mapSpan, zoomAbout, pinchMap, panBy, mapPoint, stepOpacity, gunHear, shotOpacity, relBearing, segDist, iconPoint, makeRing, ringPush, ringStep } from '../sense.js';
+import { clampZoom, mapSpan, zoomAbout, pinchMap, panBy, mapPoint, stepOpacity, gunHear, shotOpacity, relBearing, groundAngle, segDist, iconPoint, makeRing, ringPush, ringStep } from '../sense.js';
 
 const quiet = { enemy: 1, cloaked: 0, crouch: 0, air: 0 };
 
@@ -45,6 +45,19 @@ test('gunshots use a 60-80 m range, and a shot aimed at you reads louder', () =>
   assert.equal(shotOpacity(90, range, true), 0);
   assert.ok(segDist(0, 0, 10, 0, 5, 1) < 2.4);
   assert.ok(shotOpacity(24, range, false) >= 0.55);
+});
+
+test('a target 90 degrees left of the camera sits on the left of the ring', () => {
+  // Render camera looks down -Z. Its right axis is +X, so -X is 90 degrees left.
+  const left = groundAngle(-12, 0, 0, -1);
+  assert.ok(Math.abs(left + Math.PI / 2) < 1e-6);
+  const p = iconPoint(left, 200);
+  assert.ok(p[0] < 100);
+  assert.ok(Math.abs(p[1] - 100) < 1);
+  const right = groundAngle(12, 0, 0, -1);
+  const q = iconPoint(right, 200);
+  assert.ok(q[0] > 100);
+  assert.ok(Math.abs(q[1] - 100) < 1);
 });
 
 test('the ring points at a known target for the camera yaw', () => {
