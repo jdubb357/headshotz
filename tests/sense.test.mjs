@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clampZoom, mapSpan, zoomAbout, pinchMap, panBy, mapPoint, stepOpacity, gunHear, shotOpacity, relBearing, segDist, makeRing, ringPush, ringStep } from '../sense.js';
+import { clampZoom, mapSpan, zoomAbout, pinchMap, panBy, mapPoint, stepOpacity, gunHear, shotOpacity, relBearing, segDist, iconPoint, makeRing, ringPush, ringStep } from '../sense.js';
 
 const quiet = { enemy: 1, cloaked: 0, crouch: 0, air: 0 };
 
@@ -44,8 +44,26 @@ test('gunshots use a 60-80 m range, and a shot aimed at you reads louder', () =>
   assert.ok(shotOpacity(20, range, true) > shotOpacity(20, range, false));
   assert.equal(shotOpacity(90, range, true), 0);
   assert.ok(segDist(0, 0, 10, 0, 5, 1) < 2.4);
-  assert.ok(Math.abs(relBearing(0, 0, -10)) < 1e-6);
-  assert.ok(relBearing(0, 10, 0) > 1);
+  assert.ok(shotOpacity(24, range, false) >= 0.55);
+});
+
+test('the ring points at a known target for the camera yaw', () => {
+  // yaw 0 looks toward -Z, which is the top of the screen.
+  const ahead = relBearing(0, 0, -12);
+  assert.ok(Math.abs(ahead) < 1e-6);
+  const up = iconPoint(ahead, 400);
+  assert.ok(up[1] < 160);
+  assert.ok(Math.abs(up[0] - 200) < 1);
+  // +X is the player's right, so the icon sits on the right of the ring.
+  const right = relBearing(0, 14, 0);
+  assert.ok(Math.abs(right - Math.PI / 2) < 1e-6);
+  const side = iconPoint(right, 400);
+  assert.ok(side[0] > 280);
+  assert.ok(Math.abs(side[1] - 200) < 1);
+  // yaw PI/2 looks toward -X. That target is still straight ahead.
+  const turned = relBearing(Math.PI / 2, -9, 0);
+  assert.ok(Math.abs(turned) < 1e-6);
+  assert.ok(iconPoint(turned, 400)[1] < 160);
 });
 
 test('the direction ring reuses slots instead of growing', () => {
@@ -54,6 +72,11 @@ test('the direction ring reuses slots instead of growing', () => {
   ringPush(ring, 1, 0.4, 0.9, 1, 'bot');
   assert.equal(ring.slots.filter(s => s.on && s.id === 'bot').length, 1);
   assert.equal(ring.slots[0].ang, 0.4);
+  ringPush(ring, 2, 1, 1, 2, 'bot');
+  assert.equal(ring.slots.filter(s => s.on && s.id === 'bot').length, 1);
+  assert.equal(ring.slots.find(s => s.id === 'bot').kind, 2);
+  ringPush(ring, 1, 0.2, 0.6, 1, 'bot');
+  assert.equal(ring.slots.find(s => s.id === 'bot').kind, 2);
   ringPush(ring, 2, 1, 1, 0.5, 'gun');
   ringStep(ring, 0.6);
   assert.equal(ring.slots.find(s => s.id === 'gun').on, 0);

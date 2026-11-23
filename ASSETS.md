@@ -104,6 +104,9 @@ No third-party assets. Wisp (Phantom Wisp), Glacier (Frost Fox) and Volt (Thunde
 ## v96 — Pet batch 3
 No third-party assets. Rocky (Stone Golem Pup), Fenix (Phoenix Chick), Finn (Shark-Pup), Mirra (Mirror Monkey), Orbit (Gravity Owl), Bandit (Magnet Raccoon) and Magnetron (Magnet Drone) are original in-code models (`petmodels3.js`, built with `petkit.js`); abilities live in `petabil2.js`.
 
+## v112 — Louder sound ring
+No third-party assets. The footprint and gunshot marks in `sense.js` are larger canvas drawings with a dark outline and an orange glow. The bearing matches the camera's look direction. Nothing here is a Fortnite asset.
+
 ## v111 — Big Royale map and the sound ring
 No third-party assets. The full Battle Royale map zoom, pinch, and pan live in `sense.js` and `game.js`. Footprint, gunshot, and explosion marks on the center ring are drawn with canvas paths in `sense.js`. Nothing here is a Fortnite asset or a copyrighted character.
 
