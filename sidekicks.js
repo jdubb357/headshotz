@@ -3,7 +3,7 @@
 // active ones (scout / decoy) use the ability button / X key, sprinter + tracker run on the client. Equipped pet id travels in the weapon-skin
 // object (ws.pet) so it syncs everywhere ws already syncs (join, lobby, 'ws' messages).
 import {THREE} from './gfx.js';
-import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {NB4,detailOriginal} from './petmodels4.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {RIDES,rideOf,shouldDismount,hostOmni,hostSpinGrab,hostSecret,tryRebirth,hostCloak,tickCloak,CLOAK,OMNI_MARK} from './petabil3.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
+import {NB} from './petmodels.js';import {NB2} from './petmodels2.js';import {NB3} from './petmodels3.js';import {NB4,detailOriginal} from './petmodels4.js';import {TV3,NAB3,hostUse3,clientFx3,updateFx3,resetFx3} from './petabil2.js';import {TV2,NAB,hostUse2,hostTick2,clientFx2,updateFx2,ghosted,unghost,phaseClear} from './petabil.js';import {RIDES,rideOf,shouldDismount,hostOmni,hostMark,hostSpinGrab,hostSecret,tryRebirth,hostCloak,tickCloak,CLOAK,OMNI_MARK} from './petabil3.js';import {decorate,animDeco,spriteMat,glowTex} from './petkit.js';
 export {RIDES,rideOf,shouldDismount};
 export const RAR_N=['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY','GODLY','SECRET'];
 export const RAR_C=['#9aa4b2','#4cd964','#4dabff','#b37bff','#ffb020','#ffd700','#ff2b2b'];
@@ -32,7 +32,7 @@ export const AB={
  wolf:{n:'Storm Run',ic:'🐺',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. Tier ${t}: ${Math.round((RIDES.stormwolf.spd[t-1]-1)*100)}% speed, jump ×${RIDES.stormwolf.jump[t-1]}. You can shoot. Heavy hits (${RIDES.stormwolf.heavy}+) dismount you.`},
  ostrich:{n:'Rocket Hop',ic:'🚀',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. Tier ${t}: ${Math.round((RIDES.rocketrich.spd[t-1]-1)*100)}% speed, jump ×${RIDES.rocketrich.jump[t-1]}. Hands stay on the rocket, so you cannot shoot until you hop off. Heavy hits (${RIDES.rocketrich.heavy}+) dismount you.`},
  raptor:{n:'Raptor Dash',ic:'🦖',act:0,d:(p,t=1)=>`Press R or the buddy button to ride. Tier ${t}: ${Math.round((RIDES.raptor.spd[t-1]-1)*100)}% speed, jump ×${RIDES.raptor.jump[t-1]}. You can shoot from the saddle. Heavy hits (${RIDES.raptor.heavy}+) dismount you.`},
- veil:{n:'Rainbow Cloak',ic:'🦎',act:1,d:()=>`Fizzy licks you and the lick spreads a rainbow cloak. Invisible and invincible for ${CLOAK.dur} seconds. Ready again ${CLOAK.cd} seconds after you use it.`}};
+ veil:{n:'Rainbow Cloak',ic:'🦎',act:1,d:(p,t=1)=>`Fizzy licks you and the lick spreads a rainbow cloak. Invisible and invincible for ${CLOAK.dur} seconds. Ready again ${CLOAK.cd} seconds after you use it. On his own timer he marks enemies through walls for ${OMNI_MARK.dur[t-1]} s (T1 ${OMNI_MARK.dur[0]} s / ${OMNI_MARK.cd[0]} s · T2 ${OMNI_MARK.dur[1]} s / ${OMNI_MARK.cd[1]} s · T3 ${OMNI_MARK.dur[2]} s / ${OMNI_MARK.cd[2]} s).`}};
 // pw = power multiplier of the ability (kept modest so nothing is overpowered)
 Object.assign(AB,NAB,NAB3);Object.assign(TV,TV2,TV3);
 export const SK_DEFS=[
@@ -78,7 +78,7 @@ export const SK_IDS=SK_DEFS.map(d=>d.id);
 export const SK_FLAVOR={dog:'Loyal and a little bit grumpy.',cat:'Always lands on a good drop.',bunny:'Collects everything that bounces.',bat:'Hears enemies through the walls.',fox:'Never loses a trail.',penguin:'Waddles over with bandages.',bear:'Big hugs, bigger bubbles.',tiger:'Makes a very convincing double of you.',hedgehog:'Zoom zoom! Original speedy hedgehog.',lion:'Sniffs diamonds from across the map.',superdog:'Cape on, ears up, zap zap!',twohead:'Two heads, one very good nose.',robot:'Beep boop, scanning...',ghost:'Boo! Now you see me, now you don\'t.',dragon:'Hoards luck instead of gold.'};
 SK_FLAVOR.shadowbat='Becomes a bat when the lights go out.';SK_FLAVOR.emberdragon='Small, proud and very, very warm.';SK_FLAVOR.specter='Drifts through walls like they were fog.';SK_FLAVOR.frostfox='Leaves frost where it steps.';SK_FLAVOR.stonegolem='Small, sturdy, and very good at walls.';SK_FLAVOR.phoenix='Burns out, then bursts back brighter.';SK_FLAVOR.sharkpup='Swims through sand like it was the sea.';SK_FLAVOR.mirrormonkey='Which one is the real you?';SK_FLAVOR.gravityowl='Weightless wisdom with a mean hop.';SK_FLAVOR.raccoon='Steals the loot right off the floor.';SK_FLAVOR.magnetdrone='Vacuums up supplies, no strings attached.';SK_FLAVOR.thunderhawk='Calls the storm down on one unlucky target.';
 SK_FLAVOR.chimera='Lion, goat and serpent, all in gold. Heals you, and rises with you when a hit would end it.';
-SK_FLAVOR.fizzy='Fizzy the Rainbow Chameleon. One lick cloaks you.';
+SK_FLAVOR.fizzy='Fizzy the Rainbow Chameleon. One lick cloaks you. He marks enemies through walls.';
 SK_FLAVOR.novamoth='Violet wings and a pulse that finds people through walls.';SK_FLAVOR.seahorse='Coral ribbons and a steady mend.';SK_FLAVOR.scorpion='Amber glass and a patient sting.';SK_FLAVOR.peacock='A fan of teal, gold and magenta. The decoy is the pretty one.';SK_FLAVOR.spincapy='A barrel-bodied rider that spins the loot off the ground.';SK_FLAVOR.stormwolf='Silver fur, blue sparks, and a very fast saddle.';SK_FLAVOR.rocketrich='Long legs and a small rocket. Hop first, shoot later.';SK_FLAVOR.raptor='Feathers, a hooked claw, and room to aim.';
 export const abOf=(id,tier=1)=>{const d=SK_BY[id];return d?{...AB[d.ab],key:d.ab,pw:d.pw,text:AB[d.ab].d(d.pw*TM[tier-1],tier)}:null};
 // ---------------------------------------------------------------- models (shared geometry + cached materials: cheap on phones)
@@ -188,12 +188,13 @@ export function initSidekicks(A){
  const beamG=new THREE.CylinderGeometry(.03,.03,1,6);beamG.rotateX(Math.PI/2);beamG.translate(0,0,.5);
  function holoMk(){const g=new THREE.Group();const m=new THREE.MeshBasicMaterial({color:0x46e0ff,transparent:true,opacity:.45,depthWrite:false,blending:THREE.AdditiveBlending,wireframe:false});const add=(geo,x,y,z,sx,sy,sz)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);g.add(o)};add(GE.sph,0,1.62,0,.16,.19,.16);add(GE.box,0,1.2,0,.3,.5,.18);for(const s of[-1,1]){add(GE.box,s*.2,1.15,0,.08,.5,.1);add(GE.box,s*.09,.45,0,.12,.85,.14)}g.userData.m=m;return g}
  // ---- ability state
- let cdUntil=0,dur=0;const btn=document.getElementById('bPet');
+ let cdUntil=0,dur=0,scanUntil=0,scanCdUntil=0;const btn=document.getElementById('bPet'),scanEl=document.getElementById('bScan');
  const myDef=()=>SK_BY[P0.pet];const myTier=()=>tierOf({pt:P0.pt&&P0.pt[P0.pet]});const myPw=d=>d.pw*TM[myTier()-1];
  function mounted(){return me.ride&&me.ride.on?me.ride:null}
  function toggleRide(){const d=myDef();if(!d||!d.ride||!A.inGame()||!me.alive)return false;const on=!(me.ride&&me.ride.on);const st=on?rideOf(d.id,myTier()):null;me.ride=st&&on?{on:1,...st}:null;A.send({t:'pab',k:'ride',on:on?1:0});A.toast&&A.toast(on?`Riding ${d.name}`:`${d.name} hops down`);return true}
  function activeDef(){const d=myDef();if(d&&d.ride)return d;return d&&AB[d.ab]&&AB[d.ab].act?d:null}
- function setBtn(){if(!btn)return;const d=activeDef();const show=!!d&&A.inGame()&&!C.hub&&me.alive;btn.classList.toggle('hidden',!show);if(!show)return;const nowMs=performance.now();const left=d.ride?0:Math.max(0,cdUntil-nowMs);const secs=left?Math.ceil(left/1000):0;btn.innerHTML=`<span class="pi">${d.ride?(mounted()?'⬇':'🏇'):AB[d.ab].ic}</span>${secs?`<b class="cd">${secs}</b>`:''}`;btn.style.setProperty('--cd',left?String(Math.round(100*(1-left/(dur||1)))):'100');btn.classList.toggle('cool',left>0);btn.title=d.ride?(mounted()?'Dismount (R)':'Ride (R)'):(AB[d.ab].n+(secs?` · ${secs}s`:''))}
+ function setBtn(){if(!btn)return;const d=activeDef();const show=!!d&&A.inGame()&&!C.hub&&me.alive;btn.classList.toggle('hidden',!show);const nowMs=performance.now();if(show){const left=d.ride?0:Math.max(0,cdUntil-nowMs);const secs=left?Math.ceil(left/1000):0;btn.innerHTML=`<span class="pi">${d.ride?(mounted()?'⬇':'🏇'):AB[d.ab].ic}</span>${secs?`<b class="cd">${secs}</b>`:''}`;btn.style.setProperty('--cd',left?String(Math.round(100*(1-left/(dur||1)))):'100');btn.classList.toggle('cool',left>0);btn.title=d.ride?(mounted()?'Dismount (R)':'Ride (R)'):(AB[d.ab].n+(secs?` · ${secs}s`:''))}
+  if(!scanEl)return;const scanOn=!!myDef()&&myDef().ab==='veil'&&A.inGame()&&!C.hub&&me.alive;scanEl.classList.toggle('hidden',!scanOn);if(!scanOn)return;const marking=nowMs<scanUntil;const wait=marking?scanUntil-nowMs:Math.max(0,scanCdUntil-nowMs);const n=wait?Math.ceil(wait/1000):0;scanEl.classList.toggle('on',marking);scanEl.innerHTML=`<span class="pi">📡</span>${n?`<b class="cd">${n}</b>`:''}`;scanEl.title=marking?`Enemies marked · ${n}s`:(n?`Scan ready in ${n}s`:'Scan ready')}
  function use(){const d=activeDef();if(!d||!A.inGame()||C.hub||!me.alive)return false;if(d.ride)return toggleRide();const now=performance.now();if(now<cdUntil||now<(use.t||0))return false;const pw=myPw(d);
   if(d.ab==='scout'){markers();scan={t:now,d:5000*pw};dur=26000/pw;cdUntil=now+dur;A.toast&&A.toast(`${d.name} scans the area 📡`)}
   else if(d.ab==='decoy'){dur=32000/pw;cdUntil=now+dur;A.send({t:'pab',k:'decoy'});A.toast&&A.toast(`${d.name} drops a decoy 🎭`)}
@@ -210,7 +211,7 @@ export function initSidekicks(A){
   else if(m.k==='lick'){const f=F.get(m.id===me.id?'me':m.id);if(f){f.lickUntil=performance.now()+650;if(f.g.userData.rig)f.g.userData.rig.flick=performance.now()}}
   else if(m.k==='cloak'){const until=performance.now()+(m.d||10)*1000;if(m.id===me.id){me.cloakUntil=until;cdUntil=performance.now()+(m.cd||15)*1000;dur=(m.cd||15)*1000;A.toast&&A.toast('Fizzy cloaks you')}else{const q=C.players[m.id];if(q)q.cloakUntil=until}}
   else if(m.k==='cloakoff'){if(m.id===me.id)me.cloakUntil=0;else{const q=C.players[m.id];if(q)q.cloakUntil=0}}
-  else if(m.k==='omniscan'&&m.id===me.id){markers();scan={t:performance.now(),d:(m.d||4)*1000}}
+  else if(m.k==='omniscan'&&m.id===me.id){markers();const now=performance.now();scan={t:now,d:(m.d||4)*1000};scanUntil=now+scan.d;scanCdUntil=now+((m.cd||OMNI_MARK.cd[myTier()-1])||10)*1000}
   else if(m.k==='phase'||m.k==='frost'||m.k==='mark'||m.k==='bolt'||m.k==='nomark')clientFx2(m,FXX);
   else if(m.k==='wall'||m.k==='swim'||m.k==='mirror'||m.k==='lowg'||m.k==='pullring'||m.k==='nopull'||m.k==='phx')clientFx3(m,FXX);
   else if(m.k==='decoy'){const h=holoMk();h.position.set(m.x,m.y,m.z);h.rotation.y=m.yaw||0;h.userData.t=performance.now();h.userData.d=(m.d||6)*1000;root.add(h);holos.push(h)}}
@@ -266,7 +267,7 @@ export function hostPets(X,dt){const H=X.H();if(!H||H.phase!=='play')return;cons
   if(d.ab==='omni'){hostOmni(X,p,S,H,pw,tr,dt);continue}
   if(d.ab==='lantern'||d.ab==='tide'||d.ab==='sting'||d.ab==='dazzle'){hostSecret(X,p,S,H,d.ab,pw,dt);continue}
   if(d.ab==='spin'&&p.ride)hostSpinGrab(X,p,S,H);
-  if(d.ab==='veil'&&tickCloak(p,t))X.bcast({t:'pfx',k:'cloakoff',id:p.id});
+  if(d.ab==='veil'){hostMark(X,p,S,H,tr);if(tickCloak(p,t))X.bcast({t:'pfx',k:'cloakoff',id:p.id})}
   if(d.ab==='guard'){if(t<S.a||H.noFight)continue;const R=5+pw;let best=null,bd=1e9;for(const q of X.plist()){if(q.id===p.id||!q.alive||q.down||q.air||(q.prot&&t<q.prot)||!X.enemy(p,q))continue;const dd=Math.hypot(q.p[0]-p.p[0],q.p[1]-p.p[1],q.p[2]-p.p[2]);if(dd>R||dd>=bd||!X.los(p,q))continue;bd=dd;best=q}
    if(best){S.a=t+5.4-pw*1.2;X.bcast({t:'pfx',k:'zap',id:p.id,v:best.id});X.damage(best,Math.round(6+4*pw),p.id,false,'fists')}else S.a=t+.4}
   else if(d.ab==='medic'){if(p.hp<100&&t-(p.hurtT||0)>4){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+1.4*pw*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}}

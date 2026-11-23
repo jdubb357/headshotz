@@ -16,6 +16,8 @@ function nearestEnemy(X,p,H,R){let best=null,bd=1e9;const t=H.t;
 // Passives from every buddy, plus a rotating active that does not lock out shooting (no bat form, no phase).
 // Sol's wall mark. Tier 3 holds for 10 s and can fire again after 10 s. Lower tiers mark for less time and wait longer.
 export const OMNI_MARK={dur:[5,7,10],cd:[18,14,10]};
+// One mark pulse for Sol and Fizzy. Duration and cooldown come from the pet's tier. The cloak timer is S.cd, so this never touches it.
+export function hostMark(X,p,S,H,tr){const t=H.t;const mi=Math.max(0,Math.min(2,(tr|0)-1));if(t<(S.mk||0))return false;S.mk=t+OMNI_MARK.cd[mi];X.bcast({t:'pfx',k:'omniscan',id:p.id,d:OMNI_MARK.dur[mi],cd:OMNI_MARK.cd[mi]});return true}
 export function hostOmni(X,p,S,H,pw,tr,dt){const t=H.t;
  if(t>=(S.g||0)&&!H.noFight){const best=nearestEnemy(X,p,H,5+pw);if(best){S.g=t+4.2;X.bcast({t:'pfx',k:'zap',id:p.id,v:best.id});X.damage(best,Math.round(8+4*pw),p.id,false,'fists')}else S.g=t+.35}
  if(p.hp<100){const o=Math.floor(p.hp);p.hp=Math.min(100,p.hp+omniHealRate(pw,t-(p.hurtT||0)>4)*dt);if(Math.floor(p.hp)!==o)X.bcast({t:'hp',id:p.id,hp:Math.round(p.hp)})}
@@ -23,8 +25,7 @@ export function hostOmni(X,p,S,H,pw,tr,dt){const t=H.t;
  if(t>=(S.mag||0)){S.mag=t+.35;grabNearby(H.br,p,6.5+pw,[1,2],(who,id)=>X.take(who,id,true),4)}
  S.fl=S.fl||[];if(t>=(S.fd||8)){S.fl=S.fl.filter(x=>t-x<360);if(S.fl.length<4){S.fl.push(t);S.fd=t+60/Math.max(.6,pw);X.toPlayer(p.id,{t:'pdia',n:1})}else S.fd=t+20}
  if(S.fire&&t<S.fire.until&&t>=(S.fire.next||0)&&!H.noFight){const best=nearestEnemy(X,p,H,50);if(best){S.fire.next=t+1.4;X.bcast({t:'pfx',k:'fball',id:p.id,v:best.id});X.damage(best,40,p.id,false,'fists')}else S.fire.next=t+.3}
- const mi=Math.max(0,Math.min(2,(tr|0)-1));
- if(t>=(S.mk||0)){S.mk=t+OMNI_MARK.cd[mi];X.bcast({t:'pfx',k:'omniscan',id:p.id,d:OMNI_MARK.dur[mi]})}
+ hostMark(X,p,S,H,tr);
  if(t>=(S.auto||10)){S.auto=t+16;const step=(S.step=(S.step||0)+1)%4;
   if(step===1){p.decoy=Math.max(p.decoy||0,t+5);X.bcast({t:'pfx',k:'decoy',id:p.id,x:p.p[0],y:p.p[1],z:p.p[2],yaw:p.p[3]||0,d:5})}
   else if(step===2){S.fire={until:t+3.2,next:t+.3};X.bcast({t:'pfx',k:'fireon',id:p.id,d:3.2,cd:16})}
