@@ -44,6 +44,41 @@ export function mapPoint(wx, wz, cam, W, H, base) {
   const span = mapSpan(base, cam.z), sc = W / span;
   return [(wx - cam.cx) * sc + W / 2, (wz - cam.cz) * sc + H / 2];
 }
+// Inverse of mapPoint. A tap at (px, py) lands on this world spot at any zoom.
+export function mapWorld(px, py, cam, W, H, base) {
+  const span = mapSpan(base, cam.z), sc = W / span || 1;
+  return [cam.cx + (px - W / 2) / sc, cam.cz + (py - H / 2) / sc];
+}
+// A finger that barely moves is a tap. A longer move pans. Two fingers pinch.
+export const TAP_PX = 12;
+export function mapGesture(dx, dy, pointers) {
+  if ((pointers || 1) > 1) return 'pinch';
+  return Math.hypot(+dx || 0, +dy || 0) > TAP_PX ? 'pan' : 'tap';
+}
+export function markerHit(px, py, wx, wz, cam, W, H, base, slop) {
+  const p = mapPoint(wx, wz, cam, W, H, base);
+  return Math.hypot(px - p[0], py - p[1]) <= (slop > 0 ? slop : 18);
+}
+// Keep a minimap blip inside the circle. edge means it was pulled in; ang points outward.
+export function edgeClamp(x, y, cx, cy, r) {
+  const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+  if (!(r > 0) || !(d > r)) return { x, y, edge: false, ang: d ? Math.atan2(dy, dx) : 0 };
+  return { x: cx + dx / d * r, y: cy + dy / d * r, edge: true, ang: Math.atan2(dy, dx) };
+}
+// One waypoint per player. A new place moves that player's mark and leaves the others.
+export function placeMark(marks, id, x, z) {
+  const next = Object.assign({}, marks || {});
+  next[id] = { x: +x || 0, z: +z || 0 };
+  return next;
+}
+export function clearMark(marks, id) {
+  const next = Object.assign({}, marks || {});
+  delete next[id];
+  return next;
+}
+export function markVisible(id, selfId, sameSquad) {
+  return id === selfId || !!sameSquad;
+}
 
 // 0 when the walker should stay quiet. Closer walkers are more opaque.
 export function stepOpacity(dist, spd, o) {

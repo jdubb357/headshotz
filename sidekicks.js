@@ -188,13 +188,12 @@ export function initSidekicks(A){
  const beamG=new THREE.CylinderGeometry(.03,.03,1,6);beamG.rotateX(Math.PI/2);beamG.translate(0,0,.5);
  function holoMk(){const g=new THREE.Group();const m=new THREE.MeshBasicMaterial({color:0x46e0ff,transparent:true,opacity:.45,depthWrite:false,blending:THREE.AdditiveBlending,wireframe:false});const add=(geo,x,y,z,sx,sy,sz)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);g.add(o)};add(GE.sph,0,1.62,0,.16,.19,.16);add(GE.box,0,1.2,0,.3,.5,.18);for(const s of[-1,1]){add(GE.box,s*.2,1.15,0,.08,.5,.1);add(GE.box,s*.09,.45,0,.12,.85,.14)}g.userData.m=m;return g}
  // ---- ability state
- let cdUntil=0,dur=0,scanUntil=0,scanCdUntil=0;const btn=document.getElementById('bPet'),scanEl=document.getElementById('bScan');
+ let cdUntil=0,dur=0;const btn=document.getElementById('bPet');
  const myDef=()=>SK_BY[P0.pet];const myTier=()=>tierOf({pt:P0.pt&&P0.pt[P0.pet]});const myPw=d=>d.pw*TM[myTier()-1];
  function mounted(){return me.ride&&me.ride.on?me.ride:null}
  function toggleRide(){const d=myDef();if(!d||!d.ride||!A.inGame()||!me.alive)return false;const on=!(me.ride&&me.ride.on);const st=on?rideOf(d.id,myTier()):null;me.ride=st&&on?{on:1,...st}:null;A.send({t:'pab',k:'ride',on:on?1:0});A.toast&&A.toast(on?`Riding ${d.name}`:`${d.name} hops down`);return true}
  function activeDef(){const d=myDef();if(d&&d.ride)return d;return d&&AB[d.ab]&&AB[d.ab].act?d:null}
- function setBtn(){if(!btn)return;const d=activeDef();const show=!!d&&A.inGame()&&!C.hub&&me.alive;btn.classList.toggle('hidden',!show);const nowMs=performance.now();if(show){const left=d.ride?0:Math.max(0,cdUntil-nowMs);const secs=left?Math.ceil(left/1000):0;btn.innerHTML=`<span class="pi">${d.ride?(mounted()?'⬇':'🏇'):AB[d.ab].ic}</span>${secs?`<b class="cd">${secs}</b>`:''}`;btn.style.setProperty('--cd',left?String(Math.round(100*(1-left/(dur||1)))):'100');btn.classList.toggle('cool',left>0);btn.title=d.ride?(mounted()?'Dismount (R)':'Ride (R)'):(AB[d.ab].n+(secs?` · ${secs}s`:''))}
-  if(!scanEl)return;const scanOn=!!myDef()&&myDef().ab==='veil'&&A.inGame()&&!C.hub&&me.alive;scanEl.classList.toggle('hidden',!scanOn);if(!scanOn)return;const marking=nowMs<scanUntil;const wait=marking?scanUntil-nowMs:Math.max(0,scanCdUntil-nowMs);const n=wait?Math.ceil(wait/1000):0;scanEl.classList.toggle('on',marking);scanEl.innerHTML=`<span class="pi">📡</span>${n?`<b class="cd">${n}</b>`:''}`;scanEl.title=marking?`Enemies marked · ${n}s`:(n?`Scan ready in ${n}s`:'Scan ready')}
+ function setBtn(){if(!btn)return;const d=activeDef();const show=!!d&&A.inGame()&&!C.hub&&me.alive;btn.classList.toggle('hidden',!show);const nowMs=performance.now();if(show){const left=d.ride?0:Math.max(0,cdUntil-nowMs);const secs=left?Math.ceil(left/1000):0;btn.innerHTML=`<span class="pi">${d.ride?(mounted()?'⬇':'🏇'):AB[d.ab].ic}</span>${secs?`<b class="cd">${secs}</b>`:''}`;btn.style.setProperty('--cd',left?String(Math.round(100*(1-left/(dur||1)))):'100');btn.classList.toggle('cool',left>0);btn.title=d.ride?(mounted()?'Dismount (R)':'Ride (R)'):(AB[d.ab].n+(secs?` · ${secs}s`:''))}}
  function use(){const d=activeDef();if(!d||!A.inGame()||C.hub||!me.alive)return false;if(d.ride)return toggleRide();const now=performance.now();if(now<cdUntil||now<(use.t||0))return false;const pw=myPw(d);
   if(d.ab==='scout'){markers();scan={t:now,d:5000*pw};dur=26000/pw;cdUntil=now+dur;A.toast&&A.toast(`${d.name} scans the area 📡`)}
   else if(d.ab==='decoy'){dur=32000/pw;cdUntil=now+dur;A.send({t:'pab',k:'decoy'});A.toast&&A.toast(`${d.name} drops a decoy 🎭`)}
@@ -211,7 +210,7 @@ export function initSidekicks(A){
   else if(m.k==='lick'){const f=F.get(m.id===me.id?'me':m.id);if(f){f.lickUntil=performance.now()+650;if(f.g.userData.rig)f.g.userData.rig.flick=performance.now()}}
   else if(m.k==='cloak'){const until=performance.now()+(m.d||10)*1000;if(m.id===me.id){me.cloakUntil=until;cdUntil=performance.now()+(m.cd||15)*1000;dur=(m.cd||15)*1000;A.toast&&A.toast('Fizzy cloaks you')}else{const q=C.players[m.id];if(q)q.cloakUntil=until}}
   else if(m.k==='cloakoff'){if(m.id===me.id)me.cloakUntil=0;else{const q=C.players[m.id];if(q)q.cloakUntil=0}}
-  else if(m.k==='omniscan'&&m.id===me.id){markers();const now=performance.now();scan={t:now,d:(m.d||4)*1000};scanUntil=now+scan.d;scanCdUntil=now+((m.cd||OMNI_MARK.cd[myTier()-1])||10)*1000}
+  else if(m.k==='omniscan'&&m.id===me.id){markers();scan={t:performance.now(),d:(m.d||4)*1000}}
   else if(m.k==='phase'||m.k==='frost'||m.k==='mark'||m.k==='bolt'||m.k==='nomark')clientFx2(m,FXX);
   else if(m.k==='wall'||m.k==='swim'||m.k==='mirror'||m.k==='lowg'||m.k==='pullring'||m.k==='nopull'||m.k==='phx')clientFx3(m,FXX);
   else if(m.k==='decoy'){const h=holoMk();h.position.set(m.x,m.y,m.z);h.rotation.y=m.yaw||0;h.userData.t=performance.now();h.userData.d=(m.d||6)*1000;root.add(h);holos.push(h)}}
